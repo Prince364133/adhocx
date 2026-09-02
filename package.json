@@ -1,0 +1,26 @@
+{
+  "name": "adhocx-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AdhocX B2B Cab Sourcing & Fulfillment Marketplace",
+  "packageManager": "pnpm@10.17.1",
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:api": "turbo run dev --filter=@adhocx/api",
+    "dev:admin": "turbo run dev --filter=@adhocx/admin",
+    "dev:mobile": "turbo run dev --filter=@adhocx/mobile",
+
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "test:unit": "turbo run test:unit",
+    "test:contracts": "turbo run test --filter=@adhocx/contracts",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.5.2",
+    "turbo": "^2.4.4",
+    "typescript": "^5.7.3"
+  }
+}

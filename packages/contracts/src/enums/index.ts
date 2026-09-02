@@ -1,0 +1,92 @@
+export enum UserRole {
+  VENDOR = 'VENDOR',
+  DRIVER = 'DRIVER',
+  ADMIN = 'ADMIN',
+}
+
+export enum UserStatus {
+  ACTIVE = 'ACTIVE',
+  SUSPENDED = 'SUSPENDED',
+  DEACTIVATED = 'DEACTIVATED',
+}
+
+export enum VerificationStatus {
+  PENDING = 'PENDING',
+  UNDER_REVIEW = 'UNDER_REVIEW',
+  VERIFIED = 'VERIFIED',
+  REJECTED = 'REJECTED',
+  SUSPENDED = 'SUSPENDED',
+}
+
+export enum DriverAvailability {
+  OFFLINE = 'OFFLINE',
+  AVAILABLE = 'AVAILABLE',
+  BUSY = 'BUSY',
+  UNAVAILABLE = 'UNAVAILABLE',
+}
+
+export enum VehicleType {
+  SEDAN = 'SEDAN',
+  SUV = 'SUV',
+  HATCHBACK = 'HATCHBACK',
+  TEMPO_TRAVELLER = 'TEMPO_TRAVELLER',
+  BUS = 'BUS',
+}
+
+export enum RequirementStatus {
+  DRAFT = 'DRAFT',
+  POSTED = 'POSTED',
+  DISPATCHING = 'DISPATCHING',
+  PARTIALLY_FULFILLED = 'PARTIALLY_FULFILLED',
+  FULFILLED = 'FULFILLED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+  NO_DRIVER_AVAILABLE = 'NO_DRIVER_AVAILABLE',
+}
+
+export enum OfferStatus {
+  CREATED = 'CREATED',
+  SENT = 'SENT',
+  ACCEPTED = 'ACCEPTED',
+  DECLINED = 'DECLINED',
+  EXPIRED = 'EXPIRED',
+  CANCELLED = 'CANCELLED',
+}
+
+export enum AssignmentStatus {
+  PENDING = 'PENDING',
+  CONFIRMED = 'CONFIRMED',
+  CANCELLED = 'CANCELLED',
+  COMPLETED = 'COMPLETED',
+}
+
+export enum TripStatus {
+  ASSIGNED = 'ASSIGNED',
+  ARRIVED = 'ARRIVED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+  NO_SHOW = 'NO_SHOW',
+}
+
+export enum PaymentStatus {
+  PENDING = 'PENDING',
+  AUTHORIZED = 'AUTHORIZED',
+  CAPTURED = 'CAPTURED',
+  FAILED = 'FAILED',
+  REFUNDED = 'REFUNDED',
+}
+
+export enum SettlementStatus {
+  PENDING = 'PENDING',
+  PROCESSING = 'PROCESSING',
+  SETTLED = 'SETTLED',
+  FAILED = 'FAILED',
+  CANCELLED = 'CANCELLED',
+}
+
+export enum LedgerEntryType {
+  CREDIT = 'CREDIT',
+  DEBIT = 'DEBIT',
+}

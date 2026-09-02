@@ -1,0 +1,11 @@
+{
+  "name": "@adhocx/config",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Shared configuration for AdhocX monorepo",
+  "main": "index.js",
+  "files": [
+    "tsconfig.base.json",
+    "eslint.base.js"
+  ]
+}

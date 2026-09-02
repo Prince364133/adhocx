@@ -1,0 +1,159 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { PaymentsService } from '../src/modules/payments/payments.service';
+import { DatabaseService } from '../src/database/database.service';
+import { NotificationsService } from '../src/modules/notifications/notifications.service';
+import { AuditService } from '../src/modules/audit/audit.service';
+import { PaymentStatus } from '@adhocx/contracts';
+
+describe('PaymentsService Unit Tests', () => {
+  let service: PaymentsService;
+  let db: any;
+  let notifications: any;
+  let audit: any;
+
+  beforeEach(async () => {
+    db = {
+      vendor: {
+        findUnique: jest.fn(),
+      },
+      requirement: {
+        findUnique: jest.fn(),
+      },
+      payment: {
+        findUnique: jest.fn(),
+        findMany: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+      },
+    };
+
+    notifications = {
+      emitEvent: jest.fn(),
+    };
+
+    audit = {
+      log: jest.fn().mockResolvedValue(undefined),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        PaymentsService,
+        { provide: DatabaseService, useValue: db },
+        { provide: NotificationsService, useValue: notifications },
+        { provide: AuditService, useValue: audit },
+      ],
+    }).compile();
+
+    service = module.get<PaymentsService>(PaymentsService);
+  });
+
+  it('should initiate payment for a requirement in PENDING status', async () => {
+    const now = new Date();
+    db.vendor.findUnique.mockResolvedValue({ id: 'vnd-1', userId: 'usr-vnd-1' });
+    db.requirement.findUnique.mockResolvedValue({ id: 'req-1', vendorId: 'vnd-1' });
+    db.payment.create.mockResolvedValue({
+      id: 'pay-1',
+      requirementId: 'req-1',
+      vendorId: 'vnd-1',
+      amount: 3000,
+      status: PaymentStatus.PENDING,
+      paymentMethod: 'ONLINE_UPI',
+      transactionRef: 'pay_ref_123',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const result = await service.initiatePayment('usr-vnd-1', {
+      requirementId: 'req-1',
+      amount: 3000,
+      paymentMethod: 'ONLINE_UPI',
+    });
+
+    expect(result.id).toBe('pay-1');
+    expect(result.status).toBe(PaymentStatus.PENDING);
+    expect(notifications.emitEvent).toHaveBeenCalledWith(
+      'vendor:vnd-1',
+      'PAYMENT_INITIATED',
+      expect.anything(),
+    );
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'PAYMENT_INITIATED' }),
+    );
+  });
+
+  it('should reject payment initiation if requirement does not belong to vendor', async () => {
+    db.vendor.findUnique.mockResolvedValue({ id: 'vnd-1', userId: 'usr-vnd-1' });
+    db.requirement.findUnique.mockResolvedValue({ id: 'req-1', vendorId: 'vnd-other' });
+
+    await expect(
+      service.initiatePayment('usr-vnd-1', {
+        requirementId: 'req-1',
+        amount: 3000,
+      }),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('should process payment.captured webhook and transition to CAPTURED', async () => {
+    db.payment.findUnique.mockResolvedValue({
+
+      id: 'pay-1',
+      requirementId: 'req-1',
+      vendorId: 'vnd-1',
+      amount: 3000,
+      status: PaymentStatus.PENDING,
+      requirement: { id: 'req-1' },
+    });
+
+    db.payment.update.mockResolvedValue({
+      id: 'pay-1',
+      status: PaymentStatus.CAPTURED,
+      transactionRef: 'pg_tx_999',
+    });
+
+    const result = await service.handleWebhook(
+      'razorpay',
+      {
+        event: 'payment.captured',
+        paymentId: 'pay-1',
+        transactionRef: 'pg_tx_999',
+      },
+      'test_secret',
+    );
+
+    expect(result.success).toBe(true);
+    expect(db.payment.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'pay-1' },
+        data: expect.objectContaining({ status: PaymentStatus.CAPTURED }),
+      }),
+    );
+    expect(notifications.emitEvent).toHaveBeenCalledWith(
+      'vendor:vnd-1',
+      'PAYMENT_SUCCESS',
+      expect.anything(),
+    );
+  });
+
+  it('should reject webhook if secret signature is invalid', async () => {
+    await expect(
+      service.handleWebhook(
+        'razorpay',
+        { event: 'payment.captured', paymentId: 'pay-1' },
+        'invalid_secret',
+      ),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('should throw NotFoundException if payment not found during webhook', async () => {
+    db.payment.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.handleWebhook(
+        'razorpay',
+        { event: 'payment.captured', paymentId: 'pay-unknown' },
+        'test_secret',
+      ),
+    ).rejects.toThrow(NotFoundException);
+  });
+});
