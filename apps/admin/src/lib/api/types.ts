@@ -14,37 +14,82 @@ export interface DriverListItem {
   id: string;
   fullName: string;
   phone: string;
-  vehiclePlate: string;
-  vehicleType: string;
-  verificationStatus: string;
-  availabilityStatus: string;
-  walletBalance: number;
+  vehiclePlate?: string;
+  vehicleType?: string;
+  vehicleModel?: string;
+  vehicleColor?: string;
+  verificationStatus: 'PENDING' | 'UNDER_REVIEW' | 'VERIFIED' | 'REJECTED' | 'SUSPENDED';
+  availabilityStatus?: string;
+  walletBalance?: number;
+  rejectionReason?: string;
+  currentLat?: number;
+  currentLng?: number;
+  currentLocationAddress?: string;
+  dlNumber?: string;
+  panNumber?: string;
+  rcNumber?: string;
+  profilePhotoUrl?: string;
+  dlFrontUrl?: string;
+  dlBackUrl?: string;
+  rcDocUrl?: string;
+  insuranceDocUrl?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface DriverKycDocument {
   id: string;
-  documentType: string;
+  documentType: 'DL_FRONT' | 'DL_BACK' | 'RC_BOOK' | 'INSURANCE' | 'VEHICLE_PHOTO' | 'AADHAAR';
+  title: string;
   fileUrl: string;
   verified: boolean;
   notes?: string;
-  createdAt: string;
+  uploadedAt: string;
 }
 
 export interface DriverDetail extends DriverListItem {
   documents: DriverKycDocument[];
-  tripsCount: number;
+  tripsCount?: number;
 }
 
 export interface VendorListItem {
   id: string;
   companyName: string;
+  organizationName?: string;
   contactPerson: string;
+  fullName?: string;
   phone: string;
   email?: string;
-  verificationStatus: string;
-  requirementsCount: number;
+  gstNumber?: string;
+  address?: string;
+  verificationStatus: 'PENDING' | 'UNDER_REVIEW' | 'VERIFIED' | 'REJECTED';
+  rejectionReason?: string;
+  requirementsCount?: number;
   createdAt: string;
+  updatedAt?: string;
+}
+
+export interface VerificationItem {
+  id: string;
+  entityType: 'DRIVER' | 'VENDOR';
+  name: string;
+  organizationName?: string;
+  phone: string;
+  verificationStatus: 'PENDING' | 'UNDER_REVIEW' | 'VERIFIED' | 'REJECTED';
+  rejectionReason?: string;
+  vehiclePlate?: string;
+  vehicleType?: string;
+  vehicleModel?: string;
+  gstNumber?: string;
+  address?: string;
+  location?: {
+    latitude: number;
+    longitude: number;
+    address: string;
+  };
+  documents: DriverKycDocument[];
+  submittedAt: string;
+  updatedAt?: string;
 }
 
 export interface RequirementListItem {

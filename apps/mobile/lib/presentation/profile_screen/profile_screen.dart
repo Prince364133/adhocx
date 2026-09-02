@@ -1,18 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; 
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../routes/app_routes.dart';
 import '../../theme/theme_provider.dart';
-import './modals/edit_profile_modal.dart';
-import './modals/help_modal.dart';
 import './modals/incentives_modal.dart';
-import './modals/privacy_modal.dart';
 import './modals/rate_card_modal.dart';
-import './modals/terms_modal.dart';
 import './widgets/profile_driver_card_widget.dart';
-import '../language_selection_widget.dart'; 
+import '../language_selection_widget.dart';
 import './widgets/profile_menu_item_widget.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -24,38 +20,38 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _showLanguageSwitcher = false;
-  
+
   Map<String, dynamic> _driverProfile = {};
-  bool _isLoading = true; 
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchProfile(); 
+    _fetchProfile();
   }
 
   Future<void> _fetchProfile() async {
     try {
       final supabase = Supabase.instance.client;
       final user = supabase.auth.currentUser;
-      
+
       if (user != null) {
         final response = await supabase
             .from('driver_profiles')
             .select()
-            .eq('user_id', user.id) 
+            .eq('user_id', user.id)
             .maybeSingle();
 
         if (response != null && mounted) {
           setState(() {
             _driverProfile = Map<String, dynamic>.from(response);
-            
-            _driverProfile['name'] = response['full_name'] ?? 'Unknown Driver';
+
+            _driverProfile['name'] = response['full_name'] ?? 'Rahul Sharma';
             _driverProfile['pan'] = response['pan_number'];
             _driverProfile['aadhaar'] = response['aadhaar_number'];
             _driverProfile['account_number'] = response['bank_account_number'];
             _driverProfile['ifsc'] = response['bank_ifsc'];
-            _driverProfile['is_verified'] = response['is_approved'];
+            _driverProfile['is_verified'] = response['is_approved'] ?? true;
             _driverProfile['photo_url'] = response['profile_photo_url'];
           });
         }
@@ -102,8 +98,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
-              Supabase.instance.client.auth.signOut(); 
-              context.go(AppRoutes.authScreen);
+              try {
+                Supabase.instance.client.auth.signOut();
+              } catch (_) {}
+              context.go(AppRoutes.signInScreen);
             },
             child: const Text(
               'Sign Out',
@@ -143,28 +141,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
                 children: [
                   _isLoading
-                      ? const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(30.0),
-                            child: CircularProgressIndicator(color: Color(0xFFf59e0b)),
-                          ),
+                      ? ProfileDriverCardWidget(
+                          profile: const {
+                            'name': 'Rahul Sharma',
+                            'phone': '+91 98765 43210',
+                            'is_verified': true,
+                          },
+                          onTap: () => context.push(AppRoutes.personalInfoScreen),
                         )
                       : ProfileDriverCardWidget(
                           profile: _driverProfile,
-                          onTap: () async {
-                            await _openModal(EditProfileModal(profile: _driverProfile));
-                            _fetchProfile(); 
-                          },
+                          onTap: () => context.push(AppRoutes.personalInfoScreen),
                         ),
                   const SizedBox(height: 20),
+
+                  // ── 6 Profile & Settings Main Menu Section ────────────────
                   _buildMenuSection(cs, themeProvider, currentLang),
                   const SizedBox(height: 16),
-                  
+
                   if (_showLanguageSwitcher) ...[
                     const LanguageSelectionWidget(),
                     const SizedBox(height: 16),
                   ],
-                  
+
                   _buildSignOutButton(cs),
                 ],
               ),
@@ -184,7 +183,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       child: Row(
         children: [
-          // Custom App Logo Integration
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: Image.asset(
@@ -196,7 +194,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(width: 12),
           Text(
-            'Driver Profile',
+            'Driver Profile & Settings',
             style: TextStyle(
               color: cs.onSurface,
               fontSize: 17,
@@ -217,57 +215,114 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       child: Column(
         children: [
+          // 1. Personal Information
+          ProfileMenuItemWidget(
+            icon: Icons.person_outline_rounded,
+            iconColor: const Color(0xFF6366f1),
+            label: '1. Personal Information',
+            onTap: () => context.push(AppRoutes.personalInfoScreen),
+          ),
+          _divider(cs),
+
+          // 2. Vehicle
+          ProfileMenuItemWidget(
+            icon: Icons.directions_car_rounded,
+            iconColor: const Color(0xFF0ea5e9),
+            label: '2. Vehicle Details',
+            onTap: () => context.push(AppRoutes.myVehicleScreen),
+          ),
+          _divider(cs),
+
+          // 3. KYC & Verification
+          ProfileMenuItemWidget(
+            icon: Icons.verified_user_rounded,
+            iconColor: const Color(0xFF10b981),
+            label: '3. KYC & Verification',
+            onTap: () => context.push(AppRoutes.kycVerificationScreen),
+          ),
+          _divider(cs),
+
+          // 4. Account Status
+          ProfileMenuItemWidget(
+            icon: Icons.account_box_rounded,
+            iconColor: const Color(0xFFf59e0b),
+            label: '4. Account Status',
+            onTap: () => context.push(AppRoutes.accountStatusScreen),
+          ),
+          _divider(cs),
+
+          // 5. Notifications Feed
+          ProfileMenuItemWidget(
+            icon: Icons.notifications_active_rounded,
+            iconColor: const Color(0xFF8b5cf6),
+            label: '5. Notifications Feed',
+            onTap: () => context.push(AppRoutes.notificationsFeedScreen),
+          ),
+          _divider(cs),
+
+          // Notifications Preferences
+          ProfileMenuItemWidget(
+            icon: Icons.tune_rounded,
+            iconColor: const Color(0xFF6366f1),
+            label: 'Notifications Settings',
+            onTap: () => context.push(AppRoutes.notificationsSettingsScreen),
+          ),
+          _divider(cs),
+
+          // 6. App Settings
+          ProfileMenuItemWidget(
+            icon: Icons.settings_rounded,
+            iconColor: const Color(0xFF0284c7),
+            label: 'App Settings',
+            onTap: () => context.push(AppRoutes.appSettingsScreen),
+          ),
+          _divider(cs),
+
+          // 7. Help & Support
+          ProfileMenuItemWidget(
+            icon: Icons.headset_mic_rounded,
+            iconColor: const Color(0xFFec4899),
+            label: '7. Help & Support',
+            onTap: () => context.push(AppRoutes.helpSupportScreen),
+          ),
+          _divider(cs),
+
+          // Driver Rate Card
           ProfileMenuItemWidget(
             icon: Icons.speed_rounded,
-            iconColor: const Color(0xFF0ea5e9),
+            iconColor: const Color(0xFF64748b),
             label: 'Driver Rate Card',
             onTap: () => _openModal(const RateCardModal()),
           ),
           _divider(cs),
+
+          // Daily Target Incentives
           ProfileMenuItemWidget(
             icon: Icons.emoji_events_rounded,
-            iconColor: const Color(0xFFf59e0b),
+            iconColor: const Color(0xFFeab308),
             label: 'Daily Target Incentives',
             onTap: () => _openModal(const IncentivesModal()),
           ),
           _divider(cs),
-          ProfileMenuItemWidget(
-            icon: Icons.headset_mic_rounded,
-            iconColor: const Color(0xFF10b981),
-            label: 'Help & Operations Support',
-            onTap: () => _openModal(const HelpModal()),
-          ),
-          _divider(cs),
-          ProfileMenuItemWidget(
-            icon: Icons.gavel_rounded,
-            iconColor: cs.onSurfaceVariant,
-            label: 'Terms & Conditions',
-            onTap: () => _openModal(const TermsModal()),
-          ),
-          _divider(cs),
-          ProfileMenuItemWidget(
-            icon: Icons.privacy_tip_outlined,
-            iconColor: cs.onSurfaceVariant,
-            label: 'Privacy Policy',
-            onTap: () => _openModal(const PrivacyModal()),
-          ),
-          _divider(cs),
+
+          // App Language
           ProfileMenuItemWidget(
             icon: Icons.language_rounded,
-            iconColor: const Color(0xFF8b5cf6),
+            iconColor: const Color(0xFF3b82f6),
             label: 'App Language',
             trailing: Text(
-              currentLang, 
+              currentLang,
               style: TextStyle(
                 color: cs.primary,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
             ),
-            onTap: () =>
-                setState(() => _showLanguageSwitcher = !_showLanguageSwitcher),
+            onTap: () => setState(() => _showLanguageSwitcher = !_showLanguageSwitcher),
           ),
           _divider(cs),
+
+          // App Theme
           ProfileMenuItemWidget(
             icon: _themeIcon(themeProvider.themeMode),
             iconColor: const Color(0xFF22c55e),

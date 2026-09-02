@@ -1,4 +1,4 @@
-import './api_client.dart';
+import '../core/networking/api_client.dart';
 
 class DriverService {
   static DriverService? _instance;

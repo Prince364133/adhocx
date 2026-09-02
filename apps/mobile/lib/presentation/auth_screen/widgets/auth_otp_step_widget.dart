@@ -76,7 +76,7 @@ class _AuthOtpStepWidgetState extends State<AuthOtpStepWidget> {
     });
 
     try {
-      await AuthService.instance.requestOtp(widget.phone);
+      await AuthService.instance.requestOtp(phone: widget.phone);
       if (!mounted) return;
       setState(() => _isLoading = false);
       Fluttertoast.showToast(msg: 'New OTP code sent!');
@@ -99,7 +99,7 @@ class _AuthOtpStepWidgetState extends State<AuthOtpStepWidget> {
     });
 
     try {
-      final user = await AuthService.instance.verifyOtp(
+      final authResult = await AuthService.instance.verifyOtp(
         phone: widget.phone,
         otp: otp,
         role: widget.role,
@@ -119,7 +119,7 @@ class _AuthOtpStepWidgetState extends State<AuthOtpStepWidget> {
             : 'Welcome back!',
       );
 
-      widget.onVerificationSuccess(user);
+      widget.onVerificationSuccess(authResult.user);
     } catch (e) {
       if (!mounted) return;
       setState(() {

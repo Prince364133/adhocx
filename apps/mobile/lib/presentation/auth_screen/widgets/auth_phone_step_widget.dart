@@ -88,7 +88,7 @@ class _AuthPhoneStepWidgetState extends State<AuthPhoneStepWidget> {
     });
 
     try {
-      await AuthService.instance.requestOtp(formattedPhone);
+      await AuthService.instance.requestOtp(phone: formattedPhone);
 
       if (!mounted) return;
       setState(() => _isLoading = false);

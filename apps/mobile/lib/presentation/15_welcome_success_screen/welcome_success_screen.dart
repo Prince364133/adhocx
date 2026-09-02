@@ -148,7 +148,7 @@ class WelcomeSuccessScreen extends StatelessWidget {
                   // ── Go to Home Action ────────────────────────────────────
                   AppPrimaryButton(
                     text: 'Go to Home',
-                    onPressed: () => context.go(AppRoutes.waitlistGateScreen),
+                    onPressed: () => context.go(AppRoutes.homeScreen),
                   ),
                   const SizedBox(height: AppSpacing.md),
                 ],

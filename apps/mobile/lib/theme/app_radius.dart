@@ -11,6 +11,7 @@ class AppRadius {
   static const double xl = 12.0; // Modals / bottom sheets
   static const double xxl = 16.0; // Large containers / brand cards
   static const double pill = 9999.0; // Status badges / pill buttons
+  static const double full = 9999.0;
 
   static final BorderRadius borderXs = BorderRadius.circular(xs);
   static final BorderRadius borderSm = BorderRadius.circular(sm);
@@ -19,4 +20,5 @@ class AppRadius {
   static final BorderRadius borderXl = BorderRadius.circular(xl);
   static final BorderRadius borderXxl = BorderRadius.circular(xxl);
   static final BorderRadius borderPill = BorderRadius.circular(pill);
+  static final BorderRadius borderFull = BorderRadius.circular(full);
 }

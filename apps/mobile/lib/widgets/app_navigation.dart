@@ -19,22 +19,34 @@ class _AppNavigationState extends State<AppNavigation> {
 
   static const List<_TabSpec> _tabs = [
     _TabSpec(
-      label: 'Trips',
-      icon: 'directions_car',
-      selectedIcon: 'directions_car',
+      label: 'Home',
+      icon: 'home_outlined',
+      selectedIcon: 'home',
       branchIndex: 0,
     ),
     _TabSpec(
-      label: 'Wallet',
+      label: 'Opportunities',
+      icon: 'explore_outlined',
+      selectedIcon: 'explore',
+      branchIndex: 1,
+    ),
+    _TabSpec(
+      label: 'Trips',
+      icon: 'directions_car',
+      selectedIcon: 'directions_car',
+      branchIndex: 2,
+    ),
+    _TabSpec(
+      label: 'Earnings',
       icon: 'account_balance_wallet',
       selectedIcon: 'account_balance_wallet',
-      branchIndex: 1,
+      branchIndex: 3,
     ),
     _TabSpec(
       label: 'Profile',
       icon: 'person_outline',
       selectedIcon: 'person',
-      branchIndex: 2,
+      branchIndex: 4,
     ),
   ];
 
@@ -103,12 +115,12 @@ class _AppNavigationState extends State<AppNavigation> {
                             AnimatedContainer(
                               duration: const Duration(milliseconds: 250),
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
+                                horizontal: 14,
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
                                 color: isActive
-                                    ? const Color(0xFF22c55e).withAlpha(38)
+                                    ? const Color(0xFF6366f1).withAlpha(38)
                                     : Colors.transparent,
                                 borderRadius: BorderRadius.circular(999),
                               ),
@@ -117,24 +129,28 @@ class _AppNavigationState extends State<AppNavigation> {
                                     ? tab.selectedIcon
                                     : tab.icon,
                                 color: isActive
-                                    ? const Color(0xFF22c55e)
+                                    ? const Color(0xFF6366f1)
                                     : cs.onSurfaceVariant,
-                                size: 22,
+                                size: 18,
                               ),
                             ),
                             const SizedBox(height: 2),
                             AnimatedDefaultTextStyle(
                               duration: const Duration(milliseconds: 200),
                               style: TextStyle(
-                                fontSize: 11,
+                                fontSize: 9.5,
                                 fontWeight: isActive
                                     ? FontWeight.w600
                                     : FontWeight.w400,
                                 color: isActive
-                                    ? const Color(0xFF22c55e)
+                                    ? const Color(0xFF6366f1)
                                     : cs.onSurfaceVariant,
                               ),
-                              child: Text(tab.label),
+                              child: Text(
+                                tab.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ],
                         ),

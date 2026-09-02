@@ -1,6 +1,6 @@
 import { Controller, Post, Get, Body, Req, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse as SwaggerResponse } from '@nestjs/swagger';
-import { RequestOtpDto, VerifyOtpDto, RefreshTokenDto, AuthUserDto } from '@adhocx/contracts';
+import { RequestOtpDto, VerifyOtpDto, RefreshTokenDto, SocialAuthDto, SetPasswordDto, AuthUserDto } from '@adhocx/contracts';
 import { JwtAuthGuard, CurrentUser } from '../../common';
 import { AuthService } from './auth.service';
 
@@ -11,8 +11,8 @@ export class AuthController {
 
   @Post('otp/request')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Request OTP for login or registration' })
-  @SwaggerResponse({ status: 200, description: 'OTP requested successfully' })
+  @ApiOperation({ summary: 'Request OTP for Mobile Number or Email Address' })
+  @SwaggerResponse({ status: 200, description: 'OTP requested and dispatched via notification service' })
   async requestOtp(@Body() dto: RequestOtpDto) {
     return this.authService.requestOtp(dto);
   }
@@ -23,6 +23,24 @@ export class AuthController {
   @SwaggerResponse({ status: 200, description: 'Authentication successful' })
   async verifyOtp(@Body() dto: VerifyOtpDto) {
     return this.authService.verifyOtp(dto);
+  }
+
+  @Post('social')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Google / Apple Social Authentication with pre-verified email (Skips OTP)' })
+  @SwaggerResponse({ status: 200, description: 'Social login successful, tokens returned' })
+  async socialAuth(@Body() dto: SocialAuthDto) {
+    return this.authService.socialAuth(dto);
+  }
+
+  @Post('password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Set or update user password' })
+  @SwaggerResponse({ status: 200, description: 'Password updated successfully' })
+  async setPassword(@CurrentUser() user: AuthUserDto, @Body() dto: SetPasswordDto) {
+    return this.authService.setPassword(user.id, dto);
   }
 
   @Post('refresh')

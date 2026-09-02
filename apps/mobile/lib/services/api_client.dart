@@ -28,11 +28,11 @@ class ApiClient {
     if (fromEnv.isNotEmpty) return fromEnv;
 
     if (kIsWeb) {
-      return 'http://localhost:3000/api/v1';
+      return 'http://localhost:7001/api/v1';
     } else if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:3000/api/v1';
+      return 'http://10.0.2.2:7001/api/v1';
     } else {
-      return 'http://localhost:3000/api/v1';
+      return 'http://localhost:7001/api/v1';
     }
   }
 

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../routes/app_routes.dart';
+import '../../services/auth_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
@@ -25,6 +27,7 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   String _currentPassword = '';
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -33,7 +36,7 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
     super.dispose();
   }
 
-  void _handleContinue() {
+  Future<void> _handleContinue() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (_passwordController.text != _confirmPasswordController.text) {
@@ -44,12 +47,30 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
       return;
     }
 
-    Fluttertoast.showToast(
-      msg: 'Password created successfully',
-      backgroundColor: AppColors.accentGreenDark,
-    );
+    setState(() => _isLoading = true);
 
-    context.push(AppRoutes.chooseRoleScreen);
+    try {
+      final authService = context.read<AuthService>();
+      await authService.setPassword(password: _passwordController.text);
+
+      if (mounted) {
+        Fluttertoast.showToast(
+          msg: 'Password created successfully!',
+          backgroundColor: AppColors.accentGreenDark,
+        );
+
+        context.push(AppRoutes.chooseRoleScreen);
+      }
+    } catch (e) {
+      if (mounted) {
+        Fluttertoast.showToast(
+          msg: e.toString().replaceFirst('Exception: ', ''),
+          backgroundColor: AppColors.error,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -74,7 +95,13 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
                     Row(
                       children: [
                         IconButton(
-                          onPressed: () => context.pop(),
+                          onPressed: () {
+                            if (context.canPop()) {
+                              context.pop();
+                            } else {
+                              context.go(AppRoutes.signInScreen);
+                            }
+                          },
                           icon: const Icon(
                             Icons.arrow_back,
                             color: AppColors.textPrimaryLight,
@@ -96,7 +123,7 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      'Create a strong password',
+                      'Create a strong password to secure your account',
                       style: AppTypography.body(
                         color: AppColors.textSecondaryLight,
                       ),
@@ -163,6 +190,7 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
                     // ── Action Button ────────────────────────────────────────
                     AppPrimaryButton(
                       text: 'Continue',
+                      isLoading: _isLoading,
                       onPressed: _handleContinue,
                     ),
                   ],

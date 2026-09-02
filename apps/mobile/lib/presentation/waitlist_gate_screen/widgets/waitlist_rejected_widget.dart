@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_radius.dart';
+import '../../../theme/app_spacing.dart';
+import '../../../theme/app_typography.dart';
+import '../../../widgets/common/app_primary_button.dart';
 
 class WaitlistRejectedWidget extends StatelessWidget {
   final String reason;
@@ -13,79 +18,74 @@ class WaitlistRejectedWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(AppSpacing.xxl),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 80,
-            height: 80,
+            width: 84,
+            height: 84,
             decoration: BoxDecoration(
-              color: const Color(0xFFef4444).withAlpha(31),
+              color: AppColors.error.withValues(alpha: 0.15),
               shape: BoxShape.circle,
+              border: Border.all(color: AppColors.error, width: 2),
             ),
             child: const Icon(
               Icons.cancel_rounded,
-              color: Color(0xFFef4444),
+              color: AppColors.error,
               size: 48,
             ),
           ),
-          const SizedBox(height: 24),
-          const Text(
-            'Application Rejected',
-            style: TextStyle(
+          const SizedBox(height: AppSpacing.xxl),
+          Text(
+            'Application Requires Updates',
+            style: AppTypography.display(
               color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
             ),
+            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.md),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             decoration: BoxDecoration(
-              color: const Color(0xFFef4444).withAlpha(20),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFef4444).withAlpha(77)),
+              color: AppColors.error.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(color: AppColors.error.withValues(alpha: 0.35)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Rejection Reason',
-                  style: TextStyle(
-                    color: Color(0xFFef4444),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
+                Row(
+                  children: [
+                    const Icon(Icons.info_outline_rounded, color: AppColors.error, size: 16),
+                    const SizedBox(width: AppSpacing.xs),
+                    Text(
+                      'Verification Officer Feedback',
+                      style: AppTypography.caption(
+                        color: AppColors.error,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.sm),
                 Text(
                   reason,
-                  style: const TextStyle(
-                    color: Color(0xFFfca5a5),
-                    fontSize: 13,
+                  style: AppTypography.body(
+                    color: const Color(0xFFFCA5A5),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 32),
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton.icon(
-              onPressed: onReApply,
-              icon: const Icon(Icons.upload_file_rounded, size: 18),
-              label: const Text('Update Documents & Re-Apply'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFef4444),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
+          const SizedBox(height: AppSpacing.xxxl),
+          AppPrimaryButton(
+            text: 'Re-Upload Documents & Re-Apply',
+            icon: Icons.upload_file_rounded,
+            onPressed: onReApply,
           ),
         ],
       ),

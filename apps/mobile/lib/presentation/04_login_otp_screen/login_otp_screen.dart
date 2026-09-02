@@ -12,15 +12,17 @@ import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/common/app_numeric_keypad.dart';
 
-/// Screen 4: Enter OTP (Login OTP Verification) matching exact design mockup.
+/// Screen 4: Enter OTP (Login OTP Verification) for Phone or Email.
 class LoginOtpScreen extends StatefulWidget {
-  final String phone;
+  final String? phone;
+  final String? email;
   final String role;
   final bool isRegister;
 
   const LoginOtpScreen({
     super.key,
-    required this.phone,
+    this.phone,
+    this.email,
     required this.role,
     this.isRegister = false,
   });
@@ -85,6 +87,7 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
 
       final res = await authService.verifyOtp(
         phone: widget.phone,
+        email: widget.email,
         otp: _otp,
         role: widget.role,
         isRegister: widget.isRegister,
@@ -93,26 +96,22 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
 
       if (mounted) {
         Fluttertoast.showToast(
-          msg: 'Authentication successful!',
+          msg: 'OTP verified successfully!',
           backgroundColor: AppColors.accentGreenDark,
           textColor: Colors.white,
         );
 
         final user = res.user;
-        if (user.isDriver) {
-          if (user.isPending) {
-            context.go(AppRoutes.chooseRoleScreen);
-          } else if (user.isVerified) {
-            context.go(AppRoutes.tripsScreen);
-          } else {
-            context.go(AppRoutes.waitlistGateScreen);
-          }
+
+        // If user is registering or has not set a password / selected role, navigate to Set Password
+        if (widget.isRegister || user.isPending) {
+          context.push(AppRoutes.setPasswordScreen);
+        } else if (user.isVerified) {
+          context.go(AppRoutes.tripsScreen);
+        } else if (user.isUnderReview || user.isRejected) {
+          context.go(AppRoutes.waitlistGateScreen);
         } else {
-          if (user.isPending) {
-            context.go(AppRoutes.chooseRoleScreen);
-          } else {
-            context.go(AppRoutes.tripsScreen);
-          }
+          context.push(AppRoutes.setPasswordScreen);
         }
       }
     } catch (e) {
@@ -134,15 +133,19 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
 
     try {
       final authService = context.read<AuthService>();
+      final target = widget.email ?? widget.phone ?? '';
+
       await authService.requestOtp(
         phone: widget.phone,
+        email: widget.email,
+        channel: widget.email != null ? 'EMAIL' : 'SMS',
         role: widget.role,
         isRegister: widget.isRegister,
       );
 
       if (mounted) {
         Fluttertoast.showToast(
-          msg: 'New OTP sent to ${widget.phone}',
+          msg: 'New OTP sent to $target',
           backgroundColor: AppColors.primaryDark,
           textColor: Colors.white,
         );
@@ -161,6 +164,8 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final destination = widget.email ?? widget.phone ?? 'your device';
+
     return Scaffold(
       backgroundColor: AppColors.bgLight,
       body: SafeArea(
@@ -207,7 +212,7 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    "We've sent a 6-digit code to ${widget.phone}",
+                    "We've sent a 6-digit code to $destination",
                     style: AppTypography.body(
                       color: AppColors.textSecondaryLight,
                     ),

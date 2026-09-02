@@ -6,12 +6,13 @@ import { usePathname } from 'next/navigation';
 
 const navItems = [
   { href: '/dashboard', label: 'Overview', icon: '📊' },
-  { href: '/drivers', label: 'Driver KYC', icon: '🪪' },
+  { href: '/verifications', label: 'Verification Center', icon: '🛡️' },
+  { href: '/drivers', label: 'Driver Fleet', icon: '🪪' },
   { href: '/vendors', label: 'Vendors', icon: '🏢' },
   { href: '/requirements', label: 'Requirements', icon: '📋' },
   { href: '/trips', label: 'Trips & Telemetry', icon: '🚗' },
   { href: '/settlements', label: 'Settlements', icon: '💰' },
-  { href: '/audit', label: 'Audit Logs', icon: '🛡️' },
+  { href: '/audit', label: 'Audit Logs', icon: '📜' },
 ];
 
 export const Sidebar: React.FC = () => {

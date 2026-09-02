@@ -1,10 +1,18 @@
-import { IsNotEmpty, IsOptional, IsString, IsBoolean, Length } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsBoolean, Length, IsEmail } from 'class-validator';
 import { UserRole } from '../enums';
 
 export class RequestOtpDto {
-  @IsNotEmpty({ message: 'Phone number is required' })
+  @IsOptional()
   @IsString()
-  phone!: string;
+  phone?: string;
+
+  @IsOptional()
+  @IsEmail({}, { message: 'Invalid email address' })
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  channel?: 'SMS' | 'EMAIL';
 
   @IsOptional()
   @IsString()
@@ -35,9 +43,13 @@ export class VerifyOtpDto {
   @IsString()
   requestId?: string;
 
-  @IsNotEmpty({ message: 'Phone number is required' })
+  @IsOptional()
   @IsString()
-  phone!: string;
+  phone?: string;
+
+  @IsOptional()
+  @IsEmail({}, { message: 'Invalid email address' })
+  email?: string;
 
   @IsNotEmpty({ message: 'OTP is required' })
   @IsString()
@@ -57,11 +69,46 @@ export class VerifyOtpDto {
   fullName?: string;
 }
 
+export class SocialAuthDto {
+  @IsNotEmpty({ message: 'Provider is required (GOOGLE or APPLE)' })
+  @IsString()
+  provider!: 'GOOGLE' | 'APPLE';
+
+  @IsNotEmpty({ message: 'Email address is required' })
+  @IsEmail({}, { message: 'Invalid email address' })
+  email!: string;
+
+  @IsOptional()
+  @IsString()
+  idToken?: string;
+
+  @IsOptional()
+  @IsString()
+  fullName?: string;
+
+  @IsOptional()
+  @IsString()
+  photoUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  role?: string;
+}
+
+export class SetPasswordDto {
+  @IsNotEmpty({ message: 'Password is required' })
+  @IsString()
+  @Length(6, 100, { message: 'Password must be at least 6 characters' })
+  password!: string;
+}
+
 export class AuthUserDto {
   id!: string;
-  phone!: string;
+  phone?: string;
+  email?: string;
   role!: UserRole;
   fullName?: string;
+  photoUrl?: string;
   isApproved!: boolean;
 }
 
@@ -85,15 +132,22 @@ export class LogoutDto {
 }
 
 export class UpdateUserDto {
+  @IsOptional()
   @IsString()
   fullName?: string;
+
+  @IsOptional()
+  @IsString()
+  email?: string;
 }
 
 export class UserMeResponseDto {
   id!: string;
-  phone!: string;
+  phone?: string;
+  email?: string;
   role!: UserRole;
   fullName?: string;
+  photoUrl?: string;
   status!: string;
   vendorProfile?: {
     id: string;
@@ -106,6 +160,7 @@ export class UserMeResponseDto {
     availabilityStatus: string;
     vehicleType?: string;
     walletBalance: number;
+    rejectionReason?: string;
   };
   createdAt!: string;
 }

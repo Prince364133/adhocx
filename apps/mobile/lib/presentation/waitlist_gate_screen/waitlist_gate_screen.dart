@@ -1,7 +1,13 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../routes/app_routes.dart';
+import '../../services/auth_service.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_radius.dart';
+import '../../theme/app_spacing.dart';
+import '../../theme/app_typography.dart';
 import './widgets/waitlist_rejected_widget.dart';
 import './widgets/waitlist_steps_widget.dart';
 
@@ -18,12 +24,10 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
     with SingleTickerProviderStateMixin {
   _ApprovalState _approvalState = _ApprovalState.waiting;
   String? _rejectionReason;
+  Timer? _statusPoller;
+
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
-
-  // TODO: Replace with Supabase Realtime channel for production
-  // Channel: driver-approval-{profileId}
-  // Listens for UPDATE on driver_profiles where id = profileId
 
   @override
   void initState() {
@@ -35,12 +39,62 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
     _pulseAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+
+    _checkInitialStatus();
+    _startStatusPolling();
   }
 
   @override
   void dispose() {
+    _statusPoller?.cancel();
     _pulseController.dispose();
     super.dispose();
+  }
+
+  void _checkInitialStatus() {
+    final user = AuthService.instance.currentUser;
+    if (user != null) {
+      if (user.isVerified) {
+        _handleApproved();
+      } else if (user.isRejected) {
+        setState(() {
+          _approvalState = _ApprovalState.rejected;
+          _rejectionReason = user.rejectionReason ?? 'Application requires clarification.';
+        });
+      }
+    }
+  }
+
+  void _startStatusPolling() {
+    _statusPoller = Timer.periodic(const Duration(seconds: 4), (_) async {
+      try {
+        final user = await AuthService.instance.fetchCurrentUser();
+        if (!mounted || user == null) return;
+
+        if (user.isVerified && _approvalState != _ApprovalState.approved) {
+          _handleApproved();
+        } else if (user.isRejected && _approvalState != _ApprovalState.rejected) {
+          setState(() {
+            _approvalState = _ApprovalState.rejected;
+            _rejectionReason = user.rejectionReason ?? 'Your submitted documents require updates.';
+          });
+        }
+      } catch (_) {}
+    });
+  }
+
+  void _handleApproved() {
+    setState(() {
+      _approvalState = _ApprovalState.approved;
+    });
+
+    _statusPoller?.cancel();
+
+    Future.delayed(const Duration(milliseconds: 1800), () {
+      if (mounted) {
+        context.go(AppRoutes.tripsScreen);
+      }
+    });
   }
 
   void _reApply() {
@@ -48,13 +102,13 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
       _approvalState = _ApprovalState.waiting;
       _rejectionReason = null;
     });
-    context.go(AppRoutes.kycUploadScreen);
+    context.go(AppRoutes.onboardingDocumentsScreen);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF020617),
+      backgroundColor: AppColors.bgDark,
       body: SafeArea(
         child: switch (_approvalState) {
           _ApprovalState.approved => _buildApprovedState(),
@@ -70,56 +124,54 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
 
   Widget _buildWaitingState() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(AppSpacing.xxl),
       child: Column(
         children: [
-          const SizedBox(height: 32),
+          const SizedBox(height: AppSpacing.xxxl),
           // Logo
           Container(
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: const Color(0xFF0d1117),
-              borderRadius: BorderRadius.circular(16),
+              color: AppColors.surfaceDark,
+              borderRadius: BorderRadius.circular(AppRadius.lg),
               border: Border.all(
-                color: const Color(0xFF22c55e).withAlpha(77),
+                color: AppColors.primaryLight.withValues(alpha: 0.3),
                 width: 1.5,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF22c55e).withAlpha(40),
+                  color: AppColors.primary.withValues(alpha: 0.2),
                   blurRadius: 20,
                   offset: const Offset(0, 6),
                 ),
               ],
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: Image.asset(
-                'assets/images/adhocx_logo-1787692728598.png',
-                width: 64,
-                height: 64,
-                fit: BoxFit.contain,
+            child: const Center(
+              child: Text(
+                'A',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 28,
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 32),
-          // Pulsing clock icon
+          const SizedBox(height: AppSpacing.xxl),
+
+          // Pulsing Clock Icon with Brand Colors
           AnimatedBuilder(
             animation: _pulseAnimation,
             builder: (context, child) {
               return Container(
-                width: 80,
-                height: 80,
+                width: 84,
+                height: 84,
                 decoration: BoxDecoration(
-                  color: const Color(
-                    0xFF22c55e,
-                  ).withValues(alpha: 0.1 * _pulseAnimation.value),
+                  color: AppColors.primary.withValues(alpha: 0.12 * _pulseAnimation.value),
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: const Color(
-                      0xFF22c55e,
-                    ).withValues(alpha: 0.4 * _pulseAnimation.value),
+                    color: AppColors.primary.withValues(alpha: 0.5 * _pulseAnimation.value),
                     width: 2,
                   ),
                 ),
@@ -128,21 +180,21 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
                   children: [
                     const Icon(
                       Icons.access_time_rounded,
-                      color: Color(0xFF22c55e),
+                      color: AppColors.primaryLight,
                       size: 40,
                     ),
                     Positioned(
-                      top: 10,
-                      right: 10,
+                      top: 12,
+                      right: 12,
                       child: Container(
                         width: 12,
                         height: 12,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF22c55e),
+                          color: const Color(0xFFF59E0B),
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF22c55e).withAlpha(153),
+                              color: const Color(0xFFF59E0B).withValues(alpha: 0.6),
                               blurRadius: 8,
                             ),
                           ],
@@ -154,52 +206,53 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
               );
             },
           ),
-          const SizedBox(height: 24),
-          const Text(
+          const SizedBox(height: AppSpacing.xl),
+
+          Text(
             "You're on the Waitlist!",
-            style: TextStyle(
+            style: AppTypography.display(
               color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 10),
-          const Text(
-            'Your profile is currently under review by the AdhocX admin team.',
-            style: TextStyle(color: Color(0xFF94a3b8), fontSize: 14),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'Your profile and KYC documents are currently under review by the AdhocX Verification Center.',
+            style: AppTypography.body(color: AppColors.textSecondaryDark),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 24),
-          // Info box
+          const SizedBox(height: AppSpacing.xxl),
+
+          // Info Box
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             decoration: BoxDecoration(
-              color: const Color(0xFF22c55e).withAlpha(15),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFF22c55e).withAlpha(60)),
+              color: AppColors.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _infoRow(
                   Icons.admin_panel_settings_outlined,
-                  'Under Review by Admin',
+                  'Under Review by Verification Officer',
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.sm),
                 _infoRow(
                   Icons.schedule_outlined,
-                  'Typical review time: 30 minutes – 24 hours',
+                  'Typical review time: 15 minutes – 2 hours',
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.sm),
                 _infoRow(
                   Icons.autorenew_rounded,
-                  'You will be automatically redirected once approved — no refresh needed',
+                  'You will be automatically redirected upon approval — no refresh needed',
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: AppSpacing.xxxl),
           const WaitlistStepsWidget(),
         ],
       ),
@@ -208,42 +261,45 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
 
   Widget _buildApprovedState() {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: const Color(0xFF22c55e).withAlpha(38),
-              shape: BoxShape.circle,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xxl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 90,
+              height: 90,
+              decoration: BoxDecoration(
+                color: AppColors.success.withValues(alpha: 0.18),
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.success, width: 2),
+              ),
+              child: const Icon(
+                Icons.check_circle_rounded,
+                color: AppColors.success,
+                size: 54,
+              ),
             ),
-            child: const Icon(
-              Icons.check_circle_rounded,
-              color: Color(0xFF22c55e),
-              size: 48,
+            const SizedBox(height: AppSpacing.xxl),
+            Text(
+              "You're Approved!",
+              style: AppTypography.display(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            "You're Approved!",
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Your profile is verified. Redirecting to your console...',
+              style: AppTypography.body(color: AppColors.textSecondaryDark),
             ),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'Redirecting to your driver console...',
-            style: TextStyle(color: Color(0xFF94a3b8), fontSize: 14),
-          ),
-          const SizedBox(height: 24),
-          const CircularProgressIndicator(
-            color: Color(0xFF22c55e),
-            strokeWidth: 2,
-          ),
-        ],
+            const SizedBox(height: AppSpacing.xxl),
+            const CircularProgressIndicator(
+              color: AppColors.primary,
+              strokeWidth: 2.5,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -252,12 +308,15 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: const Color(0xFF22c55e), size: 16),
-        const SizedBox(width: 8),
+        Icon(icon, color: AppColors.primaryLight, size: 18),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Text(
             text,
-            style: const TextStyle(color: Color(0xFF22c55e), fontSize: 12),
+            style: AppTypography.caption(
+              color: AppColors.textPrimaryDark,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
       ],

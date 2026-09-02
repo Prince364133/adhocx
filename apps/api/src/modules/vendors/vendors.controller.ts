@@ -18,7 +18,7 @@ export class VendorsController {
     @CurrentUser() user: AuthUserDto,
     @Body() dto: CreateVendorProfileDto,
   ) {
-    return this.vendorsService.createProfile(user.id, dto, user.phone);
+    return this.vendorsService.createProfile(user.id, dto, user.phone || '');
   }
 
   @Get('profile')
