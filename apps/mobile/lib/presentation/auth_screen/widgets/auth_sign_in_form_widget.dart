@@ -77,33 +77,29 @@ class _AuthSignInFormWidgetState extends State<AuthSignInFormWidget> {
     }
   }
 
-    }
-  }
-
   Future<void> _resetPassword() async {
-    final identifier = _identifierController.text.trim();
+    final rawIdentifier = _identifierController.text.trim();
 
-    if (identifier.isEmpty) {
+    if (rawIdentifier.isEmpty) {
       Fluttertoast.showToast(
-        msg: 'Please enter your phone number or email first.',
+        msg: 'Please enter your phone number first.',
       );
       return;
     }
 
-    final email = identifier.contains('@')
-        ? identifier
-        : '$identifier@adhocx.in';
+    final phone = rawIdentifier.startsWith('+') ? rawIdentifier : '+91$rawIdentifier';
 
     try {
-      await Supabase.instance.client.auth.resetPasswordForEmail(email);
-      Fluttertoast.showToast(msg: 'Password reset link sent!');
+      await AuthService.instance.requestOtp(phone);
+      Fluttertoast.showToast(msg: 'Login OTP sent to $phone!');
     } catch (error) {
       Fluttertoast.showToast(
-        msg: 'Error sending reset link. Please check your details.',
+        msg: 'Error sending OTP. Please check your phone number.',
       );
       debugPrint('Reset Password Error: $error');
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
