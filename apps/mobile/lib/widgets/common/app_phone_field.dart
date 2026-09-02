@@ -9,18 +9,22 @@ import '../../theme/app_typography.dart';
 class AppPhoneField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
+  final String? hintText;
   final String? errorText;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
+  final FormFieldValidator<String>? validator;
   final bool enabled;
 
   const AppPhoneField({
     super.key,
     required this.controller,
     this.label = 'Mobile Number',
+    this.hintText = '98765 43210',
     this.errorText,
     this.onChanged,
     this.onSubmitted,
+    this.validator,
     this.enabled = true,
   });
 
@@ -32,9 +36,12 @@ class AppPhoneField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: AppTypography.label(color: AppColors.textSecondaryDark),
+          style: AppTypography.caption(
+            color: AppColors.textSecondaryLight,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: AppSpacing.xs),
         TextFormField(
           controller: controller,
           keyboardType: TextInputType.phone,
@@ -45,18 +52,18 @@ class AppPhoneField extends StatelessWidget {
           ],
           onChanged: onChanged,
           onFieldSubmitted: onSubmitted,
-          cursorColor: AppColors.primaryLight,
-          style: AppTypography.body(color: AppColors.textPrimaryDark),
+          cursorColor: AppColors.primary,
+          style: AppTypography.body(color: AppColors.textPrimaryLight),
           decoration: InputDecoration(
-            hintText: '98765 43210',
-            hintStyle: AppTypography.body(color: AppColors.textMutedDark),
+            hintText: hintText,
+            hintStyle: AppTypography.body(color: AppColors.textMutedLight),
             prefixIcon: Container(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
               margin: const EdgeInsets.only(right: AppSpacing.sm),
               decoration: const BoxDecoration(
                 border: Border(
                   right: BorderSide(
-                    color: AppColors.borderDark,
+                    color: AppColors.borderLight,
                     width: 1.2,
                   ),
                 ),
@@ -67,59 +74,61 @@ class AppPhoneField extends StatelessWidget {
                   const Icon(
                     Icons.phone_iphone_rounded,
                     size: 18,
-                    color: AppColors.textSecondaryDark,
+                    color: AppColors.textSecondaryLight,
                   ),
                   const SizedBox(width: AppSpacing.xs),
                   Text(
                     '+91',
-                    style: AppTypography.bodyMedium(
-                      color: AppColors.textPrimaryDark,
+                    style: AppTypography.body(
+                      color: AppColors.textPrimaryLight,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
               ),
             ),
             filled: true,
-            fillColor: AppColors.surfaceDark,
+            fillColor: AppColors.surfaceLight,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.lg,
               vertical: AppSpacing.md,
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: AppRadius.borderMd,
+              borderRadius: BorderRadius.circular(AppRadius.md),
               borderSide: const BorderSide(
-                color: AppColors.borderDark,
+                color: AppColors.borderLight,
                 width: 1.2,
               ),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: AppRadius.borderMd,
+              borderRadius: BorderRadius.circular(AppRadius.md),
               borderSide: const BorderSide(
                 color: AppColors.primary,
-                width: 1.5,
+                width: 1.8,
               ),
             ),
             errorBorder: OutlineInputBorder(
-              borderRadius: AppRadius.borderMd,
+              borderRadius: BorderRadius.circular(AppRadius.md),
               borderSide: const BorderSide(
                 color: AppColors.error,
                 width: 1.2,
               ),
             ),
             focusedErrorBorder: OutlineInputBorder(
-              borderRadius: AppRadius.borderMd,
+              borderRadius: BorderRadius.circular(AppRadius.md),
               borderSide: const BorderSide(
                 color: AppColors.error,
-                width: 1.5,
+                width: 1.8,
               ),
             ),
           ),
-          validator: (value) {
-            if (value == null || value.trim().length != 10) {
-              return 'Enter a valid 10-digit mobile number';
-            }
-            return null;
-          },
+          validator: validator ??
+              (value) {
+                if (value == null || value.trim().length != 10) {
+                  return 'Enter a valid 10-digit mobile number';
+                }
+                return null;
+              },
         ),
         if (errorText != null) ...[
           const SizedBox(height: AppSpacing.xs),

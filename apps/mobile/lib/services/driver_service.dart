@@ -10,7 +10,7 @@ class DriverService {
 
   // Profile & Availability
   Future<dynamic> getProfile() async {
-    return await _api.get('/drivers/me');
+    return await _api.get('/drivers/profile');
   }
 
   Future<dynamic> updateAvailability(String availabilityStatus) async {
@@ -20,18 +20,39 @@ class DriverService {
     );
   }
 
-  // KYC Document Upload
+  // KYC Document Upload (Cloudflare R2 Integration)
   Future<dynamic> uploadKycDocument({
-    required String documentType,
+    String documentType = 'GENERAL',
     required List<int> fileBytes,
-    required String fileName,
+    String? fileName,
+    String? filename,
+    String mimeType = 'image/jpeg',
   }) async {
+    final effectiveName = filename ?? fileName ?? 'document.jpg';
     return await _api.multipartUpload(
       '/drivers/documents/upload',
       fileField: 'document',
       fileBytes: fileBytes,
-      fileName: fileName,
-      fields: {'documentType': documentType},
+      fileName: effectiveName,
+      fields: {'documentType': documentType, 'mimeType': mimeType},
+    );
+  }
+
+  // KYC Profile Submission
+  Future<dynamic> submitKyc({
+    required String licenseNumber,
+    required DateTime licenseExpiry,
+    required List<String> documentUrls,
+    required Map<String, dynamic> vehicleDetails,
+  }) async {
+    return await _api.post(
+      '/drivers/kyc',
+      body: {
+        'licenseNumber': licenseNumber,
+        'licenseExpiry': licenseExpiry.toIso8601String(),
+        'documentUrls': documentUrls,
+        'vehicle': vehicleDetails,
+      },
     );
   }
 

@@ -10,6 +10,7 @@ import '../../theme/app_typography.dart';
 class AppTextField extends StatelessWidget {
   final String? label;
   final String? hint;
+  final String? hintText;
   final TextEditingController? controller;
   final TextInputType keyboardType;
   final bool obscureText;
@@ -25,11 +26,13 @@ class AppTextField extends StatelessWidget {
   final bool enabled;
   final int maxLines;
   final TextInputAction? textInputAction;
+  final TextCapitalization textCapitalization;
 
   const AppTextField({
     super.key,
     this.label,
     this.hint,
+    this.hintText,
     this.controller,
     this.keyboardType = TextInputType.text,
     this.obscureText = false,
@@ -45,10 +48,13 @@ class AppTextField extends StatelessWidget {
     this.enabled = true,
     this.maxLines = 1,
     this.textInputAction,
+    this.textCapitalization = TextCapitalization.none,
   });
 
   @override
   Widget build(BuildContext context) {
+    final effectiveHint = hintText ?? hint;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -56,9 +62,12 @@ class AppTextField extends StatelessWidget {
         if (label != null) ...[
           Text(
             label!,
-            style: AppTypography.label(color: AppColors.textSecondaryDark),
+            style: AppTypography.caption(
+              color: AppColors.textSecondaryLight,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.xs),
         ],
         TextFormField(
           controller: controller,
@@ -68,55 +77,56 @@ class AppTextField extends StatelessWidget {
           enabled: enabled,
           maxLines: maxLines,
           textInputAction: textInputAction,
+          textCapitalization: textCapitalization,
           inputFormatters: inputFormatters,
           onChanged: onChanged,
           onFieldSubmitted: onSubmitted,
           validator: validator,
-          cursorColor: AppColors.primaryLight,
-          style: AppTypography.body(color: AppColors.textPrimaryDark),
+          cursorColor: AppColors.primary,
+          style: AppTypography.body(color: AppColors.textPrimaryLight),
           decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: AppTypography.body(color: AppColors.textMutedDark),
+            hintText: effectiveHint,
+            hintStyle: AppTypography.body(color: AppColors.textMutedLight),
             prefixIcon: prefixIcon,
             suffixIcon: suffixIcon,
             filled: true,
-            fillColor: AppColors.surfaceDark,
+            fillColor: AppColors.surfaceLight,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.lg,
               vertical: AppSpacing.md,
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: AppRadius.borderMd,
+              borderRadius: BorderRadius.circular(AppRadius.md),
               borderSide: const BorderSide(
-                color: AppColors.borderDark,
+                color: AppColors.borderLight,
                 width: 1.2,
               ),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: AppRadius.borderMd,
+              borderRadius: BorderRadius.circular(AppRadius.md),
               borderSide: const BorderSide(
                 color: AppColors.primary,
-                width: 1.5,
+                width: 1.8,
               ),
             ),
             errorBorder: OutlineInputBorder(
-              borderRadius: AppRadius.borderMd,
+              borderRadius: BorderRadius.circular(AppRadius.md),
               borderSide: const BorderSide(
                 color: AppColors.error,
                 width: 1.2,
               ),
             ),
             focusedErrorBorder: OutlineInputBorder(
-              borderRadius: AppRadius.borderMd,
+              borderRadius: BorderRadius.circular(AppRadius.md),
               borderSide: const BorderSide(
                 color: AppColors.error,
-                width: 1.5,
+                width: 1.8,
               ),
             ),
             disabledBorder: OutlineInputBorder(
-              borderRadius: AppRadius.borderMd,
+              borderRadius: BorderRadius.circular(AppRadius.md),
               borderSide: BorderSide(
-                color: AppColors.borderDark.withAlpha(80),
+                color: AppColors.borderLight.withAlpha(120),
                 width: 1,
               ),
             ),
@@ -132,7 +142,7 @@ class AppTextField extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(
             helperText!,
-            style: AppTypography.caption(color: AppColors.textMutedDark),
+            style: AppTypography.caption(color: AppColors.textMutedLight),
           ),
         ],
       ],

@@ -37,13 +37,21 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> requestOtp(String phone) async {
+  Future<void> requestOtp({
+    required String phone,
+    String role = 'DRIVER',
+    bool isRegister = false,
+  }) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      await _authService.requestOtp(phone);
+      await _authService.requestOtp(
+        phone: phone,
+        role: role,
+        isRegister: isRegister,
+      );
     } catch (e) {
       _errorMessage = e.toString();
       rethrow;
@@ -57,19 +65,23 @@ class AuthProvider extends ChangeNotifier {
     required String phone,
     required String otp,
     String role = 'DRIVER',
+    bool isRegister = false,
+    String? fullName,
   }) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      final user = await _authService.verifyOtp(
+      final result = await _authService.verifyOtp(
         phone: phone,
         otp: otp,
         role: role,
+        isRegister: isRegister,
+        fullName: fullName,
       );
-      _user = user;
-      return user;
+      _user = result.user;
+      return result.user;
     } catch (e) {
       _errorMessage = e.toString();
       rethrow;

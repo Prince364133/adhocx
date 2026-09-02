@@ -1,16 +1,17 @@
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 
-import './services/supabase_service.dart';
+import './routes/app_routes.dart';
 import './services/auth_provider.dart';
+import './services/auth_service.dart';
+import './services/driver_service.dart';
+import './services/onboarding_provider.dart';
+import './services/supabase_service.dart';
+import './theme/app_theme.dart';
 import './theme/theme_provider.dart';
-
 import './widgets/custom_error_widget.dart';
-import 'core/app_export.dart';
-
-// Make sure to import your new LanguageProvider!
-// Adjust this path if you placed it in a different folder.
 import './presentation/language_selection_widget.dart';
 
 void main() async {
@@ -26,6 +27,9 @@ void main() async {
   // Initialize Auth Provider and restore session
   final authProvider = AuthProvider();
   await authProvider.checkSession();
+
+  // Initialize Onboarding Provider
+  final onboardingProvider = OnboardingProvider();
 
   // Initialize Supabase if credentials are provided (graceful fallback)
   bool supabaseReady = true;
@@ -52,14 +56,16 @@ void main() async {
   };
 
   GoRouter.optionURLReflectsImperativeAPIs = true;
-  
-  // Wrapped in MultiProvider to handle Theme, Language, and Auth
+
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider.value(value: languageProvider),
         ChangeNotifierProvider.value(value: authProvider),
+        ChangeNotifierProvider.value(value: onboardingProvider),
+        Provider<AuthService>(create: (_) => AuthService.instance),
+        Provider<DriverService>(create: (_) => DriverService.instance),
       ],
       child: MyApp(supabaseReady: supabaseReady, initError: initError),
     ),
@@ -74,9 +80,6 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
-
-    // Watch both providers for changes
     final themeProvider = context.watch<ThemeProvider>();
     final languageProvider = context.watch<LanguageProvider>();
 
@@ -84,14 +87,10 @@ class MyApp extends StatelessWidget {
       builder: (context, orientation, screenType) {
         return MaterialApp.router(
           title: 'AdhocX',
-          
-          // Inject the current active language here!
-          locale: languageProvider.currentLocale, 
-          
+          locale: languageProvider.currentLocale,
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: themeProvider.themeMode,
-          // 🚨 CRITICAL: NEVER REMOVE OR MODIFY
           builder: (context, child) {
             return MediaQuery(
               data: MediaQuery.of(
@@ -100,61 +99,10 @@ class MyApp extends StatelessWidget {
               child: child ?? const SizedBox.shrink(),
             );
           },
-          // 🚨 END CRITICAL SECTION
           debugShowCheckedModeBanner: false,
           routerConfig: appRouter,
         );
       },
-    );
-  }
-}
-
-class StartupErrorScreen extends StatelessWidget {
-  final Object? error;
-
-  const StartupErrorScreen({super.key, this.error});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF020617),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.cloud_off_rounded,
-                color: Color(0xFFef4444),
-                size: 56,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Unable to start AdhocX',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 10),
-              Text(
-                error?.toString() ?? 'Supabase configuration is unavailable.',
-                style: const TextStyle(color: Color(0xFF94a3b8)),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                'Run with: flutter run -d chrome --dart-define-from-file=env.json',
-                style: TextStyle(color: Color(0xFF22c55e), fontSize: 12),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
