@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
-
 import '../../routes/app_routes.dart';
-import '../language_selection_widget.dart';
-import './widgets/auth_language_switcher_widget.dart';
-import './widgets/auth_sign_in_form_widget.dart';
-import './widgets/auth_sign_up_form_widget.dart';
+import '../../services/auth_service.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_spacing.dart';
+import '../../theme/app_typography.dart';
+import '../../widgets/common/app_card.dart';
+import './widgets/auth_header_widget.dart';
+import './widgets/auth_otp_step_widget.dart';
+import './widgets/auth_phone_step_widget.dart';
 
+enum AuthStep { phone, otp }
+
+/// Centralized Auth Screen for AdhocX Mobile (Driver & Vendor).
+/// Strictly complies with docs/04_DESIGN_SYSTEM.md and docs/06_SCREEN_SPECIFICATIONS.md.
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
 
@@ -15,34 +21,46 @@ class AuthScreen extends StatefulWidget {
   State<AuthScreen> createState() => _AuthScreenState();
 }
 
-class _AuthScreenState extends State<AuthScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  int _activeTab = 0;
+class _AuthScreenState extends State<AuthScreen> {
+  AuthStep _currentStep = AuthStep.phone;
+  String _activeRole = 'DRIVER'; // 'DRIVER' or 'VENDOR'
 
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) {
-        setState(() => _activeTab = _tabController.index);
-      }
+  // Preserved OTP state
+  String _targetPhone = '';
+  bool _isRegister = false;
+
+  void _onOtpRequested({
+    required String phone,
+    required String role,
+    required bool isRegister,
+    String? fullName,
+    String? companyName,
+  }) {
+    setState(() {
+      _targetPhone = phone;
+      _activeRole = role;
+      _isRegister = isRegister;
+      _currentStep = AuthStep.otp;
     });
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
 
-  void _onSignInSuccess() {
-    context.go(AppRoutes.kycUploadScreen);
-  }
-
-  void _onSignUpSuccess() {
-    context.go(AppRoutes.kycUploadScreen);
+  void _onVerificationSuccess(UserModel user) {
+    if (user.isDriver) {
+      if (user.isPending) {
+        context.go(AppRoutes.kycUploadScreen);
+      } else if (user.isVerified) {
+        context.go(AppRoutes.tripsScreen);
+      } else {
+        context.go(AppRoutes.waitlistGateScreen);
+      }
+    } else {
+      if (user.isPending) {
+        context.go(AppRoutes.kycUploadScreen);
+      } else {
+        context.go(AppRoutes.tripsScreen);
+      }
+    }
   }
 
   @override
@@ -51,203 +69,104 @@ class _AuthScreenState extends State<AuthScreen>
     final isTablet = size.width >= 600;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF020617),
+      backgroundColor: AppColors.bgDark,
       body: SafeArea(
-        child: isTablet ? _buildTabletLayout() : _buildPhoneLayout(),
-      ),
-    );
-  }
-
-  Widget _buildPhoneLayout() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        children: [
-          const SizedBox(height: 16),
-          _buildLanguageSwitcher(),
-          const SizedBox(height: 32),
-          _buildLogo(),
-          const SizedBox(height: 32),
-          _buildTabSwitcher(),
-          const SizedBox(height: 24),
-          _buildTabContent(),
-          const SizedBox(height: 24),
-          _buildFooter(),
-          const SizedBox(height: 32),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTabletLayout() {
-    return Center(
-      child: SizedBox(
-        width: 480,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 32),
-          child: Column(
-            children: [
-              _buildLanguageSwitcher(),
-              const SizedBox(height: 32),
-              _buildLogo(),
-              const SizedBox(height: 32),
-              _buildTabSwitcher(),
-              const SizedBox(height: 24),
-              _buildTabContent(),
-              const SizedBox(height: 24),
-              _buildFooter(),
-              const SizedBox(height: 32),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLanguageSwitcher() {
-    final languageProvider = context.watch<LanguageProvider>();
-
-    return Align(
-      alignment: Alignment.centerRight,
-      child: AuthLanguageSwitcherWidget(
-        selected: languageProvider.currentLocale.languageCode.toUpperCase(),
-        onChanged: languageProvider.setLanguage,
-      ),
-    );
-  }
-
-  Widget _buildLogo() {
-    return Column(
-      children: [
-        Container(
-          width: 88,
-          height: 88,
-          decoration: BoxDecoration(
-            color: const Color(0xFF0d1117),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: const Color(0xFF22c55e).withAlpha(77),
-              width: 1.5,
+        child: Center(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.symmetric(
+              horizontal: isTablet ? AppSpacing.xxxl : AppSpacing.lg,
+              vertical: AppSpacing.md,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF22c55e).withAlpha(51),
-                blurRadius: 28,
-                offset: const Offset(0, 8),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // ── Header (Logo + Dynamic Title + Language Selector) ──────
+                  AuthHeaderWidget(role: _activeRole),
+                  const SizedBox(height: AppSpacing.xxl),
+
+                  // ── Main Card Container ────────────────────────────────────
+                  AppCard(
+                    padding: AppSpacing.paddingXl,
+                    backgroundColor: AppColors.surfaceDark,
+                    borderColor: AppColors.borderDark,
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 240),
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      transitionBuilder: (child, animation) {
+                        return FadeTransition(
+                          opacity: animation,
+                          child: SlideTransition(
+                            position: Tween<Offset>(
+                              begin: const Offset(0.04, 0),
+                              end: Offset.zero,
+                            ).animate(animation),
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: _currentStep == AuthStep.phone
+                          ? AuthPhoneStepWidget(
+                              key: const ValueKey('phone_step'),
+                              initialRole: _activeRole,
+                              onRoleChanged: (role) =>
+                                  setState(() => _activeRole = role),
+                              onOtpRequested: _onOtpRequested,
+                            )
+                          : AuthOtpStepWidget(
+                              key: const ValueKey('otp_step'),
+                              phone: _targetPhone,
+                              role: _activeRole,
+                              isRegister: _isRegister,
+                              onBackToPhone: () => setState(
+                                () => _currentStep = AuthStep.phone,
+                              ),
+                              onVerificationSuccess: _onVerificationSuccess,
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+
+                  // ── B2B Network Footer Badge ───────────────────────────────
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                      vertical: AppSpacing.md,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceDark.withAlpha(160),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: AppColors.borderDark.withAlpha(120),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.shield_outlined,
+                          size: 14,
+                          color: AppColors.accentGreen,
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Text(
+                          'AdhocX B2B Network · Enterprise Mobility Security',
+                          style: AppTypography.caption(
+                            color: AppColors.textSecondaryDark,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                ],
               ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: Image.asset(
-              'assets/images/adhocx_logo-1787692728598.png',
-              width: 88,
-              height: 88,
-              fit: BoxFit.contain,
             ),
           ),
         ),
-        const SizedBox(height: 16),
-        const Text(
-          'AdhocX Driver',
-          style: TextStyle(
-            color: Color(0xFFffffff),
-            fontSize: 26,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.5,
-          ),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          'Corporate Mobility Partner Console',
-          style: TextStyle(
-            color: Color(0xFF94a3b8),
-            fontSize: 13,
-            fontWeight: FontWeight.w400,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTabSwitcher() {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0d1117),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF1a2332)),
-      ),
-      child: Row(children: [_buildTab(0, 'Sign In'), _buildTab(1, 'Register')]),
-    );
-  }
-
-  Widget _buildTab(int index, String label) {
-    final isActive = _activeTab == index;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          _tabController.animateTo(index);
-          setState(() => _activeTab = index);
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: isActive ? const Color(0xFF22c55e) : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: isActive
-                  ? const Color(0xFF000000)
-                  : const Color(0xFF94a3b8),
-              fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-              fontSize: 14,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTabContent() {
-    return IndexedStack(
-      index: _activeTab,
-      children: [
-        AuthSignInFormWidget(
-          onSuccess: _onSignInSuccess,
-          onRegisterTap: () {
-            _tabController.animateTo(1);
-            setState(() => _activeTab = 1);
-          },
-        ),
-        AuthSignUpFormWidget(
-          onSuccess: _onSignUpSuccess,
-          onSignInTap: () {
-            _tabController.animateTo(0);
-            setState(() => _activeTab = 0);
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFooter() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0d1117),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF1a2332)),
-      ),
-      child: const Text(
-        'Corporate Fleet Partner Portal · Hyderabad B2B Network',
-        textAlign: TextAlign.center,
-        style: TextStyle(color: Color(0xFF94a3b8), fontSize: 12),
       ),
     );
   }
