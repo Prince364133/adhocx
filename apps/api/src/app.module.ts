@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { AppController } from './app.controller';
 import { configs } from './config';
+
 import { DatabaseModule } from './database/database.module';
 import { RedisModule } from './redis/redis.module';
 import { StorageModule } from './common/storage/storage.module';
@@ -63,6 +65,7 @@ import { HealthModule } from './modules/health/health.module';
     PricingModule,
     AdminModule,
   ],
+  controllers: [AppController],
 })
 
 export class AppModule {}
