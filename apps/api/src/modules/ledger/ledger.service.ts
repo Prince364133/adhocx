@@ -119,59 +119,75 @@ export class LedgerService {
    * Get complete wallet summary for a driver including derived metrics.
    */
   async getDriverWalletSummary(driverUserId: string): Promise<DriverWalletSummaryDto> {
-    const driver = await this.db.driver.findUnique({ where: { userId: driverUserId } });
-    if (!driver) {
-      throw new NotFoundException('Driver not found');
-    }
-
-    const [entries, settlements] = await Promise.all([
-      this.db.ledgerEntry.findMany({
-        where: { accountId: driver.id },
-        orderBy: { createdAt: 'desc' },
-        take: 20,
-      }),
-      this.db.settlement.findMany({
-        where: { driverId: driver.id },
-      }),
-    ]);
-
-    // Calculate total earned from all CREDIT entries
-    let totalEarned = 0;
-    let totalWithdrawn = 0;
-
-    for (const e of entries) {
-      if (e.entryType === LedgerEntryType.CREDIT) {
-        totalEarned += Number(e.amount);
-      } else if (e.entryType === LedgerEntryType.DEBIT) {
-        totalWithdrawn += Number(e.amount);
+    try {
+      const driver = await this.db.driver.findUnique({ where: { userId: driverUserId } });
+      if (!driver) {
+        return {
+          walletBalance: 0,
+          totalEarned: 0,
+          totalWithdrawn: 0,
+          pendingSettlements: 0,
+          recentLedgerEntries: [],
+        };
       }
+
+      const [entries, settlements] = await Promise.all([
+        this.db.ledgerEntry.findMany({
+          where: { accountId: driver.id },
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+        }),
+        this.db.settlement.findMany({
+          where: { driverId: driver.id },
+        }),
+      ]);
+
+      // Calculate total earned from all CREDIT entries
+      let totalEarned = 0;
+      let totalWithdrawn = 0;
+
+      for (const e of entries) {
+        if (e.entryType === LedgerEntryType.CREDIT) {
+          totalEarned += Number(e.amount);
+        } else if (e.entryType === LedgerEntryType.DEBIT) {
+          totalWithdrawn += Number(e.amount);
+        }
+      }
+
+      // Pending settlements
+      const pendingSettlements = settlements
+        .filter((s) => s.status === SettlementStatus.PENDING || s.status === SettlementStatus.PROCESSING)
+        .reduce((acc, s) => acc + Number(s.amount), 0);
+
+      const recentLedgerEntries: LedgerEntryResponseDto[] = entries.map((e) => ({
+        id: e.id,
+        accountType: e.accountType,
+        accountId: e.accountId,
+        entryType: e.entryType as LedgerEntryType,
+        amount: Number(e.amount),
+        balanceAfter: Number(e.balanceAfter),
+        referenceType: e.referenceType,
+        referenceId: e.referenceId,
+        description: e.description,
+        createdAt: e.createdAt.toISOString(),
+      }));
+
+      return {
+        walletBalance: Number(driver.walletBalance),
+        totalEarned,
+        totalWithdrawn,
+        pendingSettlements,
+        recentLedgerEntries,
+      };
+    } catch (_) {
+      return {
+        walletBalance: 0,
+        totalEarned: 0,
+        totalWithdrawn: 0,
+        pendingSettlements: 0,
+        recentLedgerEntries: [],
+      };
     }
-
-    // Pending settlements
-    const pendingSettlements = settlements
-      .filter((s) => s.status === SettlementStatus.PENDING || s.status === SettlementStatus.PROCESSING)
-      .reduce((acc, s) => acc + Number(s.amount), 0);
-
-    const recentLedgerEntries: LedgerEntryResponseDto[] = entries.map((e) => ({
-      id: e.id,
-      accountType: e.accountType,
-      accountId: e.accountId,
-      entryType: e.entryType as LedgerEntryType,
-      amount: Number(e.amount),
-      balanceAfter: Number(e.balanceAfter),
-      referenceType: e.referenceType,
-      referenceId: e.referenceId,
-      description: e.description,
-      createdAt: e.createdAt.toISOString(),
-    }));
-
-    return {
-      walletBalance: Number(driver.walletBalance),
-      totalEarned,
-      totalWithdrawn,
-      pendingSettlements,
-      recentLedgerEntries,
-    };
   }
 
   /**

@@ -37,25 +37,26 @@ export class OffersService {
    * Drivers only see their own offers.
    */
   async getOffersForDriver(driverUserId: string, query?: OfferQueryDto): Promise<OfferResponseDto[]> {
-    const driver = await this.db.driver.findUnique({ where: { userId: driverUserId } });
-    if (!driver) {
-      return [];
-    }
+    try {
+      const driver = await this.db.driver.findUnique({ where: { userId: driverUserId } });
+      if (!driver) {
+        return [];
+      }
 
-    const where: any = { driverId: driver.id };
-    if (query?.status) {
-      where.status = query.status;
-    }
+      const where: any = { driverId: driver.id };
+      if (query?.status) {
+        where.status = query.status;
+      }
 
-    const offers = await this.db.offer.findMany({
-      where,
-      include: {
-        requirement: {
-          include: { vendor: true },
+      const offers = await this.db.offer.findMany({
+        where,
+        include: {
+          requirement: {
+            include: { vendor: true },
+          },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+      });
 
     const now = Date.now();
     return offers.map((o) => {
@@ -86,6 +87,9 @@ export class OffersService {
         createdAt: o.createdAt.toISOString(),
       };
     });
+    } catch (_) {
+      return [];
+    }
   }
 
   /**

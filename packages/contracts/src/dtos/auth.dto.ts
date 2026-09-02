@@ -1,22 +1,39 @@
-import { IsNotEmpty, IsString, Length } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsBoolean, Length } from 'class-validator';
 import { UserRole } from '../enums';
 
 export class RequestOtpDto {
   @IsNotEmpty({ message: 'Phone number is required' })
   @IsString()
   phone!: string;
+
+  @IsOptional()
+  @IsString()
+  role?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isRegister?: boolean;
+
+  @IsOptional()
+  @IsString()
+  fullName?: string;
+
+  @IsOptional()
+  @IsString()
+  companyName?: string;
 }
 
 export class RequestOtpResponseDto {
   requestId!: string;
   expiresAt!: string;
   retryAfterSeconds!: number;
+  message?: string;
 }
 
 export class VerifyOtpDto {
-  @IsNotEmpty({ message: 'Request ID is required' })
+  @IsOptional()
   @IsString()
-  requestId!: string;
+  requestId?: string;
 
   @IsNotEmpty({ message: 'Phone number is required' })
   @IsString()
@@ -26,6 +43,18 @@ export class VerifyOtpDto {
   @IsString()
   @Length(6, 6, { message: 'OTP must be 6 digits' })
   otp!: string;
+
+  @IsOptional()
+  @IsString()
+  role?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isRegister?: boolean;
+
+  @IsOptional()
+  @IsString()
+  fullName?: string;
 }
 
 export class AuthUserDto {
@@ -80,4 +109,3 @@ export class UserMeResponseDto {
   };
   createdAt!: string;
 }
-
