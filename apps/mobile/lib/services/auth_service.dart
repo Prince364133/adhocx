@@ -1,4 +1,5 @@
 import '../core/networking/api_client.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class UserModel {
   final String id;
@@ -155,21 +156,31 @@ class AuthService {
    * Google Sign-In / Sign-Up (Pre-verified email, skips OTP)
    */
   Future<AuthResult> signInWithGoogle({
-    String? email,
-    String? fullName,
-    String? idToken,
     String role = 'DRIVER',
   }) async {
-    final userEmail = email ?? 'rahul.google@gmail.com';
-    final userName = fullName ?? 'Rahul Sharma';
+    final GoogleSignIn googleSignIn = GoogleSignIn(
+      clientId: '886573696369-84dnfvb9jaegbqp8deosr3ucf8tq93ms.apps.googleusercontent.com',
+    );
+
+    final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+    if (googleUser == null) {
+      throw Exception('Google Sign-In was aborted.');
+    }
+
+    final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+    final idToken = googleAuth.idToken;
+
+    if (idToken == null) {
+      throw Exception('Failed to obtain Google ID Token.');
+    }
 
     final response = await _api.post(
       '/auth/social',
       body: {
         'provider': 'GOOGLE',
-        'email': userEmail,
-        'fullName': userName,
-        if (idToken != null) 'idToken': idToken,
+        'email': googleUser.email,
+        'fullName': googleUser.displayName ?? 'Google User',
+        'idToken': idToken,
         'role': role,
       },
     );

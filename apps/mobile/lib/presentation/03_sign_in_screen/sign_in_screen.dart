@@ -120,7 +120,7 @@ class _SignInScreenState extends State<SignInScreen> {
       final socialName = isGoogle ? 'Rahul Sharma (Google)' : 'Rahul Sharma (Apple)';
 
       final result = isGoogle
-          ? await authService.signInWithGoogle(role: onboarding.role, email: socialEmail, fullName: socialName)
+          ? await authService.signInWithGoogle(role: onboarding.role)
           : await authService.signInWithApple(role: onboarding.role, email: socialEmail, fullName: socialName);
 
       onboarding.setPersonalDetails(
