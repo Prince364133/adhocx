@@ -8,6 +8,8 @@ build/
 .next/
 out/
 .turbo/
+uploads/
+
 
 # Flutter / Dart
 .dart_tool/
