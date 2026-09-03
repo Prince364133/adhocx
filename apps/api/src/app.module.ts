@@ -15,6 +15,7 @@ import { DriversModule } from './modules/drivers/drivers.module';
 import { VehiclesModule } from './modules/vehicles/vehicles.module';
 import { RequirementsModule } from './modules/requirements/requirements.module';
 import { OffersModule } from './modules/offers/offers.module';
+import { BidsModule } from './modules/bids/bids.module';
 import { AssignmentsModule } from './modules/assignments/assignments.module';
 import { TripsModule } from './modules/trips/trips.module';
 import { DispatchModule } from './modules/dispatch/dispatch.module';
@@ -24,6 +25,8 @@ import { PaymentsModule } from './modules/payments/payments.module';
 import { LedgerModule } from './modules/ledger/ledger.module';
 import { SettlementsModule } from './modules/settlements/settlements.module';
 import { PricingModule } from './modules/pricing/pricing.module';
+import { ReviewsModule } from './modules/reviews/reviews.module';
+import { DisputesModule } from './modules/disputes/disputes.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { HealthModule } from './modules/health/health.module';
@@ -55,6 +58,7 @@ import { HealthModule } from './modules/health/health.module';
     VehiclesModule,
     RequirementsModule,
     OffersModule,
+    BidsModule,
     AssignmentsModule,
     TripsModule,
     DispatchModule,
@@ -63,10 +67,11 @@ import { HealthModule } from './modules/health/health.module';
     LedgerModule,
     SettlementsModule,
     PricingModule,
+    ReviewsModule,
+    DisputesModule,
     AdminModule,
   ],
   controllers: [AppController],
 })
 
 export class AppModule {}
-

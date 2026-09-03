@@ -49,6 +49,17 @@ export class DispatchService {
       throw new NotFoundException(`Requirement ${requirementId} not found`);
     }
 
+    // Guard: Bidding requirements are fulfilled via driver bids, not direct dispatch
+    if ((requirement as any).fulfillmentMode === 'BIDDING') {
+      this.logger.log(`Requirement ${requirementId} is in BIDDING mode, skipping direct dispatch`);
+      return {
+        requirementId,
+        offersCreated: 0,
+        status: requirement.status as RequirementStatus,
+        driverIds: [],
+      };
+    }
+
     // Guard: Can only dispatch if not already completed/cancelled
     if (
       requirement.status === RequirementStatus.COMPLETED ||

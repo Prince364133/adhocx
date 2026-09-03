@@ -8,6 +8,8 @@ import {
   TripEvent,
   SettlementListItem,
   AuditLogItem,
+  BidListItem,
+  DisputeListItem,
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7001/api/v1';
@@ -153,6 +155,22 @@ export const adminApi = {
   processSettlement: (id: string, data: { status: 'SETTLED' | 'FAILED'; transactionRef?: string; failureReason?: string }) =>
     apiClient(`/settlements/${id}/process`, {
       method: 'POST',
+      body: data,
+    }),
+
+  // Bids & Reverse Auction
+  getRequirementBids: (requirementId: string) =>
+    apiClient<BidListItem[]>(`/bids/requirement/${requirementId}`),
+
+  // Disputes & Support Resolution
+  getDisputes: (status?: string) => {
+    const query = status && status !== 'ALL' ? `?status=${status}` : '';
+    return apiClient<DisputeListItem[]>(`/disputes${query}`);
+  },
+
+  resolveDispute: (id: string, data: { status: 'RESOLVED' | 'REJECTED'; resolutionText: string }) =>
+    apiClient<DisputeListItem>(`/disputes/${id}/resolve`, {
+      method: 'PATCH',
       body: data,
     }),
 

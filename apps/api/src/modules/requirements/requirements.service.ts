@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
   Logger,
 } from '@nestjs/common';
 import {
@@ -13,11 +14,14 @@ import {
   RequirementStatus,
   VerificationStatus,
   OfferStatus,
+  BidStatus,
+  FulfillmentMode,
   VehicleType,
   validateRequirementTransition,
 } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
 import { DispatchService } from '../dispatch/dispatch.service';
+import { PricingService } from '../pricing/pricing.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
 
@@ -28,72 +32,105 @@ export class RequirementsService {
   constructor(
     private readonly db: DatabaseService,
     private readonly dispatchService: DispatchService,
+    private readonly pricingService: PricingService,
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
   ) {}
 
   /**
    * Create and post a new vehicle requirement.
-   * Only VERIFIED vendors can post requirements.
-   * Automatically triggers initial dispatch wave.
+   * Supports both:
+   * 1. Mode A: DIRECT_DISPATCH (Corporate bulk bookings, fixed rate, timed offer waves)
+   * 2. Mode B: BIDDING (Outstation / Long distance, suggested budget floor, reverse auction)
    */
   async createRequirement(vendorUserId: string, dto: CreateRequirementDto): Promise<RequirementResponseDto> {
-    const totalAmount = dto.quantity * dto.ratePerVehicle;
+    const vendor = await this.db.vendor.findUnique({
+      where: { userId: vendorUserId },
+    });
 
-    try {
-      const vendor = await this.db.vendor.findUnique({
-        where: { userId: vendorUserId },
-      });
+    if (vendor && vendor.verificationStatus !== VerificationStatus.VERIFIED) {
+      throw new ForbiddenException('Vendor account must be VERIFIED before creating requirements');
+    }
 
-      if (vendor && vendor.verificationStatus !== VerificationStatus.VERIFIED) {
-        throw new ForbiddenException('Vendor account must be VERIFIED before creating requirements');
+    const vendorId = vendor?.id || `vnd_${vendorUserId}`;
+    const mode = dto.fulfillmentMode || FulfillmentMode.DIRECT_DISPATCH;
+
+    // Route distance calculation
+    const distanceKm = this.pricingService.calculateDistanceKm(
+      dto.pickupLocation.latitude,
+      dto.pickupLocation.longitude,
+      dto.dropLocation.latitude,
+      dto.dropLocation.longitude,
+    );
+
+    let ratePerVehicle = dto.ratePerVehicle;
+    let suggestedBudget = dto.suggestedBudget;
+    let totalAmount = 0;
+
+    if (mode === FulfillmentMode.BIDDING) {
+      // Outstation Bidding Mode: Quantity defaults to 1 unless specified
+      const minFareFloor = this.pricingService.calculateMinimumFare(dto.vehicleType, distanceKm);
+
+      if (suggestedBudget && suggestedBudget < minFareFloor) {
+        throw new BadRequestException(
+          `Suggested budget ₹${suggestedBudget} is below minimum calculated fare floor of ₹${minFareFloor} for ${distanceKm} km`,
+        );
       }
 
-      const requirement = await this.db.requirement.create({
-        data: {
-          vendorId: vendor?.id || `vnd_${vendorUserId}`,
-          vehicleType: dto.vehicleType as any,
-          quantity: dto.quantity,
-          assignedQuantity: 0,
-          pickupLat: dto.pickupLocation.latitude,
-          pickupLng: dto.pickupLocation.longitude,
-          pickupAddress: dto.pickupLocation.address || 'Pickup Location',
-          dropLat: dto.dropLocation.latitude,
-          dropLng: dto.dropLocation.longitude,
-          dropAddress: dto.dropLocation.address || 'Drop Location',
-          reportingTime: new Date(dto.reportingTime),
-          ratePerVehicle: dto.ratePerVehicle,
-          totalAmount,
-          status: RequirementStatus.POSTED,
-          notes: dto.notes,
-        },
-      });
+      suggestedBudget = suggestedBudget || minFareFloor;
+      ratePerVehicle = suggestedBudget;
+      totalAmount = (dto.quantity || 1) * suggestedBudget;
+    } else {
+      // Direct Dispatch Mode: Fixed rate per vehicle
+      if (!ratePerVehicle || ratePerVehicle <= 0) {
+        ratePerVehicle = this.pricingService.calculateDriverRate(dto.vehicleType, distanceKm);
+      }
+      totalAmount = (dto.quantity || 1) * ratePerVehicle;
+    }
 
-      // Auto-trigger dispatch wave
-      this.dispatchService.dispatchRequirement(requirement.id).catch((err) => {
-        this.logger.error(`Auto-dispatch failed for requirement ${requirement.id}: ${err.message}`);
-      });
-
-      return this.mapToDto(requirement);
-    } catch (e: any) {
-      if (e instanceof ForbiddenException) throw e;
-      return {
-        id: `req_${Date.now()}`,
-        vendorId: `vnd_${vendorUserId}`,
-        vehicleType: dto.vehicleType,
-        quantity: dto.quantity,
+    const requirement = await this.db.requirement.create({
+      data: {
+        vendorId,
+        fulfillmentMode: mode,
+        vehicleType: dto.vehicleType as any,
+        quantity: dto.quantity || 1,
         assignedQuantity: 0,
-        pickupLocation: dto.pickupLocation,
-        dropLocation: dto.dropLocation,
-        reportingTime: new Date(dto.reportingTime).toISOString(),
-        ratePerVehicle: dto.ratePerVehicle,
+        pickupLat: dto.pickupLocation.latitude,
+        pickupLng: dto.pickupLocation.longitude,
+        pickupAddress: dto.pickupLocation.address || 'Pickup Location',
+        dropLat: dto.dropLocation.latitude,
+        dropLng: dto.dropLocation.longitude,
+        dropAddress: dto.dropLocation.address || 'Drop Location',
+        reportingTime: new Date(dto.reportingTime),
+        ratePerVehicle,
+        suggestedBudget,
         totalAmount,
         status: RequirementStatus.POSTED,
         notes: dto.notes,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+      },
+    });
+
+    if (mode === FulfillmentMode.BIDDING) {
+      // Bidding Mode: Broadcast to nearby drivers
+      this.notifications.emitEvent(`bidding:open`, 'NEW_BIDDING_OPPORTUNITY', {
+        requirementId: requirement.id,
+        vehicleType: requirement.vehicleType,
+        pickupAddress: requirement.pickupAddress,
+        dropAddress: requirement.dropAddress,
+        distanceKm,
+        suggestedBudget,
+        reportingTime: requirement.reportingTime.toISOString(),
+      });
+      this.logger.log(`Requirement ${requirement.id} opened for bidding (Mode: BIDDING)`);
+    } else {
+      // Direct Dispatch Mode: Auto-trigger progressive dispatch waves
+      this.dispatchService.dispatchRequirement(requirement.id).catch((err) => {
+        this.logger.error(`Auto-dispatch failed for requirement ${requirement.id}: ${err.message}`);
+      });
+      this.logger.log(`Requirement ${requirement.id} submitted for progressive dispatch (Mode: DIRECT_DISPATCH)`);
     }
+
+    return this.mapToDto(requirement);
   }
 
   /**
@@ -139,7 +176,7 @@ export class RequirementsService {
   }
 
   /**
-   * Get detailed requirement view including remaining slots, offer stats, and assigned drivers.
+   * Get detailed requirement view including remaining slots, offer stats, bids, and assigned drivers.
    */
   async getRequirementDetails(id: string, vendorUserId: string): Promise<RequirementDetailResponseDto> {
     const vendor = await this.db.vendor.findUnique({ where: { userId: vendorUserId } });
@@ -147,6 +184,14 @@ export class RequirementsService {
       where: { id },
       include: {
         offers: true,
+        bids: {
+          include: {
+            driver: {
+              include: { user: true, vehicles: true },
+            },
+          },
+          orderBy: { bidAmount: 'asc' },
+        },
         assignments: {
           include: {
             driver: {
@@ -172,6 +217,27 @@ export class RequirementsService {
       ...baseDto,
       remainingQuantity: requirement.quantity - requirement.assignedQuantity,
       offersCount: requirement.offers.length,
+      bidsCount: requirement.bids.length,
+      bids: requirement.bids.map((b) => {
+        const primaryVehicle = b.driver.vehicles[0];
+        return {
+          id: b.id,
+          requirementId: b.requirementId,
+          driverId: b.driverId,
+          bidAmount: Number(b.bidAmount),
+          etaMinutes: b.etaMinutes || undefined,
+          notes: b.notes || undefined,
+          status: b.status as BidStatus,
+          createdAt: b.createdAt.toISOString(),
+          updatedAt: b.updatedAt.toISOString(),
+          driverName: b.driver.fullName,
+          driverPhone: b.driver.phone,
+          driverRating: b.driver.averageRating,
+          driverTrustScore: b.driver.trustScore,
+          vehicleModel: primaryVehicle?.model,
+          vehiclePlate: primaryVehicle?.registrationNumber,
+        };
+      }),
       assignedDrivers: requirement.assignments.map((a) => ({
         assignmentId: a.id,
         driverId: a.driverId,
@@ -184,7 +250,7 @@ export class RequirementsService {
   }
 
   /**
-   * Cancel requirement with state machine validation and active offer invalidation.
+   * Cancel requirement with state machine validation, active offer invalidation, and pending bid rejection.
    */
   async cancelRequirement(
     id: string,
@@ -194,7 +260,10 @@ export class RequirementsService {
     const vendor = await this.db.vendor.findUnique({ where: { userId: vendorUserId } });
     const requirement = await this.db.requirement.findUnique({
       where: { id },
-      include: { offers: { where: { status: OfferStatus.SENT } } },
+      include: {
+        offers: { where: { status: OfferStatus.SENT } },
+        bids: { where: { status: BidStatus.PENDING } },
+      },
     });
 
     if (!requirement) {
@@ -205,13 +274,13 @@ export class RequirementsService {
       throw new ForbiddenException('Not authorized to cancel this requirement');
     }
 
-    // Validate state transition per docs/12_STATE_MACHINES.md
+    // Validate state transition
     validateRequirementTransition(
       requirement.status as RequirementStatus,
       RequirementStatus.CANCELLED,
     );
 
-    // Cancel in-flight sent offers
+    // Cancel in-flight sent offers if in DIRECT_DISPATCH mode
     if (requirement.offers.length > 0) {
       await this.db.offer.updateMany({
         where: {
@@ -221,12 +290,30 @@ export class RequirementsService {
         data: { status: OfferStatus.CANCELLED },
       });
 
-      // Notify offered drivers that the offer was cancelled
       for (const offer of requirement.offers) {
         this.notifications.emitEvent(`driver:${offer.driverId}`, 'OFFER_CANCELLED', {
           offerId: offer.id,
           requirementId: id,
           reason: dto.reason || 'Requirement was cancelled by vendor',
+        });
+      }
+    }
+
+    // Expire/reject pending bids if in BIDDING mode
+    if (requirement.bids.length > 0) {
+      await this.db.bid.updateMany({
+        where: {
+          requirementId: id,
+          status: BidStatus.PENDING,
+        },
+        data: { status: BidStatus.EXPIRED },
+      });
+
+      for (const bid of requirement.bids) {
+        this.notifications.emitEvent(`driver:${bid.driverId}`, 'BID_EXPIRED', {
+          bidId: bid.id,
+          requirementId: id,
+          reason: dto.reason || 'Requirement was cancelled by requester',
         });
       }
     }
@@ -244,6 +331,7 @@ export class RequirementsService {
       metadata: {
         reason: dto.reason,
         cancelledOffersCount: requirement.offers.length,
+        expiredBidsCount: requirement.bids.length,
       },
     });
 
@@ -254,6 +342,7 @@ export class RequirementsService {
     return {
       id: r.id,
       vendorId: r.vendorId,
+      fulfillmentMode: r.fulfillmentMode as FulfillmentMode,
       vehicleType: r.vehicleType as unknown as VehicleType,
       quantity: r.quantity,
       assignedQuantity: r.assignedQuantity,
@@ -268,7 +357,8 @@ export class RequirementsService {
         address: r.dropAddress,
       },
       reportingTime: r.reportingTime.toISOString(),
-      ratePerVehicle: Number(r.ratePerVehicle),
+      ratePerVehicle: r.ratePerVehicle ? Number(r.ratePerVehicle) : undefined,
+      suggestedBudget: r.suggestedBudget ? Number(r.suggestedBudget) : undefined,
       totalAmount: Number(r.totalAmount),
       status: r.status as RequirementStatus,
       notes: r.notes || undefined,

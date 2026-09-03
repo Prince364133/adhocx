@@ -31,6 +31,28 @@ export enum VehicleType {
   HATCHBACK = 'HATCHBACK',
   TEMPO_TRAVELLER = 'TEMPO_TRAVELLER',
   BUS = 'BUS',
+  TATA_ACE = 'TATA_ACE',
+  PICKUP_TRUCK = 'PICKUP_TRUCK',
+}
+
+export enum FulfillmentMode {
+  DIRECT_DISPATCH = 'DIRECT_DISPATCH',
+  BIDDING = 'BIDDING',
+}
+
+export enum BidStatus {
+  PENDING = 'PENDING',
+  ACCEPTED = 'ACCEPTED',
+  REJECTED = 'REJECTED',
+  WITHDRAWN = 'WITHDRAWN',
+  EXPIRED = 'EXPIRED',
+}
+
+export enum DisputeStatus {
+  OPEN = 'OPEN',
+  UNDER_REVIEW = 'UNDER_REVIEW',
+  RESOLVED = 'RESOLVED',
+  REJECTED = 'REJECTED',
 }
 
 export enum RequirementStatus {

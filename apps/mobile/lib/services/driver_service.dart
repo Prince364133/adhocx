@@ -56,7 +56,7 @@ class DriverService {
     );
   }
 
-  // Offers
+  // Offers (Direct Dispatch Mode)
   Future<List<dynamic>> getOffers() async {
     final response = await _api.get('/offers');
     return response is List ? response : [];
@@ -71,6 +71,34 @@ class DriverService {
       '/offers/$offerId/decline',
       body: reason != null ? {'reason': reason} : null,
     );
+  }
+
+  // Bidding (Outstation Reverse Auction Mode)
+  Future<dynamic> submitBid({
+    required String requirementId,
+    required double bidAmount,
+    int? etaMinutes,
+    String? notes,
+  }) async {
+    return await _api.post(
+      '/bids',
+      body: {
+        'requirementId': requirementId,
+        'bidAmount': bidAmount,
+        if (etaMinutes != null) 'etaMinutes': etaMinutes,
+        if (notes != null) 'notes': notes,
+      },
+    );
+  }
+
+  Future<List<dynamic>> getMyBids({String? status}) async {
+    final query = status != null ? {'status': status} : null;
+    final response = await _api.get('/bids', queryParameters: query);
+    return response is List ? response : [];
+  }
+
+  Future<dynamic> withdrawBid(String bidId) async {
+    return await _api.post('/bids/$bidId/withdraw');
   }
 
   // Trip Lifecycle
@@ -136,6 +164,38 @@ class DriverService {
           'latitude': lat ?? 28.5355,
           'longitude': lng ?? 77.3910,
         },
+      },
+    );
+  }
+
+  // Reviews & Rating Submission
+  Future<dynamic> submitReview({
+    required String tripId,
+    required int rating,
+    String? feedback,
+  }) async {
+    return await _api.post(
+      '/reviews',
+      body: {
+        'tripId': tripId,
+        'rating': rating,
+        if (feedback != null) 'feedback': feedback,
+      },
+    );
+  }
+
+  // Dispute Tickets
+  Future<dynamic> fileDispute({
+    required String tripId,
+    required String reason,
+    String? description,
+  }) async {
+    return await _api.post(
+      '/disputes',
+      body: {
+        'tripId': tripId,
+        'reason': reason,
+        if (description != null) 'description': description,
       },
     );
   }

@@ -116,12 +116,32 @@ export default function RequirementsPage() {
                       #{req.id.slice(0, 8)}
                     </div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{req.vendorName || 'Enterprise Vendor'}</div>
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        marginTop: '0.25rem',
+                        padding: '0.125rem 0.5rem',
+                        fontSize: '0.6875rem',
+                        fontWeight: 700,
+                        borderRadius: '9999px',
+                        backgroundColor: req.fulfillmentMode === 'BIDDING' ? '#eff6ff' : '#f5f3ff',
+                        color: req.fulfillmentMode === 'BIDDING' ? '#2563eb' : '#7c3aed',
+                        border: req.fulfillmentMode === 'BIDDING' ? '1px solid #bfdbfe' : '1px solid #ddd6fe',
+                      }}
+                    >
+                      {req.fulfillmentMode === 'BIDDING' ? '⚖️ OUTSTATION BIDDING' : '⚡ DIRECT DISPATCH'}
+                    </span>
                   </td>
                   <td>
                     <div style={{ fontWeight: 600 }}>{req.vehicleType}</div>
                     <div style={{ fontSize: '0.8125rem', color: req.assignedQuantity >= req.quantity ? 'var(--color-success)' : 'var(--color-warning)' }}>
                       {req.assignedQuantity} / {req.quantity} Cabs Assigned
                     </div>
+                    {req.fulfillmentMode === 'BIDDING' && (
+                      <div style={{ fontSize: '0.75rem', color: '#2563eb', fontWeight: 600, marginTop: '0.125rem' }}>
+                        {req.bidsCount || 0} driver quotes submitted
+                      </div>
+                    )}
                   </td>
                   <td style={{ maxWidth: '300px' }}>
                     <div style={{ fontSize: '0.8125rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -140,7 +160,12 @@ export default function RequirementsPage() {
                     </div>
                   </td>
                   <td style={{ fontWeight: 600 }}>
-                    ₹{Number(req.vendorRate).toLocaleString('en-IN')}
+                    ₹{Number(req.ratePerVehicle || req.suggestedBudget || req.vendorRate || 0).toLocaleString('en-IN')}
+                    {req.fulfillmentMode === 'BIDDING' && (
+                      <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 400 }}>
+                        (Suggested Floor)
+                      </div>
+                    )}
                   </td>
                   <td>
                     <Badge status={req.status} />

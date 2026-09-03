@@ -44,6 +44,10 @@ export class DriversService {
         vehicleModel: driver.vehicleModel || undefined,
         vehiclePlate: driver.vehiclePlate || undefined,
         walletBalance: Number(driver.walletBalance),
+        trustScore: driver.trustScore !== undefined ? Number(driver.trustScore) : 100.0,
+        averageRating: driver.averageRating !== undefined ? Number(driver.averageRating) : 5.0,
+        ratingCount: driver.ratingCount || 0,
+        totalTrips: driver.totalTrips || 0,
         currentLocation: driver.currentLat && driver.currentLng ? {
           latitude: Number(driver.currentLat),
           longitude: Number(driver.currentLng),

@@ -6,6 +6,7 @@ import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
+import 'vendor_bids_bottom_sheet.dart';
 
 class VendorRequirementDetailsScreen extends StatelessWidget {
   const VendorRequirementDetailsScreen({super.key});
@@ -99,6 +100,55 @@ class VendorRequirementDetailsScreen extends StatelessWidget {
                     _buildDetailRow(context, Icons.event_outlined, 'Date & Time', '10 May 2025, 06:30 PM', isDark),
                     const Divider(),
                     _buildDetailRow(context, Icons.schedule, 'Posted On', '8 May 2025, 11:20 AM', isDark),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: AppSpacing.lg),
+
+              // Bidding & Driver Quotes Section
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6C5CE7).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  border: Border.all(color: const Color(0xFF6C5CE7).withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6C5CE7),
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                      ),
+                      child: const Icon(Icons.gavel_rounded, color: Colors.white, size: 22),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Competing Driver Quotes',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          ),
+                          Text(
+                            'Compare driver trust scores & accept bid',
+                            style: TextStyle(fontSize: 12, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => VendorBidsBottomSheet.show(context, requirementId: 'req-sample-id'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF6C5CE7),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                      ),
+                      child: const Text('View Bids', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    ),
                   ],
                 ),
               ),

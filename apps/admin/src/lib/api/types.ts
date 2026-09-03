@@ -21,6 +21,10 @@ export interface DriverListItem {
   verificationStatus: 'PENDING' | 'UNDER_REVIEW' | 'VERIFIED' | 'REJECTED' | 'SUSPENDED';
   availabilityStatus?: string;
   walletBalance?: number;
+  trustScore?: number;
+  averageRating?: number;
+  ratingCount?: number;
+  totalTrips?: number;
   rejectionReason?: string;
   currentLat?: number;
   currentLng?: number;
@@ -65,6 +69,7 @@ export interface VendorListItem {
   verificationStatus: 'PENDING' | 'UNDER_REVIEW' | 'VERIFIED' | 'REJECTED';
   rejectionReason?: string;
   requirementsCount?: number;
+  escrowBalance?: number;
   createdAt: string;
   updatedAt?: string;
 }
@@ -95,6 +100,7 @@ export interface VerificationItem {
 export interface RequirementListItem {
   id: string;
   vendorName: string;
+  fulfillmentMode?: 'DIRECT_DISPATCH' | 'BIDDING';
   vehicleType: string;
   quantity: number;
   assignedQuantity: number;
@@ -102,8 +108,43 @@ export interface RequirementListItem {
   dropAddress: string;
   reportingTime: string;
   status: string;
-  vendorRate: number;
+  vendorRate?: number;
+  ratePerVehicle?: number;
+  suggestedBudget?: number;
+  bidsCount?: number;
   createdAt: string;
+}
+
+export interface BidListItem {
+  id: string;
+  requirementId: string;
+  driverId: string;
+  driverName?: string;
+  driverPhone?: string;
+  driverRating?: number;
+  driverTrustScore?: number;
+  vehicleModel?: string;
+  vehiclePlate?: string;
+  bidAmount: number;
+  etaMinutes?: number;
+  notes?: string;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'WITHDRAWN' | 'EXPIRED';
+  createdAt: string;
+}
+
+export interface DisputeListItem {
+  id: string;
+  tripId: string;
+  reporterId: string;
+  reporterName?: string;
+  accusedId: string;
+  accusedName?: string;
+  reason: string;
+  description?: string;
+  status: 'OPEN' | 'UNDER_REVIEW' | 'RESOLVED' | 'REJECTED';
+  resolutionText?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface TripListItem {

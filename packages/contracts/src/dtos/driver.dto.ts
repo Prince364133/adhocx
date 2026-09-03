@@ -62,6 +62,10 @@ export class DriverProfileDto {
   vehicleModel?: string;
   vehiclePlate?: string;
   walletBalance!: number;
+  trustScore?: number;
+  averageRating?: number;
+  ratingCount?: number;
+  totalTrips?: number;
   currentLocation?: GeoLocationDto;
   createdAt!: string;
   updatedAt!: string;

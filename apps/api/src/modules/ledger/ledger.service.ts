@@ -10,10 +10,11 @@ import { DatabaseService } from '../../database/database.service';
 /**
  * LedgerService manages the immutable financial ledger.
  *
- * Per docs/15_PAYMENTS_AND_LEDGER.md:
- * - Driver wallet balances are updated ONLY via atomic transactions that append immutable ledger entries.
+ * Per docs/15_PAYMENTS_AND_LEDGER.md and JoinCab DOC-033:
+ * - Driver wallet balances and in-app escrow holds are updated ONLY via atomic transactions
+ *   that append immutable ledger entries.
  * - Double-entry style: money is never changed in isolation.
- * - Money is stored as Decimal(12,2), never floating point.
+ * - Invariant: Balance = SUM(CREDIT) - SUM(DEBIT).
  */
 @Injectable()
 export class LedgerService {
@@ -116,6 +117,157 @@ export class LedgerService {
   }
 
   /**
+   * Hold customer/vendor funds in escrow upon bid acceptance or requirement posting.
+   */
+  async holdEscrow(data: {
+    vendorId: string;
+    amount: number;
+    tripId: string;
+    description?: string;
+  }): Promise<void> {
+    if (data.amount <= 0) {
+      throw new BadRequestException('Escrow amount must be positive');
+    }
+
+    await this.db.$transaction(async (tx) => {
+      const vendor = await tx.vendor.update({
+        where: { id: data.vendorId },
+        data: {
+          escrowBalance: { increment: data.amount },
+        },
+      });
+
+      await tx.ledgerEntry.create({
+        data: {
+          accountType: 'VENDOR',
+          accountId: data.vendorId,
+          entryType: LedgerEntryType.DEBIT,
+          amount: data.amount,
+          balanceAfter: vendor.escrowBalance,
+          referenceType: 'ESCROW_HOLD',
+          referenceId: data.tripId,
+          description: data.description || `Escrow hold for trip ${data.tripId.slice(-6)}`,
+        },
+      });
+    });
+
+    this.logger.log(`Escrow locked ₹${data.amount} for vendor ${data.vendorId} on trip ${data.tripId}`);
+  }
+
+  /**
+   * Release escrow to driver upon trip completion with platform commission deduction.
+   */
+  async releaseEscrow(data: {
+    vendorId: string;
+    driverId: string;
+    tripId: string;
+    fareAmount: number;
+    tollCharges?: number;
+    parkingCharges?: number;
+    commissionRate?: number; // e.g. 0.05 for 5%
+  }): Promise<{ driverEarnings: number; commission: number }> {
+    const rate = data.commissionRate !== undefined ? data.commissionRate : 0.05; // 5% default
+    const commission = Math.round(data.fareAmount * rate);
+    const toll = data.tollCharges || 0;
+    const parking = data.parkingCharges || 0;
+    const driverEarnings = data.fareAmount - commission + toll + parking;
+
+    await this.db.$transaction(async (tx) => {
+      // 1. Release escrow balance from vendor
+      const vendor = await tx.vendor.findUnique({ where: { id: data.vendorId } });
+      if (vendor) {
+        await tx.vendor.update({
+          where: { id: data.vendorId },
+          data: {
+            escrowBalance: { decrement: Math.min(Number(vendor.escrowBalance), data.fareAmount) },
+          },
+        });
+      }
+
+      // 2. Credit driver wallet with net earnings
+      const updatedDriver = await tx.driver.update({
+        where: { id: data.driverId },
+        data: {
+          walletBalance: { increment: driverEarnings },
+        },
+      });
+
+      // 3. Ledger entry: Driver net earnings
+      await tx.ledgerEntry.create({
+        data: {
+          accountType: 'DRIVER',
+          accountId: data.driverId,
+          entryType: LedgerEntryType.CREDIT,
+          amount: driverEarnings,
+          balanceAfter: updatedDriver.walletBalance,
+          referenceType: 'ESCROW_RELEASE',
+          referenceId: data.tripId,
+          description: `Payout for trip ${data.tripId.slice(-6)} (Gross: ₹${data.fareAmount}, Commission: ₹${commission}, Toll: ₹${toll}, Parking: ₹${parking})`,
+        },
+      });
+
+      // 4. Ledger entry: Platform commission
+      if (commission > 0) {
+        await tx.ledgerEntry.create({
+          data: {
+            accountType: 'PLATFORM',
+            accountId: data.driverId,
+            entryType: LedgerEntryType.CREDIT,
+            amount: commission,
+            balanceAfter: commission,
+            referenceType: 'PLATFORM_COMMISSION',
+            referenceId: data.tripId,
+            description: `Platform fee (${rate * 100}%) for trip ${data.tripId.slice(-6)}`,
+          },
+        });
+      }
+    });
+
+    this.logger.log(
+      `Released escrow for trip ${data.tripId}: ₹${driverEarnings} to driver ${data.driverId}, ₹${commission} platform commission`,
+    );
+
+    return { driverEarnings, commission };
+  }
+
+  /**
+   * Refund held escrow funds to vendor upon booking cancellation.
+   */
+  async refundEscrow(data: {
+    vendorId: string;
+    tripId: string;
+    amount: number;
+    reason: string;
+  }): Promise<void> {
+    await this.db.$transaction(async (tx) => {
+      const vendor = await tx.vendor.findUnique({ where: { id: data.vendorId } });
+      if (vendor) {
+        await tx.vendor.update({
+          where: { id: data.vendorId },
+          data: {
+            escrowBalance: { decrement: Math.min(Number(vendor.escrowBalance), data.amount) },
+          },
+        });
+      }
+
+      await tx.ledgerEntry.create({
+        data: {
+          accountType: 'VENDOR',
+          accountId: data.vendorId,
+          entryType: LedgerEntryType.CREDIT,
+          amount: data.amount,
+          balanceAfter: vendor ? Number(vendor.escrowBalance) - data.amount : 0,
+          referenceType: 'ESCROW_REFUND',
+          referenceId: data.tripId,
+          description: `Escrow refund for trip ${data.tripId.slice(-6)}: ${data.reason}`,
+        },
+      });
+    });
+
+    this.logger.log(`Refunded escrow ₹${data.amount} to vendor ${data.vendorId} for trip ${data.tripId}`);
+  }
+
+  /**
    * Get complete wallet summary for a driver including derived metrics.
    */
   async getDriverWalletSummary(driverUserId: string): Promise<DriverWalletSummaryDto> {
@@ -142,7 +294,6 @@ export class LedgerService {
         }),
       ]);
 
-      // Calculate total earned from all CREDIT entries
       let totalEarned = 0;
       let totalWithdrawn = 0;
 
@@ -154,7 +305,6 @@ export class LedgerService {
         }
       }
 
-      // Pending settlements
       const pendingSettlements = settlements
         .filter((s) => s.status === SettlementStatus.PENDING || s.status === SettlementStatus.PROCESSING)
         .reduce((acc, s) => acc + Number(s.amount), 0);

@@ -42,6 +42,28 @@ enum VehicleType {
   HATCHBACK
   TEMPO_TRAVELLER
   BUS
+  TATA_ACE
+  PICKUP_TRUCK
+}
+
+enum FulfillmentMode {
+  DIRECT_DISPATCH
+  BIDDING
+}
+
+enum BidStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+  EXPIRED
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
 }
 
 enum RequirementStatus {
@@ -112,9 +134,13 @@ model User {
   createdAt DateTime   @default(now()) @map("created_at")
   updatedAt DateTime   @updatedAt @map("updated_at")
 
-  vendor  Vendor?
-  driver  Driver?
-  auditLogs AuditLog[]
+  vendor          Vendor?
+  driver          Driver?
+  auditLogs       AuditLog[]
+  reviewsWritten  Review[]   @relation("ReviewsWritten")
+  reviewsReceived Review[]   @relation("ReviewsReceived")
+  filedDisputes   Dispute[]  @relation("ReporterDisputes")
+  accusedDisputes Dispute[]  @relation("AccusedDisputes")
 
   @@map("users")
 }
@@ -128,6 +154,7 @@ model Vendor {
   gstNumber          String?            @map("gst_number")
   address            String?
   verificationStatus VerificationStatus @default(PENDING) @map("verification_status")
+  escrowBalance      Decimal            @default(0.00) @map("escrow_balance") @db.Decimal(12, 2)
   approvedAt         DateTime?          @map("approved_at")
   createdAt          DateTime           @default(now()) @map("created_at")
   updatedAt          DateTime           @updatedAt @map("updated_at")
@@ -151,18 +178,24 @@ model Driver {
   vehicleModel       String?            @map("vehicle_model")
   vehiclePlate       String?            @map("vehicle_plate")
   walletBalance      Decimal            @default(0.00) @map("wallet_balance") @db.Decimal(12, 2)
+  trustScore         Float              @default(100.0) @map("trust_score")
+  averageRating      Float              @default(5.0) @map("average_rating")
+  ratingCount        Int                @default(0) @map("rating_count")
+  totalTrips         Int                @default(0) @map("total_trips")
   currentLat         Decimal?           @map("current_lat") @db.Decimal(10, 7)
   currentLng         Decimal?           @map("current_lng") @db.Decimal(10, 7)
   lastLocationAt     DateTime?          @map("last_location_at")
   createdAt          DateTime           @default(now()) @map("created_at")
   updatedAt          DateTime           @updatedAt @map("updated_at")
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  vehicles     Vehicle[]
-  offers       Offer[]
-  assignments  Assignment[]
-  trips        Trip[]
-  settlements  Settlement[]
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicles        Vehicle[]
+  offers          Offer[]
+  bids            Bid[]
+  assignments     Assignment[]
+  trips           Trip[]
+  settlements     Settlement[]
+  reviewsReceived Review[]      @relation("DriverReviewsReceived")
 
   @@map("drivers")
 }
@@ -190,6 +223,7 @@ model Vehicle {
 model Requirement {
   id               String            @id @default(uuid()) @db.Uuid
   vendorId         String            @map("vendor_id") @db.Uuid
+  fulfillmentMode  FulfillmentMode   @default(DIRECT_DISPATCH) @map("fulfillment_mode")
   vehicleType      VehicleType       @map("vehicle_type")
   quantity         Int               @default(1)
   assignedQuantity Int               @default(0) @map("assigned_quantity")
@@ -200,7 +234,8 @@ model Requirement {
   dropLng          Decimal           @map("drop_lng") @db.Decimal(10, 7)
   dropAddress      String            @map("drop_address")
   reportingTime    DateTime          @map("reporting_time")
-  ratePerVehicle   Decimal           @map("rate_per_vehicle") @db.Decimal(10, 2)
+  ratePerVehicle   Decimal?          @map("rate_per_vehicle") @db.Decimal(10, 2)
+  suggestedBudget  Decimal?          @map("suggested_budget") @db.Decimal(10, 2)
   totalAmount      Decimal           @map("total_amount") @db.Decimal(12, 2)
   status           RequirementStatus @default(POSTED)
   notes            String?
@@ -209,6 +244,7 @@ model Requirement {
 
   vendor      Vendor       @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   offers      Offer[]
+  bids        Bid[]
   assignments Assignment[]
   trips       Trip[]
   payments    Payment[]
@@ -228,17 +264,39 @@ model Offer {
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
 
-  requirement Requirement  @relation(fields: [requirementId], references: [id], onDelete: Cascade)
-  driver      Driver       @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  requirement Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  driver      Driver      @relation(fields: [driverId], references: [id], onDelete: Cascade)
   assignment  Assignment?
 
   @@map("offers")
 }
 
+model Bid {
+  id            String    @id @default(uuid()) @db.Uuid
+  requirementId String    @map("requirement_id") @db.Uuid
+  driverId      String    @map("driver_id") @db.Uuid
+  bidAmount     Decimal   @map("bid_amount") @db.Decimal(10, 2)
+  etaMinutes    Int?      @map("eta_minutes")
+  notes         String?
+  status        BidStatus @default(PENDING)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  requirement Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  driver      Driver      @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  assignment  Assignment?
+
+  @@index([requirementId, status])
+  @@index([driverId, status])
+  @@index([createdAt])
+  @@map("bids")
+}
+
 model Assignment {
   id            String           @id @default(uuid()) @db.Uuid
   requirementId String           @map("requirement_id") @db.Uuid
-  offerId       String           @unique @map("offer_id") @db.Uuid
+  offerId       String?          @unique @map("offer_id") @db.Uuid
+  bidId         String?          @unique @map("bid_id") @db.Uuid
   driverId      String           @map("driver_id") @db.Uuid
   vehicleId     String?          @map("vehicle_id") @db.Uuid
   status        AssignmentStatus @default(CONFIRMED)
@@ -247,7 +305,8 @@ model Assignment {
   updatedAt     DateTime         @updatedAt @map("updated_at")
 
   requirement Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
-  offer       Offer       @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  offer       Offer?      @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  bid         Bid?        @relation(fields: [bidId], references: [id], onDelete: Cascade)
   driver      Driver      @relation(fields: [driverId], references: [id], onDelete: Cascade)
   vehicle     Vehicle?    @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
   trip        Trip?
@@ -278,12 +337,14 @@ model Trip {
   createdAt           DateTime    @default(now()) @map("created_at")
   updatedAt           DateTime    @updatedAt @map("updated_at")
 
-  requirement Requirement  @relation(fields: [requirementId], references: [id], onDelete: Cascade)
-  assignment  Assignment   @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  vendor      Vendor       @relation(fields: [vendorId], references: [id], onDelete: Cascade)
-  driver      Driver       @relation(fields: [driverId], references: [id], onDelete: Cascade)
-  vehicle     Vehicle?     @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  requirement Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  assignment  Assignment  @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  vendor      Vendor      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  driver      Driver      @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  vehicle     Vehicle?    @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
   events      TripEvent[]
+  reviews     Review[]
+  disputes    Dispute[]
 
   @@map("trips")
 }
@@ -300,6 +361,47 @@ model TripEvent {
   trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
 
   @@map("trip_events")
+}
+
+model Review {
+  id         String   @id @default(uuid()) @db.Uuid
+  tripId     String   @map("trip_id") @db.Uuid
+  reviewerId String   @map("reviewer_id") @db.Uuid
+  revieweeId String   @map("reviewee_id") @db.Uuid
+  driverId   String?  @map("driver_id") @db.Uuid
+  rating     Int
+  feedback   String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  trip     Trip    @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  reviewer User    @relation("ReviewsWritten", fields: [reviewerId], references: [id], onDelete: Cascade)
+  reviewee User    @relation("ReviewsReceived", fields: [revieweeId], references: [id], onDelete: Cascade)
+  driver   Driver? @relation("DriverReviewsReceived", fields: [driverId], references: [id], onDelete: SetNull)
+
+  @@unique([tripId, reviewerId])
+  @@map("reviews")
+}
+
+model Dispute {
+  id             String        @id @default(uuid()) @db.Uuid
+  tripId         String        @map("trip_id") @db.Uuid
+  reporterId     String        @map("reporter_id") @db.Uuid
+  accusedId      String        @map("accused_id") @db.Uuid
+  reason         String
+  description    String?
+  status         DisputeStatus @default(OPEN)
+  resolutionText String?       @map("resolution_text")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  trip     Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  reporter User @relation("ReporterDisputes", fields: [reporterId], references: [id], onDelete: Cascade)
+  accused  User @relation("AccusedDisputes", fields: [accusedId], references: [id], onDelete: Cascade)
+
+  @@index([tripId, status])
+  @@index([reporterId])
+  @@index([status])
+  @@map("disputes")
 }
 
 model Payment {

@@ -138,11 +138,13 @@ class AuthService {
 
     String? token;
     if (response is Map) {
-      if (response['accessToken'] != null) {
-        token = response['accessToken'] as String;
+      // API wraps responses in { success, data }, unwrap if needed
+      final payload = response['data'] is Map ? response['data'] as Map : response;
+      if (payload['accessToken'] != null) {
+        token = payload['accessToken'] as String;
         await _api.setToken(token);
-      } else if (response['token'] != null) {
-        token = response['token'] as String;
+      } else if (payload['token'] != null) {
+        token = payload['token'] as String;
         await _api.setToken(token);
       }
     }
@@ -176,11 +178,13 @@ class AuthService {
 
     String? token;
     if (response is Map) {
-      if (response['accessToken'] != null) {
-        token = response['accessToken'] as String;
+      // API wraps responses in { success, data }, unwrap if needed
+      final payload = response['data'] is Map ? response['data'] as Map : response;
+      if (payload['accessToken'] != null) {
+        token = payload['accessToken'] as String;
         await _api.setToken(token);
-      } else if (response['token'] != null) {
-        token = response['token'] as String;
+      } else if (payload['token'] != null) {
+        token = payload['token'] as String;
         await _api.setToken(token);
       }
     }
@@ -212,11 +216,13 @@ class AuthService {
 
     String? token;
     if (response is Map) {
-      if (response['accessToken'] != null) {
-        token = response['accessToken'] as String;
+      // API wraps responses in { success, data }, unwrap if needed
+      final payload = response['data'] is Map ? response['data'] as Map : response;
+      if (payload['accessToken'] != null) {
+        token = payload['accessToken'] as String;
         await _api.setToken(token);
-      } else if (response['token'] != null) {
-        token = response['token'] as String;
+      } else if (payload['token'] != null) {
+        token = payload['token'] as String;
         await _api.setToken(token);
       }
     }

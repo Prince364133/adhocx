@@ -1,6 +1,7 @@
 import {
   RequirementStatus,
   OfferStatus,
+  BidStatus,
   AssignmentStatus,
   TripStatus,
   DriverAvailability,
@@ -47,6 +48,14 @@ export const LEGAL_OFFER_TRANSITIONS: Record<OfferStatus, OfferStatus[]> = {
   [OfferStatus.DECLINED]: [],
   [OfferStatus.EXPIRED]: [],
   [OfferStatus.CANCELLED]: [],
+};
+
+export const LEGAL_BID_TRANSITIONS: Record<BidStatus, BidStatus[]> = {
+  [BidStatus.PENDING]: [BidStatus.ACCEPTED, BidStatus.REJECTED, BidStatus.WITHDRAWN, BidStatus.EXPIRED],
+  [BidStatus.ACCEPTED]: [],
+  [BidStatus.REJECTED]: [],
+  [BidStatus.WITHDRAWN]: [],
+  [BidStatus.EXPIRED]: [],
 };
 
 export const LEGAL_ASSIGNMENT_TRANSITIONS: Record<AssignmentStatus, AssignmentStatus[]> = {
@@ -97,6 +106,16 @@ export function canTransitionOffer(from: OfferStatus, to: OfferStatus): boolean 
 export function validateOfferTransition(from: OfferStatus, to: OfferStatus): void {
   if (!canTransitionOffer(from, to)) {
     throw new InvalidStateTransitionError('Offer', from, to);
+  }
+}
+
+export function canTransitionBid(from: BidStatus, to: BidStatus): boolean {
+  return LEGAL_BID_TRANSITIONS[from]?.includes(to) ?? false;
+}
+
+export function validateBidTransition(from: BidStatus, to: BidStatus): void {
+  if (!canTransitionBid(from, to)) {
+    throw new InvalidStateTransitionError('Bid', from, to);
   }
 }
 

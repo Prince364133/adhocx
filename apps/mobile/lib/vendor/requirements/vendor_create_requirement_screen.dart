@@ -15,14 +15,18 @@ class VendorCreateRequirementScreen extends StatefulWidget {
 }
 
 class _VendorCreateRequirementScreenState extends State<VendorCreateRequirementScreen> {
+  String _selectedFulfillmentMode = 'DIRECT_DISPATCH';
   String _selectedVehicleType = 'Sedan';
   int _quantity = 10;
   final TextEditingController _specialRequestsController = TextEditingController();
 
   final List<Map<String, String>> _vehicleTypes = [
+    {'title': 'Hatchback', 'icon': 'directions_car'},
     {'title': 'Sedan', 'icon': 'directions_car'},
     {'title': 'SUV', 'icon': 'airport_shuttle'},
     {'title': 'Tempo Traveller', 'icon': 'directions_bus'},
+    {'title': 'Tata Ace', 'icon': 'local_shipping'},
+    {'title': 'Pickup Truck', 'icon': 'local_shipping'},
   ];
 
   @override
@@ -88,6 +92,115 @@ class _VendorCreateRequirementScreenState extends State<VendorCreateRequirementS
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Booking Category Selector (Corporate Bulk vs Outstation Trip)
+                    Text(
+                      'Booking Category *',
+                      style: AppTypography.h4(
+                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() {
+                              _selectedFulfillmentMode = 'DIRECT_DISPATCH';
+                            }),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+                              decoration: BoxDecoration(
+                                color: _selectedFulfillmentMode == 'DIRECT_DISPATCH'
+                                    ? const Color(0xFF6C5CE7).withValues(alpha: 0.12)
+                                    : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
+                                borderRadius: BorderRadius.circular(AppRadius.md),
+                                border: Border.all(
+                                  color: _selectedFulfillmentMode == 'DIRECT_DISPATCH'
+                                      ? const Color(0xFF6C5CE7)
+                                      : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                                  width: _selectedFulfillmentMode == 'DIRECT_DISPATCH' ? 2 : 1,
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.flash_on_rounded, size: 16, color: Color(0xFF6C5CE7)),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Corporate Bulk',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                          color: _selectedFulfillmentMode == 'DIRECT_DISPATCH' ? const Color(0xFF6C5CE7) : null,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Direct Timed Dispatch',
+                                    style: TextStyle(fontSize: 11, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() {
+                              _selectedFulfillmentMode = 'BIDDING';
+                              _quantity = 1;
+                            }),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+                              decoration: BoxDecoration(
+                                color: _selectedFulfillmentMode == 'BIDDING'
+                                    ? const Color(0xFF6C5CE7).withValues(alpha: 0.12)
+                                    : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
+                                borderRadius: BorderRadius.circular(AppRadius.md),
+                                border: Border.all(
+                                  color: _selectedFulfillmentMode == 'BIDDING'
+                                      ? const Color(0xFF6C5CE7)
+                                      : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                                  width: _selectedFulfillmentMode == 'BIDDING' ? 2 : 1,
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.gavel_rounded, size: 16, color: Color(0xFF6C5CE7)),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Outstation Trip',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                          color: _selectedFulfillmentMode == 'BIDDING' ? const Color(0xFF6C5CE7) : null,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Reverse Auction Quotes',
+                                    style: TextStyle(fontSize: 11, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+
                     // Vehicle Type Selector Cards
                     Text(
                       'Vehicle Type *',

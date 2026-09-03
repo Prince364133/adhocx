@@ -9,10 +9,14 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { RequirementStatus, VehicleType } from '../enums';
+import { RequirementStatus, VehicleType, FulfillmentMode } from '../enums';
 import { GeoLocationDto } from './common.dto';
 
 export class CreateRequirementDto {
+  @IsOptional()
+  @IsEnum(FulfillmentMode, { message: 'Invalid fulfillment mode' })
+  fulfillmentMode?: FulfillmentMode = FulfillmentMode.DIRECT_DISPATCH;
+
   @IsEnum(VehicleType, { message: 'Invalid vehicle type' })
   vehicleType!: VehicleType;
 
@@ -32,10 +36,17 @@ export class CreateRequirementDto {
   @IsDateString({}, { message: 'reportingTime must be a valid ISO date string' })
   reportingTime!: string;
 
+  @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(0, { message: 'Rate per vehicle must be non-negative' })
-  ratePerVehicle!: number;
+  ratePerVehicle?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0, { message: 'Suggested budget must be non-negative' })
+  suggestedBudget?: number;
 
   @IsOptional()
   @IsString()
@@ -45,13 +56,15 @@ export class CreateRequirementDto {
 export class RequirementResponseDto {
   id!: string;
   vendorId!: string;
+  fulfillmentMode!: FulfillmentMode;
   vehicleType!: VehicleType;
   quantity!: number;
   assignedQuantity!: number;
   pickupLocation!: GeoLocationDto;
   dropLocation!: GeoLocationDto;
   reportingTime!: string;
-  ratePerVehicle!: number;
+  ratePerVehicle?: number;
+  suggestedBudget?: number;
   totalAmount!: number;
   status!: RequirementStatus;
   notes?: string;
@@ -90,6 +103,8 @@ export class RequirementQueryDto {
 export class RequirementDetailResponseDto extends RequirementResponseDto {
   remainingQuantity!: number;
   offersCount!: number;
+  bidsCount?: number;
+  bids?: Array<any>;
   assignedDrivers?: Array<{
     assignmentId: string;
     driverId: string;

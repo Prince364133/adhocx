@@ -20,10 +20,12 @@ import {
   DriverAvailability,
   VehicleType,
   UserRole,
+  FulfillmentMode,
   validateTripTransition,
 } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
 import { DispatchService } from '../dispatch/dispatch.service';
+import { LedgerService } from '../ledger/ledger.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
 
@@ -34,6 +36,7 @@ export class TripsService {
   constructor(
     private readonly db: DatabaseService,
     private readonly dispatchService: DispatchService,
+    private readonly ledgerService: LedgerService,
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
   ) {}
@@ -333,9 +336,12 @@ export class TripsService {
 
     validateTripTransition(trip.status as TripStatus, TripStatus.COMPLETED);
 
+    const isBidding = trip.requirement?.fulfillmentMode === FulfillmentMode.BIDDING;
     const tollCharges = dto.tollCharges || 0;
     const parkingCharges = dto.parkingCharges || 0;
-    const totalDriverEarnings = Number(trip.driverRate) + tollCharges + parkingCharges;
+    const fareAmount = Number(trip.driverRate);
+    const commission = isBidding ? Math.round(fareAmount * 0.05) : 0; // 5% platform commission
+    const totalDriverEarnings = fareAmount - commission + tollCharges + parkingCharges;
     const now = new Date();
 
     const updated = await this.db.$transaction(async (tx) => {
@@ -358,19 +364,34 @@ export class TripsService {
         data: { status: AssignmentStatus.COMPLETED },
       });
 
-      // 3. Release driver availability to AVAILABLE and credit wallet
+      // 3. Release driver availability to AVAILABLE, increment totalTrips and trustScore, and credit wallet
       const updatedDriver = await tx.driver.update({
         where: { id: trip.driverId },
         data: {
           availabilityStatus: DriverAvailability.AVAILABLE,
           walletBalance: { increment: totalDriverEarnings },
+          totalTrips: { increment: 1 },
+          trustScore: Math.min(100.0, Number(trip.driver.trustScore || 100) + 0.5),
           currentLat: dto.currentLocation.latitude,
           currentLng: dto.currentLocation.longitude,
           lastLocationAt: now,
         },
       });
 
-      // 4. Record immutable ledger entry for driver earnings
+      // 4. If requirement had escrow (Bidding Mode), decrement vendor escrow balance
+      if (isBidding) {
+        const vendor = await tx.vendor.findUnique({ where: { id: trip.vendorId } });
+        if (vendor && Number(vendor.escrowBalance) > 0) {
+          await tx.vendor.update({
+            where: { id: trip.vendorId },
+            data: {
+              escrowBalance: { decrement: Math.min(Number(vendor.escrowBalance), fareAmount) },
+            },
+          });
+        }
+      }
+
+      // 5. Record immutable ledger entry for driver earnings
       await tx.ledgerEntry.create({
         data: {
           accountType: 'DRIVER',
@@ -378,11 +399,27 @@ export class TripsService {
           entryType: 'CREDIT',
           amount: totalDriverEarnings,
           balanceAfter: updatedDriver.walletBalance,
-          referenceType: 'TRIP',
+          referenceType: isBidding ? 'ESCROW_RELEASE' : 'TRIP',
           referenceId: trip.id,
-          description: `Earnings for trip ${trip.id.slice(-6)} (Fare: ₹${trip.driverRate}${tollCharges ? `, Toll: ₹${tollCharges}` : ''}${parkingCharges ? `, Parking: ₹${parkingCharges}` : ''})`,
+          description: `Earnings for trip ${trip.id.slice(-6)} (Fare: ₹${fareAmount}${commission ? `, Fee: -₹${commission}` : ''}${tollCharges ? `, Toll: ₹${tollCharges}` : ''}${parkingCharges ? `, Parking: ₹${parkingCharges}` : ''})`,
         },
       });
+
+      // 6. Record platform commission entry if in Bidding mode
+      if (isBidding && commission > 0) {
+        await tx.ledgerEntry.create({
+          data: {
+            accountType: 'PLATFORM',
+            accountId: trip.driverId,
+            entryType: 'CREDIT',
+            amount: commission,
+            balanceAfter: commission,
+            referenceType: 'PLATFORM_COMMISSION',
+            referenceId: trip.id,
+            description: `Platform fee (5%) for trip ${trip.id.slice(-6)}`,
+          },
+        });
+      }
 
 
       // 4. Check if all trips for the parent requirement are COMPLETED
@@ -483,20 +520,52 @@ export class TripsService {
         data: { status: AssignmentStatus.CANCELLED },
       });
 
-      // 3. Free driver back to AVAILABLE
+      // 3. Free driver back to AVAILABLE (penalize trust score if driver cancelled)
+      const isDriverCancel = role === UserRole.DRIVER;
       await tx.driver.update({
         where: { id: trip.driverId },
-        data: { availabilityStatus: DriverAvailability.AVAILABLE },
+        data: {
+          availabilityStatus: DriverAvailability.AVAILABLE,
+          trustScore: isDriverCancel ? { decrement: 5.0 } : undefined,
+        },
       });
 
-      // 4. If cancelled before start, reopen capacity on the requirement
+      // 4. QA-07: If requirement had escrow (Bidding Mode), refund escrow to vendor and log ledger entry
+      if (trip.requirement?.fulfillmentMode === FulfillmentMode.BIDDING) {
+        const vendor = await tx.vendor.findUnique({ where: { id: trip.vendorId } });
+        if (vendor && Number(vendor.escrowBalance) > 0) {
+          const refundAmount = Math.min(Number(vendor.escrowBalance), Number(trip.driverRate));
+          const updatedVendor = await tx.vendor.update({
+            where: { id: trip.vendorId },
+            data: {
+              escrowBalance: { decrement: refundAmount },
+            },
+          });
+
+          await tx.ledgerEntry.create({
+            data: {
+              accountType: 'VENDOR',
+              accountId: trip.vendorId,
+              entryType: 'CREDIT',
+              amount: refundAmount,
+              balanceAfter: updatedVendor.escrowBalance,
+              referenceType: 'ESCROW_REFUND',
+              referenceId: trip.id,
+              description: `Escrow refund for cancelled trip ${trip.id.slice(-6)}: ${dto.reason || 'Booking cancelled'}`,
+            },
+          });
+        }
+      }
+
+      // 5. QA-08: If cancelled before start, reopen capacity on the requirement
       if (wasPreStart) {
+        const isBidding = trip.requirement?.fulfillmentMode === FulfillmentMode.BIDDING;
         const newAssigned = Math.max(0, trip.requirement.assignedQuantity - 1);
         await tx.requirement.update({
           where: { id: trip.requirementId },
           data: {
             assignedQuantity: newAssigned,
-            status: newAssigned > 0 ? RequirementStatus.PARTIALLY_FULFILLED : RequirementStatus.DISPATCHING,
+            status: isBidding ? RequirementStatus.POSTED : (newAssigned > 0 ? RequirementStatus.PARTIALLY_FULFILLED : RequirementStatus.DISPATCHING),
           },
         });
       }
@@ -517,11 +586,23 @@ export class TripsService {
       },
     });
 
-    // If pre-start cancellation, auto-trigger redispatch to find a replacement driver
+    // QA-08: If pre-start cancellation, auto-trigger supply recovery
     if (wasPreStart) {
-      this.dispatchService.dispatchRequirement(trip.requirementId).catch((err) => {
-        this.logger.warn(`Redispatch after trip cancellation failed: ${err.message}`);
-      });
+      if (trip.requirement?.fulfillmentMode === FulfillmentMode.BIDDING) {
+        // Broadcast reopened bidding opportunity to nearby drivers
+        this.notifications.emitEvent('drivers:opportunities', 'NEW_BIDDING_OPPORTUNITY', {
+          requirementId: trip.requirementId,
+          vehicleType: trip.vehicleType,
+          pickupAddress: trip.pickupAddress,
+          dropAddress: trip.dropAddress,
+          suggestedBudget: Number(trip.requirement.suggestedBudget || trip.driverRate),
+          reason: 'Opportunity reopened due to driver cancellation',
+        });
+      } else {
+        this.dispatchService.dispatchRequirement(trip.requirementId).catch((err) => {
+          this.logger.warn(`Redispatch after trip cancellation failed: ${err.message}`);
+        });
+      }
     }
 
     // Notifications
@@ -610,7 +691,7 @@ export class TripsService {
   private async findAndVerifyDriverTrip(tripId: string, driverUserId: string) {
     const trip = await this.db.trip.findUnique({
       where: { id: tripId },
-      include: { driver: true },
+      include: { driver: true, requirement: true },
     });
     if (!trip) {
       throw new NotFoundException('Trip not found');

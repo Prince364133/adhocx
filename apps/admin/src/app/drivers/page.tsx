@@ -192,6 +192,7 @@ export default function DriversPage() {
             <tr>
               <th>Driver Info</th>
               <th>Vehicle Details</th>
+              <th>Trust & Rating</th>
               <th>Verification</th>
               <th>Availability</th>
               <th>Wallet Balance</th>
@@ -201,13 +202,13 @@ export default function DriversPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
                   Loading drivers...
                 </td>
               </tr>
             ) : drivers.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
                   No drivers found matching status: {activeTab}
                 </td>
               </tr>
@@ -221,6 +222,14 @@ export default function DriversPage() {
                   <td>
                     <div style={{ fontWeight: 600 }}>{drv.vehiclePlate}</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{drv.vehicleType}</div>
+                  </td>
+                  <td>
+                    <div style={{ fontWeight: 700, fontSize: '0.875rem', color: (drv.trustScore ?? 100) >= 90 ? '#10b981' : (drv.trustScore ?? 100) >= 75 ? '#f59e0b' : '#ef4444' }}>
+                      {(drv.trustScore ?? 100).toFixed(1)}% Trust
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      ★ {(drv.averageRating ?? 5.0).toFixed(1)} ({drv.ratingCount ?? 0}) • {drv.totalTrips ?? 0} trips
+                    </div>
                   </td>
                   <td>
                     <Badge status={drv.verificationStatus} />
