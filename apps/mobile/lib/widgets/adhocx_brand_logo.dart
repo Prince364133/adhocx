@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 
-/// Reusable text-based AdhocX brand logo & icon components for the mobile application.
+/// Reusable text-based AdhocX brand logo component using the core brand design theme tokens.
 class AdhocxBrandLogo extends StatelessWidget {
   final double fontSize;
   final String? subtitle;
@@ -14,7 +14,7 @@ class AdhocxBrandLogo extends StatelessWidget {
     super.key,
     this.fontSize = 32,
     this.subtitle,
-    this.isDark = true,
+    this.isDark = false,
     this.mainAxisSize = MainAxisSize.min,
     this.crossAxisAlignment = CrossAxisAlignment.center,
   });
@@ -31,17 +31,17 @@ class AdhocxBrandLogo extends StatelessWidget {
               TextSpan(
                 text: 'Adhoc',
                 style: AppTypography.display(
-                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                  fontWeight: FontWeight.w800,
+                  color: isDark ? AppColors.textPrimaryDark : AppColors.primary,
+                  fontWeight: FontWeight.w900,
                   fontSize: fontSize,
                 ),
               ),
               TextSpan(
                 text: 'X',
                 style: TextStyle(
-                  color: AppColors.primary,
+                  color: const Color(0xFFFF6200),
                   fontWeight: FontWeight.w900,
-                  fontSize: fontSize * 1.08,
+                  fontSize: fontSize * 1.04,
                   fontFamily: 'Inter',
                 ),
               ),
@@ -53,7 +53,7 @@ class AdhocxBrandLogo extends StatelessWidget {
           Text(
             subtitle!,
             style: TextStyle(
-              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+              color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
               fontSize: fontSize * 0.32,
               fontWeight: FontWeight.w600,
               letterSpacing: 2.5,
@@ -84,17 +84,17 @@ class AdhocxBrandIcon extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: AppColors.surfaceDark,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(effectiveRadius),
         border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.4),
+          color: const Color(0xFFE2E8F0),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.25),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: AppColors.primary.withValues(alpha: 0.12),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -105,18 +105,18 @@ class AdhocxBrandIcon extends StatelessWidget {
               TextSpan(
                 text: 'A',
                 style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: size * 0.42,
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w900,
+                  fontSize: size * 0.44,
                   fontFamily: 'Inter',
                 ),
               ),
               TextSpan(
                 text: 'X',
-                style: TextStyle(
-                  color: AppColors.primaryLight,
+                style: const TextStyle(
+                  color: Color(0xFFFF6200),
                   fontWeight: FontWeight.w900,
-                  fontSize: size * 0.46,
+                  fontSize: size * 0.48,
                   fontFamily: 'Inter',
                 ),
               ),

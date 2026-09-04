@@ -1,66 +1,34 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
   <defs>
-    <!-- Background Gradient -->
-    <linearGradient id="iconBg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0F172A" />
-      <stop offset="50%" stop-color="#090E1A" />
-      <stop offset="100%" stop-color="#020617" />
+    <!-- Brand Primary Theme Blue for "Adhoc" -->
+    <linearGradient id="iconAdhocBlueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5B42F3" />
+      <stop offset="100%" stop-color="#4B22B6" />
     </linearGradient>
 
-    <!-- Border Stroke Gradient -->
-    <linearGradient id="iconBorder" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.6" />
-      <stop offset="50%" stop-color="#6366F1" stop-opacity="0.3" />
-      <stop offset="100%" stop-color="#4F46E5" stop-opacity="0.5" />
+    <!-- Vibrant Brand Theme Orange Gradient for "X" -->
+    <linearGradient id="iconOrangeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF6B00" />
+      <stop offset="100%" stop-color="#FF5500" />
     </linearGradient>
 
-    <!-- Gradient for 'X' -->
-    <linearGradient id="iconTextX" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#38BDF8" />
-      <stop offset="40%" stop-color="#818CF8" />
-      <stop offset="80%" stop-color="#6366F1" />
-      <stop offset="100%" stop-color="#4F46E5" />
-    </linearGradient>
-
-    <!-- Glow Effect -->
-    <filter id="iconGlow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="8" result="glow" />
-      <feMerge>
-        <feMergeNode in="glow" />
-        <feMergeNode in="SourceGraphic" />
-      </feMerge>
+    <!-- Clean Container Border/Shadow -->
+    <filter id="iconCardShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="6" stdDeviation="12" flood-color="#5B42F3" flood-opacity="0.08" />
     </filter>
   </defs>
 
-  <!-- Squircle Container -->
-  <rect x="16" y="16" width="480" height="480" rx="108" fill="url(#iconBg)" stroke="url(#iconBorder)" stroke-width="4" />
+  <!-- Clean White Squircle Container -->
+  <rect x="16" y="16" width="480" height="480" rx="108" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="4" filter="url(#iconCardShadow)" />
 
-  <!-- Ambient Glow Behind Text -->
-  <circle cx="256" cy="256" r="140" fill="#6366F1" opacity="0.15" filter="url(#iconGlow)" />
-
-  <!-- Text-based Icon Content -->
-  <g id="text-icon" text-anchor="middle">
-    <!-- "Adhoc" -->
-    <text
-      x="256"
-      y="240"
-      font-family="'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-      font-size="92"
-      font-weight="800"
-      fill="#FFFFFF"
-      letter-spacing="-2"
-    >Adhoc</text>
-
-    <!-- "X" -->
-    <text
-      x="256"
-      y="350"
-      font-family="'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-      font-size="120"
-      font-weight="900"
-      fill="url(#iconTextX)"
-      letter-spacing="-1"
-      filter="url(#iconGlow)"
-    >X</text>
-  </g>
+  <!-- Natural Typography Wordmark Centered -->
+  <text
+    x="256"
+    y="292"
+    text-anchor="middle"
+    font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+    font-size="112"
+    font-weight="800"
+    letter-spacing="-1.5"
+  ><tspan fill="url(#iconAdhocBlueGrad)">Adhoc</tspan><tspan fill="url(#iconOrangeGrad)">X</tspan></text>
 </svg>

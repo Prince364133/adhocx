@@ -82,22 +82,24 @@ class SplashScreen extends StatelessWidget {
                                 TextSpan(
                                   text: 'Adhoc',
                                   style: AppTypography.display(
-                                    color: AppColors.textPrimaryLight,
-                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w900,
                                     fontSize: 44,
                                   ),
                                 ),
-                                TextSpan(
+                                const TextSpan(
                                   text: 'X',
-                                  style: AppTypography.display(
-                                    color: AppColors.primary,
+                                  style: TextStyle(
+                                    color: Color(0xFFFF6200),
                                     fontWeight: FontWeight.w900,
                                     fontSize: 46,
+                                    fontFamily: 'Inter',
                                   ),
                                 ),
                               ],
                             ),
                           ),
+
                           const SizedBox(height: 6),
                           Text(
                             'Your ride. Your way.',

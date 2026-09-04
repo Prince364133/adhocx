@@ -18,29 +18,20 @@ export const AdhocxBrandIcon: React.FC<{ size?: number; className?: string }> = 
         width: `${size}px`,
         height: `${size}px`,
         borderRadius: '10px',
-        background: 'var(--bg-surface-elevated, #1E293B)',
-        border: '1.5px solid rgba(99, 102, 241, 0.4)',
+        background: '#FFFFFF',
+        border: '1.5px solid #E2E8F0',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         fontWeight: 900,
         fontSize: `${size * 0.46}px`,
         fontFamily: "'Inter', sans-serif",
-        boxShadow: '0 4px 12px rgba(99, 102, 241, 0.2)',
+        boxShadow: '0 3px 10px rgba(75, 34, 182, 0.15)',
         flexShrink: 0,
       }}
     >
-      <span style={{ color: '#FFFFFF', fontWeight: 800 }}>A</span>
-      <span
-        style={{
-          background: 'linear-gradient(135deg, #38BDF8 0%, #818CF8 50%, #6366F1 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          fontWeight: 900,
-        }}
-      >
-        X
-      </span>
+      <span style={{ color: '#5B42F3', fontWeight: 900 }}>A</span>
+      <span style={{ color: '#FF6200', fontWeight: 900 }}>X</span>
     </div>
   );
 };
@@ -66,25 +57,16 @@ export const AdhocxBrandLogo: React.FC<AdhocxBrandLogoProps> = ({
     >
       <div
         style={{
-          fontWeight: 800,
-          fontSize: `${(size / 36) * 1.5}rem`,
-          letterSpacing: '-0.03em',
+          fontWeight: 900,
+          fontSize: `${(size / 36) * 1.55}rem`,
+          letterSpacing: '-0.04em',
           display: 'flex',
           alignItems: 'center',
           lineHeight: 1,
         }}
       >
-        <span style={{ color: 'var(--text-primary, #F8FAFC)' }}>Adhoc</span>
-        <span
-          style={{
-            background: 'linear-gradient(135deg, #38BDF8 0%, #818CF8 40%, #6366F1 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            fontWeight: 900,
-          }}
-        >
-          X
-        </span>
+        <span style={{ color: '#FFFFFF' }}>Adhoc</span>
+        <span style={{ color: '#FF6200', fontWeight: 900 }}>X</span>
       </div>
       {subtitle && (
         <div
@@ -92,8 +74,8 @@ export const AdhocxBrandLogo: React.FC<AdhocxBrandLogoProps> = ({
             fontSize: `${(size / 36) * 0.65}rem`,
             color: 'var(--text-muted, #94A3B8)',
             textTransform: 'uppercase',
-            letterSpacing: '0.12em',
-            fontWeight: 600,
+            letterSpacing: '0.14em',
+            fontWeight: 700,
             marginTop: '0.25rem',
           }}
         >

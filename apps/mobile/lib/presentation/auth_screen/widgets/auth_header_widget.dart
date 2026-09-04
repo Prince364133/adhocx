@@ -47,8 +47,8 @@ class AuthHeaderWidget extends StatelessWidget {
               ),
               TextSpan(
                 text: 'X',
-                style: TextStyle(
-                  color: isDriver ? AppColors.accentGreen : AppColors.primary,
+                style: const TextStyle(
+                  color: Color(0xFFFF6200),
                   fontWeight: FontWeight.w900,
                   fontSize: 40,
                   fontFamily: 'Inter',
@@ -58,6 +58,7 @@ class AuthHeaderWidget extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.md),
+
 
         // Portal Heading
         Text(
