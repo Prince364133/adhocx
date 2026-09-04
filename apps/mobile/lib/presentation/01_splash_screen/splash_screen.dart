@@ -75,29 +75,7 @@ class SplashScreen extends StatelessWidget {
                       // ── Top Brand Header ───────────────────────────────────
                       Column(
                         children: [
-                          const SizedBox(height: AppSpacing.md),
-                          Container(
-                            width: 76,
-                            height: 76,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.primary.withValues(alpha: 0.35),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 8),
-                                ),
-                              ],
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(20),
-                              child: Image.asset(
-                                'assets/images/adhocx_icon.png',
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.md),
+                          const SizedBox(height: AppSpacing.xxl),
                           RichText(
                             text: TextSpan(
                               children: [
@@ -106,7 +84,7 @@ class SplashScreen extends StatelessWidget {
                                   style: AppTypography.display(
                                     color: AppColors.textPrimaryLight,
                                     fontWeight: FontWeight.w800,
-                                    fontSize: 34,
+                                    fontSize: 44,
                                   ),
                                 ),
                                 TextSpan(
@@ -114,13 +92,13 @@ class SplashScreen extends StatelessWidget {
                                   style: AppTypography.display(
                                     color: AppColors.primary,
                                     fontWeight: FontWeight.w900,
-                                    fontSize: 34,
+                                    fontSize: 46,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 6),
                           Text(
                             'Your ride. Your way.',
                             style: AppTypography.bodyLarge(

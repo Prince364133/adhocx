@@ -33,44 +33,31 @@ class AuthHeaderWidget extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xl),
 
-        // Brand Icon / Logo
-        Container(
-          width: 76,
-          height: 76,
-          decoration: BoxDecoration(
-            color: AppColors.surfaceDark,
-            borderRadius: AppRadius.borderXxl,
-            border: Border.all(
-              color: isDriver
-                  ? AppColors.accentGreen.withAlpha(90)
-                  : AppColors.primary.withAlpha(90),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: (isDriver ? AppColors.accentGreen : AppColors.primary)
-                    .withAlpha(40),
-                blurRadius: 24,
-                offset: const Offset(0, 6),
+        // Brand Logo (Text-based)
+        RichText(
+          text: TextSpan(
+            children: [
+              TextSpan(
+                text: 'Adhoc',
+                style: AppTypography.display(
+                  color: AppColors.textPrimaryDark,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 38,
+                ),
+              ),
+              TextSpan(
+                text: 'X',
+                style: TextStyle(
+                  color: isDriver ? AppColors.accentGreen : AppColors.primary,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 40,
+                  fontFamily: 'Inter',
+                ),
               ),
             ],
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(14),
-            child: Image.asset(
-              'assets/images/adhocx_icon.png',
-              width: 76,
-              height: 76,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => Icon(
-                isDriver ? Icons.local_taxi_rounded : Icons.business_rounded,
-                size: 36,
-                color: isDriver ? AppColors.accentGreen : AppColors.primary,
-              ),
-            ),
-          ),
         ),
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: AppSpacing.md),
 
         // Portal Heading
         Text(
