@@ -1,17 +1,26 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { adminApi } from '../../lib/api/client';
 import { SettlementListItem } from '../../lib/api/types';
 import { Badge } from '../../components/Badge';
 import { Modal } from '../../components/Modal';
+import { EmptyState } from '../../components/EmptyState';
+import { TableLoadingSkeleton } from '../../components/LoadingSkeleton';
 
-const STATUS_TABS = ['ALL', 'PENDING', 'SETTLED', 'FAILED'];
+const STATUS_TABS = [
+  { key: 'ALL', label: 'All Payouts' },
+  { key: 'PENDING', label: 'Pending Processing' },
+  { key: 'SETTLED', label: 'Settled & Paid' },
+  { key: 'FAILED', label: 'Failed' },
+];
 
 export default function SettlementsPage() {
   const [activeTab, setActiveTab] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
   const [settlements, setSettlements] = useState<SettlementListItem[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [selectedSettlement, setSelectedSettlement] = useState<SettlementListItem | null>(null);
   const [actionType, setActionType] = useState<'SETTLED' | 'FAILED' | null>(null);
   const [transactionRef, setTransactionRef] = useState('');
@@ -28,19 +37,19 @@ export default function SettlementsPage() {
     try {
       const data = await adminApi.getSettlements(status).catch(() => [
         {
-          id: 'set-1',
-          driverId: 'drv-1',
+          id: 'set-501',
+          driverId: 'drv-101',
           driverName: 'Rajesh Kumar',
           amount: 2500,
           status: 'PENDING',
           bankAccountName: 'Rajesh Kumar',
           bankAccountNumber: '••••4321',
           bankIfsc: 'HDFC0001234',
-          createdAt: new Date().toISOString(),
+          createdAt: new Date(Date.now() - 3600000 * 5).toISOString(),
         },
         {
-          id: 'set-2',
-          driverId: 'drv-2',
+          id: 'set-502',
+          driverId: 'drv-102',
           driverName: 'Amit Singh',
           amount: 4000,
           status: 'SETTLED',
@@ -51,7 +60,18 @@ export default function SettlementsPage() {
           processedAt: new Date(Date.now() - 86400000).toISOString(),
           createdAt: new Date(Date.now() - 90000000).toISOString(),
         },
-      ]);
+        {
+          id: 'set-503',
+          driverId: 'drv-104',
+          driverName: 'Vikram Patel',
+          amount: 6200,
+          status: 'PENDING',
+          bankAccountName: 'Vikram Patel',
+          bankAccountNumber: '••••1122',
+          bankIfsc: 'ICIC0000999',
+          createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+        },
+      ] as SettlementListItem[]);
       setSettlements(data);
     } finally {
       setLoading(false);
@@ -75,7 +95,7 @@ export default function SettlementsPage() {
         });
         setAlert({
           type: 'success',
-          message: `Payout of ₹${selectedSettlement.amount} successfully marked SETTLED with UTR: ${transactionRef}`,
+          message: `Payout of ₹${selectedSettlement.amount} successfully settled with UTR: ${transactionRef}`,
         });
       } else if (actionType === 'FAILED') {
         if (!failureReason.trim()) {
@@ -89,12 +109,14 @@ export default function SettlementsPage() {
         });
         setAlert({
           type: 'success',
-          message: `Settlement marked FAILED. Funds of ₹${selectedSettlement.amount} have been automatically refunded back to driver's wallet.`,
+          message: `Settlement marked FAILED. Funds of ₹${selectedSettlement.amount} rolled back to driver wallet.`,
         });
       }
 
       setSelectedSettlement(null);
       setActionType(null);
+      setTransactionRef('');
+      setFailureReason('');
       loadSettlements(activeTab);
     } catch (err: any) {
       setAlert({ type: 'error', message: err.message || 'Operation failed' });
@@ -103,31 +125,44 @@ export default function SettlementsPage() {
     }
   }
 
+  const filteredSettlements = useMemo(() => {
+    let result = settlements;
+    if (activeTab !== 'ALL') {
+      result = result.filter((s) => s.status === activeTab);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter(
+        (s) =>
+          s.id.toLowerCase().includes(q) ||
+          (s.driverName && s.driverName.toLowerCase().includes(q)) ||
+          (s.bankAccountName && s.bankAccountName.toLowerCase().includes(q)) ||
+          (s.transactionRef && s.transactionRef.toLowerCase().includes(q))
+      );
+    }
+    return result;
+  }, [settlements, activeTab, searchQuery]);
+
   return (
     <div>
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 className="page-title">Driver Settlements & Payout Processing</h1>
-        <p className="page-subtitle">Inspect withdrawal requests, verify bank IFSC details, authorize bank payouts, and audit automated refund rollbacks</p>
+      {/* Header Context (05_UI_UX_GUIDELINES.md § 14) */}
+      <div style={{ marginBottom: '1.75rem' }}>
+        <h1 className="page-title">Financial Settlements & Driver Payouts</h1>
+        <p className="page-subtitle">
+          Authorize driver wallet withdrawal requests with bank UTR references or mark failed with rollback protection.
+        </p>
       </div>
 
       {alert && (
-        <div
-          style={{
-            padding: '1rem 1.25rem',
-            borderRadius: '8px',
-            marginBottom: '1.5rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: alert.type === 'success' ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
-            border: `1px solid ${alert.type === 'success' ? 'rgba(16,185,129,0.3)' : 'rgba(244,63,94,0.3)'}`,
-            color: alert.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)',
-          }}
-        >
-          <span>{alert.message}</span>
+        <div className={`alert-banner ${alert.type === 'success' ? 'success' : 'danger'}`}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span>{alert.type === 'success' ? '✓' : '⚠️'}</span>
+            <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{alert.message}</span>
+          </div>
           <button
+            type="button"
             onClick={() => setAlert(null)}
-            style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer' }}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1rem', color: 'inherit' }}
           >
             ✕
           </button>
@@ -138,91 +173,119 @@ export default function SettlementsPage() {
       <div className="tabs">
         {STATUS_TABS.map((tab) => (
           <button
-            key={tab}
-            className={`tab-item ${activeTab === tab ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab)}
+            key={tab.key}
+            type="button"
+            className={`tab-item ${activeTab === tab.key ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab.key)}
           >
-            {tab}
+            {tab.label}
           </button>
         ))}
       </div>
 
-      {/* Settlements Table */}
+      {/* Search and Filters Bar */}
+      <div className="filter-bar">
+        <div className="search-input-wrapper">
+          <span className="search-icon">🔍</span>
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Search payouts by driver name, account, UTR, ID..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+          Showing <strong>{filteredSettlements.length}</strong> settlement records
+        </div>
+      </div>
+
+      {/* Settlement Table (06_SCREEN_SPECIFICATIONS.md § 60) */}
       <div className="table-container">
         <table className="data-table">
           <thead>
             <tr>
               <th>Settlement ID</th>
-              <th>Driver Info</th>
+              <th>Driver & Account</th>
+              <th>Bank IFSC</th>
               <th>Payout Amount</th>
-              <th>Bank Account & IFSC</th>
+              <th>Transaction UTR</th>
+              <th>Requested At</th>
               <th>Status</th>
-              <th>UTR / Reference</th>
-              <th style={{ textAlign: 'right' }}>Action</th>
+              <th style={{ textAlign: 'right' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
+              <TableLoadingSkeleton rows={4} columns={8} />
+            ) : filteredSettlements.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
-                  Loading settlements...
-                </td>
-              </tr>
-            ) : settlements.length === 0 ? (
-              <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-                  No settlements found for status: {activeTab}
+                <td colSpan={8}>
+                  <EmptyState
+                    icon="💰"
+                    title="No settlements found"
+                    description={
+                      searchQuery
+                        ? 'No settlement records match your search criteria.'
+                        : 'No settlements in this status.'
+                    }
+                    action={
+                      searchQuery
+                        ? { label: 'Clear Search', onClick: () => setSearchQuery('') }
+                        : undefined
+                    }
+                  />
                 </td>
               </tr>
             ) : (
-              settlements.map((set) => (
-                <tr key={set.id}>
+              filteredSettlements.map((item) => (
+                <tr key={item.id}>
                   <td>
-                    <div style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--accent-secondary)' }}>
-                      #{set.id.slice(0, 8)}
-                    </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      Requested {new Date(set.createdAt).toLocaleDateString()}
+                    <div style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--primary-600)' }}>
+                      #{item.id.slice(0, 8)}
                     </div>
                   </td>
                   <td>
-                    <div style={{ fontWeight: 600 }}>{set.driverName || 'Driver'}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                      ID: {set.driverId?.slice(0, 8)}...
+                    <div style={{ fontWeight: 600 }}>{item.driverName || 'Driver'}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      {item.bankAccountName} ({item.bankAccountNumber})
                     </div>
                   </td>
-                  <td style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--color-success)' }}>
-                    ₹{Number(set.amount).toLocaleString('en-IN')}
-                  </td>
+                  <td style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}>{item.bankIfsc || '—'}</td>
                   <td>
-                    <div>{set.bankAccountName || 'Account Holder'}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                      {set.bankAccountNumber} • {set.bankIfsc}
+                    <div style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)' }}>
+                      ₹{Number(item.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </div>
-                  </td>
-                  <td>
-                    <Badge status={set.status} />
                   </td>
                   <td style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}>
-                    {set.transactionRef || '—'}
+                    {item.transactionRef ? (
+                      <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>{item.transactionRef}</span>
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)' }}>Pending Transfer</span>
+                    )}
+                  </td>
+                  <td style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                    {new Date(item.createdAt).toLocaleString()}
+                  </td>
+                  <td>
+                    <Badge status={item.status} />
                   </td>
                   <td style={{ textAlign: 'right' }}>
-                    {set.status === 'PENDING' ? (
+                    {item.status === 'PENDING' ? (
                       <button
-                        className="btn btn-primary btn-sm"
+                        type="button"
                         onClick={() => {
-                          setSelectedSettlement(set);
-                          setActionType(null);
+                          setSelectedSettlement(item);
+                          setActionType('SETTLED');
                           setTransactionRef('');
                           setFailureReason('');
                         }}
+                        className="btn btn-primary btn-sm"
                       >
                         Process Payout →
                       </button>
                     ) : (
-                      <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-                        {set.status === 'SETTLED' ? 'Settled' : 'Failed'}
-                      </span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Settled</span>
                     )}
                   </td>
                 </tr>
@@ -232,134 +295,121 @@ export default function SettlementsPage() {
         </table>
       </div>
 
-      {/* Settlement Processing Modal */}
+      {/* Payout Processing Modal */}
       {selectedSettlement && (
         <Modal
-          isOpen={!!selectedSettlement}
-          onClose={() => {
-            setSelectedSettlement(null);
-            setActionType(null);
-          }}
-          title={`Process Settlement Payout — ₹${Number(selectedSettlement.amount).toLocaleString('en-IN')}`}
-          maxWidth="600px"
+          isOpen={true}
+          onClose={() => setSelectedSettlement(null)}
+          title={`Process Driver Payout — #${selectedSettlement.id.slice(0, 8)}`}
+          maxWidth="580px"
           footer={
-            actionType ? (
-              <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', width: '100%' }}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setSelectedSettlement(null)}
+                disabled={actionLoading}
+              >
+                Cancel
+              </button>
+              {actionType === 'SETTLED' ? (
                 <button
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => setActionType(null)}
-                  disabled={actionLoading}
-                >
-                  Back
-                </button>
-                <button
-                  className={`btn btn-sm ${actionType === 'SETTLED' ? 'btn-success' : 'btn-danger'}`}
-                  onClick={handleExecuteAction}
-                  disabled={actionLoading}
-                >
-                  {actionLoading ? 'Processing...' : `Confirm ${actionType}`}
-                </button>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end' }}>
-                <button
-                  className="btn btn-danger btn-sm"
-                  onClick={() => setActionType('FAILED')}
-                >
-                  Mark as Failed (Refund)
-                </button>
-                <button
+                  type="button"
                   className="btn btn-success btn-sm"
-                  onClick={() => setActionType('SETTLED')}
+                  onClick={handleExecuteAction}
+                  disabled={actionLoading || !transactionRef.trim()}
                 >
-                  Mark as Settled
+                  {actionLoading ? 'Recording...' : 'Confirm Bank Transfer'}
                 </button>
+              ) : (
                 <button
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => setSelectedSettlement(null)}
+                  type="button"
+                  className="btn btn-danger btn-sm"
+                  onClick={handleExecuteAction}
+                  disabled={actionLoading || !failureReason.trim()}
                 >
-                  Close
+                  {actionLoading ? 'Processing...' : 'Mark Failed & Refund Wallet'}
                 </button>
-              </div>
-            )
+              )}
+            </div>
           }
         >
-          {actionType === 'SETTLED' ? (
-            <div className="form-group">
-              <label className="form-label">Bank UTR / Payout Transaction Reference:</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="e.g. UTR1234567890 or NEFT-REF-889"
-                value={transactionRef}
-                onChange={(e) => setTransactionRef(e.target.value)}
-              />
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                Entering the bank confirmation reference marks this payout as settled and notifies the driver.
-              </p>
-            </div>
-          ) : actionType === 'FAILED' ? (
-            <div className="form-group">
-              <label className="form-label">Mandatory Rejection / Failure Reason:</label>
-              <textarea
-                className="form-textarea"
-                rows={3}
-                placeholder="e.g. Beneficiary account closed or invalid IFSC code"
-                value={failureReason}
-                onChange={(e) => setFailureReason(e.target.value)}
-              />
-              <div
-                style={{
-                  marginTop: '0.75rem',
-                  padding: '0.75rem',
-                  borderRadius: '6px',
-                  background: 'var(--color-warning-bg)',
-                  border: '1px solid rgba(245, 158, 11, 0.3)',
-                  fontSize: '0.75rem',
-                  color: 'var(--color-warning)',
-                }}
-              >
-                ℹ️ <strong>Automated Ledger Safeguard:</strong> Marking this payout as FAILED will automatically credit ₹
-                {selectedSettlement.amount} back into the driver's wallet with a <code>WITHDRAWAL_REFUND</code> ledger entry.
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: '1rem',
+                padding: '1rem',
+                background: 'var(--bg-surface-muted)',
+                borderRadius: 'var(--radius-md)',
+              }}
+            >
+              <div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Recipient Driver</div>
+                <div style={{ fontWeight: 600, marginTop: '0.2rem' }}>{selectedSettlement.driverName}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  A/C: {selectedSettlement.bankAccountNumber} ({selectedSettlement.bankIfsc})
+                </div>
               </div>
-            </div>
-          ) : (
-            <div>
-              <div
-                style={{
-                  padding: '1rem',
-                  borderRadius: '8px',
-                  background: 'var(--bg-surface-elevated)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.75rem',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>Driver</span>
-                  <span style={{ fontWeight: 600 }}>{selectedSettlement.driverName || 'Driver'}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>Bank Beneficiary</span>
-                  <span style={{ fontWeight: 600 }}>{selectedSettlement.bankAccountName}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>Account Number</span>
-                  <span style={{ fontFamily: 'monospace' }}>{selectedSettlement.bankAccountNumber}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>Bank IFSC</span>
-                  <span style={{ fontFamily: 'monospace' }}>{selectedSettlement.bankIfsc}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
-                  <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Payout Amount</span>
-                  <span style={{ fontWeight: 700, fontSize: '1.125rem', color: 'var(--color-success)' }}>
-                    ₹{Number(selectedSettlement.amount).toLocaleString('en-IN')}
-                  </span>
+              <div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Payout Amount</div>
+                <div style={{ fontWeight: 700, fontSize: '1.25rem', color: 'var(--primary-600)', marginTop: '0.2rem' }}>
+                  ₹{Number(selectedSettlement.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </div>
               </div>
             </div>
-          )}
+
+            {/* Mode selection tabs */}
+            <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
+              <button
+                type="button"
+                className={`btn btn-sm ${actionType === 'SETTLED' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setActionType('SETTLED')}
+              >
+                Mark Paid / Settled
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm ${actionType === 'FAILED' ? 'btn-danger' : 'btn-secondary'}`}
+                onClick={() => setActionType('FAILED')}
+              >
+                Mark Transfer Failed
+              </button>
+            </div>
+
+            {actionType === 'SETTLED' ? (
+              <div className="form-group">
+                <label className="form-label">Bank UTR / Transaction Reference Number:</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. UTR20260903123456"
+                  value={transactionRef}
+                  onChange={(e) => setTransactionRef(e.target.value)}
+                />
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Enter the banking confirmation reference after initiating IMPS/NEFT transfer.
+                </span>
+              </div>
+            ) : (
+              <div className="form-group">
+                <label className="form-label" style={{ color: 'var(--color-error)' }}>
+                  Bank Failure Reason:
+                </label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. Invalid IFSC code, account closed..."
+                  value={failureReason}
+                  onChange={(e) => setFailureReason(e.target.value)}
+                />
+                <span style={{ fontSize: '0.75rem', color: 'var(--color-error)' }}>
+                  Funds will be automatically returned to the driver's platform wallet balance.
+                </span>
+              </div>
+            )}
+          </div>
         </Modal>
       )}
     </div>

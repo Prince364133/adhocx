@@ -1,17 +1,29 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { adminApi } from '../../lib/api/client';
 import { TripListItem, TripEvent } from '../../lib/api/types';
 import { Badge } from '../../components/Badge';
 import { Modal } from '../../components/Modal';
+import { EmptyState } from '../../components/EmptyState';
+import { TableLoadingSkeleton } from '../../components/LoadingSkeleton';
 
-const STATUS_TABS = ['ALL', 'ASSIGNED', 'ARRIVED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW'];
+const STATUS_TABS = [
+  { key: 'ALL', label: 'All Trips' },
+  { key: 'IN_PROGRESS', label: 'In Progress' },
+  { key: 'ASSIGNED', label: 'Assigned' },
+  { key: 'ARRIVED', label: 'Driver Arrived' },
+  { key: 'COMPLETED', label: 'Completed' },
+  { key: 'CANCELLED', label: 'Cancelled' },
+  { key: 'NO_SHOW', label: 'No Show' },
+];
 
 export default function TripsPage() {
   const [activeTab, setActiveTab] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
   const [trips, setTrips] = useState<TripListItem[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [selectedTrip, setSelectedTrip] = useState<TripListItem | null>(null);
   const [events, setEvents] = useState<TripEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
@@ -25,41 +37,57 @@ export default function TripsPage() {
     try {
       const data = await adminApi.getTrips(status).catch(() => [
         {
-          id: 'trip-1',
-          requirementId: 'req-1',
+          id: 'trip-301',
+          requirementId: 'req-201',
           driverName: 'Rajesh Kumar',
           driverPhone: '+919876543210',
-          vehiclePlate: 'DL01AB1234',
+          vehiclePlate: 'DL-01-AB-1234',
           pickupAddress: 'Terminal 3, IGI Airport, New Delhi',
           dropAddress: 'Cyber Hub, DLF Phase 2, Gurugram',
           status: 'IN_PROGRESS',
           driverRate: 1500,
-          tollCharges: 100,
-          parkingCharges: 50,
-          totalDriverEarnings: 1650,
+          tollCharges: 120,
+          parkingCharges: 60,
+          totalDriverEarnings: 1680,
           reportingTime: new Date(Date.now() - 3600000).toISOString(),
           startedAt: new Date(Date.now() - 1800000).toISOString(),
-          createdAt: new Date().toISOString(),
+          createdAt: new Date(Date.now() - 5400000).toISOString(),
         },
         {
-          id: 'trip-2',
-          requirementId: 'req-1',
+          id: 'trip-302',
+          requirementId: 'req-202',
           driverName: 'Amit Singh',
           driverPhone: '+919811223344',
-          vehiclePlate: 'HR26BC5678',
-          pickupAddress: 'Terminal 3, IGI Airport, New Delhi',
-          dropAddress: 'Cyber Hub, DLF Phase 2, Gurugram',
+          vehiclePlate: 'HR-26-BC-5678',
+          pickupAddress: 'Connaught Place, Central Delhi',
+          dropAddress: 'Sector 62, Noida, Uttar Pradesh',
           status: 'COMPLETED',
-          driverRate: 1500,
+          driverRate: 2100,
           tollCharges: 0,
           parkingCharges: 0,
-          totalDriverEarnings: 1500,
+          totalDriverEarnings: 2100,
           reportingTime: new Date(Date.now() - 7200000).toISOString(),
           startedAt: new Date(Date.now() - 6000000).toISOString(),
           completedAt: new Date(Date.now() - 3600000).toISOString(),
-          createdAt: new Date().toISOString(),
+          createdAt: new Date(Date.now() - 9000000).toISOString(),
         },
-      ]);
+        {
+          id: 'trip-303',
+          requirementId: 'req-201',
+          driverName: 'Vikram Patel',
+          driverPhone: '+919723456789',
+          vehiclePlate: 'DL-04-DE-4433',
+          pickupAddress: 'Saket District Centre, New Delhi',
+          dropAddress: 'Golf Course Extension, Gurugram',
+          status: 'ARRIVED',
+          driverRate: 1800,
+          tollCharges: 0,
+          parkingCharges: 0,
+          totalDriverEarnings: 1800,
+          reportingTime: new Date(Date.now() + 1800000).toISOString(),
+          createdAt: new Date(Date.now() - 1800000).toISOString(),
+        },
+      ] as TripListItem[]);
       setTrips(data);
     } finally {
       setLoading(false);
@@ -74,36 +102,36 @@ export default function TripsPage() {
         {
           id: 'evt-1',
           tripId: trip.id,
-          eventType: 'DRIVER_ARRIVED',
+          eventType: 'DRIVER_ASSIGNED',
           latitude: 28.5562,
-          longitude: 77.1000,
-          createdAt: new Date(Date.now() - 2400000).toISOString(),
+          longitude: 77.1,
+          createdAt: new Date(Date.now() - 3600000).toISOString(),
         },
         {
           id: 'evt-2',
           tripId: trip.id,
-          eventType: 'TRIP_STARTED',
+          eventType: 'DRIVER_ARRIVED',
           latitude: 28.5562,
-          longitude: 77.1000,
-          createdAt: new Date(Date.now() - 1800000).toISOString(),
+          longitude: 77.1,
+          createdAt: new Date(Date.now() - 2400000).toISOString(),
         },
         {
           id: 'evt-3',
           tripId: trip.id,
-          eventType: 'LOCATION_PING',
-          latitude: 28.5100,
-          longitude: 77.0850,
-          metadata: { speed: 48, heading: 195 },
-          createdAt: new Date(Date.now() - 900000).toISOString(),
+          eventType: 'TRIP_STARTED',
+          latitude: 28.5562,
+          longitude: 77.1,
+          metadata: { verifiedOtp: true },
+          createdAt: new Date(Date.now() - 1800000).toISOString(),
         },
         {
           id: 'evt-4',
           tripId: trip.id,
           eventType: 'LOCATION_PING',
-          latitude: 28.4950,
-          longitude: 77.0890,
-          metadata: { speed: 52, heading: 205 },
-          createdAt: new Date(Date.now() - 300000).toISOString(),
+          latitude: 28.51,
+          longitude: 77.085,
+          metadata: { speedKmH: 48, heading: 195 },
+          createdAt: new Date(Date.now() - 600000).toISOString(),
         },
       ]);
       setEvents(data);
@@ -112,98 +140,157 @@ export default function TripsPage() {
     }
   }
 
+  const filteredTrips = useMemo(() => {
+    let result = trips;
+    if (activeTab !== 'ALL') {
+      result = result.filter((t) => t.status === activeTab);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter(
+        (t) =>
+          t.id.toLowerCase().includes(q) ||
+          (t.driverName && t.driverName.toLowerCase().includes(q)) ||
+          (t.vehiclePlate && t.vehiclePlate.toLowerCase().includes(q)) ||
+          t.pickupAddress.toLowerCase().includes(q) ||
+          t.dropAddress.toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [trips, activeTab, searchQuery]);
+
   return (
     <div>
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 className="page-title">Trip Operations & Geolocation Telemetry</h1>
-        <p className="page-subtitle">Monitor real-time ride execution, GPS breadcrumb pings, driver arrivals, and completion fares</p>
+      {/* Page Context (05_UI_UX_GUIDELINES.md § 14) */}
+      <div style={{ marginBottom: '1.75rem' }}>
+        <h1 className="page-title">Trips & Live Telemetry</h1>
+        <p className="page-subtitle">
+          Monitor real-time ride execution, GPS breadcrumbs, driver arrival confirmation, and trip fare settlements.
+        </p>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="tabs" style={{ flexWrap: 'wrap' }}>
+      {/* Operational Filter Tabs */}
+      <div className="tabs">
         {STATUS_TABS.map((tab) => (
           <button
-            key={tab}
-            className={`tab-item ${activeTab === tab ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab)}
+            key={tab.key}
+            type="button"
+            className={`tab-item ${activeTab === tab.key ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab.key)}
           >
-            {tab.replace('_', ' ')}
+            {tab.label}
           </button>
         ))}
       </div>
 
-      {/* Trips Table */}
+      {/* Search and Filters Bar */}
+      <div className="filter-bar">
+        <div className="search-input-wrapper">
+          <span className="search-icon">🔍</span>
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Search trips by driver, vehicle plate, route, ID..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+          Showing <strong>{filteredTrips.length}</strong> active trip records
+        </div>
+      </div>
+
+      {/* Trips Table (06_SCREEN_SPECIFICATIONS.md § 48) */}
       <div className="table-container">
         <table className="data-table">
           <thead>
             <tr>
               <th>Trip ID</th>
-              <th>Assigned Driver</th>
-              <th>Pickup & Drop</th>
-              <th>Status</th>
-              <th>Driver Earnings</th>
+              <th>Driver & Vehicle</th>
+              <th>Route (Pickup → Drop)</th>
               <th>Reporting Schedule</th>
+              <th>Driver Earnings</th>
+              <th>Trip Status</th>
               <th style={{ textAlign: 'right' }}>Telemetry</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
+              <TableLoadingSkeleton rows={4} columns={7} />
+            ) : filteredTrips.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
-                  Loading trips...
-                </td>
-              </tr>
-            ) : trips.length === 0 ? (
-              <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-                  No trips found for status: {activeTab}
+                <td colSpan={7}>
+                  <EmptyState
+                    icon="🚗"
+                    title="No trips found"
+                    description={
+                      searchQuery
+                        ? 'No trips match your search criteria.'
+                        : 'No trips recorded in this operational status.'
+                    }
+                    action={
+                      searchQuery
+                        ? { label: 'Clear Search', onClick: () => setSearchQuery('') }
+                        : undefined
+                    }
+                  />
                 </td>
               </tr>
             ) : (
-              trips.map((trip) => (
+              filteredTrips.map((trip) => (
                 <tr key={trip.id}>
                   <td>
-                    <div style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--accent-primary)' }}>
+                    <div style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--primary-600)' }}>
                       #{trip.id.slice(0, 8)}
+                    </div>
+                    <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                      Req: #{trip.requirementId?.slice(0, 8) || '—'}
                     </div>
                   </td>
                   <td>
-                    <div style={{ fontWeight: 600 }}>{trip.driverName || 'Driver'}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{trip.vehiclePlate}</div>
+                    <div style={{ fontWeight: 600 }}>{trip.driverName || 'Assigned Driver'}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      {trip.vehiclePlate || '—'} • {trip.driverPhone || '—'}
+                    </div>
                   </td>
                   <td style={{ maxWidth: '280px' }}>
                     <div style={{ fontSize: '0.8125rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      <span style={{ color: 'var(--color-success)', marginRight: '0.25rem' }}>●</span> {trip.pickupAddress}
+                      <span style={{ color: 'var(--color-success)', marginRight: '0.35rem' }}>●</span>
+                      {trip.pickupAddress}
                     </div>
                     <div style={{ fontSize: '0.8125rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>
-                      <span style={{ color: 'var(--color-danger)', marginRight: '0.25rem' }}>●</span> {trip.dropAddress}
+                      <span style={{ color: 'var(--color-error)', marginRight: '0.35rem' }}>●</span>
+                      {trip.dropAddress}
                     </div>
                   </td>
                   <td>
-                    <Badge status={trip.status} />
-                  </td>
-                  <td>
-                    <div style={{ fontWeight: 600 }}>₹{(trip.totalDriverEarnings || trip.driverRate).toLocaleString('en-IN')}</div>
-                    {(trip.tollCharges || trip.parkingCharges) ? (
-                      <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
-                        Includes Toll: ₹{trip.tollCharges || 0}, Park: ₹{trip.parkingCharges || 0}
-                      </div>
-                    ) : null}
-                  </td>
-                  <td>
-                    <div style={{ fontSize: '0.8125rem' }}>
+                    <div style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
                       {new Date(trip.reportingTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                       {new Date(trip.reportingTime).toLocaleDateString()}
                     </div>
                   </td>
+                  <td>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                      ₹{Number(trip.totalDriverEarnings || trip.driverRate).toLocaleString('en-IN')}
+                    </div>
+                    {(trip.tollCharges || trip.parkingCharges) ? (
+                      <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                        Includes tolls/parking
+                      </div>
+                    ) : null}
+                  </td>
+                  <td>
+                    <Badge status={trip.status} />
+                  </td>
                   <td style={{ textAlign: 'right' }}>
                     <button
-                      className="btn btn-secondary btn-sm"
+                      type="button"
                       onClick={() => handleOpenTelemetry(trip)}
+                      className="btn btn-secondary btn-sm"
                     >
-                      Route Trail →
+                      Audit Telemetry →
                     </button>
                   </td>
                 </tr>
@@ -213,85 +300,112 @@ export default function TripsPage() {
         </table>
       </div>
 
-      {/* Telemetry Modal */}
+      {/* Telemetry Timeline Modal (05_UI_UX_GUIDELINES.md § 44 & 06_SCREEN_SPECIFICATIONS.md § 49) */}
       {selectedTrip && (
         <Modal
-          isOpen={!!selectedTrip}
+          isOpen={true}
           onClose={() => setSelectedTrip(null)}
-          title={`Trip Telemetry Trail — #${selectedTrip.id.slice(0, 8)}`}
-          maxWidth="600px"
+          title={`Trip Telemetry & Audit — #${selectedTrip.id.slice(0, 8)}`}
+          maxWidth="640px"
           footer={
-            <button className="btn btn-secondary btn-sm" onClick={() => setSelectedTrip(null)}>
-              Close
-            </button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setSelectedTrip(null)}
+              >
+                Close Telemetry
+              </button>
+            </div>
           }
         >
-          <div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            {/* Trip Summary Card */}
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
+                gridTemplateColumns: 'repeat(3, 1fr)',
                 gap: '1rem',
                 padding: '1rem',
-                background: 'var(--bg-surface-elevated)',
-                borderRadius: '8px',
-                marginBottom: '1.25rem',
+                background: 'var(--bg-surface-muted)',
+                borderRadius: 'var(--radius-md)',
               }}
             >
               <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Driver / Vehicle</div>
-                <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{selectedTrip.driverName} ({selectedTrip.vehiclePlate})</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Trip State</div>
+                <div style={{ marginTop: '0.25rem' }}>
+                  <Badge status={selectedTrip.status} />
+                </div>
               </div>
               <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Current Status</div>
-                <Badge status={selectedTrip.status} />
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Driver / Vehicle</div>
+                <div style={{ fontWeight: 600, marginTop: '0.25rem' }}>{selectedTrip.driverName}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{selectedTrip.vehiclePlate}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Driver Earnings</div>
+                <div style={{ fontWeight: 700, marginTop: '0.25rem', fontSize: '1rem', color: 'var(--color-success)' }}>
+                  ₹{Number(selectedTrip.totalDriverEarnings || selectedTrip.driverRate).toLocaleString('en-IN')}
+                </div>
               </div>
             </div>
 
-            <h4 style={{ fontSize: '0.9375rem', fontWeight: 600, marginBottom: '0.75rem' }}>
-              GPS Breadcrumbs & Event Log
-            </h4>
+            {/* Chronological Event Timeline per 05_UI_UX_GUIDELINES.md § 44 */}
+            <div>
+              <h4 style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.75rem' }}>
+                Chronological Event Log ({events.length})
+              </h4>
 
-            {eventsLoading ? (
-              <p style={{ color: 'var(--text-secondary)', padding: '1rem', textAlign: 'center' }}>Loading telemetry breadcrumbs...</p>
-            ) : events.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)', padding: '1rem', textAlign: 'center' }}>No telemetry events recorded for this trip.</p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '350px', overflowY: 'auto' }}>
-                {events.map((evt, idx) => (
-                  <div
-                    key={evt.id || idx}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '0.75rem 1rem',
-                      borderRadius: '8px',
-                      background: 'rgba(255, 255, 255, 0.02)',
-                      border: '1px solid var(--border-light)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <span style={{ fontSize: '1rem' }}>
-                        {evt.eventType === 'DRIVER_ARRIVED' ? '📍' : evt.eventType === 'TRIP_STARTED' ? '🟢' : evt.eventType === 'TRIP_COMPLETED' ? '🏁' : '📡'}
-                      </span>
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: '0.8125rem' }}>
-                          {evt.eventType.replace('_', ' ')}
+              {eventsLoading ? (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  Loading telemetry breadcrumbs...
+                </div>
+              ) : events.length === 0 ? (
+                <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  No GPS breadcrumbs or state transitions recorded yet.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {events.map((evt, idx) => (
+                    <div
+                      key={evt.id || idx}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '0.75rem',
+                        padding: '0.75rem 1rem',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-md)',
+                        background: '#FFFFFF',
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          background: 'var(--primary-600)',
+                          marginTop: '0.375rem',
+                          flexShrink: 0,
+                        }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontWeight: 600, fontSize: '0.84rem' }}>{evt.eventType.replace('_', ' ')}</span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            {new Date(evt.createdAt).toLocaleTimeString()}
+                          </span>
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                          {evt.latitude?.toFixed(4)}, {evt.longitude?.toFixed(4)}
-                          {evt.metadata?.speed ? ` • ${evt.metadata.speed} km/h` : ''}
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                          GPS: Lat {evt.latitude?.toFixed(4)}, Lng {evt.longitude?.toFixed(4)}
+                          {evt.metadata?.speedKmH && ` • Speed: ${evt.metadata.speedKmH} km/h`}
                         </div>
                       </div>
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                      {new Date(evt.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </Modal>
       )}

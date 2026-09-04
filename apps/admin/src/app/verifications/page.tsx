@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { Header } from '../../components/Header';
 import { VerificationStatsHeader } from '../../components/verifications/VerificationStatsHeader';
 import { VerificationFilterBar } from '../../components/verifications/VerificationFilterBar';
 import { VerificationCard } from '../../components/verifications/VerificationCard';
@@ -9,6 +8,7 @@ import { VerificationDetailModal } from '../../components/verifications/Verifica
 import { DeclineReasonModal } from '../../components/verifications/DeclineReasonModal';
 import { useVerificationCenter } from '../../hooks/useVerificationCenter';
 import { useVerificationActions } from '../../hooks/useVerificationActions';
+
 
 export default function VerificationCenterPage() {
   const {
@@ -45,12 +45,14 @@ export default function VerificationCenterPage() {
 
   return (
     <div>
-      <Header
-        title="Verification Center"
-        subtitle="Review, authenticate, and manage Driver KYC submissions and Vendor enterprise applications"
-      />
+      <div style={{ marginBottom: '1.75rem' }}>
+        <h1 className="page-title">Verification Center</h1>
+        <p className="page-subtitle">
+          Review, authenticate, and manage Driver KYC submissions and Vendor enterprise applications.
+        </p>
+      </div>
 
-      <div style={{ padding: '2rem' }}>
+      <div>
         {/* Toast Feedback Notification */}
         {toastMessage && (
           <div

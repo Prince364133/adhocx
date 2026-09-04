@@ -54,3 +54,7 @@ Thumbs.db
 # Testing / Coverage
 coverage/
 .nyc_output/
+
+# Binaries & build cache
+mingit*
+*.tsbuildinfo

@@ -3,8 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { adminApi } from '../../lib/api/client';
-import { AdminMetrics, AuditLogItem } from '../../lib/api/types';
-import { Badge } from '../../components/Badge';
+import { AdminMetrics } from '../../lib/api/types';
 
 export default function DashboardPage() {
   const [metrics, setMetrics] = useState<AdminMetrics>({
@@ -18,28 +17,23 @@ export default function DashboardPage() {
     completedTrips: 0,
     pendingSettlements: 0,
   });
-  const [recentLogs, setRecentLogs] = useState<AuditLogItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [metricsData, logsData] = await Promise.all([
-          adminApi.getMetrics().catch(() => ({
-            totalDrivers: 12,
-            verifiedDrivers: 8,
-            pendingDriversKyc: 3,
-            totalVendors: 6,
-            verifiedVendors: 5,
-            activeRequirements: 4,
-            activeTrips: 3,
-            completedTrips: 18,
-            pendingSettlements: 2,
-          })),
-          adminApi.getAuditLogs(5).catch(() => []),
-        ]);
+        const metricsData = await adminApi.getMetrics().catch(() => ({
+          totalDrivers: 24,
+          verifiedDrivers: 16,
+          pendingDriversKyc: 4,
+          totalVendors: 8,
+          verifiedVendors: 6,
+          activeRequirements: 5,
+          activeTrips: 4,
+          completedTrips: 32,
+          pendingSettlements: 3,
+        }));
         setMetrics(metricsData);
-        setRecentLogs(logsData);
       } finally {
         setLoading(false);
       }
@@ -47,200 +41,250 @@ export default function DashboardPage() {
     loadData();
   }, []);
 
+  const kpiCards = [
+    {
+      label: 'Active Requirements',
+      value: loading ? null : metrics.activeRequirements,
+      sub: 'Live corporate demands',
+      color: 'var(--primary-600)',
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+        </svg>
+      ),
+    },
+    {
+      label: 'Active Trips',
+      value: loading ? null : metrics.activeTrips,
+      sub: 'Rides executing now',
+      color: 'var(--color-info)',
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+      ),
+    },
+    {
+      label: 'Driver Fleet',
+      value: loading ? null : `${metrics.verifiedDrivers} / ${metrics.totalDrivers}`,
+      sub: `${metrics.pendingDriversKyc} pending KYC`,
+      color: 'var(--color-success)',
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+        </svg>
+      ),
+    },
+    {
+      label: 'Enterprise Vendors',
+      value: loading ? null : `${metrics.verifiedVendors} / ${metrics.totalVendors}`,
+      sub: 'Corporate sourcing clients',
+      color: 'var(--text-primary)',
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+      ),
+    },
+    {
+      label: 'Completed Rides',
+      value: loading ? null : metrics.completedTrips,
+      sub: 'Fulfilled marketplace trips',
+      color: 'var(--text-primary)',
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      ),
+    },
+    {
+      label: 'Pending Settlements',
+      value: loading ? null : metrics.pendingSettlements,
+      sub: 'Awaiting bank authorization',
+      color: metrics.pendingSettlements > 0 ? 'var(--color-warning)' : 'var(--text-primary)',
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+        </svg>
+      ),
+    },
+  ];
+
+  const shortcuts = [
+    {
+      title: 'Requirements & Sourcing',
+      description: 'Inspect vehicle quantity fulfillment ratios, active dispatch queues, and corporate booking notes.',
+      href: '/requirements',
+      linkText: 'View Requirements',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+        </svg>
+      ),
+      iconColor: 'var(--primary-600)',
+      iconBg: 'var(--primary-50)',
+    },
+    {
+      title: 'Live Telemetry & Trips',
+      description: 'Real-time geospatial status for active rides, arrival times, OTP confirmation, and drop-off records.',
+      href: '/trips',
+      linkText: 'View Active Trips',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+      ),
+      iconColor: 'var(--color-info)',
+      iconBg: 'var(--color-info-bg)',
+    },
+    {
+      title: 'Financial Settlements',
+      description: 'Authorize driver wallet withdrawal requests with UTR references or mark failed with rollback protection.',
+      href: '/settlements',
+      linkText: 'Process Settlements',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+        </svg>
+      ),
+      iconColor: 'var(--color-success)',
+      iconBg: 'var(--color-success-bg)',
+    },
+  ];
+
   return (
     <div>
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 className="page-title">Marketplace Overview</h1>
-        <p className="page-subtitle">Real-time telemetry and operational metrics across the AdhocX platform</p>
+      {/* Page Header */}
+      <div style={{ marginBottom: '1.75rem' }}>
+        <h1 className="page-title">Command Center</h1>
+        <p className="page-subtitle">
+          Real-time operational overview — demand, fleet, telemetry, and settlements.
+        </p>
       </div>
 
-      {/* Operational Attention Banner */}
+      {/* Alert Banner — only shown when action needed */}
       {(metrics.pendingDriversKyc > 0 || metrics.pendingSettlements > 0) && (
-        <div
-          style={{
-            background: 'linear-gradient(90deg, rgba(245, 158, 11, 0.12), rgba(245, 158, 11, 0.05))',
-            border: '1px solid rgba(245, 158, 11, 0.3)',
-            borderRadius: '12px',
-            padding: '1.25rem 1.5rem',
-            marginBottom: '2rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <span style={{ fontSize: '1.75rem' }}>⚠️</span>
+        <div className="alert-banner" style={{ marginBottom: '1.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.875rem', flex: 1 }}>
+            <span style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '32px',
+              height: '32px',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--color-warning-bg)',
+              flexShrink: 0,
+              marginTop: '0.125rem',
+            }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--color-warning)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+            </span>
             <div>
-              <div style={{ fontWeight: 700, color: 'var(--color-warning)', fontSize: '0.9375rem' }}>
-                Operational Attention Required
+              <div style={{ fontWeight: 700, color: 'var(--color-warning)', fontSize: '0.875rem' }}>
+                Action Required
               </div>
-              <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                {metrics.pendingDriversKyc > 0 && `${metrics.pendingDriversKyc} driver KYC application(s) pending review. `}
-                {metrics.pendingSettlements > 0 && `${metrics.pendingSettlements} driver settlement payout(s) awaiting processing.`}
+              <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                {metrics.pendingDriversKyc > 0 && `${metrics.pendingDriversKyc} driver KYC application(s) awaiting verification. `}
+                {metrics.pendingSettlements > 0 && `${metrics.pendingSettlements} settlement payout(s) ready for bank processing.`}
               </div>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
             {metrics.pendingDriversKyc > 0 && (
               <Link href="/drivers?status=UNDER_REVIEW" className="btn btn-primary btn-sm">
-                Review KYC →
+                Review KYC
               </Link>
             )}
             {metrics.pendingSettlements > 0 && (
               <Link href="/settlements?status=PENDING" className="btn btn-secondary btn-sm">
-                Process Payouts →
+                Process Settlements
               </Link>
             )}
           </div>
         </div>
       )}
 
-      {/* Primary KPI Grid */}
-      <div className="stat-grid">
-        <div className="stat-card">
-          <div className="stat-label">Active Requirements</div>
-          <div className="stat-value" style={{ color: 'var(--accent-secondary)' }}>
-            {loading ? '...' : metrics.activeRequirements}
-          </div>
-          <div className="stat-footer">Live demand requests</div>
-        </div>
+      {/* KPI Metric Grid */}
+      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: '1.75rem' }}>
 
-        <div className="stat-card">
-          <div className="stat-label">Active Trips</div>
-          <div className="stat-value" style={{ color: 'var(--accent-primary)' }}>
-            {loading ? '...' : metrics.activeTrips}
-          </div>
-          <div className="stat-footer">Drivers currently executing rides</div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-label">Verified Drivers</div>
-          <div className="stat-value" style={{ color: 'var(--color-success)' }}>
-            {loading ? '...' : `${metrics.verifiedDrivers} / ${metrics.totalDrivers}`}
-          </div>
-          <div className="stat-footer">{metrics.pendingDriversKyc} awaiting KYC review</div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-label">Enterprise Vendors</div>
-          <div className="stat-value">
-            {loading ? '...' : `${metrics.verifiedVendors} / ${metrics.totalVendors}`}
-          </div>
-          <div className="stat-footer">Verified transport corporate accounts</div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-label">Completed Trips</div>
-          <div className="stat-value">
-            {loading ? '...' : metrics.completedTrips}
-          </div>
-          <div className="stat-footer">Fulfilled supply bookings</div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-label">Pending Settlements</div>
-          <div className="stat-value" style={{ color: metrics.pendingSettlements > 0 ? 'var(--color-warning)' : 'var(--text-primary)' }}>
-            {loading ? '...' : metrics.pendingSettlements}
-          </div>
-          <div className="stat-footer">Awaiting bank payout authorization</div>
-        </div>
-      </div>
-
-      {/* Quick Navigation Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-        <div className="card">
-          <h3 style={{ fontSize: '1.0625rem', fontWeight: 700, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span>🪪</span> Driver Supply & Compliance
-          </h3>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
-            Inspect commercial permits, driving licenses, and vehicle registrations. Transition drivers to VERIFIED or SUSPENDED.
-          </p>
-          <Link href="/drivers" className="btn btn-secondary btn-sm">
-            Manage Driver Network →
-          </Link>
-        </div>
-
-        <div className="card">
-          <h3 style={{ fontSize: '1.0625rem', fontWeight: 700, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span>🚗</span> Live Telemetry & Tracking
-          </h3>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
-            Real-time geospatial breadcrumbs and event history for active rides, arrival times, and drop-off confirmations.
-          </p>
-          <Link href="/trips" className="btn btn-secondary btn-sm">
-            View Live Rides →
-          </Link>
-        </div>
-
-        <div className="card">
-          <h3 style={{ fontSize: '1.0625rem', fontWeight: 700, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span>💰</span> Financial Ledger & Settlements
-          </h3>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
-            Authorize driver bank withdrawals with UTR references or mark failed with automated ledger rollback protection.
-          </p>
-          <Link href="/settlements" className="btn btn-secondary btn-sm">
-            Process Settlements →
-          </Link>
-        </div>
-      </div>
-
-      {/* Recent Audit Activity Table */}
-      <div className="card">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-          <div>
-            <h3 style={{ fontSize: '1.0625rem', fontWeight: 700 }}>Recent Platform Interventions</h3>
-            <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-              Immutable audit entries of administrative actions and compliance decisions
-            </p>
-          </div>
-          <Link href="/audit" className="btn btn-secondary btn-sm">
-            View Full Audit Log →
-          </Link>
-        </div>
-
-        <div className="table-container">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Timestamp</th>
-                <th>Actor</th>
-                <th>Action</th>
-                <th>Target Entity</th>
-                <th>Entity ID</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentLogs.length === 0 ? (
-                <tr>
-                  <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
-                    No recent audit events recorded.
-                  </td>
-                </tr>
-              ) : (
-                recentLogs.map((log) => (
-                  <tr key={log.id}>
-                    <td style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                      {new Date(log.createdAt).toLocaleString()}
-                    </td>
-                    <td>
-                      <div style={{ fontWeight: 600 }}>{log.actorPhone || 'Admin'}</div>
-                      <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{log.actorRole || 'ADMIN'}</div>
-                    </td>
-                    <td>
-                      <Badge status={log.action} />
-                    </td>
-                    <td>{log.entityName}</td>
-                    <td style={{ fontFamily: 'monospace', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                      {log.entityId ? log.entityId.slice(0, 8) + '...' : '—'}
-                    </td>
-                  </tr>
-                ))
+        {kpiCards.map((card) => (
+          <div className="stat-card" key={card.label}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.875rem' }}>
+              <div className="stat-label">{card.label}</div>
+              <span style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '30px',
+                height: '30px',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--bg-surface-muted)',
+                color: card.color,
+                flexShrink: 0,
+              }}>
+                {card.icon}
+              </span>
+            </div>
+            <div className="stat-value" style={{ color: card.color, fontSize: '1.75rem' }}>
+              {card.value !== null && card.value !== undefined ? card.value : (
+                <span style={{ fontSize: '1.25rem', color: 'var(--text-muted)' }}>—</span>
               )}
-            </tbody>
-          </table>
+            </div>
+            <div className="stat-footer" style={{ marginTop: '0.5rem' }}>{card.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Quick Action Shortcuts */}
+      <div style={{ marginBottom: '0.75rem' }}>
+        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '1rem' }}>
+          Quick Access
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem' }}>
+          {shortcuts.map((s) => (
+            <div
+              key={s.href}
+              className="card"
+              style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                <span style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: 'var(--radius-md)',
+                  background: s.iconBg,
+                  color: s.iconColor,
+                  flexShrink: 0,
+                }}>
+                  {s.icon}
+                </span>
+                <div>
+                  <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
+                    {s.title}
+                  </h3>
+                  <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                    {s.description}
+                  </p>
+                </div>
+              </div>
+              <div style={{ paddingTop: '0.25rem', borderTop: '1px solid var(--border)' }}>
+                <Link href={s.href} className="btn btn-secondary btn-sm" style={{ width: '100%', justifyContent: 'center' }}>
+                  {s.linkText}
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                  </svg>
+                </Link>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
   );
 }
+
