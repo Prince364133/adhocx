@@ -373,7 +373,7 @@ earnings
 withdrawals
 KYC documents
 driver details
-vendor details
+user details
 ```
 
 ---
@@ -736,7 +736,7 @@ Never:
 Test:
 
 ```text
-Vendor cancels requirement
+User cancels requirement
 ```
 
 while:
@@ -1010,7 +1010,7 @@ ordering/version handling
 
 Driver A must not receive private events intended for Driver B.
 
-Vendor A must not receive Vendor B's private requirement events.
+User A must not receive User B's private requirement events.
 
 ---
 
@@ -1183,7 +1183,7 @@ Examples:
 
 ```text
 login
-vendor posts requirement
+user posts requirement
 driver receives opportunity
 driver accepts
 trip starts
@@ -1263,7 +1263,7 @@ Critical flows:
 
 ```text
 verify driver
-approve vendor
+approve user
 view requirement
 manually intervene
 view trip
@@ -1297,7 +1297,7 @@ E2E tests validate complete business workflows.
 The most important E2E flow is:
 
 ```text
-Vendor
+User
  ↓
 Create Requirement
  ↓
@@ -1322,7 +1322,7 @@ Settlement
 
 ---
 
-# 76. Vendor E2E Flow
+# 76. User E2E Flow
 
 Test:
 
@@ -1372,7 +1372,7 @@ Test:
 login
 → dashboard
 → driver verification
-→ vendor approval
+→ user approval
 → operational monitoring
 → payment/settlement review
 → audit history
@@ -1388,7 +1388,7 @@ Examples:
 
 ```text
 driver cancellation
-vendor cancellation
+user cancellation
 no driver available
 passenger no-show
 payment failure
@@ -1960,7 +1960,7 @@ Examples:
 
 ```text
 drivers cannot accept offers
-vendors cannot post requirements
+users cannot post requirements
 trip completion fails for all users
 dispatch is fundamentally broken
 ```
@@ -2113,7 +2113,7 @@ A feature is not considered tested until:
 | Domain            | Unit | Integration | API | Concurrency | E2E |
 | ----------------- | ---: | ----------: | --: | ----------: | --: |
 | Authentication    |    ✓ |           ✓ |   ✓ |           — |   ✓ |
-| Vendor onboarding |    ✓ |           ✓ |   ✓ |           — |   ✓ |
+| User onboarding |    ✓ |           ✓ |   ✓ |           — |   ✓ |
 | Driver KYC        |    ✓ |           ✓ |   ✓ |           — |   ✓ |
 | Requirements      |    ✓ |           ✓ |   ✓ |           ✓ |   ✓ |
 | Dispatch          |    ✓ |           ✓ |   ✓ |           ✓ |   ✓ |
@@ -2140,7 +2140,7 @@ A feature is not considered tested until:
 | Payment timeout                | Provider reconciliation           |
 | Duplicate trip completion      | Idempotent transition             |
 | Driver cancels                 | State transition + redispatch     |
-| Vendor cancels                 | Offer/assignment cancellation     |
+| User cancels                 | Offer/assignment cancellation     |
 | No drivers                     | Radius expansion + terminal state |
 | Network loss                   | Reconciliation                    |
 | Worker crash                   | Idempotent retry                  |

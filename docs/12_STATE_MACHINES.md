@@ -162,9 +162,9 @@ Administrative intervention may be required.
 
 ---
 
-# 8. Vendor Onboarding State
+# 8. User Onboarding State
 
-Vendor onboarding states:
+User onboarding states:
 
 ```text
 PENDING
@@ -176,7 +176,7 @@ SUSPENDED
 
 ---
 
-# 9. Vendor State Transitions
+# 9. User State Transitions
 
 ```text
 PENDING
@@ -194,7 +194,7 @@ SUSPENDED
     └── reactivate → APPROVED
 ```
 
-A vendor cannot create operational requirements unless its state permits that action.
+A user cannot create operational requirements unless its state permits that action.
 
 ---
 
@@ -360,7 +360,7 @@ Cancellation can occur from permitted states.
 ```text
 DRAFT
     ↓
-vendor submits requirement
+user submits requirement
     ↓
 POSTED
 ```
@@ -513,7 +513,7 @@ The engine must recalculate candidates rather than reuse stale candidates.
 
 # 27. Requirement Cancellation During Dispatch
 
-If a vendor cancels while dispatch is running:
+If a user cancels while dispatch is running:
 
 ```text
 DISPATCHING
@@ -722,7 +722,7 @@ assignment created
 CONFIRMED
 ```
 
-If vendor confirmation is required by the final business process, an intermediate state may be introduced.
+If user confirmation is required by the final business process, an intermediate state may be introduced.
 
 That commercial rule is **TBD**.
 
@@ -737,7 +737,7 @@ Possible:
 ```text
 CONFIRMED
     ↓
-driver/vendor/admin cancellation
+driver/user/admin cancellation
     ↓
 CANCELLED
 ```
@@ -944,7 +944,7 @@ A no-show should not simply be represented as a generic cancellation if financia
 
 No-show handling may trigger:
 
-* vendor notification
+* user notification
 * driver notification
 * evidence/timestamp capture
 * financial adjustment
@@ -1506,7 +1506,7 @@ Example:
 ```text
 Driver A accepts offer
 Driver B accepts offer
-Vendor cancels requirement
+User cancels requirement
 Admin redispatches
 ```
 
@@ -1804,7 +1804,7 @@ The exact cancellation policy is TBD.
 
 ---
 
-# 95. State Transition Matrix — Vendor
+# 95. State Transition Matrix — User
 
 | From         | Action     | To           |
 | ------------ | ---------- | ------------ |
@@ -1928,7 +1928,7 @@ Any AI coding agent working on AdhocX must:
 AdhocX should be understood as a collection of controlled state machines:
 
 ```text
-Vendor
+User
    ↓
 Requirement
    ↓

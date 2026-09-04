@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../presentation/01_splash_screen/splash_screen.dart';
-import '../presentation/02_language_selection_screen/language_selection_screen.dart';
 import '../presentation/03_sign_in_screen/sign_in_screen.dart';
 import '../presentation/04_login_otp_screen/login_otp_screen.dart';
 import '../presentation/05_sign_up_screen/sign_up_screen.dart';
@@ -43,49 +42,49 @@ import '../presentation/wallet_screen/earnings_withdraw_screen.dart';
 import '../presentation/wallet_screen/earnings_withdrawal_details_screen.dart';
 import '../services/auth_service.dart';
 import '../widgets/app_scaffold.dart';
-import '../vendor/home/vendor_home_screen.dart';
-import '../vendor/requirements/vendor_requirements_list_screen.dart';
-import '../vendor/requirements/vendor_create_requirement_screen.dart';
-import '../vendor/requirements/vendor_create_requirement_step2_screen.dart';
-import '../vendor/requirements/vendor_create_requirement_step3_screen.dart';
-import '../vendor/requirements/vendor_create_requirement_step4_screen.dart';
-import '../vendor/requirements/vendor_review_requirement_screen.dart';
-import '../vendor/requirements/vendor_requirement_posted_confirmation_screen.dart';
-import '../vendor/requirements/vendor_draft_requirements_screen.dart';
-import '../vendor/requirements/vendor_edit_requirement_screen.dart';
-import '../vendor/requirements/vendor_bulk_posting_screen.dart';
-import '../vendor/requirements/vendor_review_bulk_posting_screen.dart';
-import '../vendor/requirements/vendor_requirement_details_screen.dart';
-import '../vendor/fulfillment/vendor_fulfillment_status_screen.dart';
-import '../vendor/fulfillment/vendor_fulfillment_overview_screen.dart';
-import '../vendor/fulfillment/vendor_driver_matching_screen.dart';
-import '../vendor/fulfillment/vendor_requirement_status_screen.dart';
-import '../vendor/fulfillment/vendor_driver_assignments_list_screen.dart';
-import '../vendor/fulfillment/vendor_driver_details_screen.dart';
-import '../vendor/fulfillment/vendor_vehicle_details_screen.dart';
-import '../vendor/fulfillment/vendor_assignment_timeline_screen.dart';
-import '../vendor/fulfillment/vendor_cancel_assignment_screen.dart';
-import '../vendor/trips/vendor_trips_list_screen.dart';
-import '../vendor/trips/vendor_active_trip_screen.dart';
-import '../vendor/trips/vendor_trip_details_screen.dart';
-import '../vendor/trips/vendor_trip_timeline_activity_screen.dart';
-import '../vendor/trips/vendor_trip_history_screen.dart';
-import '../vendor/trips/vendor_historical_trip_details_screen.dart';
-import '../vendor/payments/vendor_payments_screen.dart';
-import '../vendor/payments/vendor_payment_history_screen.dart';
-import '../vendor/payments/vendor_payment_details_screen.dart';
-import '../vendor/payments/vendor_payment_status_screen.dart';
-import '../vendor/profile/vendor_profile_screen.dart';
-import '../vendor/profile/vendor_profile_extended_screen.dart';
-import '../vendor/profile/vendor_company_information_screen.dart';
-import '../vendor/profile/vendor_contact_information_screen.dart';
-import '../vendor/profile/vendor_account_status_screen.dart';
-import '../vendor/profile/vendor_notification_settings_screen.dart';
-import '../vendor/profile/vendor_app_settings_screen.dart';
-import '../vendor/support/vendor_support_center_screen.dart';
-import '../vendor/support/vendor_help_faq_screen.dart';
-import '../vendor/support/vendor_raise_issue_screen.dart';
-import '../vendor/support/vendor_ticket_details_screen.dart';
+import '../user/home/user_home_screen.dart';
+import '../user/requirements/user_requirements_list_screen.dart';
+import '../user/requirements/user_create_requirement_screen.dart';
+import '../user/requirements/user_create_requirement_step2_screen.dart';
+import '../user/requirements/user_create_requirement_step3_screen.dart';
+import '../user/requirements/user_create_requirement_step4_screen.dart';
+import '../user/requirements/user_review_requirement_screen.dart';
+import '../user/requirements/user_requirement_posted_confirmation_screen.dart';
+import '../user/requirements/user_draft_requirements_screen.dart';
+import '../user/requirements/user_edit_requirement_screen.dart';
+import '../user/requirements/user_bulk_posting_screen.dart';
+import '../user/requirements/user_review_bulk_posting_screen.dart';
+import '../user/requirements/user_requirement_details_screen.dart';
+import '../user/fulfillment/user_fulfillment_status_screen.dart';
+import '../user/fulfillment/user_fulfillment_overview_screen.dart';
+import '../user/fulfillment/user_driver_matching_screen.dart';
+import '../user/fulfillment/user_requirement_status_screen.dart';
+import '../user/fulfillment/user_driver_assignments_list_screen.dart';
+import '../user/fulfillment/user_driver_details_screen.dart';
+import '../user/fulfillment/user_vehicle_details_screen.dart';
+import '../user/fulfillment/user_assignment_timeline_screen.dart';
+import '../user/fulfillment/user_cancel_assignment_screen.dart';
+import '../user/trips/user_trips_list_screen.dart';
+import '../user/trips/user_active_trip_screen.dart';
+import '../user/trips/user_trip_details_screen.dart';
+import '../user/trips/user_trip_timeline_activity_screen.dart';
+import '../user/trips/user_trip_history_screen.dart';
+import '../user/trips/user_historical_trip_details_screen.dart';
+import '../user/payments/user_payments_screen.dart';
+import '../user/payments/user_payment_history_screen.dart';
+import '../user/payments/user_payment_details_screen.dart';
+import '../user/payments/user_payment_status_screen.dart';
+import '../user/profile/user_profile_screen.dart';
+import '../user/profile/user_profile_extended_screen.dart';
+import '../user/profile/user_company_information_screen.dart';
+import '../user/profile/user_contact_information_screen.dart';
+import '../user/profile/user_account_status_screen.dart';
+import '../user/profile/user_notification_settings_screen.dart';
+import '../user/profile/user_app_settings_screen.dart';
+import '../user/support/user_support_center_screen.dart';
+import '../user/support/user_help_faq_screen.dart';
+import '../user/support/user_raise_issue_screen.dart';
+import '../user/support/user_ticket_details_screen.dart';
 
 class AppRoutes {
   static const String initial = '/';
@@ -145,65 +144,125 @@ class AppRoutes {
   // 10 Global States Gallery
   static const String globalStateGalleryScreen = '/global-states-gallery';
 
-  // ── 60 Vendor Screens Routes ───────────────────────────────────────────────
-  static const String vendorHomeScreen = '/vendor/home';
-  static const String vendorRequirementsScreen = '/vendor/requirements';
-  static const String vendorCreateRequirementScreen = '/vendor/requirements/create';
-  static const String vendorCreateRequirementStep2Screen = '/vendor/requirements/create-step2';
-  static const String vendorCreateRequirementStep3Screen = '/vendor/requirements/create-step3';
-  static const String vendorCreateRequirementStep4Screen = '/vendor/requirements/create-step4';
-  static const String vendorReviewRequirementScreen = '/vendor/requirements/review';
-  static const String vendorRequirementPostedConfirmationScreen = '/vendor/requirements/posted-confirmation';
-  static const String vendorDraftRequirementsScreen = '/vendor/requirements/drafts';
-  static const String vendorEditRequirementScreen = '/vendor/requirements/edit';
-  static const String vendorBulkPostingScreen = '/vendor/requirements/bulk-posting';
-  static const String vendorReviewBulkPostingScreen = '/vendor/requirements/review-bulk';
-  static const String vendorRequirementDetailsScreen = '/vendor/requirements/details';
-  static const String vendorFulfillmentStatusScreen = '/vendor/fulfillment/status';
-  static const String vendorFulfillmentOverviewScreen = '/vendor/fulfillment/overview';
-  static const String vendorDriverMatchingScreen = '/vendor/fulfillment/driver-matching';
-  static const String vendorRequirementStatusSearchingScreen = '/vendor/fulfillment/status-searching';
-  static const String vendorRequirementStatusFulfilledScreen = '/vendor/fulfillment/status-fulfilled';
-  static const String vendorRequirementStatusFailedScreen = '/vendor/fulfillment/status-failed';
-  static const String vendorDriverAssignmentsListScreen = '/vendor/fulfillment/driver-assignments';
-  static const String vendorDriverDetailsScreen = '/vendor/fulfillment/driver-details';
-  static const String vendorVehicleDetailsScreen = '/vendor/fulfillment/vehicle-details';
-  static const String vendorAssignmentTimelineScreen = '/vendor/fulfillment/assignment-timeline';
-  static const String vendorCancelAssignmentScreen = '/vendor/fulfillment/cancel-assignment';
-  static const String vendorTripsScreen = '/vendor/trips';
-  static const String vendorActiveTripScreen = '/vendor/trips/active';
-  static const String vendorTripDetailsUpcomingScreen = '/vendor/trips/details-upcoming';
-  static const String vendorTripDetailsAssignedScreen = '/vendor/trips/details-assigned';
-  static const String vendorTripDetailsEnRouteScreen = '/vendor/trips/details-enroute';
-  static const String vendorTripDetailsArrivedScreen = '/vendor/trips/details-arrived';
-  static const String vendorTripDetailsStartedScreen = '/vendor/trips/details-started';
-  static const String vendorTripDetailsInProgressScreen = '/vendor/trips/details-inprogress';
-  static const String vendorTripDetailsCompletedScreen = '/vendor/trips/details-completed';
-  static const String vendorTripDetailsCancelledScreen = '/vendor/trips/details-cancelled';
-  static const String vendorPassengerNoShowScreen = '/vendor/trips/details-noshow';
-  static const String vendorTripTimelineActivityScreen = '/vendor/trips/timeline-activity';
-  static const String vendorTripHistoryScreen = '/vendor/trips/history';
-  static const String vendorHistoricalTripDetailsScreen = '/vendor/trips/historical-details';
-  static const String vendorPaymentsScreen = '/vendor/payments';
-  static const String vendorPaymentHistoryScreen = '/vendor/payments/history';
-  static const String vendorPaymentDetailsScreen = '/vendor/payments/details';
-  static const String vendorPaymentPendingScreen = '/vendor/payments/pending';
-  static const String vendorPaymentProcessingScreen = '/vendor/payments/processing';
-  static const String vendorPaymentSuccessfulScreen = '/vendor/payments/successful';
-  static const String vendorPaymentFailedScreen = '/vendor/payments/failed';
-  static const String vendorProfileScreen = '/vendor/profile';
-  static const String vendorProfileExtendedScreen = '/vendor/profile/extended';
-  static const String vendorCompanyInformationScreen = '/vendor/profile/company-info';
-  static const String vendorContactInformationScreen = '/vendor/profile/contact-info';
-  static const String vendorAccountStatusScreen = '/vendor/profile/account-status';
-  static const String vendorNotificationSettingsScreen = '/vendor/profile/notifications-settings';
-  static const String vendorSupportCenterScreen = '/vendor/support/center';
-  static const String vendorHelpFaqScreen = '/vendor/support/faq';
-  static const String vendorRaiseIssueScreen = '/vendor/support/raise-issue';
-  static const String vendorTicketDetailsOpenScreen = '/vendor/support/ticket-open';
-  static const String vendorTicketDetailsInProgressScreen = '/vendor/support/ticket-inprogress';
-  static const String vendorTicketDetailsResolvedScreen = '/vendor/support/ticket-resolved';
-  static const String vendorAppSettingsScreen = '/vendor/profile/settings';
+  // ── 60 User / Booker Screen Routes (Outstation & Bulk Travel) ─────────────
+  static const String userHomeScreen = '/user/home';
+  static const String userRequirementsScreen = '/user/requirements';
+  static const String userCreateRequirementScreen = '/user/requirements/create';
+  static const String userCreateRequirementStep2Screen = '/user/requirements/create-step2';
+  static const String userCreateRequirementStep3Screen = '/user/requirements/create-step3';
+  static const String userCreateRequirementStep4Screen = '/user/requirements/create-step4';
+  static const String userReviewRequirementScreen = '/user/requirements/review';
+  static const String userRequirementPostedConfirmationScreen = '/user/requirements/posted-confirmation';
+  static const String userDraftRequirementsScreen = '/user/requirements/drafts';
+  static const String userEditRequirementScreen = '/user/requirements/edit';
+  static const String userBulkPostingScreen = '/user/requirements/bulk-posting';
+  static const String userReviewBulkPostingScreen = '/user/requirements/review-bulk';
+  static const String userRequirementDetailsScreen = '/user/requirements/details';
+  static const String userFulfillmentStatusScreen = '/user/fulfillment/status';
+  static const String userFulfillmentOverviewScreen = '/user/fulfillment/overview';
+  static const String userDriverMatchingScreen = '/user/fulfillment/driver-matching';
+  static const String userRequirementStatusSearchingScreen = '/user/fulfillment/status-searching';
+  static const String userRequirementStatusFulfilledScreen = '/user/fulfillment/status-fulfilled';
+  static const String userRequirementStatusFailedScreen = '/user/fulfillment/status-failed';
+  static const String userDriverAssignmentsListScreen = '/user/fulfillment/driver-assignments';
+  static const String userDriverDetailsScreen = '/user/fulfillment/driver-details';
+  static const String userVehicleDetailsScreen = '/user/fulfillment/vehicle-details';
+  static const String userAssignmentTimelineScreen = '/user/fulfillment/assignment-timeline';
+  static const String userCancelAssignmentScreen = '/user/fulfillment/cancel-assignment';
+  static const String userTripsScreen = '/user/trips';
+  static const String userActiveTripScreen = '/user/trips/active';
+  static const String userTripDetailsUpcomingScreen = '/user/trips/details-upcoming';
+  static const String userTripDetailsAssignedScreen = '/user/trips/details-assigned';
+  static const String userTripDetailsEnRouteScreen = '/user/trips/details-enroute';
+  static const String userTripDetailsArrivedScreen = '/user/trips/details-arrived';
+  static const String userTripDetailsStartedScreen = '/user/trips/details-started';
+  static const String userTripDetailsInProgressScreen = '/user/trips/details-inprogress';
+  static const String userTripDetailsCompletedScreen = '/user/trips/details-completed';
+  static const String userTripDetailsCancelledScreen = '/user/trips/details-cancelled';
+  static const String userPassengerNoShowScreen = '/user/trips/details-noshow';
+  static const String userTripTimelineActivityScreen = '/user/trips/timeline-activity';
+  static const String userTripHistoryScreen = '/user/trips/history';
+  static const String userHistoricalTripDetailsScreen = '/user/trips/historical-details';
+  static const String userPaymentsScreen = '/user/payments';
+  static const String userPaymentHistoryScreen = '/user/payments/history';
+  static const String userPaymentDetailsScreen = '/user/payments/details';
+  static const String userPaymentPendingScreen = '/user/payments/pending';
+  static const String userPaymentProcessingScreen = '/user/payments/processing';
+  static const String userPaymentSuccessfulScreen = '/user/payments/successful';
+  static const String userPaymentFailedScreen = '/user/payments/failed';
+  static const String userProfileScreen = '/user/profile';
+  static const String userProfileExtendedScreen = '/user/profile/extended';
+  static const String userCompanyInformationScreen = '/user/profile/company-info';
+  static const String userContactInformationScreen = '/user/profile/contact-info';
+  static const String userAccountStatusScreen = '/user/profile/account-status';
+  static const String userNotificationSettingsScreen = '/user/profile/notifications-settings';
+  static const String userSupportCenterScreen = '/user/support/center';
+  static const String userHelpFaqScreen = '/user/support/faq';
+  static const String userRaiseIssueScreen = '/user/support/raise-issue';
+  static const String userTicketDetailsOpenScreen = '/user/support/ticket-open';
+  static const String userTicketDetailsInProgressScreen = '/user/support/ticket-inprogress';
+  static const String userTicketDetailsResolvedScreen = '/user/support/ticket-resolved';
+  static const String userAppSettingsScreen = '/user/profile/settings';
+
+  // Backward compatibility aliases
+  static const String vendorHomeScreen = userHomeScreen;
+  static const String vendorRequirementsScreen = userRequirementsScreen;
+  static const String vendorCreateRequirementScreen = userCreateRequirementScreen;
+  static const String vendorCreateRequirementStep2Screen = userCreateRequirementStep2Screen;
+  static const String vendorCreateRequirementStep3Screen = userCreateRequirementStep3Screen;
+  static const String vendorCreateRequirementStep4Screen = userCreateRequirementStep4Screen;
+  static const String vendorReviewRequirementScreen = userReviewRequirementScreen;
+  static const String vendorRequirementPostedConfirmationScreen = userRequirementPostedConfirmationScreen;
+  static const String vendorDraftRequirementsScreen = userDraftRequirementsScreen;
+  static const String vendorEditRequirementScreen = userEditRequirementScreen;
+  static const String vendorBulkPostingScreen = userBulkPostingScreen;
+  static const String vendorReviewBulkPostingScreen = userReviewBulkPostingScreen;
+  static const String vendorRequirementDetailsScreen = userRequirementDetailsScreen;
+  static const String vendorFulfillmentStatusScreen = userFulfillmentStatusScreen;
+  static const String vendorFulfillmentOverviewScreen = userFulfillmentOverviewScreen;
+  static const String vendorDriverMatchingScreen = userDriverMatchingScreen;
+  static const String vendorRequirementStatusSearchingScreen = userRequirementStatusSearchingScreen;
+  static const String vendorRequirementStatusFulfilledScreen = userRequirementStatusFulfilledScreen;
+  static const String vendorRequirementStatusFailedScreen = userRequirementStatusFailedScreen;
+  static const String vendorDriverAssignmentsListScreen = userDriverAssignmentsListScreen;
+  static const String vendorDriverDetailsScreen = userDriverDetailsScreen;
+  static const String vendorVehicleDetailsScreen = userVehicleDetailsScreen;
+  static const String vendorAssignmentTimelineScreen = userAssignmentTimelineScreen;
+  static const String vendorCancelAssignmentScreen = userCancelAssignmentScreen;
+  static const String vendorTripsScreen = userTripsScreen;
+  static const String vendorActiveTripScreen = userActiveTripScreen;
+  static const String vendorTripDetailsUpcomingScreen = userTripDetailsUpcomingScreen;
+  static const String vendorTripDetailsAssignedScreen = userTripDetailsAssignedScreen;
+  static const String vendorTripDetailsEnRouteScreen = userTripDetailsEnRouteScreen;
+  static const String vendorTripDetailsArrivedScreen = userTripDetailsArrivedScreen;
+  static const String vendorTripDetailsStartedScreen = userTripDetailsStartedScreen;
+  static const String vendorTripDetailsInProgressScreen = userTripDetailsInProgressScreen;
+  static const String vendorTripDetailsCompletedScreen = userTripDetailsCompletedScreen;
+  static const String vendorTripDetailsCancelledScreen = userTripDetailsCancelledScreen;
+  static const String vendorPassengerNoShowScreen = userPassengerNoShowScreen;
+  static const String vendorTripTimelineActivityScreen = userTripTimelineActivityScreen;
+  static const String vendorTripHistoryScreen = userTripHistoryScreen;
+  static const String vendorHistoricalTripDetailsScreen = userHistoricalTripDetailsScreen;
+  static const String vendorPaymentsScreen = userPaymentsScreen;
+  static const String vendorPaymentHistoryScreen = userPaymentHistoryScreen;
+  static const String vendorPaymentDetailsScreen = userPaymentDetailsScreen;
+  static const String vendorPaymentPendingScreen = userPaymentPendingScreen;
+  static const String vendorPaymentProcessingScreen = userPaymentProcessingScreen;
+  static const String vendorPaymentSuccessfulScreen = userPaymentSuccessfulScreen;
+  static const String vendorPaymentFailedScreen = userPaymentFailedScreen;
+  static const String vendorProfileScreen = userProfileScreen;
+  static const String vendorProfileExtendedScreen = userProfileExtendedScreen;
+  static const String vendorCompanyInformationScreen = userCompanyInformationScreen;
+  static const String vendorContactInformationScreen = userContactInformationScreen;
+  static const String vendorAccountStatusScreen = userAccountStatusScreen;
+  static const String vendorNotificationSettingsScreen = userNotificationSettingsScreen;
+  static const String vendorSupportCenterScreen = userSupportCenterScreen;
+  static const String vendorHelpFaqScreen = userHelpFaqScreen;
+  static const String vendorRaiseIssueScreen = userRaiseIssueScreen;
+  static const String vendorTicketDetailsOpenScreen = userTicketDetailsOpenScreen;
+  static const String vendorTicketDetailsInProgressScreen = userTicketDetailsInProgressScreen;
+  static const String vendorTicketDetailsResolvedScreen = userTicketDetailsResolvedScreen;
+  static const String vendorAppSettingsScreen = userAppSettingsScreen;
 }
 
 final GoRouter appRouter = GoRouter(
@@ -212,6 +271,11 @@ final GoRouter appRouter = GoRouter(
     final user = AuthService.instance.currentUser;
     final isLoggedIn = user != null;
     final currentPath = state.matchedLocation;
+
+    // Automatic redirect from legacy /vendor/* paths to /user/*
+    if (currentPath.startsWith('/vendor/')) {
+      return currentPath.replaceFirst('/vendor/', '/user/');
+    }
 
     // Public onboarding & detail routes that don't require restrictive session gating
     const publicRoutes = {
@@ -248,65 +312,64 @@ final GoRouter appRouter = GoRouter(
       AppRoutes.tripDetailsScreen,
       AppRoutes.opportunityDetailsScreen,
       AppRoutes.opportunityOfferScreen,
-      AppRoutes.globalStateGalleryScreen,
-      AppRoutes.vendorHomeScreen,
-      AppRoutes.vendorRequirementsScreen,
-      AppRoutes.vendorCreateRequirementScreen,
-      AppRoutes.vendorCreateRequirementStep2Screen,
-      AppRoutes.vendorCreateRequirementStep3Screen,
-      AppRoutes.vendorCreateRequirementStep4Screen,
-      AppRoutes.vendorReviewRequirementScreen,
-      AppRoutes.vendorRequirementPostedConfirmationScreen,
-      AppRoutes.vendorDraftRequirementsScreen,
-      AppRoutes.vendorEditRequirementScreen,
-      AppRoutes.vendorBulkPostingScreen,
-      AppRoutes.vendorReviewBulkPostingScreen,
-      AppRoutes.vendorRequirementDetailsScreen,
-      AppRoutes.vendorFulfillmentStatusScreen,
-      AppRoutes.vendorFulfillmentOverviewScreen,
-      AppRoutes.vendorDriverMatchingScreen,
-      AppRoutes.vendorRequirementStatusSearchingScreen,
-      AppRoutes.vendorRequirementStatusFulfilledScreen,
-      AppRoutes.vendorRequirementStatusFailedScreen,
-      AppRoutes.vendorDriverAssignmentsListScreen,
-      AppRoutes.vendorDriverDetailsScreen,
-      AppRoutes.vendorVehicleDetailsScreen,
-      AppRoutes.vendorAssignmentTimelineScreen,
-      AppRoutes.vendorCancelAssignmentScreen,
-      AppRoutes.vendorTripsScreen,
-      AppRoutes.vendorActiveTripScreen,
-      AppRoutes.vendorTripDetailsUpcomingScreen,
-      AppRoutes.vendorTripDetailsAssignedScreen,
-      AppRoutes.vendorTripDetailsEnRouteScreen,
-      AppRoutes.vendorTripDetailsArrivedScreen,
-      AppRoutes.vendorTripDetailsStartedScreen,
-      AppRoutes.vendorTripDetailsInProgressScreen,
-      AppRoutes.vendorTripDetailsCompletedScreen,
-      AppRoutes.vendorTripDetailsCancelledScreen,
-      AppRoutes.vendorPassengerNoShowScreen,
-      AppRoutes.vendorTripTimelineActivityScreen,
-      AppRoutes.vendorTripHistoryScreen,
-      AppRoutes.vendorHistoricalTripDetailsScreen,
-      AppRoutes.vendorPaymentsScreen,
-      AppRoutes.vendorPaymentHistoryScreen,
-      AppRoutes.vendorPaymentDetailsScreen,
-      AppRoutes.vendorPaymentPendingScreen,
-      AppRoutes.vendorPaymentProcessingScreen,
-      AppRoutes.vendorPaymentSuccessfulScreen,
-      AppRoutes.vendorPaymentFailedScreen,
-      AppRoutes.vendorProfileScreen,
-      AppRoutes.vendorProfileExtendedScreen,
-      AppRoutes.vendorCompanyInformationScreen,
-      AppRoutes.vendorContactInformationScreen,
-      AppRoutes.vendorAccountStatusScreen,
-      AppRoutes.vendorNotificationSettingsScreen,
-      AppRoutes.vendorSupportCenterScreen,
-      AppRoutes.vendorHelpFaqScreen,
-      AppRoutes.vendorRaiseIssueScreen,
-      AppRoutes.vendorTicketDetailsOpenScreen,
-      AppRoutes.vendorTicketDetailsInProgressScreen,
-      AppRoutes.vendorTicketDetailsResolvedScreen,
-      AppRoutes.vendorAppSettingsScreen,
+      AppRoutes.userHomeScreen,
+      AppRoutes.userRequirementsScreen,
+      AppRoutes.userCreateRequirementScreen,
+      AppRoutes.userCreateRequirementStep2Screen,
+      AppRoutes.userCreateRequirementStep3Screen,
+      AppRoutes.userCreateRequirementStep4Screen,
+      AppRoutes.userReviewRequirementScreen,
+      AppRoutes.userRequirementPostedConfirmationScreen,
+      AppRoutes.userDraftRequirementsScreen,
+      AppRoutes.userEditRequirementScreen,
+      AppRoutes.userBulkPostingScreen,
+      AppRoutes.userReviewBulkPostingScreen,
+      AppRoutes.userRequirementDetailsScreen,
+      AppRoutes.userFulfillmentStatusScreen,
+      AppRoutes.userFulfillmentOverviewScreen,
+      AppRoutes.userDriverMatchingScreen,
+      AppRoutes.userRequirementStatusSearchingScreen,
+      AppRoutes.userRequirementStatusFulfilledScreen,
+      AppRoutes.userRequirementStatusFailedScreen,
+      AppRoutes.userDriverAssignmentsListScreen,
+      AppRoutes.userDriverDetailsScreen,
+      AppRoutes.userVehicleDetailsScreen,
+      AppRoutes.userAssignmentTimelineScreen,
+      AppRoutes.userCancelAssignmentScreen,
+      AppRoutes.userTripsScreen,
+      AppRoutes.userActiveTripScreen,
+      AppRoutes.userTripDetailsUpcomingScreen,
+      AppRoutes.userTripDetailsAssignedScreen,
+      AppRoutes.userTripDetailsEnRouteScreen,
+      AppRoutes.userTripDetailsArrivedScreen,
+      AppRoutes.userTripDetailsStartedScreen,
+      AppRoutes.userTripDetailsInProgressScreen,
+      AppRoutes.userTripDetailsCompletedScreen,
+      AppRoutes.userTripDetailsCancelledScreen,
+      AppRoutes.userPassengerNoShowScreen,
+      AppRoutes.userTripTimelineActivityScreen,
+      AppRoutes.userTripHistoryScreen,
+      AppRoutes.userHistoricalTripDetailsScreen,
+      AppRoutes.userPaymentsScreen,
+      AppRoutes.userPaymentHistoryScreen,
+      AppRoutes.userPaymentDetailsScreen,
+      AppRoutes.userPaymentPendingScreen,
+      AppRoutes.userPaymentProcessingScreen,
+      AppRoutes.userPaymentSuccessfulScreen,
+      AppRoutes.userPaymentFailedScreen,
+      AppRoutes.userProfileScreen,
+      AppRoutes.userProfileExtendedScreen,
+      AppRoutes.userCompanyInformationScreen,
+      AppRoutes.userContactInformationScreen,
+      AppRoutes.userAccountStatusScreen,
+      AppRoutes.userNotificationSettingsScreen,
+      AppRoutes.userSupportCenterScreen,
+      AppRoutes.userHelpFaqScreen,
+      AppRoutes.userRaiseIssueScreen,
+      AppRoutes.userTicketDetailsOpenScreen,
+      AppRoutes.userTicketDetailsInProgressScreen,
+      AppRoutes.userTicketDetailsResolvedScreen,
+      AppRoutes.userAppSettingsScreen,
     };
 
     if (publicRoutes.contains(currentPath)) {
@@ -326,7 +389,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.languageSelectionScreen,
-      builder: (context, state) => const LanguageSelectionScreen(),
+      redirect: (context, state) => AppRoutes.signInScreen,
     ),
     GoRoute(
       path: AppRoutes.signInScreen,
@@ -400,19 +463,19 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const WelcomeSuccessScreen(),
     ),
     GoRoute(
-      path: AppRoutes.waitlistGateScreen,
-      builder: (context, state) => const WaitlistGateScreen(),
-    ),
-    GoRoute(
       path: AppRoutes.kycUploadScreen,
       builder: (context, state) => const KycUploadScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.waitlistGateScreen,
+      builder: (context, state) => const WaitlistGateScreen(),
     ),
     GoRoute(
       path: AppRoutes.notificationsFeedScreen,
       builder: (context, state) => const NotificationsFeedScreen(),
     ),
 
-    // ── Profile & Settings Sub-Routes ─────────────────────────────────────────
+    // ── Profile & Settings Detail Routes ─────────────────────────────────────
     GoRoute(
       path: AppRoutes.personalInfoScreen,
       builder: (context, state) => const PersonalInformationScreen(),
@@ -484,238 +547,238 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const OpportunityOfferScreen(),
     ),
 
-    // ── 20 Vendor Screen Routes ──────────────────────────────────────────────
+    // ── 60 User / Booker Screen Routes ───────────────────────────────────────
     GoRoute(
-      path: AppRoutes.vendorHomeScreen,
-      builder: (context, state) => const VendorHomeScreen(),
+      path: AppRoutes.userHomeScreen,
+      builder: (context, state) => const UserHomeScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorRequirementsScreen,
-      builder: (context, state) => const VendorRequirementsListScreen(),
+      path: AppRoutes.userRequirementsScreen,
+      builder: (context, state) => const UserRequirementsListScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorCreateRequirementScreen,
-      builder: (context, state) => const VendorCreateRequirementScreen(),
+      path: AppRoutes.userCreateRequirementScreen,
+      builder: (context, state) => const UserCreateRequirementScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorCreateRequirementStep2Screen,
-      builder: (context, state) => const VendorCreateRequirementStep2Screen(),
+      path: AppRoutes.userCreateRequirementStep2Screen,
+      builder: (context, state) => const UserCreateRequirementStep2Screen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorCreateRequirementStep3Screen,
-      builder: (context, state) => const VendorCreateRequirementStep3Screen(),
+      path: AppRoutes.userCreateRequirementStep3Screen,
+      builder: (context, state) => const UserCreateRequirementStep3Screen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorCreateRequirementStep4Screen,
-      builder: (context, state) => const VendorCreateRequirementStep4Screen(),
+      path: AppRoutes.userCreateRequirementStep4Screen,
+      builder: (context, state) => const UserCreateRequirementStep4Screen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorReviewRequirementScreen,
-      builder: (context, state) => const VendorReviewRequirementScreen(),
+      path: AppRoutes.userReviewRequirementScreen,
+      builder: (context, state) => const UserReviewRequirementScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorRequirementPostedConfirmationScreen,
-      builder: (context, state) => const VendorRequirementPostedConfirmationScreen(),
+      path: AppRoutes.userRequirementPostedConfirmationScreen,
+      builder: (context, state) => const UserRequirementPostedConfirmationScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorDraftRequirementsScreen,
-      builder: (context, state) => const VendorDraftRequirementsScreen(),
+      path: AppRoutes.userDraftRequirementsScreen,
+      builder: (context, state) => const UserDraftRequirementsScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorEditRequirementScreen,
-      builder: (context, state) => const VendorEditRequirementScreen(),
+      path: AppRoutes.userEditRequirementScreen,
+      builder: (context, state) => const UserEditRequirementScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorBulkPostingScreen,
-      builder: (context, state) => const VendorBulkPostingScreen(),
+      path: AppRoutes.userBulkPostingScreen,
+      builder: (context, state) => const UserBulkPostingScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorReviewBulkPostingScreen,
-      builder: (context, state) => const VendorReviewBulkPostingScreen(),
+      path: AppRoutes.userReviewBulkPostingScreen,
+      builder: (context, state) => const UserReviewBulkPostingScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorRequirementDetailsScreen,
-      builder: (context, state) => const VendorRequirementDetailsScreen(),
+      path: AppRoutes.userRequirementDetailsScreen,
+      builder: (context, state) => const UserRequirementDetailsScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorFulfillmentStatusScreen,
-      builder: (context, state) => const VendorFulfillmentStatusScreen(),
+      path: AppRoutes.userFulfillmentStatusScreen,
+      builder: (context, state) => const UserFulfillmentStatusScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorFulfillmentOverviewScreen,
-      builder: (context, state) => const VendorFulfillmentOverviewScreen(),
+      path: AppRoutes.userFulfillmentOverviewScreen,
+      builder: (context, state) => const UserFulfillmentOverviewScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorDriverMatchingScreen,
-      builder: (context, state) => const VendorDriverMatchingScreen(),
+      path: AppRoutes.userDriverMatchingScreen,
+      builder: (context, state) => const UserDriverMatchingScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorRequirementStatusSearchingScreen,
-      builder: (context, state) => const VendorRequirementStatusScreen(initialState: RequirementFulfillmentState.searching),
+      path: AppRoutes.userRequirementStatusSearchingScreen,
+      builder: (context, state) => const UserRequirementStatusScreen(initialState: RequirementFulfillmentState.searching),
     ),
     GoRoute(
-      path: AppRoutes.vendorRequirementStatusFulfilledScreen,
-      builder: (context, state) => const VendorRequirementStatusScreen(initialState: RequirementFulfillmentState.fulfilled),
+      path: AppRoutes.userRequirementStatusFulfilledScreen,
+      builder: (context, state) => const UserRequirementStatusScreen(initialState: RequirementFulfillmentState.fulfilled),
     ),
     GoRoute(
-      path: AppRoutes.vendorRequirementStatusFailedScreen,
-      builder: (context, state) => const VendorRequirementStatusScreen(initialState: RequirementFulfillmentState.failed),
+      path: AppRoutes.userRequirementStatusFailedScreen,
+      builder: (context, state) => const UserRequirementStatusScreen(initialState: RequirementFulfillmentState.failed),
     ),
     GoRoute(
-      path: AppRoutes.vendorDriverAssignmentsListScreen,
-      builder: (context, state) => const VendorDriverAssignmentsListScreen(),
+      path: AppRoutes.userDriverAssignmentsListScreen,
+      builder: (context, state) => const UserDriverAssignmentsListScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorDriverDetailsScreen,
-      builder: (context, state) => const VendorDriverDetailsScreen(),
+      path: AppRoutes.userDriverDetailsScreen,
+      builder: (context, state) => const UserDriverDetailsScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorVehicleDetailsScreen,
-      builder: (context, state) => const VendorVehicleDetailsScreen(),
+      path: AppRoutes.userVehicleDetailsScreen,
+      builder: (context, state) => const UserVehicleDetailsScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorAssignmentTimelineScreen,
-      builder: (context, state) => const VendorAssignmentTimelineScreen(),
+      path: AppRoutes.userAssignmentTimelineScreen,
+      builder: (context, state) => const UserAssignmentTimelineScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorCancelAssignmentScreen,
-      builder: (context, state) => const VendorCancelAssignmentScreen(),
+      path: AppRoutes.userCancelAssignmentScreen,
+      builder: (context, state) => const UserCancelAssignmentScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorTripsScreen,
-      builder: (context, state) => const VendorTripsListScreen(),
+      path: AppRoutes.userTripsScreen,
+      builder: (context, state) => const UserTripsListScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorActiveTripScreen,
-      builder: (context, state) => const VendorActiveTripScreen(),
+      path: AppRoutes.userActiveTripScreen,
+      builder: (context, state) => const UserActiveTripScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorTripDetailsUpcomingScreen,
-      builder: (context, state) => const VendorTripDetailsScreen(initialStatus: TripStatusState.upcoming),
+      path: AppRoutes.userTripDetailsUpcomingScreen,
+      builder: (context, state) => const UserTripDetailsScreen(initialStatus: TripStatusState.upcoming),
     ),
     GoRoute(
-      path: AppRoutes.vendorTripDetailsAssignedScreen,
-      builder: (context, state) => const VendorTripDetailsScreen(initialStatus: TripStatusState.assigned),
+      path: AppRoutes.userTripDetailsAssignedScreen,
+      builder: (context, state) => const UserTripDetailsScreen(initialStatus: TripStatusState.assigned),
     ),
     GoRoute(
-      path: AppRoutes.vendorTripDetailsEnRouteScreen,
-      builder: (context, state) => const VendorTripDetailsScreen(initialStatus: TripStatusState.enRoute),
+      path: AppRoutes.userTripDetailsEnRouteScreen,
+      builder: (context, state) => const UserTripDetailsScreen(initialStatus: TripStatusState.enRoute),
     ),
     GoRoute(
-      path: AppRoutes.vendorTripDetailsArrivedScreen,
-      builder: (context, state) => const VendorTripDetailsScreen(initialStatus: TripStatusState.arrived),
+      path: AppRoutes.userTripDetailsArrivedScreen,
+      builder: (context, state) => const UserTripDetailsScreen(initialStatus: TripStatusState.arrived),
     ),
     GoRoute(
-      path: AppRoutes.vendorTripDetailsStartedScreen,
-      builder: (context, state) => const VendorTripDetailsScreen(initialStatus: TripStatusState.started),
+      path: AppRoutes.userTripDetailsStartedScreen,
+      builder: (context, state) => const UserTripDetailsScreen(initialStatus: TripStatusState.started),
     ),
     GoRoute(
-      path: AppRoutes.vendorTripDetailsInProgressScreen,
-      builder: (context, state) => const VendorTripDetailsScreen(initialStatus: TripStatusState.inProgress),
+      path: AppRoutes.userTripDetailsInProgressScreen,
+      builder: (context, state) => const UserTripDetailsScreen(initialStatus: TripStatusState.inProgress),
     ),
     GoRoute(
-      path: AppRoutes.vendorTripDetailsCompletedScreen,
-      builder: (context, state) => const VendorTripDetailsScreen(initialStatus: TripStatusState.completed),
+      path: AppRoutes.userTripDetailsCompletedScreen,
+      builder: (context, state) => const UserTripDetailsScreen(initialStatus: TripStatusState.completed),
     ),
     GoRoute(
-      path: AppRoutes.vendorTripDetailsCancelledScreen,
-      builder: (context, state) => const VendorTripDetailsScreen(initialStatus: TripStatusState.cancelled),
+      path: AppRoutes.userTripDetailsCancelledScreen,
+      builder: (context, state) => const UserTripDetailsScreen(initialStatus: TripStatusState.cancelled),
     ),
     GoRoute(
-      path: AppRoutes.vendorPassengerNoShowScreen,
-      builder: (context, state) => const VendorTripDetailsScreen(initialStatus: TripStatusState.noShow),
+      path: AppRoutes.userPassengerNoShowScreen,
+      builder: (context, state) => const UserTripDetailsScreen(initialStatus: TripStatusState.noShow),
     ),
     GoRoute(
-      path: AppRoutes.vendorTripTimelineActivityScreen,
-      builder: (context, state) => const VendorTripTimelineActivityScreen(),
+      path: AppRoutes.userTripTimelineActivityScreen,
+      builder: (context, state) => const UserTripTimelineActivityScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorTripHistoryScreen,
-      builder: (context, state) => const VendorTripHistoryScreen(),
+      path: AppRoutes.userTripHistoryScreen,
+      builder: (context, state) => const UserTripHistoryScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorHistoricalTripDetailsScreen,
-      builder: (context, state) => const VendorHistoricalTripDetailsScreen(),
+      path: AppRoutes.userHistoricalTripDetailsScreen,
+      builder: (context, state) => const UserHistoricalTripDetailsScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorPaymentsScreen,
-      builder: (context, state) => const VendorPaymentsScreen(),
+      path: AppRoutes.userPaymentsScreen,
+      builder: (context, state) => const UserPaymentsScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorPaymentHistoryScreen,
-      builder: (context, state) => const VendorPaymentHistoryScreen(),
+      path: AppRoutes.userPaymentHistoryScreen,
+      builder: (context, state) => const UserPaymentHistoryScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorPaymentDetailsScreen,
-      builder: (context, state) => const VendorPaymentDetailsScreen(),
+      path: AppRoutes.userPaymentDetailsScreen,
+      builder: (context, state) => const UserPaymentDetailsScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorPaymentPendingScreen,
-      builder: (context, state) => const VendorPaymentStatusScreen(initialState: PaymentResultState.pending),
+      path: AppRoutes.userPaymentPendingScreen,
+      builder: (context, state) => const UserPaymentStatusScreen(initialState: PaymentResultState.pending),
     ),
     GoRoute(
-      path: AppRoutes.vendorPaymentProcessingScreen,
-      builder: (context, state) => const VendorPaymentStatusScreen(initialState: PaymentResultState.processing),
+      path: AppRoutes.userPaymentProcessingScreen,
+      builder: (context, state) => const UserPaymentStatusScreen(initialState: PaymentResultState.processing),
     ),
     GoRoute(
-      path: AppRoutes.vendorPaymentSuccessfulScreen,
-      builder: (context, state) => const VendorPaymentStatusScreen(initialState: PaymentResultState.successful),
+      path: AppRoutes.userPaymentSuccessfulScreen,
+      builder: (context, state) => const UserPaymentStatusScreen(initialState: PaymentResultState.successful),
     ),
     GoRoute(
-      path: AppRoutes.vendorPaymentFailedScreen,
-      builder: (context, state) => const VendorPaymentStatusScreen(initialState: PaymentResultState.failed),
+      path: AppRoutes.userPaymentFailedScreen,
+      builder: (context, state) => const UserPaymentStatusScreen(initialState: PaymentResultState.failed),
     ),
     GoRoute(
-      path: AppRoutes.vendorProfileScreen,
-      builder: (context, state) => const VendorProfileScreen(),
+      path: AppRoutes.userProfileScreen,
+      builder: (context, state) => const UserProfileScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorProfileExtendedScreen,
-      builder: (context, state) => const VendorProfileExtendedScreen(),
+      path: AppRoutes.userProfileExtendedScreen,
+      builder: (context, state) => const UserProfileExtendedScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorCompanyInformationScreen,
-      builder: (context, state) => const VendorCompanyInformationScreen(),
+      path: AppRoutes.userCompanyInformationScreen,
+      builder: (context, state) => const UserCompanyInformationScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorContactInformationScreen,
-      builder: (context, state) => const VendorContactInformationScreen(),
+      path: AppRoutes.userContactInformationScreen,
+      builder: (context, state) => const UserContactInformationScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorAccountStatusScreen,
-      builder: (context, state) => const VendorAccountStatusScreen(),
+      path: AppRoutes.userAccountStatusScreen,
+      builder: (context, state) => const UserAccountStatusScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorNotificationSettingsScreen,
-      builder: (context, state) => const VendorNotificationSettingsScreen(),
+      path: AppRoutes.userNotificationSettingsScreen,
+      builder: (context, state) => const UserNotificationSettingsScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorSupportCenterScreen,
-      builder: (context, state) => const VendorSupportCenterScreen(),
+      path: AppRoutes.userSupportCenterScreen,
+      builder: (context, state) => const UserSupportCenterScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorHelpFaqScreen,
-      builder: (context, state) => const VendorHelpFaqScreen(),
+      path: AppRoutes.userHelpFaqScreen,
+      builder: (context, state) => const UserHelpFaqScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorRaiseIssueScreen,
-      builder: (context, state) => const VendorRaiseIssueScreen(),
+      path: AppRoutes.userRaiseIssueScreen,
+      builder: (context, state) => const UserRaiseIssueScreen(),
     ),
     GoRoute(
-      path: AppRoutes.vendorTicketDetailsOpenScreen,
-      builder: (context, state) => const VendorTicketDetailsScreen(initialState: TicketStatusState.open),
+      path: AppRoutes.userTicketDetailsOpenScreen,
+      builder: (context, state) => const UserTicketDetailsScreen(initialState: TicketStatusState.open),
     ),
     GoRoute(
-      path: AppRoutes.vendorTicketDetailsInProgressScreen,
-      builder: (context, state) => const VendorTicketDetailsScreen(initialState: TicketStatusState.inProgress),
+      path: AppRoutes.userTicketDetailsInProgressScreen,
+      builder: (context, state) => const UserTicketDetailsScreen(initialState: TicketStatusState.inProgress),
     ),
     GoRoute(
-      path: AppRoutes.vendorTicketDetailsResolvedScreen,
-      builder: (context, state) => const VendorTicketDetailsScreen(initialState: TicketStatusState.resolved),
+      path: AppRoutes.userTicketDetailsResolvedScreen,
+      builder: (context, state) => const UserTicketDetailsScreen(initialState: TicketStatusState.resolved),
     ),
     GoRoute(
-      path: AppRoutes.vendorAppSettingsScreen,
-      builder: (context, state) => const VendorAppSettingsScreen(),
+      path: AppRoutes.userAppSettingsScreen,
+      builder: (context, state) => const UserAppSettingsScreen(),
     ),
 
     // ── 10 Global States Gallery Route ───────────────────────────────────────

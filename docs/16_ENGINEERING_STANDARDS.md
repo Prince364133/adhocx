@@ -1021,7 +1021,7 @@ Exact state-management technology must be selected consistently and documented b
 
 # 46. Flutter Feature Isolation
 
-Vendor and Driver functionality must be organized as features.
+User and Driver functionality must be organized as features.
 
 Avoid one enormous:
 
@@ -1867,7 +1867,7 @@ Critical flows require end-to-end coverage.
 Examples:
 
 ```text
-Vendor posts requirement
+User posts requirement
 → Driver accepts
 → Assignment confirmed
 → Trip starts

@@ -1168,9 +1168,9 @@ Critical workflows should be simple and operationally focused.
 
 ---
 
-# 61. Vendor UX Rule
+# 61. User UX Rule
 
-Vendor workflows should prioritize:
+User workflows should prioritize:
 
 ```text
 speed

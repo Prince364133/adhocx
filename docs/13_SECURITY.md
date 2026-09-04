@@ -15,7 +15,7 @@ This document defines the security requirements for AdhocX V1.
 Security must protect:
 
 * user accounts
-* vendor accounts
+* user accounts
 * driver accounts
 * administrator accounts
 * KYC information
@@ -283,7 +283,7 @@ A role alone is never sufficient.
 Primary roles:
 
 ```text
-VENDOR
+USER
 DRIVER
 ADMIN
 ```
@@ -320,15 +320,15 @@ Every resource access must be scoped.
 Example:
 
 ```text
-Vendor A
+User A
     ↓
-GET /vendor/requirements/123
+GET /user/requirements/123
 ```
 
 The backend must verify:
 
 ```text
-Requirement 123 belongs to Vendor A
+Requirement 123 belongs to User A
 ```
 
 It must not rely on the resource ID being hidden from the user.
@@ -342,7 +342,7 @@ The API must prevent insecure direct object reference attacks.
 This is unsafe:
 
 ```text id="r7l0s3"
-GET /vendor/requirements/{arbitraryId}
+GET /user/requirements/{arbitraryId}
 ```
 
 if the backend returns the object solely because the ID exists.
@@ -350,9 +350,9 @@ if the backend returns the object solely because the ID exists.
 Correct:
 
 ```text id="u9xw3f"
-authenticated vendor
+authenticated user
 +
-resource belongs to vendor
+resource belongs to user
 +
 permission allows read
 ```
@@ -375,9 +375,9 @@ unless explicitly required by a legitimate product workflow.
 
 ---
 
-# 17. Vendor Data Isolation
+# 17. User Data Isolation
 
-A vendor must not access another vendor's:
+A user must not access another user's:
 
 * requirements
 * trips
@@ -888,11 +888,11 @@ Examples:
 
 ```text
 Driver → own current location
-Vendor → relevant assigned driver location
+User → relevant assigned driver location
 Admin → operational location when required
 ```
 
-A vendor must not receive arbitrary historical location data for unrelated drivers.
+A user must not receive arbitrary historical location data for unrelated drivers.
 
 ---
 
@@ -1199,7 +1199,7 @@ logout
 failed authentication
 driver verification
 driver suspension
-vendor approval
+user approval
 admin permission change
 manual assignment
 payment action

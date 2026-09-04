@@ -15,10 +15,11 @@ describe('Contracts DTO Validation Tests', () => {
     const errors = await validate(validDto);
     expect(errors.length).toBe(0);
 
-    const invalidDto = plainToInstance(RequestOtpDto, {});
+    const invalidDto = plainToInstance(RequestOtpDto, { email: 'not-an-email' });
     const invalidErrors = await validate(invalidDto);
     expect(invalidErrors.length).toBeGreaterThan(0);
   });
+
 
   it('should validate VerifyOtpDto length requirements', async () => {
     const validDto = plainToInstance(VerifyOtpDto, {

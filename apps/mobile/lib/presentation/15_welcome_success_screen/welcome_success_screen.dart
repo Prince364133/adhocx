@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../routes/app_routes.dart';
+import '../../services/onboarding_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
@@ -46,22 +48,25 @@ class WelcomeSuccessScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onboarding = context.watch<OnboardingProvider>();
+    final isUser = onboarding.isUser;
+
     return Scaffold(
       backgroundColor: AppColors.bgLight,
       body: SafeArea(
         child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 440),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.xxl,
-                vertical: AppSpacing.xl,
-              ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.xxl,
+              vertical: AppSpacing.xl,
+            ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Spacer(),
+                  const SizedBox(height: AppSpacing.lg),
 
                   // ── Celebration Icon Box ─────────────────────────────────
                   Center(
@@ -72,14 +77,14 @@ class WelcomeSuccessScreen extends StatelessWidget {
                         color: AppColors.primarySubtle,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: AppColors.primary.withAlpha(40),
+                          color: AppColors.primary.withValues(alpha: 0.4),
                           width: 2,
                         ),
                       ),
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.celebration_rounded,
                             size: 64,
                             color: AppColors.primary,
@@ -118,7 +123,9 @@ class WelcomeSuccessScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    'Your account has been created successfully.',
+                    isUser
+                        ? 'Your account is ready to book bulk & outstation rides.'
+                        : 'Your account has been created successfully.',
                     style: AppTypography.body(
                       color: AppColors.textSecondaryLight,
                     ),
@@ -135,20 +142,32 @@ class WelcomeSuccessScreen extends StatelessWidget {
                       border: Border.all(color: AppColors.borderLight),
                     ),
                     child: Column(
-                      children: [
-                        _buildCheckItem('You are all set to start earning'),
-                        _buildCheckItem('Go online to receive trip offers'),
-                        _buildCheckItem('Complete trips and earn more'),
-                      ],
+                      children: isUser
+                          ? [
+                              _buildCheckItem('Post trip requirements for competitive driver bids'),
+                              _buildCheckItem('Instant booking for outstation and bulk fleets'),
+                              _buildCheckItem('Track trips & receipts in real-time'),
+                            ]
+                          : [
+                              _buildCheckItem('You are all set to start earning'),
+                              _buildCheckItem('Go online to receive trip offers'),
+                              _buildCheckItem('Complete trips and earn more'),
+                            ],
                     ),
                   ),
 
-                  const Spacer(),
+                  const SizedBox(height: AppSpacing.xxxl),
 
-                  // ── Go to Home Action ────────────────────────────────────
+                  // ── Action ───────────────────────────────────────────────
                   AppPrimaryButton(
-                    text: 'Go to Home',
-                    onPressed: () => context.go(AppRoutes.homeScreen),
+                    text: isUser ? 'Start Booking & Posting Trips' : 'Go to Driver Dashboard',
+                    onPressed: () {
+                      if (isUser) {
+                        context.go(AppRoutes.userHomeScreen);
+                      } else {
+                        context.go(AppRoutes.homeScreen);
+                      }
+                    },
                   ),
                   const SizedBox(height: AppSpacing.md),
                 ],

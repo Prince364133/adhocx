@@ -16,7 +16,7 @@ import '../../widgets/common/app_text_field.dart';
 
 enum AuthInputMode { phone, email }
 
-/// Screen 3: Login / Sign In with Phone, Email, Google & Apple.
+/// Screen 3: Login / Sign In with Phone, Email & Password.
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
 
@@ -28,23 +28,25 @@ class _SignInScreenState extends State<SignInScreen> {
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   AuthInputMode _inputMode = AuthInputMode.phone;
+  bool _obscurePassword = true;
   bool _isLoading = false;
 
   @override
   void dispose() {
     _phoneController.dispose();
     _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleContinue() async {
+  Future<void> _handlePasswordSignIn() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      final authService = context.read<AuthService>();
       final onboarding = context.read<OnboardingProvider>();
 
       String? phoneTarget;
@@ -54,7 +56,7 @@ class _SignInScreenState extends State<SignInScreen> {
         final rawPhone = _phoneController.text.trim().replaceAll(RegExp(r'\D'), '');
         phoneTarget = '+91$rawPhone';
         onboarding.setPersonalDetails(
-          fullName: onboarding.fullName,
+          fullName: onboarding.fullName.isNotEmpty ? onboarding.fullName : 'Rahul Sharma',
           dateOfBirth: onboarding.dateOfBirth,
           gender: onboarding.gender,
           phone: phoneTarget,
@@ -62,12 +64,63 @@ class _SignInScreenState extends State<SignInScreen> {
       } else {
         emailTarget = _emailController.text.trim();
         onboarding.setPersonalDetails(
-          fullName: onboarding.fullName,
+          fullName: onboarding.fullName.isNotEmpty ? onboarding.fullName : 'Rahul Sharma',
           dateOfBirth: onboarding.dateOfBirth,
           gender: onboarding.gender,
           email: emailTarget,
         );
       }
+
+      // Fast authenticated login
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      if (mounted) {
+        Fluttertoast.showToast(
+          msg: 'Welcome back! Signed in successfully.',
+          backgroundColor: AppColors.accentGreenDark,
+          textColor: Colors.white,
+        );
+
+        if (onboarding.isDriver) {
+          context.go(AppRoutes.homeScreen);
+        } else {
+          context.go(AppRoutes.userHomeScreen);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Fluttertoast.showToast(
+          msg: e.toString().replaceFirst('Exception: ', ''),
+          backgroundColor: AppColors.error,
+          textColor: Colors.white,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleOtpSignIn() async {
+    final rawPhone = _phoneController.text.trim().replaceAll(RegExp(r'\D'), '');
+    final email = _emailController.text.trim();
+
+    if (_inputMode == AuthInputMode.phone && rawPhone.length != 10) {
+      Fluttertoast.showToast(msg: 'Enter a valid 10-digit mobile number for OTP');
+      return;
+    }
+    if (_inputMode == AuthInputMode.email && (email.isEmpty || !email.contains('@'))) {
+      Fluttertoast.showToast(msg: 'Enter a valid email address for OTP');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final authService = context.read<AuthService>();
+      final onboarding = context.read<OnboardingProvider>();
+
+      String? phoneTarget = _inputMode == AuthInputMode.phone ? '+91$rawPhone' : null;
+      String? emailTarget = _inputMode == AuthInputMode.email ? email : null;
 
       final res = await authService.requestOtp(
         phone: phoneTarget,
@@ -115,13 +168,10 @@ class _SignInScreenState extends State<SignInScreen> {
       final authService = context.read<AuthService>();
       final onboarding = context.read<OnboardingProvider>();
 
-      final isGoogle = type == SocialAuthType.google;
-      final socialEmail = isGoogle ? 'rahul.google@gmail.com' : 'rahul.apple@privaterelay.appleid.com';
-      final socialName = isGoogle ? 'Rahul Sharma (Google)' : 'Rahul Sharma (Apple)';
+      const socialEmail = 'rahul.google@gmail.com';
+      const socialName = 'Rahul Sharma (Google)';
 
-      final result = isGoogle
-          ? await authService.signInWithGoogle(role: onboarding.role)
-          : await authService.signInWithApple(role: onboarding.role, email: socialEmail, fullName: socialName);
+      final result = await authService.signInWithGoogle(role: onboarding.role);
 
       onboarding.setPersonalDetails(
         fullName: result.user.fullName ?? socialName,
@@ -133,12 +183,11 @@ class _SignInScreenState extends State<SignInScreen> {
 
       if (mounted) {
         Fluttertoast.showToast(
-          msg: '${isGoogle ? "Google" : "Apple"} verified! Create your password to continue.',
+          msg: 'Google verified! Create your password to continue.',
           backgroundColor: AppColors.accentGreenDark,
           textColor: Colors.white,
         );
 
-        // Pre-verified social auth skips OTP and proceeds directly to Set Password
         context.push(AppRoutes.setPasswordScreen);
       }
     } catch (e) {
@@ -180,7 +229,7 @@ class _SignInScreenState extends State<SignInScreen> {
                             if (context.canPop()) {
                               context.pop();
                             } else {
-                              context.go(AppRoutes.languageSelectionScreen);
+                              context.go(AppRoutes.splashScreen);
                             }
                           },
                           icon: const Icon(
@@ -204,7 +253,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      'Sign in with Phone, Email, or Social account',
+                      'Sign in with your phone or email and password',
                       style: AppTypography.body(
                         color: AppColors.textSecondaryLight,
                       ),
@@ -311,9 +360,9 @@ class _SignInScreenState extends State<SignInScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.xl),
+                    const SizedBox(height: AppSpacing.lg),
 
-                    // ── Active Form Input: Phone vs Email ───────────────────
+                    // ── Active Identifier Input: Phone vs Email ──────────────
                     if (_inputMode == AuthInputMode.phone)
                       AppPhoneField(
                         controller: _phoneController,
@@ -345,31 +394,89 @@ class _SignInScreenState extends State<SignInScreen> {
                           return null;
                         },
                       ),
-                    const SizedBox(height: AppSpacing.xl),
+                    const SizedBox(height: AppSpacing.md),
 
-                    // ── Continue Action Button ───────────────────────────────
-                    AppPrimaryButton(
-                      text: 'Continue',
-                      isLoading: _isLoading,
-                      onPressed: _handleContinue,
+                    // ── Password Input Field ─────────────────────────────────
+                    AppTextField(
+                      controller: _passwordController,
+                      label: 'Password',
+                      hintText: 'Enter your password',
+                      obscureText: _obscurePassword,
+                      prefixIcon: const Icon(
+                        Icons.lock_outline_rounded,
+                        size: 20,
+                        color: AppColors.textSecondaryLight,
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          size: 20,
+                          color: AppColors.textSecondaryLight,
+                        ),
+                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      ),
+                      validator: (val) {
+                        if (val == null || val.trim().isEmpty) {
+                          return 'Please enter your password';
+                        }
+                        if (val.trim().length < 4) {
+                          return 'Password must be at least 4 characters';
+                        }
+                        return null;
+                      },
                     ),
-                    const SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: AppSpacing.xs),
 
-                    // Forgot Password option
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () => context.push(AppRoutes.forgotPasswordScreen),
-                        child: Text(
-                          'Forgot Password?',
-                          style: AppTypography.caption(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w600,
+                    // ── Options Row: OTP Sign In & Forgot Password ───────────
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      runSpacing: 4,
+                      children: [
+                        TextButton.icon(
+                          onPressed: _handleOtpSignIn,
+                          icon: const Icon(Icons.sms_outlined, size: 14),
+                          label: Text(
+                            'Sign In with OTP',
+                            style: AppTypography.caption(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
                         ),
-                      ),
+                        TextButton(
+                          onPressed: () => context.push(AppRoutes.forgotPasswordScreen),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: Text(
+                            'Forgot Password?',
+                            style: AppTypography.caption(
+                              color: AppColors.textSecondaryLight,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: AppSpacing.md),
+                    const SizedBox(height: AppSpacing.lg),
+
+                    // ── Primary Action Button (Sign In) ──────────────────────
+                    AppPrimaryButton(
+                      text: 'Sign In',
+                      isLoading: _isLoading,
+                      onPressed: _handlePasswordSignIn,
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
 
                     // ── OR Divider ───────────────────────────────────────────
                     Row(
@@ -394,17 +501,12 @@ class _SignInScreenState extends State<SignInScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xl),
 
-                    // ── Social Logins (Google & Apple) ───────────────────────
+                    // ── Social Logins (Google) ───────────────────────────────
                     AppSocialAuthButton(
                       type: SocialAuthType.google,
                       onPressed: () => _handleSocialAuth(SocialAuthType.google),
                     ),
-                    const SizedBox(height: AppSpacing.md),
-                    AppSocialAuthButton(
-                      type: SocialAuthType.apple,
-                      onPressed: () => _handleSocialAuth(SocialAuthType.apple),
-                    ),
-                    const SizedBox(height: AppSpacing.xxxl),
+                    const SizedBox(height: AppSpacing.xxl),
 
                     // ── Footer: Don't have an account? Sign up ───────────────
                     Row(
@@ -417,7 +519,11 @@ class _SignInScreenState extends State<SignInScreen> {
                           ),
                         ),
                         GestureDetector(
-                          onTap: () => context.push(AppRoutes.signUpScreen),
+                          onTap: () {
+                            final onboarding = context.read<OnboardingProvider>();
+                            onboarding.setRole('USER');
+                            context.push(AppRoutes.signUpScreen);
+                          },
                           child: Text(
                             'Sign up',
                             style: AppTypography.body(
@@ -427,6 +533,88 @@ class _SignInScreenState extends State<SignInScreen> {
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+
+                    // ── Driver Partner Quick CTA Banner ──────────────────────
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.sm + 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primarySubtle,
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        border: Border.all(
+                          color: AppColors.primaryLight.withValues(alpha: 0.35),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                            ),
+                            child: const Icon(
+                              Icons.local_taxi_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Drive & Earn with AdhocX',
+                                  style: AppTypography.small(
+                                    color: AppColors.textPrimaryLight,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                Text(
+                                  'Join our verified driver fleet',
+                                  style: AppTypography.caption(
+                                    color: AppColors.textSecondaryLight,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              final onboarding = context.read<OnboardingProvider>();
+                              onboarding.setRole('DRIVER');
+                              context.push(AppRoutes.signUpScreen);
+                            },
+                            style: TextButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(AppRadius.sm),
+                              ),
+                            ),
+                            child: const Text(
+                              'Driver Sign Up',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),

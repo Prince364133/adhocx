@@ -9,7 +9,6 @@
     "dev:api": "turbo run dev --filter=@adhocx/api",
     "dev:admin": "turbo run dev --filter=@adhocx/admin",
     "dev:mobile": "turbo run dev --filter=@adhocx/mobile",
-
     "build": "turbo run build",
     "test": "turbo run test",
     "test:unit": "turbo run test:unit",
@@ -19,7 +18,9 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "prettier": "^3.5.2",
+    "sharp": "^0.35.4",
     "turbo": "^2.4.4",
     "typescript": "^5.7.3"
   }

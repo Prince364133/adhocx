@@ -186,7 +186,7 @@ The same identifier should be propagated through relevant internal operations.
 Example:
 
 ```text
-Vendor Request
+User Request
       ↓
 API
       ↓
@@ -1020,7 +1020,7 @@ Examples:
 
 ```text
 driver cancellation
-vendor cancellation
+user cancellation
 system cancellation
 ```
 
@@ -1292,7 +1292,7 @@ Average Assignment Time
 Cancellation Rate
 No-Driver Rate
 Active Drivers
-Active Vendors
+Active Users
 ```
 
 ---
@@ -1747,7 +1747,7 @@ Important actions include:
 
 ```text
 driver verification
-vendor approval
+user approval
 pricing changes
 financial adjustments
 settlement actions

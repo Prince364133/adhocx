@@ -81,7 +81,7 @@ The system is not a microservices architecture.
                 │                                │
         ┌───────▼────────┐              ┌────────▼────────┐
         │ Flutter Mobile │              │ Next.js Admin   │
-        │ Vendor/Driver  │              │ Web Application  │
+        │ User/Driver  │              │ Web Application  │
         └───────┬────────┘              └────────┬────────┘
                 │                                │
                 └───────────────┬────────────────┘
@@ -124,7 +124,7 @@ AdhocX consists of three logical applications.
 One mobile application containing:
 
 ```text id="v5y7jf"
-Vendor Experience
+User Experience
 Driver Experience
 ```
 
@@ -187,7 +187,7 @@ NestJS
 │
 ├── Auth
 ├── Users
-├── Vendors
+├── Users
 ├── Drivers
 ├── Vehicles
 ├── Requirements
@@ -302,7 +302,7 @@ src/
 ├── modules/
 │   ├── auth/
 │   ├── users/
-│   ├── vendors/
+│   ├── users/
 │   ├── drivers/
 │   ├── vehicles/
 │   ├── requirements/
@@ -465,7 +465,7 @@ PostgreSQL is the primary system of record.
 It owns authoritative state for:
 
 * users
-* vendors
+* users
 * drivers
 * vehicles
 * requirements
@@ -646,7 +646,7 @@ Clients should subscribe only to relevant channels/rooms.
 Conceptual examples:
 
 ```text id="h3v2p7"
-vendor:{vendorId}
+user:{vendorId}
 driver:{driverId}
 requirement:{requirementId}
 trip:{tripId}
@@ -821,7 +821,7 @@ lib/
 ├── core/
 ├── features/
 │   ├── auth/
-│   ├── vendor/
+│   ├── user/
 │   ├── driver/
 │   ├── requirements/
 │   ├── trips/
@@ -923,7 +923,7 @@ app/
 ├── trips/
 ├── assignments/
 ├── drivers/
-├── vendors/
+├── users/
 ├── payments/
 ├── settlements/
 ├── pricing/
@@ -1442,7 +1442,7 @@ Admin APIs should be clearly separated from marketplace APIs logically.
 For example:
 
 ```text id="t3g7j4"
-/api/v1/vendor/...
+/api/v1/user/...
 /api/v1/driver/...
 /api/v1/admin/...
 ```
@@ -1593,7 +1593,7 @@ Examples:
 | Domain        | Owner         |
 | ------------- | ------------- |
 | User identity | Users/Auth    |
-| Vendor        | Vendors       |
+| User        | Users       |
 | Driver        | Drivers       |
 | Vehicle       | Vehicles      |
 | Requirement   | Requirements  |
@@ -1616,7 +1616,7 @@ Cross-module operations should use defined application interfaces/events rather 
 The core workflow:
 
 ```text id="3h1c3n"
-Vendor
+User
   ↓
 Create Requirement
   ↓

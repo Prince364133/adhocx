@@ -69,7 +69,7 @@ Identity
 └── Sessions
 
 Marketplace
-├── Vendors
+├── Users
 ├── Drivers
 ├── Vehicles
 ├── Requirements
@@ -105,11 +105,11 @@ Conceptually:
 
 ```text id="4y8p2w"
 User
-├── Vendor
+├── User
 ├── Driver
 └── Admin capability
 
-Vendor
+User
 └── Requirements
 
 Driver
@@ -217,7 +217,7 @@ users
 
 Potential status values are defined by the account lifecycle requirements.
 
-Do not duplicate user identity information across Vendor and Driver records unnecessarily.
+Do not duplicate user identity information across User and Driver records unnecessarily.
 
 ---
 
@@ -231,12 +231,12 @@ Phone normalization must happen before persistence.
 
 ---
 
-# 10. Vendor Entity
+# 10. User Entity
 
 Conceptual:
 
 ```text id="r6x3m9"
-vendors
+users
 ├── id
 ├── user_id
 ├── organization_name
@@ -253,15 +253,15 @@ Do not invent additional regulatory fields without product/security approval.
 
 ---
 
-# 11. Vendor Ownership
+# 11. User Ownership
 
-A Vendor owns:
+A User owns:
 
 ```text id="x8m2q5"
 Requirements
 Trips associated with its requirements
-Vendor-visible payment records
-Vendor profile
+User-visible payment records
+User profile
 ```
 
 The database must preserve this ownership relationship.
@@ -431,15 +431,15 @@ The assignment process must enforce this transactionally.
 
 # 20. Requirement Ownership
 
-Every requirement must belong to exactly one Vendor.
+Every requirement must belong to exactly one User.
 
 Database relationship:
 
 ```text id="x2m7q9"
-vendors 1 ─────── N requirements
+users 1 ─────── N requirements
 ```
 
-A Vendor must not be able to create a requirement owned by another Vendor.
+A User must not be able to create a requirement owned by another User.
 
 ---
 
@@ -967,7 +967,7 @@ Support cases may reference:
 
 ```text id="q3v7m8"
 user
-vendor
+user
 driver
 requirement
 trip
@@ -1108,14 +1108,14 @@ Do not index every column.
 Common query patterns include:
 
 ```text id="x4m7p2"
-Vendor → requirements
+User → requirements
 Driver → offers
 Driver → assignments
 Requirement → assignments
 Requirement → offers
 Trip → events
 Trip → location
-Payment → vendor
+Payment → user
 Settlement → recipient
 ```
 
@@ -1428,7 +1428,7 @@ Cannot exceed requirement capacity
 Cannot accept expired offer
 Cannot start unassigned trip
 Cannot modify immutable ledger entry
-Cannot access another vendor's data
+Cannot access another user's data
 Cannot create invalid foreign relationship
 ```
 
@@ -1556,7 +1556,7 @@ Examples:
 
 ```text id="q8m4x1"
 users
-vendors
+users
 drivers
 vehicles
 requirements
@@ -1669,7 +1669,7 @@ The UI is the last representation—not the authority.
                 ┌─────────┴─────────┐
                 │                   │
           ┌─────▼─────┐       ┌────▼─────┐
-          │   Vendor  │       │  Driver   │
+          │   User  │       │  Driver   │
           └─────┬─────┘       └────┬──────┘
                 │                  │
                 │             ┌────▼─────┐
@@ -1711,7 +1711,7 @@ A user identity must be unique according to the authentication model.
 
 ### Ownership
 
-A Requirement belongs to one Vendor.
+A Requirement belongs to one User.
 
 ### Vehicle
 

@@ -8,6 +8,7 @@ export * from './review.dto';
 export * from './dispute.dto';
 export * from './driver.dto';
 export * from './vendor.dto';
+export * from './user.dto';
 export * from './admin.dto';
 export * from './payment.dto';
 export * from './settlement.dto';

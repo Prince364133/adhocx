@@ -137,7 +137,7 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    'Please upload the required documents',
+                    'Please upload your documents (Optional)',
                     style: AppTypography.body(
                       color: AppColors.textSecondaryLight,
                     ),

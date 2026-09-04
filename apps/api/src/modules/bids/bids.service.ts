@@ -16,14 +16,13 @@ import {
   RequirementStatus,
   AssignmentStatus,
   TripStatus,
+  UserRole,
   UserStatus,
   VerificationStatus,
   DriverAvailability,
-  VehicleType,
   validateBidTransition,
 } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
-import { LedgerService } from '../ledger/ledger.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
 
@@ -33,7 +32,6 @@ export class BidsService {
 
   constructor(
     private readonly db: DatabaseService,
-    private readonly ledgerService: LedgerService,
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
   ) {}
@@ -88,7 +86,7 @@ export class BidsService {
 
     // QA-02: Vehicle Type Compatibility Verification
     const hasMatchingVehicle = driver.vehicles.some(
-      (v) => (v.type as unknown as VehicleType) === requirement.vehicleType,
+      (v) => v.vehicleType === requirement.vehicleType,
     );
     if (!hasMatchingVehicle) {
       throw new BadRequestException(

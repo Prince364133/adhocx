@@ -58,7 +58,7 @@ class AuthHeaderWidget extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(14),
             child: Image.asset(
-              'assets/images/adhocx_logo-1787692728598.png',
+              'assets/images/adhocx_icon.png',
               width: 76,
               height: 76,
               fit: BoxFit.contain,
@@ -74,7 +74,7 @@ class AuthHeaderWidget extends StatelessWidget {
 
         // Portal Heading
         Text(
-          isDriver ? 'AdhocX Driver Partner' : 'AdhocX Vendor Console',
+          isDriver ? 'AdhocX Driver Partner' : 'AdhocX User Portal',
           style: AppTypography.h2(color: AppColors.textPrimaryDark),
           textAlign: TextAlign.center,
         ),

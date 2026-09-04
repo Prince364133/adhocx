@@ -59,7 +59,7 @@ export default function DriversPage() {
           walletBalance: 0,
           createdAt: new Date().toISOString(),
         },
-      ]);
+      ] as DriverListItem[]);
       setDrivers(data);
     } finally {
       setLoading(false);
@@ -94,7 +94,7 @@ export default function DriversPage() {
             createdAt: new Date().toISOString(),
           },
         ],
-      }));
+      } as unknown as DriverDetail));
       setSelectedDriver(detail);
       setReason('');
       setActionType(null);
@@ -400,7 +400,7 @@ export default function DriversPage() {
                           {doc.documentType.replace('_', ' ')}
                         </div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                          Uploaded {new Date(doc.createdAt).toLocaleDateString()}
+                          Uploaded {new Date(doc.createdAt || doc.uploadedAt || Date.now()).toLocaleDateString()}
                         </div>
                       </div>
                       <a

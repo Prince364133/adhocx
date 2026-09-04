@@ -33,6 +33,19 @@ function findFlutterExecutable() {
 const flutterCmd = findFlutterExecutable();
 const mobileDir = path.resolve(__dirname, '..');
 
+const userProfile = process.env.USERPROFILE || 'C:\\Users\\saavi';
+const localAppData = process.env.LOCALAPPDATA || path.join(userProfile, 'AppData', 'Local');
+const pubCache = process.env.PUB_CACHE || path.join(localAppData, 'Pub', 'Cache');
+
+const childEnv = {
+  ...process.env,
+  USERPROFILE: userProfile,
+  LOCALAPPDATA: localAppData,
+  APPDATA: process.env.APPDATA || path.join(userProfile, 'AppData', 'Roaming'),
+  PUB_CACHE: pubCache,
+  PATH: process.env.PATH,
+};
+
 try {
   const child = spawn(
     flutterCmd,
@@ -41,6 +54,7 @@ try {
       cwd: mobileDir,
       stdio: 'inherit',
       shell: process.platform === 'win32',
+      env: childEnv,
     },
   );
 

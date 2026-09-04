@@ -14,7 +14,7 @@ This document defines the authoritative financial architecture for AdhocX V1.
 
 It covers:
 
-* Vendor payments
+* User payments
 * Driver earnings
 * Ledger architecture
 * Financial transactions
@@ -145,7 +145,7 @@ Multi-currency support is not required for V1 unless the business explicitly ena
 AdhocX financial architecture consists of:
 
 ```text
-Vendor Payments
+User Payments
 Driver Earnings
 Platform Revenue
 Ledger
@@ -171,7 +171,7 @@ Create financial transaction
       ↓
 Create ledger entries
       ↓
-Vendor payment
+User payment
       ↓
 Driver earning
       ↓
@@ -193,7 +193,7 @@ The financial architecture must support configurable commercial rules.
 These include:
 
 ```text
-vendor price
+user price
 driver earning
 platform commission
 markup
@@ -218,7 +218,7 @@ Examples:
 
 ```text
 Trip earning
-Vendor payment
+User payment
 Driver earning
 Refund
 Commission
@@ -263,7 +263,7 @@ Financial transaction
 ┌─────────────────────┐
 │ Driver earning      │
 │ Platform revenue    │
-│ Vendor obligation   │
+│ User obligation   │
 └─────────────────────┘
 ```
 
@@ -290,7 +290,7 @@ The exact account model may be simplified for V1, but the underlying ledger must
 Conceptual accounts may include:
 
 ```text
-Vendor Payable
+User Payable
 Driver Payable
 Platform Revenue
 Platform Receivable
@@ -543,9 +543,9 @@ Changing pricing to Version 8 must not recalculate Trip 1001 automatically.
 
 ---
 
-# 25. Vendor Payment
+# 25. User Payment
 
-Vendor payment represents money the vendor owes to AdhocX or another relevant financial account.
+User payment represents money the user owes to AdhocX or another relevant financial account.
 
 Conceptual flow:
 
@@ -589,7 +589,7 @@ These states must remain aligned with `12_STATE_MACHINES.md`.
 A payment may be initiated through:
 
 ```http
-POST /vendor/payments/{paymentId}/initiate
+POST /user/payments/{paymentId}/initiate
 ```
 
 The backend determines:
@@ -737,7 +737,7 @@ Payment → FAILED
 
 The system must not treat the payment as successful.
 
-The vendor should receive the appropriate notification.
+The user should receive the appropriate notification.
 
 Retry behavior depends on provider/business rules.
 
@@ -1092,7 +1092,7 @@ Examples:
 
 ```text
 driver cancellation fee
-vendor cancellation fee
+user cancellation fee
 partial earning
 refund
 penalty
@@ -1481,7 +1481,7 @@ their own withdrawals
 their own settlements
 ```
 
-Vendors should see:
+Users should see:
 
 ```text
 their own payments
@@ -1516,7 +1516,7 @@ The API may expose:
 ```text
 GET /driver/earnings
 GET /driver/withdrawals
-GET /vendor/payments
+GET /user/payments
 GET /admin/settlements
 ```
 
@@ -1842,13 +1842,13 @@ Trip Completed
       ↓
 Pricing calculation
       ↓
-Vendor obligation = ₹1,500
+User obligation = ₹1,500
 Driver earning = ₹1,200
 Platform revenue = ₹300
       ↓
 Ledger transaction
       ↓
-Vendor payment
+User payment
       ↓
 Driver earning becomes payable
       ↓

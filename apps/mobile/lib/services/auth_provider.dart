@@ -15,7 +15,8 @@ class AuthProvider extends ChangeNotifier {
 
   String get role => user?.role ?? 'DRIVER';
   bool get isDriver => user?.isDriver ?? true;
-  bool get isVendor => user?.isVendor ?? false;
+  bool get isUser => user?.isUser ?? false;
+  bool get isVendor => isUser;
   String get verificationStatus => user?.verificationStatus ?? 'PENDING';
 
   Future<bool> checkSession() async {

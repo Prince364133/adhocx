@@ -106,12 +106,15 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
         // If user is registering or has not set a password / selected role, navigate to Set Password
         if (widget.isRegister || user.isPending) {
           context.push(AppRoutes.setPasswordScreen);
-        } else if (user.isVerified) {
-          context.go(AppRoutes.tripsScreen);
-        } else if (user.isUnderReview || user.isRejected) {
-          context.go(AppRoutes.waitlistGateScreen);
+        } else if (user.role == 'DRIVER') {
+          if (user.isUnderReview || user.isRejected) {
+            context.go(AppRoutes.waitlistGateScreen);
+          } else {
+            context.go(AppRoutes.homeScreen);
+          }
         } else {
-          context.push(AppRoutes.setPasswordScreen);
+          // Normal User / Booker
+          context.go(AppRoutes.userHomeScreen);
         }
       }
     } catch (e) {

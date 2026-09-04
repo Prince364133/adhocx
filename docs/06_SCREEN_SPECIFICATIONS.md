@@ -69,7 +69,7 @@ AdhocX V1 consists of:
 
 ```text
 AdhocX Mobile
-├── Vendor Experience
+├── User Experience
 └── Driver Experience
 
 AdhocX Admin
@@ -80,7 +80,7 @@ AdhocX Admin
 
 # 4. Mobile Authentication Screens
 
-These screens are shared by Vendor and Driver where applicable.
+These screens are shared by User and Driver where applicable.
 
 ---
 
@@ -92,7 +92,7 @@ Initialize the application and determine the appropriate authenticated state.
 
 ### Actor
 
-Vendor / Driver.
+User / Driver.
 
 ### Responsibilities
 
@@ -128,7 +128,7 @@ Allow a user to initiate OTP authentication.
 
 ### Actor
 
-Vendor / Driver.
+User / Driver.
 
 ### Information
 
@@ -224,17 +224,17 @@ The UI must not infer privileged roles from client-controlled values.
 
 ---
 
-# 8. Vendor Onboarding
+# 8. User Onboarding
 
-## 8.1 Vendor Onboarding Screen
+## 8.1 User Onboarding Screen
 
 ### Purpose
 
-Collect required Vendor information.
+Collect required User information.
 
 ### Information
 
-Fields are based on approved Vendor onboarding requirements.
+Fields are based on approved User onboarding requirements.
 
 The exact commercial/KYC field set remains subject to product/business confirmation where not yet specified.
 
@@ -259,11 +259,11 @@ Rejected
 
 ---
 
-# 9. Vendor Pending Approval
+# 9. User Pending Approval
 
 ### Purpose
 
-Explain that the Vendor account is awaiting approval.
+Explain that the User account is awaiting approval.
 
 ### Information
 
@@ -283,7 +283,7 @@ The user must understand:
 
 ---
 
-# 10. Vendor Rejected
+# 10. User Rejected
 
 ### Purpose
 
@@ -305,11 +305,11 @@ Only show the action if resubmission is actually permitted.
 
 ---
 
-# 11. Vendor Home
+# 11. User Home
 
 ### Purpose
 
-Provide the Vendor with an operational overview.
+Provide the User with an operational overview.
 
 ### Priority
 
@@ -362,15 +362,15 @@ Provide retry without losing navigation context.
 
 ---
 
-# 12. Vendor Requirements List
+# 12. User Requirements List
 
 ### Purpose
 
-Show Vendor-created requirements.
+Show User-created requirements.
 
 ### Entry
 
-Vendor navigation → Requirements.
+User navigation → Requirements.
 
 ### Information
 
@@ -448,7 +448,7 @@ The exact field set must follow approved product requirements.
 
 ### Purpose
 
-Show complete information about one Vendor requirement.
+Show complete information about one User requirement.
 
 ### Information
 
@@ -522,7 +522,7 @@ The view should update when backend realtime infrastructure reports relevant cha
 
 ### Purpose
 
-Allow Vendor to cancel a requirement when cancellation is permitted.
+Allow User to cancel a requirement when cancellation is permitted.
 
 ### Confirmation
 
@@ -543,11 +543,11 @@ Failed
 
 ---
 
-# 17. Vendor Trip List
+# 17. User Trip List
 
 ### Purpose
 
-Show Vendor trips.
+Show User trips.
 
 ### Information
 
@@ -575,7 +575,7 @@ Vehicle type
 
 ---
 
-# 18. Vendor Trip Details
+# 18. User Trip Details
 
 ### Purpose
 
@@ -609,11 +609,11 @@ Contact Support
 
 ---
 
-# 19. Vendor Payments
+# 19. User Payments
 
 ### Purpose
 
-Show Vendor payment information.
+Show User payment information.
 
 ### Information
 
@@ -638,7 +638,7 @@ Financial terminology must follow `15_PAYMENTS_AND_LEDGER.md`.
 
 ---
 
-# 20. Vendor Payment Details
+# 20. User Payment Details
 
 ### Purpose
 
@@ -656,15 +656,15 @@ Updated
 Relevant transaction information
 ```
 
-Do not expose internal financial data that the Vendor is not authorized to see.
+Do not expose internal financial data that the User is not authorized to see.
 
 ---
 
-# 21. Vendor Profile
+# 21. User Profile
 
 ### Purpose
 
-Allow the Vendor to view and manage permitted account information.
+Allow the User to view and manage permitted account information.
 
 ### Sections
 
@@ -1258,7 +1258,7 @@ Active Requirements
 Fulfillment
 Active Trips
 Pending Driver Verification
-Pending Vendor Approval
+Pending User Approval
 Payment Issues
 Operational Alerts
 ```
@@ -1281,7 +1281,7 @@ Potential fields:
 
 ```text
 Requirement ID
-Vendor
+User
 Vehicle Type
 Required Quantity
 Assigned Quantity
@@ -1337,7 +1337,7 @@ Monitor trips across the marketplace.
 
 ```text
 Trip ID
-Vendor
+User
 Driver
 Vehicle
 Pickup
@@ -1370,7 +1370,7 @@ Provide complete operational visibility into a trip.
 
 ```text
 Trip Overview
-Vendor
+User
 Driver
 Vehicle
 Location
@@ -1504,16 +1504,16 @@ Rejection should capture a reason where required.
 
 ---
 
-# 54. Admin Vendor List
+# 54. Admin User List
 
 ### Purpose
 
-Manage Vendors.
+Manage Users.
 
 ### Columns
 
 ```text
-Vendor ID
+User ID
 Organization
 Contact
 Verification
@@ -1528,12 +1528,12 @@ Search
 Filter
 Sort
 Pagination
-Open Vendor
+Open User
 ```
 
 ---
 
-# 55. Admin Vendor Details
+# 55. Admin User Details
 
 ### Sections
 
@@ -1549,11 +1549,11 @@ Audit History
 
 ---
 
-# 56. Admin Vendor Approval
+# 56. Admin User Approval
 
 ### Purpose
 
-Approve or reject Vendor onboarding.
+Approve or reject User onboarding.
 
 ### Actions
 
@@ -1597,7 +1597,7 @@ Monitor payment activity.
 
 ```text
 Payment ID
-Vendor
+User
 Related trip/requirement
 Amount
 Status
@@ -1612,7 +1612,7 @@ Potentially:
 ```text
 Status
 Date
-Vendor
+User
 ```
 
 ---
@@ -1647,7 +1647,7 @@ Monitor and process settlement operations.
 
 ```text
 Settlement ID
-Driver/vendor
+Driver/user
 Amount
 Status
 Period
@@ -1673,7 +1673,7 @@ Potential report categories:
 Trips
 Fulfillment
 Drivers
-Vendors
+Users
 Revenue/payments
 Cancellations
 Operational performance
@@ -1755,7 +1755,7 @@ Examples:
 No requirements found.
 No trips found.
 No drivers found.
-No vendors found.
+No users found.
 No payments found.
 ```
 
@@ -1889,19 +1889,19 @@ Critical mutations must prevent duplicate execution.
 
 # 73. Screen-to-Role Matrix
 
-| Screen              | Vendor |   Driver   |       Admin      |
+| Screen              | User |   Driver   |       Admin      |
 | ------------------- | :----: | :--------: | :--------------: |
 | Login               |    ✓   |      ✓     |     Separate     |
 | OTP                 |    ✓   |      ✓     |     Separate     |
-| Vendor Onboarding   |    ✓   |      ✗     |      Review      |
-| Vendor Home         |    ✓   |      ✗     |         ✗        |
+| User Onboarding   |    ✓   |      ✗     |      Review      |
+| User Home         |    ✓   |      ✗     |         ✗        |
 | Requirements        |    ✓   |      ✗     |         ✓        |
 | Create Requirement  |    ✓   |      ✗     |        ✗*        |
 | Requirement Details |  ✓ Own |      ✗     |         ✓        |
 | Fulfillment         |  ✓ Own |      ✗     |         ✓        |
-| Vendor Trips        |  ✓ Own |      ✗     |         ✓        |
-| Vendor Payments     |  ✓ Own |      ✗     |         ✓        |
-| Vendor Profile      |    ✓   |      ✗     |         ✓        |
+| User Trips        |  ✓ Own |      ✗     |         ✓        |
+| User Payments     |  ✓ Own |      ✗     |         ✓        |
+| User Profile      |    ✓   |      ✗     |         ✓        |
 | Driver Onboarding   |    ✗   |      ✓     |      Review      |
 | Driver KYC          |    ✗   |      ✓     |      Review      |
 | Vehicle             |    ✗   |      ✓     |      Review      |
@@ -2008,7 +2008,7 @@ The overall UX should converge toward:
         │                     │
    ┌────┴────┐          Operations Console
    │         │
-Vendor     Driver
+User     Driver
    │         │
 Requirements Offers
 Trips       Trips

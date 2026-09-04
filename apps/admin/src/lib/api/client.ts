@@ -114,7 +114,7 @@ export const adminApi = {
       body: { notes: notes || 'Reactivated by Admin' },
     }),
 
-  // Vendors
+  // Vendors & Users
   getVendors: (status?: string) => {
     const query = status && status !== 'ALL' ? `?verificationStatus=${status}` : '';
     return apiClient<VendorListItem[]>(`/admin/vendors${query}`);
@@ -127,6 +127,23 @@ export const adminApi = {
     }),
 
   rejectVendor: (id: string, reason: string) =>
+    apiClient(`/admin/vendors/${id}/reject`, {
+      method: 'POST',
+      body: { reason },
+    }),
+
+  getUsers: (status?: string) => {
+    const query = status && status !== 'ALL' ? `?verificationStatus=${status}` : '';
+    return apiClient<VendorListItem[]>(`/admin/vendors${query}`);
+  },
+
+  verifyUser: (id: string, notes?: string) =>
+    apiClient(`/admin/vendors/${id}/verify`, {
+      method: 'POST',
+      body: { notes: notes || 'Verified by Admin' },
+    }),
+
+  rejectUser: (id: string, reason: string) =>
     apiClient(`/admin/vendors/${id}/reject`, {
       method: 'POST',
       body: { reason },

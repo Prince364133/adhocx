@@ -133,28 +133,20 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: AppColors.surfaceDark,
               borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(
-                color: AppColors.primaryLight.withValues(alpha: 0.3),
-                width: 1.5,
-              ),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.2),
+                  color: AppColors.primary.withValues(alpha: 0.25),
                   blurRadius: 20,
                   offset: const Offset(0, 6),
                 ),
               ],
             ),
-            child: const Center(
-              child: Text(
-                'A',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 28,
-                ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              child: Image.asset(
+                'assets/images/adhocx_icon.png',
+                fit: BoxFit.cover,
               ),
             ),
           ),

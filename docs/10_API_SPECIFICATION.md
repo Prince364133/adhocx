@@ -24,7 +24,7 @@ It specifies:
 * Filtering
 * Idempotency
 * State transitions
-* Vendor APIs
+* User APIs
 * Driver APIs
 * Admin APIs
 * Dispatch APIs
@@ -42,7 +42,7 @@ The API must support the two product surfaces:
 
 1. **AdhocX Mobile**
 
-   * Vendor
+   * User
    * Driver
 
 2. **AdhocX Admin**
@@ -225,7 +225,7 @@ Response:
     "expiresAt": "2026-01-01T12:00:00Z",
     "user": {
       "id": "uuid",
-      "role": "VENDOR"
+      "role": "USER"
     }
   }
 }
@@ -258,7 +258,7 @@ The backend must validate:
 Supported business roles:
 
 ```text
-VENDOR
+USER
 DRIVER
 ADMIN
 ```
@@ -302,8 +302,8 @@ POST /requirements/{id}/cancel
 The backend must verify:
 
 1. authenticated user
-2. vendor permission
-3. requirement belongs to vendor
+2. user permission
+3. requirement belongs to user
 4. requirement is cancellable
 5. cancellation business rules permit it
 
@@ -572,44 +572,44 @@ Redis may assist coordination, but durable idempotency for critical financial/bu
 
 ---
 
-# 23. Vendor API
+# 23. User API
 
-Vendor endpoints:
+User endpoints:
 
 ```text
-/vendor/profile
-/vendor/dashboard
-/vendor/requirements
-/vendor/requirements/{id}
-/vendor/trips
-/vendor/payments
-/vendor/notifications
+/user/profile
+/user/dashboard
+/user/requirements
+/user/requirements/{id}
+/user/trips
+/user/payments
+/user/notifications
 ```
 
 ---
 
-# 24. Vendor Profile
+# 24. User Profile
 
 ```http
-GET /vendor/profile
+GET /user/profile
 ```
 
-Returns the authenticated vendor's profile.
+Returns the authenticated user's profile.
 
 ```http
-PATCH /vendor/profile
+PATCH /user/profile
 ```
 
-Updates editable vendor information.
+Updates editable user information.
 
 The backend determines which fields are editable.
 
 ---
 
-# 25. Vendor Dashboard
+# 25. User Dashboard
 
 ```http
-GET /vendor/dashboard
+GET /user/dashboard
 ```
 
 Response should provide operational summaries such as:
@@ -632,7 +632,7 @@ Exact dashboard metrics may evolve without changing domain semantics.
 # 26. Create Requirement
 
 ```http
-POST /vendor/requirements
+POST /user/requirements
 ```
 
 Example:
@@ -653,13 +653,13 @@ Example:
 
 The backend must validate:
 
-* vendor authorization
+* user authorization
 * location
 * time
 * quantity
 * vehicle type
 * required business fields
-* vendor account status
+* user account status
 
 The backend creates the requirement in the appropriate initial state.
 
@@ -668,7 +668,7 @@ The backend creates the requirement in the appropriate initial state.
 # 27. Requirement Details
 
 ```http
-GET /vendor/requirements/{requirementId}
+GET /user/requirements/{requirementId}
 ```
 
 Response should contain:
@@ -691,7 +691,7 @@ Sensitive driver information must be returned only when permitted by the busines
 # 28. Requirement List
 
 ```http
-GET /vendor/requirements
+GET /user/requirements
 ```
 
 Supported filters may include:
@@ -706,7 +706,7 @@ vehicleType
 Example:
 
 ```http
-GET /vendor/requirements?status=OPEN&page=1&pageSize=20
+GET /user/requirements?status=OPEN&page=1&pageSize=20
 ```
 
 ---
@@ -714,7 +714,7 @@ GET /vendor/requirements?status=OPEN&page=1&pageSize=20
 # 29. Cancel Requirement
 
 ```http
-POST /vendor/requirements/{requirementId}/cancel
+POST /user/requirements/{requirementId}/cancel
 ```
 
 Optional request:
@@ -739,11 +739,11 @@ State transitions belong to the backend.
 
 ---
 
-# 30. Vendor Trips
+# 30. User Trips
 
 ```http
-GET /vendor/trips
-GET /vendor/trips/{tripId}
+GET /user/trips
+GET /user/trips/{tripId}
 ```
 
 Supported filters:
@@ -757,11 +757,11 @@ requirementId
 
 ---
 
-# 31. Vendor Payments
+# 31. User Payments
 
 ```http
-GET /vendor/payments
-GET /vendor/payments/{paymentId}
+GET /user/payments
+GET /user/payments/{paymentId}
 ```
 
 Payment responses should include:
@@ -1224,7 +1224,7 @@ Admin endpoints:
 /admin/trips
 /admin/assignments
 /admin/drivers
-/admin/vendors
+/admin/users
 /admin/pricing
 /admin/payments
 /admin/settlements
@@ -1266,7 +1266,7 @@ GET /admin/requirements
 GET /admin/requirements/{requirementId}
 ```
 
-Admin may filter across vendors and states.
+Admin may filter across users and states.
 
 Possible filters:
 
@@ -1333,20 +1333,20 @@ Every administrative state-changing operation must generate an audit event.
 
 ---
 
-# 57. Vendor Management
+# 57. User Management
 
 ```http
-GET /admin/vendors
-GET /admin/vendors/{vendorId}
+GET /admin/users
+GET /admin/users/{vendorId}
 ```
 
 Approval:
 
 ```http
-POST /admin/vendors/{vendorId}/approve
-POST /admin/vendors/{vendorId}/reject
-POST /admin/vendors/{vendorId}/suspend
-POST /admin/vendors/{vendorId}/reactivate
+POST /admin/users/{vendorId}/approve
+POST /admin/users/{vendorId}/reject
+POST /admin/users/{vendorId}/suspend
+POST /admin/users/{vendorId}/reactivate
 ```
 
 ---
@@ -1377,12 +1377,12 @@ until the commercial rules are finalized.
 
 # 59. Payments
 
-Vendor payment operations:
+User payment operations:
 
 ```http
-GET /vendor/payments
-GET /vendor/payments/{paymentId}
-POST /vendor/payments/{paymentId}/initiate
+GET /user/payments
+GET /user/payments/{paymentId}
+POST /user/payments/{paymentId}/initiate
 ```
 
 The exact payment lifecycle depends on the selected provider.
@@ -1480,7 +1480,7 @@ The backend determines:
 * allowed channels
 * resource scope
 
-A client cannot subscribe to another vendor's or driver's private channel.
+A client cannot subscribe to another user's or driver's private channel.
 
 ---
 
@@ -1553,10 +1553,10 @@ For example, do not expose:
 POST /dispatch/run-algorithm
 ```
 
-Vendor action:
+User action:
 
 ```http
-POST /vendor/requirements
+POST /user/requirements
 ```
 
 may trigger dispatch internally.
@@ -1576,7 +1576,7 @@ if required.
 Typical flow:
 
 ```text
-Vendor creates requirement
+User creates requirement
         ↓
 Requirement persisted
         ↓
@@ -1928,7 +1928,7 @@ Examples:
 Driver verified
 Driver rejected
 Driver suspended
-Vendor approved
+User approved
 Requirement cancelled
 Assignment manually changed
 Pricing changed
@@ -2225,10 +2225,10 @@ External notifications should generally occur after successful state persistence
 
 Cancellation must be action-specific.
 
-Vendor:
+User:
 
 ```http
-POST /vendor/requirements/{id}/cancel
+POST /user/requirements/{id}/cancel
 ```
 
 Driver:
@@ -2268,7 +2268,7 @@ Still unavailable
     ↓
 Requirement enters no-availability state
     ↓
-Vendor notified
+User notified
 ```
 
 Exact radius and retry parameters are **TBD**.
@@ -2295,10 +2295,10 @@ API responses should make these quantities explicit.
 
 # 98. Assignment API
 
-Vendor:
+User:
 
 ```http
-GET /vendor/requirements/{id}/assignments
+GET /user/requirements/{id}/assignments
 ```
 
 Driver:
@@ -2343,7 +2343,7 @@ Admin reporting endpoints:
 GET /admin/reports/trips
 GET /admin/reports/fulfillment
 GET /admin/reports/drivers
-GET /admin/reports/vendors
+GET /admin/reports/users
 GET /admin/reports/financial
 ```
 
@@ -2485,11 +2485,11 @@ when the backend is responsible for pricing.
 
 ```json
 {
-  "vendorId": "another-vendor"
+  "vendorId": "another-user"
 }
 ```
 
-to access another vendor's resource.
+to access another user's resource.
 
 ### Client-authoritative role
 
@@ -2532,7 +2532,7 @@ Use plural nouns for collections:
 ```text
 /requirements
 /drivers
-/vendors
+/users
 /trips
 /offers
 ```
@@ -2579,10 +2579,10 @@ Every important business rule must therefore be enforced on the server.
 
 # 110. Canonical API Flow
 
-## Vendor Requirement
+## User Requirement
 
 ```text
-POST /vendor/requirements
+POST /user/requirements
         ↓
 Requirement created
         ↓
@@ -2594,7 +2594,7 @@ Driver accepts
         ↓
 Assignment created
         ↓
-Vendor receives realtime update
+User receives realtime update
 ```
 
 ## Driver Trip

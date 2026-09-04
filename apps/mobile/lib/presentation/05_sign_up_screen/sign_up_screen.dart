@@ -204,22 +204,117 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: AppSpacing.md),
+
+                    // ── Role Selector Pill ───────────────────────────────────
+                    Consumer<OnboardingProvider>(
+                      builder: (context, onboarding, _) {
+                        return Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: AppColors.primarySubtle,
+                            borderRadius: BorderRadius.circular(AppRadius.md),
+                            border: Border.all(
+                              color: AppColors.primaryLight.withValues(alpha: 0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () => onboarding.setRole('USER'),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: onboarding.isUser ? AppColors.primary : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.person_rounded,
+                                          size: 16,
+                                          color: onboarding.isUser ? Colors.white : AppColors.textSecondaryLight,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'User / Booker',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: onboarding.isUser ? Colors.white : AppColors.textSecondaryLight,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () => onboarding.setRole('DRIVER'),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: onboarding.isDriver ? AppColors.primary : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.local_taxi_rounded,
+                                          size: 16,
+                                          color: onboarding.isDriver ? Colors.white : AppColors.textSecondaryLight,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Driver Partner',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: onboarding.isDriver ? Colors.white : AppColors.textSecondaryLight,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                     const SizedBox(height: AppSpacing.lg),
 
                     // ── Title & Subtitle ─────────────────────────────────────
-                    Text(
-                      'Create your account',
-                      style: AppTypography.h1(
-                        color: AppColors.textPrimaryLight,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      "Let's get you registered on AdhocX",
-                      style: AppTypography.body(
-                        color: AppColors.textSecondaryLight,
-                      ),
+                    Consumer<OnboardingProvider>(
+                      builder: (context, onboarding, _) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              onboarding.isDriver ? 'Driver Partner Sign Up' : 'Create your account',
+                              style: AppTypography.h1(
+                                color: AppColors.textPrimaryLight,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(
+                              onboarding.isDriver
+                                  ? 'Register to start earning with long & bulk rides'
+                                  : 'Book outstation rides & bulk travel with ease',
+                              style: AppTypography.body(
+                                color: AppColors.textSecondaryLight,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                     const SizedBox(height: AppSpacing.xl),
 
@@ -450,11 +545,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     AppSocialAuthButton(
                       type: SocialAuthType.google,
                       onPressed: () => _handleSocialAuth(SocialAuthType.google),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    AppSocialAuthButton(
-                      type: SocialAuthType.apple,
-                      onPressed: () => _handleSocialAuth(SocialAuthType.apple),
                     ),
                     const SizedBox(height: AppSpacing.xxl),
 

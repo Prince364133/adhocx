@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../services/vendor_service.dart';
+import '../../services/user_service.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
@@ -52,7 +52,7 @@ class _TripReviewDialogState extends State<TripReviewDialog> {
     'Route Knowledge',
   ];
 
-  final List<String> _vendorTags = [
+  final List<String> _userTags = [
     'Clear Instructions',
     'Prompt Boarding',
     'Respectful Passenger',
@@ -73,7 +73,7 @@ class _TripReviewDialogState extends State<TripReviewDialog> {
         if (_feedbackController.text.trim().isNotEmpty) _feedbackController.text.trim(),
       ].join(' ');
 
-      await VendorService.instance.submitReview(
+      await UserService.instance.submitReview(
         tripId: widget.tripId,
         rating: _selectedRating,
         feedback: combinedFeedback.isNotEmpty ? combinedFeedback : null,
@@ -104,7 +104,7 @@ class _TripReviewDialogState extends State<TripReviewDialog> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final availableTags = widget.isReviewingDriver ? _driverTags : _vendorTags;
+    final availableTags = widget.isReviewingDriver ? _driverTags : _userTags;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xl)),

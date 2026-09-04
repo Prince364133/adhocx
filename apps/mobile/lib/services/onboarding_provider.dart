@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 /// State management provider for the 4-step Driver and Vendor Onboarding Flow.
 class OnboardingProvider extends ChangeNotifier {
-  // Role
-  String _role = 'DRIVER'; // 'DRIVER' or 'VENDOR'
+  // Role: 'USER' (Customer/Booker) or 'DRIVER'
+  String _role = 'USER'; 
 
   // Step 1: Personal Details
   String _fullName = '';
@@ -11,14 +11,15 @@ class OnboardingProvider extends ChangeNotifier {
   String _gender = 'Male'; // 'Male', 'Female', 'Other'
   String _email = '';
   String _phoneNumber = '';
+  bool _isCorporate = false;
+  String _companyName = '';
+  String _gstNumber = '';
 
-  // Step 2: Vehicle Information (Driver) or Fleet Specs (Vendor)
+  // Step 2: Vehicle Information (Driver)
   String _vehicleType = 'Sedan';
   String _carModel = '';
   String _color = '';
   String _registrationNumber = '';
-  String _companyName = '';
-  String _gstNumber = '';
 
   // Step 3: Document Uploads (URLs from Cloudflare R2)
   String? _drivingLicenseUrl;
@@ -30,7 +31,9 @@ class OnboardingProvider extends ChangeNotifier {
   // Getters
   String get role => _role;
   bool get isDriver => _role == 'DRIVER';
-  bool get isVendor => _role == 'VENDOR';
+  bool get isUser => _role == 'USER' || _role == 'VENDOR';
+  bool get isVendor => isUser;
+  bool get isCorporate => _isCorporate;
 
   String get fullName => _fullName;
   DateTime? get dateOfBirth => _dateOfBirth;
@@ -68,18 +71,27 @@ class OnboardingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setIsCorporate(bool isCorp) {
+    _isCorporate = isCorp;
+    notifyListeners();
+  }
+
   void setPersonalDetails({
     required String fullName,
     required DateTime? dateOfBirth,
     required String gender,
     String? email,
     String? phone,
+    String? companyName,
+    bool? isCorporate,
   }) {
     _fullName = fullName;
     _dateOfBirth = dateOfBirth;
     _gender = gender;
     if (email != null) _email = email;
     if (phone != null) _phoneNumber = phone;
+    if (companyName != null) _companyName = companyName;
+    if (isCorporate != null) _isCorporate = isCorporate;
     notifyListeners();
   }
 
@@ -127,12 +139,13 @@ class OnboardingProvider extends ChangeNotifier {
   }
 
   void reset() {
-    _role = 'DRIVER';
+    _role = 'USER';
     _fullName = '';
     _dateOfBirth = null;
     _gender = 'Male';
     _email = '';
     _phoneNumber = '';
+    _isCorporate = false;
     _vehicleType = 'Sedan';
     _carModel = '';
     _color = '';

@@ -45,7 +45,7 @@ The Dispatch Engine is therefore not an Uber-style ride-hailing algorithm.
 The core problem is:
 
 ```text
-Vendor Requirement
+User Requirement
         ↓
 Find eligible supply
         ↓
@@ -111,7 +111,7 @@ client-side state never determines assignment truth
 The engine receives a requirement containing, at minimum:
 
 * requirement ID
-* vendor ID
+* user ID
 * vehicle type
 * requested quantity
 * pickup location
@@ -161,7 +161,7 @@ Before dispatch begins, the backend verifies:
 
 ```text
 Requirement exists
-Requirement belongs to a valid vendor
+Requirement belongs to a valid user
 Requirement is dispatchable
 Requested quantity > 0
 Remaining quantity > 0
@@ -870,7 +870,7 @@ The configured operational deadline has been reached.
 
 ### Case D — Requirement cancelled
 
-Vendor or authorized admin cancels it.
+User or authorized admin cancels it.
 
 ### Case E — Operational intervention
 
@@ -902,7 +902,7 @@ NO_DRIVER_AVAILABLE
 
 or the equivalent canonical state.
 
-The vendor must be notified.
+The user must be notified.
 
 ---
 
@@ -916,7 +916,7 @@ It may depend on:
 
 * pickup time
 * requirement urgency
-* vendor rules
+* user rules
 * dispatch configuration
 
 The engine must not invent a fixed global deadline.
@@ -981,9 +981,9 @@ The exact cancellation penalty/financial rules are **TBD**.
 
 ---
 
-# 43. Vendor Cancellation During Dispatch
+# 43. User Cancellation During Dispatch
 
-If the vendor cancels:
+If the user cancels:
 
 ```text
 Requirement
@@ -1292,7 +1292,7 @@ However, fairness must not override hard eligibility requirements.
 Drivers should not receive unnecessary information about:
 
 * other drivers
-* vendor internal information
+* user internal information
 * competitor pricing
 * assignment internals
 
@@ -1300,16 +1300,16 @@ The driver sees only the information required to evaluate and perform the offer.
 
 ---
 
-# 57. Vendor Privacy
+# 57. User Privacy
 
-Vendors should not receive unnecessary information about:
+Users should not receive unnecessary information about:
 
-* other vendors
+* other users
 * competing requirements
 * unrelated drivers
 * internal dispatch scores
 
-Vendor sees the operational information necessary to fulfill its requirement.
+User sees the operational information necessary to fulfill its requirement.
 
 ---
 
@@ -1499,7 +1499,7 @@ Never create unlimited dispatch retries.
 The engine must explicitly account for:
 
 ```text
-Vendor cancels while dispatch is running
+User cancels while dispatch is running
 Driver accepts while next wave starts
 Driver goes offline while offer exists
 Driver becomes assigned elsewhere
@@ -1668,7 +1668,7 @@ IF candidate count == 0:
         query again
     ELSE:
         mark no-availability condition
-        notify vendor
+        notify user
         STOP
 
 Rank candidates
@@ -1699,7 +1699,7 @@ IF dispatch can continue:
 
 ELSE:
     mark unresolved/no-availability state
-    notify vendor
+    notify user
 
 END
 ```
@@ -1818,7 +1818,7 @@ driver cancellation
 ### Requirement cancellation
 
 ```text
-vendor cancels
+user cancels
 → dispatch stops
 → pending offers invalidated
 ```
@@ -1928,7 +1928,7 @@ Assignment:
 ```text
 Assignment Created
     ↓
-Vendor realtime update
+User realtime update
     ↓
 Driver realtime update
 ```
@@ -1938,14 +1938,14 @@ Trip:
 ```text
 Trip Started
     ↓
-Vendor receives status update
+User receives status update
 ```
 
 ---
 
-# 81. Vendor Experience Supported by Dispatch
+# 81. User Experience Supported by Dispatch
 
-Vendor should be able to see:
+User should be able to see:
 
 ```text
 Requested: 20

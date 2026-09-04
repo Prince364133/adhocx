@@ -12,7 +12,7 @@ import '../../widgets/common/app_primary_button.dart';
 import '../../widgets/common/app_stepper_header.dart';
 import '../../widgets/common/app_text_field.dart';
 
-/// Screen 11: Step 1 of 4: Let's get started (Personal Details).
+/// Screen 11: Personal Details & Fast 1-Step User Profile Setup.
 class OnboardingPersonalScreen extends StatefulWidget {
   const OnboardingPersonalScreen({super.key});
 
@@ -25,27 +25,26 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _companyController = TextEditingController();
-  final _gstController = TextEditingController();
 
   DateTime? _selectedDate;
   String _selectedGender = 'Male';
+  bool _isCorporateBooking = false;
 
   @override
   void initState() {
     super.initState();
     final onboarding = context.read<OnboardingProvider>();
     _nameController.text = onboarding.fullName;
-    _selectedDate = onboarding.dateOfBirth ?? DateTime(1990, 8, 15);
+    _selectedDate = onboarding.dateOfBirth ?? DateTime(1995, 8, 15);
     _selectedGender = onboarding.gender;
     _companyController.text = onboarding.companyName;
-    _gstController.text = onboarding.gstNumber;
+    _isCorporateBooking = onboarding.isCorporate || onboarding.companyName.isNotEmpty;
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _companyController.dispose();
-    _gstController.dispose();
     super.dispose();
   }
 
@@ -79,19 +78,22 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
 
     final onboarding = context.read<OnboardingProvider>();
     onboarding.setPersonalDetails(
-      fullName: _nameController.text.trim(),
+      fullName: _nameController.text.trim().isNotEmpty
+          ? _nameController.text.trim()
+          : 'Rahul Sharma',
       dateOfBirth: _selectedDate,
       gender: _selectedGender,
+      companyName: _isCorporateBooking ? _companyController.text.trim() : '',
+      isCorporate: _isCorporateBooking,
     );
 
-    if (onboarding.isVendor) {
-      onboarding.setVendorCompanyDetails(
-        companyName: _companyController.text.trim(),
-        gstNumber: _gstController.text.trim(),
-      );
+    // If User/Booker -> Direct 1-Step Onboarding Complete!
+    if (onboarding.isUser) {
+      context.push(AppRoutes.welcomeSuccessScreen);
+    } else {
+      // Driver Partner -> Continues to vehicle registration
+      context.push(AppRoutes.onboardingVehicleScreen);
     }
-
-    context.push(AppRoutes.onboardingVehicleScreen);
   }
 
   static const _months = [
@@ -106,6 +108,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
   @override
   Widget build(BuildContext context) {
     final onboarding = context.watch<OnboardingProvider>();
+    final isDriver = onboarding.isDriver;
 
     return Scaffold(
       backgroundColor: AppColors.bgLight,
@@ -123,16 +126,49 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // ── 4-Step Progress Header ───────────────────────────────
-                    AppStepperHeader(
-                      currentStep: 1,
-                      onBack: () => context.pop(),
-                    ),
+                    // ── Header: Stepper for Driver, Simple Back for User ───────
+                    if (isDriver)
+                      AppStepperHeader(
+                        currentStep: 1,
+                        onBack: () => context.pop(),
+                      )
+                    else
+                      Row(
+                        children: [
+                          IconButton(
+                            onPressed: () => context.pop(),
+                            icon: const Icon(
+                              Icons.arrow_back,
+                              color: AppColors.textPrimaryLight,
+                            ),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.primarySubtle,
+                              borderRadius: BorderRadius.circular(AppRadius.full),
+                            ),
+                            child: Text(
+                              'Quick Profile Setup',
+                              style: AppTypography.micro(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     const SizedBox(height: AppSpacing.xl),
 
                     // ── Title & Subtitle ─────────────────────────────────────
                     Text(
-                      "Let's get started",
+                      isDriver ? "Driver Personal Details" : "Complete your profile",
                       style: AppTypography.h1(
                         color: AppColors.textPrimaryLight,
                         fontWeight: FontWeight.bold,
@@ -140,7 +176,9 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      'Please provide your basic details',
+                      isDriver
+                          ? 'Please provide your legal personal details'
+                          : 'Just a few quick details to personalize your ride bookings',
                       style: AppTypography.body(
                         color: AppColors.textSecondaryLight,
                       ),
@@ -154,7 +192,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                       hintText: 'Rahul Sharma',
                       validator: (val) {
                         if (val == null || val.trim().length < 2) {
-                          return 'Enter your full name';
+                          return 'Please enter your full name';
                         }
                         return null;
                       },
@@ -166,7 +204,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Date of Birth',
+                          'Date of Birth (Optional)',
                           style: AppTypography.caption(
                             color: AppColors.textSecondaryLight,
                             fontWeight: FontWeight.w600,
@@ -216,7 +254,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Gender',
+                          'Gender (Optional)',
                           style: AppTypography.caption(
                             color: AppColors.textSecondaryLight,
                             fontWeight: FontWeight.w600,
@@ -268,33 +306,69 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                     ),
                     const SizedBox(height: AppSpacing.lg),
 
-                    // ── Optional Vendor Company Details ──────────────────────
-                    if (onboarding.isVendor) ...[
-                      AppTextField(
-                        controller: _companyController,
-                        label: 'Company / Organization Name',
-                        hintText: 'City Logistics Corp',
-                        validator: (val) {
-                          if (val == null || val.trim().isEmpty) {
-                            return 'Enter company name';
-                          }
-                          return null;
-                        },
+                    // ── Optional Corporate / Event Booking Toggle (For Users) ───
+                    if (!isDriver) ...[
+                      Container(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceLight,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: Border.all(color: AppColors.borderLight),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.business_outlined,
+                                        size: 20,
+                                        color: AppColors.primary,
+                                      ),
+                                      const SizedBox(width: AppSpacing.sm),
+                                      Expanded(
+                                        child: Text(
+                                          'Booking for Company / Event?',
+                                          style: AppTypography.bodyMedium(
+                                            color: AppColors.textPrimaryLight,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Switch.adaptive(
+                                  value: _isCorporateBooking,
+                                  onChanged: (val) {
+                                    setState(() => _isCorporateBooking = val);
+                                  },
+                                  activeColor: AppColors.primary,
+                                ),
+                              ],
+                            ),
+                            if (_isCorporateBooking) ...[
+                              const SizedBox(height: AppSpacing.md),
+                              AppTextField(
+                                controller: _companyController,
+                                label: 'Company / Organization Name (Optional)',
+                                hintText: 'Acme Corp / Wedding Fleet',
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: AppSpacing.md),
-                      AppTextField(
-                        controller: _gstController,
-                        label: 'GST Number (Optional)',
-                        hintText: '36AAAAA0000A1Z5',
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
+                      const SizedBox(height: AppSpacing.xl),
                     ],
-
-                    const SizedBox(height: AppSpacing.xl),
 
                     // ── Primary Action ───────────────────────────────────────
                     AppPrimaryButton(
-                      text: 'Continue',
+                      text: isDriver ? 'Continue to Vehicle' : 'Start Booking & Posting Trips',
                       onPressed: _handleContinue,
                     ),
                   ],

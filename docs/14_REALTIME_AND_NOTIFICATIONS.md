@@ -53,7 +53,7 @@ Examples:
 Driver receives new trip offer
 Driver accepts offer
 Another driver consumes final requirement capacity
-Vendor receives assignment
+User receives assignment
 Driver cancels
 Requirement becomes fully fulfilled
 Trip starts
@@ -319,7 +319,7 @@ The server must determine whether the user may receive an event.
 Example:
 
 ```text
-Vendor A
+User A
 ```
 
 may subscribe to its own:
@@ -334,7 +334,7 @@ payments
 but not:
 
 ```text
-Vendor B
+User B
 ```
 
 ---
@@ -356,9 +356,9 @@ The driver must not receive unrelated driver data.
 
 ---
 
-# 14. Vendor Realtime Scope
+# 14. User Realtime Scope
 
-A vendor may receive:
+A user may receive:
 
 ```text
 own requirements
@@ -368,7 +368,7 @@ own payment status
 own notifications
 ```
 
-The vendor must not receive unrelated vendor operational data.
+The user must not receive unrelated user operational data.
 
 ---
 
@@ -401,7 +401,7 @@ Examples:
 
 ```text
 user:{userId}
-vendor:{vendorId}
+user:{vendorId}
 driver:{driverId}
 requirement:{requirementId}
 trip:{tripId}
@@ -447,7 +447,7 @@ Never expose unrestricted event streams containing all:
 
 ```text
 drivers
-vendors
+users
 trips
 locations
 payments
@@ -817,7 +817,7 @@ active trip
 availability
 ```
 
-Vendor:
+User:
 
 ```text
 active requirements
@@ -1074,9 +1074,9 @@ Not every event requires both push and WebSocket delivery.
 
 ---
 
-# 50. Vendor Notification Rules
+# 50. User Notification Rules
 
-Important vendor events:
+Important user events:
 
 ```text
 REQUIREMENT_CREATED
@@ -1278,7 +1278,7 @@ Assignment event
     ↓
 Driver notification
     +
-Vendor realtime update
+User realtime update
 ```
 
 The exact notification channels depend on the actor and current app state.
@@ -1293,7 +1293,7 @@ When a trip starts:
 Trip → IN_PROGRESS
 ```
 
-the vendor should receive the appropriate realtime update.
+the user should receive the appropriate realtime update.
 
 The driver UI is already active and generally does not require a redundant push notification.
 
@@ -1307,7 +1307,7 @@ When a trip completes:
 Trip → COMPLETED
 ```
 
-the vendor should receive the updated trip state.
+the user should receive the updated trip state.
 
 Driver may receive an earnings-related notification if the financial workflow produces a relevant user-facing event.
 
@@ -1431,11 +1431,11 @@ Current driver location may be exposed only to authorized operational consumers.
 Examples:
 
 ```text
-Vendor with relevant active assignment
+User with relevant active assignment
 Admin with operational permission
 ```
 
-Unrelated vendors/drivers must not receive it.
+Unrelated users/drivers must not receive it.
 
 ---
 
@@ -1525,7 +1525,7 @@ Push notification fails
 
 Assignment remains valid.
 
-The vendor can still receive the state through:
+The user can still receive the state through:
 
 ```text
 WebSocket
@@ -1539,7 +1539,7 @@ API refresh
 Example:
 
 ```text
-Vendor disconnected
+User disconnected
     ↓
 Driver accepts
     ↓
@@ -1548,7 +1548,7 @@ Assignment created
 
 The assignment still exists.
 
-When the vendor reconnects:
+When the user reconnects:
 
 ```text
 reconcile API state
@@ -1571,7 +1571,7 @@ active trip
 availability
 ```
 
-### Vendor
+### User
 
 ```text
 active requirements
@@ -1711,7 +1711,7 @@ Driver example:
 New trip offer available.
 ```
 
-Vendor example:
+User example:
 
 ```text
 3 vehicles have been assigned to your requirement.
@@ -1978,7 +1978,7 @@ The application must recover without corrupting business state.
 Example:
 
 ```text
-Vendor posts requirement
+User posts requirement
         ↓
 Dispatch creates offer
         ↓
@@ -1988,15 +1988,15 @@ Driver accepts
         ↓
 Assignment created
         ↓
-Vendor receives update
+User receives update
         ↓
 Driver starts trip
         ↓
-Vendor sees IN_PROGRESS
+User sees IN_PROGRESS
         ↓
 Driver completes
         ↓
-Vendor sees COMPLETED
+User sees COMPLETED
         ↓
 Financial event occurs
         ↓

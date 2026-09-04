@@ -3,10 +3,18 @@
 import React from 'react';
 import { usePathname } from 'next/navigation';
 
-export const Header: React.FC = () => {
+type HeaderProps = {
+  title?: string;
+  subtitle?: string;
+};
+
+export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
   const pathname = usePathname();
 
   const getSectionTitle = () => {
+    if (title) return title;
+    if (pathname.startsWith('/verifications')) return 'Verification Center';
+    if (pathname.startsWith('/disputes')) return 'Dispute Management & Resolution';
     if (pathname.startsWith('/drivers')) return 'Driver KYC & Compliance';
     if (pathname.startsWith('/vendors')) return 'Vendor Onboarding & Verification';
     if (pathname.startsWith('/requirements')) return 'Requirements & Live Demand';
@@ -22,6 +30,11 @@ export const Header: React.FC = () => {
         <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)' }}>
           {getSectionTitle()}
         </h2>
+        {subtitle && (
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+            {subtitle}
+          </p>
+        )}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>

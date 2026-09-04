@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 180" width="100%" height="100%">
+  <defs>
+    <!-- Background subtle gradient -->
+    <linearGradient id="iconBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A" />
+      <stop offset="50%" stop-color="#090E1A" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+
+    <!-- Outer Glow / Stroke gradient -->
+    <linearGradient id="iconBorderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7C68F5" stop-opacity="0.6" />
+      <stop offset="50%" stop-color="#5B42F3" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#38BDF8" stop-opacity="0.4" />
+    </linearGradient>
+
+    <!-- Primary Diagonal Gradient (Electric Indigo to Royal Purple) -->
+    <linearGradient id="logoPrimaryBlade" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8B5CF6" />
+      <stop offset="35%" stop-color="#6347F9" />
+      <stop offset="70%" stop-color="#5B42F3" />
+      <stop offset="100%" stop-color="#3727A6" />
+    </linearGradient>
+
+    <!-- Secondary Upper Blade -->
+    <linearGradient id="logoUpperBlade" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="40%" stop-color="#60A5FA" />
+      <stop offset="100%" stop-color="#6347F9" />
+    </linearGradient>
+
+    <!-- Secondary Lower Blade -->
+    <linearGradient id="logoLowerBlade" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5B42F3" />
+      <stop offset="60%" stop-color="#4328E0" />
+      <stop offset="100%" stop-color="#311B92" />
+    </linearGradient>
+
+    <!-- Wordmark X Text Gradient -->
+    <linearGradient id="textXGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="30%" stop-color="#7C68F5" />
+      <stop offset="70%" stop-color="#5B42F3" />
+      <stop offset="100%" stop-color="#4328E0" />
+    </linearGradient>
+
+    <!-- Shadow filter -->
+    <filter id="logoShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000000" flood-opacity="0.5" />
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#5B42F3" flood-opacity="0.25" />
+    </filter>
+
+    <filter id="logoGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur" />
+      <feMerge>
+        <feMergeNode in="coloredBlur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Left Emblem Group (Scale: 160x160 at x=10, y=10) -->
+  <g transform="translate(10, 10)">
+    <!-- Squircle container -->
+    <rect x="0" y="0" width="160" height="160" rx="36" fill="url(#iconBgGrad)" stroke="url(#iconBorderGrad)" stroke-width="2" />
+    
+    <!-- Ambient glow -->
+    <circle cx="80" cy="80" r="50" fill="#5B42F3" opacity="0.18" filter="url(#logoGlow)" />
+
+    <!-- Stylized X paths scaled down (0.3125 scale: 512 -> 160) -->
+    <g transform="scale(0.3125)" filter="url(#logoShadow)">
+      <!-- Lower Blade -->
+      <path
+        d="M 226 286 L 140 404 C 134 412 140 424 150 424 L 206 424 C 214 424 222 420 226 414 L 290 326 Z"
+        fill="url(#logoLowerBlade)"
+      />
+      <!-- Main Beam -->
+      <path
+        d="M 150 88 C 140 88 134 100 140 108 L 362 404 C 368 412 376 416 386 416 L 442 416 C 452 416 458 404 452 396 L 230 100 C 224 92 216 88 206 88 Z"
+        fill="url(#logoPrimaryBlade)"
+      />
+      <!-- Upper Blade with Cyan Accent -->
+      <path
+        d="M 362 108 L 286 212 L 222 172 L 276 98 C 280 92 288 88 296 88 L 352 88 C 362 88 368 100 362 108 Z"
+        fill="url(#logoUpperBlade)"
+      />
+      <!-- Top highlight -->
+      <path
+        d="M 372 96 L 316 172 L 302 162 L 348 96 C 352 90 358 88 364 88 L 372 88 C 376 88 378 92 372 96 Z"
+        fill="#FFFFFF"
+        opacity="0.3"
+      />
+      <!-- Center energy point -->
+      <polygon points="256,220 286,256 256,292 226,256" fill="#38BDF8" opacity="0.4" />
+    </g>
+  </g>
+
+  <!-- Typography: AdhocX -->
+  <g id="wordmark">
+    <!-- "Adhoc" in Theme Inter Bold -->
+    <text
+      x="195"
+      y="114"
+      font-family="'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+      font-size="82"
+      font-weight="800"
+      fill="#FFFFFF"
+      letter-spacing="-2.5"
+    >Adhoc</text>
+
+    <!-- "X" in Dynamic Gradient & Extra Bold -->
+    <text
+      x="475"
+      y="114"
+      font-family="'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+      font-size="88"
+      font-weight="900"
+      fill="url(#textXGrad)"
+      letter-spacing="-1"
+    >X</text>
+
+    <!-- Subtitle / Tagline in Muted Slate -->
+    <text
+      x="198"
+      y="148"
+      font-family="'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+      font-size="14"
+      font-weight="600"
+      fill="#94A3B8"
+      letter-spacing="5"
+    >PLATFORM</text>
+  </g>
+</svg>

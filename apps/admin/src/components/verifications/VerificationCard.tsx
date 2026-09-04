@@ -84,8 +84,9 @@ export const VerificationCard: React.FC<CardProps> = ({
             }}
           >
             <span>{isDriver ? '🪪' : '🏢'}</span>
-            <span>{item.entityType} KYC</span>
+            <span>{isDriver ? 'DRIVER' : 'USER'} KYC</span>
           </span>
+
 
           <span
             style={{

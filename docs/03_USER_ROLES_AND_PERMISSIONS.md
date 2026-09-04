@@ -46,11 +46,11 @@ AdhocX V1 has three primary business roles:
 
 | Role   | Surface            | Primary Responsibility                                             |
 | ------ | ------------------ | ------------------------------------------------------------------ |
-| Vendor | Flutter Mobile App | Creates transportation requirements and manages fulfillment        |
+| User | Flutter Mobile App | Creates transportation requirements and manages fulfillment        |
 | Driver | Flutter Mobile App | Provides vehicle capacity and executes assigned trips              |
 | Admin  | Next.js Admin App  | Operates, verifies, controls, supports, and audits the marketplace |
 
-There is one Flutter application for Vendor and Driver roles.
+There is one Flutter application for User and Driver roles.
 
 The Admin application is a separate Next.js web application.
 
@@ -58,11 +58,11 @@ The Admin application is a separate Next.js web application.
 
 # 3. Role Separation
 
-## 3.1 Vendor
+## 3.1 User
 
-The Vendor represents a transportation company/vendor that has a corporate transportation requirement and needs additional vehicle capacity.
+The User represents a transportation company/user that has a corporate transportation requirement and needs additional vehicle capacity.
 
-The Vendor can:
+The User can:
 
 * Manage its organization/profile.
 * Create transportation requirements.
@@ -75,10 +75,10 @@ The Vendor can:
 * View historical trips.
 * Receive operational notifications.
 
-The Vendor cannot:
+The User cannot:
 
 * Approve drivers.
-* Approve other vendors.
+* Approve other users.
 * Change marketplace pricing unless explicitly authorized by an Admin capability.
 * Modify driver KYC.
 * Modify driver earnings.
@@ -121,7 +121,7 @@ The Driver cannot:
 * Assign themselves to arbitrary requirements.
 * Assign another driver.
 * Approve another driver.
-* Approve a vendor.
+* Approve a user.
 * Change marketplace pricing.
 * Access Admin functionality.
 
@@ -135,7 +135,7 @@ Admin capabilities include:
 
 * Marketplace monitoring.
 * Driver verification.
-* Vendor approval.
+* User approval.
 * Trip/requirement monitoring.
 * Pricing management.
 * Settlement management.
@@ -171,8 +171,8 @@ trip.complete
 driver.view
 driver.verify
 
-vendor.view
-vendor.approve
+user.view
+user.approve
 
 payment.view
 settlement.manage
@@ -202,7 +202,7 @@ conditions throughout the codebase.
 
 ## 7.1 Authentication
 
-| Action                   | Vendor | Driver | Admin |
+| Action                   | User | Driver | Admin |
 | ------------------------ | -----: | -----: | ----: |
 | Request OTP              |      ✓ |      ✓ |     ✓ |
 | Verify OTP               |      ✓ |      ✓ |     ✓ |
@@ -213,9 +213,9 @@ conditions throughout the codebase.
 
 ---
 
-# 8. Vendor Permissions
+# 8. User Permissions
 
-| Capability                        | Vendor |
+| Capability                        | User |
 | --------------------------------- | -----: |
 | View own dashboard                |      ✓ |
 | View own organization             |      ✓ |
@@ -238,7 +238,7 @@ conditions throughout the codebase.
 | Modify driver status              |      ✗ |
 | Modify pricing                    |      ✗ |
 | Modify settlement                 |      ✗ |
-| View other vendors' data          |      ✗ |
+| View other users' data          |      ✗ |
 | Access admin dashboard            |      ✗ |
 | View audit logs                   |      ✗ |
 
@@ -277,7 +277,7 @@ conditions throughout the codebase.
 | Modify settlement               |      ✗ |
 | Modify pricing                  |      ✗ |
 | Assign another driver           |      ✗ |
-| Access vendor functions         |      ✗ |
+| Access user functions         |      ✗ |
 | Access admin dashboard          |      ✗ |
 
 ---
@@ -319,20 +319,20 @@ Admin actions affecting driver eligibility must be auditable.
 
 ---
 
-# 11. Vendor Management
+# 11. User Management
 
 | Capability                  | Admin |
 | --------------------------- | ----: |
-| Search vendors              |     ✓ |
-| View vendor profile         |     ✓ |
-| Review vendor onboarding    |     ✓ |
-| Approve vendor              |     ✓ |
-| Reject vendor               |     ✓ |
-| Suspend vendor              |     ✓ |
-| Reactivate vendor           |     ✓ |
-| View vendor requirements    |     ✓ |
-| View vendor trip history    |     ✓ |
-| View vendor payment records |     ✓ |
+| Search users              |     ✓ |
+| View user profile         |     ✓ |
+| Review user onboarding    |     ✓ |
+| Approve user              |     ✓ |
+| Reject user               |     ✓ |
+| Suspend user              |     ✓ |
+| Reactivate user           |     ✓ |
+| View user requirements    |     ✓ |
+| View user trip history    |     ✓ |
+| View user payment records |     ✓ |
 
 ---
 
@@ -370,7 +370,7 @@ Admin can:
 * View historical trips.
 * Inspect trip state.
 * Inspect driver.
-* Inspect vendor.
+* Inspect user.
 * Inspect vehicle.
 * Inspect timestamps.
 * Inspect operational events.
@@ -394,7 +394,7 @@ Every state transition must have an explicit business meaning.
 
 Pricing is Admin-controlled in V1.
 
-| Action                       | Vendor |           Driver | Admin |
+| Action                       | User |           Driver | Admin |
 | ---------------------------- | -----: | ---------------: | ----: |
 | View applicable price        |      ✓ | Where applicable |     ✓ |
 | Change marketplace pricing   |      ✗ |                ✗ |     ✓ |
@@ -410,7 +410,7 @@ Exact pricing rules remain a commercial/product decision and must not be invente
 
 Financial records require strict authorization.
 
-### Vendor
+### User
 
 Can:
 
@@ -457,12 +457,12 @@ Financial mutations must always be traceable.
 
 A user should only access data appropriate to their organizational and operational scope.
 
-## Vendor
+## User
 
 Default data boundary:
 
 ```text
-Vendor
+User
  ├── Own organization
  ├── Own requirements
  ├── Own assignments
@@ -470,7 +470,7 @@ Vendor
  └── Own financial records
 ```
 
-A Vendor must not access another Vendor's records.
+A User must not access another User's records.
 
 ---
 
@@ -512,24 +512,24 @@ Role checks alone are insufficient.
 For example:
 
 ```text
-Vendor A
+User A
 Requirement #100
 ```
 
 and:
 
 ```text
-Vendor B
+User B
 Requirement #200
 ```
 
 Both users have:
 
 ```text
-role = VENDOR
+role = USER
 ```
 
-But Vendor A must not be able to access Requirement #200.
+But User A must not be able to access Requirement #200.
 
 Therefore authorization must check both:
 
@@ -684,7 +684,7 @@ Examples:
 
 ```text
 driver.view
-vendor.view
+user.view
 trip.view
 requirement.view
 settlement.view
@@ -699,8 +699,8 @@ Examples:
 ```text
 driver.verify
 driver.suspend
-vendor.approve
-vendor.suspend
+user.approve
+user.suspend
 pricing.manage
 settlement.process
 ```
@@ -759,7 +759,7 @@ Example:
 authenticated driver
 → can accept eligible trip
 
-authenticated vendor
+authenticated user
 → can create requirement
 ```
 
@@ -769,7 +769,7 @@ Successful OTP verification must never automatically imply unrestricted access.
 
 # 24. Role Switching
 
-The mobile application supports both Vendor and Driver experiences.
+The mobile application supports both User and Driver experiences.
 
 The application must not casually expose both role interfaces merely because a user has multiple capabilities.
 
@@ -798,7 +798,7 @@ Should not be able to:
 
 Existing operational handling must follow the state-machine and support rules.
 
-### Suspended Vendor
+### Suspended User
 
 Should not be able to:
 
@@ -858,10 +858,10 @@ Examples:
 user.view
 user.update
 
-vendor.view
-vendor.update
-vendor.approve
-vendor.suspend
+user.view
+user.update
+user.approve
+user.suspend
 
 driver.view
 driver.update
@@ -933,9 +933,9 @@ requires:
 ```text
 authenticated
 +
-vendor role/capability
+user role/capability
 +
-vendor account eligible
+user account eligible
 ```
 
 Example:
@@ -1046,7 +1046,7 @@ Never trust:
 }
 ```
 
-as proof that the caller can access that vendor.
+as proof that the caller can access that user.
 
 ---
 
@@ -1078,10 +1078,10 @@ The following actions should generate audit events:
 * Driver rejection.
 * Driver suspension.
 * Driver reactivation.
-* Vendor approval.
-* Vendor rejection.
-* Vendor suspension.
-* Vendor reactivation.
+* User approval.
+* User rejection.
+* User suspension.
+* User reactivation.
 * Pricing changes.
 * Settlement operations.
 * High-impact administrative trip actions.
@@ -1139,7 +1139,7 @@ This sequence should be treated as a core backend security pattern.
 
 # 33. V1 Role Summary
 
-## Vendor
+## User
 
 **Goal:** Fulfill transportation requirements.
 
@@ -1201,8 +1201,8 @@ Monitor
 
 The following rules are mandatory for implementation:
 
-1. **Three primary business roles exist in V1: Vendor, Driver, Admin.**
-2. Vendor and Driver use the same Flutter mobile application.
+1. **Three primary business roles exist in V1: User, Driver, Admin.**
+2. User and Driver use the same Flutter mobile application.
 3. Admin uses the separate Next.js application.
 4. Backend authorization is mandatory.
 5. UI hiding is never considered sufficient authorization.

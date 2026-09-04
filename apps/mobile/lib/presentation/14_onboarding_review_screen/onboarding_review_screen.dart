@@ -173,6 +173,16 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                        if (onboarding.companyName.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            onboarding.companyName,
+                            style: AppTypography.caption(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 2),
                         Text(
                           onboarding.phoneNumber.isNotEmpty

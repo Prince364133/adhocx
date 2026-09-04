@@ -64,7 +64,7 @@ ADHOCX
 │
 ├── User Management
 │
-├── Vendor
+├── User
 │   ├── Onboarding
 │   ├── Dashboard
 │   ├── Requirements
@@ -111,7 +111,7 @@ ADHOCX
 └── Admin
     ├── Dashboard
     ├── Drivers
-    ├── Vendors
+    ├── Users
     ├── Trips
     ├── Pricing
     ├── Payments
@@ -153,7 +153,7 @@ Acceptance Criteria
 
 **Actors:**
 
-* Vendor
+* User
 * Driver
 * Admin
 
@@ -243,7 +243,7 @@ P0
 Determine whether the authenticated account is:
 
 ```text
-VENDOR
+USER
 DRIVER
 ADMIN
 ```
@@ -266,14 +266,14 @@ through client-side state manipulation.
 
 ## Acceptance Criteria
 
-* Vendor receives Vendor experience.
+* User receives User experience.
 * Driver receives Driver experience.
 * Admin accesses Admin application.
 * Unauthorized role access is rejected.
 
 ---
 
-# 7. Vendor Onboarding
+# 7. User Onboarding
 
 ## Priority
 
@@ -281,11 +281,11 @@ P0
 
 ## Actor
 
-Vendor
+User
 
 ## Purpose
 
-Create and verify a vendor account.
+Create and verify a user account.
 
 ---
 
@@ -294,7 +294,7 @@ Create and verify a vendor account.
 ```text
 OTP Login
    ↓
-Vendor Information
+User Information
    ↓
 Required Documentation
    ↓
@@ -311,7 +311,7 @@ Approved / Rejected
 
 ## Business Rules
 
-A vendor must not access restricted marketplace functionality until required approval conditions are satisfied.
+A user must not access restricted marketplace functionality until required approval conditions are satisfied.
 
 ---
 
@@ -331,12 +331,12 @@ Exact transitions are defined in `12_STATE_MACHINES.md`.
 
 ## Acceptance Criteria
 
-* Vendor can submit onboarding information.
-* Vendor can upload required documents.
-* Vendor can see verification status.
-* Admin can review vendor.
-* Admin can approve/reject vendor.
-* Rejected vendors cannot operate as approved vendors.
+* User can submit onboarding information.
+* User can upload required documents.
+* User can see verification status.
+* Admin can review user.
+* Admin can approve/reject user.
+* Rejected users cannot operate as approved users.
 
 ---
 
@@ -534,7 +534,7 @@ The backend must remain authoritative.
 
 ---
 
-# 12. Vendor Dashboard
+# 12. User Dashboard
 
 ## Priority
 
@@ -542,7 +542,7 @@ P1
 
 ## Actor
 
-Vendor
+User
 
 ## Purpose
 
@@ -566,7 +566,7 @@ Dashboard should show:
 
 ## Acceptance Criteria
 
-Vendor can understand current fulfillment state without manually inspecting every requirement.
+User can understand current fulfillment state without manually inspecting every requirement.
 
 ---
 
@@ -578,7 +578,7 @@ P0
 
 ## Actor
 
-Vendor
+User
 
 ## Purpose
 
@@ -631,8 +631,8 @@ Dispatch Initiated
 * Vehicle type must be supported.
 * Pickup location must be valid.
 * Date/time must be valid.
-* Vendor must be authorized.
-* Vendor must be approved.
+* User must be authorized.
+* User must be approved.
 * Requirement must satisfy applicable pricing/payment rules.
 
 ---
@@ -646,8 +646,8 @@ Requirement enters the appropriate dispatch state.
 ## Failure
 
 * Invalid input
-* Vendor unauthorized
-* Vendor suspended
+* User unauthorized
+* User suspended
 * Payment failure
 * Invalid location
 * Invalid timing
@@ -657,7 +657,7 @@ Requirement enters the appropriate dispatch state.
 
 ## Acceptance Criteria
 
-Vendor can:
+User can:
 
 1. Enter requirement information.
 2. Submit.
@@ -675,11 +675,11 @@ P1
 
 ## Actor
 
-Vendor
+User
 
 ## Purpose
 
-Allow vendors to create multiple requirements efficiently.
+Allow users to create multiple requirements efficiently.
 
 The source PRD explicitly includes bulk posting.
 
@@ -713,7 +713,7 @@ P0
 
 ## Actor
 
-Vendor
+User
 
 ## Purpose
 
@@ -767,11 +767,11 @@ P1
 
 ## Actor
 
-Vendor
+User
 
 ## Purpose
 
-Allow a vendor to cancel a requirement where business rules permit it.
+Allow a user to cancel a requirement where business rules permit it.
 
 ---
 
@@ -790,8 +790,8 @@ Exact cancellation policy is TBD.
 
 ## Acceptance Criteria
 
-* Vendor can cancel when permitted.
-* Vendor cannot cancel when prohibited.
+* User can cancel when permitted.
+* User cannot cancel when prohibited.
 * System records cancellation.
 * Affected drivers are notified.
 * Financial effects are recorded where applicable.
@@ -912,7 +912,7 @@ Only one driver receives the assignment.
 * Ineligible driver fails.
 * Duplicate request does not create duplicate assignment.
 * Driver receives confirmation.
-* Vendor receives assignment update.
+* User receives assignment update.
 
 ---
 
@@ -1145,7 +1145,7 @@ If the system cannot fulfill the requirement:
 
 1. Continue permitted dispatch attempts.
 2. Expand radius according to rules.
-3. Notify vendor when applicable.
+3. Notify user when applicable.
 4. Mark requirement appropriately if fulfillment remains impossible.
 5. Record the reason.
 
@@ -1166,19 +1166,19 @@ System must:
 * Record cancellation.
 * Update assignment.
 * Update driver availability.
-* Notify vendor.
+* Notify user.
 * Trigger replacement dispatch if required.
 * Apply financial consequences if defined.
 
 ---
 
-# 30. Vendor Cancellation
+# 30. User Cancellation
 
 ## Priority
 
 P0
 
-Vendor may cancel according to cancellation policy.
+User may cancel according to cancellation policy.
 
 System must:
 
@@ -1306,7 +1306,7 @@ Trip completion should:
 1. Update trip state.
 2. Update assignment.
 3. Calculate/create driver earning.
-4. Notify vendor.
+4. Notify user.
 5. Update relevant requirement status.
 6. Initiate settlement/accounting workflow.
 7. Record audit/event information.
@@ -1333,13 +1333,13 @@ System must support:
 
 ---
 
-# 37. Vendor Live Status
+# 37. User Live Status
 
 ## Priority
 
 P0
 
-Vendor should receive real-time updates for active requirements/trips.
+User should receive real-time updates for active requirements/trips.
 
 Examples:
 
@@ -1424,13 +1424,13 @@ The following are TBD:
 
 ---
 
-# 41. Vendor Payments
+# 41. User Payments
 
 ## Priority
 
 P0
 
-Vendor payment records must be visible and traceable.
+User payment records must be visible and traceable.
 
 The exact commercial model is TBD.
 
@@ -1512,7 +1512,7 @@ Examples:
 
 ---
 
-## Vendor Notifications
+## User Notifications
 
 Examples:
 
@@ -1581,7 +1581,7 @@ Admin can:
 
 ---
 
-# 48. Vendor Management
+# 48. User Management
 
 ## Priority
 
@@ -1589,7 +1589,7 @@ P0
 
 Admin can:
 
-* View vendors
+* View users
 * Review applications
 * Approve
 * Reject
@@ -1611,7 +1611,7 @@ Admin can:
 * View assignment details
 * View status
 * Investigate failures
-* View relevant driver/vendor information
+* View relevant driver/user information
 
 ---
 
@@ -1658,7 +1658,7 @@ Initial reporting areas:
 * Fulfillment
 * Cancellations
 * Drivers
-* Vendors
+* Users
 * Payments
 * Settlements
 
@@ -1695,7 +1695,7 @@ Important actions must be auditable.
 Examples:
 
 ```text
-Vendor approved
+User approved
 Driver approved
 Driver suspended
 Requirement created
@@ -1713,9 +1713,9 @@ The PRD explicitly requires audit logs.
 
 # 55. Profile
 
-## Vendor
+## User
 
-Vendor can manage permitted account information.
+User can manage permitted account information.
 
 ## Driver
 
@@ -1740,7 +1740,7 @@ Search targets:
 * Requirement ID
 * Trip ID
 * Driver
-* Vendor
+* User
 * Vehicle
 * Payment/settlement reference
 
@@ -1759,7 +1759,7 @@ Examples:
 ```text
 Status
 Date
-Vendor
+User
 Driver
 Vehicle Type
 Location
@@ -1826,7 +1826,7 @@ At minimum:
 
 ```text
 ADMIN
-VENDOR
+USER
 DRIVER
 ```
 
@@ -1879,8 +1879,8 @@ The following are considered mandatory for the core V1:
 ```text
 OTP Authentication
 
-Vendor Onboarding
-Vendor Approval
+User Onboarding
+User Approval
 
 Driver Onboarding
 Driver KYC
@@ -1889,7 +1889,7 @@ Driver Verification
 
 Driver Availability
 
-Vendor Requirement Creation
+User Requirement Creation
 
 Geographic Matching
 
@@ -1923,7 +1923,7 @@ Notifications
 Realtime Status
 
 Admin Driver Management
-Admin Vendor Management
+Admin User Management
 Admin Trip Management
 Audit Logging
 ```
@@ -1935,7 +1935,7 @@ Audit Logging
 ```text
 Bulk Posting
 
-Advanced Vendor Dashboard
+Advanced User Dashboard
 
 Withdrawal Management
 
@@ -1962,7 +1962,7 @@ Potential operational enhancements:
 Advanced reporting
 Advanced analytics
 Driver reliability scoring
-Vendor performance scoring
+User performance scoring
 Advanced pricing controls
 More sophisticated dispatch controls
 ```
@@ -2031,7 +2031,7 @@ Acceptance criteria pass
 The following is the minimum end-to-end feature chain that must work:
 
 ```text
-Vendor
+User
  ↓
 Authenticate
  ↓
@@ -2051,7 +2051,7 @@ Driver Accepts
  ↓
 Assignment Created
  ↓
-Vendor Sees Assignment
+User Sees Assignment
  ↓
 Driver Navigates
  ↓
@@ -2099,7 +2099,7 @@ Simultaneous Driver Acceptance
 
 Driver Cancels
 
-Vendor Cancels
+User Cancels
 
 Passenger No-Show
 
@@ -2314,4 +2314,4 @@ A feature that does not improve:
 
 should be questioned before entering V1.
 
-The purpose of V1 is to prove that AdhocX can replace the vendor's fragmented manual vehicle-sourcing process with a reliable digital marketplace.
+The purpose of V1 is to prove that AdhocX can replace the user's fragmented manual vehicle-sourcing process with a reliable digital marketplace.

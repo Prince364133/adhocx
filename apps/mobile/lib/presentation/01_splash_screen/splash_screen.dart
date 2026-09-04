@@ -5,178 +5,195 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
+import '../../widgets/common/app_primary_button.dart';
 
-/// Screen 1: Splash / Hero Onboarding Screen matching exact design mockup.
+/// Screen 1: Splash / Hero Welcome Screen with custom illustrated background.
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppColors.primaryGradientStart,
-              AppColors.primaryGradientEnd,
-            ],
+      backgroundColor: const Color(0xFFF4F7FF),
+      body: Stack(
+        children: [
+          // ── Background Illustrated Artwork ─────────────────────────────────
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/splash_bg.png',
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Color(0xFFEEF2FF),
+                        Color(0xFFE0E7FF),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.xxl,
-                  vertical: AppSpacing.xl,
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const SizedBox(height: AppSpacing.lg),
 
-                    // ── Brand Logo & Tagline ──────────────────────────────────
-                    Column(
-                      children: [
-                        Text(
-                          'AdhocX',
-                          style: AppTypography.display(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          'Your ride. Your way.',
-                          style: AppTypography.body(
-                            color: Colors.white.withAlpha(210),
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    // ── Stylized Vehicle Hero Graphic ─────────────────────────
-                    Expanded(
-                      child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 240,
-                              height: 150,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withAlpha(18),
-                                borderRadius: BorderRadius.circular(AppRadius.xxl),
-                              ),
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.directions_car_filled_rounded,
-                                    size: 110,
-                                    color: Colors.white.withAlpha(235),
-                                  ),
-                                  Positioned(
-                                    bottom: 12,
-                                    child: Container(
-                                      width: 140,
-                                      height: 6,
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withAlpha(40),
-                                        borderRadius: BorderRadius.circular(3),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: AppSpacing.xxl),
-
-                            // Carousel Dots (• • •)
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: const BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Container(
-                                  width: 6,
-                                  height: 6,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Colors.white.withAlpha(100),
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Container(
-                                  width: 6,
-                                  height: 6,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Colors.white.withAlpha(100),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    // ── Actions: Get Started & Guest ─────────────────────────
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        ElevatedButton(
-                          onPressed: () => context.push(AppRoutes.languageSelectionScreen),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: AppColors.primary,
-                            minimumSize: const Size(double.infinity, 50),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppRadius.md),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: Text(
-                            'Get Started',
-                            style: AppTypography.button(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        TextButton(
-                          onPressed: () => context.push(AppRoutes.signInScreen),
-                          child: Text(
-                            'Continue as Guest',
-                            style: AppTypography.body(
-                              color: Colors.white.withAlpha(220),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+          // ── Contrast Gradient Overlay ──────────────────────────────────────
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  stops: const [0.0, 0.3, 0.7, 1.0],
+                  colors: [
+                    Colors.white.withValues(alpha: 0.9),
+                    Colors.white.withValues(alpha: 0.1),
+                    Colors.white.withValues(alpha: 0.1),
+                    Colors.white.withValues(alpha: 0.95),
                   ],
                 ),
               ),
             ),
           ),
-        ),
+
+          // ── Foreground Content ─────────────────────────────────────────────
+          SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 440),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xxl,
+                    vertical: AppSpacing.lg,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // ── Top Brand Header ───────────────────────────────────
+                      Column(
+                        children: [
+                          const SizedBox(height: AppSpacing.md),
+                          Container(
+                            width: 76,
+                            height: 76,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary.withValues(alpha: 0.35),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(20),
+                              child: Image.asset(
+                                'assets/images/adhocx_icon.png',
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          RichText(
+                            text: TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: 'Adhoc',
+                                  style: AppTypography.display(
+                                    color: AppColors.textPrimaryLight,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 34,
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: 'X',
+                                  style: AppTypography.display(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 34,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Your ride. Your way.',
+                            style: AppTypography.bodyLarge(
+                              color: AppColors.textSecondaryLight,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const Spacer(),
+
+                      // ── Bottom Actions (Get Started, Log In, Guest) ────────
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // 1. Get Started Primary Button
+                          AppPrimaryButton(
+                            text: 'Get Started',
+                            onPressed: () => context.push(AppRoutes.signUpScreen),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+
+                          // 2. Log In Outlined Button
+                          SizedBox(
+                            height: 52,
+                            child: OutlinedButton(
+                              onPressed: () => context.push(AppRoutes.signInScreen),
+                              style: OutlinedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: AppColors.primary,
+                                side: const BorderSide(
+                                  color: AppColors.primary,
+                                  width: 1.5,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(AppRadius.md),
+                                ),
+                                elevation: 2,
+                                shadowColor: Colors.black.withValues(alpha: 0.06),
+                              ),
+                              child: Text(
+                                'Log In',
+                                style: AppTypography.body(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+
+                          // 3. Continue as Guest
+                          TextButton(
+                            onPressed: () => context.go(AppRoutes.homeScreen),
+                            child: Text(
+                              'Continue as Guest',
+                              style: AppTypography.caption(
+                                color: AppColors.textSecondaryLight,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

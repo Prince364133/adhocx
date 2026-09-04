@@ -59,9 +59,15 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
     final onboarding = context.read<OnboardingProvider>();
     onboarding.setVehicleDetails(
       vehicleType: _selectedVehicleType,
-      carModel: _modelController.text.trim(),
-      color: _colorController.text.trim(),
-      registrationNumber: _regNumberController.text.trim().toUpperCase(),
+      carModel: _modelController.text.trim().isNotEmpty
+          ? _modelController.text.trim()
+          : 'Honda City',
+      color: _colorController.text.trim().isNotEmpty
+          ? _colorController.text.trim()
+          : 'White',
+      registrationNumber: _regNumberController.text.trim().isNotEmpty
+          ? _regNumberController.text.trim().toUpperCase()
+          : 'HR26 AB 1234',
     );
 
     context.push(AppRoutes.onboardingDocumentsScreen);
@@ -162,43 +168,25 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                     // ── Car Model Input ──────────────────────────────────────
                     AppTextField(
                       controller: _modelController,
-                      label: 'Car Model',
+                      label: 'Car Model (Optional)',
                       hintText: 'Honda City',
-                      validator: (val) {
-                        if (val == null || val.trim().isEmpty) {
-                          return 'Enter car model';
-                        }
-                        return null;
-                      },
                     ),
                     const SizedBox(height: AppSpacing.lg),
 
                     // ── Color Input ──────────────────────────────────────────
                     AppTextField(
                       controller: _colorController,
-                      label: 'Color',
+                      label: 'Color (Optional)',
                       hintText: 'White',
-                      validator: (val) {
-                        if (val == null || val.trim().isEmpty) {
-                          return 'Enter vehicle color';
-                        }
-                        return null;
-                      },
                     ),
                     const SizedBox(height: AppSpacing.lg),
 
                     // ── Registration Number Input ────────────────────────────
                     AppTextField(
                       controller: _regNumberController,
-                      label: 'Registration Number',
+                      label: 'Registration Number (Optional)',
                       hintText: 'HR26 AB 1234',
                       textCapitalization: TextCapitalization.characters,
-                      validator: (val) {
-                        if (val == null || val.trim().length < 6) {
-                          return 'Enter valid vehicle registration number';
-                        }
-                        return null;
-                      },
                     ),
                     const SizedBox(height: AppSpacing.xxxl),
 

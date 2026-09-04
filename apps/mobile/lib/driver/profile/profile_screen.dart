@@ -4,6 +4,11 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../routes/app_routes.dart';
+import '../../services/onboarding_provider.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_radius.dart';
+import '../../theme/app_spacing.dart';
+import '../../theme/app_typography.dart';
 import '../../theme/theme_provider.dart';
 import './modals/incentives_modal.dart';
 import './modals/rate_card_modal.dart';
@@ -20,7 +25,6 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _showLanguageSwitcher = false;
-
   Map<String, dynamic> _driverProfile = {};
   bool _isLoading = true;
 
@@ -45,14 +49,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (response != null && mounted) {
           setState(() {
             _driverProfile = Map<String, dynamic>.from(response);
-
             _driverProfile['name'] = response['full_name'] ?? 'Rahul Sharma';
-            _driverProfile['pan'] = response['pan_number'];
-            _driverProfile['aadhaar'] = response['aadhaar_number'];
-            _driverProfile['account_number'] = response['bank_account_number'];
-            _driverProfile['ifsc'] = response['bank_ifsc'];
+            _driverProfile['phone'] = response['phone'] ?? '+91 98765 43210';
+            _driverProfile['vehicle'] = response['vehicle_number'] != null
+                ? '${response['vehicle_number']} · ${response['vehicle_type'] ?? 'Sedan'}'
+                : 'Honda City · HR26 AB 1234';
             _driverProfile['is_verified'] = response['is_approved'] ?? true;
-            _driverProfile['photo_url'] = response['profile_photo_url'];
           });
         }
       }
@@ -77,25 +79,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _signOut() {
-    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+        ),
         title: Text(
           'Sign Out',
-          style: TextStyle(color: cs.onSurface, fontSize: 18),
+          style: AppTypography.h3(
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         content: Text(
-          'Are you sure you want to sign out?',
-          style: TextStyle(color: cs.onSurfaceVariant),
+          'Are you sure you want to sign out of your AdhocX driver account?',
+          style: AppTypography.body(
+            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text('Cancel', style: TextStyle(color: cs.onSurfaceVariant)),
+            child: Text(
+              'Cancel',
+              style: AppTypography.body(
+                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () {
               Navigator.of(context).pop();
               try {
@@ -103,10 +120,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               } catch (_) {}
               context.go(AppRoutes.signInScreen);
             },
-            child: const Text(
-              'Sign Out',
-              style: TextStyle(color: Color(0xFFef4444)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              elevation: 0,
             ),
+            child: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -126,79 +148,338 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final themeProvider = context.watch<ThemeProvider>();
     final languageProvider = context.watch<LanguageProvider>();
     final currentLang = languageProvider.currentLocale.languageCode.toUpperCase();
+    final onboarding = context.watch<OnboardingProvider>();
+
+    // Dynamic profile resolution
+    final effectiveProfile = {
+      'name': (_driverProfile['name'] != null && _driverProfile['name'].toString().isNotEmpty)
+          ? _driverProfile['name'].toString()
+          : (onboarding.fullName.isNotEmpty ? onboarding.fullName : 'Rahul Sharma'),
+      'phone': (_driverProfile['phone'] != null && _driverProfile['phone'].toString().isNotEmpty)
+          ? _driverProfile['phone'].toString()
+          : (onboarding.phoneNumber.isNotEmpty ? onboarding.phoneNumber : '+91 98765 43210'),
+      'vehicle': (_driverProfile['vehicle'] != null && _driverProfile['vehicle'].toString().isNotEmpty)
+          ? _driverProfile['vehicle'].toString()
+          : (onboarding.registrationNumber.isNotEmpty
+              ? '${onboarding.registrationNumber} · ${onboarding.vehicleType}'
+              : 'Honda City · HR26 AB 1234'),
+      'is_verified': _driverProfile['is_verified'] ?? true,
+      'rating': '4.92',
+      'total_trips': '1,280',
+      'acceptance_rate': '98.5%',
+    };
 
     return Scaffold(
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(cs),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-                children: [
-                  _isLoading
-                      ? ProfileDriverCardWidget(
-                          profile: const {
-                            'name': 'Rahul Sharma',
-                            'phone': '+91 98765 43210',
-                            'is_verified': true,
-                          },
-                          onTap: () => context.push(AppRoutes.personalInfoScreen),
-                        )
-                      : ProfileDriverCardWidget(
-                          profile: _driverProfile,
-                          onTap: () => context.push(AppRoutes.personalInfoScreen),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Column(
+              children: [
+                // ── Modern Brand Header ─────────────────────────────────────
+                _buildHeader(isDark, themeProvider),
+
+                // ── Scrollable Content ───────────────────────────────────────
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.lg,
+                      AppSpacing.lg,
+                      AppSpacing.lg,
+                      100,
+                    ),
+                    children: [
+                      // ── Hero Profile Card ──────────────────────────────────
+                      ProfileDriverCardWidget(
+                        profile: effectiveProfile,
+                        onTap: () => context.push(AppRoutes.personalInfoScreen),
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+
+                      // ── Section 1: Account & Documents ────────────────────
+                      _buildSectionTitle('ACCOUNT & DOCUMENTS', isDark),
+                      const SizedBox(height: AppSpacing.xs),
+                      _buildCardGroup(
+                        isDark: isDark,
+                        children: [
+                          ProfileMenuItemWidget(
+                            icon: Icons.person_outline_rounded,
+                            iconColor: const Color(0xFF6366F1),
+                            label: 'Personal Information',
+                            subtitle: 'Name, contact & profile details',
+                            onTap: () => context.push(AppRoutes.personalInfoScreen),
+                          ),
+                          _divider(isDark),
+                          ProfileMenuItemWidget(
+                            icon: Icons.directions_car_outlined,
+                            iconColor: const Color(0xFF0EA5E9),
+                            label: 'Vehicle Details',
+                            subtitle: 'Car model, plate & specifications',
+                            onTap: () => context.push(AppRoutes.myVehicleScreen),
+                          ),
+                          _divider(isDark),
+                          ProfileMenuItemWidget(
+                            icon: Icons.verified_user_outlined,
+                            iconColor: const Color(0xFF10B981),
+                            label: 'KYC & Verification',
+                            subtitle: 'Driving license, RC & Aadhaar card',
+                            trailing: _buildPill(
+                              text: 'Verified',
+                              color: AppColors.accentGreen,
+                              isDark: isDark,
+                            ),
+                            onTap: () => context.push(AppRoutes.kycVerificationScreen),
+                          ),
+                          _divider(isDark),
+                          ProfileMenuItemWidget(
+                            icon: Icons.shield_outlined,
+                            iconColor: const Color(0xFFF59E0B),
+                            label: 'Account Status & Tier',
+                            subtitle: 'Active partner • Gold Level',
+                            trailing: _buildPill(
+                              text: 'Gold Tier',
+                              color: const Color(0xFFF59E0B),
+                              isDark: isDark,
+                            ),
+                            onTap: () => context.push(AppRoutes.accountStatusScreen),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+
+                      // ── Section 2: Earnings & Incentives ──────────────────
+                      _buildSectionTitle('EARNINGS & INCENTIVES', isDark),
+                      const SizedBox(height: AppSpacing.xs),
+                      _buildCardGroup(
+                        isDark: isDark,
+                        children: [
+                          ProfileMenuItemWidget(
+                            icon: Icons.receipt_long_outlined,
+                            iconColor: const Color(0xFF6366F1),
+                            label: 'Driver Rate Card',
+                            subtitle: 'Standard base fare & distance rates',
+                            onTap: () => _openModal(const RateCardModal()),
+                          ),
+                          _divider(isDark),
+                          ProfileMenuItemWidget(
+                            icon: Icons.emoji_events_outlined,
+                            iconColor: const Color(0xFFEAB308),
+                            label: 'Daily Target Incentives',
+                            subtitle: 'Earn up to ₹1,500 bonus today',
+                            trailing: _buildPill(
+                              text: 'Active',
+                              color: const Color(0xFFEAB308),
+                              isDark: isDark,
+                            ),
+                            onTap: () => _openModal(const IncentivesModal()),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+
+                      // ── Section 3: Preferences & System ───────────────────
+                      _buildSectionTitle('PREFERENCES & SYSTEM', isDark),
+                      const SizedBox(height: AppSpacing.xs),
+                      _buildCardGroup(
+                        isDark: isDark,
+                        children: [
+                          ProfileMenuItemWidget(
+                            icon: Icons.notifications_none_rounded,
+                            iconColor: const Color(0xFF8B5CF6),
+                            label: 'Notifications Feed',
+                            subtitle: 'Dispatch updates & payment alerts',
+                            onTap: () => context.push(AppRoutes.notificationsFeedScreen),
+                          ),
+                          _divider(isDark),
+                          ProfileMenuItemWidget(
+                            icon: Icons.tune_rounded,
+                            iconColor: const Color(0xFF64748B),
+                            label: 'Notification Preferences',
+                            subtitle: 'Sound alerts, push & SMS notifications',
+                            onTap: () => context.push(AppRoutes.notificationsSettingsScreen),
+                          ),
+                          _divider(isDark),
+                          ProfileMenuItemWidget(
+                            icon: Icons.language_rounded,
+                            iconColor: const Color(0xFF3B82F6),
+                            label: 'App Language',
+                            subtitle: 'Select your preferred dialect',
+                            trailing: _buildPill(
+                              text: currentLang,
+                              color: AppColors.primary,
+                              isDark: isDark,
+                            ),
+                            onTap: () => setState(() => _showLanguageSwitcher = !_showLanguageSwitcher),
+                          ),
+                          _divider(isDark),
+                          ProfileMenuItemWidget(
+                            icon: _themeIcon(themeProvider.themeMode),
+                            iconColor: const Color(0xFF22C55E),
+                            label: 'App Theme',
+                            subtitle: 'Light, dark, or system default',
+                            trailing: _buildPill(
+                              text: themeProvider.themeModeLabel,
+                              color: AppColors.accentGreen,
+                              isDark: isDark,
+                            ),
+                            onTap: _showThemeSelector,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+
+                      if (_showLanguageSwitcher) ...[
+                        const LanguageSelectionWidget(),
+                        const SizedBox(height: AppSpacing.xl),
+                      ],
+
+                      // ── Section 4: Support & Security ─────────────────────
+                      _buildSectionTitle('SUPPORT & SECURITY', isDark),
+                      const SizedBox(height: AppSpacing.xs),
+                      _buildCardGroup(
+                        isDark: isDark,
+                        children: [
+                          ProfileMenuItemWidget(
+                            icon: Icons.headset_mic_outlined,
+                            iconColor: const Color(0xFFEC4899),
+                            label: 'Help & 24/7 Support',
+                            subtitle: 'Driver helpline & incident support',
+                            onTap: () => context.push(AppRoutes.helpSupportScreen),
+                          ),
+                          _divider(isDark),
+                          ProfileMenuItemWidget(
+                            icon: Icons.settings_outlined,
+                            iconColor: const Color(0xFF0284C7),
+                            label: 'App Settings',
+                            subtitle: 'Cache, storage & diagnostics',
+                            onTap: () => context.push(AppRoutes.appSettingsScreen),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.xxl),
+
+                      // ── Sign Out Button ────────────────────────────────────
+                      _buildSignOutButton(isDark),
+
+                      const SizedBox(height: AppSpacing.xl),
+
+                      // ── App Version Footer ─────────────────────────────────
+                      Center(
+                        child: Column(
+                          children: [
+                            Text(
+                              'AdhocX Driver Partner • Enterprise Edition',
+                              style: AppTypography.caption(
+                                color: isDark
+                                    ? AppColors.textMutedDark
+                                    : AppColors.textMutedLight,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'v1.4.2 • Build 204 • Made for Logistics Excellence',
+                              style: AppTypography.micro(
+                                color: isDark
+                                    ? AppColors.textMutedDark.withValues(alpha: 0.7)
+                                    : AppColors.textMutedLight.withValues(alpha: 0.7),
+                              ),
+                            ),
+                          ],
                         ),
-                  const SizedBox(height: 20),
-
-                  // ── 6 Profile & Settings Main Menu Section ────────────────
-                  _buildMenuSection(cs, themeProvider, currentLang),
-                  const SizedBox(height: 16),
-
-                  if (_showLanguageSwitcher) ...[
-                    const LanguageSelectionWidget(),
-                    const SizedBox(height: 16),
-                  ],
-
-                  _buildSignOutButton(cs),
-                ],
-              ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildHeader(ColorScheme cs) {
+  Widget _buildHeader(bool isDark, ThemeProvider themeProvider) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md,
+      ),
       decoration: BoxDecoration(
-        color: cs.surface,
-        border: Border(bottom: BorderSide(color: cs.outline, width: 1)),
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+            width: 1,
+          ),
+        ),
       ),
       child: Row(
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.asset(
-              'assets/images/adhocx_logo-1787692728598.png',
-              width: 36,
-              height: 36,
-              fit: BoxFit.cover,
+          Container(
+            width: 38,
+            height: 38,
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF6347F9), Color(0xFF4328E0)],
+              ),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.md - 2),
+              child: Image.asset(
+                'assets/images/adhocx_icon.png',
+                fit: BoxFit.cover,
+              ),
             ),
           ),
-          const SizedBox(width: 12),
-          Text(
-            'Driver Profile & Settings',
-            style: TextStyle(
-              color: cs.onSurface,
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Driver Profile & Settings',
+                  style: AppTypography.h3(
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Manage account, fleet & preferences',
+                  style: AppTypography.micro(
+                    color: isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondaryLight,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: _showThemeSelector,
+            tooltip: 'Toggle Theme',
+            icon: Icon(
+              _themeIcon(themeProvider.themeMode),
+              color: isDark
+                  ? AppColors.textSecondaryDark
+                  : AppColors.textSecondaryLight,
+              size: 20,
             ),
           ),
         ],
@@ -206,138 +487,70 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildMenuSection(ColorScheme cs, ThemeProvider themeProvider, String currentLang) {
+  Widget _buildSectionTitle(String title, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 4),
+      child: Text(
+        title,
+        style: AppTypography.micro(
+          color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCardGroup({
+    required bool isDark,
+    required List<Widget> children,
+  }) {
     return Container(
       decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cs.outline),
-      ),
-      child: Column(
-        children: [
-          // 1. Personal Information
-          ProfileMenuItemWidget(
-            icon: Icons.person_outline_rounded,
-            iconColor: const Color(0xFF6366f1),
-            label: '1. Personal Information',
-            onTap: () => context.push(AppRoutes.personalInfoScreen),
-          ),
-          _divider(cs),
-
-          // 2. Vehicle
-          ProfileMenuItemWidget(
-            icon: Icons.directions_car_rounded,
-            iconColor: const Color(0xFF0ea5e9),
-            label: '2. Vehicle Details',
-            onTap: () => context.push(AppRoutes.myVehicleScreen),
-          ),
-          _divider(cs),
-
-          // 3. KYC & Verification
-          ProfileMenuItemWidget(
-            icon: Icons.verified_user_rounded,
-            iconColor: const Color(0xFF10b981),
-            label: '3. KYC & Verification',
-            onTap: () => context.push(AppRoutes.kycVerificationScreen),
-          ),
-          _divider(cs),
-
-          // 4. Account Status
-          ProfileMenuItemWidget(
-            icon: Icons.account_box_rounded,
-            iconColor: const Color(0xFFf59e0b),
-            label: '4. Account Status',
-            onTap: () => context.push(AppRoutes.accountStatusScreen),
-          ),
-          _divider(cs),
-
-          // 5. Notifications Feed
-          ProfileMenuItemWidget(
-            icon: Icons.notifications_active_rounded,
-            iconColor: const Color(0xFF8b5cf6),
-            label: '5. Notifications Feed',
-            onTap: () => context.push(AppRoutes.notificationsFeedScreen),
-          ),
-          _divider(cs),
-
-          // Notifications Preferences
-          ProfileMenuItemWidget(
-            icon: Icons.tune_rounded,
-            iconColor: const Color(0xFF6366f1),
-            label: 'Notifications Settings',
-            onTap: () => context.push(AppRoutes.notificationsSettingsScreen),
-          ),
-          _divider(cs),
-
-          // 6. App Settings
-          ProfileMenuItemWidget(
-            icon: Icons.settings_rounded,
-            iconColor: const Color(0xFF0284c7),
-            label: 'App Settings',
-            onTap: () => context.push(AppRoutes.appSettingsScreen),
-          ),
-          _divider(cs),
-
-          // 7. Help & Support
-          ProfileMenuItemWidget(
-            icon: Icons.headset_mic_rounded,
-            iconColor: const Color(0xFFec4899),
-            label: '7. Help & Support',
-            onTap: () => context.push(AppRoutes.helpSupportScreen),
-          ),
-          _divider(cs),
-
-          // Driver Rate Card
-          ProfileMenuItemWidget(
-            icon: Icons.speed_rounded,
-            iconColor: const Color(0xFF64748b),
-            label: 'Driver Rate Card',
-            onTap: () => _openModal(const RateCardModal()),
-          ),
-          _divider(cs),
-
-          // Daily Target Incentives
-          ProfileMenuItemWidget(
-            icon: Icons.emoji_events_rounded,
-            iconColor: const Color(0xFFeab308),
-            label: 'Daily Target Incentives',
-            onTap: () => _openModal(const IncentivesModal()),
-          ),
-          _divider(cs),
-
-          // App Language
-          ProfileMenuItemWidget(
-            icon: Icons.language_rounded,
-            iconColor: const Color(0xFF3b82f6),
-            label: 'App Language',
-            trailing: Text(
-              currentLang,
-              style: TextStyle(
-                color: cs.primary,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            onTap: () => setState(() => _showLanguageSwitcher = !_showLanguageSwitcher),
-          ),
-          _divider(cs),
-
-          // App Theme
-          ProfileMenuItemWidget(
-            icon: _themeIcon(themeProvider.themeMode),
-            iconColor: const Color(0xFF22c55e),
-            label: 'App Theme',
-            trailing: Text(
-              themeProvider.themeModeLabel,
-              style: TextStyle(
-                color: cs.primary,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            onTap: _showThemeSelector,
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.15)
+                : const Color(0xFF64748B).withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
         ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        child: Column(
+          children: children,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPill({
+    required String text,
+    required Color color,
+    required bool isDark,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isDark ? 0.2 : 0.12),
+        borderRadius: BorderRadius.circular(AppRadius.full),
+        border: Border.all(
+          color: color.withValues(alpha: isDark ? 0.35 : 0.25),
+        ),
+      ),
+      child: Text(
+        text,
+        style: AppTypography.micro(
+          color: color,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
@@ -353,30 +566,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Widget _buildSignOutButton(ColorScheme cs) {
+  Widget _buildSignOutButton(bool isDark) {
     return SizedBox(
       width: double.infinity,
-      height: 50,
-      child: ElevatedButton.icon(
+      height: 52,
+      child: OutlinedButton.icon(
         onPressed: _signOut,
         icon: const Icon(Icons.logout_rounded, size: 18),
         label: const Text('Sign Out'),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFFef4444).withAlpha(31),
-          foregroundColor: const Color(0xFFef4444),
-          side: const BorderSide(color: Color(0xFFef4444), width: 1),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+        style: OutlinedButton.styleFrom(
+          backgroundColor: isDark
+              ? AppColors.errorContainer.withValues(alpha: 0.15)
+              : AppColors.errorContainer.withValues(alpha: 0.4),
+          foregroundColor: isDark ? const Color(0xFFF87171) : AppColors.error,
+          side: BorderSide(
+            color: isDark
+                ? AppColors.error.withValues(alpha: 0.4)
+                : AppColors.error.withValues(alpha: 0.3),
+            width: 1,
           ),
-          textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+          ),
+          textStyle: AppTypography.body(fontWeight: FontWeight.bold),
         ),
       ),
     );
   }
 
-  Widget _divider(ColorScheme cs) =>
-      Divider(color: cs.outline, height: 1, indent: 16, endIndent: 16);
+  Widget _divider(bool isDark) => Divider(
+        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        height: 1,
+        indent: AppSpacing.lg + 38 + AppSpacing.md,
+        endIndent: AppSpacing.lg,
+      );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -401,65 +624,76 @@ class _ThemeSelectorSheetState extends State<_ThemeSelectorSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final options = [
-      _ThemeOption(
+      const _ThemeOption(
         mode: ThemeMode.system,
         icon: Icons.brightness_auto_rounded,
         label: 'System Default',
-        subtitle: 'Follow device setting',
+        subtitle: 'Syncs automatically with your device settings',
       ),
-      _ThemeOption(
+      const _ThemeOption(
         mode: ThemeMode.light,
         icon: Icons.light_mode_rounded,
-        label: 'Light',
-        subtitle: 'Always use light theme',
+        label: 'Light Mode',
+        subtitle: 'Crisp white & clean enterprise theme',
       ),
-      _ThemeOption(
+      const _ThemeOption(
         mode: ThemeMode.dark,
         icon: Icons.dark_mode_rounded,
-        label: 'Dark',
-        subtitle: 'Always use dark theme',
+        label: 'Dark Mode',
+        subtitle: 'Sleek operational night-friendly theme',
       ),
     ];
 
     return Container(
       decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        border: Border(top: BorderSide(color: cs.outline, width: 1)),
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+        border: Border(
+          top: BorderSide(
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+            width: 1,
+          ),
+        ),
       ),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.xl,
+        AppSpacing.md,
+        AppSpacing.xl,
+        AppSpacing.xxl,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Center(
             child: Container(
-              width: 40,
-              height: 4,
+              width: 44,
+              height: 5,
               decoration: BoxDecoration(
-                color: cs.outline,
-                borderRadius: BorderRadius.circular(2),
+                color: isDark ? AppColors.borderDark : AppColors.borderSubtleLight,
+                borderRadius: BorderRadius.circular(AppRadius.full),
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpacing.lg),
           Text(
-            'Choose Theme',
-            style: TextStyle(
-              color: cs.onSurface,
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
+            'Choose Appearance',
+            style: AppTypography.h2(
+              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
-            'Select your preferred appearance',
-            style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
+            'Select your preferred visual style',
+            style: AppTypography.caption(
+              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+            ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpacing.lg),
           ...options.map((opt) {
             final isSelected = _selected == opt.mode;
             return GestureDetector(
@@ -469,67 +703,69 @@ class _ThemeSelectorSheetState extends State<_ThemeSelectorSheet> {
                 if (context.mounted) Navigator.of(context).pop();
               },
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                margin: const EdgeInsets.only(bottom: 10),
+                duration: const Duration(milliseconds: 180),
+                margin: const EdgeInsets.only(bottom: AppSpacing.sm),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.md,
                 ),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? cs.primary.withAlpha(26)
-                      : cs.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(12),
+                      ? AppColors.primary.withValues(alpha: isDark ? 0.18 : 0.08)
+                      : (isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                   border: Border.all(
-                    color: isSelected ? cs.primary : cs.outline,
+                    color: isSelected
+                        ? AppColors.primary
+                        : (isDark ? AppColors.borderDark : AppColors.borderLight),
                     width: isSelected ? 1.5 : 1,
                   ),
                 ),
                 child: Row(
                   children: [
                     Container(
-                      width: 40,
-                      height: 40,
+                      width: 42,
+                      height: 42,
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? cs.primary.withAlpha(38)
-                            : cs.outline.withAlpha(80),
-                        borderRadius: BorderRadius.circular(10),
+                            ? AppColors.primary.withValues(alpha: isDark ? 0.3 : 0.15)
+                            : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                        borderRadius: BorderRadius.circular(AppRadius.md),
                       ),
                       child: Icon(
                         opt.icon,
-                        color: isSelected ? cs.primary : cs.onSurfaceVariant,
+                        color: isSelected
+                            ? AppColors.primary
+                            : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
                         size: 20,
                       ),
                     ),
-                    const SizedBox(width: 14),
+                    const SizedBox(width: AppSpacing.md),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             opt.label,
-                            style: TextStyle(
-                              color: cs.onSurface,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
+                            style: AppTypography.body(
+                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
                             ),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             opt.subtitle,
-                            style: TextStyle(
-                              color: cs.onSurfaceVariant,
-                              fontSize: 12,
+                            style: AppTypography.caption(
+                              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                             ),
                           ),
                         ],
                       ),
                     ),
                     if (isSelected)
-                      Icon(
+                      const Icon(
                         Icons.check_circle_rounded,
-                        color: cs.primary,
+                        color: AppColors.primary,
                         size: 22,
                       ),
                   ],

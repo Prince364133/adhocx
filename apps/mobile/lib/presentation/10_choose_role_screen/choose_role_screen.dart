@@ -83,30 +83,30 @@ class _ChooseRoleScreenState extends State<ChooseRoleScreen> {
                   ),
                   const SizedBox(height: AppSpacing.xxl),
 
-                  // ── Role 1: Driver Partner ─────────────────────────────────
+                  // ── Role 1: User / Booker ─────────────────────────────────
                   AppRoleSelectCard(
-                    role: 'DRIVER',
-                    title: 'Driver',
-                    subtitle: 'I want to drive and earn',
-                    isSelected: _selectedRole == 'DRIVER',
-                    onTap: () => setState(() => _selectedRole = 'DRIVER'),
+                    role: 'USER',
+                    title: 'Book Rides & Bulk Fleets',
+                    subtitle: 'For outstation trips, events & corporate travel',
+                    isSelected: _selectedRole == 'USER' || _selectedRole == 'VENDOR',
+                    onTap: () => setState(() => _selectedRole = 'USER'),
                     iconWidget: const Icon(
-                      Icons.drive_eta_rounded,
+                      Icons.person_pin_circle_rounded,
                       size: 32,
                       color: AppColors.primary,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
 
-                  // ── Role 2: Fleet Vendor ───────────────────────────────────
+                  // ── Role 2: Driver Partner ─────────────────────────────────
                   AppRoleSelectCard(
-                    role: 'VENDOR',
-                    title: 'Vendor',
-                    subtitle: 'I want to create trip requirements',
-                    isSelected: _selectedRole == 'VENDOR',
-                    onTap: () => setState(() => _selectedRole = 'VENDOR'),
+                    role: 'DRIVER',
+                    title: 'Driver Partner',
+                    subtitle: 'Drive your vehicle and earn with verified rides',
+                    isSelected: _selectedRole == 'DRIVER',
+                    onTap: () => setState(() => _selectedRole = 'DRIVER'),
                     iconWidget: const Icon(
-                      Icons.local_shipping_rounded,
+                      Icons.drive_eta_rounded,
                       size: 32,
                       color: AppColors.primary,
                     ),

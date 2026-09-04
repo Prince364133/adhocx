@@ -43,12 +43,13 @@ export interface DriverListItem {
 
 export interface DriverKycDocument {
   id: string;
-  documentType: 'DL_FRONT' | 'DL_BACK' | 'RC_BOOK' | 'INSURANCE' | 'VEHICLE_PHOTO' | 'AADHAAR';
-  title: string;
+  documentType: 'DL_FRONT' | 'DL_BACK' | 'RC_BOOK' | 'INSURANCE' | 'VEHICLE_PHOTO' | 'AADHAAR' | string;
+  title?: string;
   fileUrl: string;
   verified: boolean;
   notes?: string;
-  uploadedAt: string;
+  uploadedAt?: string;
+  createdAt?: string;
 }
 
 export interface DriverDetail extends DriverListItem {
@@ -73,6 +74,8 @@ export interface VendorListItem {
   createdAt: string;
   updatedAt?: string;
 }
+
+export type UserListItem = VendorListItem;
 
 export interface VerificationItem {
   id: string;

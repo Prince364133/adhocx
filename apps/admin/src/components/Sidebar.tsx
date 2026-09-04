@@ -3,12 +3,13 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { AdhocxBrandLogo } from './AdhocxBrandLogo';
 
 const navItems = [
   { href: '/dashboard', label: 'Overview', icon: '📊' },
   { href: '/verifications', label: 'Verification Center', icon: '🛡️' },
   { href: '/drivers', label: 'Driver Fleet', icon: '🪪' },
-  { href: '/vendors', label: 'Vendors', icon: '🏢' },
+  { href: '/users', label: 'Users', icon: '🏢' },
   { href: '/requirements', label: 'Requirements', icon: '📋' },
   { href: '/trips', label: 'Trips & Telemetry', icon: '🚗' },
   { href: '/settlements', label: 'Settlements', icon: '💰' },
@@ -23,37 +24,11 @@ export const Sidebar: React.FC = () => {
     <aside className="admin-sidebar">
       <div
         style={{
-          padding: '1.5rem',
+          padding: '1.25rem 1.5rem',
           borderBottom: '1px solid var(--border)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.75rem',
         }}
       >
-        <div
-          style={{
-            width: '36px',
-            height: '36px',
-            borderRadius: '8px',
-            background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 800,
-            fontSize: '1.125rem',
-            color: '#fff',
-          }}
-        >
-          A
-        </div>
-        <div>
-          <div style={{ fontWeight: 800, fontSize: '1.125rem', letterSpacing: '-0.02em' }}>
-            AdhocX
-          </div>
-          <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-            Control Portal
-          </div>
-        </div>
+        <AdhocxBrandLogo size={36} subtitle="Control Portal" />
       </div>
 
       <nav style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.375rem', flex: 1 }}>

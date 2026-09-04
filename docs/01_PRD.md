@@ -49,9 +49,9 @@ Visual implementation details belong primarily in:
 
 # 2. Product Overview
 
-AdhocX is a B2B transportation fulfillment marketplace that helps corporate transport vendors source verified commercial cabs and drivers for adhoc transportation requirements.
+AdhocX is a B2B transportation fulfillment marketplace that helps corporate transport users source verified commercial cabs and drivers for adhoc transportation requirements.
 
-The current problem is that vendors frequently depend on Telegram and WhatsApp groups to locate additional vehicles when their existing fleet cannot satisfy a corporate requirement.
+The current problem is that users frequently depend on Telegram and WhatsApp groups to locate additional vehicles when their existing fleet cannot satisfy a corporate requirement.
 
 This creates:
 
@@ -77,17 +77,17 @@ Build a fast, reliable and operationally transparent platform for adhoc corporat
 The long-term product vision is to become infrastructure connecting:
 
 * Corporate transport demand
-* Transport vendors
+* Transport users
 * Verified commercial drivers
 * Available vehicle supply
 
-The V1 product will focus specifically on the vendor-to-driver fulfillment workflow.
+The V1 product will focus specifically on the user-to-driver fulfillment workflow.
 
 ---
 
 # 4. Product Mission
 
-AdhocX should allow a transport vendor to transform:
+AdhocX should allow a transport user to transform:
 
 > "I need additional vehicles."
 
@@ -103,23 +103,23 @@ without requiring Telegram groups, WhatsApp groups, repeated phone calls or manu
 
 ## 5.1 Current Business Model
 
-The initial marketplace serves transport vendors.
+The initial marketplace serves transport users.
 
 Example:
 
-A vendor has a corporate transportation contract requiring 50 vehicles.
+A user has a corporate transportation contract requiring 50 vehicles.
 
-The vendor has only 40 suitable vehicles available.
+The user has only 40 suitable vehicles available.
 
-The vendor needs an additional 10 vehicles.
+The user needs an additional 10 vehicles.
 
-Today, the vendor may search Telegram/WhatsApp groups for drivers or vehicle owners.
+Today, the user may search Telegram/WhatsApp groups for drivers or vehicle owners.
 
 AdhocX digitizes that process.
 
 ### Current flow
 
-Vendor:
+User:
 
 1. Creates a requirement.
 2. Specifies vehicle type.
@@ -139,25 +139,25 @@ Vendor:
 
 # 6. Long-Term Business Direction
 
-The long-term business may expand beyond vendors and allow corporate organizations to submit transportation requirements directly.
+The long-term business may expand beyond users and allow corporate organizations to submit transportation requirements directly.
 
 Potential future flow:
 
 Corporate → AdhocX → Verified Supply
 
-The architecture should therefore avoid unnecessarily coupling the demand model to the Vendor entity.
+The architecture should therefore avoid unnecessarily coupling the demand model to the User entity.
 
 However:
 
 ## Direct corporate transportation procurement is NOT part of V1.
 
-The V1 product is focused on vendor-driven adhoc fulfillment.
+The V1 product is focused on user-driven adhoc fulfillment.
 
 ---
 
 # 7. Target Users
 
-## 7.1 Vendor
+## 7.1 User
 
 A transport company or transport operator responsible for fulfilling corporate transportation requirements.
 
@@ -203,7 +203,7 @@ Primary responsibilities:
 
 * Monitor operations
 * Verify drivers
-* Approve vendors
+* Approve users
 * Manage pricing
 * Manage settlements
 * Review reports
@@ -224,7 +224,7 @@ Technology is defined separately by the architecture documentation.
 
 The mobile application contains two role experiences:
 
-### Vendor
+### User
 
 ### Driver
 
@@ -272,7 +272,7 @@ Admin functionality must eventually provide visibility into operational failures
 
 ## 9.5 Trust
 
-Drivers and vendors must be verified before participating in the marketplace.
+Drivers and users must be verified before participating in the marketplace.
 
 ---
 
@@ -292,7 +292,7 @@ Payments, earnings and settlements must be traceable.
 
 The primary V1 objective is:
 
-> Enable a verified transport vendor to submit an adhoc vehicle requirement and reliably obtain verified driver/vehicle assignments through automated marketplace dispatch.
+> Enable a verified transport user to submit an adhoc vehicle requirement and reliably obtain verified driver/vehicle assignments through automated marketplace dispatch.
 
 The system must demonstrate that the manual Telegram/WhatsApp sourcing process can be replaced by a structured digital workflow.
 
@@ -302,15 +302,15 @@ The system must demonstrate that the manual Telegram/WhatsApp sourcing process c
 
 The V1 should demonstrate:
 
-1. Vendors can successfully onboard.
+1. Users can successfully onboard.
 2. Drivers can successfully onboard.
 3. Drivers can complete verification.
-4. Vendors can create requirements.
+4. Users can create requirements.
 5. The system can identify eligible drivers.
 6. Drivers receive trip offers.
 7. Drivers can accept or decline.
 8. The system can prevent over-assignment.
-9. Vendors can see assignments in real time.
+9. Users can see assignments in real time.
 10. Drivers can execute the trip lifecycle.
 11. Trips can be completed.
 12. Driver earnings can be calculated.
@@ -324,7 +324,7 @@ The V1 should demonstrate:
 The primary workflow is:
 
 ```text
-Vendor
+User
    ↓
 Create Requirement
    ↓
@@ -357,13 +357,13 @@ Earnings Created
 Settlement
 ```
 
-The supplied PRD defines the core workflow as vendor posting → nearby driver notification → driver acceptance → vendor confirmation → pickup → OTP → completion → settlement.
+The supplied PRD defines the core workflow as user posting → nearby driver notification → driver acceptance → user confirmation → pickup → OTP → completion → settlement.
 
 ---
 
-# 13. Vendor Requirements
+# 13. User Requirements
 
-A vendor must be able to create a transportation requirement.
+A user must be able to create a transportation requirement.
 
 A requirement should contain, at minimum:
 
@@ -578,7 +578,7 @@ Completion must trigger the appropriate downstream processes, including:
 
 * Trip state update
 * Earnings calculation
-* Vendor status update
+* User status update
 * Driver notification
 * Settlement/accounting workflow
 * Audit/event record
@@ -618,20 +618,20 @@ The exact rules are:
 
 ---
 
-# 26. Vendor Payments
+# 26. User Payments
 
-The vendor must be able to view relevant payment information.
+The user must be able to view relevant payment information.
 
 The final commercial model must define:
 
-* When the vendor is charged
+* When the user is charged
 * Whether payment occurs before dispatch
 * Whether payment is authorized before dispatch and captured after completion
 * Cancellation charges
 * Refunds
 * Platform fees
 * Driver earnings
-* Vendor settlement
+* User settlement
 
 These rules must be finalized before production payment implementation.
 
@@ -661,12 +661,12 @@ Initial capabilities:
 * Suspension
 * Driver details
 
-### Vendors
+### Users
 
-* Vendor applications
-* Vendor approval
-* Vendor status
-* Vendor details
+* User applications
+* User approval
+* User status
+* User details
 
 ### Trips
 
@@ -717,16 +717,16 @@ A driver must not receive production trip offers until required verification con
 
 ---
 
-# 29. Vendor Onboarding
+# 29. User Onboarding
 
-Vendor onboarding must support:
+User onboarding must support:
 
 * OTP authentication
-* Vendor information
+* User information
 * Required business information
 * Verification/approval workflow
 
-Unapproved vendors must not access restricted marketplace functionality.
+Unapproved users must not access restricted marketplace functionality.
 
 ---
 
@@ -754,9 +754,9 @@ Authentication alone is not sufficient.
 
 Example:
 
-A vendor may access its own requirements.
+A user may access its own requirements.
 
-It must not automatically access another vendor's requirements simply because the user is authenticated.
+It must not automatically access another user's requirements simply because the user is authenticated.
 
 ---
 
@@ -778,7 +778,7 @@ Potential notification events include:
 * Payment status
 * Settlement status
 
-The PRD requires real-time updates for vendors and drivers throughout the trip lifecycle.
+The PRD requires real-time updates for users and drivers throughout the trip lifecycle.
 
 ---
 
@@ -786,7 +786,7 @@ The PRD requires real-time updates for vendors and drivers throughout the trip l
 
 The system should provide real-time operational updates where appropriate.
 
-Vendor example:
+User example:
 
 ```text
 Requirement
@@ -824,7 +824,7 @@ The exact location update frequency, background tracking requirements and retent
 
 # 35. Maps
 
-The product requires map functionality for relevant driver/vendor workflows.
+The product requires map functionality for relevant driver/user workflows.
 
 Maps must be used to support operational tasks rather than as decorative UI.
 
@@ -843,7 +843,7 @@ Primary use cases:
 V1 must explicitly handle:
 
 * Driver cancellation
-* Vendor cancellation
+* User cancellation
 * No driver available
 * Passenger no-show
 * Network loss
@@ -912,7 +912,7 @@ The initial product domain includes:
 Users
 Drivers
 Vehicles
-Vendors
+Users
 Requirements
 Trips
 Offers
@@ -924,13 +924,13 @@ Notifications
 Audit Logs
 ```
 
-The supplied PRD identifies Users, Drivers, Vendors, Trips and Payments as core database entities.
+The supplied PRD identifies Users, Drivers, Users, Trips and Payments as core database entities.
 
 The final database model is defined in `09_DATABASE.md`.
 
 ---
 
-# 41. Vendor Features — V1
+# 41. User Features — V1
 
 ## Authentication
 
@@ -980,10 +980,10 @@ The final database model is defined in `09_DATABASE.md`.
 
 ## Profile
 
-* Vendor information
+* User information
 * Account settings
 
-The core vendor capabilities are consistent with the supplied PRD.
+The core user capabilities are consistent with the supplied PRD.
 
 ---
 
@@ -1058,11 +1058,11 @@ These features align with the supplied driver scope.
 * Driver status
 * Suspension/activation
 
-## Vendor Management
+## User Management
 
-* Vendor approval
-* Vendor status
-* Vendor information
+* User approval
+* User status
+* User information
 
 ## Trip Management
 
@@ -1099,11 +1099,11 @@ These capabilities align with the supplied admin scope.
 The V1 MVP includes:
 
 ```text
-Vendor onboarding
+User onboarding
 Driver onboarding
 Driver KYC
 Vehicle registration
-Vendor requirement creation
+User requirement creation
 Bulk posting
 Driver availability
 Geospatial matching
@@ -1159,7 +1159,7 @@ AdhocX V1 is not intended to:
 4. Operate as a consumer taxi marketplace.
 5. Become a general-purpose logistics marketplace.
 6. Build a social network for drivers.
-7. Replace every function of a transport vendor's existing operational system.
+7. Replace every function of a transport user's existing operational system.
 
 ---
 
@@ -1188,7 +1188,7 @@ Sensitive user, KYC and payment information must be protected.
 The architecture must allow increasing:
 
 * Drivers
-* Vendors
+* Users
 * Requirements
 * Offers
 * Assignments
@@ -1226,7 +1226,7 @@ The supplied PRD identifies:
 * Assignment time
 * Fulfillment rate
 * Cancellation rate
-* Vendor retention
+* User retention
 * Trips per day
 
 as core success metrics.
@@ -1240,7 +1240,7 @@ V1 should additionally measure:
 * Requirement failure rate
 * Payment success rate
 * Settlement accuracy
-* Repeat vendor usage
+* Repeat user usage
 
 ---
 
@@ -1269,9 +1269,9 @@ Cancelled Assignments / Total Assignments
 Accepted Offers / Offers Sent
 ```
 
-## Vendor Retention
+## User Retention
 
-Percentage of vendors returning to use the marketplace over a defined period.
+Percentage of users returning to use the marketplace over a defined period.
 
 Exact reporting periods are TBD.
 
@@ -1302,7 +1302,7 @@ The initial roles are:
 
 ```text
 ADMIN
-VENDOR
+USER
 DRIVER
 ```
 
@@ -1316,7 +1316,7 @@ Detailed permissions belong in:
 
 The mobile application must adapt to role.
 
-## Vendor
+## User
 
 Primary navigation:
 
@@ -1352,7 +1352,7 @@ Primary navigation:
 Dashboard
 Trips
 Drivers
-Vendors
+Users
 Payments
 Settlements
 Pricing
@@ -1407,9 +1407,9 @@ The driver must not need to navigate through unnecessary screens to perform core
 
 ---
 
-# 57. Vendor UX Priority
+# 57. User UX Priority
 
-The vendor experience should optimize:
+The user experience should optimize:
 
 ```text
 Create Requirement
@@ -1420,7 +1420,7 @@ Track Trips
 Review Payments
 ```
 
-The vendor must quickly understand:
+The user must quickly understand:
 
 ```text
 Requested
@@ -1456,13 +1456,13 @@ The following business decisions must be finalized before the relevant productio
 
 * Per-trip pricing model
 * Vehicle-specific pricing
-* Vendor pricing
+* User pricing
 * Platform commission
 * Driver payout
 
 ### Payment
 
-* When vendor pays
+* When user pays
 * Authorization vs capture
 * Refund rules
 * Cancellation fees
@@ -1485,7 +1485,7 @@ The following business decisions must be finalized before the relevant productio
 
 ### Cancellation
 
-* Vendor cancellation policy
+* User cancellation policy
 * Driver cancellation policy
 * Penalties
 * Reassignment behavior
@@ -1506,9 +1506,9 @@ These are deliberately not invented in this PRD.
 V1 is product-ready only when the following end-to-end workflow works reliably:
 
 ```text
-Vendor registers
+User registers
         ↓
-Vendor approved
+User approved
         ↓
 Driver registers
         ↓
@@ -1518,7 +1518,7 @@ Driver adds eligible vehicle
         ↓
 Driver goes online
         ↓
-Vendor creates requirement
+User creates requirement
         ↓
 System finds eligible driver supply
         ↓
@@ -1528,7 +1528,7 @@ Drivers accept
         ↓
 Required number assigned
         ↓
-Vendor sees assignments
+User sees assignments
         ↓
 Driver navigates to pickup
         ↓
@@ -1557,7 +1557,7 @@ The system must also correctly handle:
 Driver declines
 Driver offer expires
 Driver cancels
-Vendor cancels
+User cancels
 Insufficient driver supply
 Network interruption
 Duplicate accept request
@@ -1602,7 +1602,7 @@ Client applications must never be treated as authoritative sources of business s
 The V1 product must be designed so that:
 
 ```text
-Vendor Demand
+User Demand
       ↓
 Requirement
       ↓
@@ -1629,7 +1629,7 @@ This is a future-readiness principle, not a V1 feature.
 
 # 64. Future Product Direction
 
-After successful validation of the V1 vendor marketplace, potential future capabilities include:
+After successful validation of the V1 user marketplace, potential future capabilities include:
 
 * Direct corporate onboarding
 * Corporate transportation requirements
@@ -1741,7 +1741,7 @@ The essence of AdhocX V1 can be summarized as:
 
               Corporate Demand
                      │
-                  Vendor
+                  User
                      │
                      ▼
               Vehicle Requirement
@@ -1771,13 +1771,13 @@ The essence of AdhocX V1 can be summarized as:
                  Settlement
 ```
 
-The product succeeds when this process becomes substantially faster, more reliable and more transparent than the vendor's existing Telegram/WhatsApp workflow.
+The product succeeds when this process becomes substantially faster, more reliable and more transparent than the user's existing Telegram/WhatsApp workflow.
 
 ---
 
 # 70. Final V1 Product Statement
 
-> **AdhocX is a B2B transportation fulfillment marketplace that enables verified transport vendors to rapidly source, assign and manage additional commercial vehicles and drivers through automated geographic matching and dispatch, replacing fragmented manual sourcing workflows with a reliable digital operational system.**
+> **AdhocX is a B2B transportation fulfillment marketplace that enables verified transport users to rapidly source, assign and manage additional commercial vehicles and drivers through automated geographic matching and dispatch, replacing fragmented manual sourcing workflows with a reliable digital operational system.**
 
 The V1 is intentionally narrow.
 

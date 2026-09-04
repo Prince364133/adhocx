@@ -75,7 +75,7 @@ class _TripsHeaderWidgetState extends State<TripsHeaderWidget>
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(9),
                   child: Image.asset(
-                    'assets/images/adhocx_logo-1787777820661.png',
+                    'assets/images/adhocx_icon.png',
                     width: 36,
                     height: 36,
                     fit: BoxFit.contain,

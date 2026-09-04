@@ -516,7 +516,7 @@ The production database remains authoritative for:
 
 ```text
 users
-vendors
+users
 drivers
 vehicles
 requirements

@@ -35,13 +35,14 @@ class UserModel {
   }
 
   bool get isDriver => role == 'DRIVER';
-  bool get isVendor => role == 'VENDOR';
+  bool get isUser => role == 'USER' || role == 'VENDOR';
+  bool get isVendor => isUser;
 
   String get verificationStatus {
     if (isDriver && driverProfile != null) {
       return driverProfile!['verificationStatus'] ?? 'PENDING';
     }
-    if (isVendor && vendorProfile != null) {
+    if (vendorProfile != null) {
       return vendorProfile!['verificationStatus'] ?? 'PENDING';
     }
     return 'PENDING';
@@ -56,7 +57,7 @@ class UserModel {
     if (isDriver && driverProfile != null) {
       return driverProfile!['rejectionReason'];
     }
-    if (isVendor && vendorProfile != null) {
+    if (vendorProfile != null) {
       return vendorProfile!['rejectionReason'];
     }
     return null;

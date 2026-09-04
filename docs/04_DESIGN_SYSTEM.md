@@ -102,7 +102,7 @@ Technology:
 
 Used by:
 
-* Vendor
+* User
 * Driver
 
 The application must feel native to Android/iOS.
@@ -604,7 +604,7 @@ Examples:
 ```text
 Cancel Requirement
 Reject Driver
-Suspend Vendor
+Suspend User
 ```
 
 Destructive actions should require appropriate confirmation when the consequence is significant.
@@ -804,7 +804,7 @@ Navigation should be simple.
 
 Potential primary sections:
 
-### Vendor
+### User
 
 ```text
 Home
@@ -845,7 +845,7 @@ Operations
 
 Marketplace
   Drivers
-  Vendors
+  Users
 
 Finance
   Payments
@@ -875,7 +875,7 @@ Typical table columns:
 ```text
 ID
 Status
-Vendor
+User
 Driver
 Vehicle
 Location
@@ -1208,11 +1208,11 @@ Explore → Navigate → Search → Act
 
 ---
 
-# 45. Vendor UX Priority
+# 45. User UX Priority
 
-Vendor UX should optimize for fulfillment visibility.
+User UX should optimize for fulfillment visibility.
 
-The Vendor should quickly understand:
+The User should quickly understand:
 
 ```text
 What did I request?
@@ -1625,7 +1625,7 @@ AdhocX should use different information densities for different surfaces.
 
 Low density.
 
-### Vendor
+### User
 
 Moderate density.
 

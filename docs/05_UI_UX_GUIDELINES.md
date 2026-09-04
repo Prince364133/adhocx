@@ -22,7 +22,7 @@ It establishes:
 * Feedback behavior.
 * Loading/error/empty behavior.
 * Mobile UX.
-* Vendor UX.
+* User UX.
 * Driver UX.
 * Admin UX.
 * Operational workflow presentation.
@@ -94,7 +94,7 @@ should provide an obvious path to:
 View fulfillment
 ```
 
-rather than forcing the Vendor to navigate elsewhere.
+rather than forcing the User to navigate elsewhere.
 
 ---
 
@@ -118,11 +118,11 @@ This is especially important for Driver UX.
 
 # 4. Role-Specific UX Philosophy
 
-## Vendor
+## User
 
-Vendor needs **control and visibility**.
+User needs **control and visibility**.
 
-The Vendor should quickly understand:
+The User should quickly understand:
 
 ```text
 What did I request?
@@ -206,7 +206,7 @@ Navigation must adapt to the active role.
 
 ---
 
-# 7. Vendor Navigation
+# 7. User Navigation
 
 Recommended primary structure:
 
@@ -273,7 +273,7 @@ Operations
 
 Marketplace
 ├── Drivers
-└── Vendors
+└── Users
 
 Finance
 ├── Payments
@@ -303,7 +303,7 @@ It should answer:
 
 ---
 
-# 11. Vendor Home
+# 11. User Home
 
 Priority order:
 
@@ -380,7 +380,7 @@ It should surface:
 * fulfillment problems
 * active trips
 * pending driver verification
-* vendor approvals
+* user approvals
 * payment/settlement issues
 * operational alerts
 
@@ -496,7 +496,7 @@ The user should see the system move to the new state.
 
 # 18. Requirement Creation UX
 
-Vendor flow:
+User flow:
 
 ```text
 Create Requirement
@@ -524,7 +524,7 @@ The exact fields are defined by the feature and screen specification documents.
 
 # 19. Requirement Creation Principle
 
-Do not overwhelm the Vendor with every possible configuration at once.
+Do not overwhelm the User with every possible configuration at once.
 
 Required information should be presented first.
 
@@ -570,7 +570,7 @@ This reduces accidental operational requests.
 
 Fulfillment is the core AdhocX experience.
 
-A Vendor should be able to understand quantity progress immediately.
+A User should be able to understand quantity progress immediately.
 
 Example:
 
@@ -877,7 +877,7 @@ This will stop the current fulfillment process.
 
 # 34. No Driver Available
 
-The system should never leave the Vendor staring at an unexplained spinner.
+The system should never leave the User staring at an unexplained spinner.
 
 If no eligible Drivers are currently available:
 
@@ -1008,7 +1008,7 @@ Status
 
 ```text
 Status
-Vendor
+User
 Driver
 Date
 Vehicle Type
@@ -1018,7 +1018,7 @@ Vehicle Type
 
 ```text
 Status
-Vendor
+User
 Vehicle Type
 Date
 Fulfillment
@@ -1202,7 +1202,7 @@ Realtime events should update relevant UI state.
 Example:
 
 ```text
-Vendor requirement
+User requirement
 14 assigned
         ↓
 Realtime event
@@ -1210,7 +1210,7 @@ Realtime event
 15 assigned
 ```
 
-The Vendor should not need to manually refresh for every normal lifecycle update when realtime infrastructure is available.
+The User should not need to manually refresh for every normal lifecycle update when realtime infrastructure is available.
 
 ---
 
@@ -1373,7 +1373,7 @@ or:
 Trip Issue
 Investigate
 Contact Driver
-Contact Vendor
+Contact User
 ```
 
 Administrative power must map to business operations.
@@ -1412,9 +1412,9 @@ without explanation.
 
 ---
 
-# 57. Vendor Onboarding UX
+# 57. User Onboarding UX
 
-Vendor onboarding should similarly communicate:
+User onboarding should similarly communicate:
 
 ```text
 Registration
@@ -1426,7 +1426,7 @@ Review
 Approved / Rejected
 ```
 
-A Vendor awaiting approval should understand why certain marketplace functions are unavailable.
+A User awaiting approval should understand why certain marketplace functions are unavailable.
 
 ---
 
@@ -1676,9 +1676,9 @@ The app should not require a Driver to perform complicated workflows during acti
 
 ---
 
-# 71. Vendor Operational Speed
+# 71. User Operational Speed
 
-A Vendor posting a requirement may be under time pressure.
+A User posting a requirement may be under time pressure.
 
 Therefore:
 
@@ -2076,7 +2076,7 @@ AdhocX should feel fast because the **workflow is fast**, not because the interf
 A successful AdhocX experience should feel like:
 
 ```text
-Vendor:
+User:
 "I posted the requirement and immediately know
 how many vehicles are fulfilled."
 

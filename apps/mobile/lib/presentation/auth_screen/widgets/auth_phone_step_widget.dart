@@ -157,8 +157,8 @@ class _AuthPhoneStepWidgetState extends State<AuthPhoneStepWidget> {
                     ),
                     SegmentItem(
                       value: 'VENDOR',
-                      label: 'Fleet Vendor',
-                      icon: Icons.business_rounded,
+                      label: 'User / Booker',
+                      icon: Icons.person_rounded,
                     ),
                   ],
                   selectedValue: _role,
@@ -174,37 +174,25 @@ class _AuthPhoneStepWidgetState extends State<AuthPhoneStepWidget> {
           if (_isRegister) ...[
             AppTextField(
               controller: _nameController,
-              label: 'Full Name',
+              label: 'Full Name (Optional)',
               hint: isDriver ? 'e.g. Ramesh Kumar' : 'e.g. Sarah Jenkins',
               prefixIcon: const Icon(
                 Icons.person_outline_rounded,
                 color: AppColors.textSecondaryDark,
                 size: 20,
               ),
-              validator: (v) {
-                if (_isRegister && (v == null || v.trim().isEmpty)) {
-                  return 'Please enter your full name';
-                }
-                return null;
-              },
             ),
             const SizedBox(height: AppSpacing.md),
             if (!isDriver) ...[
               AppTextField(
                 controller: _companyController,
-                label: 'Company / Organization Name',
+                label: 'Company / Organization Name (Optional)',
                 hint: 'e.g. Horizon Logistics Pvt Ltd',
                 prefixIcon: const Icon(
                   Icons.business_outlined,
                   color: AppColors.textSecondaryDark,
                   size: 20,
                 ),
-                validator: (v) {
-                  if (_isRegister && !isDriver && (v == null || v.trim().isEmpty)) {
-                    return 'Please enter your organization name';
-                  }
-                  return null;
-                },
               ),
               const SizedBox(height: AppSpacing.md),
             ],

@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Background subtle gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A" />
+      <stop offset="50%" stop-color="#090E1A" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+
+    <!-- Outer Glow / Stroke gradient -->
+    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7C68F5" stop-opacity="0.6" />
+      <stop offset="50%" stop-color="#5B42F3" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#38BDF8" stop-opacity="0.4" />
+    </linearGradient>
+
+    <!-- Primary Diagonal Gradient (Electric Indigo to Royal Purple) -->
+    <linearGradient id="primaryBladeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8B5CF6" />
+      <stop offset="35%" stop-color="#6347F9" />
+      <stop offset="70%" stop-color="#5B42F3" />
+      <stop offset="100%" stop-color="#3727A6" />
+    </linearGradient>
+
+    <!-- Secondary Upper Blade (Cyan / Neon Violet flare) -->
+    <linearGradient id="upperBladeGrad" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="40%" stop-color="#60A5FA" />
+      <stop offset="100%" stop-color="#6347F9" />
+    </linearGradient>
+
+    <!-- Secondary Lower Blade Gradient -->
+    <linearGradient id="lowerBladeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5B42F3" />
+      <stop offset="60%" stop-color="#4328E0" />
+      <stop offset="100%" stop-color="#311B92" />
+    </linearGradient>
+
+    <!-- Drop Shadow for layered 3D depth -->
+    <filter id="shadowFilter" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.6" />
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#5B42F3" flood-opacity="0.3" />
+    </filter>
+
+    <!-- Subtle Glow for Accent -->
+    <filter id="glowFilter" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="coloredBlur" />
+      <feMerge>
+        <feMergeNode in="coloredBlur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Container Rounded Squircle -->
+  <rect x="16" y="16" width="480" height="480" rx="108" fill="url(#bgGrad)" stroke="url(#borderGrad)" stroke-width="4" />
+
+  <!-- Ambient Glow Behind The X -->
+  <circle cx="256" cy="256" r="160" fill="#5B42F3" opacity="0.15" filter="url(#glowFilter)" />
+
+  <!-- The Stylized 'X' Icon Group -->
+  <g filter="url(#shadowFilter)">
+    <!-- Lower Right / Left Secondary Wing (TR to BL path - lower segment) -->
+    <path
+      d="M 226 286 L 140 404 C 134 412 140 424 150 424 L 206 424 C 214 424 222 420 226 414 L 290 326 Z"
+      fill="url(#lowerBladeGrad)"
+    />
+
+    <!-- Main Dynamic Continuous Beam (TL to BR) -->
+    <path
+      d="M 150 88 C 140 88 134 100 140 108 L 362 404 C 368 412 376 416 386 416 L 442 416 C 452 416 458 404 452 396 L 230 100 C 224 92 216 88 206 88 Z"
+      fill="url(#primaryBladeGrad)"
+    />
+
+    <!-- Upper Secondary Wing (TR to BL path - upper segment with glowing cyan/neon flare) -->
+    <path
+      d="M 362 108 L 286 212 L 222 172 L 276 98 C 280 92 288 88 296 88 L 352 88 C 362 88 368 100 362 108 Z"
+      fill="url(#upperBladeGrad)"
+    />
+
+    <!-- Precision Accent Blade Overlay on the Upper Wing -->
+    <path
+      d="M 372 96 L 316 172 L 302 162 L 348 96 C 352 90 358 88 364 88 L 372 88 C 376 88 378 92 372 96 Z"
+      fill="#FFFFFF"
+      opacity="0.3"
+    />
+
+    <!-- Central Precision Cut Accent (Center Energy Core) -->
+    <polygon
+      points="256,220 286,256 256,292 226,256"
+      fill="#38BDF8"
+      opacity="0.4"
+      filter="url(#glowFilter)"
+    />
+  </g>
+</svg>

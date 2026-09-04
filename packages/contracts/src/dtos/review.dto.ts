@@ -1,6 +1,5 @@
 import {
   IsInt,
-  IsNumber,
   IsOptional,
   IsString,
   Max,
@@ -31,11 +30,13 @@ export class ReviewResponseDto {
   tripId!: string;
   reviewerId!: string;
   revieweeId!: string;
+  driverId?: string;
   rating!: number;
   feedback?: string;
   createdAt!: string;
 
   reviewerName?: string;
+  revieweeName?: string;
 }
 
 export class ReviewQueryDto {

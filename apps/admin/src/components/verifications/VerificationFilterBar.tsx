@@ -116,7 +116,7 @@ export const VerificationFilterBar: React.FC<FilterBarProps> = ({
             [
               { id: 'ALL', label: 'All Applicants' },
               { id: 'DRIVER', label: '🪪 Drivers (KYC)' },
-              { id: 'VENDOR', label: '🏢 Vendors (B2B)' },
+              { id: 'VENDOR', label: '🏢 Users (Enterprise)' },
             ] as const
           ).map((tab) => {
             const isSelected = entityFilter === tab.id;

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../services/vendor_service.dart';
+import '../../services/user_service.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
@@ -56,7 +56,7 @@ class _TripDisputeDialogState extends State<TripDisputeDialog> {
 
     setState(() => _submitting = true);
     try {
-      await VendorService.instance.fileDispute(
+      await UserService.instance.fileDispute(
         tripId: widget.tripId,
         reason: _selectedReason,
         description: description,

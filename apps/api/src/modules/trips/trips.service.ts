@@ -25,7 +25,6 @@ import {
 } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
 import { DispatchService } from '../dispatch/dispatch.service';
-import { LedgerService } from '../ledger/ledger.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
 
@@ -36,7 +35,6 @@ export class TripsService {
   constructor(
     private readonly db: DatabaseService,
     private readonly dispatchService: DispatchService,
-    private readonly ledgerService: LedgerService,
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
   ) {}

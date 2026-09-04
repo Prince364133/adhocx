@@ -59,7 +59,7 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
           backgroundColor: AppColors.accentGreenDark,
         );
 
-        context.push(AppRoutes.chooseRoleScreen);
+        context.push(AppRoutes.onboardingPersonalScreen);
       }
     } catch (e) {
       if (mounted) {

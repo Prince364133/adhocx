@@ -77,7 +77,7 @@ adhocx/
 
 | Directory            | Responsibility                                |
 | -------------------- | --------------------------------------------- |
-| `apps/mobile`        | Flutter Vendor + Driver application           |
+| `apps/mobile`        | Flutter User + Driver application           |
 | `apps/admin`         | Next.js Admin application                     |
 | `apps/api`           | NestJS backend                                |
 | `packages/contracts` | Shared API contracts/schema artifacts         |
@@ -137,7 +137,7 @@ Technology:
 One application contains:
 
 ```text id="p7x2dc"
-Vendor
+User
 Driver
 Shared Mobile Infrastructure
 ```
@@ -218,7 +218,7 @@ Canonical feature structure:
 ```text id="b9q4h6"
 lib/features/
 ├── auth/
-├── vendor/
+├── user/
 ├── driver/
 ├── requirements/
 ├── offers/
@@ -346,12 +346,12 @@ features/trips/presentation/
 
 ---
 
-# 14. Vendor Feature Organization
+# 14. User Feature Organization
 
-Vendor-specific workflows may live under:
+User-specific workflows may live under:
 
 ```text id="v2k4s1"
-features/vendor/
+features/user/
 ├── dashboard/
 ├── onboarding/
 ├── requirements/
@@ -496,7 +496,7 @@ app/
 │   └── [id]/
 │       └── page.tsx
 │
-├── vendors/
+├── users/
 │   ├── page.tsx
 │   └── [id]/
 │       └── page.tsx
@@ -542,7 +542,7 @@ features/
 ├── requirements/
 ├── trips/
 ├── drivers/
-├── vendors/
+├── users/
 ├── payments/
 ├── settlements/
 ├── pricing/
@@ -663,7 +663,7 @@ Canonical modules:
 modules/
 ├── auth/
 ├── users/
-├── vendors/
+├── users/
 ├── drivers/
 ├── vehicles/
 ├── requirements/

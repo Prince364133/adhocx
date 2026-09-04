@@ -194,7 +194,7 @@ export class DispatchService {
             requirementId,
             driverId,
             vehicleType: requirement.vehicleType,
-            offeredRate: requirement.ratePerVehicle,
+            offeredRate: requirement.ratePerVehicle ?? 0,
             status: OfferStatus.SENT,
             expiresAt,
           },
