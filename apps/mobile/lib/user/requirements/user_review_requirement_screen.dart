@@ -94,7 +94,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
         dropLng: draft.dropLng != 0.0 ? draft.dropLng : 77.1000,
         reportingTime: draft.reportingDateTime,
         ratePerVehicle: draft.fulfillmentMode == 'DIRECT_DISPATCH' ? 850.0 : null,
-        suggestedBudget: draft.fulfillmentMode == 'BIDDING' ? 1200.0 : null,
+        suggestedBudget: draft.fulfillmentMode == 'BIDDING' ? draft.suggestedBudget : null,
         notes: combinedNotes.isNotEmpty ? combinedNotes : 'Standard Booking Requirement',
       );
 
@@ -203,11 +203,22 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                       ),
                       child: Column(
                         children: [
-                          _buildReviewRow(context, Icons.bolt, 'Mode', draft.fulfillmentMode == 'DIRECT_DISPATCH' ? 'Direct Timed Dispatch' : 'Outstation Reverse Auction', isDark),
+                          _buildReviewRow(context, Icons.bolt, 'Fulfillment Model', draft.fulfillmentMode == 'DIRECT_DISPATCH' ? '⚡ Direct Timed Dispatch' : '🔨 Outstation Reverse Auction', isDark),
                           const Divider(),
+                          if (draft.fulfillmentMode == 'BIDDING') ...[
+                            _buildReviewRow(context, Icons.currency_rupee, 'Target Guide Budget', '₹${draft.suggestedBudget.toStringAsFixed(0)}', isDark, valueColor: AppColors.success),
+                            const Divider(),
+                            _buildReviewRow(context, Icons.timer_outlined, 'Bidding Window', '${draft.biddingWindowMinutes} Minutes', isDark),
+                            const Divider(),
+                          ] else ...[
+                            _buildReviewRow(context, Icons.currency_rupee, 'Rate per Vehicle', '₹850', isDark),
+                            const Divider(),
+                            _buildReviewRow(context, Icons.payments_outlined, 'Est. Total Cost', '₹${(draft.quantity * 850).toStringAsFixed(0)}', isDark, valueColor: AppColors.success),
+                            const Divider(),
+                          ],
                           _buildReviewRow(context, Icons.directions_car_outlined, 'Vehicle Type', draft.vehicleType, isDark),
                           const Divider(),
-                          _buildReviewRow(context, Icons.format_list_numbered, 'Quantity', '${draft.quantity} Vehicles', isDark),
+                          _buildReviewRow(context, Icons.format_list_numbered, 'Quantity', '${draft.quantity} ${draft.quantity > 1 ? "Vehicles" : "Vehicle"}', isDark),
                           const Divider(),
                           _buildReviewRow(context, Icons.swap_calls, 'Trip Type', draft.tripType, isDark),
                           const Divider(),
@@ -240,7 +251,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                           _buildReviewRow(context, Icons.luggage_outlined, 'Luggage', draft.selectedLuggage ?? 'Not Specified', isDark),
                           if (draft.specialRequests.isNotEmpty) ...[
                             const Divider(),
-                            _buildReviewRow(context, Icons.note_outlined, 'Special Requests', draft.specialRequests, isDark),
+                            _buildReviewRow(context, Icons.note_outlined, 'Preferences', draft.specialRequests, isDark),
                           ],
                           if (draft.additionalInfo.isNotEmpty) ...[
                             const Divider(),
@@ -269,7 +280,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                         Expanded(
                           flex: 2,
                           child: AppPrimaryButton(
-                            text: 'Confirm & Post Requirement',
+                            text: draft.fulfillmentMode == 'BIDDING' ? '🚀 Launch Reverse Auction' : '⚡ Deploy Fleet Dispatch',
                             isLoading: _isSubmitting,
                             onPressed: () => _handleConfirmAndPost(context),
                           ),
@@ -286,7 +297,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
     );
   }
 
-  Widget _buildReviewRow(BuildContext context, IconData icon, String label, String value, bool isDark) {
+  Widget _buildReviewRow(BuildContext context, IconData icon, String label, String value, bool isDark, {Color? valueColor}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
@@ -304,7 +315,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
               value,
               textAlign: TextAlign.end,
               style: AppTypography.caption(
-                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                color: valueColor ?? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
                 fontWeight: FontWeight.bold,
               ),
             ),

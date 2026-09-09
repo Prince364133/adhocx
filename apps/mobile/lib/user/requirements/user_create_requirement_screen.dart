@@ -20,6 +20,9 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
   late String _selectedFulfillmentMode;
   late String _selectedVehicleType;
   late int _quantity;
+  late double _suggestedBudget;
+  late int _biddingWindowMinutes;
+  late TextEditingController _budgetController;
   late TextEditingController _specialRequestsController;
   bool _initialized = false;
 
@@ -80,6 +83,9 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
         _selectedVehicleType = 'Sedan';
       }
       _quantity = draft.quantity;
+      _suggestedBudget = draft.suggestedBudget;
+      _biddingWindowMinutes = draft.biddingWindowMinutes;
+      _budgetController = TextEditingController(text: _suggestedBudget.toStringAsFixed(0));
       _specialRequestsController = TextEditingController(text: draft.specialRequests);
       _initialized = true;
     }
@@ -87,7 +93,10 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
 
   @override
   void dispose() {
-    _specialRequestsController.dispose();
+    if (_initialized) {
+      _budgetController.dispose();
+      _specialRequestsController.dispose();
+    }
     super.dispose();
   }
 
@@ -395,53 +404,183 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
 
                     const SizedBox(height: AppSpacing.lg),
 
-                    // Quantity Stepper
-                    Text(
-                      'Quantity *',
-                      style: AppTypography.h4(
-                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                      ),
-                      child: Row(
+                    // When BIDDING / Outstation Mode: Show Target Budget & Auction Window
+                    if (_selectedFulfillmentMode == 'BIDDING') ...[
+                      // Target / Suggested Budget Field
+                      Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          IconButton(
-                            onPressed: () {
-                              if (_quantity > 1) setState(() => _quantity--);
-                            },
-                            icon: Icon(Icons.remove, color: AppColors.primary),
-                          ),
                           Text(
-                            '$_quantity',
-                            style: AppTypography.h2(
+                            'Target Budget per Trip *',
+                            style: AppTypography.h4(
                               color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                          IconButton(
-                            onPressed: () {
-                              setState(() => _quantity++);
-                            },
-                            icon: Icon(Icons.add, color: AppColors.primary),
+                          Text(
+                            'Starting Guide Price',
+                            style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600),
                           ),
                         ],
                       ),
-                    ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: _budgetController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.currency_rupee_rounded, size: 20),
+                          hintText: 'e.g. 3500',
+                          filled: true,
+                          fillColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                        ),
+                        onChanged: (val) {
+                          final parsed = double.tryParse(val);
+                          if (parsed != null) _suggestedBudget = parsed;
+                        },
+                      ),
+                      const SizedBox(height: 8),
 
-                    const SizedBox(height: AppSpacing.lg),
+                      // Quick budget chips
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [2500, 3500, 5000, 7500, 10000].map((b) {
+                            final isSel = _suggestedBudget == b.toDouble();
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ChoiceChip(
+                                label: Text('₹$b'),
+                                selected: isSel,
+                                onSelected: (_) {
+                                  setState(() {
+                                    _suggestedBudget = b.toDouble();
+                                    _budgetController.text = b.toString();
+                                  });
+                                },
+                                selectedColor: AppColors.primary,
+                                labelStyle: TextStyle(
+                                  color: isSel ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+
+                      // Bidding Auction Window
+                      Text(
+                        'Reverse Auction Window (Quotes Deadline) *',
+                        style: AppTypography.h4(
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<int>(
+                            value: _biddingWindowMinutes,
+                            isExpanded: true,
+                            dropdownColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                            items: const [
+                              DropdownMenuItem(value: 15, child: Text('⚡ 15 Minutes (Express Quotes)')),
+                              DropdownMenuItem(value: 30, child: Text('⏱️ 30 Minutes (Recommended)')),
+                              DropdownMenuItem(value: 60, child: Text('⏳ 1 Hour (Maximum Driver Reach)')),
+                              DropdownMenuItem(value: 120, child: Text('📅 2 Hours (Advance Outstation Booking)')),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) setState(() => _biddingWindowMinutes = val);
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+
+                      // Explanatory info box for Reverse Auction
+                      Container(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.info_outline_rounded, size: 18, color: AppColors.primary),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Once launched, nearby verified drivers will compete by submitting their lowest quotes & ETA. You can review and lock your preferred quote.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  height: 1.4,
+                                  color: isDark ? AppColors.slate300 : AppColors.slate700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                    ] else ...[
+                      // Corporate Bulk Mode: Quantity Stepper (1 to 50)
+                      Text(
+                        'Fleet Quantity (Vehicles) *',
+                        style: AppTypography.h4(
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            IconButton(
+                              onPressed: () {
+                                if (_quantity > 1) setState(() => _quantity--);
+                              },
+                              icon: Icon(Icons.remove, color: AppColors.primary),
+                            ),
+                            Text(
+                              '$_quantity Vehicles',
+                              style: AppTypography.h3(
+                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () {
+                                setState(() => _quantity++);
+                              },
+                              icon: Icon(Icons.add, color: AppColors.primary),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                    ],
 
                     // Special Requests (Optional)
                     Text(
-                      'Special Requests (Optional)',
+                      _selectedFulfillmentMode == 'BIDDING' ? 'Driver / Vehicle Preferences (Optional)' : 'Special Requests (Optional)',
                       style: AppTypography.h4(
                         color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         fontWeight: FontWeight.w600,
@@ -450,9 +589,11 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                     const SizedBox(height: 6),
                     TextField(
                       controller: _specialRequestsController,
-                      maxLines: 3,
+                      maxLines: 2,
                       decoration: InputDecoration(
-                        hintText: 'Any specific vehicle or driver requirements.',
+                        hintText: _selectedFulfillmentMode == 'BIDDING'
+                            ? 'e.g. AC Sedan with boot space, 4.8+ rating, Non-smoking driver'
+                            : 'Any specific fleet requirements or reporting guidelines.',
                         hintStyle: TextStyle(fontSize: 13, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                       ),
@@ -462,13 +603,16 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
 
                     // Continue Button -> Step 2
                     AppPrimaryButton(
-                      text: 'Continue →',
+                      text: _selectedFulfillmentMode == 'BIDDING' ? 'Configure Outstation Route →' : 'Continue to Route →',
                       onPressed: () {
+                        final parsedBudget = double.tryParse(_budgetController.text.trim()) ?? _suggestedBudget;
                         final draft = context.read<RequirementDraftProvider>();
                         draft.updateStep1(
                           fulfillmentMode: _selectedFulfillmentMode,
                           vehicleType: _selectedVehicleType,
-                          quantity: _quantity,
+                          quantity: _selectedFulfillmentMode == 'BIDDING' ? 1 : _quantity,
+                          suggestedBudget: parsedBudget,
+                          biddingWindowMinutes: _biddingWindowMinutes,
                           specialRequests: _specialRequestsController.text.trim(),
                         );
                         context.push(AppRoutes.userCreateRequirementStep2Screen);

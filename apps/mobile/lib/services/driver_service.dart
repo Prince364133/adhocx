@@ -74,6 +74,11 @@ class DriverService {
   }
 
   // Bidding (Outstation Reverse Auction Mode)
+  Future<List<dynamic>> getBiddingOpportunities() async {
+    final response = await _api.get('/bids/open-opportunities');
+    return response is List ? response : [];
+  }
+
   Future<dynamic> submitBid({
     required String requirementId,
     required double bidAmount,

@@ -6,6 +6,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
+import 'driver_submit_bid_sheet.dart';
 
 /// Screen 1: Nearby Opportunities List matching exact design mockup.
 class OpportunitiesScreen extends StatefulWidget {
@@ -29,8 +30,17 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
   Future<void> _loadOffers() async {
     setState(() => _isLoading = true);
     try {
-      final list = await DriverService.instance.getOffers();
-      if (mounted) setState(() => _offers = list);
+      final results = await Future.wait([
+        DriverService.instance.getOffers(),
+        DriverService.instance.getBiddingOpportunities(),
+      ]);
+      final directOffers = results[0];
+      final bidOpportunities = results[1];
+      if (mounted) {
+        setState(() {
+          _offers = [...directOffers, ...bidOpportunities];
+        });
+      }
     } catch (_) {
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -217,13 +227,16 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                                 itemBuilder: (context, index) {
                                   final op = filteredOps[index] as Map<String, dynamic>;
                                   final req = op['requirement'] as Map<String, dynamic>?;
-                                  final offerId = op['id'] as String? ?? '';
-                                  final title = req?['title'] as String? ?? op['title'] as String? ?? 'Trip Requirement';
-                                  final category = req?['vehicleType'] as String? ?? op['category'] as String? ?? 'Sedan';
-                                  final pickup = req?['pickupAddress'] as String? ?? op['pickup'] as String? ?? 'Pickup location';
-                                  final drop = req?['dropAddress'] as String? ?? op['drop'] as String? ?? 'Destination location';
-                                  final earnings = '₹ ${(op['offeredPrice'] ?? op['offerAmount'] ?? req?['budgetPerVehicle'] ?? 850)}';
-                                  const opColor = AppColors.primary;
+                                  final isBidding = op['fulfillmentMode'] == 'BIDDING' || req?['fulfillmentMode'] == 'BIDDING';
+                                  final title = req?['title'] as String? ?? op['title'] as String? ?? (isBidding ? 'Outstation Reverse Auction' : 'Fleet Trip Dispatch');
+                                  final category = req?['vehicleType'] as String? ?? op['vehicleType'] as String? ?? op['category'] as String? ?? 'Sedan';
+                                  final pickup = req?['pickupAddress'] as String? ?? op['pickup'] as String? ?? op['pickupLocation']?['address'] as String? ?? 'Pickup location';
+                                  final drop = req?['dropAddress'] as String? ?? op['drop'] as String? ?? op['dropLocation']?['address'] as String? ?? 'Destination location';
+                                  final budgetVal = (op['suggestedBudget'] ?? op['offeredPrice'] ?? op['offerAmount'] ?? req?['budgetPerVehicle'] ?? 850) as num;
+                                  final earnings = '₹ ${budgetVal.toInt()}';
+                                  final hasMyBid = op['hasMyBid'] == true;
+                                  final myBid = op['myBid'] as Map<String, dynamic>?;
+                                  final opColor = isBidding ? Colors.indigo : AppColors.primary;
 
                                   return Container(
                                     padding: const EdgeInsets.all(AppSpacing.lg),
@@ -231,7 +244,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                                       color: AppColors.surfaceLight,
                                       borderRadius: BorderRadius.circular(AppRadius.lg),
                                       border: Border.all(
-                                        color: opColor.withValues(alpha: 0.3),
+                                        color: opColor.withValues(alpha: 0.35),
                                         width: 1.5,
                                       ),
                                       boxShadow: [
@@ -253,8 +266,8 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                                                 color: opColor.withValues(alpha: 0.1),
                                                 borderRadius: BorderRadius.circular(AppRadius.md),
                                               ),
-                                              child: const Icon(
-                                                Icons.card_travel_outlined,
+                                              child: Icon(
+                                                isBidding ? Icons.gavel_rounded : Icons.card_travel_outlined,
                                                 color: opColor,
                                                 size: 20,
                                               ),
@@ -272,9 +285,10 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                                                     ),
                                                   ),
                                                   Text(
-                                                    'Direct Dispatch • Available Now',
+                                                    isBidding ? '🔨 Reverse Auction • Driver Quotes Open' : '⚡ Direct Timed Dispatch • Available Now',
                                                     style: AppTypography.caption(
-                                                      color: AppColors.textMutedLight,
+                                                      color: isBidding ? Colors.indigo : AppColors.textMutedLight,
+                                                      fontWeight: isBidding ? FontWeight.w600 : FontWeight.normal,
                                                     ),
                                                   ),
                                                 ],
@@ -333,7 +347,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                                               crossAxisAlignment: CrossAxisAlignment.end,
                                               children: [
                                                 Text(
-                                                  'Est. earnings',
+                                                  isBidding ? 'Target Budget' : 'Est. earnings',
                                                   style: AppTypography.caption(color: AppColors.textMutedLight).copyWith(fontSize: 10),
                                                 ),
                                                 Text(
@@ -351,24 +365,65 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                                         Divider(height: 1, color: AppColors.borderLight),
                                         const SizedBox(height: AppSpacing.md),
 
-                                        // View Details Action Link
-                                        GestureDetector(
-                                          onTap: () => context.push(AppRoutes.opportunityOfferScreen, extra: op),
-                                          child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              Text(
-                                                'VIEW OFFER & ACCEPT',
-                                                style: AppTypography.caption(
-                                                  color: opColor,
-                                                  fontWeight: FontWeight.bold,
+                                        // Action Row
+                                        if (isBidding) ...[
+                                          if (hasMyBid)
+                                            Container(
+                                              width: double.infinity,
+                                              padding: const EdgeInsets.symmetric(vertical: 8),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.success.withValues(alpha: 0.12),
+                                                borderRadius: BorderRadius.circular(AppRadius.sm),
+                                              ),
+                                              child: Center(
+                                                child: Text(
+                                                  '✓ Your Quote Submitted: ₹${(myBid?["bidAmount"] as num?)?.toInt() ?? budgetVal.toInt()} (${myBid?["status"] ?? "PENDING"})',
+                                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.success),
                                                 ),
                                               ),
-                                              const SizedBox(width: 4),
-                                              const Icon(Icons.chevron_right, size: 16, color: opColor),
-                                            ],
+                                            )
+                                          else
+                                            GestureDetector(
+                                              onTap: () async {
+                                                final submitted = await DriverSubmitBidSheet.show(context, opportunity: op);
+                                                if (submitted == true) {
+                                                  _loadOffers();
+                                                }
+                                              },
+                                              child: Row(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  Text(
+                                                    '🔨 SUBMIT QUOTE / BID',
+                                                    style: AppTypography.caption(
+                                                      color: Colors.indigo,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  const Icon(Icons.arrow_forward, size: 16, color: Colors.indigo),
+                                                ],
+                                              ),
+                                            ),
+                                        ] else ...[
+                                          GestureDetector(
+                                            onTap: () => context.push(AppRoutes.opportunityOfferScreen, extra: op),
+                                            child: Row(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                Text(
+                                                  'VIEW OFFER & ACCEPT',
+                                                  style: AppTypography.caption(
+                                                    color: opColor,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 4),
+                                                const Icon(Icons.chevron_right, size: 16, color: opColor),
+                                              ],
+                                            ),
                                           ),
-                                        ),
+                                        ],
                                       ],
                                     ),
                                   );

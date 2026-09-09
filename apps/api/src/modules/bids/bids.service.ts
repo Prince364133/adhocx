@@ -244,6 +244,77 @@ export class BidsService {
   }
 
   /**
+   * Driver gets open outstation reverse auction requirements to submit quotes on.
+   */
+  async getOpenBiddingOpportunities(driverUserId: string): Promise<any[]> {
+    try {
+      const driver = await this.db.driver.findUnique({
+        where: { userId: driverUserId },
+        include: { vehicles: true },
+      });
+
+      if (!driver) {
+        return [];
+      }
+
+      const requirements = await this.db.requirement.findMany({
+        where: {
+          fulfillmentMode: FulfillmentMode.BIDDING,
+          status: { in: [RequirementStatus.POSTED, RequirementStatus.DISPATCHING] },
+        },
+        include: {
+          vendor: true,
+          bids: {
+            where: { driverId: driver.id },
+          },
+          _count: {
+            select: { bids: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      });
+
+      return requirements.map((req) => ({
+        id: req.id,
+        requirementId: req.id,
+        fulfillmentMode: req.fulfillmentMode,
+        vehicleType: req.vehicleType,
+        pickupLocation: {
+          latitude: Number(req.pickupLat),
+          longitude: Number(req.pickupLng),
+          address: req.pickupAddress,
+        },
+        dropLocation: {
+          latitude: Number(req.dropLat),
+          longitude: Number(req.dropLng),
+          address: req.dropAddress,
+        },
+        pickup: req.pickupAddress,
+        drop: req.dropAddress,
+        reportingTime: req.reportingTime.toISOString(),
+        suggestedBudget: Number(req.suggestedBudget || req.ratePerVehicle || 0),
+        offeredPrice: Number(req.suggestedBudget || req.ratePerVehicle || 0),
+        totalAmount: Number(req.totalAmount || 0),
+        notes: req.notes,
+        vendorOrganization: req.vendor.organizationName,
+        totalBidsCount: req._count.bids,
+        hasMyBid: req.bids.length > 0,
+        myBid: req.bids.length > 0 ? {
+          id: req.bids[0].id,
+          bidAmount: Number(req.bids[0].bidAmount),
+          etaMinutes: req.bids[0].etaMinutes,
+          status: req.bids[0].status,
+        } : null,
+        createdAt: req.createdAt.toISOString(),
+      }));
+    } catch (err: any) {
+      this.logger.error(`Failed to fetch bidding opportunities: ${err.message}`);
+      return [];
+    }
+  }
+
+  /**
    * Requester accepts a driver's winning bid.
    * Atomic operation:
    * 1. Validates legal state transition PENDING -> ACCEPTED.
