@@ -18,7 +18,6 @@ class DriverService {
       '/drivers/availability',
       body: {
         'status': availabilityStatus.toUpperCase(),
-        'availabilityStatus': availabilityStatus.toUpperCase(),
         if (lat != null && lng != null)
           'currentLocation': {
             'latitude': lat,

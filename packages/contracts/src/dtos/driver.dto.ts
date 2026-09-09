@@ -12,6 +12,10 @@ export class UpdateAvailabilityDto {
   status!: DriverAvailability;
 
   @IsOptional()
+  @IsEnum(DriverAvailability, { message: 'Invalid availability status' })
+  availabilityStatus?: DriverAvailability;
+
+  @IsOptional()
   @ValidateNested()
   @Type(() => GeoLocationDto)
   currentLocation?: GeoLocationDto;
