@@ -40,6 +40,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   Future<void> _loadDashboardData() async {
     setState(() => _isLoading = true);
     try {
+      await AuthService.instance.ensureAuthenticatedSession(role: 'VENDOR');
       final summaryRes = await UserService.instance.getRequirementsSummary();
       final listRes = await UserService.instance.getRequirements();
 

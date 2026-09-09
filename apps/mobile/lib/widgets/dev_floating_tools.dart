@@ -10,6 +10,8 @@ import 'dart:html' as html;
 
 import '../core/networking/api_client.dart';
 import '../routes/app_routes.dart';
+import '../services/auth_provider.dart';
+import '../services/auth_service.dart';
 import '../services/onboarding_provider.dart';
 import '../shared/theme/app_colors.dart';
 import '../shared/theme/app_radius.dart';
@@ -225,10 +227,14 @@ class _DevFloatingToolsState extends State<DevFloatingTools> {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () {
-                    onboarding.setRole('VENDOR');
-                    context.go(AppRoutes.userHomeScreen);
-                    setState(() => _isExpanded = false);
+                  onPressed: () async {
+                    final user = await AuthService.instance.ensureAuthenticatedSession(role: 'VENDOR');
+                    if (context.mounted) {
+                      context.read<AuthProvider>().setUser(user);
+                      onboarding.setRole('VENDOR');
+                      context.go(AppRoutes.userHomeScreen);
+                      setState(() => _isExpanded = false);
+                    }
                   },
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
@@ -242,10 +248,14 @@ class _DevFloatingToolsState extends State<DevFloatingTools> {
               const SizedBox(width: 6),
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () {
-                    onboarding.setRole('DRIVER');
-                    context.go(AppRoutes.homeScreen);
-                    setState(() => _isExpanded = false);
+                  onPressed: () async {
+                    final user = await AuthService.instance.ensureAuthenticatedSession(role: 'DRIVER');
+                    if (context.mounted) {
+                      context.read<AuthProvider>().setUser(user);
+                      onboarding.setRole('DRIVER');
+                      context.go(AppRoutes.homeScreen);
+                      setState(() => _isExpanded = false);
+                    }
                   },
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,

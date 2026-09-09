@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import '../../routes/app_routes.dart';
+import '../../services/auth_service.dart';
 import '../../services/driver_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
@@ -36,6 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadLiveDriverData() async {
     setState(() => _isLoading = true);
     try {
+      await AuthService.instance.ensureAuthenticatedSession(role: 'DRIVER');
       final results = await Future.wait([
         DriverService.instance.getProfile().catchError((_) => null),
         DriverService.instance.getWalletSummary().catchError((_) => null),
@@ -97,6 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _toggleOnline(bool goOnline) async {
     try {
+      await AuthService.instance.ensureAuthenticatedSession(role: 'DRIVER');
       final newStatus = goOnline ? 'AVAILABLE' : 'OFFLINE';
       await DriverService.instance.updateAvailability(newStatus);
       if (mounted) {

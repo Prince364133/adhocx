@@ -171,32 +171,41 @@ class _EarningsTransactionsScreenState extends State<EarningsTransactionsScreen>
 
                 // ── Scrollable Transactions List ──────────────────────────────
                 Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                    children: [
-                      Text(
-                        'May 2025',
-                        style: AppTypography.caption(
-                          color: AppColors.textMutedLight,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-
-                      Container(
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
-                          borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: AppColors.borderLight),
-                        ),
-                        child: Column(
-                          children: List.generate(filteredList.length, (index) {
-                            final tx = filteredList[index];
-                            final isLast = index == filteredList.length - 1;
-
-                            return Column(
+                  child: _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : filteredList.isEmpty
+                          ? Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(32),
+                                child: Text('No transactions recorded yet', style: AppTypography.body(color: AppColors.textSecondaryLight)),
+                              ),
+                            )
+                          : ListView(
+                              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                               children: [
-                                ListTile(
+                                Text(
+                                  'Recent Activity',
+                                  style: AppTypography.caption(
+                                    color: AppColors.textMutedLight,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: AppSpacing.md),
+
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surfaceLight,
+                                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                                    border: Border.all(color: AppColors.borderLight),
+                                  ),
+                                  child: Column(
+                                    children: List.generate(filteredList.length, (index) {
+                                      final tx = filteredList[index];
+                                      final isLast = index == filteredList.length - 1;
+
+                                      return Column(
+                                        children: [
+                                          ListTile(
                                   onTap: () {
                                     if (tx['isWithdrawal'] == true) {
                                       context.push(AppRoutes.earningsWithdrawalDetailsScreen);
