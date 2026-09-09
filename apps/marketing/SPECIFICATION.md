@@ -1,7 +1,7 @@
 # Marketing Web App Specification (`apps/marketing`)
 
 **Product:** AdhocX Marketing & Driver/Enterprise Growth Website  
-**Technology:** Astro Framework (SSR/SSG Hybrid)  
+**Technology:** Astra Tech Stack (A-S-T-R-A: HTML-First, High-Performance SEO & Bot-Crawler Architecture)  
 **Status:** Engineering & Product Specification  
 **Version:** 1.0  
 **Target Audience:** Commercial Drivers, Fleet Operators, Corporate Transport Users, Enterprise Logistics Managers  
@@ -67,7 +67,7 @@ The AdhocX Marketing Web App serves as the top-of-funnel discovery and conversio
   * **Weekly & Instant Settlements:** Direct bank transfer every Monday, or instant cashout on demand.
   * **No Surge Manipulation:** Transparent kilometer and hourly rate cards.
   * **Driver Welfare & Insurance:** ₹5,00,000 accidental cover while on duty.
-* **Interactive Driver Earnings Calculator (Astro Island):**
+* **Interactive Driver Earnings Calculator (Astra Interactive Island):**
   * Sliders for: Vehicle Type (Sedan, Hatchback, SUV, Traveller), Daily Hours (4h, 8h, 12h), Days/Week.
   * Live calculated output: Estimated Monthly Earnings + ₹2,000 Century Bonus = Total Net Payout.
 * **4-Step Onboarding Process:**
@@ -88,22 +88,22 @@ The AdhocX Marketing Web App serves as the top-of-funnel discovery and conversio
   * **Reverse-Auction & Instant Dispatch:** Get competitive market rates without price gouging.
   * **Centralized Corporate Billing:** Single consolidated monthly GST tax invoice with detailed trip logs.
   * **Dedicated SLA Manager:** 24/7 priority operations desk with replacement cab guarantee in < 20 minutes.
-* **Interactive Lead Capture Form (Astro Island):**
+* **Interactive Lead Capture Form (Astra Interactive Island):**
   * Fields: Name, Corporate Email, Company Name, Monthly Fleet Volume (<10, 10-50, 50-200, 200+), Phone Number.
   * Direct webhook integration to CRM / API backend.
 
 ---
 
-## 4. Technical SEO & Performance Architecture
+## 4. Technical SEO & Performance Architecture in Astra
 
 ### 4.1 Core Web Vitals Targets
-* **Largest Contentful Paint (LCP):** < 1.0s (leveraging Astro zero-JS SSG and optimized WebP images).
+* **Largest Contentful Paint (LCP):** < 1.0s (leveraging Astra HTML-first zero-JS architecture and optimized WebP assets).
 * **First Input Delay (FID) / Interaction to Next Paint (INP):** < 40ms.
 * **Cumulative Layout Shift (CLS):** 0.00.
 * **Lighthouse Score Target:** 100 Performance, 100 Accessibility, 100 Best Practices, 100 SEO.
 
 ### 4.2 Metadata & OpenGraph Structure
-Every page includes dynamic SEO metadata via `<SeoHead />`:
+Every Astra page includes dynamic SEO metadata via `<SeoHead />`:
 * `title`: `AdhocX | {Page Title} — Corporate Fleet Fulfillment & Driver Portal`
 * `description`: Targeted 150-160 character description optimized for search snippets.
 * `canonical`: Absolute canonical URL.
