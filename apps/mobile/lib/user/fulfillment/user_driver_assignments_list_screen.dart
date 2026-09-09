@@ -68,9 +68,9 @@ class _UserDriverAssignmentsListScreenState extends State<UserDriverAssignmentsL
     final isDark = theme.brightness == Brightness.dark;
 
     final allCount = _trips.length;
-    final assignedCount = _trips.where((t) => (t as Map)['status'] == 'ASSIGNED' || (t as Map)['status'] == 'ACCEPTED').length;
-    final onTripCount = _trips.where((t) => (t as Map)['status'] == 'IN_PROGRESS' || (t as Map)['status'] == 'ARRIVED').length;
-    final completedCount = _trips.where((t) => (t as Map)['status'] == 'COMPLETED').length;
+    final assignedCount = _trips.where((t) => t['status'] == 'ASSIGNED' || t['status'] == 'ACCEPTED').length;
+    final onTripCount = _trips.where((t) => t['status'] == 'IN_PROGRESS' || t['status'] == 'ARRIVED').length;
+    final completedCount = _trips.where((t) => t['status'] == 'COMPLETED').length;
 
     final tabs = [
       {'key': 'All', 'label': 'All ($allCount)'},

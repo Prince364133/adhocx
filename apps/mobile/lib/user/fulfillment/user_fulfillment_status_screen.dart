@@ -53,11 +53,11 @@ class _UserFulfillmentStatusScreenState extends State<UserFulfillmentStatusScree
 
     final req = _requirement ?? {};
     final quantity = (req['quantity'] ?? 1) as int;
-    final fulfilled = (req['fulfilledCount'] ?? _trips.where((t) => (t as Map)['status'] != 'CANCELLED').length) as int;
+    final fulfilled = (req['fulfilledCount'] ?? _trips.where((t) => t['status'] != 'CANCELLED').length) as int;
     final status = (req['status'] ?? 'DISPATCHING').toString();
     final progress = quantity > 0 ? (fulfilled / quantity).clamp(0.0, 1.0) : 0.0;
 
-    final assignedCount = _trips.where((t) => (t as Map)['status'] == 'ACCEPTED' || (t as Map)['status'] == 'ASSIGNED').length;
+    final assignedCount = _trips.where((t) => t['status'] == 'ACCEPTED' || t['status'] == 'ASSIGNED').length;
     final searchingCount = (quantity - fulfilled).clamp(0, quantity);
 
     return Scaffold(

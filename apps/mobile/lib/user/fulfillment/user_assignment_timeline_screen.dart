@@ -56,9 +56,9 @@ class _UserAssignmentTimelineScreenState extends State<UserAssignmentTimelineScr
     final quantity = (req['quantity'] ?? 1) as int;
     final status = (req['status'] ?? 'DISPATCHING').toString();
 
-    final assignedCount = _trips.where((t) => (t as Map)['status'] == 'ACCEPTED' || (t as Map)['status'] == 'ASSIGNED').length;
-    final onTripCount = _trips.where((t) => (t as Map)['status'] == 'IN_PROGRESS' || (t as Map)['status'] == 'ARRIVED').length;
-    final completedCount = _trips.where((t) => (t as Map)['status'] == 'COMPLETED').length;
+    final assignedCount = _trips.where((t) => t['status'] == 'ACCEPTED' || t['status'] == 'ASSIGNED').length;
+    final onTripCount = _trips.where((t) => t['status'] == 'IN_PROGRESS' || t['status'] == 'ARRIVED').length;
+    final completedCount = _trips.where((t) => t['status'] == 'COMPLETED').length;
 
     final events = [
       {'title': 'Requirement Created & Dispatched', 'time': 'Just now', 'color': AppColors.success, 'isDone': true},

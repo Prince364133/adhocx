@@ -96,11 +96,6 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final selectedVehicleData = _vehicleOptions.firstWhere(
-      (v) => v['id'] == _selectedVehicleType,
-      orElse: () => _vehicleOptions.first,
-    );
-
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       appBar: AppBar(

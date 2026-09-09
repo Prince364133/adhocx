@@ -22,7 +22,6 @@ class _UserCreateRequirementStep3ScreenState extends State<UserCreateRequirement
   late TextEditingController _timeController;
   late TextEditingController _returnDateController;
   late TextEditingController _returnTimeController;
-  DateTime? _selectedDateTime;
   bool _initialized = false;
 
   @override
@@ -35,7 +34,6 @@ class _UserCreateRequirementStep3ScreenState extends State<UserCreateRequirement
       _timeController = TextEditingController(text: draft.pickupTime);
       _returnDateController = TextEditingController(text: draft.returnDate ?? '');
       _returnTimeController = TextEditingController(text: draft.returnTime ?? '');
-      _selectedDateTime = draft.reportingDateTime;
       _initialized = true;
     }
   }

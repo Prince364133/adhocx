@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../routes/app_routes.dart';
 import '../../services/user_service.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
@@ -35,12 +36,11 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen> {
     try {
       final list = await UserService.instance.getTrips();
       if (list.isNotEmpty && mounted) {
-        // prefer in_progress or accepted
         final active = list.firstWhere(
-          (t) => (t as Map)['status'] == 'IN_PROGRESS' || (t as Map)['status'] == 'ARRIVED' || (t as Map)['status'] == 'ACCEPTED',
+          (t) => t['status'] == 'IN_PROGRESS' || t['status'] == 'ARRIVED' || t['status'] == 'ACCEPTED',
           orElse: () => list.first,
         );
-        setState(() => _trip = active as Map<String, dynamic>);
+        setState(() => _trip = active is Map<String, dynamic> ? active : Map<String, dynamic>.from(active as Map));
       }
     } catch (_) {
     } finally {

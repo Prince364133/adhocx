@@ -165,11 +165,13 @@ class UserService {
     return {'orderId': 'order_mock', 'amount': amount, 'currency': 'INR', 'keyId': 'rzp_test'};
   }
 
+  Future<Map<String, dynamic>> createTopUpOrder(double amount) => createWalletTopUpOrder(amount);
+
   Future<dynamic> verifyWalletTopUp({
     required String razorpayOrderId,
     required String razorpayPaymentId,
     required String razorpaySignature,
-    required double amount,
+    double amount = 0,
   }) async {
     return await _api.post(
       '/payments/wallet/top-up/verify',
@@ -181,6 +183,18 @@ class UserService {
       },
     );
   }
+
+  Future<dynamic> verifyTopUp({
+    required String razorpayOrderId,
+    required String razorpayPaymentId,
+    required String razorpaySignature,
+    double amount = 0,
+  }) => verifyWalletTopUp(
+    razorpayOrderId: razorpayOrderId,
+    razorpayPaymentId: razorpayPaymentId,
+    razorpaySignature: razorpaySignature,
+    amount: amount,
+  );
 
   Future<List<dynamic>> getWalletTransactions() async {
     final response = await _api.get('/payments/wallet/transactions');

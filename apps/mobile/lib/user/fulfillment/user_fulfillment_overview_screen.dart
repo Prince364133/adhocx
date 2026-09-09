@@ -59,9 +59,9 @@ class _UserFulfillmentOverviewScreenState extends State<UserFulfillmentOverviewS
     final status = (req['status'] ?? 'DISPATCHING').toString();
     final progress = quantity > 0 ? (fulfilled / quantity).clamp(0.0, 1.0) : 0.0;
 
-    final assignedCount = _trips.where((t) => (t as Map)['status'] == 'ACCEPTED' || (t as Map)['status'] == 'ASSIGNED').length;
-    final onTripCount = _trips.where((t) => (t as Map)['status'] == 'IN_PROGRESS' || (t as Map)['status'] == 'ARRIVED').length;
-    final completedCount = _trips.where((t) => (t as Map)['status'] == 'COMPLETED').length;
+    final assignedCount = _trips.where((t) => t['status'] == 'ACCEPTED' || t['status'] == 'ASSIGNED').length;
+    final onTripCount = _trips.where((t) => t['status'] == 'IN_PROGRESS' || t['status'] == 'ARRIVED').length;
+    final completedCount = _trips.where((t) => t['status'] == 'COMPLETED').length;
     final searchingCount = (quantity - (assignedCount + onTripCount + completedCount)).clamp(0, quantity);
 
     return Scaffold(
