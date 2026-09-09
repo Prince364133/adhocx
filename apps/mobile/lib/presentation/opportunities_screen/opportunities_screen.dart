@@ -419,7 +419,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                                                   ),
                                                 ),
                                                 const SizedBox(width: 4),
-                                                const Icon(Icons.chevron_right, size: 16, color: opColor),
+                                                Icon(Icons.chevron_right, size: 16, color: opColor),
                                               ],
                                             ),
                                           ),
