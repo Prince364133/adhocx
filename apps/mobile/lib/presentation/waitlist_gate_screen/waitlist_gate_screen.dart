@@ -69,7 +69,7 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
     _statusPoller = Timer.periodic(const Duration(seconds: 4), (_) async {
       try {
         final user = await AuthService.instance.fetchCurrentUser();
-        if (!mounted) return;
+        if (!mounted || user == null) return;
 
         if (user.isVerified && _approvalState != _ApprovalState.approved) {
           _handleApproved();

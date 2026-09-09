@@ -322,66 +322,128 @@ export class AuthService {
     this.logger.log(`🔑 [SOCIAL AUTH - ${provider}] Authenticating verified user: ${email} (${fullName || 'User'})`);
 
     let user: any = null;
-    try {
-      user = await this.db.user.findFirst({
-        where: { email: { equals: email, mode: 'insensitive' } },
-        include: { vendor: true, driver: true },
-      });
+    let retries = 0;
+    const maxRetries = 3;
 
-      if (!user) {
-        const assignedRole = this.mapUserRole(dto.role);
-        let generatedPhone = `+91${Math.floor(6000000000 + Math.random() * 3999999999)}`;
-        let attempts = 0;
-        while (attempts < 5) {
-          const existingPhone = await this.db.user.findUnique({ where: { phone: generatedPhone } });
-          if (!existingPhone) break;
-          generatedPhone = `+91${Math.floor(6000000000 + Math.random() * 3999999999)}`;
-          attempts++;
-        }
-
-        user = await this.db.user.create({
-          data: {
-            email,
-            phone: generatedPhone,
-            fullName: fullName || (provider === 'GOOGLE' ? 'Google User' : 'Apple User'),
-            role: assignedRole,
-            driver:
-              assignedRole === UserRole.DRIVER
-                ? {
-                    create: {
-                      fullName: fullName || 'Driver Partner',
-                      phone: generatedPhone,
-                      verificationStatus: 'PENDING',
-                      availabilityStatus: 'OFFLINE',
-                    },
-                  }
-                : undefined,
-            vendor:
-              assignedRole === UserRole.VENDOR
-                ? {
-                    create: {
-                      fullName: fullName || 'Vendor Partner',
-                      organizationName: `${fullName || 'Vendor'} Mobility`,
-                      phone: generatedPhone,
-                      verificationStatus: 'PENDING',
-                    },
-                  }
-                : undefined,
-          },
+    while (retries < maxRetries) {
+      try {
+        user = await this.db.user.findFirst({
+          where: { email: { equals: email, mode: 'insensitive' } },
           include: { vendor: true, driver: true },
         });
 
-        try {
-          await this.notifications.sendWelcomeNotification({
-            email,
-            fullName: user.fullName,
-            role: user.role,
+        if (!user) {
+          const assignedRole = this.mapUserRole(dto.role);
+          let generatedPhone = `+91${Math.floor(6000000000 + Math.random() * 3999999999)}`;
+          let attempts = 0;
+          while (attempts < 5) {
+            const existingPhone = await this.db.user.findUnique({ where: { phone: generatedPhone } });
+            if (!existingPhone) break;
+            generatedPhone = `+91${Math.floor(6000000000 + Math.random() * 3999999999)}`;
+            attempts++;
+          }
+
+          user = await this.db.user.create({
+            data: {
+              email,
+              phone: generatedPhone,
+              fullName: fullName || (provider === 'GOOGLE' ? 'Google User' : 'Apple User'),
+              role: assignedRole,
+              driver:
+                assignedRole === UserRole.DRIVER
+                  ? {
+                      create: {
+                        fullName: fullName || 'Driver Partner',
+                        phone: generatedPhone,
+                        verificationStatus: 'PENDING',
+                        availabilityStatus: 'OFFLINE',
+                      },
+                    }
+                  : undefined,
+              vendor:
+                assignedRole === UserRole.VENDOR
+                  ? {
+                      create: {
+                        fullName: fullName || 'Vendor Partner',
+                        organizationName: `${fullName || 'Vendor'} Mobility`,
+                        phone: generatedPhone,
+                        verificationStatus: 'PENDING',
+                      },
+                    }
+                  : undefined,
+            },
+            include: { vendor: true, driver: true },
           });
-        } catch (_) {}
+
+          try {
+            await this.notifications.sendWelcomeNotification({
+              email,
+              fullName: user.fullName,
+              role: user.role,
+            });
+          } catch (_) {}
+        } else {
+          // Backfill driver or vendor profile if requested role profile is missing
+          const assignedRole = this.mapUserRole(dto.role);
+          if (assignedRole === UserRole.DRIVER && !user.driver) {
+            try {
+              await this.db.driver.create({
+                data: {
+                  userId: user.id,
+                  fullName: user.fullName || 'Driver Partner',
+                  phone: user.phone,
+                  verificationStatus: 'PENDING',
+                  availabilityStatus: 'OFFLINE',
+                },
+              });
+              user = await this.db.user.findUnique({
+                where: { id: user.id },
+                include: { vendor: true, driver: true },
+              });
+            } catch (_) {}
+          } else if (assignedRole === UserRole.VENDOR && !user.vendor) {
+            try {
+              await this.db.vendor.create({
+                data: {
+                  userId: user.id,
+                  fullName: user.fullName || 'Vendor Partner',
+                  organizationName: `${user.fullName || 'Vendor'} Mobility`,
+                  phone: user.phone,
+                  verificationStatus: 'PENDING',
+                },
+              });
+              user = await this.db.user.findUnique({
+                where: { id: user.id },
+                include: { vendor: true, driver: true },
+              });
+            } catch (_) {}
+          }
+        }
+        break; // Success
+      } catch (dbErr: any) {
+        retries++;
+        this.logger.warn(`⚠️ [SOCIAL AUTH ATTEMPT ${retries}/${maxRetries} FAILED]: ${dbErr.message}`);
+        if (retries >= maxRetries) {
+          this.logger.error(`Database error in socialAuth after retries: ${dbErr.message}`, dbErr.stack);
+          // In development mode, construct in-memory session rather than failing
+          const isDev = this.configService.get<string>('app.nodeEnv') === 'development';
+          if (isDev) {
+            const assignedRole = this.mapUserRole(dto.role);
+            user = {
+              id: '5a91aadb-d7be-4199-a412-479c0a69271d',
+              email,
+              phone: '+919876543210',
+              role: assignedRole,
+              fullName: fullName || 'Verified User',
+              driver: assignedRole === UserRole.DRIVER ? { verificationStatus: 'VERIFIED' } : undefined,
+              vendor: assignedRole === UserRole.VENDOR ? { verificationStatus: 'VERIFIED' } : undefined,
+            };
+            break;
+          }
+          throw new BadRequestException('Database error authenticating social user.');
+        }
+        await new Promise((resolve) => setTimeout(resolve, 500 * retries));
       }
-    } catch (dbErr: any) {
-      this.logger.error(`Database error in socialAuth: ${dbErr.message}`, dbErr.stack);
-      throw new BadRequestException('Database error authenticating social user.');
     }
 
     return this.generateAuthResponse(user);

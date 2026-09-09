@@ -84,6 +84,10 @@ export class SocialAuthDto {
 
   @IsOptional()
   @IsString()
+  token?: string;
+
+  @IsOptional()
+  @IsString()
   fullName?: string;
 
   @IsOptional()
