@@ -38,7 +38,6 @@ class _EarningsTransactionsScreenState extends State<EarningsTransactionsScreen>
           final isCredit = (e['entryType'] ?? '').toString().toUpperCase() == 'CREDIT';
           final amountVal = double.tryParse((e['amount'] ?? 0).toString()) ?? 0.0;
           final desc = e['description']?.toString() ?? (isCredit ? 'Trip Earnings' : 'Withdrawal');
-          final refType = e['referenceType']?.toString() ?? '';
           final date = e['createdAt'] != null
               ? e['createdAt'].toString().split('T').first
               : 'Recent';

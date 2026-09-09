@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../routes/app_routes.dart';
+import '../../services/auth_service.dart';
 import '../../services/onboarding_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
@@ -48,8 +49,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (response != null && mounted) {
           setState(() {
             _driverProfile = Map<String, dynamic>.from(response);
-            _driverProfile['name'] = response['full_name'] ?? authService.currentUser?.fullName ?? 'Driver Partner';
-            _driverProfile['phone'] = response['phone'] ?? authService.currentUser?.phone ?? '+91 98765 43210';
+            _driverProfile['name'] = response['full_name'] ?? AuthService.instance.currentUser?.fullName ?? 'Driver Partner';
+            _driverProfile['phone'] = response['phone'] ?? AuthService.instance.currentUser?.phone ?? '+91 98765 43210';
             _driverProfile['vehicle'] = response['vehicle_number'] != null
                 ? '${response['vehicle_number']} · ${response['vehicle_type'] ?? 'Sedan'}'
                 : 'Verified Commercial Fleet';
@@ -153,12 +154,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ? _driverProfile['name'].toString()
           : (onboarding.fullName.isNotEmpty
               ? onboarding.fullName
-              : (authService.currentUser?.fullName?.isNotEmpty == true ? authService.currentUser!.fullName! : 'Driver Partner')),
+              : (AuthService.instance.currentUser?.fullName?.isNotEmpty == true ? AuthService.instance.currentUser!.fullName! : 'Driver Partner')),
       'phone': (_driverProfile['phone'] != null && _driverProfile['phone'].toString().isNotEmpty)
           ? _driverProfile['phone'].toString()
           : (onboarding.phoneNumber.isNotEmpty
               ? onboarding.phoneNumber
-              : (authService.currentUser?.phone?.isNotEmpty == true ? authService.currentUser!.phone! : '+91 98765 43210')),
+              : (AuthService.instance.currentUser?.phone?.isNotEmpty == true ? AuthService.instance.currentUser!.phone! : '+91 98765 43210')),
       'vehicle': (_driverProfile['vehicle'] != null && _driverProfile['vehicle'].toString().isNotEmpty)
           ? _driverProfile['vehicle'].toString()
           : (onboarding.registrationNumber.isNotEmpty

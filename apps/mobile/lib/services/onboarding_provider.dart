@@ -96,6 +96,24 @@ class OnboardingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updatePersonalInfo({
+    String? fullName,
+    DateTime? dateOfBirth,
+    String? gender,
+    String? email,
+    String? phone,
+    String? companyName,
+    bool? isCorporate,
+  }) => setPersonalDetails(
+    fullName: fullName,
+    dateOfBirth: dateOfBirth,
+    gender: gender,
+    email: email,
+    phone: phone,
+    companyName: companyName,
+    isCorporate: isCorporate,
+  );
+
   void setVehicleDetails({
     required String vehicleType,
     required String carModel,
