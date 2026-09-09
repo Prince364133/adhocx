@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../routes/app_routes.dart';
+import '../../services/auth_service.dart';
 import '../../services/driver_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
@@ -28,6 +29,8 @@ class _EarningsScreenState extends State<EarningsScreen> {
   int _tripsTotal = 0;
   int _tripsCompleted = 0;
   int _tripsCancelled = 0;
+  double _thisWeekEarned = 0.0;
+  Map<int, double> _weekdayEarnings = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0};
 
   @override
   void initState() {
@@ -38,14 +41,33 @@ class _EarningsScreenState extends State<EarningsScreen> {
   Future<void> _loadWalletData() async {
     setState(() => _isLoading = true);
     try {
+      await AuthService.instance.ensureAuthenticatedSession(role: 'DRIVER');
+
       final summary = await DriverService.instance.getWalletSummary();
       final trips = await DriverService.instance.getTrips();
 
       int completed = 0;
       int cancelled = 0;
+      double weekTotal = 0.0;
+      final Map<int, double> weekdayMap = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0};
+
       for (final t in trips) {
         final st = (t['status'] ?? '').toString().toUpperCase();
-        if (st == 'COMPLETED') completed++;
+        if (st == 'COMPLETED') {
+          completed++;
+          final fare = (t['fare'] is num)
+              ? (t['fare'] as num).toDouble()
+              : (double.tryParse(t['fare']?.toString() ?? '0') ?? 0.0);
+          weekTotal += fare;
+
+          final dateStr = t['createdAt'] ?? t['dropoffTime'] ?? t['pickupTime'];
+          if (dateStr != null) {
+            try {
+              final d = DateTime.parse(dateStr.toString());
+              weekdayMap[d.weekday] = (weekdayMap[d.weekday] ?? 0) + fare;
+            } catch (_) {}
+          }
+        }
         if (st == 'CANCELLED') cancelled++;
       }
 
@@ -57,9 +79,15 @@ class _EarningsScreenState extends State<EarningsScreen> {
           _tripsTotal = trips.length;
           _tripsCompleted = completed;
           _tripsCancelled = cancelled;
+          final totalEarnedFromWallet = (_walletSummary['totalEarned'] is num)
+              ? (_walletSummary['totalEarned'] as num).toDouble()
+              : (double.tryParse(_walletSummary['totalEarned']?.toString() ?? '0') ?? 0.0);
+          _thisWeekEarned = weekTotal > 0 ? weekTotal : totalEarnedFromWallet;
+          _weekdayEarnings = weekdayMap;
         });
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Error loading earnings: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -257,7 +285,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                                     borderRadius: BorderRadius.circular(AppRadius.full),
                                   ),
                                   child: Text(
-                                    '↑ 19% vs last week',
+                                    _thisWeekEarned > 0 ? 'Live Balance' : 'Current Period',
                                     style: AppTypography.caption(
                                       color: AppColors.accentGreenDark,
                                       fontWeight: FontWeight.bold,
@@ -268,7 +296,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '₹12,450',
+                              '₹${_thisWeekEarned.toStringAsFixed(0)}',
                               style: AppTypography.h1(
                                 color: AppColors.textPrimaryLight,
                                 fontWeight: FontWeight.bold,
@@ -281,13 +309,13 @@ class _EarningsScreenState extends State<EarningsScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceAround,
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                _buildBarColumn('Mon', 35),
-                                _buildBarColumn('Tue', 55),
-                                _buildBarColumn('Wed', 40),
-                                _buildBarColumn('Thu', 70),
-                                _buildBarColumn('Fri', 60),
-                                _buildBarColumn('Sat', 95, isHigh: true),
-                                _buildBarColumn('Sun', 50),
+                                _buildBarColumn('Mon', _getBarHeight(1), isHigh: DateTime.now().weekday == 1),
+                                _buildBarColumn('Tue', _getBarHeight(2), isHigh: DateTime.now().weekday == 2),
+                                _buildBarColumn('Wed', _getBarHeight(3), isHigh: DateTime.now().weekday == 3),
+                                _buildBarColumn('Thu', _getBarHeight(4), isHigh: DateTime.now().weekday == 4),
+                                _buildBarColumn('Fri', _getBarHeight(5), isHigh: DateTime.now().weekday == 5),
+                                _buildBarColumn('Sat', _getBarHeight(6), isHigh: DateTime.now().weekday == 6),
+                                _buildBarColumn('Sun', _getBarHeight(7), isHigh: DateTime.now().weekday == 7),
                               ],
                             ),
                           ],
@@ -394,6 +422,13 @@ class _EarningsScreenState extends State<EarningsScreen> {
         ),
       ),
     );
+  }
+
+  double _getBarHeight(int weekday) {
+    final maxVal = _weekdayEarnings.values.fold<double>(0.0, (max, v) => v > max ? v : max);
+    if (maxVal <= 0) return 25.0;
+    final val = _weekdayEarnings[weekday] ?? 0.0;
+    return 15.0 + (val / maxVal) * 75.0;
   }
 
   Widget _buildBarColumn(String label, double heightRatio, {bool isHigh = false}) {

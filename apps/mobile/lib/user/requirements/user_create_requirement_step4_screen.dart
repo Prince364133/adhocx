@@ -17,21 +17,43 @@ class UserCreateRequirementStep4Screen extends StatefulWidget {
 }
 
 class _UserCreateRequirementStep4ScreenState extends State<UserCreateRequirementStep4Screen> {
-  late int _passengers;
-  String? _selectedLuggage;
+  static const List<String> _luggageOptions = [
+    'Standard (2 Suitcases)',
+    'Heavy (4+ Bags)',
+    'Executive Briefcase Only',
+    'Cargo / Equipment Boxes',
+    'No Luggage',
+  ];
+
+  int _passengers = 1;
+  String? _selectedLuggage = 'Standard (2 Suitcases)';
   late TextEditingController _additionalInfoController;
   final List<String> _stops = [];
   bool _initialized = false;
 
   @override
+  void initState() {
+    super.initState();
+    _additionalInfoController = TextEditingController();
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_initialized) {
-      final draft = context.read<RequirementDraftProvider>();
-      _passengers = draft.passengers;
-      _selectedLuggage = draft.selectedLuggage;
-      _additionalInfoController = TextEditingController(text: draft.additionalInfo);
-      _stops.addAll(draft.additionalStops);
+      try {
+        final draft = context.read<RequirementDraftProvider>();
+        _passengers = draft.passengers;
+        final draftLuggage = draft.selectedLuggage;
+        if (draftLuggage != null && _luggageOptions.contains(draftLuggage)) {
+          _selectedLuggage = draftLuggage;
+        } else {
+          _selectedLuggage = _luggageOptions.first;
+        }
+        _additionalInfoController.text = draft.additionalInfo;
+        _stops.clear();
+        _stops.addAll(draft.additionalStops);
+      } catch (_) {}
       _initialized = true;
     }
   }
@@ -187,17 +209,15 @@ class _UserCreateRequirementStep4ScreenState extends State<UserCreateRequirement
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
-                          value: _selectedLuggage,
+                          value: (_selectedLuggage != null && _luggageOptions.contains(_selectedLuggage))
+                              ? _selectedLuggage
+                              : _luggageOptions.first,
                           hint: const Text('Select luggage type'),
                           isExpanded: true,
                           dropdownColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                          items: [
-                            'Standard (2 Suitcases)',
-                            'Heavy (4+ Bags)',
-                            'Executive Briefcase Only',
-                            'Cargo / Equipment Boxes',
-                            'No Luggage',
-                          ].map((type) => DropdownMenuItem(value: type, child: Text(type))).toList(),
+                          items: _luggageOptions
+                              .map((type) => DropdownMenuItem(value: type, child: Text(type)))
+                              .toList(),
                           onChanged: (val) => setState(() => _selectedLuggage = val),
                         ),
                       ),

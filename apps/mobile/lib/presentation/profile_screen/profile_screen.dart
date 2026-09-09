@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
+import '../../services/driver_service.dart';
 import '../../services/onboarding_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
@@ -27,6 +28,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _showLanguageSwitcher = false;
   Map<String, dynamic> _driverProfile = {};
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -36,30 +38,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _fetchProfile() async {
     try {
-      final supabase = Supabase.instance.client;
-      final user = supabase.auth.currentUser;
+      await AuthService.instance.ensureAuthenticatedSession(role: 'DRIVER');
 
-      if (user != null) {
-        final response = await supabase
-            .from('driver_profiles')
-            .select()
-            .eq('user_id', user.id)
-            .maybeSingle();
+      final profileRes = await DriverService.instance.getProfile();
+      final tripsRes = await DriverService.instance.getTrips();
 
-        if (response != null && mounted) {
-          setState(() {
-            _driverProfile = Map<String, dynamic>.from(response);
-            _driverProfile['name'] = response['full_name'] ?? AuthService.instance.currentUser?.fullName ?? 'Driver Partner';
-            _driverProfile['phone'] = response['phone'] ?? AuthService.instance.currentUser?.phone ?? '+91 98765 43210';
-            _driverProfile['vehicle'] = response['vehicle_number'] != null
-                ? '${response['vehicle_number']} · ${response['vehicle_type'] ?? 'Sedan'}'
-                : 'Verified Commercial Fleet';
-            _driverProfile['is_verified'] = response['is_approved'] ?? true;
-          });
-        }
+      if (mounted) {
+        setState(() {
+          if (profileRes is Map) {
+            _driverProfile = Map<String, dynamic>.from(profileRes);
+          }
+          final user = AuthService.instance.currentUser;
+          _driverProfile['name'] = _driverProfile['fullName'] ?? _driverProfile['full_name'] ?? user?.fullName ?? 'Driver Partner';
+          _driverProfile['phone'] = _driverProfile['phone'] ?? user?.phone ?? '+91 98765 43210';
+
+          final veh = _driverProfile['vehicle'] ?? (_driverProfile['vehicles'] is List && (_driverProfile['vehicles'] as List).isNotEmpty ? _driverProfile['vehicles'][0] : null);
+          if (veh is Map) {
+            final plate = veh['registrationNumber'] ?? veh['vehicleNumber'] ?? '';
+            final model = veh['model'] ?? veh['vehicleType'] ?? 'Commercial Fleet';
+            _driverProfile['vehicle'] = plate.toString().isNotEmpty ? '$plate · $model' : '$model';
+          } else {
+            _driverProfile['vehicle'] = 'Verified Commercial Fleet';
+          }
+
+          final status = (_driverProfile['verificationStatus'] ?? _driverProfile['verification_status'] ?? '').toString().toUpperCase();
+          _driverProfile['is_verified'] = status == 'VERIFIED' || status == 'APPROVED' || _driverProfile['isApproved'] == true;
+
+          final totalTrips = tripsRes.length;
+          _driverProfile['total_trips'] = '$totalTrips';
+          _driverProfile['rating'] = (_driverProfile['rating'] != null && _driverProfile['rating'] != 0) ? _driverProfile['rating'].toString() : '5.0';
+          _driverProfile['acceptance_rate'] = (_driverProfile['acceptanceRate'] != null && _driverProfile['acceptanceRate'] != 0) ? '${_driverProfile['acceptanceRate']}%' : '100%';
+        });
       }
     } catch (e) {
-      debugPrint('Error loading profile: $e');
+      debugPrint('Error loading live driver profile: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -166,9 +180,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ? '${onboarding.registrationNumber} · ${onboarding.vehicleType}'
               : 'Verified Commercial Fleet'),
       'is_verified': _driverProfile['is_verified'] ?? true,
-      'rating': '4.92',
-      'total_trips': '1,280',
-      'acceptance_rate': '98.5%',
+      'rating': _driverProfile['rating'] ?? '5.0',
+      'total_trips': _driverProfile['total_trips'] ?? '0',
+      'acceptance_rate': _driverProfile['acceptance_rate'] ?? '100%',
     };
 
     return Scaffold(

@@ -29,7 +29,7 @@ class RequirementDraftProvider extends ChangeNotifier {
 
   // Step 4: Passengers & Luggage & Notes
   int _passengers = 1;
-  String? _selectedLuggage = 'Standard (2 Bags)';
+  String? _selectedLuggage = 'Standard (2 Suitcases)';
   String _additionalInfo = '';
   List<String> _additionalStops = [];
 
@@ -77,7 +77,7 @@ class RequirementDraftProvider extends ChangeNotifier {
 
   int get passengers => _passengers;
   String? get selectedLuggage => _selectedLuggage;
-  String get luggage => _selectedLuggage ?? 'Standard (2 Bags)';
+  String get luggage => _selectedLuggage ?? 'Standard (2 Suitcases)';
   String get additionalInfo => _additionalInfo;
   List<String> get additionalStops => _additionalStops;
 
@@ -244,7 +244,7 @@ class RequirementDraftProvider extends ChangeNotifier {
     _returnDate = null;
     _returnTime = null;
     _passengers = 1;
-    _selectedLuggage = 'Standard (2 Bags)';
+    _selectedLuggage = 'Standard (2 Suitcases)';
     _additionalInfo = '';
     _additionalStops = [];
     _initDefaultDateTime();
