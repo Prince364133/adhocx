@@ -73,40 +73,45 @@ export class DriversService {
   }
 
   async updateAvailability(userId: string, dto: UpdateAvailabilityDto): Promise<DriverProfileDto> {
-    try {
-      const driver = await this.db.driver.findUnique({ where: { userId } });
-      if (driver) {
-        validateAvailabilityTransition(
-          driver.availabilityStatus as DriverAvailability,
-          dto.status,
-        );
+    let driver = await this.db.driver.findUnique({ where: { userId } });
 
-        const updated = await this.db.driver.update({
-          where: { userId },
-          data: {
-            availabilityStatus: dto.status,
-            currentLat: dto.currentLocation?.latitude,
-            currentLng: dto.currentLocation?.longitude,
-            lastLocationAt: dto.currentLocation ? new Date() : undefined,
-          },
-        });
-
-        return this.getProfile(updated.userId);
+    if (!driver) {
+      const user = await this.db.user.findUnique({ where: { id: userId } });
+      if (!user) {
+        throw new NotFoundException('User account not found');
       }
-    } catch (_) {}
 
-    const user = await this.db.user.findUnique({ where: { id: userId } }).catch(() => null);
-    return {
-      id: `drv_${userId}`,
-      userId,
-      fullName: user?.fullName || 'Driver Partner',
-      phone: user?.phone || '+919876543210',
-      verificationStatus: VerificationStatus.PENDING,
-      availabilityStatus: dto.status,
-      walletBalance: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+      driver = await this.db.driver.create({
+        data: {
+          userId,
+          fullName: user.fullName || 'Driver Partner',
+          phone: user.phone || '+919876543210',
+          verificationStatus: VerificationStatus.PENDING,
+          availabilityStatus: dto.status,
+          currentLat: dto.currentLocation?.latitude,
+          currentLng: dto.currentLocation?.longitude,
+          lastLocationAt: dto.currentLocation ? new Date() : undefined,
+        },
+      });
+      return this.getProfile(driver.userId);
+    }
+
+    validateAvailabilityTransition(
+      driver.availabilityStatus as DriverAvailability,
+      dto.status,
+    );
+
+    const updated = await this.db.driver.update({
+      where: { userId },
+      data: {
+        availabilityStatus: dto.status,
+        currentLat: dto.currentLocation?.latitude ?? driver.currentLat,
+        currentLng: dto.currentLocation?.longitude ?? driver.currentLng,
+        lastLocationAt: dto.currentLocation ? new Date() : driver.lastLocationAt,
+      },
+    });
+
+    return this.getProfile(updated.userId);
   }
 
   async submitKyc(userId: string, dto: KycSubmissionDto): Promise<DriverProfileDto> {

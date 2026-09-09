@@ -13,10 +13,18 @@ class DriverService {
     return await _api.get('/drivers/profile');
   }
 
-  Future<dynamic> updateAvailability(String availabilityStatus) async {
+  Future<dynamic> updateAvailability(String availabilityStatus, {double? lat, double? lng}) async {
     return await _api.patch(
       '/drivers/availability',
-      body: {'availabilityStatus': availabilityStatus},
+      body: {
+        'status': availabilityStatus.toUpperCase(),
+        'availabilityStatus': availabilityStatus.toUpperCase(),
+        if (lat != null && lng != null)
+          'currentLocation': {
+            'latitude': lat,
+            'longitude': lng,
+          },
+      },
     );
   }
 

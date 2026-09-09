@@ -90,6 +90,7 @@ export const LEGAL_VERIFICATION_TRANSITIONS: Record<VerificationStatus, Verifica
 };
 
 export function canTransitionRequirement(from: RequirementStatus, to: RequirementStatus): boolean {
+  if (from === to) return true;
   return LEGAL_REQUIREMENT_TRANSITIONS[from]?.includes(to) ?? false;
 }
 
@@ -100,6 +101,7 @@ export function validateRequirementTransition(from: RequirementStatus, to: Requi
 }
 
 export function canTransitionOffer(from: OfferStatus, to: OfferStatus): boolean {
+  if (from === to) return true;
   return LEGAL_OFFER_TRANSITIONS[from]?.includes(to) ?? false;
 }
 
@@ -110,6 +112,7 @@ export function validateOfferTransition(from: OfferStatus, to: OfferStatus): voi
 }
 
 export function canTransitionBid(from: BidStatus, to: BidStatus): boolean {
+  if (from === to) return true;
   return LEGAL_BID_TRANSITIONS[from]?.includes(to) ?? false;
 }
 
@@ -120,6 +123,7 @@ export function validateBidTransition(from: BidStatus, to: BidStatus): void {
 }
 
 export function canTransitionAssignment(from: AssignmentStatus, to: AssignmentStatus): boolean {
+  if (from === to) return true;
   return LEGAL_ASSIGNMENT_TRANSITIONS[from]?.includes(to) ?? false;
 }
 
@@ -130,6 +134,7 @@ export function validateAssignmentTransition(from: AssignmentStatus, to: Assignm
 }
 
 export function canTransitionTrip(from: TripStatus, to: TripStatus): boolean {
+  if (from === to) return true;
   return LEGAL_TRIP_TRANSITIONS[from]?.includes(to) ?? false;
 }
 
@@ -140,6 +145,7 @@ export function validateTripTransition(from: TripStatus, to: TripStatus): void {
 }
 
 export function canTransitionAvailability(from: DriverAvailability, to: DriverAvailability): boolean {
+  if (from === to) return true;
   return LEGAL_AVAILABILITY_TRANSITIONS[from]?.includes(to) ?? false;
 }
 
@@ -150,6 +156,7 @@ export function validateAvailabilityTransition(from: DriverAvailability, to: Dri
 }
 
 export function canTransitionVerification(from: VerificationStatus, to: VerificationStatus): boolean {
+  if (from === to) return true;
   return LEGAL_VERIFICATION_TRANSITIONS[from]?.includes(to) ?? false;
 }
 
