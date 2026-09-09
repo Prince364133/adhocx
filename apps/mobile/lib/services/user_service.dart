@@ -1,4 +1,5 @@
 import '../core/networking/api_client.dart';
+import 'auth_service.dart';
 
 class UserService {
   static UserService? _instance;
@@ -7,6 +8,12 @@ class UserService {
   UserService._();
 
   final ApiClient _api = ApiClient.instance;
+
+  Future<void> _ensureSession() async {
+    try {
+      await AuthService.instance.ensureVendorSession();
+    } catch (_) {}
+  }
 
   Future<dynamic> createRequirement({
     required String vehicleType,
@@ -29,6 +36,7 @@ class UserService {
     int? requiredQuantity,
     DateTime? scheduledPickupTime,
   }) async {
+    await _ensureSession();
     final effectiveQuantity = requiredQuantity ?? quantity;
     final effectiveReportingTime = scheduledPickupTime ?? reportingTime;
     final effectiveBudget = ratePerVehicle ?? budgetPerVehicle ?? suggestedBudget;
@@ -63,6 +71,7 @@ class UserService {
   }
 
   Future<List<dynamic>> getRequirements({String? status}) async {
+    await _ensureSession();
     final query = status != null ? {'status': status} : null;
     final response = await _api.get('/requirements', queryParameters: query);
     if (response is Map && response['items'] is List) {
@@ -72,10 +81,12 @@ class UserService {
   }
 
   Future<dynamic> getRequirement(String id) async {
+    await _ensureSession();
     return await _api.get('/requirements/$id');
   }
 
   Future<dynamic> cancelRequirement(String id, {String? reason}) async {
+    await _ensureSession();
     return await _api.post(
       '/requirements/$id/cancel',
       body: reason != null ? {'reason': reason} : null,
@@ -84,11 +95,13 @@ class UserService {
 
   // Bidding Flow for Requester
   Future<List<dynamic>> getBids(String requirementId) async {
+    await _ensureSession();
     final response = await _api.get('/bids/requirement/$requirementId');
     return response is List ? response : [];
   }
 
   Future<dynamic> acceptBid(String bidId) async {
+    await _ensureSession();
     return await _api.post('/bids/$bidId/accept');
   }
 
@@ -98,6 +111,7 @@ class UserService {
     required int rating,
     String? feedback,
   }) async {
+    await _ensureSession();
     return await _api.post(
       '/reviews',
       body: {
@@ -114,6 +128,7 @@ class UserService {
     required String reason,
     String? description,
   }) async {
+    await _ensureSession();
     return await _api.post(
       '/disputes',
       body: {
@@ -125,6 +140,7 @@ class UserService {
   }
 
   Future<Map<String, dynamic>> getRequirementsSummary() async {
+    await _ensureSession();
     final response = await _api.get('/requirements/summary');
     if (response is Map<String, dynamic>) {
       return response;
@@ -144,6 +160,7 @@ class UserService {
 
   // Universal Wallet & Razorpay Top-Up for Requester/Vendor
   Future<Map<String, dynamic>> getWalletSummary() async {
+    await _ensureSession();
     final response = await _api.get('/payments/wallet');
     if (response is Map<String, dynamic>) return response;
     if (response is Map) return Map<String, dynamic>.from(response);
@@ -156,6 +173,7 @@ class UserService {
   }
 
   Future<Map<String, dynamic>> createWalletTopUpOrder(double amount) async {
+    await _ensureSession();
     final response = await _api.post(
       '/payments/wallet/top-up/create-order',
       body: {'amount': amount},
@@ -173,6 +191,7 @@ class UserService {
     required String razorpaySignature,
     double amount = 0,
   }) async {
+    await _ensureSession();
     return await _api.post(
       '/payments/wallet/top-up/verify',
       body: {
@@ -197,22 +216,26 @@ class UserService {
   );
 
   Future<List<dynamic>> getWalletTransactions() async {
+    await _ensureSession();
     final response = await _api.get('/payments/wallet/transactions');
     return response is List ? response : [];
   }
 
   // Booker / User Trips
   Future<List<dynamic>> getTrips({String? status}) async {
+    await _ensureSession();
     final query = status != null ? {'status': status} : null;
     final response = await _api.get('/trips', queryParameters: query);
     return response is List ? response : [];
   }
 
   Future<dynamic> getTrip(String tripId) async {
+    await _ensureSession();
     return await _api.get('/trips/$tripId');
   }
 
   Future<dynamic> cancelTrip(String tripId, {String? reason}) async {
+    await _ensureSession();
     return await _api.post(
       '/trips/$tripId/cancel',
       body: reason != null ? {'reason': reason} : null,
@@ -221,4 +244,5 @@ class UserService {
 }
 
 typedef VendorService = UserService;
+
 

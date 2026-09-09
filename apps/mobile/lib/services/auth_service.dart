@@ -299,23 +299,33 @@ class AuthService {
     return response;
   }
 
-  /// Ensures that there is an active, valid backend JWT session.
-  /// In local web / debug environment, if no valid token exists, it auto-authenticates
-  /// with the live backend using the designated test role (DRIVER or VENDOR).
+  /// Ensures that there is an active, valid backend JWT session for the requested role.
+  /// If the current session has a different role, it seamlessly switches to the requested role.
   Future<UserModel> ensureAuthenticatedSession({String role = 'DRIVER'}) async {
+    final targetRole = role.toUpperCase();
+    final isDriverTarget = targetRole == 'DRIVER';
+    final isVendorTarget = targetRole == 'VENDOR' || targetRole == 'USER';
+
     final token = await _api.getToken();
     if (token != null && token.isNotEmpty) {
       try {
         final user = await fetchCurrentUser();
-        if (user != null) return user;
+        if (user != null) {
+          final userRole = user.role.toUpperCase();
+          final isDriverUser = userRole == 'DRIVER';
+          final isVendorUser = userRole == 'VENDOR' || userRole == 'USER' || userRole == 'ADMIN';
+
+          if ((isDriverTarget && isDriverUser) || (isVendorTarget && isVendorUser)) {
+            return user;
+          }
+        }
       } catch (_) {}
     }
 
     // Auto-bootstrap valid session via live backend social/dev auth
     try {
-      final isDriver = role.toUpperCase() == 'DRIVER';
-      final email = isDriver ? 'driver.partner@adhocx.com' : 'booker.corporate@adhocx.com';
-      final fullName = isDriver ? 'Driver Partner' : 'Corporate Booker';
+      final email = isDriverTarget ? 'driver.partner@adhocx.com' : 'booker.corporate@adhocx.com';
+      final fullName = isDriverTarget ? 'Driver Partner' : 'Corporate Booker';
 
       final result = await _api.post(
         '/auth/social',
@@ -323,7 +333,7 @@ class AuthService {
           'provider': 'GOOGLE',
           'email': email,
           'fullName': fullName,
-          'role': role.toUpperCase(),
+          'role': isDriverTarget ? 'DRIVER' : 'VENDOR',
         },
       );
 
@@ -340,6 +350,10 @@ class AuthService {
     _currentUser ??= UserModel(id: 'usr_guest', phone: '+919876543210', role: role);
     return _currentUser!;
   }
+
+  Future<UserModel> ensureDriverSession() => ensureAuthenticatedSession(role: 'DRIVER');
+  Future<UserModel> ensureVendorSession() => ensureAuthenticatedSession(role: 'VENDOR');
+
 
   Future<UserModel?> fetchCurrentUser() async {
     final token = await _api.getToken();
