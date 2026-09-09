@@ -60,11 +60,11 @@ class AppSecondaryButton extends StatelessWidget {
 
     switch (variant) {
       case AppSecondaryVariant.outline:
-        side = const BorderSide(color: AppColors.borderDark, width: 1.2);
+        side = BorderSide(color: AppColors.borderDark, width: 1.2);
         bgColor = AppColors.surfaceDark;
         break;
       case AppSecondaryVariant.subtle:
-        side = const BorderSide(color: AppColors.borderSubtleDark, width: 1);
+        side = BorderSide(color: AppColors.borderSubtleDark, width: 1);
         bgColor = AppColors.surfaceElevatedDark;
         break;
       case AppSecondaryVariant.ghost:

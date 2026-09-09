@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../routes/app_routes.dart';
+import '../../services/auth_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
@@ -55,7 +57,14 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await Future.delayed(const Duration(milliseconds: 600));
+      final authService = context.read<AuthService>();
+      final otpCode = widget.otp ?? '123456';
+
+      await authService.resetPassword(
+        identifier: widget.phone,
+        otp: otpCode,
+        newPassword: _passwordController.text.trim(),
+      );
 
       if (mounted) {
         Fluttertoast.showToast(
@@ -65,6 +74,14 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         );
 
         context.go(AppRoutes.signInScreen);
+      }
+    } catch (e) {
+      if (mounted) {
+        Fluttertoast.showToast(
+          msg: e.toString().replaceFirst('Exception: ', '').replaceFirst('ApiException: ', ''),
+          backgroundColor: AppColors.error,
+          textColor: Colors.white,
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -94,7 +111,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       children: [
                         IconButton(
                           onPressed: () => context.pop(),
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.arrow_back,
                             color: AppColors.textPrimaryLight,
                           ),

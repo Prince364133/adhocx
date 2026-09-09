@@ -30,7 +30,7 @@ class WaitlistRejectedWidget extends StatelessWidget {
               shape: BoxShape.circle,
               border: Border.all(color: AppColors.error, width: 2),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.cancel_rounded,
               color: AppColors.error,
               size: 48,
@@ -59,7 +59,7 @@ class WaitlistRejectedWidget extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.info_outline_rounded, color: AppColors.error, size: 16),
+                    Icon(Icons.info_outline_rounded, color: AppColors.error, size: 16),
                     const SizedBox(width: AppSpacing.xs),
                     Text(
                       'Verification Officer Feedback',
@@ -74,7 +74,7 @@ class WaitlistRejectedWidget extends StatelessWidget {
                 Text(
                   reason,
                   style: AppTypography.body(
-                    color: const Color(0xFFFCA5A5),
+                    color: AppColors.errorContainer,
                     fontWeight: FontWeight.w500,
                   ),
                 ),

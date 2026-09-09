@@ -47,7 +47,7 @@ class _GlobalStateGalleryScreenState extends State<GlobalStateGalleryScreen> {
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.md,
                   ),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppColors.surfaceLight,
                     border: Border(
                       bottom: BorderSide(color: AppColors.borderLight),
@@ -63,7 +63,7 @@ class _GlobalStateGalleryScreenState extends State<GlobalStateGalleryScreen> {
                             context.go(AppRoutes.homeScreen);
                           }
                         },
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.arrow_back,
                           color: AppColors.textPrimaryLight,
                         ),
@@ -130,7 +130,7 @@ class _GlobalStateGalleryScreenState extends State<GlobalStateGalleryScreen> {
                     ),
                   ),
                 ),
-                const Divider(height: 1, color: AppColors.borderLight),
+                Divider(height: 1, color: AppColors.borderLight),
 
                 // ── Displayed State Body ─────────────────────────────────────
                 Expanded(

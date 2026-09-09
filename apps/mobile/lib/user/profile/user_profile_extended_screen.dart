@@ -72,7 +72,7 @@ class UserProfileExtendedScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF6C5CE7), Color(0xFFA29BFE)],
+                    colors: [AppColors.primary, AppColors.primaryLight],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -95,9 +95,9 @@ class UserProfileExtendedScreen extends StatelessWidget {
                           const SizedBox(height: 4),
                           Row(
                             children: const [
-                              Icon(Icons.verified, size: 14, color: Colors.greenAccent),
+                              Icon(Icons.verified, size: 14, color: AppColors.accentGreen),
                               SizedBox(width: 4),
-                              Text('Verified User', style: TextStyle(color: Colors.greenAccent, fontSize: 11, fontWeight: FontWeight.bold)),
+                              Text('Verified User', style: TextStyle(color: AppColors.accentGreen, fontSize: 11, fontWeight: FontWeight.bold)),
                             ],
                           ),
                         ],

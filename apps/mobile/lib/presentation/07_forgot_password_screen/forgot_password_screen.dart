@@ -93,7 +93,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       children: [
                         IconButton(
                           onPressed: () => context.pop(),
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.arrow_back,
                             color: AppColors.textPrimaryLight,
                           ),

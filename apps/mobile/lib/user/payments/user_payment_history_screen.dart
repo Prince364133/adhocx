@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../routes/app_routes.dart';
+import '../../services/user_service.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
@@ -15,46 +16,35 @@ class UserPaymentHistoryScreen extends StatefulWidget {
 
 class _UserPaymentHistoryScreenState extends State<UserPaymentHistoryScreen> {
   String _selectedFilter = 'All';
+  bool _isLoading = true;
+  List<dynamic> _transactions = [];
 
-  final List<String> _filters = ['All', 'Pending', 'Paid', 'Failed', 'Refunded'];
+  final List<String> _filters = ['All', 'TOPUP', 'ESCROW', 'PAYOUT'];
 
-  final List<Map<String, String>> _transactions = [
-    {
-      'title': 'Airport Transfer',
-      'id': 'REQ-250510-0001',
-      'date': '10 May 2025, 06:30 PM',
-      'amount': '₹ 24,750.00',
-      'status': 'Pending',
-    },
-    {
-      'title': 'Corporate Event',
-      'id': 'REQ-250808-0003',
-      'date': '8 May 2025, 09:00 AM',
-      'amount': '₹ 18,500.00',
-      'status': 'Paid',
-    },
-    {
-      'title': 'Wedding Event',
-      'id': 'REQ-250505-0002',
-      'date': '5 May 2025, 07:00 PM',
-      'amount': '₹ 32,000.00',
-      'status': 'Paid',
-    },
-    {
-      'title': 'City Tour',
-      'id': 'REQ-250804-0001',
-      'date': '4 May 2025, 10:00 AM',
-      'amount': '₹ 8,750.00',
-      'status': 'Failed',
-    },
-    {
-      'title': 'Airport Transfer',
-      'id': 'REQ-250501-0004',
-      'date': '1 May 2025, 06:00 PM',
-      'amount': '₹ 21,300.00',
-      'status': 'Paid',
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadTransactions();
+  }
+
+  Future<void> _loadTransactions() async {
+    setState(() => _isLoading = true);
+    try {
+      final list = await UserService.instance.getWalletTransactions();
+      if (mounted) setState(() => _transactions = list);
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  List<dynamic> get _filteredTransactions {
+    if (_selectedFilter == 'All') return _transactions;
+    return _transactions.where((t) {
+      final type = ((t as Map)['type'] ?? '').toString().toUpperCase();
+      return type.contains(_selectedFilter);
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -73,8 +63,8 @@ class _UserPaymentHistoryScreenState extends State<UserPaymentHistoryScreen> {
         title: Text('Payment History', style: AppTypography.h3(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
-            onPressed: () {},
-            icon: Icon(Icons.tune, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+            onPressed: _loadTransactions,
+            icon: Icon(Icons.refresh, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
           ),
         ],
       ),
@@ -90,13 +80,13 @@ class _UserPaymentHistoryScreenState extends State<UserPaymentHistoryScreen> {
                 return Padding(
                   padding: const EdgeInsets.only(right: 8.0),
                   child: ChoiceChip(
-                    label: Text(filter),
+                    label: Text(filter == 'All' ? 'All Transactions' : filter),
                     selected: isSelected,
                     onSelected: (selected) {
                       if (selected) setState(() => _selectedFilter = filter);
                     },
-                    selectedColor: const Color(0xFF6C5CE7),
-                    backgroundColor: isDark ? AppColors.surfaceDark : Colors.grey[200],
+                    selectedColor: AppColors.primary,
+                    backgroundColor: isDark ? AppColors.surfaceDark : AppColors.slate200,
                     labelStyle: TextStyle(
                       color: isSelected ? Colors.white : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
@@ -115,7 +105,10 @@ class _UserPaymentHistoryScreenState extends State<UserPaymentHistoryScreen> {
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text('May 2025', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontWeight: FontWeight.bold)),
+              child: Text(
+                'Ledger Records (${_filteredTransactions.length})',
+                style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontWeight: FontWeight.bold),
+              ),
             ),
           ),
 
@@ -123,62 +116,83 @@ class _UserPaymentHistoryScreenState extends State<UserPaymentHistoryScreen> {
 
           // List of Transactions
           Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              itemCount: _transactions.length,
-              separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
-              itemBuilder: (context, index) {
-                final t = _transactions[index];
-                final status = t['status']!;
-                Color badgeColor = AppColors.success;
-                if (status == 'Pending') badgeColor = Colors.orange;
-                if (status == 'Failed') badgeColor = AppColors.error;
-
-                return InkWell(
-                  onTap: () => context.push(AppRoutes.userPaymentDetailsScreen),
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  child: Container(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    decoration: BoxDecoration(
-                      color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                      borderRadius: BorderRadius.circular(AppRadius.lg),
-                      border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF6C5CE7).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(AppRadius.md),
-                          ),
-                          child: const Icon(Icons.directions_car_outlined, color: Color(0xFF6C5CE7)),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(t['title']!, style: AppTypography.caption(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
-                              Text(t['id']!, style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontSize: 10)),
-                              Text(t['date']!, style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontSize: 10)),
-                            ],
-                          ),
-                        ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _filteredTransactions.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(t['amount']!, style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontSize: 13)),
-                            const SizedBox(height: 4),
-                            Text(status, style: TextStyle(color: badgeColor, fontWeight: FontWeight.bold, fontSize: 11)),
+                            Icon(Icons.account_balance_wallet_outlined, size: 48, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                            const SizedBox(height: 12),
+                            Text(
+                              'No transactions recorded on wallet ledger yet.',
+                              style: AppTypography.body(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                            ),
                           ],
                         ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        itemCount: _filteredTransactions.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+                        itemBuilder: (context, index) {
+                          final t = _filteredTransactions[index] as Map<String, dynamic>;
+                          final id = t['referenceId'] ?? t['id'] ?? 'TXN-LIVE';
+                          final title = t['description'] ?? t['type'] ?? 'Wallet Transaction';
+                          final date = t['createdAt'] != null ? t['createdAt'].toString().substring(0, 10) : 'Recent';
+                          final amount = t['amount'] ?? 0;
+                          final status = (t['status'] ?? 'COMPLETED').toString();
+
+                          Color badgeColor = AppColors.success;
+                          if (status == 'PENDING') badgeColor = AppColors.warning;
+                          if (status == 'FAILED') badgeColor = AppColors.error;
+
+                          return InkWell(
+                            onTap: () => context.push(AppRoutes.userPaymentDetailsScreen, extra: t),
+                            borderRadius: BorderRadius.circular(AppRadius.lg),
+                            child: Container(
+                              padding: const EdgeInsets.all(AppSpacing.md),
+                              decoration: BoxDecoration(
+                                color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                                borderRadius: BorderRadius.circular(AppRadius.lg),
+                                border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(AppRadius.md),
+                                    ),
+                                    child: Icon(Icons.receipt_long_outlined, color: AppColors.primary),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(title.toString(), style: AppTypography.caption(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
+                                        Text(id.toString(), style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontSize: 10)),
+                                        Text(date, style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontSize: 10)),
+                                      ],
+                                    ),
+                                  ),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text('₹ $amount.00', style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontSize: 13)),
+                                      const SizedBox(height: 4),
+                                      Text(status, style: TextStyle(color: badgeColor, fontWeight: FontWeight.bold, fontSize: 11)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
           ),
         ],
       ),

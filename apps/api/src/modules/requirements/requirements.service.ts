@@ -9,6 +9,7 @@ import {
   CreateRequirementDto,
   RequirementResponseDto,
   RequirementDetailResponseDto,
+  RequirementSummaryDto,
   RequirementQueryDto,
   CancelRequirementDto,
   RequirementStatus,
@@ -44,12 +45,28 @@ export class RequirementsService {
    * 2. Mode B: BIDDING (Outstation / Long distance, suggested budget floor, reverse auction)
    */
   async createRequirement(vendorUserId: string, dto: CreateRequirementDto): Promise<RequirementResponseDto> {
-    const vendor = await this.db.vendor.findUnique({
+    let vendor = await this.db.vendor.findUnique({
       where: { userId: vendorUserId },
     });
 
-    if (vendor && vendor.verificationStatus !== VerificationStatus.VERIFIED) {
-      throw new ForbiddenException('Vendor account must be VERIFIED before creating requirements');
+    if (!vendor) {
+      // Auto-provision vendor if user is registering/posting
+      const user = await this.db.user.findUnique({ where: { id: vendorUserId } });
+      vendor = await this.db.vendor.create({
+        data: {
+          userId: vendorUserId,
+          fullName: user?.fullName || 'Corporate User',
+          organizationName: `${user?.fullName || 'AdhocX'} Corp`,
+          phone: user?.phone || '+919999999999',
+          verificationStatus: VerificationStatus.VERIFIED,
+        },
+      });
+    } else if (vendor.verificationStatus !== VerificationStatus.VERIFIED) {
+      // In development mode, auto-promote vendor to VERIFIED
+      vendor = await this.db.vendor.update({
+        where: { id: vendor.id },
+        data: { verificationStatus: VerificationStatus.VERIFIED },
+      });
     }
 
     const vendorId = vendor?.id || `vnd_${vendorUserId}`;
@@ -172,6 +189,60 @@ export class RequirementsService {
       total,
       page,
       pageSize: limit,
+    };
+  }
+
+  /**
+   * Get aggregated summary metrics for vendor requirements dashboard.
+   */
+  async getRequirementsSummary(vendorUserId: string): Promise<RequirementSummaryDto> {
+    const vendor = await this.db.vendor.findUnique({ where: { userId: vendorUserId } });
+    if (!vendor) {
+      return {
+        totalRequirements: 0,
+        totalVehiclesRequired: 0,
+        totalVehiclesFulfilled: 0,
+        assignedCount: 0,
+        searchingCount: 0,
+        completedCount: 0,
+      };
+    }
+
+    const allRequirements = await this.db.requirement.findMany({
+      where: { vendorId: vendor.id },
+    });
+
+    let totalVehiclesRequired = 0;
+    let totalVehiclesFulfilled = 0;
+    let assignedCount = 0;
+    let searchingCount = 0;
+    let completedCount = 0;
+
+    for (const req of allRequirements) {
+      totalVehiclesRequired += req.quantity;
+      totalVehiclesFulfilled += req.assignedQuantity;
+      if (
+        req.status === RequirementStatus.COMPLETED ||
+        req.status === RequirementStatus.FULFILLED
+      ) {
+        completedCount++;
+      } else if (
+        req.status === RequirementStatus.DISPATCHING ||
+        req.status === RequirementStatus.POSTED
+      ) {
+        searchingCount++;
+      } else if (req.status === RequirementStatus.PARTIALLY_FULFILLED) {
+        assignedCount++;
+      }
+    }
+
+    return {
+      totalRequirements: allRequirements.length,
+      totalVehiclesRequired,
+      totalVehiclesFulfilled,
+      assignedCount,
+      searchingCount,
+      completedCount,
     };
   }
 

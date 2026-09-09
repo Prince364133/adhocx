@@ -76,7 +76,7 @@ class _AppCancellationDialogState extends State<AppCancellationDialog> {
               child: Container(
                 width: 40,
                 height: 4,
-                decoration: BoxDecoration(color: Colors.grey[400], borderRadius: BorderRadius.circular(2)),
+                decoration: BoxDecoration(color: AppColors.slate400, borderRadius: BorderRadius.circular(2)),
               ),
             ),
             const SizedBox(height: AppSpacing.md),

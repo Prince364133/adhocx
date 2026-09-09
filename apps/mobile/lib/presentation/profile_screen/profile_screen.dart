@@ -26,7 +26,6 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _showLanguageSwitcher = false;
   Map<String, dynamic> _driverProfile = {};
-  bool _isLoading = true;
 
   @override
   void initState() {
@@ -49,23 +48,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (response != null && mounted) {
           setState(() {
             _driverProfile = Map<String, dynamic>.from(response);
-            _driverProfile['name'] = response['full_name'] ?? 'Rahul Sharma';
-            _driverProfile['phone'] = response['phone'] ?? '+91 98765 43210';
+            _driverProfile['name'] = response['full_name'] ?? authService.currentUser?.fullName ?? 'Driver Partner';
+            _driverProfile['phone'] = response['phone'] ?? authService.currentUser?.phone ?? '+91 98765 43210';
             _driverProfile['vehicle'] = response['vehicle_number'] != null
                 ? '${response['vehicle_number']} · ${response['vehicle_type'] ?? 'Sedan'}'
-                : 'Honda City · HR26 AB 1234';
+                : 'Verified Commercial Fleet';
             _driverProfile['is_verified'] = response['is_approved'] ?? true;
           });
         }
       }
     } catch (e) {
       debugPrint('Error loading profile: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
     }
   }
 
@@ -158,15 +151,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final effectiveProfile = {
       'name': (_driverProfile['name'] != null && _driverProfile['name'].toString().isNotEmpty)
           ? _driverProfile['name'].toString()
-          : (onboarding.fullName.isNotEmpty ? onboarding.fullName : 'Rahul Sharma'),
+          : (onboarding.fullName.isNotEmpty
+              ? onboarding.fullName
+              : (authService.currentUser?.fullName?.isNotEmpty == true ? authService.currentUser!.fullName! : 'Driver Partner')),
       'phone': (_driverProfile['phone'] != null && _driverProfile['phone'].toString().isNotEmpty)
           ? _driverProfile['phone'].toString()
-          : (onboarding.phoneNumber.isNotEmpty ? onboarding.phoneNumber : '+91 98765 43210'),
+          : (onboarding.phoneNumber.isNotEmpty
+              ? onboarding.phoneNumber
+              : (authService.currentUser?.phone?.isNotEmpty == true ? authService.currentUser!.phone! : '+91 98765 43210')),
       'vehicle': (_driverProfile['vehicle'] != null && _driverProfile['vehicle'].toString().isNotEmpty)
           ? _driverProfile['vehicle'].toString()
           : (onboarding.registrationNumber.isNotEmpty
               ? '${onboarding.registrationNumber} · ${onboarding.vehicleType}'
-              : 'Honda City · HR26 AB 1234'),
+              : 'Verified Commercial Fleet'),
       'is_verified': _driverProfile['is_verified'] ?? true,
       'rating': '4.92',
       'total_trips': '1,280',
@@ -209,7 +206,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         children: [
                           ProfileMenuItemWidget(
                             icon: Icons.person_outline_rounded,
-                            iconColor: const Color(0xFF6366F1),
+                            iconColor: AppColors.primary,
                             label: 'Personal Information',
                             subtitle: 'Name, contact & profile details',
                             onTap: () => context.push(AppRoutes.personalInfoScreen),
@@ -217,7 +214,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           _divider(isDark),
                           ProfileMenuItemWidget(
                             icon: Icons.directions_car_outlined,
-                            iconColor: const Color(0xFF0EA5E9),
+                            iconColor: AppColors.info,
                             label: 'Vehicle Details',
                             subtitle: 'Car model, plate & specifications',
                             onTap: () => context.push(AppRoutes.myVehicleScreen),
@@ -225,7 +222,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           _divider(isDark),
                           ProfileMenuItemWidget(
                             icon: Icons.verified_user_outlined,
-                            iconColor: const Color(0xFF10B981),
+                            iconColor: AppColors.success,
                             label: 'KYC & Verification',
                             subtitle: 'Driving license, RC & Aadhaar card',
                             trailing: _buildPill(
@@ -238,12 +235,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           _divider(isDark),
                           ProfileMenuItemWidget(
                             icon: Icons.shield_outlined,
-                            iconColor: const Color(0xFFF59E0B),
+                            iconColor: AppColors.warning,
                             label: 'Account Status & Tier',
                             subtitle: 'Active partner • Gold Level',
                             trailing: _buildPill(
                               text: 'Gold Tier',
-                              color: const Color(0xFFF59E0B),
+                              color: AppColors.warning,
                               isDark: isDark,
                             ),
                             onTap: () => context.push(AppRoutes.accountStatusScreen),
@@ -260,7 +257,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         children: [
                           ProfileMenuItemWidget(
                             icon: Icons.receipt_long_outlined,
-                            iconColor: const Color(0xFF6366F1),
+                            iconColor: AppColors.primary,
                             label: 'Driver Rate Card',
                             subtitle: 'Standard base fare & distance rates',
                             onTap: () => _openModal(const RateCardModal()),
@@ -268,12 +265,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           _divider(isDark),
                           ProfileMenuItemWidget(
                             icon: Icons.emoji_events_outlined,
-                            iconColor: const Color(0xFFEAB308),
+                            iconColor: AppColors.warning,
                             label: 'Daily Target Incentives',
                             subtitle: 'Earn up to ₹1,500 bonus today',
                             trailing: _buildPill(
                               text: 'Active',
-                              color: const Color(0xFFEAB308),
+                              color: AppColors.warning,
                               isDark: isDark,
                             ),
                             onTap: () => _openModal(const IncentivesModal()),
@@ -290,7 +287,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         children: [
                           ProfileMenuItemWidget(
                             icon: Icons.notifications_none_rounded,
-                            iconColor: const Color(0xFF8B5CF6),
+                            iconColor: AppColors.accentPurple,
                             label: 'Notifications Feed',
                             subtitle: 'Dispatch updates & payment alerts',
                             onTap: () => context.push(AppRoutes.notificationsFeedScreen),
@@ -298,7 +295,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           _divider(isDark),
                           ProfileMenuItemWidget(
                             icon: Icons.tune_rounded,
-                            iconColor: const Color(0xFF64748B),
+                            iconColor: AppColors.textSecondaryLight,
                             label: 'Notification Preferences',
                             subtitle: 'Sound alerts, push & SMS notifications',
                             onTap: () => context.push(AppRoutes.notificationsSettingsScreen),
@@ -306,7 +303,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           _divider(isDark),
                           ProfileMenuItemWidget(
                             icon: Icons.language_rounded,
-                            iconColor: const Color(0xFF3B82F6),
+                            iconColor: AppColors.info,
                             label: 'App Language',
                             subtitle: 'Select your preferred dialect',
                             trailing: _buildPill(
@@ -319,7 +316,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           _divider(isDark),
                           ProfileMenuItemWidget(
                             icon: _themeIcon(themeProvider.themeMode),
-                            iconColor: const Color(0xFF22C55E),
+                            iconColor: AppColors.success,
                             label: 'App Theme',
                             subtitle: 'Light, dark, or system default',
                             trailing: _buildPill(
@@ -346,7 +343,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         children: [
                           ProfileMenuItemWidget(
                             icon: Icons.headset_mic_outlined,
-                            iconColor: const Color(0xFFEC4899),
+                            iconColor: AppColors.primaryLight,
                             label: 'Help & 24/7 Support',
                             subtitle: 'Driver helpline & incident support',
                             onTap: () => context.push(AppRoutes.helpSupportScreen),
@@ -354,7 +351,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           _divider(isDark),
                           ProfileMenuItemWidget(
                             icon: Icons.settings_outlined,
-                            iconColor: const Color(0xFF0284C7),
+                            iconColor: AppColors.info,
                             label: 'App Settings',
                             subtitle: 'Cache, storage & diagnostics',
                             onTap: () => context.push(AppRoutes.appSettingsScreen),
@@ -427,7 +424,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             padding: const EdgeInsets.all(2),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF6347F9), Color(0xFF4328E0)],
+                colors: [AppColors.primaryGradientStart, AppColors.primaryGradientEnd],
               ),
               borderRadius: BorderRadius.circular(AppRadius.md),
               boxShadow: [
@@ -516,7 +513,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           BoxShadow(
             color: isDark
                 ? Colors.black.withValues(alpha: 0.15)
-                : const Color(0xFF64748B).withValues(alpha: 0.05),
+                : AppColors.textSecondaryLight.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -578,7 +575,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           backgroundColor: isDark
               ? AppColors.errorContainer.withValues(alpha: 0.15)
               : AppColors.errorContainer.withValues(alpha: 0.4),
-          foregroundColor: isDark ? const Color(0xFFF87171) : AppColors.error,
+          foregroundColor: isDark ? AppColors.error : AppColors.error,
           side: BorderSide(
             color: isDark
                 ? AppColors.error.withValues(alpha: 0.4)
@@ -763,7 +760,7 @@ class _ThemeSelectorSheetState extends State<_ThemeSelectorSheet> {
                       ),
                     ),
                     if (isSelected)
-                      const Icon(
+                      Icon(
                         Icons.check_circle_rounded,
                         color: AppColors.primary,
                         size: 22,

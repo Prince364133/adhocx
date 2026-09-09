@@ -1,3 +1,4 @@
+import '../../../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -137,10 +138,10 @@ class _EditProfileModalState extends State<EditProfileModal> {
       minChildSize: 0.5,
       builder: (context, scrollController) {
         return Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF020617),
+          decoration: BoxDecoration(
+            color: AppColors.bgDark,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            border: Border(top: BorderSide(color: Color(0xFF334155))),
+            border: Border(top: BorderSide(color: AppColors.borderDark)),
           ),
           child: Column(
             children: [
@@ -150,7 +151,7 @@ class _EditProfileModalState extends State<EditProfileModal> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF334155),
+                  color: AppColors.borderDark,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -172,16 +173,16 @@ class _EditProfileModalState extends State<EditProfileModal> {
                     ),
                     GestureDetector(
                       onTap: () => Navigator.of(context).pop(),
-                      child: const Icon(
+                      child: Icon(
                         Icons.close_rounded,
-                        color: Color(0xFF94a3b8),
+                        color: AppColors.textMutedDark,
                         size: 22,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Divider(color: Color(0xFF334155), height: 1),
+              Divider(color: AppColors.borderDark, height: 1),
               Expanded(
                 child: Form(
                   key: _formKey,
@@ -264,9 +265,9 @@ class _EditProfileModalState extends State<EditProfileModal> {
                             child: OutlinedButton(
                               onPressed: () => Navigator.of(context).pop(),
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFF94a3b8),
-                                side: const BorderSide(
-                                  color: Color(0xFF334155),
+                                foregroundColor: AppColors.textMutedDark,
+                                side: BorderSide(
+                                  color: AppColors.borderDark,
                                 ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
@@ -284,8 +285,8 @@ class _EditProfileModalState extends State<EditProfileModal> {
                             child: ElevatedButton(
                               onPressed: _isSaving ? null : _save,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFf59e0b),
-                                foregroundColor: const Color(0xFF1a0a00),
+                                backgroundColor: AppColors.warning,
+                                foregroundColor: AppColors.bgDark,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -303,7 +304,7 @@ class _EditProfileModalState extends State<EditProfileModal> {
                                       height: 18,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        color: Color(0xFF1a0a00),
+                                        color: AppColors.bgDark,
                                       ),
                                     )
                                   : const Text('Save & Update'),
@@ -327,9 +328,9 @@ class _EditProfileModalState extends State<EditProfileModal> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1e293b),
+        color: AppColors.surfaceElevatedDark,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF334155)),
+        border: Border.all(color: AppColors.borderDark),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -340,14 +341,14 @@ class _EditProfileModalState extends State<EditProfileModal> {
                 width: 22,
                 height: 22,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFf59e0b),
+                  color: AppColors.warning,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Center(
                   child: Text(
                     num,
                     style: const TextStyle(
-                      color: Color(0xFF1a0a00),
+                      color: AppColors.bgDark,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
@@ -357,8 +358,8 @@ class _EditProfileModalState extends State<EditProfileModal> {
               const SizedBox(width: 8),
               Text(
                 title,
-                style: const TextStyle(
-                  color: Color(0xFFf59e0b),
+                style: TextStyle(
+                  color: AppColors.warning,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
@@ -387,8 +388,8 @@ class _EditProfileModalState extends State<EditProfileModal> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: Color(0xFF94a3b8),
+          style: TextStyle(
+            color: AppColors.textMutedDark,
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
@@ -400,7 +401,7 @@ class _EditProfileModalState extends State<EditProfileModal> {
           textCapitalization: caps,
           style: const TextStyle(color: Colors.white, fontSize: 14),
           decoration: InputDecoration(
-            prefixIcon: Icon(icon, color: const Color(0xFF94a3b8), size: 17),
+            prefixIcon: Icon(icon, color: AppColors.textMutedDark, size: 17),
           ),
         ),
       ],
@@ -411,10 +412,10 @@ class _EditProfileModalState extends State<EditProfileModal> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Vehicle Category',
           style: TextStyle(
-            color: Color(0xFF94a3b8),
+            color: AppColors.textMutedDark,
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
@@ -441,13 +442,13 @@ class _EditProfileModalState extends State<EditProfileModal> {
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: isSelected
-                ? const Color(0xFFf59e0b).withAlpha(31)
-                : const Color(0xFF0f172a),
+                ? AppColors.warning.withAlpha(31)
+                : AppColors.textPrimaryLight,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: isSelected
-                  ? const Color(0xFFf59e0b)
-                  : const Color(0xFF334155),
+                  ? AppColors.warning
+                  : AppColors.borderDark,
               width: isSelected ? 1.5 : 1,
             ),
           ),
@@ -456,8 +457,8 @@ class _EditProfileModalState extends State<EditProfileModal> {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: isSelected
-                  ? const Color(0xFFf59e0b)
-                  : const Color(0xFF94a3b8),
+                  ? AppColors.warning
+                  : AppColors.textMutedDark,
               fontSize: 13,
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
             ),

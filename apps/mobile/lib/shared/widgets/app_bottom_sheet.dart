@@ -47,7 +47,7 @@ class AppBottomSheet extends StatelessWidget {
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surfaceDark,
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(AppRadius.xl),
@@ -108,7 +108,7 @@ class AppBottomSheet extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.close,
                       color: AppColors.textSecondaryDark,
                       size: 20,
@@ -117,7 +117,7 @@ class AppBottomSheet extends StatelessWidget {
                   ),
                 ],
               ),
-              const Divider(
+              Divider(
                 color: AppColors.borderDark,
                 height: AppSpacing.xl,
               ),

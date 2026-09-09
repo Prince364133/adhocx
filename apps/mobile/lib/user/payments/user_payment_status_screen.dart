@@ -71,7 +71,7 @@ class _UserPaymentStatusScreenState extends State<UserPaymentStatusScreen> {
                           if (selected) setState(() => _currentState = st);
                         },
                         selectedColor: _getColor(st),
-                        backgroundColor: isDark ? AppColors.surfaceDark : Colors.grey[200],
+                        backgroundColor: isDark ? AppColors.surfaceDark : AppColors.slate200,
                         labelStyle: TextStyle(
                           color: isSelected ? Colors.white : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
                           fontSize: 11,
@@ -106,8 +106,8 @@ class _UserPaymentStatusScreenState extends State<UserPaymentStatusScreen> {
                       const SizedBox(height: AppSpacing.md),
                       const LinearProgressIndicator(
                         value: 0.6,
-                        backgroundColor: Colors.grey,
-                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6C5CE7)),
+                        backgroundColor: AppColors.slate400,
+                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
                       ),
                     ],
 
@@ -175,9 +175,9 @@ class _UserPaymentStatusScreenState extends State<UserPaymentStatusScreen> {
   Color _getColor(PaymentResultState state) {
     switch (state) {
       case PaymentResultState.pending:
-        return Colors.orange;
+        return AppColors.warning;
       case PaymentResultState.processing:
-        return const Color(0xFF6C5CE7);
+        return AppColors.primary;
       case PaymentResultState.successful:
         return AppColors.success;
       case PaymentResultState.failed:
@@ -219,7 +219,7 @@ class _UserPaymentStatusScreenState extends State<UserPaymentStatusScreen> {
           height: 64,
           child: CircularProgressIndicator(
             strokeWidth: 6,
-            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6C5CE7)),
+            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
           ),
         );
       case PaymentResultState.successful:
@@ -227,7 +227,7 @@ class _UserPaymentStatusScreenState extends State<UserPaymentStatusScreen> {
       case PaymentResultState.failed:
         return CircleAvatar(radius: 36, backgroundColor: AppColors.error, child: const Icon(Icons.close, size: 40, color: Colors.white));
       case PaymentResultState.pending:
-        return CircleAvatar(radius: 36, backgroundColor: Colors.orange, child: const Icon(Icons.access_time, size: 40, color: Colors.white));
+        return CircleAvatar(radius: 36, backgroundColor: AppColors.warning, child: const Icon(Icons.access_time, size: 40, color: Colors.white));
     }
   }
 
@@ -235,10 +235,10 @@ class _UserPaymentStatusScreenState extends State<UserPaymentStatusScreen> {
     if (_currentState == PaymentResultState.pending) {
       return Container(
         padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(color: Colors.orange.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(AppRadius.md), border: Border.all(color: Colors.orange.withValues(alpha: 0.2))),
+        decoration: BoxDecoration(color: AppColors.warning.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(AppRadius.md), border: Border.all(color: AppColors.warning.withValues(alpha: 0.2))),
         child: Row(
           children: const [
-            Icon(Icons.info_outline, color: Colors.orange, size: 20),
+            Icon(Icons.info_outline, color: AppColors.warning, size: 20),
             SizedBox(width: 10),
             Expanded(child: Text('This usually takes a few minutes. You will be notified once the payment is completed.', style: TextStyle(fontSize: 12))),
           ],
@@ -249,10 +249,10 @@ class _UserPaymentStatusScreenState extends State<UserPaymentStatusScreen> {
     if (_currentState == PaymentResultState.processing) {
       return Container(
         padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(color: const Color(0xFF6C5CE7).withValues(alpha: 0.08), borderRadius: BorderRadius.circular(AppRadius.md), border: Border.all(color: const Color(0xFF6C5CE7).withValues(alpha: 0.2))),
+        decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(AppRadius.md), border: Border.all(color: AppColors.primary.withValues(alpha: 0.2))),
         child: Row(
           children: const [
-            Icon(Icons.cancel_outlined, color: Color(0xFF6C5CE7), size: 20),
+            Icon(Icons.cancel_outlined, color: AppColors.primary, size: 20),
             SizedBox(width: 10),
             Expanded(child: Text('Do not close this screen or press back.', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
           ],
@@ -290,7 +290,7 @@ class _UserPaymentStatusScreenState extends State<UserPaymentStatusScreen> {
         children: [
           OutlinedButton(
             onPressed: () {},
-            style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48), foregroundColor: const Color(0xFF6C5CE7), side: const BorderSide(color: Color(0xFF6C5CE7))),
+            style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48), foregroundColor: AppColors.primary, side: BorderSide(color: AppColors.primary)),
             child: const Text('Try Again', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -304,7 +304,7 @@ class _UserPaymentStatusScreenState extends State<UserPaymentStatusScreen> {
         children: [
           OutlinedButton(
             onPressed: () {},
-            style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48), foregroundColor: const Color(0xFF6C5CE7), side: const BorderSide(color: Color(0xFF6C5CE7))),
+            style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48), foregroundColor: AppColors.primary, side: BorderSide(color: AppColors.primary)),
             child: const Text('View Receipt', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
           const SizedBox(height: AppSpacing.sm),

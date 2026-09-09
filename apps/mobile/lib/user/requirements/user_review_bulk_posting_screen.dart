@@ -55,12 +55,12 @@ class UserReviewBulkPostingScreen extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.check_circle, color: AppColors.success),
+                    Icon(Icons.check_circle, color: AppColors.success),
                     const SizedBox(width: 10),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           '10 Requirements Ready',
                           style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold, fontSize: 14),
                         ),
@@ -114,7 +114,7 @@ class UserReviewBulkPostingScreen extends StatelessWidget {
                   ),
                   TextButton(
                     onPressed: () {},
-                    child: const Text('View all', style: TextStyle(color: Color(0xFF6C5CE7), fontWeight: FontWeight.bold)),
+                    child: Text('View all', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
@@ -197,7 +197,7 @@ class UserReviewBulkPostingScreen extends StatelessWidget {
             style: TextStyle(
               fontSize: isHighlight ? 15 : 12,
               fontWeight: FontWeight.bold,
-              color: isHighlight ? const Color(0xFF6C5CE7) : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+              color: isHighlight ? AppColors.primary : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
             ),
           ),
         ],

@@ -1,3 +1,4 @@
+import '../../shared/theme/app_colors.dart';
 import 'dart:typed_data'; 
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -248,16 +249,16 @@ class _KycUploadScreenState extends State<KycUploadScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFef4444).withAlpha(26),
+                      color: AppColors.error.withAlpha(26),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: const Color(0xFFef4444).withAlpha(77),
+                        color: AppColors.error.withAlpha(77),
                       ),
                     ),
                     child: Text(
                       _submitError!,
-                      style: const TextStyle(
-                        color: Color(0xFFef4444),
+                      style: TextStyle(
+                        color: AppColors.error,
                         fontSize: 13,
                       ),
                     ),
@@ -269,12 +270,12 @@ class _KycUploadScreenState extends State<KycUploadScreen> {
                   child: ElevatedButton(
                     onPressed: _isSubmitting ? null : _submitKyc,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green, 
+                      backgroundColor: AppColors.success, 
                       foregroundColor: Colors.white, 
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      disabledBackgroundColor: Colors.green.withValues(alpha: 0.4),
+                      disabledBackgroundColor: AppColors.success.withValues(alpha: 0.4),
                     ),
                     child: _isSubmitting
                         ? const Row(

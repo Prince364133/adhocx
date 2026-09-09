@@ -168,10 +168,21 @@ class ApiClient {
       return responseData;
     }
 
+    // Auto-clear invalid or expired token on 401 Unauthorized
+    if (response.statusCode == 401) {
+      clearToken();
+    }
+
     String errorMessage = 'Request failed with status: ${response.statusCode}';
-    if (responseData is Map && responseData['message'] != null) {
-      final msg = responseData['message'];
-      errorMessage = msg is List ? msg.join(', ') : msg.toString();
+    if (responseData is Map) {
+      if (responseData['error'] is Map && responseData['error']['message'] != null) {
+        errorMessage = responseData['error']['message'].toString();
+      } else if (responseData['message'] != null) {
+        final msg = responseData['message'];
+        errorMessage = msg is List ? msg.join(', ') : msg.toString();
+      } else if (responseData['error'] is String) {
+        errorMessage = responseData['error'];
+      }
     }
 
     throw ApiException(

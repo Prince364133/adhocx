@@ -26,7 +26,7 @@ class AccountStatusScreen extends StatelessWidget {
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.md,
                   ),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppColors.surfaceLight,
                     border: Border(
                       bottom: BorderSide(color: AppColors.borderLight),
@@ -42,7 +42,7 @@ class AccountStatusScreen extends StatelessWidget {
                             context.go(AppRoutes.profileScreen);
                           }
                         },
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.arrow_back,
                           color: AppColors.textPrimaryLight,
                         ),
@@ -71,9 +71,9 @@ class AccountStatusScreen extends StatelessWidget {
                           color: AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
                           border: Border.all(color: AppColors.borderLight),
-                          boxShadow: const [
+                          boxShadow: [
                             BoxShadow(
-                              color: Color(0x06000000),
+                              color: Colors.black.withValues(alpha: 0.03),
                               blurRadius: 4,
                               offset: Offset(0, 2),
                             ),
@@ -88,7 +88,7 @@ class AccountStatusScreen extends StatelessWidget {
                                 color: AppColors.primary.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(AppRadius.md),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.work_outline_rounded,
                                 color: AppColors.primary,
                               ),
@@ -111,7 +111,7 @@ class AccountStatusScreen extends StatelessWidget {
                                       Container(
                                         width: 10,
                                         height: 10,
-                                        decoration: const BoxDecoration(
+                                        decoration: BoxDecoration(
                                           color: AppColors.accentGreenDark,
                                           shape: BoxShape.circle,
                                         ),
@@ -154,7 +154,7 @@ class AccountStatusScreen extends StatelessWidget {
                                     ),
                                   ),
                                   const SizedBox(width: 4),
-                                  const Icon(
+                                  Icon(
                                     Icons.check_circle_rounded,
                                     size: 16,
                                     color: AppColors.accentGreenDark,
@@ -162,7 +162,7 @@ class AccountStatusScreen extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildMetricTile(
                               label: 'Account Created',
                               valueWidget: Row(
@@ -175,11 +175,11 @@ class AccountStatusScreen extends StatelessWidget {
                                     ),
                                   ),
                                   const SizedBox(width: 4),
-                                  const Icon(Icons.chevron_right, size: 16, color: AppColors.textMutedLight),
+                                  Icon(Icons.chevron_right, size: 16, color: AppColors.textMutedLight),
                                 ],
                               ),
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildMetricTile(
                               label: 'Last Login',
                               valueWidget: Text(
@@ -190,7 +190,7 @@ class AccountStatusScreen extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildMetricTile(
                               label: 'Total Trips Completed',
                               valueWidget: Text(
@@ -201,7 +201,7 @@ class AccountStatusScreen extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildMetricTile(
                               label: 'Cancellation Rate',
                               valueWidget: Row(
@@ -231,7 +231,7 @@ class AccountStatusScreen extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildMetricTile(
                               label: 'Customer Rating',
                               valueWidget: Row(
@@ -277,7 +277,7 @@ class AccountStatusScreen extends StatelessWidget {
                           onTap: () {
                             // Account policies modal / navigation
                           },
-                          leading: const Icon(
+                          leading: Icon(
                             Icons.article_outlined,
                             color: AppColors.primary,
                           ),
@@ -288,7 +288,7 @@ class AccountStatusScreen extends StatelessWidget {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          trailing: const Icon(
+                          trailing: Icon(
                             Icons.chevron_right,
                             color: AppColors.primary,
                           ),

@@ -39,7 +39,7 @@ class UserEditRequirementScreen extends StatelessWidget {
               );
               context.pop();
             },
-            child: const Text('Delete', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold)),
+            child: Text('Delete', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -62,7 +62,7 @@ class UserEditRequirementScreen extends StatelessWidget {
                   ),
                   TextButton(
                     onPressed: () => context.push(AppRoutes.userCreateRequirementScreen),
-                    child: const Text('Edit', style: TextStyle(color: Color(0xFF6C5CE7), fontWeight: FontWeight.bold)),
+                    child: Text('Edit', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
@@ -109,7 +109,7 @@ class UserEditRequirementScreen extends StatelessWidget {
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: const [
-                          Text('0 stops', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                          Text('0 stops', style: TextStyle(color: AppColors.slate400, fontSize: 13)),
                           Icon(Icons.chevron_right, size: 20),
                         ],
                       ),
@@ -121,7 +121,7 @@ class UserEditRequirementScreen extends StatelessWidget {
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: const [
-                          Text('1 Passenger', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                          Text('1 Passenger', style: TextStyle(color: AppColors.slate400, fontSize: 13)),
                           Icon(Icons.chevron_right, size: 20),
                         ],
                       ),
@@ -133,7 +133,7 @@ class UserEditRequirementScreen extends StatelessWidget {
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: const [
-                          Text('No requests', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                          Text('No requests', style: TextStyle(color: AppColors.slate400, fontSize: 13)),
                           Icon(Icons.chevron_right, size: 20),
                         ],
                       ),
@@ -167,7 +167,7 @@ class UserEditRequirementScreen extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: const Color(0xFF6C5CE7)),
+          Icon(icon, size: 18, color: AppColors.primary),
           const SizedBox(width: 8),
           Text(label, style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
           const Spacer(),

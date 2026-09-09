@@ -39,7 +39,7 @@ class AdhocxBrandLogo extends StatelessWidget {
               TextSpan(
                 text: 'X',
                 style: TextStyle(
-                  color: const Color(0xFFFF6200),
+                  color: AppColors.brandOrange,
                   fontWeight: FontWeight.w900,
                   fontSize: fontSize * 1.04,
                   fontFamily: 'Inter',
@@ -87,7 +87,7 @@ class AdhocxBrandIcon extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(effectiveRadius),
         border: Border.all(
-          color: const Color(0xFFE2E8F0),
+          color: AppColors.borderLight,
           width: 1.5,
         ),
         boxShadow: [
@@ -113,8 +113,8 @@ class AdhocxBrandIcon extends StatelessWidget {
               ),
               TextSpan(
                 text: 'X',
-                style: const TextStyle(
-                  color: Color(0xFFFF6200),
+                style: TextStyle(
+                  color: AppColors.brandOrange,
                   fontWeight: FontWeight.w900,
                   fontSize: size * 0.48,
                   fontFamily: 'Inter',

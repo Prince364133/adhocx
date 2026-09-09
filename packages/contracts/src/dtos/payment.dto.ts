@@ -46,3 +46,44 @@ export class PaymentWebhookDto {
   @IsString()
   status?: string;
 }
+
+export class WalletTopUpOrderDto {
+  @Type(() => Number)
+  @IsNumber()
+  @Min(100, { message: 'Minimum top-up amount is ₹100' })
+  amount!: number;
+}
+
+export class WalletTopUpOrderResponseDto {
+  orderId!: string;
+  amount!: number;
+  currency!: string;
+  keyId!: string;
+}
+
+export class WalletTopUpVerifyDto {
+  @IsNotEmpty()
+  @IsString()
+  razorpayOrderId!: string;
+
+  @IsNotEmpty()
+  @IsString()
+  razorpayPaymentId!: string;
+
+  @IsNotEmpty()
+  @IsString()
+  razorpaySignature!: string;
+
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  amount!: number;
+}
+
+export class UserWalletSummaryDto {
+  walletBalance!: number;
+  escrowBalance!: number;
+  totalSpent!: number;
+  currency!: string;
+}
+

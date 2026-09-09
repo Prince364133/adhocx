@@ -38,7 +38,7 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.md,
                   ),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppColors.surfaceLight,
                     border: Border(
                       bottom: BorderSide(color: AppColors.borderLight),
@@ -54,7 +54,7 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                             context.go(AppRoutes.profileScreen);
                           }
                         },
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.arrow_back,
                           color: AppColors.textPrimaryLight,
                         ),
@@ -83,9 +83,9 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                           color: AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
                           border: Border.all(color: AppColors.borderLight),
-                          boxShadow: const [
+                          boxShadow: [
                             BoxShadow(
-                              color: Color(0x06000000),
+                              color: Colors.black.withValues(alpha: 0.03),
                               blurRadius: 4,
                               offset: Offset(0, 2),
                             ),
@@ -99,7 +99,7 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                                 color: AppColors.primary.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(AppRadius.md),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.notifications_none_outlined,
                                 color: AppColors.primary,
                               ),
@@ -162,7 +162,7 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                               value: _tripOffersEnabled,
                               onChanged: (val) => setState(() => _tripOffersEnabled = val),
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildToggleTile(
                               icon: Icons.directions_car_outlined,
                               title: 'Trip Updates',
@@ -170,7 +170,7 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                               value: _tripUpdatesEnabled,
                               onChanged: (val) => setState(() => _tripUpdatesEnabled = val),
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildToggleTile(
                               icon: Icons.account_balance_wallet_outlined,
                               title: 'Earnings & Payments',
@@ -178,7 +178,7 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                               value: _earningsEnabled,
                               onChanged: (val) => setState(() => _earningsEnabled = val),
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildToggleTile(
                               icon: Icons.verified_user_outlined,
                               title: 'Account & KYC',
@@ -186,7 +186,7 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                               value: _accountKycEnabled,
                               onChanged: (val) => setState(() => _accountKycEnabled = val),
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildToggleTile(
                               icon: Icons.local_offer_outlined,
                               title: 'Promotions',
@@ -211,7 +211,7 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                         ),
                         child: Row(
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.info_outline_rounded,
                               size: 18,
                               color: AppColors.primary,

@@ -202,7 +202,11 @@ class DriverService {
 
   // Wallet & Settlements
   Future<dynamic> getWalletSummary() async {
-    return await _api.get('/driver/wallet');
+    return await _api.get('/settlements/wallet');
+  }
+
+  Future<dynamic> getTrip(String tripId) async {
+    return await _api.get('/trips/$tripId');
   }
 
   Future<dynamic> requestWithdrawal({

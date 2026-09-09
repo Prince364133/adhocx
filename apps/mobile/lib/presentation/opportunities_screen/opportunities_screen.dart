@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../routes/app_routes.dart';
+import '../../services/driver_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
@@ -16,59 +17,34 @@ class OpportunitiesScreen extends StatefulWidget {
 
 class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
   String _selectedCategory = 'All';
+  bool _isLoading = true;
+  List<dynamic> _offers = [];
 
-  final List<Map<String, dynamic>> _allOpportunities = [
-    {
-      'title': 'Corporate Transfer',
-      'category': 'Sedan',
-      'pickupDistance': '3.8 km away',
-      'time': 'Today, 6:30 PM',
-      'pickup': 'DLF Cyber City, Gurugram',
-      'drop': 'IGI Airport T3, New Delhi',
-      'earnings': '₹850',
-      'color': Color(0xFF6366f1),
-      'icon': Icons.card_travel_outlined,
-    },
-    {
-      'title': 'Airport Transfer',
-      'category': 'SUV',
-      'pickupDistance': '6.2 km away',
-      'time': 'Today, 8:00 PM',
-      'pickup': 'Gurugram Railway Station',
-      'drop': 'IGI Airport T1, New Delhi',
-      'earnings': '₹950',
-      'color': Color(0xFFf97316),
-      'icon': Icons.flight_takeoff_outlined,
-    },
-    {
-      'title': 'Hotel Transfer',
-      'category': 'Sedan',
-      'pickupDistance': '8.5 km away',
-      'time': 'Today, 7:15 PM',
-      'pickup': 'Cyber Hub, Gurugram',
-      'drop': 'Le Meridian Hotel',
-      'earnings': '₹720',
-      'color': Color(0xFF0284c7),
-      'icon': Icons.location_city_outlined,
-    },
-    {
-      'title': 'VIP Corporate Ride',
-      'category': 'Premium',
-      'pickupDistance': '4.1 km away',
-      'time': 'Today, 9:30 PM',
-      'pickup': 'Golf Course Road, Gurugram',
-      'drop': 'Taj Palace, New Delhi',
-      'earnings': '₹1,450',
-      'color': Color(0xFF8b5cf6),
-      'icon': Icons.star_outline_rounded,
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadOffers();
+  }
+
+  Future<void> _loadOffers() async {
+    setState(() => _isLoading = true);
+    try {
+      final list = await DriverService.instance.getOffers();
+      if (mounted) setState(() => _offers = list);
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final filteredOps = _selectedCategory == 'All'
-        ? _allOpportunities
-        : _allOpportunities.where((o) => o['category'] == _selectedCategory).toList();
+        ? _offers
+        : _offers.where((o) {
+            final vType = (o['requirement']?['vehicleType'] ?? o['vehicleType'] ?? '').toString();
+            return vType.toLowerCase() == _selectedCategory.toLowerCase();
+          }).toList();
 
     return Scaffold(
       backgroundColor: AppColors.bgLight,
@@ -84,7 +60,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.md,
                   ),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppColors.surfaceLight,
                     border: Border(
                       bottom: BorderSide(color: AppColors.borderLight),
@@ -94,7 +70,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                     children: [
                       IconButton(
                         onPressed: () {},
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.menu,
                           color: AppColors.textPrimaryLight,
                         ),
@@ -111,7 +87,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                       ),
                       IconButton(
                         onPressed: () => context.push(AppRoutes.notificationsSettingsScreen),
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.notifications_none_rounded,
                           color: AppColors.textPrimaryLight,
                         ),
@@ -155,7 +131,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                               borderRadius: BorderRadius.circular(AppRadius.md),
                               border: Border.all(color: AppColors.borderLight),
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.near_me_outlined,
                               color: AppColors.primary,
                               size: 20,
@@ -205,168 +181,200 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
 
                 // ── Opportunities Cards List ──────────────────────────────────
                 Expanded(
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.lg,
-                      0,
-                      AppSpacing.lg,
-                      100,
-                    ),
-                    itemCount: filteredOps.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
-                    itemBuilder: (context, index) {
-                      final op = filteredOps[index];
-                      final Color opColor = op['color'] as Color;
-
-                      return Container(
-                        padding: const EdgeInsets.all(AppSpacing.lg),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
-                          borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(
-                            color: opColor.withValues(alpha: 0.3),
-                            width: 1.5,
-                          ),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x06000000),
-                              blurRadius: 4,
-                              offset: Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: opColor.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(AppRadius.md),
-                                  ),
-                                  child: Icon(
-                                    op['icon'] as IconData,
-                                    color: opColor,
-                                    size: 20,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        op['title'] as String,
-                                        style: AppTypography.body(
-                                          color: AppColors.textPrimaryLight,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      Text(
-                                        'Pickup • ${op['pickupDistance']} • ${op['time']}',
-                                        style: AppTypography.caption(
-                                          color: AppColors.textMutedLight,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: opColor.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(AppRadius.xs),
-                                  ),
-                                  child: Text(
-                                    op['category'] as String,
-                                    style: AppTypography.caption(
-                                      color: opColor,
-                                      fontWeight: FontWeight.bold,
-                                    ).copyWith(fontSize: 10),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: AppSpacing.md),
-
-                            // Pickup
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Icon(Icons.circle, size: 8, color: AppColors.accentGreenDark),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    op['pickup'] as String,
-                                    style: AppTypography.caption(color: AppColors.textSecondaryLight),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-
-                            // Drop & Earnings
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Icon(Icons.circle, size: 8, color: AppColors.error),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    op['drop'] as String,
-                                    style: AppTypography.caption(color: AppColors.textSecondaryLight),
-                                  ),
-                                ),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(
-                                      'Est. earnings',
-                                      style: AppTypography.caption(color: AppColors.textMutedLight).copyWith(fontSize: 10),
-                                    ),
-                                    Text(
-                                      op['earnings'] as String,
-                                      style: AppTypography.h3(
-                                        color: AppColors.textPrimaryLight,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: AppSpacing.md),
-                            const Divider(height: 1, color: AppColors.borderLight),
-                            const SizedBox(height: AppSpacing.md),
-
-                            // View Details Action Link
-                            GestureDetector(
-                              onTap: () => context.push(AppRoutes.opportunityDetailsScreen),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                  child: _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : filteredOps.isEmpty
+                          ? RefreshIndicator(
+                              onRefresh: _loadOffers,
+                              child: ListView(
                                 children: [
-                                  Text(
-                                    'VIEW DETAILS',
-                                    style: AppTypography.caption(
-                                      color: opColor,
-                                      fontWeight: FontWeight.bold,
+                                  const SizedBox(height: 60),
+                                  Center(
+                                    child: Column(
+                                      children: [
+                                        Icon(Icons.near_me_disabled_outlined, size: 48, color: AppColors.textMutedLight),
+                                        const SizedBox(height: 12),
+                                        Text('No active opportunities right now', style: AppTypography.h3(color: AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
+                                        const SizedBox(height: 4),
+                                        Text('Make sure you are online and check back in a few moments', style: AppTypography.caption(color: AppColors.textMutedLight)),
+                                      ],
                                     ),
                                   ),
-                                  const SizedBox(width: 4),
-                                  Icon(Icons.chevron_right, size: 16, color: opColor),
                                 ],
                               ),
+                            )
+                          : RefreshIndicator(
+                              onRefresh: _loadOffers,
+                              child: ListView.separated(
+                                padding: const EdgeInsets.fromLTRB(
+                                  AppSpacing.lg,
+                                  0,
+                                  AppSpacing.lg,
+                                  100,
+                                ),
+                                itemCount: filteredOps.length,
+                                separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
+                                itemBuilder: (context, index) {
+                                  final op = filteredOps[index] as Map<String, dynamic>;
+                                  final req = op['requirement'] as Map<String, dynamic>?;
+                                  final offerId = op['id'] as String? ?? '';
+                                  final title = req?['title'] as String? ?? op['title'] as String? ?? 'Trip Requirement';
+                                  final category = req?['vehicleType'] as String? ?? op['category'] as String? ?? 'Sedan';
+                                  final pickup = req?['pickupAddress'] as String? ?? op['pickup'] as String? ?? 'Pickup location';
+                                  final drop = req?['dropAddress'] as String? ?? op['drop'] as String? ?? 'Destination location';
+                                  final earnings = '₹ ${(op['offeredPrice'] ?? op['offerAmount'] ?? req?['budgetPerVehicle'] ?? 850)}';
+                                  const opColor = AppColors.primary;
+
+                                  return Container(
+                                    padding: const EdgeInsets.all(AppSpacing.lg),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surfaceLight,
+                                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                                      border: Border.all(
+                                        color: opColor.withValues(alpha: 0.3),
+                                        width: 1.5,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(alpha: 0.03),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
+                                                color: opColor.withValues(alpha: 0.1),
+                                                borderRadius: BorderRadius.circular(AppRadius.md),
+                                              ),
+                                              child: const Icon(
+                                                Icons.card_travel_outlined,
+                                                color: opColor,
+                                                size: 20,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    title,
+                                                    style: AppTypography.body(
+                                                      color: AppColors.textPrimaryLight,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    'Direct Dispatch • Available Now',
+                                                    style: AppTypography.caption(
+                                                      color: AppColors.textMutedLight,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 8,
+                                                vertical: 2,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: opColor.withValues(alpha: 0.1),
+                                                borderRadius: BorderRadius.circular(AppRadius.xs),
+                                              ),
+                                              child: Text(
+                                                category,
+                                                style: AppTypography.caption(
+                                                  color: opColor,
+                                                  fontWeight: FontWeight.bold,
+                                                ).copyWith(fontSize: 10),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: AppSpacing.md),
+
+                                        // Pickup
+                                        Row(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Icon(Icons.circle, size: 8, color: AppColors.accentGreenDark),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: Text(
+                                                pickup,
+                                                style: AppTypography.caption(color: AppColors.textSecondaryLight),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 6),
+
+                                        // Drop & Earnings
+                                        Row(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Icon(Icons.circle, size: 8, color: AppColors.error),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: Text(
+                                                drop,
+                                                style: AppTypography.caption(color: AppColors.textSecondaryLight),
+                                              ),
+                                            ),
+                                            Column(
+                                              crossAxisAlignment: CrossAxisAlignment.end,
+                                              children: [
+                                                Text(
+                                                  'Est. earnings',
+                                                  style: AppTypography.caption(color: AppColors.textMutedLight).copyWith(fontSize: 10),
+                                                ),
+                                                Text(
+                                                  earnings,
+                                                  style: AppTypography.h3(
+                                                    color: AppColors.textPrimaryLight,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: AppSpacing.md),
+                                        Divider(height: 1, color: AppColors.borderLight),
+                                        const SizedBox(height: AppSpacing.md),
+
+                                        // View Details Action Link
+                                        GestureDetector(
+                                          onTap: () => context.push(AppRoutes.opportunityOfferScreen, extra: op),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                'VIEW OFFER & ACCEPT',
+                                                style: AppTypography.caption(
+                                                  color: opColor,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              const Icon(Icons.chevron_right, size: 16, color: opColor),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
                             ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
                 ),
               ],
             ),

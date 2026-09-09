@@ -21,9 +21,6 @@
 
     <title>AdhocX</title>
     <link rel="manifest" href="manifest.json" />
-    
-    <script src="https://github.com/corbado/flutter-passkeys/releases/download/2.5.0/bundle.js"
-        type="application/javascript" defer></script>
 
     <style>
       body {
@@ -40,6 +37,7 @@
         width: 100%;
         height: 100%;
         background-color: black;
+        z-index: 9999;
       }
 
       .loader {
@@ -74,6 +72,7 @@
         text-align: center;
         padding: 24px;
         box-sizing: border-box;
+        z-index: 9998;
       }
 
       #load-error.visible {
@@ -94,6 +93,8 @@
         max-width: 90%;
         font-size: 12px;
         text-align: left;
+        color: #f87171;
+        margin-top: 12px;
       }
     </style>
   </head>
@@ -112,10 +113,11 @@
       <div class="loader"></div>
     </div>
 
-    <!-- Shown when a startup error occurs -->
+    <!-- Shown when a fatal startup error occurs -->
     <div id="load-error">
       <h2>Something went wrong</h2>
-      <p>The app couldn’t initialize properly due to a code-related issue</p>
+      <p>The app couldn’t initialize properly. Check details below or refresh the page.</p>
+      <pre id="load-error-detail" style="display: none;"></pre>
     </div>
 
     <script>
@@ -136,51 +138,52 @@
         }
       }
 
+      function hideLoadError() {
+        var errEl = document.getElementById("load-error");
+        if (errEl) {
+          errEl.classList.remove("visible");
+          errEl.style.display = "none";
+        }
+      }
+
       function showLoadError(message, detail) {
         if (appLoaded) return;
-        appLoaded = true;
         removeLoader();
         var errEl = document.getElementById("load-error");
         if (errEl) {
           errEl.classList.add("visible");
         }
+        if (detail) {
+          var detailEl = document.getElementById("load-error-detail");
+          if (detailEl) {
+            detailEl.textContent = detail;
+            detailEl.style.display = "block";
+          }
+        }
         window.parent.postMessage(
           { type: "LOADING_ERROR", message: message },
           "*",
         );
-        window.parent.postMessage({ type: "LOADING_COMPLETED" }, "*");
       }
 
       window.addEventListener("flutter-first-frame", function () {
-        if (appLoaded) return;
         appLoaded = true;
         removeLoader();
+        hideLoadError();
         window.parent.postMessage({ type: "LOADING_COMPLETED" }, "*");
       });
 
+      // Capture errors but only show UI if not loaded and fatal
       window.onerror = function (message, source, lineno, colno, error) {
-        var detail = [
-          message,
-          source ? source + ":" + lineno + ":" + colno : "",
-        ]
-          .filter(Boolean)
-          .join("\n");
-        if (error && error.stack) detail += "\n" + error.stack;
-        showLoadError(message, detail);
+        console.error("[AdhocX Web Error]", message, source, lineno, colno, error);
         return false;
       };
 
       window.addEventListener("unhandledrejection", function (event) {
-        var reason = event.reason;
-        var msg = reason && (reason.message || String(reason));
-        var stack = reason && reason.stack;
-        showLoadError(
-          msg || "Unhandled error",
-          stack && stack !== msg ? stack : null,
-        );
+        console.warn("[AdhocX Web Unhandled Rejection]", event.reason);
       });
 
-      // If first frame or error does not happen within 90s, stop loader and show message
+      // Timeout fallback: only trigger if Flutter has not rendered after 45s
       setTimeout(function () {
         if (appLoaded) return;
         var loader = document.getElementById("loading-container");
@@ -190,7 +193,7 @@
             "The app did not start in time. Please refresh the page.",
           );
         }
-      }, 90000);
+      }, 45000);
     </script>
 
     <script>
@@ -238,7 +241,5 @@
 
     <!-- Plugin initialization code will be injected into flutter_plugins.js -->
     <script src="flutter_plugins.js" defer></script>
-    <script type="module" src="https://static.rocket.new/rocket-shot.js?v=0.0.2"></script>
-  
   </body>
 </html>

@@ -176,7 +176,7 @@ class _AuthPhoneStepWidgetState extends State<AuthPhoneStepWidget> {
               controller: _nameController,
               label: 'Full Name (Optional)',
               hint: isDriver ? 'e.g. Ramesh Kumar' : 'e.g. Sarah Jenkins',
-              prefixIcon: const Icon(
+              prefixIcon: Icon(
                 Icons.person_outline_rounded,
                 color: AppColors.textSecondaryDark,
                 size: 20,
@@ -188,7 +188,7 @@ class _AuthPhoneStepWidgetState extends State<AuthPhoneStepWidget> {
                 controller: _companyController,
                 label: 'Company / Organization Name (Optional)',
                 hint: 'e.g. Horizon Logistics Pvt Ltd',
-                prefixIcon: const Icon(
+                prefixIcon: Icon(
                   Icons.business_outlined,
                   color: AppColors.textSecondaryDark,
                   size: 20,
@@ -220,7 +220,7 @@ class _AuthPhoneStepWidgetState extends State<AuthPhoneStepWidget> {
               ),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.error_outline_rounded,
                     color: AppColors.errorText,
                     size: 18,

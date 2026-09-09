@@ -1,3 +1,4 @@
+import '../../../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class TripsOfflineStateWidget extends StatelessWidget {
@@ -11,9 +12,9 @@ class TripsOfflineStateWidget extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(32),
           decoration: BoxDecoration(
-            color: const Color(0xFF1e293b),
+            color: AppColors.surfaceElevatedDark,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFF334155)),
+            border: Border.all(color: AppColors.borderDark),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -22,12 +23,12 @@ class TripsOfflineStateWidget extends StatelessWidget {
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF334155).withAlpha(128),
+                  color: AppColors.borderDark.withAlpha(128),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.power_settings_new_rounded,
-                  color: Color(0xFF475569),
+                  color: AppColors.textSecondaryLight,
                   size: 36,
                 ),
               ),
@@ -41,9 +42,9 @@ class TripsOfflineStateWidget extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Go online to receive trip requests',
-                style: TextStyle(color: Color(0xFF94a3b8), fontSize: 13),
+                style: TextStyle(color: AppColors.textMutedDark, fontSize: 13),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
@@ -53,22 +54,22 @@ class TripsOfflineStateWidget extends StatelessWidget {
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0f172a),
+                  color: AppColors.textPrimaryLight,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFF334155)),
+                  border: Border.all(color: AppColors.borderDark),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
                       Icons.info_outline_rounded,
-                      color: Color(0xFF475569),
+                      color: AppColors.textSecondaryLight,
                       size: 14,
                     ),
                     SizedBox(width: 6),
                     Text(
                       'Toggle the button above to go online',
-                      style: TextStyle(color: Color(0xFF475569), fontSize: 11),
+                      style: TextStyle(color: AppColors.textSecondaryLight, fontSize: 11),
                     ),
                   ],
                 ),

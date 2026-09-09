@@ -1,3 +1,4 @@
+import '../../../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class WalletBankCardWidget extends StatelessWidget {
@@ -15,25 +16,25 @@ class WalletBankCardWidget extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1e293b),
+        color: AppColors.surfaceElevatedDark,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF334155)),
+        border: Border.all(color: AppColors.borderDark),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.account_balance_rounded,
-                color: Color(0xFF94a3b8),
+                color: AppColors.textMutedDark,
                 size: 16,
               ),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'Linked Settlement Account',
                 style: TextStyle(
-                  color: Color(0xFF94a3b8),
+                  color: AppColors.textMutedDark,
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                 ),
@@ -42,16 +43,16 @@ class WalletBankCardWidget extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF10b981).withAlpha(26),
+                  color: AppColors.success.withAlpha(26),
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: const Color(0xFF10b981).withAlpha(77),
+                    color: AppColors.success.withAlpha(77),
                   ),
                 ),
-                child: const Text(
+                child: Text(
                   'Active',
                   style: TextStyle(
-                    color: Color(0xFF10b981),
+                    color: AppColors.success,
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                   ),
@@ -71,13 +72,13 @@ class WalletBankCardWidget extends StatelessWidget {
           _row(
             'IFSC Code',
             bankDetails['ifsc'] as String,
-            valueColor: const Color(0xFFf59e0b),
+            valueColor: AppColors.warning,
           ),
           const SizedBox(height: 8),
           _row(
             'UPI ID',
             bankDetails['upi_id'] as String,
-            valueColor: const Color(0xFFf59e0b),
+            valueColor: AppColors.warning,
           ),
         ],
       ),
@@ -95,7 +96,7 @@ class WalletBankCardWidget extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(color: Color(0xFF94a3b8), fontSize: 13),
+          style: TextStyle(color: AppColors.textMutedDark, fontSize: 13),
         ),
         Text(
           value,

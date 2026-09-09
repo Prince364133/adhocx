@@ -1,18 +1,64 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../services/user_service.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
 
-class UserPaymentDetailsScreen extends StatelessWidget {
-  const UserPaymentDetailsScreen({super.key});
+class UserPaymentDetailsScreen extends StatefulWidget {
+  final Map<String, dynamic>? transaction;
+  const UserPaymentDetailsScreen({super.key, this.transaction});
+
+  @override
+  State<UserPaymentDetailsScreen> createState() => _UserPaymentDetailsScreenState();
+}
+
+class _UserPaymentDetailsScreenState extends State<UserPaymentDetailsScreen> {
+  Map<String, dynamic>? _transaction;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.transaction != null) {
+      _transaction = widget.transaction;
+      _isLoading = false;
+    } else {
+      _loadTransaction();
+    }
+  }
+
+  Future<void> _loadTransaction() async {
+    setState(() => _isLoading = true);
+    try {
+      final list = await UserService.instance.getWalletTransactions();
+      if (list.isNotEmpty && mounted) {
+        setState(() => _transaction = list.first as Map<String, dynamic>);
+      }
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+
+    final t = _transaction ?? {};
+    final id = t['referenceId'] ?? t['id'] ?? 'TXN-LIVE';
+    final desc = t['description'] ?? t['type'] ?? 'Wallet Top-Up';
+    final amount = t['amount'] ?? 25000;
+    final status = (t['status'] ?? 'COMPLETED').toString();
+    final date = t['createdAt'] != null ? t['createdAt'].toString() : 'Verified on Ledger';
+    final type = (t['type'] ?? 'TOP_UP').toString();
+
+    Color badgeColor = AppColors.success;
+    if (status == 'PENDING') badgeColor = AppColors.warning;
+    if (status == 'FAILED') badgeColor = AppColors.error;
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -24,115 +70,88 @@ class UserPaymentDetailsScreen extends StatelessWidget {
           icon: Icon(Icons.arrow_back, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
         ),
         title: Text('Payment Details', style: AppTypography.h3(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
-        actions: [
-          IconButton(
-            onPressed: () {},
-            icon: Icon(Icons.file_upload_outlined, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
-          ),
-        ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header Card
-              Container(
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
                 padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                ),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Header Card
                     Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: Colors.purple.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppRadius.md)),
-                      child: const Icon(Icons.directions_car_outlined, color: Color(0xFF6C5CE7)),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                      ),
+                      child: Row(
                         children: [
-                          Text('Airport Transfer', style: AppTypography.h4(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
-                          Text('REQ-250510-0001', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(color: AppColors.accentPurple.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppRadius.md)),
+                            child: Icon(Icons.account_balance_wallet_outlined, color: AppColors.primary),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(desc.toString(), style: AppTypography.h4(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
+                                Text(id.toString(), style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(color: badgeColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(AppRadius.sm)),
+                            child: Text(status, style: TextStyle(color: badgeColor, fontWeight: FontWeight.bold, fontSize: 11)),
+                          ),
                         ],
                       ),
                     ),
+
+                    const SizedBox(height: AppSpacing.lg),
+
+                    Text('₹ $amount.00', style: AppTypography.h1(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                    Text('Ledger Transaction Amount', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
+
+                    const SizedBox(height: AppSpacing.lg),
+
+                    // Particulars List
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(color: Colors.orange.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(AppRadius.sm)),
-                      child: const Text('Pending', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 11)),
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                      ),
+                      child: Column(
+                        children: [
+                          _buildRow(context, 'Transaction Type', type, isDark),
+                          const Divider(),
+                          _buildRow(context, 'Reference ID', id.toString(), isDark),
+                          const Divider(),
+                          _buildRow(context, 'Recorded Timestamp', date, isDark),
+                          const Divider(),
+                          _buildRow(context, 'Settlement Status', status, isDark),
+                          const Divider(),
+                          _buildRow(context, 'Payment Method', 'Universal Shared Wallet (Escrow & Razorpay)', isDark),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: AppSpacing.xl),
+
+                    AppPrimaryButton(
+                      text: 'Contact Support',
+                      onPressed: () => context.push(AppRoutes.userRaiseIssueScreen),
                     ),
                   ],
                 ),
               ),
-
-              const SizedBox(height: AppSpacing.lg),
-
-              Text('₹ 24,750.00', style: AppTypography.h1(color: const Color(0xFF6C5CE7), fontWeight: FontWeight.bold)),
-              Text('Total Amount', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
-
-              const SizedBox(height: AppSpacing.lg),
-
-              // Particulars List
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                ),
-                child: Column(
-                  children: [
-                    _buildRow(context, 'Trip Date', '10 May 2025, 06:30 PM', isDark),
-                    const Divider(),
-                    _buildRow(context, 'Pickup', 'DLF Cyber City, Gurugram', isDark),
-                    const Divider(),
-                    _buildRow(context, 'Destination', 'Indira Gandhi Airport, Delhi', isDark),
-                    const Divider(),
-                    _buildRow(context, 'Vehicle Type', 'Sedan', isDark),
-                    const Divider(),
-                    _buildRow(context, 'Vehicles', '10', isDark),
-                    const Divider(),
-                    _buildRow(context, 'Payment Method', 'Net Banking', isDark),
-                    const Divider(),
-                    _buildRow(context, 'Transaction ID', 'TXN-250510-7854', isDark),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: AppSpacing.lg),
-
-              // Stepper
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                ),
-                child: Column(
-                  children: [
-                    _buildStep(context, 'Payment Initiated', '10 May 2025, 07:15 PM', isDone: true, isLast: false, isDark: isDark),
-                    _buildStep(context, 'Processing', '—', isDone: false, isCurrent: true, isLast: false, isDark: isDark),
-                    _buildStep(context, 'Payment Completed', '—', isDone: false, isLast: true, isDark: isDark),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: AppSpacing.xl),
-
-              AppPrimaryButton(
-                text: 'Contact Support',
-                onPressed: () {},
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -147,32 +166,6 @@ class UserPaymentDetailsScreen extends StatelessWidget {
           Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)),
         ],
       ),
-    );
-  }
-
-  Widget _buildStep(BuildContext context, String title, String sub, {required bool isDone, bool isCurrent = false, required bool isLast, required bool isDark}) {
-    Color color = Colors.grey;
-    if (isDone) color = const Color(0xFF6C5CE7);
-    if (isCurrent) color = Colors.orange;
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Column(
-          children: [
-            Icon(isDone ? Icons.check_circle : Icons.circle_outlined, size: 16, color: color),
-            if (!isLast) Container(width: 2, height: 28, color: Colors.grey[300]),
-          ],
-        ),
-        const SizedBox(width: 10),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)),
-            Text(sub, style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontSize: 10)),
-          ],
-        ),
-      ],
     );
   }
 }

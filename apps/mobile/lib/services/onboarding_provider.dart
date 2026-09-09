@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 /// State management provider for the 4-step Driver and Vendor Onboarding Flow.
 class OnboardingProvider extends ChangeNotifier {
-  // Role: 'USER' (Customer/Booker) or 'DRIVER'
-  String _role = 'USER'; 
+  // Role: 'DRIVER' (Driver Partner by default) or 'VENDOR' / 'USER' (Customer/Booker)
+  String _role = 'DRIVER'; 
 
   // Step 1: Personal Details
   String _fullName = '';
@@ -40,6 +40,7 @@ class OnboardingProvider extends ChangeNotifier {
   String get gender => _gender;
   String get email => _email;
   String get phoneNumber => _phoneNumber;
+  String get phone => _phoneNumber;
 
   String get vehicleType => _vehicleType;
   String get carModel => _carModel;
@@ -77,17 +78,17 @@ class OnboardingProvider extends ChangeNotifier {
   }
 
   void setPersonalDetails({
-    required String fullName,
-    required DateTime? dateOfBirth,
-    required String gender,
+    String? fullName,
+    DateTime? dateOfBirth,
+    String? gender,
     String? email,
     String? phone,
     String? companyName,
     bool? isCorporate,
   }) {
-    _fullName = fullName;
-    _dateOfBirth = dateOfBirth;
-    _gender = gender;
+    if (fullName != null) _fullName = fullName;
+    if (dateOfBirth != null) _dateOfBirth = dateOfBirth;
+    if (gender != null) _gender = gender;
     if (email != null) _email = email;
     if (phone != null) _phoneNumber = phone;
     if (companyName != null) _companyName = companyName;
@@ -139,7 +140,7 @@ class OnboardingProvider extends ChangeNotifier {
   }
 
   void reset() {
-    _role = 'USER';
+    _role = 'DRIVER';
     _fullName = '';
     _dateOfBirth = null;
     _gender = 'Male';

@@ -1,3 +1,4 @@
+import '../../../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class _ModalShell extends StatelessWidget {
@@ -18,7 +19,7 @@ class _ModalShell extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1e293b),
+        color: AppColors.surfaceElevatedDark,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
@@ -55,7 +56,7 @@ class RateCardModal extends StatelessWidget {
     return _ModalShell(
       title: 'Driver Rate Card',
       icon: Icons.speed_rounded,
-      iconColor: const Color(0xFF0ea5e9),
+      iconColor: AppColors.info,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -82,15 +83,15 @@ class RateCardModal extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFFf59e0b).withAlpha(20),
+              color: AppColors.warning.withAlpha(20),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFf59e0b).withAlpha(77)),
+              border: Border.all(color: AppColors.warning.withAlpha(77)),
             ),
             child: const Row(
               children: [
                 Icon(
                   Icons.security_rounded,
-                  color: Color(0xFFf59e0b),
+                  color: AppColors.warning,
                   size: 16,
                 ),
                 SizedBox(width: 10),
@@ -98,7 +99,7 @@ class RateCardModal extends StatelessWidget {
                   child: Text(
                     'Security Escort Addon: +₹150 per trip',
                     style: TextStyle(
-                      color: Color(0xFFf59e0b),
+                      color: AppColors.warning,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
@@ -127,9 +128,9 @@ class RateCardModal extends StatelessWidget {
         const SizedBox(height: 10),
         Container(
           decoration: BoxDecoration(
-            color: const Color(0xFF0f172a),
+            color: AppColors.textPrimaryLight,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF334155)),
+            border: Border.all(color: AppColors.borderDark),
           ),
           child: Column(
             children: rows.asMap().entries.map((entry) {
@@ -147,8 +148,8 @@ class RateCardModal extends StatelessWidget {
                       children: [
                         Text(
                           row[0],
-                          style: const TextStyle(
-                            color: Color(0xFF94a3b8),
+                          style: TextStyle(
+                            color: AppColors.textMutedDark,
                             fontSize: 13,
                           ),
                         ),
@@ -165,7 +166,7 @@ class RateCardModal extends StatelessWidget {
                     ),
                   ),
                   if (i < rows.length - 1)
-                    const Divider(color: Color(0xFF334155), height: 1),
+                    Divider(color: AppColors.borderDark, height: 1),
                 ],
               );
             }).toList(),

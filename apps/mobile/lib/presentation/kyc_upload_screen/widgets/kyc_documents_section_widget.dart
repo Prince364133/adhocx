@@ -1,3 +1,4 @@
+import 'package:adhocx/shared/theme/app_colors.dart';
 import 'dart:typed_data'; // 💡 Required for Uint8List
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart'; 
@@ -61,7 +62,7 @@ class _KycDocumentsSectionWidgetState extends State<KycDocumentsSectionWidget> {
   void _showSourcePicker(String docKey, String docLabel) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF141414), 
+      backgroundColor: AppColors.surfaceElevatedDark, 
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -84,19 +85,19 @@ class _KycDocumentsSectionWidgetState extends State<KycDocumentsSectionWidget> {
                 const SizedBox(height: 6),
                 const Text(
                   'Select an image source',
-                  style: TextStyle(color: Colors.grey, fontSize: 13),
+                  style: TextStyle(color: AppColors.slate400, fontSize: 13),
                 ),
                 const SizedBox(height: 18),
                 ListTile(
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.15),
+                      color: AppColors.successContainer,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(
                       Icons.camera_alt_outlined,
-                      color: Colors.green, 
+                      color: AppColors.success, 
                     ),
                   ),
                   title: const Text(
@@ -112,12 +113,12 @@ class _KycDocumentsSectionWidgetState extends State<KycDocumentsSectionWidget> {
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.15),
+                      color: AppColors.successContainer,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(
                       Icons.photo_library_outlined,
-                      color: Colors.green, 
+                      color: AppColors.success, 
                     ),
                   ),
                   title: const Text(
@@ -155,14 +156,14 @@ class _KycDocumentsSectionWidgetState extends State<KycDocumentsSectionWidget> {
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.15),
+                  color: AppColors.successContainer,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Center(
                   child: Text(
                     '5',
                     style: TextStyle(
-                      color: Colors.green,
+                      color: AppColors.success,
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
                     ),
@@ -173,7 +174,7 @@ class _KycDocumentsSectionWidgetState extends State<KycDocumentsSectionWidget> {
               const Text(
                 'Document Uploads',
                 style: TextStyle(
-                  color: Colors.green,
+                  color: AppColors.success,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -184,7 +185,7 @@ class _KycDocumentsSectionWidgetState extends State<KycDocumentsSectionWidget> {
           const Text(
             'Photo or PDF — tap to upload from camera or files',
             style: TextStyle(
-              color: Colors.grey, 
+              color: AppColors.slate400, 
               fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
@@ -248,7 +249,7 @@ class _DocUploadRow extends StatelessWidget {
                 const Text(
                   'Uploaded ✓',
                   style: TextStyle(
-                    color: Colors.green, 
+                    color: AppColors.success, 
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                   ),
@@ -260,13 +261,13 @@ class _DocUploadRow extends StatelessWidget {
         if (!isUploaded)
           _uploadBtn(
             label: 'Upload',
-            color: Colors.green, 
+            color: AppColors.success, 
             onTap: onUpload,
           )
         else
           _uploadBtn(
             label: 'Replace',
-            color: Colors.grey, 
+            color: AppColors.slate400, 
             onTap: onReplace,
           ),
       ],

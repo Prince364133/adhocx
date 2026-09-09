@@ -27,7 +27,7 @@ class NoInternetWidget extends StatelessWidget {
               color: AppColors.error.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.error),
+            child: Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.error),
           ),
           const SizedBox(height: AppSpacing.lg),
           Text(
@@ -66,10 +66,10 @@ class ServerErrorWidget extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(AppSpacing.lg),
             decoration: BoxDecoration(
-              color: const Color(0xFFea580c).withValues(alpha: 0.1),
+              color: AppColors.warning.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.dns_outlined, size: 48, color: Color(0xFFea580c)),
+            child: const Icon(Icons.dns_outlined, size: 48, color: AppColors.warning),
           ),
           const SizedBox(height: AppSpacing.lg),
           Text(
@@ -111,7 +111,7 @@ class SomethingWentWrongWidget extends StatelessWidget {
               color: AppColors.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.warning_amber_rounded, size: 48, color: AppColors.primary),
+            child: Icon(Icons.warning_amber_rounded, size: 48, color: AppColors.primary),
           ),
           const SizedBox(height: AppSpacing.lg),
           Text(
@@ -153,7 +153,7 @@ class SessionExpiredWidget extends StatelessWidget {
               color: AppColors.error.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.lock_clock_outlined, size: 48, color: AppColors.error),
+            child: Icon(Icons.lock_clock_outlined, size: 48, color: AppColors.error),
           ),
           const SizedBox(height: AppSpacing.lg),
           Text(
@@ -195,7 +195,7 @@ class PermissionRequiredWidget extends StatelessWidget {
               color: AppColors.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.security_rounded, size: 48, color: AppColors.primary),
+            child: Icon(Icons.security_rounded, size: 48, color: AppColors.primary),
           ),
           const SizedBox(height: AppSpacing.lg),
           Text(
@@ -237,7 +237,7 @@ class LocationPermissionWidget extends StatelessWidget {
               color: AppColors.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.location_on_outlined, size: 48, color: AppColors.primary),
+            child: Icon(Icons.location_on_outlined, size: 48, color: AppColors.primary),
           ),
           const SizedBox(height: AppSpacing.lg),
           Text(
@@ -276,10 +276,10 @@ class NotificationPermissionWidget extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(AppSpacing.lg),
             decoration: BoxDecoration(
-              color: const Color(0xFF8b5cf6).withValues(alpha: 0.1),
+              color: AppColors.accentPurple.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.notifications_active_outlined, size: 48, color: Color(0xFF8b5cf6)),
+            child: const Icon(Icons.notifications_active_outlined, size: 48, color: AppColors.accentPurple),
           ),
           const SizedBox(height: AppSpacing.lg),
           Text(
@@ -315,7 +315,7 @@ class GlobalLoadingWidget extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const CircularProgressIndicator(color: AppColors.primary, strokeWidth: 3),
+          CircularProgressIndicator(color: AppColors.primary, strokeWidth: 3),
           const SizedBox(height: AppSpacing.lg),
           Text(
             'Loading Driver Data...',
@@ -401,10 +401,10 @@ class MaintenanceWidget extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(AppSpacing.lg),
             decoration: BoxDecoration(
-              color: const Color(0xFF0284c7).withValues(alpha: 0.1),
+              color: AppColors.info.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.engineering_outlined, size: 48, color: Color(0xFF0284c7)),
+            child: Icon(Icons.engineering_outlined, size: 48, color: AppColors.info),
           ),
           const SizedBox(height: AppSpacing.lg),
           Text(
@@ -421,7 +421,7 @@ class MaintenanceWidget extends StatelessWidget {
           ElevatedButton(
             onPressed: () => Fluttertoast.showToast(msg: 'Checking server status...'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0284c7),
+              backgroundColor: AppColors.info,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
             ),
             child: const Text('CHECK STATUS', style: TextStyle(color: Colors.white)),

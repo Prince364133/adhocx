@@ -129,8 +129,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
       final onboarding = context.read<OnboardingProvider>();
 
       final isGoogle = type == SocialAuthType.google;
-      final socialEmail = isGoogle ? 'rahul.google@gmail.com' : 'rahul.apple@privaterelay.appleid.com';
-      final socialName = isGoogle ? 'Rahul Sharma (Google)' : 'Rahul Sharma (Apple)';
+      final socialEmail = isGoogle ? 'google.user@gmail.com' : 'apple.user@privaterelay.appleid.com';
+      final socialName = isGoogle ? 'Google User' : 'Apple User';
 
       final result = isGoogle
           ? await authService.signInWithGoogle(role: onboarding.role)
@@ -168,6 +168,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final onboarding = context.watch<OnboardingProvider>();
+    final isDriver = onboarding.isDriver;
+
     return Scaffold(
       backgroundColor: AppColors.bgLight,
       body: SafeArea(
@@ -195,7 +198,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               context.go(AppRoutes.signInScreen);
                             }
                           },
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.arrow_back,
                             color: AppColors.textPrimaryLight,
                           ),
@@ -206,115 +209,24 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     const SizedBox(height: AppSpacing.md),
 
-                    // ── Role Selector Pill ───────────────────────────────────
-                    Consumer<OnboardingProvider>(
-                      builder: (context, onboarding, _) {
-                        return Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: AppColors.primarySubtle,
-                            borderRadius: BorderRadius.circular(AppRadius.md),
-                            border: Border.all(
-                              color: AppColors.primaryLight.withValues(alpha: 0.3),
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () => onboarding.setRole('USER'),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: onboarding.isUser ? AppColors.primary : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(AppRadius.sm),
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.person_rounded,
-                                          size: 16,
-                                          color: onboarding.isUser ? Colors.white : AppColors.textSecondaryLight,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          'User / Booker',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700,
-                                            color: onboarding.isUser ? Colors.white : AppColors.textSecondaryLight,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () => onboarding.setRole('DRIVER'),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: onboarding.isDriver ? AppColors.primary : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(AppRadius.sm),
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.local_taxi_rounded,
-                                          size: 16,
-                                          color: onboarding.isDriver ? Colors.white : AppColors.textSecondaryLight,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          'Driver Partner',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700,
-                                            color: onboarding.isDriver ? Colors.white : AppColors.textSecondaryLight,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
+                    const SizedBox(height: AppSpacing.md),
 
                     // ── Title & Subtitle ─────────────────────────────────────
-                    Consumer<OnboardingProvider>(
-                      builder: (context, onboarding, _) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              onboarding.isDriver ? 'Driver Partner Sign Up' : 'Create your account',
-                              style: AppTypography.h1(
-                                color: AppColors.textPrimaryLight,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: AppSpacing.xs),
-                            Text(
-                              onboarding.isDriver
-                                  ? 'Register to start earning with long & bulk rides'
-                                  : 'Book outstation rides & bulk travel with ease',
-                              style: AppTypography.body(
-                                color: AppColors.textSecondaryLight,
-                              ),
-                            ),
-                          ],
-                        );
-                      },
+                    Text(
+                      isDriver ? 'Create Driver Account' : 'Create Business Account',
+                      style: AppTypography.h1(
+                        color: AppColors.textPrimaryLight,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      isDriver
+                          ? 'Drive, earn & fulfill corporate fleet trips with AdhocX'
+                          : 'Book outstation rides & bulk corporate travel with ease',
+                      style: AppTypography.body(
+                        color: AppColors.textSecondaryLight,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.xl),
 
@@ -424,7 +336,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     AppTextField(
                       controller: _nameController,
                       label: 'Full Name',
-                      hintText: 'Rahul Sharma',
+                      hintText: 'Enter full name',
                       validator: (val) {
                         if (val == null || val.trim().length < 2) {
                           return 'Enter your legal full name';
@@ -451,9 +363,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       AppTextField(
                         controller: _emailController,
                         label: 'Email Address',
-                        hintText: 'rahul.sharma@example.com',
+                        hintText: 'name@example.com',
                         keyboardType: TextInputType.emailAddress,
-                        prefixIcon: const Icon(Icons.email_outlined, size: 20, color: AppColors.textSecondaryLight),
+                        prefixIcon: Icon(Icons.email_outlined, size: 20, color: AppColors.textSecondaryLight),
                         validator: (val) {
                           if (val == null || val.trim().isEmpty) {
                             return 'Email address is required';
@@ -549,26 +461,120 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     const SizedBox(height: AppSpacing.xxl),
 
                     // ── Footer: Already have an account? Sign in ─────────────
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Already have an account? ',
-                          style: AppTypography.body(
-                            color: AppColors.textSecondaryLight,
+                    Center(
+                      child: GestureDetector(
+                        onTap: () => context.push(AppRoutes.signInScreen),
+                        child: Text.rich(
+                          TextSpan(
+                            text: 'Already have an account? ',
+                            style: AppTypography.body(
+                              color: AppColors.textSecondaryLight,
+                            ),
+                            children: [
+                              TextSpan(
+                                text: 'Sign in',
+                                style: AppTypography.body(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        GestureDetector(
-                          onTap: () => context.push(AppRoutes.signInScreen),
-                          child: Text(
-                            'Sign in',
-                            style: AppTypography.body(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+
+                    // ── Role Switcher Banner (Vendor / Driver) ─────────────
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          final nextRole = isDriver ? 'VENDOR' : 'DRIVER';
+                          onboarding.setRole(nextRole);
+                          Fluttertoast.showToast(
+                            msg: isDriver
+                                ? 'Switched to Business Account registration'
+                                : 'Switched to Driver Partner registration',
+                            backgroundColor: AppColors.primaryDark,
+                            textColor: Colors.white,
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        child: Ink(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                            vertical: AppSpacing.sm + 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primarySubtle,
+                            borderRadius: BorderRadius.circular(AppRadius.md),
+                            border: Border.all(
+                              color: AppColors.primaryLight.withValues(alpha: 0.4),
+                              width: 1.2,
                             ),
                           ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary,
+                                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                                ),
+                                child: Icon(
+                                  isDriver ? Icons.business_center_rounded : Icons.local_taxi_rounded,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.md),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      isDriver
+                                          ? 'Sign up as a Business'
+                                          : 'Drive & Earn with AdhocX',
+                                      style: AppTypography.small(
+                                        color: AppColors.textPrimaryLight,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    Text(
+                                      isDriver
+                                          ? 'Book outstation rides & bulk corporate travel'
+                                          : 'Join as a verified driver partner',
+                                      style: AppTypography.caption(
+                                        color: AppColors.textSecondaryLight,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary,
+                                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                                ),
+                                child: Text(
+                                  isDriver ? 'Sign up as Business' : 'Sign up as Driver',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ],
+                      ),
                     ),
                   ],
                 ),

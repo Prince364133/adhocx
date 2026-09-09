@@ -1,3 +1,4 @@
+import '../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class CustomErrorWidget extends StatelessWidget {
@@ -7,39 +8,36 @@ class CustomErrorWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: Scaffold(
-        backgroundColor: const Color(0xFF020617),
-        body: SafeArea(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.error_outline_rounded,
-                    color: Color(0xFFef4444),
-                    size: 56,
+    return Material(
+      color: AppColors.bgDark,
+      child: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.error_outline_rounded,
+                  color: AppColors.error,
+                  size: 56,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Something went wrong',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Something went wrong',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Please restart the app. If the issue persists, contact support.',
-                    style: TextStyle(color: Color(0xFF94a3b8), fontSize: 13),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Please restart the app. If the issue persists, contact support.',
+                  style: TextStyle(color: AppColors.textMutedDark, fontSize: 13),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
           ),
         ),

@@ -20,8 +20,8 @@ class ProfileDriverCardWidget extends StatelessWidget {
 
     final name = (profile['name'] != null && profile['name'].toString().trim().isNotEmpty)
         ? profile['name'].toString().trim()
-        : 'Rahul Sharma';
-    final initial = name.isNotEmpty ? name[0].toUpperCase() : 'R';
+        : 'Driver Partner';
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : 'D';
 
     final phone = (profile['phone'] != null && profile['phone'].toString().trim().isNotEmpty)
         ? profile['phone'].toString().trim()
@@ -29,7 +29,7 @@ class ProfileDriverCardWidget extends StatelessWidget {
 
     final vehicle = (profile['vehicle'] != null && profile['vehicle'].toString().trim().isNotEmpty)
         ? profile['vehicle'].toString().trim()
-        : 'Honda City · HR26 AB 1234';
+        : 'Commercial Fleet Vehicle';
 
     final isVerified = profile['is_verified'] != false;
     final rating = profile['rating']?.toString() ?? '4.92';
@@ -48,7 +48,7 @@ class ProfileDriverCardWidget extends StatelessWidget {
           BoxShadow(
             color: isDark
                 ? Colors.black.withValues(alpha: 0.3)
-                : const Color(0xFF64748B).withValues(alpha: 0.08),
+                : AppColors.textSecondaryLight.withValues(alpha: 0.08),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -75,13 +75,13 @@ class ProfileDriverCardWidget extends StatelessWidget {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             gradient: const LinearGradient(
-                              colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
+                              colors: [AppColors.primary, AppColors.primaryHover],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF6366F1).withValues(alpha: 0.35),
+                                color: AppColors.primary.withValues(alpha: 0.35),
                                 blurRadius: 10,
                                 offset: const Offset(0, 3),
                               ),
@@ -153,7 +153,7 @@ class ProfileDriverCardWidget extends StatelessWidget {
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(
+                                      Icon(
                                         Icons.verified_rounded,
                                         size: 11,
                                         color: AppColors.accentGreen,
@@ -249,7 +249,7 @@ class ProfileDriverCardWidget extends StatelessWidget {
                     children: [
                       _buildStatItem(
                         icon: Icons.star_rounded,
-                        iconColor: const Color(0xFFF59E0B),
+                        iconColor: AppColors.warning,
                         value: rating,
                         label: 'Rating',
                         isDark: isDark,

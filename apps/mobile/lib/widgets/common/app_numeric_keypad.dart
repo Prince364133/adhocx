@@ -30,9 +30,9 @@ class AppNumericKeypad extends StatelessWidget {
                 color: AppColors.surfaceLight,
                 borderRadius: BorderRadius.circular(AppRadius.md),
                 border: Border.all(color: AppColors.borderLight),
-                boxShadow: const [
+                boxShadow: [
                   BoxShadow(
-                    color: Color(0x08000000),
+                    color: Colors.black.withValues(alpha: 0.04),
                     blurRadius: 2,
                     offset: Offset(0, 1),
                   ),
@@ -86,7 +86,7 @@ class AppNumericKeypad extends StatelessWidget {
             _buildKey(
               'backspace',
               customAction: onDeletePressed,
-              customWidget: const Icon(
+              customWidget: Icon(
                 Icons.backspace_outlined,
                 size: 22,
                 color: AppColors.textSecondaryLight,

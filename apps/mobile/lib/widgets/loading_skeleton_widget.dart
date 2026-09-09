@@ -1,3 +1,4 @@
+import '../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class LoadingSkeletonWidget extends StatefulWidget {
@@ -51,9 +52,9 @@ class _LoadingSkeletonWidgetState extends State<LoadingSkeletonWidget>
             borderRadius: BorderRadius.circular(widget.borderRadius),
             gradient: LinearGradient(
               colors: [
-                const Color(0xFF1e293b),
-                const Color(0xFF334155),
-                const Color(0xFF1e293b),
+                AppColors.surfaceElevatedDark,
+                AppColors.borderDark,
+                AppColors.surfaceElevatedDark,
               ],
               stops: [
                 (_shimmerAnimation.value - 0.3).clamp(0.0, 1.0),

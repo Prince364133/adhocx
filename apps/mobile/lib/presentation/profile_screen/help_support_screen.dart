@@ -82,7 +82,7 @@ class HelpSupportScreen extends StatelessWidget {
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.md,
                   ),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppColors.surfaceLight,
                     border: Border(
                       bottom: BorderSide(color: AppColors.borderLight),
@@ -98,7 +98,7 @@ class HelpSupportScreen extends StatelessWidget {
                             context.go(AppRoutes.profileScreen);
                           }
                         },
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.arrow_back,
                           color: AppColors.textPrimaryLight,
                         ),
@@ -127,9 +127,9 @@ class HelpSupportScreen extends StatelessWidget {
                           color: AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
                           border: Border.all(color: AppColors.borderLight),
-                          boxShadow: const [
+                          boxShadow: [
                             BoxShadow(
-                              color: Color(0x06000000),
+                              color: Colors.black.withValues(alpha: 0.03),
                               blurRadius: 4,
                               offset: Offset(0, 2),
                             ),
@@ -165,7 +165,7 @@ class HelpSupportScreen extends StatelessWidget {
                                 color: AppColors.primary.withValues(alpha: 0.1),
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.headset_mic_outlined,
                                 color: AppColors.primary,
                                 size: 30,
@@ -196,7 +196,7 @@ class HelpSupportScreen extends StatelessWidget {
                                 );
                               },
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildOptionTile(
                               icon: Icons.chat_bubble_outline_rounded,
                               title: 'Contact Support',
@@ -208,7 +208,7 @@ class HelpSupportScreen extends StatelessWidget {
                                 );
                               },
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildOptionTile(
                               icon: Icons.phone_outlined,
                               title: 'Call Support',
@@ -221,7 +221,7 @@ class HelpSupportScreen extends StatelessWidget {
                                 );
                               },
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildOptionTile(
                               icon: Icons.report_problem_outlined,
                               title: 'Report an Issue',
@@ -233,7 +233,7 @@ class HelpSupportScreen extends StatelessWidget {
                                 );
                               },
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildOptionTile(
                               icon: Icons.rate_review_outlined,
                               title: 'App Feedback',
@@ -261,7 +261,7 @@ class HelpSupportScreen extends StatelessWidget {
                         ),
                         child: ListTile(
                           onTap: () => _handleLogout(context),
-                          leading: const Icon(
+                          leading: Icon(
                             Icons.logout_rounded,
                             color: AppColors.error,
                           ),
@@ -319,7 +319,7 @@ class HelpSupportScreen extends StatelessWidget {
             ),
             const SizedBox(width: 6),
           ],
-          const Icon(Icons.chevron_right, size: 18, color: AppColors.textMutedLight),
+          Icon(Icons.chevron_right, size: 18, color: AppColors.textMutedLight),
         ],
       ),
     );

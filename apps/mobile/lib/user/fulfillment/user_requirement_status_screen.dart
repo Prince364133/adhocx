@@ -70,7 +70,7 @@ class _UserRequirementStatusScreenState extends State<UserRequirementStatusScree
                           if (selected) setState(() => _currentState = st);
                         },
                         selectedColor: _getColor(st),
-                        backgroundColor: isDark ? AppColors.surfaceDark : Colors.grey[200],
+                        backgroundColor: isDark ? AppColors.surfaceDark : AppColors.slate200,
                         labelStyle: TextStyle(
                           color: isSelected ? Colors.white : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
                           fontSize: 11,
@@ -144,7 +144,7 @@ class _UserRequirementStatusScreenState extends State<UserRequirementStatusScree
   Color _getColor(RequirementFulfillmentState state) {
     switch (state) {
       case RequirementFulfillmentState.searching:
-        return Colors.orange;
+        return AppColors.warning;
       case RequirementFulfillmentState.fulfilled:
         return AppColors.success;
       case RequirementFulfillmentState.failed:
@@ -185,7 +185,7 @@ class _UserRequirementStatusScreenState extends State<UserRequirementStatusScree
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(color: AppColors.error.withValues(alpha: 0.08), shape: BoxShape.circle),
-                  child: const Icon(Icons.search, size: 64, color: AppColors.error),
+                  child: Icon(Icons.search, size: 64, color: AppColors.error),
                 ),
                 const CircleAvatar(radius: 14, backgroundColor: AppColors.error, child: Icon(Icons.close, size: 16, color: Colors.white)),
               ],
@@ -209,8 +209,8 @@ class _UserRequirementStatusScreenState extends State<UserRequirementStatusScree
                   child: CircularProgressIndicator(
                     value: 0.8,
                     strokeWidth: 10,
-                    backgroundColor: isDark ? Colors.grey[800] : Colors.grey[200],
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF6C5CE7)),
+                    backgroundColor: isDark ? AppColors.slate800 : AppColors.slate200,
+                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
                   ),
                 ),
                 Column(
@@ -223,7 +223,7 @@ class _UserRequirementStatusScreenState extends State<UserRequirementStatusScree
               ],
             ),
             const SizedBox(height: AppSpacing.md),
-            const Text('2 Vehicles Remaining', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 15)),
+            Text('2 Vehicles Remaining', style: TextStyle(color: AppColors.warning, fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: 4),
             Text('We are still searching for available drivers.', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
           ],
@@ -243,7 +243,7 @@ class _UserRequirementStatusScreenState extends State<UserRequirementStatusScree
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('What you can do?', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold, fontSize: 14)),
+            Text('What you can do?', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold, fontSize: 14)),
             const SizedBox(height: 10),
             _buildOption('Try again in some time'),
             const SizedBox(height: 8),
@@ -268,7 +268,7 @@ class _UserRequirementStatusScreenState extends State<UserRequirementStatusScree
           const Divider(),
           _buildRow('Searching', _currentState == RequirementFulfillmentState.fulfilled ? '0 Vehicles' : '2 Vehicles', AppColors.info, isDark),
           const Divider(),
-          _buildRow('On Trip', '6 Vehicles', const Color(0xFF6C5CE7), isDark),
+          _buildRow('On Trip', '6 Vehicles', AppColors.primary, isDark),
         ],
       ),
     );
@@ -277,7 +277,7 @@ class _UserRequirementStatusScreenState extends State<UserRequirementStatusScree
   Widget _buildOption(String text) {
     return Row(
       children: [
-        const Icon(Icons.refresh, size: 16, color: AppColors.error),
+        Icon(Icons.refresh, size: 16, color: AppColors.error),
         const SizedBox(width: 8),
         Text(text, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
       ],

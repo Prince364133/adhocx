@@ -67,7 +67,7 @@ class _UserBidsBottomSheetState extends State<UserBidsBottomSheet> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Bid of ₹${amount.toInt()} accepted! Escrow hold locked and driver assigned.'),
-            backgroundColor: const Color(0xFF10B981),
+            backgroundColor: AppColors.success,
           ),
         );
       }
@@ -77,7 +77,7 @@ class _UserBidsBottomSheetState extends State<UserBidsBottomSheet> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: const Color(0xFFEF4444),
+            backgroundColor: AppColors.error,
           ),
         );
       }
@@ -104,7 +104,7 @@ class _UserBidsBottomSheetState extends State<UserBidsBottomSheet> {
               height: 4,
               margin: const EdgeInsets.only(bottom: AppSpacing.md),
               decoration: BoxDecoration(
-                color: isDark ? Colors.grey[700] : Colors.grey[300],
+                color: isDark ? AppColors.slate700 : AppColors.slate300,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -141,25 +141,44 @@ class _UserBidsBottomSheetState extends State<UserBidsBottomSheet> {
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
-                : _bids.isEmpty
+                : _error != null
                     ? Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.gavel_outlined, size: 48, color: Colors.grey[400]),
+                            const Icon(Icons.error_outline, size: 48, color: AppColors.error),
                             const SizedBox(height: 12),
                             Text(
-                              'No bids received yet',
-                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey[600]),
+                              _error!,
+                              style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.error),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Nearby verified drivers have been alerted to quote',
-                              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                            const SizedBox(height: 12),
+                            ElevatedButton(
+                              onPressed: _loadBids,
+                              child: const Text('Retry'),
                             ),
                           ],
                         ),
                       )
+                    : _bids.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.gavel_outlined, size: 48, color: AppColors.slate400),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'No bids received yet',
+                                  style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.slate600),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Nearby verified drivers have been alerted to quote',
+                                  style: TextStyle(fontSize: 12, color: AppColors.slate500),
+                                ),
+                              ],
+                            ),
+                          )
                     : ListView.separated(
                         itemCount: _bids.length,
                         separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
@@ -184,7 +203,7 @@ class _UserBidsBottomSheetState extends State<UserBidsBottomSheet> {
                               borderRadius: BorderRadius.circular(AppRadius.lg),
                               border: Border.all(
                                 color: isAccepted
-                                    ? const Color(0xFF10B981)
+                                    ? AppColors.success
                                     : (isDark ? AppColors.borderDark : AppColors.borderLight),
                                 width: isAccepted ? 2 : 1,
                               ),
@@ -204,7 +223,7 @@ class _UserBidsBottomSheetState extends State<UserBidsBottomSheet> {
                                         ),
                                         Row(
                                           children: [
-                                            const Icon(Icons.star, color: Colors.amber, size: 14),
+                                            const Icon(Icons.star, color: AppColors.starAmber, size: 14),
                                             const SizedBox(width: 2),
                                             Text(
                                               driverRating.toStringAsFixed(1),
@@ -214,7 +233,7 @@ class _UserBidsBottomSheetState extends State<UserBidsBottomSheet> {
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                               decoration: BoxDecoration(
-                                                color: (trustScore >= 90 ? const Color(0xFF10B981) : Colors.orange)
+                                                color: (trustScore >= 90 ? AppColors.success : AppColors.warning)
                                                     .withValues(alpha: 0.15),
                                                 borderRadius: BorderRadius.circular(4),
                                               ),
@@ -223,7 +242,7 @@ class _UserBidsBottomSheetState extends State<UserBidsBottomSheet> {
                                                 style: TextStyle(
                                                   fontSize: 10,
                                                   fontWeight: FontWeight.bold,
-                                                  color: trustScore >= 90 ? const Color(0xFF10B981) : Colors.orange,
+                                                  color: trustScore >= 90 ? AppColors.success : AppColors.warning,
                                                 ),
                                               ),
                                             ),
@@ -236,15 +255,15 @@ class _UserBidsBottomSheetState extends State<UserBidsBottomSheet> {
                                       children: [
                                         Text(
                                           '₹${amount.toInt()}',
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 20,
                                             fontWeight: FontWeight.bold,
-                                            color: Color(0xFF6C5CE7),
+                                            color: AppColors.primary,
                                           ),
                                         ),
                                         Text(
                                           'ETA $eta mins',
-                                          style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                                          style: TextStyle(fontSize: 11, color: AppColors.slate500),
                                         ),
                                       ],
                                     ),
@@ -253,11 +272,11 @@ class _UserBidsBottomSheetState extends State<UserBidsBottomSheet> {
                                 const SizedBox(height: 8),
                                 Row(
                                   children: [
-                                    const Icon(Icons.directions_car_outlined, size: 14, color: Colors.grey),
+                                    const Icon(Icons.directions_car_outlined, size: 14, color: AppColors.slate400),
                                     const SizedBox(width: 4),
                                     Text(
                                       '$vehicleModel • $vehiclePlate',
-                                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                      style: TextStyle(fontSize: 12, color: AppColors.slate600),
                                     ),
                                   ],
                                 ),
@@ -268,7 +287,7 @@ class _UserBidsBottomSheetState extends State<UserBidsBottomSheet> {
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontStyle: FontStyle.italic,
-                                      color: isDark ? Colors.grey[400] : Colors.grey[700],
+                                      color: isDark ? AppColors.slate400 : AppColors.slate700,
                                     ),
                                   ),
                                 ],
@@ -279,7 +298,7 @@ class _UserBidsBottomSheetState extends State<UserBidsBottomSheet> {
                                     width: double.infinity,
                                     padding: const EdgeInsets.symmetric(vertical: 8),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                      color: AppColors.success.withValues(alpha: 0.15),
                                       borderRadius: BorderRadius.circular(AppRadius.md),
                                     ),
                                     child: const Center(
@@ -287,7 +306,7 @@ class _UserBidsBottomSheetState extends State<UserBidsBottomSheet> {
                                         '✓ WINNING BID ACCEPTED',
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
-                                          color: Color(0xFF10B981),
+                                          color: AppColors.success,
                                           fontSize: 12,
                                         ),
                                       ),
@@ -301,7 +320,7 @@ class _UserBidsBottomSheetState extends State<UserBidsBottomSheet> {
                                           ? null
                                           : () => _acceptBid(bidId, amount),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFF6C5CE7),
+                                        backgroundColor: AppColors.primary,
                                         foregroundColor: Colors.white,
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(AppRadius.md),

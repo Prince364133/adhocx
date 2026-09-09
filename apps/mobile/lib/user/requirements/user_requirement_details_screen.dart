@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../routes/app_routes.dart';
+import '../../services/user_service.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
@@ -8,13 +9,83 @@ import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
 import 'user_bids_bottom_sheet.dart';
 
-class UserRequirementDetailsScreen extends StatelessWidget {
-  const UserRequirementDetailsScreen({super.key});
+class UserRequirementDetailsScreen extends StatefulWidget {
+  final String? requirementId;
+  const UserRequirementDetailsScreen({super.key, this.requirementId});
+
+  @override
+  State<UserRequirementDetailsScreen> createState() => _UserRequirementDetailsScreenState();
+}
+
+class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScreen> {
+  bool _isLoading = true;
+  Map<String, dynamic>? _requirement;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRequirement();
+  }
+
+  Future<void> _loadRequirement() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      if (widget.requirementId != null && widget.requirementId!.isNotEmpty) {
+        final data = await UserService.instance.getRequirement(widget.requirementId!);
+        if (mounted) setState(() => _requirement = data as Map<String, dynamic>?);
+      } else {
+        // Fallback: fetch most recent requirement
+        final list = await UserService.instance.getRequirements();
+        if (list.isNotEmpty && mounted) {
+          final first = list.first;
+          final full = await UserService.instance.getRequirement(first['id'] as String);
+          if (mounted) setState(() => _requirement = full as Map<String, dynamic>?);
+        }
+      }
+    } catch (e) {
+      if (mounted) setState(() => _errorMessage = e.toString().replaceAll("Exception: ", ""));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'COMPLETED':
+      case 'FULFILLED':
+        return AppColors.success;
+      case 'DISPATCHING':
+      case 'IN_PROGRESS':
+      case 'OPEN':
+        return AppColors.primary;
+      case 'PARTIALLY_FULFILLED':
+      case 'ACTIVE':
+        return AppColors.warning;
+      case 'CANCELLED':
+      case 'EXPIRED':
+        return AppColors.error;
+      default:
+        return AppColors.slate500;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+
+    final req = _requirement;
+    final status = req?['status'] as String? ?? 'OPEN';
+    final statusColor = _getStatusColor(status);
+    final requiredQty = (req?['requiredQuantity'] as num?)?.toInt() ?? 1;
+    final assignedQty = (req?['assignedQuantity'] as num?)?.toInt() ?? 0;
+    final progress = requiredQty > 0 ? (assignedQty / requiredQty).clamp(0.0, 1.0) : 0.0;
+    final reqId = req?['id'] as String? ?? widget.requirementId ?? 'REQ-LIVE';
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -34,193 +105,212 @@ class UserRequirementDetailsScreen extends StatelessWidget {
         ),
         actions: [
           IconButton(
-            onPressed: () {},
-            icon: Icon(Icons.more_vert, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+            onPressed: _loadRequirement,
+            icon: Icon(Icons.refresh, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
           ),
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                ),
-                child: const Text(
-                  'Partially Fulfilled',
-                  style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 12),
-                ),
-              ),
-
-              const SizedBox(height: AppSpacing.xs),
-
-              // Requirement Title & ID
-              Text(
-                'Airport Transfer',
-                style: AppTypography.h1(
-                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                'ID: REQ-250510-0001',
-                style: AppTypography.caption(
-                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                ),
-              ),
-
-              const SizedBox(height: AppSpacing.lg),
-
-              // Details Container Card
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                ),
-                child: Column(
-                  children: [
-                    _buildDetailRow(context, Icons.directions_car_outlined, 'Vehicle Type', 'Sedan', isDark),
-                    const Divider(),
-                    _buildDetailRow(context, Icons.format_list_numbered, 'Quantity', '10 Vehicles', isDark),
-                    const Divider(),
-                    _buildDetailRow(context, Icons.check_circle_outline, 'Fulfilled', '8 / 10 Vehicles', isDark, valueColor: Colors.orange),
-                    const Divider(),
-                    _buildDetailRow(context, Icons.location_on_outlined, 'Pickup', 'DLF Cyber City, Gurugram', isDark),
-                    const Divider(),
-                    _buildDetailRow(context, Icons.pin_drop_outlined, 'Destination', 'Indira Gandhi Airport, Delhi', isDark),
-                    const Divider(),
-                    _buildDetailRow(context, Icons.event_outlined, 'Date & Time', '10 May 2025, 06:30 PM', isDark),
-                    const Divider(),
-                    _buildDetailRow(context, Icons.schedule, 'Posted On', '8 May 2025, 11:20 AM', isDark),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: AppSpacing.lg),
-
-              // Bidding & Driver Quotes Section
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF6C5CE7).withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  border: Border.all(color: const Color(0xFF6C5CE7).withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF6C5CE7),
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                      ),
-                      child: const Icon(Icons.gavel_rounded, color: Colors.white, size: 22),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _errorMessage != null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text(
-                            'Competing Driver Quotes',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                          ),
-                          Text(
-                            'Compare driver trust scores & accept bid',
-                            style: TextStyle(fontSize: 12, color: isDark ? Colors.grey[400] : Colors.grey[600]),
-                          ),
+                          Icon(Icons.error_outline, size: 48, color: AppColors.error),
+                          const SizedBox(height: 12),
+                          Text(_errorMessage!, textAlign: TextAlign.center, style: TextStyle(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)),
+                          const SizedBox(height: 16),
+                          ElevatedButton(onPressed: _loadRequirement, child: const Text('Retry')),
                         ],
                       ),
                     ),
-                    ElevatedButton(
-                      onPressed: () => UserBidsBottomSheet.show(context, requirementId: 'req-sample-id'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF6C5CE7),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                      ),
-                      child: const Text('View Bids', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: AppSpacing.lg),
-
-              // Progress Section
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  )
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Status Badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                          ),
+                          child: Text(
+                            status.replaceAll('_', ' '),
+                            style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
+                        ),
+
+                        const SizedBox(height: AppSpacing.xs),
+
+                        // Title & ID
                         Text(
-                          'Fulfillment Progress',
-                          style: AppTypography.h4(
+                          req?['title'] as String? ?? 'Bulk Requirement',
+                          style: AppTypography.h1(
                             color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const Text('8 / 10 Vehicles', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF6C5CE7))),
+                        Text(
+                          'ID: $reqId',
+                          style: AppTypography.caption(
+                            color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                          ),
+                        ),
+
+                        const SizedBox(height: AppSpacing.lg),
+
+                        // Details Card
+                        Container(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                            borderRadius: BorderRadius.circular(AppRadius.lg),
+                            border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                          ),
+                          child: Column(
+                            children: [
+                              _buildDetailRow(context, Icons.bolt, 'Fulfillment Mode', req?['fulfillmentMode'] == 'DIRECT_DISPATCH' ? 'Direct Timed Dispatch' : 'Reverse Auction Bids', isDark),
+                              const Divider(),
+                              _buildDetailRow(context, Icons.directions_car_outlined, 'Vehicle Type', req?['vehicleType'] as String? ?? 'Sedan', isDark),
+                              const Divider(),
+                              _buildDetailRow(context, Icons.format_list_numbered, 'Required Quantity', '$requiredQty Vehicles', isDark),
+                              const Divider(),
+                              _buildDetailRow(context, Icons.check_circle_outline, 'Fulfilled', '$assignedQty / $requiredQty Vehicles', isDark, valueColor: statusColor),
+                              const Divider(),
+                              _buildDetailRow(context, Icons.location_on_outlined, 'Pickup', req?['pickupAddress'] as String? ?? 'Gurugram', isDark),
+                              const Divider(),
+                              _buildDetailRow(context, Icons.pin_drop_outlined, 'Destination', req?['dropAddress'] as String? ?? 'IGI Airport', isDark),
+                              const Divider(),
+                              _buildDetailRow(context, Icons.currency_rupee, 'Est. Budget', '₹ ${(req?['budgetPerVehicle'] ?? 850) * requiredQty}', isDark, valueColor: AppColors.success),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: AppSpacing.lg),
+
+                        // Bidding Action Banner (if Bidding or has quotes)
+                        if (req?['fulfillmentMode'] == 'BIDDING') ...[
+                          Container(
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(AppRadius.lg),
+                              border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary,
+                                    borderRadius: BorderRadius.circular(AppRadius.md),
+                                  ),
+                                  child: const Icon(Icons.gavel_rounded, color: Colors.white, size: 22),
+                                ),
+                                const SizedBox(width: AppSpacing.md),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Competing Driver Quotes',
+                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                      ),
+                                      Text(
+                                        'Review driver quotes & accept optimal bid',
+                                        style: TextStyle(fontSize: 12, color: isDark ? AppColors.slate400 : AppColors.slate600),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                ElevatedButton(
+                                  onPressed: () => UserBidsBottomSheet.show(context, requirementId: reqId),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                                  ),
+                                  child: const Text('View Bids', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+                        ],
+
+                        // Fulfillment Progress Section
+                        Container(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                            borderRadius: BorderRadius.circular(AppRadius.lg),
+                            border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Fulfillment Progress',
+                                    style: AppTypography.h4(
+                                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text('$assignedQty / $requiredQty Vehicles', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(AppRadius.full),
+                                child: LinearProgressIndicator(
+                                  value: progress,
+                                  minHeight: 10,
+                                  backgroundColor: isDark ? AppColors.slate800 : AppColors.slate200,
+                                  valueColor: AlwaysStoppedAnimation<Color>(progress >= 1.0 ? AppColors.success : AppColors.primary),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: AppSpacing.xl),
+
+                        // Bottom Actions
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => context.push(AppRoutes.userCreateRequirementScreen),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                                ),
+                                child: const Text('New Requirement', style: TextStyle(fontWeight: FontWeight.bold)),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              flex: 2,
+                              child: AppPrimaryButton(
+                                text: 'View Fulfillment',
+                                onPressed: () => context.push(AppRoutes.userFulfillmentStatusScreen),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 10),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(AppRadius.full),
-                      child: const LinearProgressIndicator(
-                        value: 0.8,
-                        minHeight: 10,
-                        backgroundColor: Colors.grey,
-                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6C5CE7)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: AppSpacing.xl),
-
-              // Bottom Action Buttons (Edit + View Fulfillment)
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => context.push(AppRoutes.userCreateRequirementScreen),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                      ),
-                      child: const Text('Edit', style: TextStyle(fontWeight: FontWeight.bold)),
-                    ),
                   ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    flex: 2,
-                    child: AppPrimaryButton(
-                      text: 'View Fulfillment',
-                      onPressed: () => context.push(AppRoutes.userFulfillmentStatusScreen),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -230,7 +320,7 @@ class UserRequirementDetailsScreen extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: const Color(0xFF6C5CE7)),
+          Icon(icon, size: 20, color: AppColors.primary),
           const SizedBox(width: 10),
           Text(
             label,

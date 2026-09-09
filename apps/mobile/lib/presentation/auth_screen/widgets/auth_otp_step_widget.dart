@@ -145,7 +145,7 @@ class _AuthOtpStepWidgetState extends State<AuthOtpStepWidget> {
             children: [
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.verified_user_outlined,
                     color: AppColors.accentGreen,
                     size: 20,
@@ -229,7 +229,7 @@ class _AuthOtpStepWidgetState extends State<AuthOtpStepWidget> {
             ),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.error_outline_rounded,
                   color: AppColors.errorText,
                   size: 18,

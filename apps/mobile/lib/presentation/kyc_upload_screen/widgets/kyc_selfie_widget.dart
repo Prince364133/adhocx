@@ -1,3 +1,4 @@
+import 'package:adhocx/shared/theme/app_colors.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -80,7 +81,7 @@ class _KycSelfieWidgetState extends State<KycSelfieWidget> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to upload selfie: $e'),
-            backgroundColor: Colors.redAccent,
+            backgroundColor: AppColors.error,
           ),
         );
       }
@@ -120,10 +121,10 @@ class _KycSelfieWidgetState extends State<KycSelfieWidget> {
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: const Color(0xFF111111),
+              color: AppColors.surfaceDark,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: _hasCaptured ? Colors.green : Colors.white24,
+                color: _hasCaptured ? AppColors.success : Colors.white24,
                 width: _hasCaptured ? 2 : 1,
               ),
               image: _capturedImage != null
@@ -138,7 +139,7 @@ class _KycSelfieWidgetState extends State<KycSelfieWidget> {
                 : (_hasCaptured
                     ? const Icon(
                         Icons.check_circle_rounded,
-                        color: Colors.green,
+                        color: AppColors.success,
                         size: 36,
                       )
                     : const Icon(
@@ -156,7 +157,7 @@ class _KycSelfieWidgetState extends State<KycSelfieWidget> {
                   _actionButton(
                     label: _isLoading ? 'Uploading...' : 'Take Selfie',
                     icon: Icons.camera_alt_outlined,
-                    color: Colors.green,
+                    color: AppColors.success,
                     isLoading: _isLoading,
                     onTap: _isLoading ? () {} : _takeSelfie,
                   ),
@@ -177,7 +178,7 @@ class _KycSelfieWidgetState extends State<KycSelfieWidget> {
                         child: _actionButton(
                           label: 'Captured',
                           icon: Icons.check_rounded,
-                          color: Colors.green,
+                          color: AppColors.success,
                           isLoading: false,
                           onTap: () {},
                         ),
@@ -264,7 +265,7 @@ Widget _buildSection({
               width: 24,
               height: 24,
               decoration: BoxDecoration(
-                color: Colors.green,
+                color: AppColors.success,
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Center(
@@ -282,7 +283,7 @@ Widget _buildSection({
             Text(
               title,
               style: const TextStyle(
-                color: Colors.green,
+                color: AppColors.success,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),

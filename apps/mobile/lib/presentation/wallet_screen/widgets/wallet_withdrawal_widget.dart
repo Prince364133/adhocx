@@ -1,3 +1,4 @@
+import '../../../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -58,9 +59,9 @@ class _WalletWithdrawalWidgetState extends State<WalletWithdrawalWidget> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1e293b),
+        color: AppColors.surfaceElevatedDark,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF334155)),
+        border: Border.all(color: AppColors.borderDark),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -77,9 +78,9 @@ class _WalletWithdrawalWidgetState extends State<WalletWithdrawalWidget> {
           // Amount input
           Container(
             decoration: BoxDecoration(
-              color: const Color(0xFF0f172a),
+              color: AppColors.textPrimaryLight,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF334155)),
+              border: Border.all(color: AppColors.borderDark),
             ),
             child: Row(
               children: [
@@ -108,7 +109,7 @@ class _WalletWithdrawalWidgetState extends State<WalletWithdrawalWidget> {
                     decoration: const InputDecoration(
                       hintText: '0',
                       hintStyle: TextStyle(
-                        color: Color(0xFF475569),
+                        color: AppColors.textSecondaryLight,
                         fontSize: 18,
                       ),
                       border: InputBorder.none,
@@ -128,11 +129,11 @@ class _WalletWithdrawalWidgetState extends State<WalletWithdrawalWidget> {
             onTap: _fillFull,
             child: Text(
               'Withdraw full balance (₹${widget.availableBalance.toStringAsFixed(0)})',
-              style: const TextStyle(
-                color: Color(0xFFf59e0b),
+              style: TextStyle(
+                color: AppColors.warning,
                 fontSize: 12,
                 decoration: TextDecoration.underline,
-                decorationColor: Color(0xFFf59e0b),
+                decorationColor: AppColors.warning,
               ),
             ),
           ),
@@ -140,7 +141,7 @@ class _WalletWithdrawalWidgetState extends State<WalletWithdrawalWidget> {
             const SizedBox(height: 8),
             Text(
               _error!,
-              style: const TextStyle(color: Color(0xFFef4444), fontSize: 12),
+              style: TextStyle(color: AppColors.error, fontSize: 12),
             ),
           ],
           if (widget.hasPendingWithdrawal) ...[
@@ -148,24 +149,24 @@ class _WalletWithdrawalWidgetState extends State<WalletWithdrawalWidget> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFf59e0b).withAlpha(20),
+                color: AppColors.warning.withAlpha(20),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: const Color(0xFFf59e0b).withAlpha(77),
+                  color: AppColors.warning.withAlpha(77),
                 ),
               ),
               child: const Row(
                 children: [
                   Icon(
                     Icons.access_time_rounded,
-                    color: Color(0xFFf59e0b),
+                    color: AppColors.warning,
                     size: 14,
                   ),
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Withdrawal in progress. Expected bank credit: 30 to 60 mins.',
-                      style: TextStyle(color: Color(0xFFf59e0b), fontSize: 12),
+                      style: TextStyle(color: AppColors.warning, fontSize: 12),
                     ),
                   ),
                 ],
@@ -198,13 +199,13 @@ class _WalletWithdrawalWidgetState extends State<WalletWithdrawalWidget> {
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: widget.hasPendingWithdrawal
-                    ? const Color(0xFF064e3b)
-                    : const Color(0xFF10b981),
+                    ? AppColors.successDarkContainer
+                    : AppColors.success,
                 foregroundColor: widget.hasPendingWithdrawal
-                    ? const Color(0xFF6ee7b7)
+                    ? AppColors.accentGreen
                     : Colors.white,
-                disabledBackgroundColor: const Color(0xFF334155),
-                disabledForegroundColor: const Color(0xFF475569),
+                disabledBackgroundColor: AppColors.borderDark,
+                disabledForegroundColor: AppColors.textSecondaryLight,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),

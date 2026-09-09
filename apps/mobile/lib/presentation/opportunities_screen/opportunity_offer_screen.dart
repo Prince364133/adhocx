@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import '../../routes/app_routes.dart';
+import '../../services/driver_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
@@ -10,27 +11,42 @@ import '../../theme/app_typography.dart';
 
 /// Screen 3: Time-Sensitive New Trip Offer matching exact design mockup.
 class OpportunityOfferScreen extends StatefulWidget {
-  const OpportunityOfferScreen({super.key});
+  final Map<String, dynamic>? offer;
+  const OpportunityOfferScreen({super.key, this.offer});
 
   @override
   State<OpportunityOfferScreen> createState() => _OpportunityOfferScreenState();
 }
 
 class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
-  int _secondsRemaining = 23;
+  int _secondsRemaining = 25;
   Timer? _timer;
   bool _isAccepting = false;
+  Map<String, dynamic>? _activeOffer;
 
   @override
   void initState() {
     super.initState();
+    _activeOffer = widget.offer;
+    if (_activeOffer == null) {
+      _loadFirstOffer();
+    }
     _startTimer();
+  }
+
+  Future<void> _loadFirstOffer() async {
+    try {
+      final list = await DriverService.instance.getOffers();
+      if (list.isNotEmpty && mounted) {
+        setState(() => _activeOffer = list.first as Map<String, dynamic>);
+      }
+    } catch (_) {}
   }
 
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (_secondsRemaining > 0) {
-        setState(() => _secondsRemaining--);
+        if (mounted) setState(() => _secondsRemaining--);
       } else {
         _timer?.cancel();
         if (mounted) {
@@ -50,30 +66,56 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
     super.dispose();
   }
 
-  void _declineOffer() {
+  void _declineOffer() async {
     _timer?.cancel();
+    final offerId = _activeOffer?['id'] as String?;
+    if (offerId != null) {
+      try {
+        await DriverService.instance.declineOffer(offerId);
+      } catch (_) {}
+    }
     Fluttertoast.showToast(msg: 'Trip offer declined');
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      context.go(AppRoutes.opportunitiesScreen);
+    if (mounted) {
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go(AppRoutes.opportunitiesScreen);
+      }
     }
   }
 
   void _acceptOffer() async {
     _timer?.cancel();
     setState(() => _isAccepting = true);
-    await Future.delayed(const Duration(milliseconds: 600));
+
+    final offerId = _activeOffer?['id'] as String?;
+    if (offerId != null) {
+      try {
+        await DriverService.instance.acceptOffer(offerId);
+        if (mounted) {
+          setState(() => _isAccepting = false);
+          Fluttertoast.showToast(
+            msg: 'Trip accepted! Navigating to Active Trips...',
+            backgroundColor: AppColors.accentGreenDark,
+          );
+          context.go(AppRoutes.tripsScreen);
+        }
+        return;
+      } catch (err) {
+        if (mounted) {
+          setState(() => _isAccepting = false);
+          Fluttertoast.showToast(
+            msg: 'Accept failed: ${err.toString().replaceAll("Exception: ", "")}',
+            backgroundColor: AppColors.error,
+          );
+        }
+        return;
+      }
+    }
 
     if (mounted) {
       setState(() => _isAccepting = false);
-      Fluttertoast.showToast(
-        msg: 'Trip AY10234 accepted! Navigating to Active Trip...',
-        backgroundColor: AppColors.accentGreenDark,
-      );
-
-      // Navigate to Active Trip details
-      context.go(AppRoutes.tripDetailsScreen);
+      context.go(AppRoutes.tripsScreen);
     }
   }
 
@@ -95,7 +137,7 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.md,
                   ),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppColors.surfaceLight,
                     border: Border(
                       bottom: BorderSide(color: AppColors.borderLight),
@@ -111,7 +153,7 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                             context.go(AppRoutes.opportunitiesScreen);
                           }
                         },
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.arrow_back,
                           color: AppColors.textPrimaryLight,
                         ),
@@ -128,7 +170,7 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                       ),
                       IconButton(
                         onPressed: () => context.push(AppRoutes.notificationsSettingsScreen),
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.notifications_none_rounded,
                           color: AppColors.textPrimaryLight,
                         ),
@@ -146,9 +188,9 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                       Container(
                         padding: const EdgeInsets.all(AppSpacing.xl),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFfff7ed),
+                          color: AppColors.warningContainer,
                           borderRadius: BorderRadius.circular(AppRadius.xl),
-                          border: Border.all(color: const Color(0xFFffedd5)),
+                          border: Border.all(color: AppColors.warningContainer),
                         ),
                         child: Row(
                           children: [
@@ -159,7 +201,7 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                                   Text(
                                     'Offer expires in',
                                     style: AppTypography.caption(
-                                      color: const Color(0xFFc2410c),
+                                      color: AppColors.warningText,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -171,7 +213,7 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                                       Text(
                                         '00 : $formattedSecs',
                                         style: AppTypography.h1(
-                                          color: const Color(0xFFea580c),
+                                          color: AppColors.warning,
                                           fontWeight: FontWeight.bold,
                                         ).copyWith(fontSize: 36),
                                       ),
@@ -179,7 +221,7 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                                       Text(
                                         'MIN   SEC',
                                         style: AppTypography.caption(
-                                          color: const Color(0xFFea580c),
+                                          color: AppColors.warning,
                                           fontWeight: FontWeight.bold,
                                         ).copyWith(fontSize: 10),
                                       ),
@@ -192,12 +234,12 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                               width: 56,
                               height: 56,
                               decoration: const BoxDecoration(
-                                color: Color(0xFFffedd5),
+                                color: AppColors.warningContainer,
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(
                                 Icons.notifications_active_outlined,
-                                color: Color(0xFFea580c),
+                                color: AppColors.warning,
                                 size: 30,
                               ),
                             ),
@@ -207,172 +249,183 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                       const SizedBox(height: AppSpacing.xl),
 
                       // ── Offer Details Card ─────────────────────────────────
-                      Container(
-                        padding: const EdgeInsets.all(AppSpacing.lg),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
-                          borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: AppColors.borderLight),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
+                      Builder(
+                        builder: (context) {
+                          final req = _activeOffer?['requirement'] as Map<String, dynamic>?;
+                          final title = req?['title'] as String? ?? 'Trip Requirement';
+                          final vehicle = req?['vehicleType'] as String? ?? 'Sedan';
+                          final pickup = req?['pickupAddress'] as String? ?? _activeOffer?['pickup'] as String? ?? 'Pickup address';
+                          final drop = req?['dropAddress'] as String? ?? _activeOffer?['drop'] as String? ?? 'Drop address';
+                          final earnings = '₹ ${(_activeOffer?['offeredPrice'] ?? req?['budgetPerVehicle'] ?? 850)}';
+
+                          return Container(
+                            padding: const EdgeInsets.all(AppSpacing.lg),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceLight,
+                              borderRadius: BorderRadius.circular(AppRadius.lg),
+                              border: Border.all(color: AppColors.borderLight),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFea580c).withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(AppRadius.md),
-                                  ),
-                                  child: const Icon(
-                                    Icons.card_travel_outlined,
-                                    color: Color(0xFFea580c),
-                                    size: 22,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Corporate Transfer',
-                                        style: AppTypography.h3(
-                                          color: AppColors.textPrimaryLight,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.warning.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(AppRadius.md),
                                       ),
-                                      Text(
-                                        'One-way trip',
-                                        style: AppTypography.caption(
-                                          color: AppColors.textMutedLight,
-                                        ),
+                                      child: const Icon(
+                                        Icons.card_travel_outlined,
+                                        color: AppColors.warning,
+                                        size: 22,
                                       ),
-                                    ],
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFea580c).withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(AppRadius.xs),
-                                  ),
-                                  child: Text(
-                                    'Sedan',
-                                    style: AppTypography.caption(
-                                      color: const Color(0xFFea580c),
-                                      fontWeight: FontWeight.bold,
                                     ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: AppSpacing.lg),
-
-                            // Pickup
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Icon(Icons.circle, size: 8, color: AppColors.accentGreenDark),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Pickup',
-                                        style: AppTypography.body(
-                                          color: AppColors.textPrimaryLight,
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            title,
+                                            style: AppTypography.h3(
+                                              color: AppColors.textPrimaryLight,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          Text(
+                                            'AdhocX Direct Dispatch',
+                                            style: AppTypography.caption(
+                                              color: AppColors.textMutedLight,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.warning.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(AppRadius.xs),
+                                      ),
+                                      child: Text(
+                                        vehicle,
+                                        style: AppTypography.caption(
+                                          color: AppColors.warning,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                                      Text(
-                                        'DLF Cyber City, Gurugram\nTower A, Gate 2, Phase 3',
-                                        style: AppTypography.caption(color: AppColors.textSecondaryLight),
-                                      ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                            const SizedBox(height: AppSpacing.md),
+                                const SizedBox(height: AppSpacing.lg),
 
-                            // Drop
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Icon(Icons.circle, size: 8, color: AppColors.error),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Drop',
-                                        style: AppTypography.body(
-                                          color: AppColors.textPrimaryLight,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                // Pickup
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(Icons.circle, size: 8, color: AppColors.accentGreenDark),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Pickup',
+                                            style: AppTypography.body(
+                                              color: AppColors.textPrimaryLight,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          Text(
+                                            pickup,
+                                            style: AppTypography.caption(color: AppColors.textSecondaryLight),
+                                          ),
+                                        ],
                                       ),
-                                      Text(
-                                        'IGI Airport T3, New Delhi\nDeparture Gate Road',
-                                        style: AppTypography.caption(color: AppColors.textSecondaryLight),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: AppSpacing.md),
+
+                                // Drop
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(Icons.circle, size: 8, color: AppColors.error),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Drop',
+                                            style: AppTypography.body(
+                                              color: AppColors.textPrimaryLight,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          Text(
+                                            drop,
+                                            style: AppTypography.caption(color: AppColors.textSecondaryLight),
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                            const SizedBox(height: AppSpacing.lg),
+                                const SizedBox(height: AppSpacing.lg),
 
-                            // Metrics Specs Row
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _buildMetricTile(
-                                    icon: Icons.navigation_outlined,
-                                    label: 'Distance',
-                                    value: '12.4 km',
-                                  ),
+                                // Metrics Specs Row
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _buildMetricTile(
+                                        icon: Icons.navigation_outlined,
+                                        label: 'Distance',
+                                        value: '12.4 km',
+                                      ),
+                                    ),
+                                    const SizedBox(width: AppSpacing.sm),
+                                    Expanded(
+                                      child: _buildMetricTile(
+                                        icon: Icons.access_time,
+                                        label: 'Duration',
+                                        value: '28 min',
+                                      ),
+                                    ),
+                                    const SizedBox(width: AppSpacing.sm),
+                                    Expanded(
+                                      child: _buildMetricTile(
+                                        icon: Icons.account_balance_wallet_outlined,
+                                        label: 'Earnings',
+                                        value: earnings,
+                                        valueColor: AppColors.accentGreenDark,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: AppSpacing.sm),
-                                Expanded(
-                                  child: _buildMetricTile(
-                                    icon: Icons.access_time,
-                                    label: 'Duration',
-                                    value: '28 min',
-                                  ),
-                                ),
-                                const SizedBox(width: AppSpacing.sm),
-                                Expanded(
-                                  child: _buildMetricTile(
-                                    icon: Icons.account_balance_wallet_outlined,
-                                    label: 'Earnings',
-                                    value: '₹850',
-                                    valueColor: AppColors.accentGreenDark,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: AppSpacing.md),
-                            const Divider(height: 1, color: AppColors.borderLight),
-                            const SizedBox(height: AppSpacing.md),
+                                const SizedBox(height: AppSpacing.md),
+                                Divider(height: 1, color: AppColors.borderLight),
+                                const SizedBox(height: AppSpacing.md),
 
-                            // Trip Metadata Row
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                _buildMetaColumn('Trip type', 'Corporate Transfer'),
-                                _buildMetaColumn('Passenger', '1'),
-                                _buildMetaColumn('Vehicle', 'Sedan'),
+                                // Trip Metadata Row
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    _buildMetaColumn('Trip type', 'Direct Dispatch'),
+                                    _buildMetaColumn('Quantity', '1 Vehicle'),
+                                    _buildMetaColumn('Vehicle', vehicle),
+                                  ],
+                                ),
                               ],
                             ),
-                          ],
-                        ),
+                          );
+                        },
                       ),
                       const SizedBox(height: AppSpacing.lg),
 
@@ -388,7 +441,7 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.verified_user_outlined,
                               size: 18,
                               color: AppColors.accentGreenDark,
@@ -415,8 +468,8 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                               onPressed: _declineOffer,
                               style: OutlinedButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(vertical: 14),
-                                side: const BorderSide(color: Color(0xFFea580c)),
-                                foregroundColor: const Color(0xFFea580c),
+                                side: const BorderSide(color: AppColors.warning),
+                                foregroundColor: AppColors.warning,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(AppRadius.md),
                                 ),
@@ -424,7 +477,7 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                               child: Text(
                                 'DECLINE',
                                 style: AppTypography.body(
-                                  color: const Color(0xFFea580c),
+                                  color: AppColors.warning,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -435,7 +488,7 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                             child: ElevatedButton(
                               onPressed: _acceptOffer,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFea580c),
+                                backgroundColor: AppColors.warning,
                                 elevation: 0,
                                 padding: const EdgeInsets.symmetric(vertical: 14),
                                 shape: RoundedRectangleBorder(

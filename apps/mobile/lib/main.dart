@@ -10,24 +10,39 @@ import './services/auth_service.dart';
 import './services/driver_service.dart';
 import './services/onboarding_provider.dart';
 import './services/supabase_service.dart';
+import './services/user_service.dart';
 import './theme/app_theme.dart';
 import './theme/theme_provider.dart';
+import './user/requirements/requirement_draft_provider.dart';
 import './widgets/custom_error_widget.dart';
+import './widgets/dev_floating_tools.dart';
 import './presentation/language_selection_widget.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Lock orientation before anything renders
-  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  // Lock orientation before anything renders (graceful on Web)
+  try {
+    await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  } catch (e) {
+    debugPrint('Orientation lock skipped on platform: $e');
+  }
 
   // Initialize Language Provider and load saved language
   final languageProvider = LanguageProvider();
-  await languageProvider.loadSavedLanguage();
+  try {
+    await languageProvider.loadSavedLanguage();
+  } catch (e) {
+    debugPrint('Language init skipped: $e');
+  }
 
   // Initialize Auth Provider and restore session
   final authProvider = AuthProvider();
-  await authProvider.checkSession();
+  try {
+    await authProvider.checkSession();
+  } catch (e) {
+    debugPrint('Auth session check skipped: $e');
+  }
 
   // Initialize Onboarding Provider
   final onboardingProvider = OnboardingProvider();
@@ -37,7 +52,7 @@ void main() async {
   Object? initError;
 
   try {
-    await SupabaseService.initialize().timeout(const Duration(seconds: 5));
+    await SupabaseService.initialize().timeout(const Duration(seconds: 3));
   } catch (e) {
     debugPrint('Supabase optional init skipped: $e');
   }
@@ -65,8 +80,10 @@ void main() async {
         ChangeNotifierProvider.value(value: languageProvider),
         ChangeNotifierProvider.value(value: authProvider),
         ChangeNotifierProvider.value(value: onboardingProvider),
+        ChangeNotifierProvider(create: (_) => RequirementDraftProvider()),
         Provider<AuthService>(create: (_) => AuthService.instance),
         Provider<DriverService>(create: (_) => DriverService.instance),
+        Provider<UserService>(create: (_) => UserService.instance),
       ],
       child: MyApp(supabaseReady: supabaseReady, initError: initError),
     ),
@@ -93,11 +110,16 @@ class MyApp extends StatelessWidget {
           darkTheme: AppTheme.darkTheme,
           themeMode: themeProvider.themeMode,
           builder: (context, child) {
-            return MediaQuery(
-              data: MediaQuery.of(
-                context,
-              ).copyWith(textScaler: const TextScaler.linear(1.0)),
-              child: child ?? const SizedBox.shrink(),
+            return Stack(
+              children: [
+                MediaQuery(
+                  data: MediaQuery.of(
+                    context,
+                  ).copyWith(textScaler: const TextScaler.linear(1.0)),
+                  child: child ?? const SizedBox.shrink(),
+                ),
+                const DevFloatingTools(),
+              ],
             );
           },
           debugShowCheckedModeBanner: false,

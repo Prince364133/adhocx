@@ -38,6 +38,48 @@ export class PaymentsController {
     return this.paymentsService.initiatePayment(user.id, dto);
   }
 
+  @Get('wallet')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.VENDOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get current vendor wallet overview, balance, and escrow holds' })
+  async getWallet(@CurrentUser() user: AuthUserDto) {
+    return this.paymentsService.getVendorWalletSummary(user.id);
+  }
+
+  @Post('wallet/top-up/create-order')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.VENDOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Create Razorpay Order for Wallet Top-Up' })
+  async createTopUpOrder(
+    @CurrentUser() user: AuthUserDto,
+    @Body() dto: any,
+  ) {
+    return this.paymentsService.createWalletTopUpOrder(user.id, dto);
+  }
+
+  @Post('wallet/top-up/verify')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.VENDOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Verify Razorpay signature and credit vendor wallet' })
+  async verifyTopUp(
+    @CurrentUser() user: AuthUserDto,
+    @Body() dto: any,
+  ) {
+    return this.paymentsService.verifyWalletTopUp(user.id, dto);
+  }
+
+  @Get('wallet/transactions')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.VENDOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get vendor wallet ledger transactions' })
+  async getWalletTransactions(@CurrentUser() user: AuthUserDto) {
+    return this.paymentsService.getVendorWalletTransactions(user.id);
+  }
+
   @Get()
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)

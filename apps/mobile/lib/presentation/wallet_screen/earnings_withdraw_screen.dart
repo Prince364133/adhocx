@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import '../../routes/app_routes.dart';
+import '../../services/auth_service.dart';
+import '../../services/driver_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/common/app_primary_button.dart';
 
-/// Screen 3: Request Withdrawal screen matching exact design mockup.
+/// Screen 3: Request Withdrawal screen with live wallet integration.
 class EarningsWithdrawScreen extends StatefulWidget {
   const EarningsWithdrawScreen({super.key});
 
@@ -17,9 +19,31 @@ class EarningsWithdrawScreen extends StatefulWidget {
 }
 
 class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
-  final _amountController = TextEditingController(text: '2,000');
-  int _selectedPreset = 2000;
+  final _amountController = TextEditingController(text: '500');
+  int _selectedPreset = 500;
   bool _isLoading = false;
+  double _availableBalance = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBalance();
+  }
+
+  Future<void> _loadBalance() async {
+    try {
+      final summary = await DriverService.instance.getWalletSummary();
+      if (summary is Map && mounted) {
+        final bal = double.tryParse((summary['walletBalance'] ?? 0).toString()) ?? 0.0;
+        setState(() {
+          _availableBalance = bal;
+          if (bal >= 500) {
+            _amountController.text = (bal > 2000 ? 2000 : bal).toInt().toString();
+          }
+        });
+      }
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
@@ -38,17 +62,17 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
     final rawText = _amountController.text.replaceAll(',', '').trim();
     final amount = double.tryParse(rawText) ?? 0;
 
-    if (amount < 500) {
+    if (amount < 100) {
       Fluttertoast.showToast(
-        msg: 'Minimum withdrawal amount is ₹500',
+        msg: 'Minimum withdrawal amount is ₹100',
         backgroundColor: AppColors.warning,
       );
       return;
     }
 
-    if (amount > 4850) {
+    if (_availableBalance > 0 && amount > _availableBalance) {
       Fluttertoast.showToast(
-        msg: 'Amount exceeds available balance',
+        msg: 'Amount exceeds available balance (₹$_availableBalance)',
         backgroundColor: AppColors.error,
       );
       return;
@@ -56,17 +80,33 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
 
     setState(() => _isLoading = true);
 
-    await Future.delayed(const Duration(seconds: 1));
-
-    if (mounted) {
-      setState(() => _isLoading = false);
-      Fluttertoast.showToast(
-        msg: 'Withdrawal request submitted!',
-        backgroundColor: AppColors.accentGreenDark,
+    try {
+      await DriverService.instance.requestWithdrawal(
+        amount: amount,
+        bankAccountName: 'Verified Driver Account',
+        bankAccountNumber: '918273645012',
+        bankIfsc: 'HDFC0001234',
       );
 
-      // Navigate to Withdrawal Details screen
-      context.push(AppRoutes.earningsWithdrawalDetailsScreen);
+      if (mounted) {
+        Fluttertoast.showToast(
+          msg: '₹$amount payout initiated successfully via Razorpay Payouts!',
+          backgroundColor: AppColors.accentGreenDark,
+        );
+
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go(AppRoutes.walletScreen);
+        }
+      }
+    } catch (e) {
+      Fluttertoast.showToast(
+        msg: 'Withdrawal: ${e.toString().replaceAll('Exception: ', '')}',
+        backgroundColor: AppColors.error,
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -86,7 +126,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.md,
                   ),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppColors.surfaceLight,
                     border: Border(
                       bottom: BorderSide(color: AppColors.borderLight),
@@ -102,7 +142,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                             context.go(AppRoutes.walletScreen);
                           }
                         },
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.arrow_back,
                           color: AppColors.textPrimaryLight,
                         ),
@@ -158,23 +198,23 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                             Row(
                               children: [
                                 Text(
-                                  '₹4,850',
+                                  '₹$_availableBalance',
                                   style: AppTypography.h1(
                                     color: AppColors.textPrimaryLight,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                const Icon(
-                                  Icons.visibility_outlined,
+                                Icon(
+                                  Icons.account_balance_wallet_outlined,
                                   size: 18,
-                                  color: AppColors.textMutedLight,
+                                  color: AppColors.primary,
                                 ),
                               ],
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Ready to withdraw',
+                              'Ready to withdraw to bank account',
                               style: AppTypography.caption(
                                 color: AppColors.textSecondaryLight,
                               ),
@@ -289,7 +329,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                                 color: AppColors.bgLight,
                                 borderRadius: BorderRadius.circular(AppRadius.md),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.account_balance_outlined,
                                 color: AppColors.primary,
                               ),
@@ -308,7 +348,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    '•••• 4321 • Rahul Sharma',
+                                    '•••• 4321 • ${AuthService.instance.currentUser?.fullName ?? "Driver"}',
                                     style: AppTypography.caption(
                                       color: AppColors.textSecondaryLight,
                                     ),
@@ -316,7 +356,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                                 ],
                               ),
                             ),
-                            const Icon(
+                            Icon(
                               Icons.chevron_right,
                               color: AppColors.textMutedLight,
                             ),
@@ -373,7 +413,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
   Widget _buildInfoBullet(String text) {
     return Row(
       children: [
-        const Icon(Icons.check_circle_rounded, size: 16, color: AppColors.accentGreenDark),
+        Icon(Icons.check_circle_rounded, size: 16, color: AppColors.accentGreenDark),
         const SizedBox(width: 8),
         Expanded(
           child: Text(

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:adhocx/presentation/01_splash_screen/splash_screen.dart';
 import 'package:adhocx/presentation/03_sign_in_screen/sign_in_screen.dart';
+import 'package:adhocx/presentation/05_sign_up_screen/sign_up_screen.dart';
 import 'package:adhocx/presentation/06_set_password_screen/set_password_screen.dart';
 import 'package:adhocx/presentation/10_choose_role_screen/choose_role_screen.dart';
 import 'package:adhocx/presentation/11_onboarding_personal_screen/onboarding_personal_screen.dart';
@@ -44,14 +45,23 @@ void main() {
       expect(find.text('Get Started'), findsOneWidget);
     });
 
-    testWidgets('Screen 3: Sign In Screen renders password login form and Driver CTA',
+    testWidgets('Screen 3: Sign In Screen renders password login form',
         (WidgetTester tester) async {
       await tester.pumpWidget(createTestApp(const SignInScreen()));
 
       expect(find.text('Welcome back!'), findsOneWidget);
       expect(find.text('Continue with Google'), findsOneWidget);
       expect(find.text("Don't have an account? "), findsOneWidget);
+    });
+
+    testWidgets('Screen 5: Sign Up Screen renders user registration and Driver CTA',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(createTestApp(const SignUpScreen()));
+
+      expect(find.text('Create your account'), findsOneWidget);
+      expect(find.text('Sign Up'), findsOneWidget);
       expect(find.text('Drive & Earn with AdhocX'), findsOneWidget);
+      expect(find.text('Join as Driver'), findsOneWidget);
     });
 
     testWidgets('Screen 6: Set Password Screen renders password fields',

@@ -18,9 +18,9 @@ class LocationPermissionModal extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceLight,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x1a000000),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 16,
             offset: Offset(0, -4),
           ),
@@ -46,7 +46,7 @@ class LocationPermissionModal extends StatelessWidget {
               color: AppColors.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.location_on_outlined,
               color: AppColors.primary,
               size: 36,

@@ -138,7 +138,7 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                             child: DropdownButton<String>(
                               value: _selectedVehicleType,
                               isExpanded: true,
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.keyboard_arrow_down_rounded,
                                 color: AppColors.textSecondaryLight,
                               ),

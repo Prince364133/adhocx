@@ -1,3 +1,4 @@
+import '../../../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -48,9 +49,9 @@ class _OtpDialogWidgetState extends State<OtpDialogWidget> {
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: const Color(0xFF1e293b),
+          color: AppColors.surfaceElevatedDark,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFF334155)),
+          border: Border.all(color: AppColors.borderDark),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withAlpha(102),
@@ -75,9 +76,9 @@ class _OtpDialogWidgetState extends State<OtpDialogWidget> {
                 ),
                 GestureDetector(
                   onTap: () => Navigator.of(context).pop(),
-                  child: const Icon(
+                  child: Icon(
                     Icons.close_rounded,
-                    color: Color(0xFF94a3b8),
+                    color: AppColors.textMutedDark,
                     size: 20,
                   ),
                 ),
@@ -88,7 +89,7 @@ class _OtpDialogWidgetState extends State<OtpDialogWidget> {
               widget.isStart
                   ? 'Ask the passenger for their 4-digit start OTP'
                   : 'Ask the passenger for their 4-digit end OTP',
-              style: const TextStyle(color: Color(0xFF94a3b8), fontSize: 13),
+              style: TextStyle(color: AppColors.textMutedDark, fontSize: 13),
             ),
             const SizedBox(height: 28),
             // OTP input boxes
@@ -100,12 +101,12 @@ class _OtpDialogWidgetState extends State<OtpDialogWidget> {
                   height: 64,
                   margin: const EdgeInsets.symmetric(horizontal: 6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0f172a),
+                    color: AppColors.textPrimaryLight,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: _controllers[i].text.isNotEmpty
-                          ? const Color(0xFFf59e0b)
-                          : const Color(0xFF334155),
+                          ? AppColors.warning
+                          : AppColors.borderDark,
                       width: _controllers[i].text.isNotEmpty ? 1.5 : 1,
                     ),
                   ),
@@ -118,8 +119,8 @@ class _OtpDialogWidgetState extends State<OtpDialogWidget> {
                       FilteringTextInputFormatter.digitsOnly,
                       LengthLimitingTextInputFormatter(1),
                     ],
-                    style: const TextStyle(
-                      color: Color(0xFFf59e0b),
+                    style: TextStyle(
+                      color: AppColors.warning,
                       fontSize: 28,
                       fontWeight: FontWeight.w700,
                       fontFamily: 'monospace',
@@ -142,10 +143,10 @@ class _OtpDialogWidgetState extends State<OtpDialogWidget> {
               child: ElevatedButton(
                 onPressed: _isComplete ? () => widget.onConfirm(_otp) : null,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFf59e0b),
-                  foregroundColor: const Color(0xFF1a0a00),
-                  disabledBackgroundColor: const Color(0xFF334155),
-                  disabledForegroundColor: const Color(0xFF475569),
+                  backgroundColor: AppColors.warning,
+                  foregroundColor: AppColors.bgDark,
+                  disabledBackgroundColor: AppColors.borderDark,
+                  disabledForegroundColor: AppColors.textSecondaryLight,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),

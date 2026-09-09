@@ -1,19 +1,126 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../routes/app_routes.dart';
+import '../../services/user_service.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
+import 'requirement_draft_provider.dart';
 
-class UserReviewRequirementScreen extends StatelessWidget {
+class UserReviewRequirementScreen extends StatefulWidget {
   const UserReviewRequirementScreen({super.key});
+
+  @override
+  State<UserReviewRequirementScreen> createState() => _UserReviewRequirementScreenState();
+}
+
+class _UserReviewRequirementScreenState extends State<UserReviewRequirementScreen> {
+  bool _isSubmitting = false;
+
+  String _normalizeVehicleType(String type) {
+    switch (type.trim().toUpperCase()) {
+      case 'SEDAN':
+        return 'SEDAN';
+      case 'SUV':
+        return 'SUV';
+      case 'HATCHBACK':
+        return 'HATCHBACK';
+      case 'TEMPO TRAVELLER':
+      case 'TEMPO_TRAVELLER':
+        return 'TEMPO_TRAVELLER';
+      case 'TATA ACE':
+      case 'TATA_ACE':
+        return 'TATA_ACE';
+      case 'PICKUP TRUCK':
+      case 'PICKUP_TRUCK':
+        return 'PICKUP_TRUCK';
+      case 'BUS':
+        return 'BUS';
+      default:
+        return 'SEDAN';
+    }
+  }
+
+  Future<void> _handleConfirmAndPost(BuildContext context) async {
+    final draft = context.read<RequirementDraftProvider>();
+
+    // Prepare structured notes containing all auxiliary details
+    final List<String> notesParts = [];
+    if (draft.specialRequests.isNotEmpty) {
+      notesParts.add('Special Requests: ${draft.specialRequests}');
+    }
+    if (draft.tripType.isNotEmpty) {
+      notesParts.add('Trip Type: ${draft.tripType}');
+    }
+    if (draft.pickupInstructions.isNotEmpty) {
+      notesParts.add('Pickup Instructions: ${draft.pickupInstructions}');
+    }
+    if (draft.dropInstructions.isNotEmpty) {
+      notesParts.add('Drop Instructions: ${draft.dropInstructions}');
+    }
+    if (draft.additionalStops.isNotEmpty) {
+      notesParts.add('Intermediate Stops: ${draft.additionalStops.join(", ")}');
+    }
+    if (draft.hasReturn && draft.returnDate != null) {
+      notesParts.add('Return Trip: ${draft.returnDate} ${draft.returnTime ?? ""}');
+    }
+    if (draft.passengers > 1) {
+      notesParts.add('Passengers per vehicle: ${draft.passengers}');
+    }
+    if (draft.selectedLuggage != null && draft.selectedLuggage!.isNotEmpty) {
+      notesParts.add('Luggage: ${draft.selectedLuggage}');
+    }
+    if (draft.additionalInfo.isNotEmpty) {
+      notesParts.add('Additional Info: ${draft.additionalInfo}');
+    }
+
+    final combinedNotes = notesParts.join(' | ');
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      await UserService.instance.createRequirement(
+        vehicleType: _normalizeVehicleType(draft.vehicleType),
+        quantity: draft.quantity,
+        fulfillmentMode: draft.fulfillmentMode,
+        pickupAddress: draft.pickupLocation.isNotEmpty ? draft.pickupLocation : 'DLF Cyber City, Gurugram',
+        pickupLat: draft.pickupLat != 0.0 ? draft.pickupLat : 28.4950,
+        pickupLng: draft.pickupLng != 0.0 ? draft.pickupLng : 77.0895,
+        dropAddress: draft.dropLocation.isNotEmpty ? draft.dropLocation : 'Indira Gandhi International Airport, Delhi',
+        dropLat: draft.dropLat != 0.0 ? draft.dropLat : 28.5562,
+        dropLng: draft.dropLng != 0.0 ? draft.dropLng : 77.1000,
+        reportingTime: draft.reportingDateTime,
+        ratePerVehicle: draft.fulfillmentMode == 'DIRECT_DISPATCH' ? 850.0 : null,
+        suggestedBudget: draft.fulfillmentMode == 'BIDDING' ? 1200.0 : null,
+        notes: combinedNotes.isNotEmpty ? combinedNotes : 'Standard Booking Requirement',
+      );
+
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+        draft.reset();
+        context.push(AppRoutes.userRequirementPostedConfirmationScreen);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to post requirement: ${e.toString().replaceAll("Exception: ", "")}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final draft = context.watch<RequirementDraftProvider>();
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -35,7 +142,7 @@ class UserReviewRequirementScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            // Stepper Header (15 Edit badge on step 5)
+            // Stepper Header (5/5)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
               child: Row(
@@ -44,7 +151,7 @@ class UserReviewRequirementScreen extends StatelessWidget {
                   final stepNum = index + 1;
                   return CircleAvatar(
                     radius: 14,
-                    backgroundColor: const Color(0xFF6C5CE7),
+                    backgroundColor: AppColors.primary,
                     child: Text(
                       '$stepNum',
                       style: const TextStyle(
@@ -71,7 +178,7 @@ class UserReviewRequirementScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Trip Summary',
+                          'Requirement Summary',
                           style: AppTypography.h3(
                             color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             fontWeight: FontWeight.bold,
@@ -79,7 +186,7 @@ class UserReviewRequirementScreen extends StatelessWidget {
                         ),
                         TextButton(
                           onPressed: () => context.pop(),
-                          child: const Text('Edit', style: TextStyle(color: Color(0xFF6C5CE7), fontWeight: FontWeight.bold)),
+                          child: Text('Edit', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ),
@@ -96,27 +203,49 @@ class UserReviewRequirementScreen extends StatelessWidget {
                       ),
                       child: Column(
                         children: [
-                          _buildReviewRow(context, Icons.directions_car_outlined, 'Vehicle Type', 'Sedan', isDark),
+                          _buildReviewRow(context, Icons.bolt, 'Mode', draft.fulfillmentMode == 'DIRECT_DISPATCH' ? 'Direct Timed Dispatch' : 'Outstation Reverse Auction', isDark),
                           const Divider(),
-                          _buildReviewRow(context, Icons.format_list_numbered, 'Quantity', '10 Vehicles', isDark),
+                          _buildReviewRow(context, Icons.directions_car_outlined, 'Vehicle Type', draft.vehicleType, isDark),
                           const Divider(),
-                          _buildReviewRow(context, Icons.swap_calls, 'Trip Type', 'One Way', isDark),
+                          _buildReviewRow(context, Icons.format_list_numbered, 'Quantity', '${draft.quantity} Vehicles', isDark),
                           const Divider(),
-                          _buildReviewRow(context, Icons.location_on_outlined, 'Pickup', 'DLF Cyber City, Gurugram', isDark),
+                          _buildReviewRow(context, Icons.swap_calls, 'Trip Type', draft.tripType, isDark),
                           const Divider(),
-                          _buildReviewRow(context, Icons.pin_drop_outlined, 'Destination', 'Indira Gandhi Airport, Delhi', isDark),
+                          _buildReviewRow(context, Icons.location_on_outlined, 'Pickup', draft.pickupLocation, isDark),
+                          if (draft.pickupInstructions.isNotEmpty) ...[
+                            const Divider(),
+                            _buildReviewRow(context, Icons.info_outline, 'Pickup Note', draft.pickupInstructions, isDark),
+                          ],
                           const Divider(),
-                          _buildReviewRow(context, Icons.calendar_today_outlined, 'Pickup Date', '10 May 2025', isDark),
+                          _buildReviewRow(context, Icons.pin_drop_outlined, 'Destination', draft.dropLocation, isDark),
+                          if (draft.dropInstructions.isNotEmpty) ...[
+                            const Divider(),
+                            _buildReviewRow(context, Icons.info_outline, 'Drop Note', draft.dropInstructions, isDark),
+                          ],
+                          if (draft.additionalStops.isNotEmpty) ...[
+                            const Divider(),
+                            _buildReviewRow(context, Icons.alt_route, 'Intermediate Stops', draft.additionalStops.join(', '), isDark),
+                          ],
                           const Divider(),
-                          _buildReviewRow(context, Icons.access_time_outlined, 'Pickup Time', '06:30 PM', isDark),
+                          _buildReviewRow(context, Icons.calendar_today_outlined, 'Pickup Date', draft.pickupDate, isDark),
                           const Divider(),
-                          _buildReviewRow(context, Icons.alt_route, 'Additional Stops', '0', isDark),
+                          _buildReviewRow(context, Icons.access_time_outlined, 'Pickup Time', draft.pickupTime, isDark),
+                          if (draft.hasReturn) ...[
+                            const Divider(),
+                            _buildReviewRow(context, Icons.event_repeat, 'Return Date/Time', '${draft.returnDate ?? "-"} ${draft.returnTime ?? ""}', isDark),
+                          ],
                           const Divider(),
-                          _buildReviewRow(context, Icons.person_outline, 'Passengers', '1', isDark),
+                          _buildReviewRow(context, Icons.person_outline, 'Passengers/Cab', '${draft.passengers}', isDark),
                           const Divider(),
-                          _buildReviewRow(context, Icons.luggage_outlined, 'Luggage', 'Not Specified', isDark),
-                          const Divider(),
-                          _buildReviewRow(context, Icons.note_outlined, 'Special Requests', '-', isDark),
+                          _buildReviewRow(context, Icons.luggage_outlined, 'Luggage', draft.selectedLuggage ?? 'Not Specified', isDark),
+                          if (draft.specialRequests.isNotEmpty) ...[
+                            const Divider(),
+                            _buildReviewRow(context, Icons.note_outlined, 'Special Requests', draft.specialRequests, isDark),
+                          ],
+                          if (draft.additionalInfo.isNotEmpty) ...[
+                            const Divider(),
+                            _buildReviewRow(context, Icons.description_outlined, 'Additional Notes', draft.additionalInfo, isDark),
+                          ],
                         ],
                       ),
                     ),
@@ -128,7 +257,7 @@ class UserReviewRequirementScreen extends StatelessWidget {
                       children: [
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: () => context.pop(),
+                            onPressed: _isSubmitting ? null : () => context.pop(),
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
@@ -140,8 +269,9 @@ class UserReviewRequirementScreen extends StatelessWidget {
                         Expanded(
                           flex: 2,
                           child: AppPrimaryButton(
-                            text: 'Confirm & Post',
-                            onPressed: () => context.push(AppRoutes.userRequirementPostedConfirmationScreen),
+                            text: 'Confirm & Post Requirement',
+                            isLoading: _isSubmitting,
+                            onPressed: () => _handleConfirmAndPost(context),
                           ),
                         ),
                       ],
@@ -160,19 +290,23 @@ class UserReviewRequirementScreen extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: const Color(0xFF6C5CE7)),
+          Icon(icon, size: 18, color: AppColors.primary),
           const SizedBox(width: 8),
           Text(
             label,
             style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
           ),
-          const Spacer(),
-          Text(
-            value,
-            style: AppTypography.caption(
-              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-              fontWeight: FontWeight.bold,
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: AppTypography.caption(
+                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],

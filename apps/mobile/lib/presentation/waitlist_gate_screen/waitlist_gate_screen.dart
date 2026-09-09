@@ -69,7 +69,7 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
     _statusPoller = Timer.periodic(const Duration(seconds: 4), (_) async {
       try {
         final user = await AuthService.instance.fetchCurrentUser();
-        if (!mounted || user == null) return;
+        if (!mounted) return;
 
         if (user.isVerified && _approvalState != _ApprovalState.approved) {
           _handleApproved();
@@ -170,7 +170,7 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.access_time_rounded,
                       color: AppColors.primaryLight,
                       size: 40,
@@ -182,11 +182,11 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
                         width: 12,
                         height: 12,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF59E0B),
+                          color: AppColors.warning,
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFFF59E0B).withValues(alpha: 0.6),
+                              color: AppColors.warning.withValues(alpha: 0.6),
                               blurRadius: 8,
                             ),
                           ],
@@ -266,7 +266,7 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
                 shape: BoxShape.circle,
                 border: Border.all(color: AppColors.success, width: 2),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.check_circle_rounded,
                 color: AppColors.success,
                 size: 54,
@@ -286,7 +286,7 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
               style: AppTypography.body(color: AppColors.textSecondaryDark),
             ),
             const SizedBox(height: AppSpacing.xxl),
-            const CircularProgressIndicator(
+            CircularProgressIndicator(
               color: AppColors.primary,
               strokeWidth: 2.5,
             ),

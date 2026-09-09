@@ -26,6 +26,13 @@ export class SettlementsService {
     private readonly audit: AuditService,
   ) {}
 
+  /**
+   * Get driver wallet overview and transaction summary.
+   */
+  async getDriverWalletSummary(driverUserId: string) {
+    return this.ledger.getDriverWalletSummary(driverUserId);
+  }
+
 
   /**
    * Driver requests wallet withdrawal to their bank account.

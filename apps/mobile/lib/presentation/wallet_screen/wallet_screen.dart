@@ -1,3 +1,4 @@
+import '../../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -183,7 +184,7 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF020617),
+      backgroundColor: AppColors.bgDark,
       body: SafeArea(
         child: Column(
           children: [
@@ -191,7 +192,7 @@ class _WalletScreenState extends State<WalletScreen> {
             Expanded(
               child: _isLoading
                   ? const Center(
-                      child: CircularProgressIndicator(color: Color(0xFFf59e0b)),
+                      child: CircularProgressIndicator(color: AppColors.warning),
                     )
                   : ListView(
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
@@ -223,9 +224,9 @@ class _WalletScreenState extends State<WalletScreen> {
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: const BoxDecoration(
-        color: Color(0xFF1e293b),
-        border: Border(bottom: BorderSide(color: Color(0xFF334155), width: 1)),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceElevatedDark,
+        border: Border(bottom: BorderSide(color: AppColors.borderDark, width: 1)),
       ),
       child: Row(
         children: [
@@ -233,14 +234,14 @@ class _WalletScreenState extends State<WalletScreen> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: const Color(0xFFf59e0b),
+              color: AppColors.warning,
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Center(
               child: Text(
                 'A',
                 style: TextStyle(
-                  color: Color(0xFF1a0a00),
+                  color: AppColors.bgDark,
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                 ),

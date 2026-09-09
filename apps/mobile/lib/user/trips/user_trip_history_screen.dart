@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../routes/app_routes.dart';
+import '../../services/user_service.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
@@ -15,19 +16,44 @@ class UserTripHistoryScreen extends StatefulWidget {
 
 class _UserTripHistoryScreenState extends State<UserTripHistoryScreen> {
   String _selectedFilter = 'All';
+  bool _isLoading = true;
+  List<dynamic> _trips = [];
 
-  final List<String> _filters = ['All', 'Upcoming', 'Completed', 'Cancelled'];
+  final List<String> _filters = ['All', 'Active', 'Completed', 'Cancelled'];
 
-  final List<Map<String, String>> _mayTrips = [
-    {'title': 'Airport Transfer', 'date': '10 May 2025, 06:30 PM', 'status': 'In-Progress'},
-    {'title': 'Corporate Event', 'date': '8 May 2025, 09:00 AM', 'status': 'Completed'},
-    {'title': 'Wedding Event', 'date': '5 May 2025, 07:00 PM', 'status': 'Completed'},
-    {'title': 'City Tour', 'date': '4 May 2025, 10:00 AM', 'status': 'Cancelled'},
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadTrips();
+  }
 
-  final List<Map<String, String>> _aprTrips = [
-    {'title': 'Outstation Trip', 'date': '28 Apr 2025, 09:00 AM', 'status': 'Completed'},
-  ];
+  Future<void> _loadTrips() async {
+    setState(() => _isLoading = true);
+    try {
+      final list = await UserService.instance.getTrips();
+      if (mounted) setState(() => _trips = list);
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  List<dynamic> get _filteredTrips {
+    if (_selectedFilter == 'All') return _trips;
+    if (_selectedFilter == 'Active') {
+      return _trips.where((t) {
+        final s = (t as Map)['status'];
+        return s == 'IN_PROGRESS' || s == 'ACCEPTED' || s == 'ASSIGNED' || s == 'ARRIVED';
+      }).toList();
+    }
+    if (_selectedFilter == 'Completed') {
+      return _trips.where((t) => (t as Map)['status'] == 'COMPLETED').toList();
+    }
+    if (_selectedFilter == 'Cancelled') {
+      return _trips.where((t) => (t as Map)['status'] == 'CANCELLED').toList();
+    }
+    return _trips;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,8 +72,8 @@ class _UserTripHistoryScreenState extends State<UserTripHistoryScreen> {
         title: Text('Trip History', style: AppTypography.h3(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
-            onPressed: () {},
-            icon: Icon(Icons.tune, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+            onPressed: _loadTrips,
+            icon: Icon(Icons.refresh, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
           ),
         ],
       ),
@@ -68,8 +94,8 @@ class _UserTripHistoryScreenState extends State<UserTripHistoryScreen> {
                     onSelected: (selected) {
                       if (selected) setState(() => _selectedFilter = filter);
                     },
-                    selectedColor: const Color(0xFF6C5CE7),
-                    backgroundColor: isDark ? AppColors.surfaceDark : Colors.grey[200],
+                    selectedColor: AppColors.primary,
+                    backgroundColor: isDark ? AppColors.surfaceDark : AppColors.slate200,
                     labelStyle: TextStyle(
                       color: isSelected ? Colors.white : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
@@ -84,72 +110,87 @@ class _UserTripHistoryScreenState extends State<UserTripHistoryScreen> {
           const SizedBox(height: AppSpacing.xs),
 
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              children: [
-                Text('May 2025', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                ..._mayTrips.map((t) => _buildTripCard(context, t, isDark)),
-                const SizedBox(height: 16),
-                Text('Apr 2025', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                ..._aprTrips.map((t) => _buildTripCard(context, t, isDark)),
-              ],
-            ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _filteredTrips.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.history, size: 48, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                            const SizedBox(height: 12),
+                            Text('No trip records found', style: AppTypography.body(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
+                          ],
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        itemCount: _filteredTrips.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+                        itemBuilder: (context, index) {
+                          final t = _filteredTrips[index] as Map<String, dynamic>;
+                          return _buildTripCard(context, t, isDark);
+                        },
+                      ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTripCard(BuildContext context, Map<String, String> t, bool isDark) {
-    final status = t['status']!;
-    Color badgeColor = AppColors.success;
-    if (status == 'In-Progress') badgeColor = const Color(0xFF6C5CE7);
-    if (status == 'Cancelled') badgeColor = AppColors.error;
+  Widget _buildTripCard(BuildContext context, Map<String, dynamic> t, bool isDark) {
+    final status = (t['status'] ?? 'COMPLETED').toString();
+    final tripCode = t['tripCode'] ?? t['id'] ?? 'TRP-LIVE';
+    final pickup = t['pickupLocation'] as Map<String, dynamic>?;
+    final drop = t['dropLocation'] as Map<String, dynamic>?;
+    final pickupAddr = pickup?['address'] ?? 'Pickup Location';
+    final dropAddr = drop?['address'] ?? 'Drop Location';
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10.0),
-      child: InkWell(
-        onTap: () => context.push(AppRoutes.userHistoricalTripDetailsScreen),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        child: Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF6C5CE7).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: const Icon(Icons.directions_car_outlined, color: Color(0xFF6C5CE7)),
+    Color badgeColor = AppColors.success;
+    if (status == 'IN_PROGRESS' || status == 'ARRIVED' || status == 'ACCEPTED') badgeColor = AppColors.primary;
+    if (status == 'CANCELLED') badgeColor = AppColors.error;
+
+    return InkWell(
+      onTap: () => context.push(AppRoutes.userHistoricalTripDetailsScreen, extra: t),
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(AppRadius.md),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(t['title']!, style: AppTypography.caption(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
-                    Text(t['date']!, style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontSize: 10)),
-                  ],
-                ),
+              child: Icon(Icons.directions_car_outlined, color: AppColors.primary),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(tripCode.toString(), style: AppTypography.caption(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 2),
+                  Text('$pickupAddr → $dropAddr', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontSize: 11)),
+                ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: badgeColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                ),
-                child: Text(status, style: TextStyle(color: badgeColor, fontSize: 11, fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: badgeColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
-            ],
-          ),
+              child: Text(status, style: TextStyle(color: badgeColor, fontSize: 11, fontWeight: FontWeight.bold)),
+            ),
+          ],
         ),
       ),
     );

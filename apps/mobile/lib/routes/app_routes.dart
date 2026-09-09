@@ -40,8 +40,10 @@ import '../presentation/wallet_screen/earnings_screen.dart';
 import '../presentation/wallet_screen/earnings_transactions_screen.dart';
 import '../presentation/wallet_screen/earnings_withdraw_screen.dart';
 import '../presentation/wallet_screen/earnings_withdrawal_details_screen.dart';
+import '../presentation/location_picker/universal_location_picker_screen.dart';
 import '../services/auth_service.dart';
 import '../widgets/app_scaffold.dart';
+import '../user/widgets/user_app_scaffold.dart';
 import '../user/home/user_home_screen.dart';
 import '../user/requirements/user_requirements_list_screen.dart';
 import '../user/requirements/user_create_requirement_screen.dart';
@@ -140,6 +142,9 @@ class AppRoutes {
   // Opportunities & Trip Dispatch Detail Screens
   static const String opportunityDetailsScreen = '/opportunities/details';
   static const String opportunityOfferScreen = '/opportunities/offer';
+
+  // Universal Location Picker Screen
+  static const String universalLocationPickerScreen = '/universal-location-picker';
 
   // 10 Global States Gallery
   static const String globalStateGalleryScreen = '/global-states-gallery';
@@ -277,7 +282,7 @@ final GoRouter appRouter = GoRouter(
       return currentPath.replaceFirst('/vendor/', '/user/');
     }
 
-    // Public onboarding & detail routes that don't require restrictive session gating
+    // Public onboarding & authentication routes accessible without a session
     const publicRoutes = {
       AppRoutes.splashScreen,
       AppRoutes.languageSelectionScreen,
@@ -294,88 +299,13 @@ final GoRouter appRouter = GoRouter(
       AppRoutes.onboardingDocumentsScreen,
       AppRoutes.onboardingReviewScreen,
       AppRoutes.welcomeSuccessScreen,
-      AppRoutes.homeScreen,
-      AppRoutes.notificationsFeedScreen,
-      AppRoutes.personalInfoScreen,
-      AppRoutes.editPersonalInfoScreen,
-      AppRoutes.myVehicleScreen,
-      AppRoutes.addVehicleScreen,
-      AppRoutes.kycVerificationScreen,
-      AppRoutes.documentDetailsScreen,
-      AppRoutes.accountStatusScreen,
-      AppRoutes.notificationsSettingsScreen,
-      AppRoutes.helpSupportScreen,
-      AppRoutes.appSettingsScreen,
-      AppRoutes.earningsTransactionsScreen,
-      AppRoutes.earningsWithdrawScreen,
-      AppRoutes.earningsWithdrawalDetailsScreen,
-      AppRoutes.tripDetailsScreen,
-      AppRoutes.opportunityDetailsScreen,
-      AppRoutes.opportunityOfferScreen,
-      AppRoutes.userHomeScreen,
-      AppRoutes.userRequirementsScreen,
-      AppRoutes.userCreateRequirementScreen,
-      AppRoutes.userCreateRequirementStep2Screen,
-      AppRoutes.userCreateRequirementStep3Screen,
-      AppRoutes.userCreateRequirementStep4Screen,
-      AppRoutes.userReviewRequirementScreen,
-      AppRoutes.userRequirementPostedConfirmationScreen,
-      AppRoutes.userDraftRequirementsScreen,
-      AppRoutes.userEditRequirementScreen,
-      AppRoutes.userBulkPostingScreen,
-      AppRoutes.userReviewBulkPostingScreen,
-      AppRoutes.userRequirementDetailsScreen,
-      AppRoutes.userFulfillmentStatusScreen,
-      AppRoutes.userFulfillmentOverviewScreen,
-      AppRoutes.userDriverMatchingScreen,
-      AppRoutes.userRequirementStatusSearchingScreen,
-      AppRoutes.userRequirementStatusFulfilledScreen,
-      AppRoutes.userRequirementStatusFailedScreen,
-      AppRoutes.userDriverAssignmentsListScreen,
-      AppRoutes.userDriverDetailsScreen,
-      AppRoutes.userVehicleDetailsScreen,
-      AppRoutes.userAssignmentTimelineScreen,
-      AppRoutes.userCancelAssignmentScreen,
-      AppRoutes.userTripsScreen,
-      AppRoutes.userActiveTripScreen,
-      AppRoutes.userTripDetailsUpcomingScreen,
-      AppRoutes.userTripDetailsAssignedScreen,
-      AppRoutes.userTripDetailsEnRouteScreen,
-      AppRoutes.userTripDetailsArrivedScreen,
-      AppRoutes.userTripDetailsStartedScreen,
-      AppRoutes.userTripDetailsInProgressScreen,
-      AppRoutes.userTripDetailsCompletedScreen,
-      AppRoutes.userTripDetailsCancelledScreen,
-      AppRoutes.userPassengerNoShowScreen,
-      AppRoutes.userTripTimelineActivityScreen,
-      AppRoutes.userTripHistoryScreen,
-      AppRoutes.userHistoricalTripDetailsScreen,
-      AppRoutes.userPaymentsScreen,
-      AppRoutes.userPaymentHistoryScreen,
-      AppRoutes.userPaymentDetailsScreen,
-      AppRoutes.userPaymentPendingScreen,
-      AppRoutes.userPaymentProcessingScreen,
-      AppRoutes.userPaymentSuccessfulScreen,
-      AppRoutes.userPaymentFailedScreen,
-      AppRoutes.userProfileScreen,
-      AppRoutes.userProfileExtendedScreen,
-      AppRoutes.userCompanyInformationScreen,
-      AppRoutes.userContactInformationScreen,
-      AppRoutes.userAccountStatusScreen,
-      AppRoutes.userNotificationSettingsScreen,
-      AppRoutes.userSupportCenterScreen,
-      AppRoutes.userHelpFaqScreen,
-      AppRoutes.userRaiseIssueScreen,
-      AppRoutes.userTicketDetailsOpenScreen,
-      AppRoutes.userTicketDetailsInProgressScreen,
-      AppRoutes.userTicketDetailsResolvedScreen,
-      AppRoutes.userAppSettingsScreen,
     };
 
     if (publicRoutes.contains(currentPath)) {
       return null;
     }
 
+    // All other operational screens (User & Driver portals) require an authenticated session
     if (!isLoggedIn) {
       return AppRoutes.signInScreen;
     }
@@ -534,28 +464,82 @@ final GoRouter appRouter = GoRouter(
     // ── Trips & Operations Detail Routes ─────────────────────────────────────
     GoRoute(
       path: AppRoutes.tripDetailsScreen,
-      builder: (context, state) => const TripDetailsScreen(),
+      builder: (context, state) => TripDetailsScreen(initialTrip: state.extra),
     ),
 
     // ── Opportunities & Trip Dispatch Detail Routes ─────────────────────────
     GoRoute(
       path: AppRoutes.opportunityDetailsScreen,
-      builder: (context, state) => const OpportunityDetailsScreen(),
+      builder: (context, state) => OpportunityDetailsScreen(offer: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.opportunityOfferScreen,
-      builder: (context, state) => const OpportunityOfferScreen(),
+      builder: (context, state) => OpportunityOfferScreen(offer: state.extra as Map<String, dynamic>?),
     ),
 
-    // ── 60 User / Booker Screen Routes ───────────────────────────────────────
-    GoRoute(
-      path: AppRoutes.userHomeScreen,
-      builder: (context, state) => const UserHomeScreen(),
+    // ── User / Booker Operations Shell (Home, Requirements, Trips, Payments, Profile) 
+    StatefulShellRoute.indexedStack(
+      builder: (context, state, navigationShell) =>
+          UserAppScaffold(navigationShell: navigationShell),
+      branches: [
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: AppRoutes.userHomeScreen,
+              builder: (context, state) => const UserHomeScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: AppRoutes.userRequirementsScreen,
+              builder: (context, state) => const UserRequirementsListScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: AppRoutes.userTripsScreen,
+              builder: (context, state) => const UserTripsListScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: AppRoutes.userPaymentsScreen,
+              builder: (context, state) => const UserPaymentsScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: AppRoutes.userProfileScreen,
+              builder: (context, state) => const UserProfileScreen(),
+            ),
+          ],
+        ),
+      ],
     ),
+
+    // ── Universal Location Selection Route ─────────────────────────────────
     GoRoute(
-      path: AppRoutes.userRequirementsScreen,
-      builder: (context, state) => const UserRequirementsListScreen(),
+      path: AppRoutes.universalLocationPickerScreen,
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        return UniversalLocationPickerScreen(
+          title: extra['title'] as String? ?? 'Select Location',
+          initialAddress: extra['initialAddress'] as String?,
+          initialLat: (extra['initialLat'] as num?)?.toDouble(),
+          initialLng: (extra['initialLng'] as num?)?.toDouble(),
+        );
+      },
     ),
+
+    // ── User / Booker Sub Detail Routes ───────────────────────────────────────
     GoRoute(
       path: AppRoutes.userCreateRequirementScreen,
       builder: (context, state) => const UserCreateRequirementScreen(),
@@ -602,11 +586,11 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.userFulfillmentStatusScreen,
-      builder: (context, state) => const UserFulfillmentStatusScreen(),
+      builder: (context, state) => UserFulfillmentStatusScreen(requirement: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userFulfillmentOverviewScreen,
-      builder: (context, state) => const UserFulfillmentOverviewScreen(),
+      builder: (context, state) => UserFulfillmentOverviewScreen(requirement: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userDriverMatchingScreen,
@@ -626,71 +610,67 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.userDriverAssignmentsListScreen,
-      builder: (context, state) => const UserDriverAssignmentsListScreen(),
+      builder: (context, state) => UserDriverAssignmentsListScreen(initialTrips: state.extra as List<dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userDriverDetailsScreen,
-      builder: (context, state) => const UserDriverDetailsScreen(),
+      builder: (context, state) => UserDriverDetailsScreen(trip: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userVehicleDetailsScreen,
-      builder: (context, state) => const UserVehicleDetailsScreen(),
+      builder: (context, state) => UserVehicleDetailsScreen(vehicleData: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userAssignmentTimelineScreen,
-      builder: (context, state) => const UserAssignmentTimelineScreen(),
+      builder: (context, state) => UserAssignmentTimelineScreen(requirement: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userCancelAssignmentScreen,
-      builder: (context, state) => const UserCancelAssignmentScreen(),
-    ),
-    GoRoute(
-      path: AppRoutes.userTripsScreen,
-      builder: (context, state) => const UserTripsListScreen(),
+      builder: (context, state) => UserCancelAssignmentScreen(trip: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userActiveTripScreen,
-      builder: (context, state) => const UserActiveTripScreen(),
+      builder: (context, state) => UserActiveTripScreen(trip: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userTripDetailsUpcomingScreen,
-      builder: (context, state) => const UserTripDetailsScreen(initialStatus: TripStatusState.upcoming),
+      builder: (context, state) => UserTripDetailsScreen(initialStatus: TripStatusState.upcoming, trip: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userTripDetailsAssignedScreen,
-      builder: (context, state) => const UserTripDetailsScreen(initialStatus: TripStatusState.assigned),
+      builder: (context, state) => UserTripDetailsScreen(initialStatus: TripStatusState.assigned, trip: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userTripDetailsEnRouteScreen,
-      builder: (context, state) => const UserTripDetailsScreen(initialStatus: TripStatusState.enRoute),
+      builder: (context, state) => UserTripDetailsScreen(initialStatus: TripStatusState.enRoute, trip: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userTripDetailsArrivedScreen,
-      builder: (context, state) => const UserTripDetailsScreen(initialStatus: TripStatusState.arrived),
+      builder: (context, state) => UserTripDetailsScreen(initialStatus: TripStatusState.arrived, trip: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userTripDetailsStartedScreen,
-      builder: (context, state) => const UserTripDetailsScreen(initialStatus: TripStatusState.started),
+      builder: (context, state) => UserTripDetailsScreen(initialStatus: TripStatusState.started, trip: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userTripDetailsInProgressScreen,
-      builder: (context, state) => const UserTripDetailsScreen(initialStatus: TripStatusState.inProgress),
+      builder: (context, state) => UserTripDetailsScreen(initialStatus: TripStatusState.inProgress, trip: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userTripDetailsCompletedScreen,
-      builder: (context, state) => const UserTripDetailsScreen(initialStatus: TripStatusState.completed),
+      builder: (context, state) => UserTripDetailsScreen(initialStatus: TripStatusState.completed, trip: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userTripDetailsCancelledScreen,
-      builder: (context, state) => const UserTripDetailsScreen(initialStatus: TripStatusState.cancelled),
+      builder: (context, state) => UserTripDetailsScreen(initialStatus: TripStatusState.cancelled, trip: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userPassengerNoShowScreen,
-      builder: (context, state) => const UserTripDetailsScreen(initialStatus: TripStatusState.noShow),
+      builder: (context, state) => UserTripDetailsScreen(initialStatus: TripStatusState.noShow, trip: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userTripTimelineActivityScreen,
-      builder: (context, state) => const UserTripTimelineActivityScreen(),
+      builder: (context, state) => UserTripTimelineActivityScreen(trip: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userTripHistoryScreen,
@@ -698,11 +678,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.userHistoricalTripDetailsScreen,
-      builder: (context, state) => const UserHistoricalTripDetailsScreen(),
-    ),
-    GoRoute(
-      path: AppRoutes.userPaymentsScreen,
-      builder: (context, state) => const UserPaymentsScreen(),
+      builder: (context, state) => UserHistoricalTripDetailsScreen(trip: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userPaymentHistoryScreen,
@@ -710,7 +686,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.userPaymentDetailsScreen,
-      builder: (context, state) => const UserPaymentDetailsScreen(),
+      builder: (context, state) => UserPaymentDetailsScreen(transaction: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userPaymentPendingScreen,
@@ -727,10 +703,6 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.userPaymentFailedScreen,
       builder: (context, state) => const UserPaymentStatusScreen(initialState: PaymentResultState.failed),
-    ),
-    GoRoute(
-      path: AppRoutes.userProfileScreen,
-      builder: (context, state) => const UserProfileScreen(),
     ),
     GoRoute(
       path: AppRoutes.userProfileExtendedScreen,

@@ -115,3 +115,12 @@ export class RequirementDetailResponseDto extends RequirementResponseDto {
   }>;
 }
 
+export class RequirementSummaryDto {
+  totalRequirements!: number;
+  totalVehiclesRequired!: number;
+  totalVehiclesFulfilled!: number;
+  assignedCount!: number;
+  searchingCount!: number;
+  completedCount!: number;
+}
+

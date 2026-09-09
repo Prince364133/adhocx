@@ -82,7 +82,7 @@ class _UserTicketDetailsScreenState extends State<UserTicketDetailsScreen> {
                           if (selected) setState(() => _currentState = st);
                         },
                         selectedColor: _getColor(st),
-                        backgroundColor: isDark ? AppColors.surfaceDark : Colors.grey[200],
+                        backgroundColor: isDark ? AppColors.surfaceDark : AppColors.slate200,
                         labelStyle: TextStyle(
                           color: isSelected ? Colors.white : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
                           fontSize: 11,
@@ -139,7 +139,7 @@ class _UserTicketDetailsScreenState extends State<UserTicketDetailsScreen> {
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.check_circle_outline, color: AppColors.success, size: 20),
+                            Icon(Icons.check_circle_outline, color: AppColors.success, size: 20),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Column(
@@ -197,8 +197,8 @@ class _UserTicketDetailsScreenState extends State<UserTicketDetailsScreen> {
                           children: [
                             Column(
                               children: [
-                                const Icon(Icons.circle, size: 10, color: Color(0xFF6C5CE7)),
-                                if (!isLast) Container(width: 2, height: 44, color: Colors.grey[300]),
+                                Icon(Icons.circle, size: 10, color: AppColors.primary),
+                                if (!isLast) Container(width: 2, height: 44, color: AppColors.slate300),
                               ],
                             ),
                             const SizedBox(width: 10),
@@ -242,7 +242,7 @@ class _UserTicketDetailsScreenState extends State<UserTicketDetailsScreen> {
                                   onPressed: () => setState(() => _rating = index + 1),
                                   icon: Icon(
                                     index < _rating ? Icons.star : Icons.star_border,
-                                    color: const Color(0xFF6C5CE7),
+                                    color: AppColors.primary,
                                     size: 26,
                                   ),
                                 );
@@ -282,7 +282,7 @@ class _UserTicketDetailsScreenState extends State<UserTicketDetailsScreen> {
       case TicketStatusState.open:
         return AppColors.info;
       case TicketStatusState.inProgress:
-        return Colors.orange;
+        return AppColors.warning;
       case TicketStatusState.resolved:
         return AppColors.success;
     }
@@ -317,8 +317,8 @@ class _UserTicketDetailsScreenState extends State<UserTicketDetailsScreen> {
       onPressed: () {},
       style: OutlinedButton.styleFrom(
         minimumSize: const Size.fromHeight(48),
-        foregroundColor: const Color(0xFF6C5CE7),
-        side: const BorderSide(color: Color(0xFF6C5CE7)),
+        foregroundColor: AppColors.primary,
+        side: BorderSide(color: AppColors.primary),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
       ),
       child: const Text('Add Comment', style: TextStyle(fontWeight: FontWeight.bold)),

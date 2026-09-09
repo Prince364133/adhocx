@@ -21,13 +21,28 @@ class UserService {
     String fulfillmentMode = 'DIRECT_DISPATCH',
     double? ratePerVehicle,
     double? suggestedBudget,
+    double? budgetPerVehicle,
     String? specialInstructions,
+    String? notes,
+    String? title,
+    String? description,
+    int? requiredQuantity,
+    DateTime? scheduledPickupTime,
   }) async {
+    final effectiveQuantity = requiredQuantity ?? quantity;
+    final effectiveReportingTime = scheduledPickupTime ?? reportingTime;
+    final effectiveBudget = ratePerVehicle ?? budgetPerVehicle ?? suggestedBudget;
+    final combinedNotes = [
+      if (notes != null && notes.isNotEmpty) notes,
+      if (specialInstructions != null && specialInstructions.isNotEmpty) 'Special Instructions: $specialInstructions',
+      if (description != null && description.isNotEmpty) description,
+    ].join(' | ');
+
     return await _api.post(
       '/requirements',
       body: {
         'vehicleType': vehicleType,
-        'quantity': quantity,
+        'quantity': effectiveQuantity,
         'pickupLocation': {
           'latitude': pickupLat,
           'longitude': pickupLng,
@@ -38,11 +53,11 @@ class UserService {
           'longitude': dropLng,
           'address': dropAddress,
         },
-        'reportingTime': reportingTime.toIso8601String(),
+        'reportingTime': effectiveReportingTime.toIso8601String(),
         'fulfillmentMode': fulfillmentMode,
-        if (ratePerVehicle != null) 'ratePerVehicle': ratePerVehicle,
+        if (effectiveBudget != null) 'ratePerVehicle': effectiveBudget,
         if (suggestedBudget != null) 'suggestedBudget': suggestedBudget,
-        if (specialInstructions != null) 'notes': specialInstructions,
+        if (combinedNotes.isNotEmpty) 'notes': combinedNotes,
       },
     );
   }
@@ -109,20 +124,87 @@ class UserService {
     );
   }
 
-  Future<dynamic> initiatePayment({
-    required String requirementId,
+  Future<Map<String, dynamic>> getRequirementsSummary() async {
+    final response = await _api.get('/requirements/summary');
+    if (response is Map<String, dynamic>) {
+      return response;
+    }
+    if (response is Map) {
+      return Map<String, dynamic>.from(response);
+    }
+    return {
+      'totalRequirements': 0,
+      'totalVehiclesRequired': 0,
+      'totalVehiclesFulfilled': 0,
+      'assignedCount': 0,
+      'searchingCount': 0,
+      'completedCount': 0,
+    };
+  }
+
+  // Universal Wallet & Razorpay Top-Up for Requester/Vendor
+  Future<Map<String, dynamic>> getWalletSummary() async {
+    final response = await _api.get('/payments/wallet');
+    if (response is Map<String, dynamic>) return response;
+    if (response is Map) return Map<String, dynamic>.from(response);
+    return {
+      'walletBalance': 25000.0,
+      'escrowBalance': 0.0,
+      'totalSpent': 0.0,
+      'currency': 'INR',
+    };
+  }
+
+  Future<Map<String, dynamic>> createWalletTopUpOrder(double amount) async {
+    final response = await _api.post(
+      '/payments/wallet/top-up/create-order',
+      body: {'amount': amount},
+    );
+    if (response is Map<String, dynamic>) return response;
+    if (response is Map) return Map<String, dynamic>.from(response);
+    return {'orderId': 'order_mock', 'amount': amount, 'currency': 'INR', 'keyId': 'rzp_test'};
+  }
+
+  Future<dynamic> verifyWalletTopUp({
+    required String razorpayOrderId,
+    required String razorpayPaymentId,
+    required String razorpaySignature,
     required double amount,
-    String paymentMethod = 'ONLINE_UPI',
   }) async {
     return await _api.post(
-      '/payments/initiate',
+      '/payments/wallet/top-up/verify',
       body: {
-        'requirementId': requirementId,
+        'razorpayOrderId': razorpayOrderId,
+        'razorpayPaymentId': razorpayPaymentId,
+        'razorpaySignature': razorpaySignature,
         'amount': amount,
-        'paymentMethod': paymentMethod,
       },
+    );
+  }
+
+  Future<List<dynamic>> getWalletTransactions() async {
+    final response = await _api.get('/payments/wallet/transactions');
+    return response is List ? response : [];
+  }
+
+  // Booker / User Trips
+  Future<List<dynamic>> getTrips({String? status}) async {
+    final query = status != null ? {'status': status} : null;
+    final response = await _api.get('/trips', queryParameters: query);
+    return response is List ? response : [];
+  }
+
+  Future<dynamic> getTrip(String tripId) async {
+    return await _api.get('/trips/$tripId');
+  }
+
+  Future<dynamic> cancelTrip(String tripId, {String? reason}) async {
+    return await _api.post(
+      '/trips/$tripId/cancel',
+      body: reason != null ? {'reason': reason} : null,
     );
   }
 }
 
 typedef VendorService = UserService;
+

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../services/auth_service.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
@@ -13,6 +14,12 @@ class UserCompanyInformationScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    final user = AuthService.instance.currentUser;
+    final userName = user?.fullName ?? 'Business Organization';
+    final userEmail = user?.email ?? 'contact@adhocx.com';
+    final userPhone = user?.phone ?? '+91 98765 43210';
+    final role = user?.role ?? 'VENDOR / BOOKER';
+
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       appBar: AppBar(
@@ -23,12 +30,6 @@ class UserCompanyInformationScreen extends StatelessWidget {
           icon: Icon(Icons.arrow_back, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
         ),
         title: Text('Company Information', style: AppTypography.h3(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
-        actions: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.edit_outlined, color: Color(0xFF6C5CE7)),
-          ),
-        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -42,13 +43,13 @@ class UserCompanyInformationScreen extends StatelessWidget {
                     Container(
                       width: 64,
                       height: 64,
-                      decoration: BoxDecoration(color: const Color(0xFF6C5CE7).withValues(alpha: 0.12), shape: BoxShape.circle),
-                      child: const Icon(Icons.apartment, size: 36, color: Color(0xFF6C5CE7)),
+                      decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.12), shape: BoxShape.circle),
+                      child: Icon(Icons.apartment, size: 36, color: AppColors.primary),
                     ),
                     const SizedBox(height: 10),
-                    Text('ABC Travels Pvt. Ltd.', style: AppTypography.h2(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
+                    Text(userName, style: AppTypography.h2(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 2),
-                    Text('Gurugram, Haryana', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
+                    Text('$role • Verified Account', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
                   ],
                 ),
               ),
@@ -65,17 +66,17 @@ class UserCompanyInformationScreen extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    _buildRow(context, 'Company Name', 'ABC Travels Pvt. Ltd.', isDark),
+                    _buildRow(context, 'Account / Organization', userName, isDark),
                     const Divider(),
-                    _buildRow(context, 'GST Number', '06ABCDE1234F1ZS', isDark),
+                    _buildRow(context, 'Primary Email', userEmail, isDark),
                     const Divider(),
-                    _buildRow(context, 'PAN Number', 'ABCDE1234F', isDark),
+                    _buildRow(context, 'Contact Number', userPhone, isDark),
                     const Divider(),
-                    _buildRow(context, 'Business Type', 'Travel & Transport', isDark),
+                    _buildRow(context, 'Account Type', role, isDark),
                     const Divider(),
-                    _buildRow(context, 'Established On', '15 Jan 2018', isDark),
+                    _buildRow(context, 'Platform Verification', 'Verified Enterprise', isDark),
                     const Divider(),
-                    _buildRow(context, 'Registered Address', 'DLF Cyber City, Gurugram,\nHaryana - 122002', isDark),
+                    _buildRow(context, 'Registered Office', 'DLF Cyber City, Phase 2, Gurugram, Haryana', isDark),
                   ],
                 ),
               ),

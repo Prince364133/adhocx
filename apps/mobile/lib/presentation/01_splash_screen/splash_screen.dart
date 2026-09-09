@@ -7,14 +7,14 @@ import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/common/app_primary_button.dart';
 
-/// Screen 1: Splash / Hero Welcome Screen with custom illustrated background.
+/// Screen 1: Splash / Hero Welcome Screen with custom illustrated background and corporate mobility features.
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F7FF),
+      backgroundColor: AppColors.bgLight,
       body: Stack(
         children: [
           // ── Background Illustrated Artwork ─────────────────────────────────
@@ -30,8 +30,8 @@ class SplashScreen extends StatelessWidget {
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        Color(0xFFEEF2FF),
-                        Color(0xFFE0E7FF),
+                        AppColors.primarySubtle,
+                        AppColors.borderLight,
                       ],
                     ),
                   ),
@@ -47,12 +47,12 @@ class SplashScreen extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  stops: const [0.0, 0.3, 0.7, 1.0],
+                  stops: const [0.0, 0.25, 0.65, 1.0],
                   colors: [
-                    Colors.white.withValues(alpha: 0.9),
-                    Colors.white.withValues(alpha: 0.1),
-                    Colors.white.withValues(alpha: 0.1),
-                    Colors.white.withValues(alpha: 0.95),
+                    Colors.white.withValues(alpha: 0.92),
+                    Colors.white.withValues(alpha: 0.2),
+                    Colors.white.withValues(alpha: 0.4),
+                    Colors.white.withValues(alpha: 0.96),
                   ],
                 ),
               ),
@@ -72,11 +72,13 @@ class SplashScreen extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // ── Top Brand Header ───────────────────────────────────
+                      // ── Top Brand Header (Centered Logo & Tagline) ─────────
                       Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          const SizedBox(height: AppSpacing.xxl),
+                          const SizedBox(height: AppSpacing.xl),
                           RichText(
+                            textAlign: TextAlign.center,
                             text: TextSpan(
                               children: [
                                 TextSpan(
@@ -90,7 +92,7 @@ class SplashScreen extends StatelessWidget {
                                 const TextSpan(
                                   text: 'X',
                                   style: TextStyle(
-                                    color: Color(0xFFFF6200),
+                                    color: AppColors.brandOrange,
                                     fontWeight: FontWeight.w900,
                                     fontSize: 46,
                                     fontFamily: 'Inter',
@@ -99,21 +101,104 @@ class SplashScreen extends StatelessWidget {
                               ],
                             ),
                           ),
-
                           const SizedBox(height: 6),
                           Text(
                             'Your ride. Your way.',
                             style: AppTypography.bodyLarge(
                               color: AppColors.textSecondaryLight,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: AppColors.primary.withValues(alpha: 0.2),
+                              ),
+                            ),
+                            child: Text(
+                              'Corporate Mobility & Bulk Booking Platform',
+                              style: TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.4,
+                              ),
                             ),
                           ),
                         ],
                       ),
 
-                      const Spacer(),
+                      // ── Middle Feature Highlights (Corporate, Location, Bulk)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.lg,
+                          vertical: AppSpacing.md,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.92),
+                          borderRadius: BorderRadius.circular(AppRadius.lg),
+                          border: Border.all(
+                            color: Colors.white,
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.08),
+                              blurRadius: 16,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildFeatureRow(
+                              icon: Icons.corporate_fare_rounded,
+                              iconBg: AppColors.primary.withValues(alpha: 0.12),
+                              iconColor: AppColors.primary,
+                              title: 'Corporate Bulk Booking',
+                              subtitle:
+                                  'Multi-vehicle fleet reservation & group transit',
+                            ),
+                            Divider(
+                              height: 18,
+                              thickness: 1,
+                              color: AppColors.surfaceElevatedLight,
+                            ),
+                            _buildFeatureRow(
+                              icon: Icons.hub_rounded,
+                              iconBg: AppColors.info.withValues(alpha: 0.12),
+                              iconColor: AppColors.info,
+                              title: 'Location & Hub Dispatch',
+                              subtitle:
+                                  'Smart multi-stop routing & live fleet tracking',
+                            ),
+                            Divider(
+                              height: 18,
+                              thickness: 1,
+                              color: AppColors.surfaceElevatedLight,
+                            ),
+                            _buildFeatureRow(
+                              icon: Icons.verified_user_rounded,
+                              iconBg: AppColors.brandOrange.withValues(alpha: 0.12),
+                              iconColor: AppColors.brandOrange,
+                              title: 'Enterprise SLAs',
+                              subtitle:
+                                  'Verified drivers, upfront rates & dedicated support',
+                            ),
+                          ],
+                        ),
+                      ),
 
-                      // ── Bottom Actions (Get Started, Log In, Guest) ────────
+                      // ── Bottom Actions (Get Started, Log In) ──────────────
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -132,15 +217,17 @@ class SplashScreen extends StatelessWidget {
                               style: OutlinedButton.styleFrom(
                                 backgroundColor: Colors.white,
                                 foregroundColor: AppColors.primary,
-                                side: const BorderSide(
+                                side: BorderSide(
                                   color: AppColors.primary,
                                   width: 1.5,
                                 ),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(AppRadius.md),
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.md),
                                 ),
                                 elevation: 2,
-                                shadowColor: Colors.black.withValues(alpha: 0.06),
+                                shadowColor:
+                                    Colors.black.withValues(alpha: 0.06),
                               ),
                               child: Text(
                                 'Log In',
@@ -152,19 +239,6 @@ class SplashScreen extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: AppSpacing.sm),
-
-                          // 3. Continue as Guest
-                          TextButton(
-                            onPressed: () => context.go(AppRoutes.homeScreen),
-                            child: Text(
-                              'Continue as Guest',
-                              style: AppTypography.caption(
-                                color: AppColors.textSecondaryLight,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.xs),
                         ],
                       ),
                     ],
@@ -175,6 +249,55 @@ class SplashScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildFeatureRow({
+    required IconData icon,
+    required Color iconBg,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+  }) {
+    return Row(
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: iconBg,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: iconColor, size: 20),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  color: AppColors.textPrimaryLight,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  color: AppColors.textSecondaryLight,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

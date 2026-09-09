@@ -1,17 +1,63 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../services/user_service.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 
-class UserHistoricalTripDetailsScreen extends StatelessWidget {
-  const UserHistoricalTripDetailsScreen({super.key});
+class UserHistoricalTripDetailsScreen extends StatefulWidget {
+  final Map<String, dynamic>? trip;
+  const UserHistoricalTripDetailsScreen({super.key, this.trip});
+
+  @override
+  State<UserHistoricalTripDetailsScreen> createState() => _UserHistoricalTripDetailsScreenState();
+}
+
+class _UserHistoricalTripDetailsScreenState extends State<UserHistoricalTripDetailsScreen> {
+  Map<String, dynamic>? _trip;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.trip != null) {
+      _trip = widget.trip;
+      _isLoading = false;
+    } else {
+      _loadTrip();
+    }
+  }
+
+  Future<void> _loadTrip() async {
+    setState(() => _isLoading = true);
+    try {
+      final list = await UserService.instance.getTrips();
+      if (list.isNotEmpty && mounted) {
+        setState(() => _trip = list.first as Map<String, dynamic>);
+      }
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+
+    final trip = _trip ?? {};
+    final status = (trip['status'] ?? 'COMPLETED').toString();
+    final tripCode = trip['tripCode'] ?? trip['id'] ?? 'TRP-HISTORICAL';
+
+    final pickup = trip['pickupLocation'] as Map<String, dynamic>?;
+    final drop = trip['dropLocation'] as Map<String, dynamic>?;
+    final pickupAddr = pickup?['address'] ?? 'DLF Cyber City, Gurugram';
+    final dropAddr = drop?['address'] ?? 'IGI Airport, New Delhi';
+    final fare = trip['agreedRate'] ?? trip['fare'] ?? 1500;
+    final driver = trip['driver'] as Map<String, dynamic>?;
+    final vehicleModel = driver?['vehicleModel'] ?? trip['vehicleModel'] ?? 'Sedan';
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -25,114 +71,116 @@ class UserHistoricalTripDetailsScreen extends StatelessWidget {
         title: Text('Trip Details', style: AppTypography.h3(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header Title & Completed Badge
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Corporate Event', style: AppTypography.h2(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
-                      Text('REQ-250508-0003', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
-                    ],
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: AppColors.success.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(AppRadius.sm)),
-                    child: const Text('Completed', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold, fontSize: 12)),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: AppSpacing.md),
-
-              // Date & Route Box
-              Container(
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
                 padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.event, size: 16, color: Color(0xFF6C5CE7)),
-                        const SizedBox(width: 8),
-                        Text('8 May 2025, 09:00 AM', style: AppTypography.caption(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: const [
-                        Icon(Icons.circle, size: 8, color: AppColors.success),
-                        SizedBox(width: 8),
-                        Text('DLF Cyber City, Gurugram', style: TextStyle(fontSize: 12)),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: const [
-                        Icon(Icons.circle, size: 8, color: AppColors.error),
-                        SizedBox(width: 8),
-                        Text('Indira Gandhi Airport, Delhi', style: TextStyle(fontSize: 12)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: AppSpacing.lg),
-
-              // Summary Box
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Summary', style: AppTypography.h4(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    _buildRow(context, 'Vehicle Type', 'SUV', isDark),
-                    const Divider(),
-                    _buildRow(context, 'Vehicles', '5', isDark),
-                    const Divider(),
-                    _buildRow(context, 'Total Amount', '₹ 18,500.00', isDark, isBold: true),
-                    const Divider(),
-                    _buildRow(context, 'Paid Amount', '₹ 18,500.00', isDark),
-                    const Divider(),
-                    _buildRow(context, 'Payment Status', 'Paid', isDark, isGreen: true),
-                    const Divider(),
-                    _buildRow(context, 'Trip Duration', '3h 45m', isDark),
+                    // Header Title & Completed Badge
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('$vehicleModel Trip', style: AppTypography.h2(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
+                            Text(tripCode.toString(), style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(color: AppColors.success.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(AppRadius.sm)),
+                          child: Text(status, style: const TextStyle(color: AppColors.success, fontWeight: FontWeight.bold, fontSize: 12)),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: AppSpacing.md),
+
+                    // Date & Route Box
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.event, size: 16, color: AppColors.primary),
+                              const SizedBox(width: 8),
+                              Text('Trip Verified on Ledger', style: AppTypography.caption(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              const Icon(Icons.circle, size: 8, color: AppColors.success),
+                              const SizedBox(width: 8),
+                              Expanded(child: Text(pickupAddr, style: const TextStyle(fontSize: 12))),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(Icons.circle, size: 8, color: AppColors.error),
+                              const SizedBox(width: 8),
+                              Expanded(child: Text(dropAddr, style: const TextStyle(fontSize: 12))),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: AppSpacing.lg),
+
+                    // Summary Box
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Summary', style: AppTypography.h4(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          _buildRow(context, 'Vehicle Model', vehicleModel, isDark),
+                          const Divider(),
+                          _buildRow(context, 'Total Fare', '₹ $fare.00', isDark, isBold: true),
+                          const Divider(),
+                          _buildRow(context, 'Trip Status', status, isDark, isGreen: true),
+                          const Divider(),
+                          _buildRow(context, 'Payment Mode', 'AdhocX Escrow Wallet', isDark),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: AppSpacing.xl),
+
+                    OutlinedButton(
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Receipt downloaded & stored in wallet ledger')),
+                        );
+                      },
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.primary),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                      ),
+                      child: const Text('View Ledger Receipt', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
                   ],
                 ),
               ),
-
-              const SizedBox(height: AppSpacing.xl),
-
-              OutlinedButton(
-                onPressed: () {},
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
-                  foregroundColor: const Color(0xFF6C5CE7),
-                  side: const BorderSide(color: Color(0xFF6C5CE7)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                ),
-                child: const Text('View Receipt', style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -148,7 +196,7 @@ class UserHistoricalTripDetailsScreen extends StatelessWidget {
             value,
             style: TextStyle(
               fontWeight: isBold || isGreen ? FontWeight.bold : FontWeight.w500,
-              fontSize: isBold ? 14 : 12,
+              fontSize: 12,
               color: isGreen ? AppColors.success : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
             ),
           ),

@@ -67,8 +67,8 @@ class _GlobalStateGalleryScreenState extends State<GlobalStateGalleryScreen> {
                       onSelected: (val) {
                         if (val) setState(() => _selectedTabIndex = index);
                       },
-                      selectedColor: const Color(0xFF6C5CE7),
-                      backgroundColor: isDark ? AppColors.surfaceDark : Colors.grey[200],
+                      selectedColor: AppColors.primary,
+                      backgroundColor: isDark ? AppColors.surfaceDark : AppColors.slate200,
                       labelStyle: TextStyle(
                         color: isSelected ? Colors.white : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
                         fontSize: 12,
@@ -208,7 +208,7 @@ class _GlobalStateGalleryScreenState extends State<GlobalStateGalleryScreen> {
         border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
       ),
       child: ListTile(
-        leading: Icon(icon, color: const Color(0xFF6C5CE7)),
+        leading: Icon(icon, color: AppColors.primary),
         title: Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)),
         subtitle: Text(subtitle, style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontSize: 10)),
         trailing: const Icon(Icons.chevron_right, size: 20),

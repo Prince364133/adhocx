@@ -87,6 +87,10 @@ class AuthService {
 
   UserModel? get currentUser => _currentUser;
 
+  void setCurrentUser(UserModel? user) {
+    _currentUser = user;
+  }
+
   /**
    * Request OTP via SMS (Phone) or Email
    */
@@ -163,8 +167,8 @@ class AuthService {
     String? idToken,
     String role = 'DRIVER',
   }) async {
-    final userEmail = email ?? 'rahul.google@gmail.com';
-    final userName = fullName ?? 'Rahul Sharma';
+    final userEmail = email ?? 'google.user@gmail.com';
+    final userName = fullName ?? 'Google User';
 
     final response = await _api.post(
       '/auth/social',
@@ -202,8 +206,8 @@ class AuthService {
     String? fullName,
     String role = 'DRIVER',
   }) async {
-    final userEmail = email ?? 'rahul.apple@privaterelay.appleid.com';
-    final userName = fullName ?? 'Rahul Sharma';
+    final userEmail = email ?? 'apple.user@privaterelay.appleid.com';
+    final userName = fullName ?? 'Apple User';
 
     final response = await _api.post(
       '/auth/social',

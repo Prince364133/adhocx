@@ -26,7 +26,7 @@ class KycVerificationScreen extends StatelessWidget {
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.md,
                   ),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppColors.surfaceLight,
                     border: Border(
                       bottom: BorderSide(color: AppColors.borderLight),
@@ -42,7 +42,7 @@ class KycVerificationScreen extends StatelessWidget {
                             context.go(AppRoutes.profileScreen);
                           }
                         },
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.arrow_back,
                           color: AppColors.textPrimaryLight,
                         ),
@@ -116,7 +116,7 @@ class KycVerificationScreen extends StatelessWidget {
                                   width: 2,
                                 ),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.check_rounded,
                                 color: AppColors.accentGreenDark,
                                 size: 28,
@@ -151,25 +151,25 @@ class KycVerificationScreen extends StatelessWidget {
                               icon: Icons.badge_outlined,
                               title: 'Aadhaar Card',
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildDocumentTile(
                               context: context,
                               icon: Icons.credit_card_outlined,
                               title: 'PAN Card',
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildDocumentTile(
                               context: context,
                               icon: Icons.drive_eta_outlined,
                               title: 'Driving License',
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildDocumentTile(
                               context: context,
                               icon: Icons.account_circle_outlined,
                               title: 'Profile Photo',
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildDocumentTile(
                               context: context,
                               icon: Icons.home_outlined,
@@ -192,7 +192,7 @@ class KycVerificationScreen extends StatelessWidget {
                         ),
                         child: Row(
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.info_outline_rounded,
                               size: 18,
                               color: AppColors.primary,
@@ -247,7 +247,7 @@ class KycVerificationScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 6),
-          const Icon(
+          Icon(
             Icons.check_circle_rounded,
             size: 18,
             color: AppColors.accentGreenDark,

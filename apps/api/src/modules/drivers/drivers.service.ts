@@ -57,11 +57,12 @@ export class DriversService {
       };
     } catch (e) {
       if (e instanceof NotFoundException) throw e;
+      const user = await this.db.user.findUnique({ where: { id: userId } }).catch(() => null);
       return {
         id: `drv_${userId}`,
         userId,
-        fullName: 'Rahul Sharma',
-        phone: '+919876543210',
+        fullName: user?.fullName || 'Driver Partner',
+        phone: user?.phone || '+919876543210',
         verificationStatus: VerificationStatus.PENDING,
         availabilityStatus: DriverAvailability.OFFLINE,
         walletBalance: 0,
@@ -94,11 +95,12 @@ export class DriversService {
       }
     } catch (_) {}
 
+    const user = await this.db.user.findUnique({ where: { id: userId } }).catch(() => null);
     return {
       id: `drv_${userId}`,
       userId,
-      fullName: 'Rahul Sharma',
-      phone: '+919876543210',
+      fullName: user?.fullName || 'Driver Partner',
+      phone: user?.phone || '+919876543210',
       verificationStatus: VerificationStatus.PENDING,
       availabilityStatus: dto.status,
       walletBalance: 0,
@@ -169,11 +171,12 @@ export class DriversService {
       }
     } catch (_) {}
 
+    const user = await this.db.user.findUnique({ where: { id: userId } }).catch(() => null);
     return {
       id: `drv_${userId}`,
       userId,
-      fullName: 'Rahul Sharma',
-      phone: '+919876543210',
+      fullName: user?.fullName || 'Driver Partner',
+      phone: user?.phone || '+919876543210',
       verificationStatus: VerificationStatus.UNDER_REVIEW,
       availabilityStatus: DriverAvailability.OFFLINE,
       vehiclePlate: dto.rcNumber,

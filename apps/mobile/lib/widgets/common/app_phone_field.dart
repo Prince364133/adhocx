@@ -60,7 +60,7 @@ class AppPhoneField extends StatelessWidget {
             prefixIcon: Container(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
               margin: const EdgeInsets.only(right: AppSpacing.sm),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 border: Border(
                   right: BorderSide(
                     color: AppColors.borderLight,
@@ -71,7 +71,7 @@ class AppPhoneField extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.phone_iphone_rounded,
                     size: 18,
                     color: AppColors.textSecondaryLight,
@@ -95,28 +95,28 @@ class AppPhoneField extends StatelessWidget {
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              borderSide: const BorderSide(
+              borderSide: BorderSide(
                 color: AppColors.borderLight,
                 width: 1.2,
               ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              borderSide: const BorderSide(
+              borderSide: BorderSide(
                 color: AppColors.primary,
                 width: 1.8,
               ),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              borderSide: const BorderSide(
+              borderSide: BorderSide(
                 color: AppColors.error,
                 width: 1.2,
               ),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              borderSide: const BorderSide(
+              borderSide: BorderSide(
                 color: AppColors.error,
                 width: 1.8,
               ),

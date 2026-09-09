@@ -1,3 +1,4 @@
+import '../../../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class _ModalShell extends StatelessWidget {
@@ -18,7 +19,7 @@ class _ModalShell extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1e293b),
+        color: AppColors.surfaceElevatedDark,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
@@ -54,40 +55,40 @@ class IncentivesModal extends StatelessWidget {
     return _ModalShell(
       title: 'Daily Target Incentives',
       icon: Icons.emoji_events_rounded,
-      iconColor: const Color(0xFFf59e0b),
+      iconColor: AppColors.warning,
       child: Column(
         children: [
           _IncentiveTile(
             trips: 5,
             bonus: '₹200',
-            color: const Color(0xFF10b981),
+            color: AppColors.success,
             icon: Icons.directions_car_rounded,
           ),
           const SizedBox(height: 12),
           _IncentiveTile(
             trips: 8,
             bonus: '₹450',
-            color: const Color(0xFF0ea5e9),
+            color: AppColors.info,
             icon: Icons.local_fire_department_rounded,
           ),
           const SizedBox(height: 12),
           _IncentiveTile(
             trips: 12,
             bonus: '₹800',
-            color: const Color(0xFFf59e0b),
+            color: AppColors.warning,
             icon: Icons.emoji_events_rounded,
           ),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFF0f172a),
+              color: AppColors.textPrimaryLight,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFF334155)),
+              border: Border.all(color: AppColors.borderDark),
             ),
-            child: const Text(
+            child: Text(
               'Incentives are credited automatically to your wallet at the end of each day after completing the required number of trips.',
-              style: TextStyle(color: Color(0xFF94a3b8), fontSize: 12),
+              style: TextStyle(color: AppColors.textMutedDark, fontSize: 12),
               textAlign: TextAlign.center,
             ),
           ),
@@ -143,9 +144,9 @@ class _IncentiveTile extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const Text(
+                Text(
                   'Complete daily target',
-                  style: TextStyle(color: Color(0xFF94a3b8), fontSize: 11),
+                  style: TextStyle(color: AppColors.textMutedDark, fontSize: 11),
                 ),
               ],
             ),

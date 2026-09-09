@@ -4,6 +4,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../routes/app_routes.dart';
+import '../../services/auth_provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/onboarding_provider.dart';
 import '../../theme/app_colors.dart';
@@ -102,6 +103,7 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
         );
 
         final user = res.user;
+        context.read<AuthProvider>().setUser(user);
 
         // If user is registering or has not set a password / selected role, navigate to Set Password
         if (widget.isRegister || user.isPending) {
@@ -194,7 +196,7 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
                             context.go(AppRoutes.signInScreen);
                           }
                         },
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.arrow_back,
                           color: AppColors.textPrimaryLight,
                         ),
@@ -245,9 +247,9 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
                                     : AppColors.borderLight),
                             width: isCurrent || hasChar ? 1.8 : 1,
                           ),
-                          boxShadow: const [
+                          boxShadow: [
                             BoxShadow(
-                              color: Color(0x06000000),
+                              color: Colors.black.withValues(alpha: 0.03),
                               blurRadius: 2,
                               offset: Offset(0, 1),
                             ),
@@ -271,7 +273,7 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
                         ? Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.refresh,
                                 size: 16,
                                 color: AppColors.textMutedLight,

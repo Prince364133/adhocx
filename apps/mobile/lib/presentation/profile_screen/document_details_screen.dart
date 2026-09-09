@@ -72,7 +72,7 @@ class DocumentDetailsScreen extends StatelessWidget {
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.md,
                   ),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppColors.surfaceLight,
                     border: Border(
                       bottom: BorderSide(color: AppColors.borderLight),
@@ -88,7 +88,7 @@ class DocumentDetailsScreen extends StatelessWidget {
                             context.go(AppRoutes.kycVerificationScreen);
                           }
                         },
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.arrow_back,
                           color: AppColors.textPrimaryLight,
                         ),
