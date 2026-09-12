@@ -58,3 +58,6 @@ coverage/
 # Binaries & build cache
 mingit*
 *.tsbuildinfo
+
+# Local Netlify folder
+.netlify
