@@ -39,9 +39,9 @@ class AppRoleSelectCard extends StatelessWidget {
               color: isSelected ? AppColors.primary : AppColors.borderLight,
               width: isSelected ? 2 : 1.2,
             ),
-            boxShadow: const [
+            boxShadow: [
               BoxShadow(
-                color: Color(0x06000000),
+                color: Colors.black.withValues(alpha: 0.03),
                 blurRadius: 4,
                 offset: Offset(0, 2),
               ),

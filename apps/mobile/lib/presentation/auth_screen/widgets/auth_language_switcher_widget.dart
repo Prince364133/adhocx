@@ -1,3 +1,4 @@
+import '../../../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class AuthLanguageSwitcherWidget extends StatelessWidget {
@@ -15,7 +16,7 @@ class AuthLanguageSwitcherWidget extends StatelessWidget {
     return PopupMenuButton<String>(
       initialValue: selected.toLowerCase(),
       onSelected: onChanged,
-      color: const Color(0xFF0d1117),
+      color: AppColors.bgDark,
       tooltip: 'Select language',
       itemBuilder: (context) => const [
         PopupMenuItem(value: 'en', child: Text('English')),
@@ -24,26 +25,26 @@ class AuthLanguageSwitcherWidget extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFF1a2332)),
+          border: Border.all(color: AppColors.borderDark),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.language, color: Color(0xFF94a3b8), size: 18),
+            Icon(Icons.language, color: AppColors.textMutedDark, size: 18),
             const SizedBox(width: 6),
             Text(
               selected,
-              style: const TextStyle(
-                color: Color(0xFFf8fafc),
+              style: TextStyle(
+                color: AppColors.bgLight,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(width: 4),
-            const Icon(
+            Icon(
               Icons.keyboard_arrow_down,
-              color: Color(0xFF94a3b8),
+              color: AppColors.textMutedDark,
               size: 16,
             ),
           ],

@@ -27,7 +27,7 @@ class SessionExpiredDialog extends StatelessWidget {
                 color: AppColors.error.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.lock_clock_outlined,
                 color: AppColors.error,
                 size: 32,

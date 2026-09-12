@@ -111,7 +111,7 @@ class AppDocumentUploadTile extends StatelessWidget {
                 Container(
                   width: 24,
                   height: 24,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: AppColors.accentGreenDark,
                   ),

@@ -40,6 +40,13 @@ export class RequirementsController {
     return this.requirementsService.getRequirementsByVendor(user.id, query);
   }
 
+  @Get('summary')
+  @Roles(UserRole.VENDOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get aggregated requirement metrics and fulfillment counts for vendor dashboard' })
+  async getRequirementsSummary(@CurrentUser() user: AuthUserDto) {
+    return this.requirementsService.getRequirementsSummary(user.id);
+  }
+
   @Get(':id')
   @Roles(UserRole.VENDOR, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get detailed requirement view including offers, remaining capacity, and assigned drivers' })

@@ -67,7 +67,7 @@ class _TripDisputeDialogState extends State<TripDisputeDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Dispute ticket filed. AdhocX operations is investigating.'),
-            backgroundColor: Color(0xFF10B981),
+            backgroundColor: AppColors.success,
           ),
         );
       }
@@ -77,7 +77,7 @@ class _TripDisputeDialogState extends State<TripDisputeDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: const Color(0xFFEF4444),
+            backgroundColor: AppColors.error,
           ),
         );
       }
@@ -103,10 +103,10 @@ class _TripDisputeDialogState extends State<TripDisputeDialog> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                      color: AppColors.error.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
-                    child: const Icon(Icons.report_problem_rounded, color: Color(0xFFEF4444), size: 24),
+                    child: Icon(Icons.report_problem_rounded, color: AppColors.error, size: 24),
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(

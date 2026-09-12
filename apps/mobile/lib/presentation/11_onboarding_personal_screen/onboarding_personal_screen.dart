@@ -80,7 +80,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
     onboarding.setPersonalDetails(
       fullName: _nameController.text.trim().isNotEmpty
           ? _nameController.text.trim()
-          : 'Rahul Sharma',
+          : 'Partner Name',
       dateOfBirth: _selectedDate,
       gender: _selectedGender,
       companyName: _isCorporateBooking ? _companyController.text.trim() : '',
@@ -137,7 +137,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                         children: [
                           IconButton(
                             onPressed: () => context.pop(),
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.arrow_back,
                               color: AppColors.textPrimaryLight,
                             ),
@@ -189,7 +189,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                     AppTextField(
                       controller: _nameController,
                       label: 'Full Name',
-                      hintText: 'Rahul Sharma',
+                      hintText: 'Enter full name',
                       validator: (val) {
                         if (val == null || val.trim().length < 2) {
                           return 'Please enter your full name';
@@ -235,7 +235,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                                     color: AppColors.textPrimaryLight,
                                   ),
                                 ),
-                                const Icon(
+                                Icon(
                                   Icons.calendar_today_outlined,
                                   size: 18,
                                   color: AppColors.textSecondaryLight,
@@ -323,7 +323,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                                 Expanded(
                                   child: Row(
                                     children: [
-                                      const Icon(
+                                      Icon(
                                         Icons.business_outlined,
                                         size: 20,
                                         color: AppColors.primary,

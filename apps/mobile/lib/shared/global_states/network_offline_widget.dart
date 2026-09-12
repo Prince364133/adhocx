@@ -67,7 +67,7 @@ class NetworkOfflineWidget extends StatelessWidget {
               color: AppColors.error.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.error),
+            child: Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.error),
           ),
           const SizedBox(height: AppSpacing.lg),
           Text(

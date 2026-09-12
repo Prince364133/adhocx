@@ -1,4 +1,5 @@
 import '../core/networking/api_client.dart';
+import 'auth_service.dart';
 
 class DriverService {
   static DriverService? _instance;
@@ -8,17 +9,33 @@ class DriverService {
 
   final ApiClient _api = ApiClient.instance;
 
+  Future<void> _ensureDriverSession() async {
+    try {
+      await AuthService.instance.ensureDriverSession();
+    } catch (_) {}
+  }
+
   // Profile & Availability
   Future<dynamic> getProfile() async {
+    await _ensureDriverSession();
     return await _api.get('/drivers/profile');
   }
 
-  Future<dynamic> updateAvailability(String availabilityStatus) async {
+  Future<dynamic> updateAvailability(String availabilityStatus, {double? lat, double? lng}) async {
+    await _ensureDriverSession();
     return await _api.patch(
       '/drivers/availability',
-      body: {'availabilityStatus': availabilityStatus},
+      body: {
+        'status': availabilityStatus.toUpperCase(),
+        if (lat != null && lng != null)
+          'currentLocation': {
+            'latitude': lat,
+            'longitude': lng,
+          },
+      },
     );
   }
+
 
   // KYC Document Upload (Cloudflare R2 Integration)
   Future<dynamic> uploadKycDocument({
@@ -58,15 +75,18 @@ class DriverService {
 
   // Offers (Direct Dispatch Mode)
   Future<List<dynamic>> getOffers() async {
+    await _ensureDriverSession();
     final response = await _api.get('/offers');
     return response is List ? response : [];
   }
 
   Future<dynamic> acceptOffer(String offerId) async {
+    await _ensureDriverSession();
     return await _api.post('/offers/$offerId/accept');
   }
 
   Future<dynamic> declineOffer(String offerId, {String? reason}) async {
+    await _ensureDriverSession();
     return await _api.post(
       '/offers/$offerId/decline',
       body: reason != null ? {'reason': reason} : null,
@@ -74,12 +94,19 @@ class DriverService {
   }
 
   // Bidding (Outstation Reverse Auction Mode)
+  Future<List<dynamic>> getBiddingOpportunities() async {
+    await _ensureDriverSession();
+    final response = await _api.get('/bids/open-opportunities');
+    return response is List ? response : [];
+  }
+
   Future<dynamic> submitBid({
     required String requirementId,
     required double bidAmount,
     int? etaMinutes,
     String? notes,
   }) async {
+    await _ensureDriverSession();
     return await _api.post(
       '/bids',
       body: {
@@ -92,23 +119,27 @@ class DriverService {
   }
 
   Future<List<dynamic>> getMyBids({String? status}) async {
+    await _ensureDriverSession();
     final query = status != null ? {'status': status} : null;
     final response = await _api.get('/bids', queryParameters: query);
     return response is List ? response : [];
   }
 
   Future<dynamic> withdrawBid(String bidId) async {
+    await _ensureDriverSession();
     return await _api.post('/bids/$bidId/withdraw');
   }
 
   // Trip Lifecycle
   Future<List<dynamic>> getTrips({String? status}) async {
+    await _ensureDriverSession();
     final query = status != null ? {'status': status} : null;
     final response = await _api.get('/trips', queryParameters: query);
     return response is List ? response : [];
   }
 
   Future<dynamic> markArrived(String tripId) async {
+    await _ensureDriverSession();
     return await _api.post('/trips/$tripId/arrive');
   }
 
@@ -118,6 +149,7 @@ class DriverService {
     double? lat,
     double? lng,
   }) async {
+    await _ensureDriverSession();
     return await _api.post(
       '/trips/$tripId/start',
       body: {
@@ -137,6 +169,7 @@ class DriverService {
     double? speed,
     double? heading,
   }) async {
+    await _ensureDriverSession();
     return await _api.patch(
       '/trips/$tripId/location',
       body: {
@@ -155,6 +188,7 @@ class DriverService {
     double? lat,
     double? lng,
   }) async {
+    await _ensureDriverSession();
     return await _api.post(
       '/trips/$tripId/complete',
       body: {
@@ -174,6 +208,7 @@ class DriverService {
     required int rating,
     String? feedback,
   }) async {
+    await _ensureDriverSession();
     return await _api.post(
       '/reviews',
       body: {
@@ -190,6 +225,7 @@ class DriverService {
     required String reason,
     String? description,
   }) async {
+    await _ensureDriverSession();
     return await _api.post(
       '/disputes',
       body: {
@@ -202,7 +238,13 @@ class DriverService {
 
   // Wallet & Settlements
   Future<dynamic> getWalletSummary() async {
-    return await _api.get('/driver/wallet');
+    await _ensureDriverSession();
+    return await _api.get('/settlements/wallet');
+  }
+
+  Future<dynamic> getTrip(String tripId) async {
+    await _ensureDriverSession();
+    return await _api.get('/trips/$tripId');
   }
 
   Future<dynamic> requestWithdrawal({
@@ -211,6 +253,7 @@ class DriverService {
     required String bankAccountNumber,
     required String bankIfsc,
   }) async {
+    await _ensureDriverSession();
     return await _api.post(
       '/settlements/withdraw',
       body: {
@@ -222,3 +265,4 @@ class DriverService {
     );
   }
 }
+

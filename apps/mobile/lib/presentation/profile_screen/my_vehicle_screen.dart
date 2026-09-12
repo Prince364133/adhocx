@@ -33,7 +33,7 @@ class MyVehicleScreen extends StatelessWidget {
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.md,
                   ),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppColors.surfaceLight,
                     border: Border(
                       bottom: BorderSide(color: AppColors.borderLight),
@@ -49,7 +49,7 @@ class MyVehicleScreen extends StatelessWidget {
                             context.go(AppRoutes.profileScreen);
                           }
                         },
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.arrow_back,
                           color: AppColors.textPrimaryLight,
                         ),
@@ -92,9 +92,9 @@ class MyVehicleScreen extends StatelessWidget {
                           color: AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
                           border: Border.all(color: AppColors.borderLight),
-                          boxShadow: const [
+                          boxShadow: [
                             BoxShadow(
-                              color: Color(0x06000000),
+                              color: Colors.black.withValues(alpha: 0.03),
                               blurRadius: 4,
                               offset: Offset(0, 2),
                             ),
@@ -180,7 +180,7 @@ class MyVehicleScreen extends StatelessWidget {
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(
+                                      Icon(
                                         Icons.subtitles_outlined,
                                         size: 16,
                                         color: AppColors.textPrimaryLight,
@@ -224,26 +224,26 @@ class MyVehicleScreen extends StatelessWidget {
                               label: 'RC Number',
                               value: 'HR26AB1234',
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildInfoTile(
                               label: 'Registration Date',
                               value: '12 Mar 2021',
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildInfoTile(
                               label: 'Insurance Valid Till',
                               value: '20 Feb 2026',
                               badgeText: 'Valid',
                               badgeColor: AppColors.accentGreenDark,
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildInfoTile(
                               label: 'PUC Valid Till',
                               value: '10 Dec 2025',
                               badgeText: 'Valid',
                               badgeColor: AppColors.accentGreenDark,
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildInfoTile(
                               label: 'Fitness Valid Till',
                               value: '11 Mar 2026',
@@ -264,7 +264,7 @@ class MyVehicleScreen extends StatelessWidget {
                         ),
                         child: ListTile(
                           onTap: () => context.push(AppRoutes.onboardingDocumentsScreen),
-                          leading: const Icon(
+                          leading: Icon(
                             Icons.description_outlined,
                             color: AppColors.primary,
                           ),
@@ -275,7 +275,7 @@ class MyVehicleScreen extends StatelessWidget {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          trailing: const Icon(
+                          trailing: Icon(
                             Icons.chevron_right,
                             color: AppColors.primary,
                           ),
@@ -337,7 +337,7 @@ class MyVehicleScreen extends StatelessWidget {
                 ),
               ],
               const SizedBox(width: 4),
-              const Icon(Icons.chevron_right, size: 16, color: AppColors.textMutedLight),
+              Icon(Icons.chevron_right, size: 16, color: AppColors.textMutedLight),
             ],
           ),
         ],

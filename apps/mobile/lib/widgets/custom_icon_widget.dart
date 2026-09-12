@@ -1,3 +1,4 @@
+import 'package:adhocx/shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class CustomIconWidget extends StatelessWidget {
@@ -9024,7 +9025,7 @@ class CustomIconWidget extends StatelessWidget {
       return Icon(
         Icons.help_outline,
         size: size,
-        color: Colors.grey,
+        color: AppColors.slate400,
         semanticLabel: iconName,
       );
     }

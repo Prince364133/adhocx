@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import '../../routes/app_routes.dart';
+import '../../services/auth_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
@@ -40,7 +41,7 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.md,
                   ),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppColors.surfaceLight,
                     border: Border(
                       bottom: BorderSide(color: AppColors.borderLight),
@@ -56,7 +57,7 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
                             context.go(AppRoutes.walletScreen);
                           }
                         },
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.arrow_back,
                           color: AppColors.textPrimaryLight,
                         ),
@@ -73,7 +74,7 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
                       ),
                       IconButton(
                         onPressed: () => context.push(AppRoutes.helpSupportScreen),
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.help_outline_rounded,
                           color: AppColors.textPrimaryLight,
                         ),
@@ -125,7 +126,7 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
                     ),
                   ),
                 ),
-                const Divider(height: 1, color: AppColors.borderLight),
+                Divider(height: 1, color: AppColors.borderLight),
 
                 // ── Scrollable Body ──────────────────────────────────────────
                 Expanded(
@@ -167,15 +168,15 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
                         child: Column(
                           children: [
                             _buildDetailRow('Amount', '₹2,000', isBold: true),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildDetailRow('Bank', 'HDFC Bank'),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildDetailRow('Account Number', '•••• 4321'),
-                            const Divider(height: 1, color: AppColors.borderLight),
-                            _buildDetailRow('Account Holder', 'Rahul Sharma'),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
+                            _buildDetailRow('Account Holder', AuthService.instance.currentUser?.fullName ?? 'Driver Account Holder'),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildDetailRow('Requested On', 'May 19, 2025 • 09:15 AM'),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildDetailRow(
                               'Processed On',
                               switch (_currentState) {
@@ -186,7 +187,7 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
                                 WithdrawalStatusState.cancelled => 'May 19, 2025 • 09:30 AM (Cancelled)',
                               },
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildDetailRow(
                               'Reference ID',
                               _currentState == WithdrawalStatusState.successful
@@ -223,7 +224,7 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
                         ),
                         child: Row(
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.headset_mic_outlined,
                               color: AppColors.primary,
                             ),
@@ -300,8 +301,8 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
     };
 
     final Color statusColor = switch (_currentState) {
-      WithdrawalStatusState.requested => const Color(0xFFeab308),
-      WithdrawalStatusState.processing => const Color(0xFF0284c7),
+      WithdrawalStatusState.requested => AppColors.warning,
+      WithdrawalStatusState.processing => AppColors.info,
       WithdrawalStatusState.successful => AppColors.accentGreenDark,
       WithdrawalStatusState.failed => AppColors.error,
       WithdrawalStatusState.cancelled => AppColors.textMutedLight,
@@ -370,7 +371,7 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
                         Clipboard.setData(ClipboardData(text: withdrawalId));
                         Fluttertoast.showToast(msg: 'Withdrawal ID copied!');
                       },
-                      child: const Icon(
+                      child: Icon(
                         Icons.copy_rounded,
                         size: 14,
                         color: AppColors.primary,
@@ -451,7 +452,7 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
         : (isCancelled
             ? AppColors.textMutedLight
             : (isActive
-                ? const Color(0xFF0284c7)
+                ? AppColors.info
                 : (isDone ? AppColors.accentGreenDark : AppColors.borderLight)));
 
     final IconData icon = isFailed

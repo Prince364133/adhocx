@@ -130,6 +130,18 @@ class AppTypography {
         color: color,
       );
 
+  static TextStyle micro({
+    Color color = AppColors.textMutedDark,
+    FontWeight? fontWeight,
+    double? fontSize,
+  }) =>
+      GoogleFonts.inter(
+        fontSize: fontSize ?? 11,
+        fontWeight: fontWeight ?? FontWeight.w500,
+        height: 1.3,
+        color: color,
+      );
+
   static TextStyle label({
     Color color = AppColors.textSecondaryDark,
     FontWeight? fontWeight,

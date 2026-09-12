@@ -14,14 +14,14 @@ class EdgeCaseInspectorWidget extends StatelessWidget {
         final mgr = EdgeCaseManager.instance;
 
         return Container(
-          color: const Color(0xFF0f172a),
+          color: AppColors.textPrimaryLight,
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           child: Row(
             children: [
-              const Text(
+              Text(
                 'EDGE CASES:',
                 style: TextStyle(
-                  color: Color(0xFFf59e0b),
+                  color: AppColors.warning,
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
                 ),
@@ -74,7 +74,7 @@ class EdgeCaseInspectorWidget extends StatelessWidget {
         margin: const EdgeInsets.only(right: 6),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
         decoration: BoxDecoration(
-          color: isActive ? AppColors.error : const Color(0xFF334155),
+          color: isActive ? AppColors.error : AppColors.borderDark,
           borderRadius: BorderRadius.circular(4),
         ),
         child: Row(

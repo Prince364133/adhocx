@@ -88,8 +88,8 @@ class _UserDraftRequirementsScreenState extends State<UserDraftRequirementsScree
                     onSelected: (selected) {
                       if (selected) setState(() => _selectedTab = tab);
                     },
-                    selectedColor: const Color(0xFF6C5CE7),
-                    backgroundColor: isDark ? AppColors.surfaceDark : Colors.grey[200],
+                    selectedColor: AppColors.primary,
+                    backgroundColor: isDark ? AppColors.surfaceDark : AppColors.slate200,
                     labelStyle: TextStyle(
                       color: isSelected ? Colors.white : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
@@ -131,7 +131,7 @@ class _UserDraftRequirementsScreenState extends State<UserDraftRequirementsScree
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const Icon(Icons.more_horiz, color: Colors.grey),
+                          const Icon(Icons.more_horiz, color: AppColors.slate400),
                         ],
                       ),
                       const SizedBox(height: 2),
@@ -155,8 +155,8 @@ class _UserDraftRequirementsScreenState extends State<UserDraftRequirementsScree
                           OutlinedButton(
                             onPressed: () => context.push(AppRoutes.userCreateRequirementScreen),
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFF6C5CE7),
-                              side: const BorderSide(color: Color(0xFF6C5CE7)),
+                              foregroundColor: AppColors.primary,
+                              side: BorderSide(color: AppColors.primary),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                             ),
                             child: const Text('Continue', style: TextStyle(fontWeight: FontWeight.bold)),

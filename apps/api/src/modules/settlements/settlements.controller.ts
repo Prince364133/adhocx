@@ -39,6 +39,13 @@ export class SettlementsController {
     return this.settlementsService.requestWithdrawal(user.id, dto);
   }
 
+  @Get('wallet')
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({ summary: 'Get current driver wallet balance and transaction summary' })
+  async getDriverWallet(@CurrentUser() user: AuthUserDto) {
+    return this.settlementsService.getDriverWalletSummary(user.id);
+  }
+
   @Get()
   @Roles(UserRole.DRIVER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get settlements (driver sees own, admin sees all)' })

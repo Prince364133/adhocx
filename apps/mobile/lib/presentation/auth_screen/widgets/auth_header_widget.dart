@@ -48,7 +48,7 @@ class AuthHeaderWidget extends StatelessWidget {
               TextSpan(
                 text: 'X',
                 style: const TextStyle(
-                  color: Color(0xFFFF6200),
+                  color: AppColors.brandOrange,
                   fontWeight: FontWeight.w900,
                   fontSize: 40,
                   fontFamily: 'Inter',

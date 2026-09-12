@@ -68,7 +68,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.md,
                   ),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppColors.surfaceLight,
                     border: Border(
                       bottom: BorderSide(color: AppColors.borderLight),
@@ -84,7 +84,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                             context.go(AppRoutes.myVehicleScreen);
                           }
                         },
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.arrow_back,
                           color: AppColors.textPrimaryLight,
                         ),
@@ -250,15 +250,15 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              borderSide: const BorderSide(color: AppColors.borderLight),
+              borderSide: BorderSide(color: AppColors.borderLight),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              borderSide: const BorderSide(color: AppColors.borderLight),
+              borderSide: BorderSide(color: AppColors.borderLight),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              borderSide: const BorderSide(color: AppColors.primary),
+              borderSide: BorderSide(color: AppColors.primary),
             ),
           ),
         ),
@@ -276,7 +276,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.cloud_upload_outlined, color: AppColors.primary),
+          Icon(Icons.cloud_upload_outlined, color: AppColors.primary),
           const SizedBox(width: 12),
           Expanded(
             child: Text(

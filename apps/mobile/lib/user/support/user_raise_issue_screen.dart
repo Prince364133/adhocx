@@ -85,7 +85,7 @@ class _UserRaiseIssueScreenState extends State<UserRaiseIssueScreen> {
               ),
               const Align(
                 alignment: Alignment.centerRight,
-                child: Text('0/500', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                child: Text('0/500', style: TextStyle(fontSize: 10, color: AppColors.slate400)),
               ),
 
               const SizedBox(height: AppSpacing.md),
@@ -105,7 +105,7 @@ class _UserRaiseIssueScreenState extends State<UserRaiseIssueScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.file_upload_outlined, color: Color(0xFF6C5CE7)),
+                      Icon(Icons.file_upload_outlined, color: AppColors.primary),
                       const SizedBox(height: 4),
                       Text('Add Attachment', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)),
                       Text('Upload screenshots or documents.', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontSize: 10)),

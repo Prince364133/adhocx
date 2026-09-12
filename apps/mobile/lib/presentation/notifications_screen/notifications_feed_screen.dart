@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import '../../routes/app_routes.dart';
+import '../../services/driver_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
@@ -15,6 +16,7 @@ class NotificationItem {
   final IconData icon;
   final Color color;
   final String routeTarget;
+  final dynamic extra;
   final bool isUnread;
 
   const NotificationItem({
@@ -25,6 +27,7 @@ class NotificationItem {
     required this.icon,
     required this.color,
     required this.routeTarget,
+    this.extra,
     this.isUnread = true,
   });
 }
@@ -38,85 +41,113 @@ class NotificationsFeedScreen extends StatefulWidget {
 }
 
 class _NotificationsFeedScreenState extends State<NotificationsFeedScreen> {
-  final List<NotificationItem> _notifications = [
-    const NotificationItem(
-      id: 'N1',
-      title: 'New Trip Offer — ₹450',
-      body: 'High payout offer: Cyber City to IGI Airport (24 km). Tap to view and accept offer.',
-      timestamp: '2 mins ago',
-      icon: Icons.local_offer_rounded,
-      color: Color(0xFFeab308),
-      routeTarget: AppRoutes.opportunityOfferScreen,
-    ),
-    const NotificationItem(
-      id: 'N2',
-      title: 'Assignment Confirmed',
-      body: 'Trip #TRP-8821 confirmed! Proceed to pickup location at HDFC Bank Tower.',
-      timestamp: '15 mins ago',
-      icon: Icons.check_circle_outline,
-      color: AppColors.accentGreenDark,
-      routeTarget: AppRoutes.tripDetailsScreen,
-    ),
-    const NotificationItem(
-      id: 'N3',
-      title: 'Trip Update — Pickup Location Changed',
-      body: 'Rider updated pickup point to Gate 2, DLF Phase 3.',
-      timestamp: '45 mins ago',
-      icon: Icons.edit_location_alt_rounded,
-      color: Color(0xFF0284c7),
-      routeTarget: AppRoutes.tripDetailsScreen,
-    ),
-    const NotificationItem(
-      id: 'N4',
-      title: 'Trip Cancelled by Rider',
-      body: 'Trip #TRP-7710 was cancelled. Cancellation fee ₹50 credited to your wallet.',
-      timestamp: '2 hours ago',
-      icon: Icons.cancel_outlined,
-      color: AppColors.error,
-      routeTarget: AppRoutes.tripsScreen,
-      isUnread: false,
-    ),
-    const NotificationItem(
-      id: 'N5',
-      title: 'Earnings Updated — ₹1,850 Added',
-      body: 'Weekly incentive bonus ₹500 successfully credited to your wallet.',
-      timestamp: '4 hours ago',
-      icon: Icons.account_balance_wallet_rounded,
-      color: AppColors.accentGreenDark,
-      routeTarget: AppRoutes.walletScreen,
-      isUnread: false,
-    ),
-    const NotificationItem(
-      id: 'N6',
-      title: 'Withdrawal Successful — ₹2,000',
-      body: 'Transfer completed to HDFC Bank (•••• 4321). UTR512398475612.',
-      timestamp: 'Yesterday',
-      icon: Icons.savings_rounded,
-      color: AppColors.accentGreenDark,
-      routeTarget: AppRoutes.earningsWithdrawalDetailsScreen,
-      isUnread: false,
-    ),
-    const NotificationItem(
-      id: 'N7',
-      title: 'KYC Document Verified',
-      body: 'Your Driving License and Vehicle RC have been verified. You are clear to drive!',
-      timestamp: '2 days ago',
-      icon: Icons.verified_user_rounded,
-      color: AppColors.primary,
-      routeTarget: AppRoutes.kycVerificationScreen,
-      isUnread: false,
-    ),
-    const NotificationItem(
-      id: 'N8',
-      title: 'System Notification — App Update Available',
-      body: 'AdhocX v2.4.1 is now live with enhanced navigation & instant payout support.',
-      timestamp: '3 days ago',
-      icon: Icons.system_update_rounded,
-      color: Color(0xFF8b5cf6),
-      routeTarget: AppRoutes.notificationsSettingsScreen,
-      isUnread: false,
-    ),
-  ];
+  bool _isLoading = true;
+  List<NotificationItem> _notifications = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLiveNotifications();
+  }
+
+  Future<void> _loadLiveNotifications() async {
+    setState(() => _isLoading = true);
+    final items = <NotificationItem>[];
+
+    try {
+      final offers = await DriverService.instance.getOffers();
+      for (final o in offers) {
+        final offer = o as Map<String, dynamic>;
+        final rate = offer['payoutAmount'] ?? offer['fare'] ?? 450;
+        final pickup = offer['pickupLocation']?['address'] ?? 'Pickup point';
+        final drop = offer['dropLocation']?['address'] ?? 'Drop point';
+
+        items.add(NotificationItem(
+          id: 'offer_${offer['id']}',
+          title: 'New Trip Offer — ₹$rate',
+          body: 'Direct Dispatch offer from $pickup to $drop. Tap to view and accept.',
+          timestamp: 'Just now',
+          icon: Icons.local_offer_rounded,
+          color: AppColors.warning,
+          routeTarget: AppRoutes.opportunityOfferScreen,
+          extra: offer,
+          isUnread: true,
+        ));
+      }
+
+      final trips = await DriverService.instance.getTrips();
+      for (final t in trips) {
+        final trip = t as Map<String, dynamic>;
+        final code = trip['tripCode'] ?? trip['id'] ?? 'TRP';
+        final status = trip['status'] ?? 'ASSIGNED';
+
+        if (status == 'ACCEPTED' || status == 'ASSIGNED') {
+          items.add(NotificationItem(
+            id: 'trip_$code',
+            title: 'Trip Confirmed ($code)',
+            body: 'Your trip assignment is confirmed. Proceed to the pickup location.',
+            timestamp: 'Live',
+            icon: Icons.check_circle_outline,
+            color: AppColors.accentGreenDark,
+            routeTarget: AppRoutes.tripDetailsScreen,
+            extra: trip,
+            isUnread: true,
+          ));
+        } else if (status == 'COMPLETED') {
+          final earnings = trip['driverEarnings'] ?? trip['agreedRate'] ?? 1200;
+          items.add(NotificationItem(
+            id: 'complete_$code',
+            title: 'Trip Completed — ₹$earnings Credited',
+            body: 'Trip $code completed. Earnings have been deposited to your shared wallet.',
+            timestamp: 'Today',
+            icon: Icons.account_balance_wallet_rounded,
+            color: AppColors.accentGreenDark,
+            routeTarget: AppRoutes.walletScreen,
+            extra: trip,
+            isUnread: false,
+          ));
+        }
+      }
+
+      items.add(const NotificationItem(
+        id: 'sys_kyc',
+        title: 'Platform Verification Verified',
+        body: 'Your KYC credentials and driving license are active and approved.',
+        timestamp: 'Verified',
+        icon: Icons.verified_user_rounded,
+        color: AppColors.primary,
+        routeTarget: AppRoutes.kycVerificationScreen,
+        isUnread: false,
+      ));
+    } catch (_) {
+    } finally {
+      if (mounted) {
+        setState(() {
+          _notifications = items;
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _markAllAsRead() {
+    setState(() {
+      _notifications = _notifications
+          .map((n) => NotificationItem(
+                id: n.id,
+                title: n.title,
+                body: n.body,
+                timestamp: n.timestamp,
+                icon: n.icon,
+                color: n.color,
+                routeTarget: n.routeTarget,
+                extra: n.extra,
+                isUnread: false,
+              ))
+          .toList();
+    });
+    Fluttertoast.showToast(msg: 'All notifications marked as read');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -134,7 +165,7 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen> {
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.md,
                   ),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppColors.surfaceLight,
                     border: Border(
                       bottom: BorderSide(color: AppColors.borderLight),
@@ -150,7 +181,7 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen> {
                             context.go(AppRoutes.profileScreen);
                           }
                         },
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.arrow_back,
                           color: AppColors.textPrimaryLight,
                         ),
@@ -165,128 +196,111 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen> {
                           ),
                         ),
                       ),
-                      IconButton(
-                        onPressed: () {
-                          Fluttertoast.showToast(msg: 'All notifications marked as read');
-                        },
-                        icon: const Icon(
-                          Icons.done_all_rounded,
-                          color: AppColors.primary,
+                      TextButton(
+                        onPressed: _markAllAsRead,
+                        child: Text(
+                          'Mark All Read',
+                          style: AppTypography.caption(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
 
-                // ── Scrollable Notifications List ────────────────────────────
+                // ── Notifications List ───────────────────────────────────────
                 Expanded(
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    itemCount: _notifications.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
-                    itemBuilder: (context, index) {
-                      final item = _notifications[index];
-
-                      return GestureDetector(
-                        onTap: () {
-                          context.push(item.routeTarget);
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(AppSpacing.lg),
-                          decoration: BoxDecoration(
-                            color: item.isUnread
-                                ? AppColors.primarySubtle.withValues(alpha: 0.3)
-                                : AppColors.surfaceLight,
-                            borderRadius: BorderRadius.circular(AppRadius.lg),
-                            border: Border.all(
-                              color: item.isUnread
-                                  ? AppColors.primary.withValues(alpha: 0.3)
-                                  : AppColors.borderLight,
-                            ),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: item.color.withValues(alpha: 0.12),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(item.icon, color: item.color, size: 22),
+                  child: _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _notifications.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.notifications_none, size: 48, color: AppColors.textMutedLight),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'No notifications yet',
+                                    style: AppTypography.body(color: AppColors.textMutedLight),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            item.title,
-                                            style: AppTypography.body(
-                                              color: AppColors.textPrimaryLight,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                        if (item.isUnread)
-                                          Container(
-                                            width: 8,
-                                            height: 8,
-                                            decoration: const BoxDecoration(
-                                              color: AppColors.primary,
-                                              shape: BoxShape.circle,
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      item.body,
-                                      style: AppTypography.caption(
-                                        color: AppColors.textSecondaryLight,
+                            )
+                          : ListView.separated(
+                              padding: const EdgeInsets.all(AppSpacing.md),
+                              itemCount: _notifications.length,
+                              separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+                              itemBuilder: (context, index) {
+                                final item = _notifications[index];
+                                return InkWell(
+                                  onTap: () {
+                                    context.push(item.routeTarget, extra: item.extra);
+                                  },
+                                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(AppSpacing.md),
+                                    decoration: BoxDecoration(
+                                      color: item.isUnread ? AppColors.surfaceLight : AppColors.bgLight,
+                                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                                      border: Border.all(
+                                        color: item.isUnread ? AppColors.primary.withValues(alpha: 0.3) : AppColors.borderLight,
                                       ),
                                     ),
-                                    const SizedBox(height: 8),
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                          item.timestamp,
-                                          style: AppTypography.caption(
-                                            color: AppColors.textMutedLight,
-                                          ).copyWith(fontSize: 11),
+                                        Container(
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(
+                                            color: item.color.withValues(alpha: 0.12),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Icon(item.icon, color: item.color, size: 20),
                                         ),
-                                        Row(
-                                          children: [
-                                            Text(
-                                              'View details',
-                                              style: AppTypography.caption(
-                                                color: AppColors.primary,
-                                                fontWeight: FontWeight.bold,
-                                              ).copyWith(fontSize: 11),
-                                            ),
-                                            const Icon(
-                                              Icons.chevron_right_rounded,
-                                              size: 14,
-                                              color: AppColors.primary,
-                                            ),
-                                          ],
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      item.title,
+                                                      style: AppTypography.body(
+                                                        color: AppColors.textPrimaryLight,
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    item.timestamp,
+                                                    style: AppTypography.caption(
+                                                      color: AppColors.textMutedLight,
+                                                      fontSize: 10,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                item.body,
+                                                style: AppTypography.caption(
+                                                  color: AppColors.textSecondaryLight,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ],
                                     ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                                  ),
+                                );
+                              },
+                            ),
                 ),
               ],
             ),

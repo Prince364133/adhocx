@@ -58,4 +58,27 @@ class AppColors {
   static const Color info = Color(0xFF0284C7); // Sky 600
   static const Color infoContainer = Color(0xFFE0F2FE); // Light sky container
   static const Color infoText = Color(0xFF0369A1); // Sky text
+
+  // ── Brand & Feature Accents ──────────────────────────────────────────────
+  static const Color brandOrange = Color(0xFFFF6200); // AdhocX Brand Orange Accent
+  static const Color accentPurple = Color(0xFFA855F7); // Purple 500
+  static const Color starAmber = Color(0xFFF59E0B); // Amber 500 for rating stars
+
+  // ── Social Auth Palette ──────────────────────────────────────────────────
+  static const Color googleBlue = Color(0xFF4285F4);
+  static const Color googleGreen = Color(0xFF34A853);
+  static const Color googleYellow = Color(0xFFFBBC05);
+  static const Color googleRed = Color(0xFFEA4335);
+
+  // ── Extended Slate Scale ─────────────────────────────────────────────────
+  static const Color slate50 = Color(0xFFF8FAFC);
+  static const Color slate100 = Color(0xFFF1F5F9);
+  static const Color slate200 = Color(0xFFE2E8F0);
+  static const Color slate300 = Color(0xFFCBD5E1);
+  static const Color slate400 = Color(0xFF94A3B8);
+  static const Color slate500 = Color(0xFF64748B);
+  static const Color slate600 = Color(0xFF475569);
+  static const Color slate700 = Color(0xFF334155);
+  static const Color slate800 = Color(0xFF1E293B);
+  static const Color slate900 = Color(0xFF0F172A);
 }

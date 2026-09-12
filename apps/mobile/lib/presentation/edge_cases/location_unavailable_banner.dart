@@ -1,3 +1,4 @@
+import 'package:adhocx/shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import '../../services/edge_case_manager.dart';
 import '../../theme/app_radius.dart';
@@ -16,12 +17,12 @@ class LocationUnavailableBanner extends StatelessWidget {
         horizontal: AppSpacing.lg,
         vertical: AppSpacing.md,
       ),
-      color: const Color(0xFFfff7ed),
+      color: AppColors.warningContainer,
       child: Row(
         children: [
           const Icon(
             Icons.location_off_rounded,
-            color: Color(0xFFea580c),
+            color: AppColors.warning,
             size: 18,
           ),
           const SizedBox(width: 10),
@@ -29,7 +30,7 @@ class LocationUnavailableBanner extends StatelessWidget {
             child: Text(
               'Location Unavailable • Weak GPS signal. Enable High Accuracy mode.',
               style: AppTypography.caption(
-                color: const Color(0xFFc2410c),
+                color: AppColors.warningText,
                 fontWeight: FontWeight.w600,
               ).copyWith(fontSize: 11),
             ),
@@ -42,7 +43,7 @@ class LocationUnavailableBanner extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFFea580c),
+                color: AppColors.warning,
                 borderRadius: BorderRadius.circular(AppRadius.xs),
               ),
               child: Text(

@@ -24,7 +24,7 @@ class AppStepperHeader extends StatelessWidget {
             if (onBack != null)
               IconButton(
                 onPressed: onBack,
-                icon: const Icon(
+                icon: Icon(
                   Icons.arrow_back,
                   color: AppColors.textPrimaryLight,
                 ),

@@ -40,6 +40,13 @@ export class BidsController {
     return this.bidsService.getBidsForDriver(user.id, query);
   }
 
+  @Get('open-opportunities')
+  @Roles(UserRole.DRIVER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get open outstation bidding opportunities for driver quotes' })
+  async getOpenBiddingOpportunities(@CurrentUser() user: AuthUserDto) {
+    return this.bidsService.getOpenBiddingOpportunities(user.id);
+  }
+
   @Get('requirement/:requirementId')
   @Roles(UserRole.VENDOR, UserRole.ADMIN, UserRole.DRIVER)
   @ApiOperation({ summary: 'Get all competing bids for a requirement' })

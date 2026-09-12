@@ -1,3 +1,4 @@
+import '../../../shared/theme/app_colors.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 
@@ -66,7 +67,7 @@ class _TripAlertModalWidgetState extends State<TripAlertModalWidget>
         position: _slideAnim,
         child: Container(
           decoration: BoxDecoration(
-            color: const Color(0xFF020617).withAlpha(250),
+            color: AppColors.bgDark.withAlpha(250),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -74,9 +75,9 @@ class _TripAlertModalWidgetState extends State<TripAlertModalWidget>
               // Progress bar
               LinearProgressIndicator(
                 value: progress,
-                backgroundColor: const Color(0xFF334155),
+                backgroundColor: AppColors.borderDark,
                 valueColor: const AlwaysStoppedAnimation<Color>(
-                  Color(0xFFf59e0b),
+                  AppColors.warning,
                 ),
                 minHeight: 3,
               ),
@@ -85,15 +86,15 @@ class _TripAlertModalWidgetState extends State<TripAlertModalWidget>
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1e293b),
+                    color: AppColors.surfaceElevatedDark,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: const Color(0xFFf59e0b).withAlpha(128),
+                      color: AppColors.warning.withAlpha(128),
                       width: 1.5,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFf59e0b).withAlpha(26),
+                        color: AppColors.warning.withAlpha(26),
                         blurRadius: 20,
                       ),
                     ],
@@ -125,16 +126,16 @@ class _TripAlertModalWidgetState extends State<TripAlertModalWidget>
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFf59e0b).withAlpha(38),
+                              color: AppColors.warning.withAlpha(38),
                               borderRadius: BorderRadius.circular(999),
                               border: Border.all(
-                                color: const Color(0xFFf59e0b).withAlpha(102),
+                                color: AppColors.warning.withAlpha(102),
                               ),
                             ),
                             child: Text(
                               '${_secondsLeft}s',
-                              style: const TextStyle(
-                                color: Color(0xFFf59e0b),
+                              style: TextStyle(
+                                color: AppColors.warning,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
                                 fontFamily: 'monospace',
@@ -147,7 +148,7 @@ class _TripAlertModalWidgetState extends State<TripAlertModalWidget>
                       // Pickup
                       _addressRow(
                         icon: Icons.navigation_rounded,
-                        iconColor: const Color(0xFF10b981),
+                        iconColor: AppColors.success,
                         label: 'Pickup',
                         address: widget.trip['pickup'] as String,
                       ),
@@ -155,7 +156,7 @@ class _TripAlertModalWidgetState extends State<TripAlertModalWidget>
                       // Drop
                       _addressRow(
                         icon: Icons.location_pin,
-                        iconColor: const Color(0xFFef4444),
+                        iconColor: AppColors.error,
                         label: 'Drop',
                         address: widget.trip['drop'] as String,
                       ),
@@ -179,7 +180,7 @@ class _TripAlertModalWidgetState extends State<TripAlertModalWidget>
                             label: 'Payout',
                             value: '₹${widget.trip['payout']}',
                             icon: Icons.currency_rupee_rounded,
-                            valueColor: const Color(0xFF10b981),
+                            valueColor: AppColors.success,
                           ),
                         ],
                       ),
@@ -198,14 +199,14 @@ class _TripAlertModalWidgetState extends State<TripAlertModalWidget>
                                   color: Colors.transparent,
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: const Color(0xFF334155),
+                                    color: AppColors.borderDark,
                                   ),
                                 ),
-                                child: const Text(
+                                child: Text(
                                   'Decline',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
-                                    color: Color(0xFF94a3b8),
+                                    color: AppColors.textMutedDark,
                                     fontWeight: FontWeight.w600,
                                     fontSize: 14,
                                   ),
@@ -223,7 +224,7 @@ class _TripAlertModalWidgetState extends State<TripAlertModalWidget>
                                   vertical: 13,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF10b981),
+                                  color: AppColors.success,
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: const Text(
@@ -260,7 +261,7 @@ class _TripAlertModalWidgetState extends State<TripAlertModalWidget>
           width: 10,
           height: 10,
           decoration: BoxDecoration(
-            color: const Color(0xFFf59e0b).withValues(alpha: value),
+            color: AppColors.warning.withValues(alpha: value),
             shape: BoxShape.circle,
           ),
         );
@@ -285,7 +286,7 @@ class _TripAlertModalWidgetState extends State<TripAlertModalWidget>
             children: [
               Text(
                 label,
-                style: const TextStyle(color: Color(0xFF94a3b8), fontSize: 10),
+                style: TextStyle(color: AppColors.textMutedDark, fontSize: 10),
               ),
               Text(
                 address,
@@ -312,13 +313,13 @@ class _TripAlertModalWidgetState extends State<TripAlertModalWidget>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
         decoration: BoxDecoration(
-          color: const Color(0xFF0f172a),
+          color: AppColors.textPrimaryLight,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFF334155)),
+          border: Border.all(color: AppColors.borderDark),
         ),
         child: Column(
           children: [
-            Icon(icon, color: const Color(0xFF94a3b8), size: 14),
+            Icon(icon, color: AppColors.textMutedDark, size: 14),
             const SizedBox(height: 4),
             Text(
               value,
@@ -331,7 +332,7 @@ class _TripAlertModalWidgetState extends State<TripAlertModalWidget>
             ),
             Text(
               label,
-              style: const TextStyle(color: Color(0xFF475569), fontSize: 10),
+              style: TextStyle(color: AppColors.textSecondaryLight, fontSize: 10),
             ),
           ],
         ),

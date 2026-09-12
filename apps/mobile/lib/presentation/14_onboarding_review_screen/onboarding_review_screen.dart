@@ -97,7 +97,7 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
           const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(fontSize: 9, color: AppColors.textSecondaryLight),
+            style: TextStyle(fontSize: 9, color: AppColors.textSecondaryLight),
             textAlign: TextAlign.center,
             maxLines: 1,
           ),
@@ -167,7 +167,7 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                         Text(
                           onboarding.fullName.isNotEmpty
                               ? onboarding.fullName
-                              : 'Rahul Sharma',
+                              : 'Partner Account',
                           style: AppTypography.h3(
                             color: AppColors.textPrimaryLight,
                             fontWeight: FontWeight.bold,

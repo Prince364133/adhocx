@@ -1,3 +1,4 @@
+import '../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 enum BadgeStyle { success, error, warning, info, neutral }
@@ -38,15 +39,15 @@ class StatusBadgeWidget extends StatelessWidget {
   Color get _bgColor {
     switch (style) {
       case BadgeStyle.success:
-        return const Color(0xFF10b981);
+        return AppColors.success;
       case BadgeStyle.error:
-        return const Color(0xFFef4444);
+        return AppColors.error;
       case BadgeStyle.warning:
-        return const Color(0xFFf59e0b);
+        return AppColors.warning;
       case BadgeStyle.info:
-        return const Color(0xFF0ea5e9);
+        return AppColors.info;
       case BadgeStyle.neutral:
-        return const Color(0xFF94a3b8);
+        return AppColors.textMutedDark;
     }
   }
 }

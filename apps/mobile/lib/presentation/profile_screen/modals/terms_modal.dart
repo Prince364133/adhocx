@@ -1,3 +1,4 @@
+import '../../../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class _ModalShell extends StatelessWidget {
@@ -51,7 +52,7 @@ class TermsModal extends StatelessWidget {
     return _ModalShell(
       title: 'Terms & Conditions',
       icon: Icons.gavel_rounded,
-      iconColor: const Color(0xFF94a3b8),
+      iconColor: AppColors.textMutedDark,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: const [
@@ -111,8 +112,8 @@ class _TermsSection extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           body,
-          style: const TextStyle(
-            color: Color(0xFF94a3b8),
+          style: TextStyle(
+            color: AppColors.textMutedDark,
             fontSize: 13,
             height: 1.5,
           ),

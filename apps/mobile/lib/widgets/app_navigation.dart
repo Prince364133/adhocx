@@ -1,3 +1,4 @@
+import '../shared/theme/app_colors.dart';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -89,7 +90,7 @@ class _AppNavigationState extends State<AppNavigation> {
             height: 64,
             decoration: BoxDecoration(
               color: isDark
-                  ? const Color(0xFF0d1117).withAlpha(210)
+                  ? AppColors.bgDark.withAlpha(210)
                   : cs.surface.withAlpha(230),
               border: Border(top: BorderSide(color: cs.outline, width: 1)),
             ),
@@ -120,7 +121,7 @@ class _AppNavigationState extends State<AppNavigation> {
                               ),
                               decoration: BoxDecoration(
                                 color: isActive
-                                    ? const Color(0xFF6366f1).withAlpha(38)
+                                    ? AppColors.primary.withAlpha(38)
                                     : Colors.transparent,
                                 borderRadius: BorderRadius.circular(999),
                               ),
@@ -129,7 +130,7 @@ class _AppNavigationState extends State<AppNavigation> {
                                     ? tab.selectedIcon
                                     : tab.icon,
                                 color: isActive
-                                    ? const Color(0xFF6366f1)
+                                    ? AppColors.primary
                                     : cs.onSurfaceVariant,
                                 size: 18,
                               ),
@@ -143,7 +144,7 @@ class _AppNavigationState extends State<AppNavigation> {
                                     ? FontWeight.w600
                                     : FontWeight.w400,
                                 color: isActive
-                                    ? const Color(0xFF6366f1)
+                                    ? AppColors.primary
                                     : cs.onSurfaceVariant,
                               ),
                               child: Text(

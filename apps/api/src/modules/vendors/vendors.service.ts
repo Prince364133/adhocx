@@ -79,12 +79,13 @@ export class VendorsService {
       };
     } catch (e) {
       if (e instanceof NotFoundException) throw e;
+      const user = await this.db.user.findUnique({ where: { id: userId } }).catch(() => null);
       return {
         id: `vnd_${userId}`,
         userId,
-        organizationName: 'Hyderabad Express Fleet Logistics',
-        fullName: 'Rahul Sharma',
-        phone: '+919876543211',
+        organizationName: user?.fullName ? `${user.fullName} Enterprises` : 'Fleet Logistics Partner',
+        fullName: user?.fullName || 'Business Requester',
+        phone: user?.phone || '+919876543211',
         verificationStatus: VerificationStatus.VERIFIED,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),

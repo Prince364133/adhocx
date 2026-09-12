@@ -1,3 +1,4 @@
+import 'package:adhocx/shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -72,29 +73,29 @@ class _KycBankingSectionWidgetState extends State<KycBankingSectionWidget> {
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
                 initialValue: _selectedBank,
-                dropdownColor: const Color(0xFF111111),
+                dropdownColor: AppColors.surfaceDark,
                 style: const TextStyle(color: Colors.white, fontSize: 14),
                 decoration: InputDecoration(
                   hintText: 'Select or search your bank',
                   hintStyle: const TextStyle(color: Colors.white38),
                   prefixIcon: const Icon(Icons.account_balance_outlined, color: Colors.white70, size: 18),
                   filled: true,
-                  fillColor: const Color(0xFF111111),
+                  fillColor: AppColors.surfaceDark,
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: const BorderSide(color: Colors.white24),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Colors.green),
+                    borderSide: const BorderSide(color: AppColors.success),
                   ),
                   errorBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Colors.redAccent),
+                    borderSide: const BorderSide(color: AppColors.error),
                   ),
                   focusedErrorBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Colors.redAccent),
+                    borderSide: const BorderSide(color: AppColors.error),
                   ),
                 ),
                 isExpanded: true,
@@ -179,7 +180,7 @@ class _KycSection extends StatelessWidget {
                 width: 24,
                 height: 24,
                 decoration: BoxDecoration(
-                  color: Colors.green,
+                  color: AppColors.success,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Center(
@@ -197,7 +198,7 @@ class _KycSection extends StatelessWidget {
               Text(
                 title,
                 style: const TextStyle(
-                  color: Colors.green,
+                  color: AppColors.success,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
@@ -257,22 +258,22 @@ class _KycField extends StatelessWidget {
             hintStyle: const TextStyle(color: Colors.white38),
             prefixIcon: Icon(icon, color: Colors.white70, size: 18),
             filled: true,
-            fillColor: const Color(0xFF111111),
+            fillColor: AppColors.surfaceDark,
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(color: Colors.white24),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Colors.green),
+              borderSide: const BorderSide(color: AppColors.success),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Colors.redAccent),
+              borderSide: const BorderSide(color: AppColors.error),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Colors.redAccent),
+              borderSide: const BorderSide(color: AppColors.error),
             ),
           ),
           onSaved: onSaved,

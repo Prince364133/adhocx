@@ -145,7 +145,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.shield_outlined,
                           size: 14,
                           color: AppColors.accentGreen,

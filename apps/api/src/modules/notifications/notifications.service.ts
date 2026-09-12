@@ -216,7 +216,7 @@ export class NotificationsService implements OnModuleInit {
   constructor(private readonly configService: ConfigService) {}
 
   async onModuleInit() {
-    const host = this.configService.get<string>('SMTP_HOST', 'smtp.gmail.com');
+    const host = this.configService.get<string>('SMTP_HOST', '');
     const port = this.configService.get<number>('SMTP_PORT', 587);
     const secure = this.configService.get<string>('SMTP_SECURE', 'false') === 'true';
     const user = this.configService.get<string>('SMTP_USER', '');
@@ -362,7 +362,9 @@ export class NotificationsService implements OnModuleInit {
     const name = fullName || 'Partner';
 
     if (email) {
-      await this.sendEmail(email, '🌟 Welcome to AdhocX!', welcomeEmailTemplate(name, role));
+      this.sendEmail(email, '🌟 Welcome to AdhocX!', welcomeEmailTemplate(name, role)).catch((err) => {
+        this.logger.warn(`Welcome email dispatch notice: ${err.message}`);
+      });
     }
 
     const recipient = email || phone || 'Partner';

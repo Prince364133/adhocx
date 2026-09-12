@@ -1,3 +1,4 @@
+import '../../../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class TripsWaitingStateWidget extends StatefulWidget {
@@ -40,9 +41,9 @@ class _TripsWaitingStateWidgetState extends State<TripsWaitingStateWidget>
         child: Container(
           padding: const EdgeInsets.all(32),
           decoration: BoxDecoration(
-            color: const Color(0xFF1e293b),
+            color: AppColors.surfaceElevatedDark,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFF10b981).withAlpha(77)),
+            border: Border.all(color: AppColors.success.withAlpha(77)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -65,9 +66,9 @@ class _TripsWaitingStateWidgetState extends State<TripsWaitingStateWidget>
                         width: 2,
                       ),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.power_settings_new_rounded,
-                      color: Color(0xFF10b981),
+                      color: AppColors.success,
                       size: 40,
                     ),
                   );
@@ -83,9 +84,9 @@ class _TripsWaitingStateWidgetState extends State<TripsWaitingStateWidget>
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Trip alerts will appear here when available',
-                style: TextStyle(color: Color(0xFF94a3b8), fontSize: 13),
+                style: TextStyle(color: AppColors.textMutedDark, fontSize: 13),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
@@ -105,7 +106,7 @@ class _TripsWaitingStateWidgetState extends State<TripsWaitingStateWidget>
                         width: 6,
                         height: 6,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF10b981).withValues(alpha: value),
+                          color: AppColors.success.withValues(alpha: value),
                           shape: BoxShape.circle,
                         ),
                       );

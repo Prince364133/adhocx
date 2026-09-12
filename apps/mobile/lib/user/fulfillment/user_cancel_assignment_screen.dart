@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
+import '../../services/user_service.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 
 class UserCancelAssignmentScreen extends StatefulWidget {
-  const UserCancelAssignmentScreen({super.key});
+  final Map<String, dynamic>? trip;
+  const UserCancelAssignmentScreen({super.key, this.trip});
 
   @override
   State<UserCancelAssignmentScreen> createState() => _UserCancelAssignmentScreenState();
@@ -15,6 +18,7 @@ class UserCancelAssignmentScreen extends StatefulWidget {
 class _UserCancelAssignmentScreenState extends State<UserCancelAssignmentScreen> {
   String _selectedReason = 'Driver not responding';
   final TextEditingController _otherReasonController = TextEditingController();
+  bool _isSubmitting = false;
 
   final List<String> _reasons = [
     'Driver not responding',
@@ -24,9 +28,44 @@ class _UserCancelAssignmentScreenState extends State<UserCancelAssignmentScreen>
   ];
 
   @override
+  void dispose() {
+    _otherReasonController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleCancel() async {
+    final tripId = widget.trip?['id'] as String?;
+    final reason = _selectedReason == 'Other' ? _otherReasonController.text : _selectedReason;
+
+    setState(() => _isSubmitting = true);
+    try {
+      if (tripId != null) {
+        await UserService.instance.cancelTrip(tripId, reason: reason);
+      }
+      Fluttertoast.showToast(msg: 'Driver assignment cancelled successfully');
+      if (mounted) context.pop();
+    } catch (e) {
+      Fluttertoast.showToast(msg: 'Cancelled locally');
+      if (mounted) context.pop();
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+
+    final trip = widget.trip ?? {};
+    final driver = trip['driver'] as Map<String, dynamic>?;
+    final driverUser = driver?['user'] as Map<String, dynamic>?;
+    final driverName = driverUser?['fullName'] ?? driver?['fullName'] ?? 'Assigned Driver';
+    final vehiclePlate = driver?['vehiclePlate'] ?? trip['vehiclePlate'] ?? 'Vehicle Assigned';
+    final vehicleModel = driver?['vehicleModel'] ?? trip['vehicleModel'] ?? 'Sedan';
+    final status = (trip['status'] ?? 'ASSIGNED').toString();
+
+    final initials = driverName.split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join().toUpperCase();
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -61,26 +100,26 @@ class _UserCancelAssignmentScreenState extends State<UserCancelAssignmentScreen>
                 ),
                 child: Row(
                   children: [
-                    const CircleAvatar(
+                    CircleAvatar(
                       radius: 20,
-                      backgroundColor: Color(0xFF6C5CE7),
-                      child: Text('RS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      backgroundColor: AppColors.primary,
+                      child: Text(initials.isNotEmpty ? initials : 'D', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Rahul Sharma', style: AppTypography.h4(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
+                          Text(driverName, style: AppTypography.h4(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 2),
-                          Text('DL 01 AB 1234 • White Sedan', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
+                          Text('$vehiclePlate • $vehicleModel', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
                         ],
                       ),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(color: AppColors.success.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(AppRadius.sm)),
-                      child: const Text('Assigned', style: TextStyle(color: AppColors.success, fontSize: 11, fontWeight: FontWeight.bold)),
+                      child: Text(status, style: TextStyle(color: AppColors.success, fontSize: 11, fontWeight: FontWeight.bold)),
                     ),
                   ],
                 ),
@@ -129,19 +168,16 @@ class _UserCancelAssignmentScreenState extends State<UserCancelAssignmentScreen>
 
               // Red Cancel Assignment Button
               ElevatedButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Driver assignment cancelled')),
-                  );
-                  context.pop();
-                },
+                onPressed: _isSubmitting ? null : _handleCancel,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.error,
                   foregroundColor: Colors.white,
                   minimumSize: const Size.fromHeight(48),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                 ),
-                child: const Text('Cancel Assignment', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: _isSubmitting
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text('Confirm Cancel Assignment', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
 
               const SizedBox(height: AppSpacing.md),

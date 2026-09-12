@@ -1,48 +1,48 @@
-// THEME: Supports dark (default) and light modes
-// Scaffold.backgroundColor driven by ThemeData — ALL screens
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:adhocx/shared/theme/app_colors.dart';
 
+/// Centralized ThemeData for dark (default) and light modes
+/// adhering to docs/04_DESIGN_SYSTEM.md.
 class AppTheme {
-  // Core brand colors — AdhocX logo palette: black bg + green accent
-  static const Color primary = Color(0xFF22c55e); // green-500
-  static const Color primaryDark = Color(0xFF16a34a); // green-600
-  static const Color primaryContainer = Color(0xFF052e16); // green-950
+  // Core brand colors mapped from AppColors
+  static const Color primary = AppColors.primary;
+  static const Color primaryDark = AppColors.primaryDark;
+  static const Color primaryContainer = AppColors.primarySubtle;
 
-  static const Color success = Color(0xFF22c55e); // green-500
-  static const Color successContainer = Color(0xFF052e16);
+  static const Color success = AppColors.success;
+  static const Color successContainer = AppColors.successDarkContainer;
 
-  static const Color error = Color(0xFFef4444); // red-500
-  static const Color errorContainer = Color(0xFF450a0a);
+  static const Color error = AppColors.error;
+  static const Color errorContainer = AppColors.errorContainer;
 
-  static const Color warning = Color(0xFFf59e0b);
-  static const Color info = Color(0xFF0ea5e9); // sky-500
+  static const Color warning = AppColors.warning;
+  static const Color info = AppColors.info;
 
-  // ── Dark surfaces (near-black palette matching logo bg) ──────────────────
-  static const Color backgroundDark = Color(0xFF020617); // slate-950
-  static const Color surfaceDark = Color(0xFF0d1117); // near-black surface
-  static const Color surfaceVariantDark = Color(0xFF0f172a); // slate-900
-  static const Color borderDark = Color(0xFF1a2332); // dark border
+  // ── Dark surfaces ────────────────────────────────────────────────────────
+  static const Color backgroundDark = AppColors.bgDark;
+  static const Color surfaceDark = AppColors.surfaceDark;
+  static const Color surfaceVariantDark = AppColors.surfaceElevatedDark;
+  static const Color borderDark = AppColors.borderDark;
 
   // ── Dark text ─────────────────────────────────────────────────────────────
-  static const Color textPrimary = Color(0xFFffffff);
-  static const Color textSecondary = Color(0xFF94a3b8); // slate-400
-  static const Color textMuted = Color(0xFF475569); // slate-600
+  static const Color textPrimary = AppColors.textPrimaryDark;
+  static const Color textSecondary = AppColors.textSecondaryDark;
+  static const Color textMuted = AppColors.textMutedDark;
 
   // ── Light surfaces ────────────────────────────────────────────────────────
-  static const Color backgroundLight = Color(0xFFf1f5f9); // slate-100
-  static const Color surfaceLight = Color(0xFFffffff);
-  static const Color surfaceVariantLight = Color(0xFFf8fafc); // slate-50
-  static const Color borderLight = Color(0xFFe2e8f0); // slate-200
+  static const Color backgroundLight = AppColors.bgLight;
+  static const Color surfaceLight = AppColors.surfaceLight;
+  static const Color surfaceVariantLight = AppColors.surfaceElevatedLight;
+  static const Color borderLight = AppColors.borderLight;
 
   // ── Light text ────────────────────────────────────────────────────────────
-  static const Color textPrimaryLight = Color(0xFF0f172a); // slate-900
-  static const Color textSecondaryLight = Color(0xFF475569); // slate-600
-  static const Color textMutedLight = Color(0xFF94a3b8); // slate-400
+  static const Color textPrimaryLight = AppColors.textPrimaryLight;
+  static const Color textSecondaryLight = AppColors.textSecondaryLight;
+  static const Color textMutedLight = AppColors.textMutedLight;
 
   // ── Light primary container ───────────────────────────────────────────────
-  static const Color primaryContainerLight = Color(0xFFdcfce7); // green-100
+  static const Color primaryContainerLight = AppColors.primarySubtle;
 
   // ─────────────────────────────────────────────────────────────────────────
   // DARK THEME
@@ -52,13 +52,13 @@ class AppTheme {
     brightness: Brightness.dark,
     colorScheme: const ColorScheme.dark(
       primary: primary,
-      onPrimary: Color(0xFF000000),
+      onPrimary: Colors.white,
       primaryContainer: primaryContainer,
-      onPrimaryContainer: Color(0xFFbbf7d0),
+      onPrimaryContainer: AppColors.primaryLight,
       secondary: success,
-      onSecondary: Color(0xFF000000),
+      onSecondary: Colors.white,
       secondaryContainer: successContainer,
-      onSecondaryContainer: Color(0xFFbbf7d0),
+      onSecondaryContainer: AppColors.accentGreen,
       surface: surfaceDark,
       onSurface: textPrimary,
       surfaceContainerHighest: surfaceVariantDark,
@@ -66,13 +66,13 @@ class AppTheme {
       error: error,
       onError: textPrimary,
       errorContainer: errorContainer,
-      onErrorContainer: Color(0xFFfca5a5),
+      onErrorContainer: AppColors.errorContainer,
       outline: borderDark,
-      outlineVariant: Color(0xFF0d1117),
-      inverseSurface: Color(0xFFe2e8f0),
+      outlineVariant: AppColors.borderSubtleDark,
+      inverseSurface: AppColors.slate200,
       onInverseSurface: backgroundDark,
       tertiary: info,
-      onTertiary: Color(0xFF00243a),
+      onTertiary: Colors.white,
     ),
     scaffoldBackgroundColor: backgroundDark,
     textTheme: GoogleFonts.interTextTheme(
@@ -166,7 +166,7 @@ class AppTheme {
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: primary,
-        foregroundColor: const Color(0xFF000000),
+        foregroundColor: Colors.white,
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
@@ -225,22 +225,22 @@ class AppTheme {
       primary: primary,
       onPrimary: Colors.white,
       primaryContainer: primaryContainerLight,
-      onPrimaryContainer: Color(0xFF052e16),
+      onPrimaryContainer: AppColors.primaryDark,
       secondary: success,
       onSecondary: Colors.white,
       secondaryContainer: primaryContainerLight,
-      onSecondaryContainer: Color(0xFF052e16),
+      onSecondaryContainer: AppColors.accentGreenDark,
       surface: surfaceLight,
       onSurface: textPrimaryLight,
       surfaceContainerHighest: surfaceVariantLight,
       onSurfaceVariant: textSecondaryLight,
       error: error,
       onError: Colors.white,
-      errorContainer: Color(0xFFfee2e2),
-      onErrorContainer: Color(0xFF7f1d1d),
+      errorContainer: AppColors.errorContainer,
+      onErrorContainer: AppColors.errorText,
       outline: borderLight,
-      outlineVariant: Color(0xFFf1f5f9),
-      inverseSurface: Color(0xFF1e293b),
+      outlineVariant: AppColors.slate100,
+      inverseSurface: AppColors.slate800,
       onInverseSurface: Colors.white,
       tertiary: info,
       onTertiary: Colors.white,

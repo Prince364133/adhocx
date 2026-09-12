@@ -1,3 +1,4 @@
+import '../../../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class PrivacyModal extends StatelessWidget {
@@ -8,7 +9,7 @@ class PrivacyModal extends StatelessWidget {
     return _ModalShell(
       title: 'Privacy Policy',
       icon: Icons.privacy_tip_outlined,
-      iconColor: const Color(0xFF94a3b8),
+      iconColor: AppColors.textMutedDark,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: const [
@@ -62,8 +63,8 @@ class _TermsSection extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           body,
-          style: const TextStyle(
-            color: Color(0xFF94a3b8),
+          style: TextStyle(
+            color: AppColors.textMutedDark,
             fontSize: 13,
             height: 1.5,
           ),

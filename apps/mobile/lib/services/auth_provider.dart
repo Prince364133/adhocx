@@ -13,6 +13,12 @@ class AuthProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => user != null;
 
+  void setUser(UserModel? user) {
+    _user = user;
+    _authService.setCurrentUser(user);
+    notifyListeners();
+  }
+
   String get role => user?.role ?? 'DRIVER';
   bool get isDriver => user?.isDriver ?? true;
   bool get isUser => user?.isUser ?? false;

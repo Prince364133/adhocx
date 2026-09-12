@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../routes/app_routes.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
+import 'requirement_draft_provider.dart';
 
 class UserCreateRequirementScreen extends StatefulWidget {
   const UserCreateRequirementScreen({super.key});
@@ -15,19 +17,88 @@ class UserCreateRequirementScreen extends StatefulWidget {
 }
 
 class _UserCreateRequirementScreenState extends State<UserCreateRequirementScreen> {
-  String _selectedFulfillmentMode = 'DIRECT_DISPATCH';
-  String _selectedVehicleType = 'Sedan';
-  int _quantity = 10;
-  final TextEditingController _specialRequestsController = TextEditingController();
+  late String _selectedFulfillmentMode;
+  late String _selectedVehicleType;
+  late int _quantity;
+  late double _suggestedBudget;
+  late int _biddingWindowMinutes;
+  late TextEditingController _budgetController;
+  late TextEditingController _specialRequestsController;
+  bool _initialized = false;
 
-  final List<Map<String, String>> _vehicleTypes = [
-    {'title': 'Hatchback', 'icon': 'directions_car'},
-    {'title': 'Sedan', 'icon': 'directions_car'},
-    {'title': 'SUV', 'icon': 'airport_shuttle'},
-    {'title': 'Tempo Traveller', 'icon': 'directions_bus'},
-    {'title': 'Tata Ace', 'icon': 'local_shipping'},
-    {'title': 'Pickup Truck', 'icon': 'local_shipping'},
+  final List<Map<String, dynamic>> _vehicleOptions = [
+    {
+      'id': 'Sedan',
+      'label': 'Sedan',
+      'subtitle': '4 Seater (Dzire, Etios, Aura)',
+      'icon': Icons.directions_car_rounded,
+    },
+    {
+      'id': 'SUV',
+      'label': 'SUV',
+      'subtitle': '6-7 Seater (Innova, Ertiga, XUV)',
+      'icon': Icons.airport_shuttle_rounded,
+    },
+    {
+      'id': 'Hatchback',
+      'label': 'Hatchback',
+      'subtitle': '4 Seater (WagonR, Swift, i10)',
+      'icon': Icons.directions_car_filled_rounded,
+    },
+    {
+      'id': 'Tempo Traveller',
+      'label': 'Tempo Traveller',
+      'subtitle': '12-26 Seater (Force Traveller)',
+      'icon': Icons.directions_bus_rounded,
+    },
+    {
+      'id': 'Tata Ace',
+      'label': 'Tata Ace',
+      'subtitle': 'Mini Truck (750kg payload)',
+      'icon': Icons.local_shipping_rounded,
+    },
+    {
+      'id': 'Pickup Truck',
+      'label': 'Pickup Truck',
+      'subtitle': 'Commercial Cargo (1-1.5 Ton)',
+      'icon': Icons.fire_truck_rounded,
+    },
+    {
+      'id': 'Bus',
+      'label': 'Bus',
+      'subtitle': '30+ Seater Luxury Bus',
+      'icon': Icons.directions_bus_filled_rounded,
+    },
   ];
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      final draft = context.read<RequirementDraftProvider>();
+      _selectedFulfillmentMode = draft.fulfillmentMode;
+      _selectedVehicleType = draft.vehicleType;
+      // Ensure selected vehicle is valid
+      if (!_vehicleOptions.any((v) => v['id'] == _selectedVehicleType)) {
+        _selectedVehicleType = 'Sedan';
+      }
+      _quantity = draft.quantity;
+      _suggestedBudget = draft.suggestedBudget;
+      _biddingWindowMinutes = draft.biddingWindowMinutes;
+      _budgetController = TextEditingController(text: _suggestedBudget.toStringAsFixed(0));
+      _specialRequestsController = TextEditingController(text: draft.specialRequests);
+      _initialized = true;
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_initialized) {
+      _budgetController.dispose();
+      _specialRequestsController.dispose();
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +124,8 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
         actions: [
           IconButton(
             onPressed: () => context.push(AppRoutes.userBulkPostingScreen),
-            icon: const Icon(Icons.tune, color: Color(0xFF6C5CE7)),
+            icon: Icon(Icons.tune, color: AppColors.primary),
+            tooltip: 'Bulk Upload CSV',
           ),
         ],
       ),
@@ -70,12 +142,12 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                   final isActive = stepNum == 1;
                   return CircleAvatar(
                     radius: 14,
-                    backgroundColor: isActive ? const Color(0xFF6C5CE7) : (isDark ? Colors.grey[800] : Colors.grey[300]),
+                    backgroundColor: isActive ? AppColors.primary : (isDark ? AppColors.slate800 : AppColors.slate300),
                     child: Text(
                       '$stepNum',
                       style: TextStyle(
                         fontSize: 12,
-                        color: isActive ? Colors.white : Colors.grey[600],
+                        color: isActive ? Colors.white : AppColors.slate600,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -112,12 +184,12 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
                               decoration: BoxDecoration(
                                 color: _selectedFulfillmentMode == 'DIRECT_DISPATCH'
-                                    ? const Color(0xFF6C5CE7).withValues(alpha: 0.12)
+                                    ? AppColors.primary.withValues(alpha: 0.12)
                                     : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
                                 borderRadius: BorderRadius.circular(AppRadius.md),
                                 border: Border.all(
                                   color: _selectedFulfillmentMode == 'DIRECT_DISPATCH'
-                                      ? const Color(0xFF6C5CE7)
+                                      ? AppColors.primary
                                       : (isDark ? AppColors.borderDark : AppColors.borderLight),
                                   width: _selectedFulfillmentMode == 'DIRECT_DISPATCH' ? 2 : 1,
                                 ),
@@ -127,14 +199,14 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                                 children: [
                                   Row(
                                     children: [
-                                      const Icon(Icons.flash_on_rounded, size: 16, color: Color(0xFF6C5CE7)),
+                                      Icon(Icons.flash_on_rounded, size: 16, color: AppColors.primary),
                                       const SizedBox(width: 4),
                                       Text(
                                         'Corporate Bulk',
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 13,
-                                          color: _selectedFulfillmentMode == 'DIRECT_DISPATCH' ? const Color(0xFF6C5CE7) : null,
+                                          color: _selectedFulfillmentMode == 'DIRECT_DISPATCH' ? AppColors.primary : null,
                                         ),
                                       ),
                                     ],
@@ -142,7 +214,7 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                                   const SizedBox(height: 2),
                                   Text(
                                     'Direct Timed Dispatch',
-                                    style: TextStyle(fontSize: 11, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                                    style: TextStyle(fontSize: 11, color: isDark ? AppColors.slate400 : AppColors.slate600),
                                   ),
                                 ],
                               ),
@@ -160,12 +232,12 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
                               decoration: BoxDecoration(
                                 color: _selectedFulfillmentMode == 'BIDDING'
-                                    ? const Color(0xFF6C5CE7).withValues(alpha: 0.12)
+                                    ? AppColors.primary.withValues(alpha: 0.12)
                                     : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
                                 borderRadius: BorderRadius.circular(AppRadius.md),
                                 border: Border.all(
                                   color: _selectedFulfillmentMode == 'BIDDING'
-                                      ? const Color(0xFF6C5CE7)
+                                      ? AppColors.primary
                                       : (isDark ? AppColors.borderDark : AppColors.borderLight),
                                   width: _selectedFulfillmentMode == 'BIDDING' ? 2 : 1,
                                 ),
@@ -175,14 +247,14 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                                 children: [
                                   Row(
                                     children: [
-                                      const Icon(Icons.gavel_rounded, size: 16, color: Color(0xFF6C5CE7)),
+                                      Icon(Icons.gavel_rounded, size: 16, color: AppColors.primary),
                                       const SizedBox(width: 4),
                                       Text(
                                         'Outstation Trip',
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 13,
-                                          color: _selectedFulfillmentMode == 'BIDDING' ? const Color(0xFF6C5CE7) : null,
+                                          color: _selectedFulfillmentMode == 'BIDDING' ? AppColors.primary : null,
                                         ),
                                       ),
                                     ],
@@ -190,7 +262,7 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                                   const SizedBox(height: 2),
                                   Text(
                                     'Reverse Auction Quotes',
-                                    style: TextStyle(fontSize: 11, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                                    style: TextStyle(fontSize: 11, color: isDark ? AppColors.slate400 : AppColors.slate600),
                                   ),
                                 ],
                               ),
@@ -201,7 +273,7 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                     ),
                     const SizedBox(height: AppSpacing.lg),
 
-                    // Vehicle Type Selector Cards
+                    // Vehicle Type Dropdown Selector
                     Text(
                       'Vehicle Type *',
                       style: AppTypography.h4(
@@ -209,100 +281,306 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: AppSpacing.xs),
 
-                    Row(
-                      children: _vehicleTypes.map((vehicle) {
-                        final isSelected = _selectedVehicleType == vehicle['title'];
-                        return Expanded(
-                          child: GestureDetector(
-                            onTap: () => setState(() => _selectedVehicleType = vehicle['title']!),
-                            child: Container(
-                              margin: const EdgeInsets.only(right: 8),
-                              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? const Color(0xFF6C5CE7).withValues(alpha: 0.1)
-                                    : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
-                                borderRadius: BorderRadius.circular(AppRadius.lg),
-                                border: Border.all(
-                                  color: isSelected ? const Color(0xFF6C5CE7) : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                                  width: isSelected ? 2 : 1,
-                                ),
-                              ),
-                              child: Column(
-                                children: [
-                                  Icon(
-                                    Icons.directions_car,
-                                    size: 32,
-                                    color: isSelected ? const Color(0xFF6C5CE7) : Colors.grey,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    vehicle['title']!,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                      color: isSelected ? const Color(0xFF6C5CE7) : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-
-                    const SizedBox(height: AppSpacing.lg),
-
-                    // Quantity Stepper
-                    Text(
-                      'Quantity *',
-                      style: AppTypography.h4(
-                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 4),
                       decoration: BoxDecoration(
                         color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                         borderRadius: BorderRadius.circular(AppRadius.md),
                         border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          IconButton(
-                            onPressed: () {
-                              if (_quantity > 1) setState(() => _quantity--);
-                            },
-                            icon: const Icon(Icons.remove, color: Color(0xFF6C5CE7)),
-                          ),
-                          Text(
-                            '$_quantity',
-                            style: AppTypography.h2(
-                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: () {
-                              setState(() => _quantity++);
-                            },
-                            icon: const Icon(Icons.add, color: Color(0xFF6C5CE7)),
-                          ),
-                        ],
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _selectedVehicleType,
+                          isExpanded: true,
+                          icon: Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primary),
+                          dropdownColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          selectedItemBuilder: (BuildContext context) {
+                            return _vehicleOptions.map((v) {
+                              return Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                                    ),
+                                    child: Icon(v['icon'] as IconData, size: 20, color: AppColors.primary),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          v['label'] as String,
+                                          style: AppTypography.body(
+                                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        Text(
+                                          v['subtitle'] as String,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }).toList();
+                          },
+                          items: _vehicleOptions.map((v) {
+                            final isSelected = v['id'] == _selectedVehicleType;
+                            return DropdownMenuItem<String>(
+                              value: v['id'] as String,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 6.0),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? AppColors.primary.withValues(alpha: 0.15)
+                                            : (isDark ? AppColors.slate800 : AppColors.slate100),
+                                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                                      ),
+                                      child: Icon(
+                                        v['icon'] as IconData,
+                                        size: 20,
+                                        color: isSelected ? AppColors.primary : (isDark ? AppColors.slate400 : AppColors.slate600),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            v['label'] as String,
+                                            style: TextStyle(
+                                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                              fontSize: 14,
+                                              color: isSelected
+                                                  ? AppColors.primary
+                                                  : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                                            ),
+                                          ),
+                                          Text(
+                                            v['subtitle'] as String,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (isSelected)
+                                      Icon(Icons.check_circle_rounded, size: 18, color: AppColors.primary),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (newVal) {
+                            if (newVal != null) {
+                              setState(() => _selectedVehicleType = newVal);
+                            }
+                          },
+                        ),
                       ),
                     ),
 
                     const SizedBox(height: AppSpacing.lg),
 
+                    // When BIDDING / Outstation Mode: Show Target Budget & Auction Window
+                    if (_selectedFulfillmentMode == 'BIDDING') ...[
+                      // Target / Suggested Budget Field
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Target Budget per Trip *',
+                            style: AppTypography.h4(
+                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            'Starting Guide Price',
+                            style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: _budgetController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.currency_rupee_rounded, size: 20),
+                          hintText: 'e.g. 3500',
+                          filled: true,
+                          fillColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                        ),
+                        onChanged: (val) {
+                          final parsed = double.tryParse(val);
+                          if (parsed != null) _suggestedBudget = parsed;
+                        },
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Quick budget chips
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [2500, 3500, 5000, 7500, 10000].map((b) {
+                            final isSel = _suggestedBudget == b.toDouble();
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ChoiceChip(
+                                label: Text('₹$b'),
+                                selected: isSel,
+                                onSelected: (_) {
+                                  setState(() {
+                                    _suggestedBudget = b.toDouble();
+                                    _budgetController.text = b.toString();
+                                  });
+                                },
+                                selectedColor: AppColors.primary,
+                                labelStyle: TextStyle(
+                                  color: isSel ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+
+                      // Bidding Auction Window
+                      Text(
+                        'Reverse Auction Window (Quotes Deadline) *',
+                        style: AppTypography.h4(
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<int>(
+                            value: _biddingWindowMinutes,
+                            isExpanded: true,
+                            dropdownColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                            items: const [
+                              DropdownMenuItem(value: 15, child: Text('⚡ 15 Minutes (Express Quotes)')),
+                              DropdownMenuItem(value: 30, child: Text('⏱️ 30 Minutes (Recommended)')),
+                              DropdownMenuItem(value: 60, child: Text('⏳ 1 Hour (Maximum Driver Reach)')),
+                              DropdownMenuItem(value: 120, child: Text('📅 2 Hours (Advance Outstation Booking)')),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) setState(() => _biddingWindowMinutes = val);
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+
+                      // Explanatory info box for Reverse Auction
+                      Container(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.info_outline_rounded, size: 18, color: AppColors.primary),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Once launched, nearby verified drivers will compete by submitting their lowest quotes & ETA. You can review and lock your preferred quote.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  height: 1.4,
+                                  color: isDark ? AppColors.slate300 : AppColors.slate700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                    ] else ...[
+                      // Corporate Bulk Mode: Quantity Stepper (1 to 50)
+                      Text(
+                        'Fleet Quantity (Vehicles) *',
+                        style: AppTypography.h4(
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            IconButton(
+                              onPressed: () {
+                                if (_quantity > 1) setState(() => _quantity--);
+                              },
+                              icon: Icon(Icons.remove, color: AppColors.primary),
+                            ),
+                            Text(
+                              '$_quantity Vehicles',
+                              style: AppTypography.h3(
+                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () {
+                                setState(() => _quantity++);
+                              },
+                              icon: Icon(Icons.add, color: AppColors.primary),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                    ],
+
                     // Special Requests (Optional)
                     Text(
-                      'Special Requests (Optional)',
+                      _selectedFulfillmentMode == 'BIDDING' ? 'Driver / Vehicle Preferences (Optional)' : 'Special Requests (Optional)',
                       style: AppTypography.h4(
                         color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         fontWeight: FontWeight.w600,
@@ -311,9 +589,11 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                     const SizedBox(height: 6),
                     TextField(
                       controller: _specialRequestsController,
-                      maxLines: 3,
+                      maxLines: 2,
                       decoration: InputDecoration(
-                        hintText: 'Any specific vehicle or driver requirements.',
+                        hintText: _selectedFulfillmentMode == 'BIDDING'
+                            ? 'e.g. AC Sedan with boot space, 4.8+ rating, Non-smoking driver'
+                            : 'Any specific fleet requirements or reporting guidelines.',
                         hintStyle: TextStyle(fontSize: 13, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                       ),
@@ -323,8 +603,20 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
 
                     // Continue Button -> Step 2
                     AppPrimaryButton(
-                      text: 'Continue →',
-                      onPressed: () => context.push(AppRoutes.userCreateRequirementStep2Screen),
+                      text: _selectedFulfillmentMode == 'BIDDING' ? 'Configure Outstation Route →' : 'Continue to Route →',
+                      onPressed: () {
+                        final parsedBudget = double.tryParse(_budgetController.text.trim()) ?? _suggestedBudget;
+                        final draft = context.read<RequirementDraftProvider>();
+                        draft.updateStep1(
+                          fulfillmentMode: _selectedFulfillmentMode,
+                          vehicleType: _selectedVehicleType,
+                          quantity: _selectedFulfillmentMode == 'BIDDING' ? 1 : _quantity,
+                          suggestedBudget: parsedBudget,
+                          biddingWindowMinutes: _biddingWindowMinutes,
+                          specialRequests: _specialRequestsController.text.trim(),
+                        );
+                        context.push(AppRoutes.userCreateRequirementStep2Screen);
+                      },
                     ),
                   ],
                 ),

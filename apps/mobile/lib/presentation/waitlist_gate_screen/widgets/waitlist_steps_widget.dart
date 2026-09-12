@@ -1,3 +1,4 @@
+import '../../../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class WaitlistStepsWidget extends StatelessWidget {
@@ -120,27 +121,27 @@ class _StepState2 extends State<_Step> with SingleTickerProviderStateMixin {
   }
 
   Color get _bgColor => switch (widget.state) {
-    _StepState.done => const Color(0xFF10b981),
-    _StepState.active => const Color(0xFFf59e0b),
-    _StepState.pending => const Color(0xFF1e293b),
+    _StepState.done => AppColors.success,
+    _StepState.active => AppColors.warning,
+    _StepState.pending => AppColors.surfaceElevatedDark,
   };
 
   Color get _borderColor => switch (widget.state) {
-    _StepState.done => const Color(0xFF10b981),
-    _StepState.active => const Color(0xFFf59e0b),
-    _StepState.pending => const Color(0xFF334155),
+    _StepState.done => AppColors.success,
+    _StepState.active => AppColors.warning,
+    _StepState.pending => AppColors.borderDark,
   };
 
   Color get _textColor => switch (widget.state) {
     _StepState.done => Colors.white,
-    _StepState.active => const Color(0xFF1a0a00),
-    _StepState.pending => const Color(0xFF94a3b8),
+    _StepState.active => AppColors.bgDark,
+    _StepState.pending => AppColors.textMutedDark,
   };
 
   Color get _labelColor => switch (widget.state) {
-    _StepState.done => const Color(0xFF10b981),
-    _StepState.active => const Color(0xFFf59e0b),
-    _StepState.pending => const Color(0xFF475569),
+    _StepState.done => AppColors.success,
+    _StepState.active => AppColors.warning,
+    _StepState.pending => AppColors.textSecondaryLight,
   };
 }
 
@@ -156,8 +157,8 @@ class _StepConnector extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 28),
       decoration: BoxDecoration(
         color: isActive
-            ? const Color(0xFFf59e0b).withAlpha(128)
-            : const Color(0xFF334155),
+            ? AppColors.warning.withAlpha(128)
+            : AppColors.borderDark,
         borderRadius: BorderRadius.circular(1),
       ),
     );

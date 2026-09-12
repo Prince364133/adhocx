@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../routes/app_routes.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
+import 'requirement_draft_provider.dart';
 
 class UserCreateRequirementStep4Screen extends StatefulWidget {
   const UserCreateRequirementStep4Screen({super.key});
@@ -15,9 +17,68 @@ class UserCreateRequirementStep4Screen extends StatefulWidget {
 }
 
 class _UserCreateRequirementStep4ScreenState extends State<UserCreateRequirementStep4Screen> {
+  static const List<String> _luggageOptions = [
+    'Standard (2 Suitcases)',
+    'Heavy (4+ Bags)',
+    'Executive Briefcase Only',
+    'Cargo / Equipment Boxes',
+    'No Luggage',
+  ];
+
   int _passengers = 1;
-  String? _selectedLuggage;
-  final TextEditingController _additionalInfoController = TextEditingController();
+  String? _selectedLuggage = 'Standard (2 Suitcases)';
+  late TextEditingController _additionalInfoController;
+  final List<String> _stops = [];
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _additionalInfoController = TextEditingController();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      try {
+        final draft = context.read<RequirementDraftProvider>();
+        _passengers = draft.passengers;
+        final draftLuggage = draft.selectedLuggage;
+        if (draftLuggage != null && _luggageOptions.contains(draftLuggage)) {
+          _selectedLuggage = draftLuggage;
+        } else {
+          _selectedLuggage = _luggageOptions.first;
+        }
+        _additionalInfoController.text = draft.additionalInfo;
+        _stops.clear();
+        _stops.addAll(draft.additionalStops);
+      } catch (_) {}
+      _initialized = true;
+    }
+  }
+
+  @override
+  void dispose() {
+    _additionalInfoController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _showAddStopPicker() async {
+    final result = await context.push<Map<String, dynamic>>(
+      AppRoutes.universalLocationPickerScreen,
+      extra: {
+        'title': 'Add Intermediate Stop',
+      },
+    );
+
+    if (result != null && mounted) {
+      final address = (result['fullAddress'] as String?) ?? (result['address'] as String?) ?? (result['title'] as String?) ?? '';
+      if (address.isNotEmpty) {
+        setState(() => _stops.add(address));
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,12 +115,12 @@ class _UserCreateRequirementStep4ScreenState extends State<UserCreateRequirement
                   final isActive = stepNum <= 4;
                   return CircleAvatar(
                     radius: 14,
-                    backgroundColor: isActive ? const Color(0xFF6C5CE7) : (isDark ? Colors.grey[800] : Colors.grey[300]),
+                    backgroundColor: isActive ? AppColors.primary : (isDark ? AppColors.slate800 : AppColors.slate300),
                     child: Text(
                       '$stepNum',
                       style: TextStyle(
                         fontSize: 12,
-                        color: isActive ? Colors.white : Colors.grey[600],
+                        color: isActive ? Colors.white : AppColors.slate600,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -88,17 +149,45 @@ class _UserCreateRequirementStep4ScreenState extends State<UserCreateRequirement
                           ),
                         ),
                         TextButton.icon(
-                          onPressed: () {},
-                          icon: const Icon(Icons.add, size: 16, color: Color(0xFF6C5CE7)),
-                          label: const Text('+ Add Stop', style: TextStyle(color: Color(0xFF6C5CE7), fontWeight: FontWeight.bold)),
+                          onPressed: _showAddStopPicker,
+                          icon: Icon(Icons.add, size: 16, color: AppColors.primary),
+                          label: Text('+ Add Stop', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      'No additional stops added',
-                      style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
-                    ),
+                    if (_stops.isEmpty)
+                      Text(
+                        'No additional stops added',
+                        style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                      )
+                    else
+                      Column(
+                        children: _stops.asMap().entries.map((entry) {
+                          final idx = entry.key;
+                          final stop = entry.value;
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                              borderRadius: BorderRadius.circular(AppRadius.md),
+                              border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.place_outlined, size: 16, color: AppColors.primary),
+                                const SizedBox(width: 8),
+                                Expanded(child: Text('Stop ${idx + 1}: $stop', style: const TextStyle(fontSize: 13))),
+                                IconButton(
+                                  icon: const Icon(Icons.close, size: 16, color: AppColors.error),
+                                  onPressed: () => setState(() => _stops.removeAt(idx)),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
 
                     const SizedBox(height: AppSpacing.lg),
 
@@ -120,10 +209,13 @@ class _UserCreateRequirementStep4ScreenState extends State<UserCreateRequirement
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
-                          value: _selectedLuggage,
+                          value: (_selectedLuggage != null && _luggageOptions.contains(_selectedLuggage))
+                              ? _selectedLuggage
+                              : _luggageOptions.first,
                           hint: const Text('Select luggage type'),
                           isExpanded: true,
-                          items: ['Standard (2 Suitcases)', 'Heavy (4+ Bags)', 'No Luggage']
+                          dropdownColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                          items: _luggageOptions
                               .map((type) => DropdownMenuItem(value: type, child: Text(type)))
                               .toList(),
                           onChanged: (val) => setState(() => _selectedLuggage = val),
@@ -152,19 +244,19 @@ class _UserCreateRequirementStep4ScreenState extends State<UserCreateRequirement
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Total Passengers', style: AppTypography.body(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)),
+                          Text('Total Passengers per Vehicle', style: AppTypography.body(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)),
                           Row(
                             children: [
                               IconButton(
                                 onPressed: () {
                                   if (_passengers > 1) setState(() => _passengers--);
                                 },
-                                icon: const Icon(Icons.remove, color: Color(0xFF6C5CE7)),
+                                icon: Icon(Icons.remove, color: AppColors.primary),
                               ),
                               Text('$_passengers', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                               IconButton(
                                 onPressed: () => setState(() => _passengers++),
-                                icon: const Icon(Icons.add, color: Color(0xFF6C5CE7)),
+                                icon: Icon(Icons.add, color: AppColors.primary),
                               ),
                             ],
                           ),
@@ -176,7 +268,7 @@ class _UserCreateRequirementStep4ScreenState extends State<UserCreateRequirement
 
                     // Additional Information
                     Text(
-                      'Additional Information',
+                      'Additional Information / Special Notes',
                       style: AppTypography.h4(
                         color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         fontWeight: FontWeight.w600,
@@ -187,7 +279,7 @@ class _UserCreateRequirementStep4ScreenState extends State<UserCreateRequirement
                       controller: _additionalInfoController,
                       maxLines: 3,
                       decoration: InputDecoration(
-                        hintText: 'Any additional information for better fulfillment',
+                        hintText: 'Any additional instructions for dispatch, security, or driver verification',
                         hintStyle: TextStyle(fontSize: 13, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                       ),
@@ -213,7 +305,16 @@ class _UserCreateRequirementStep4ScreenState extends State<UserCreateRequirement
                           flex: 2,
                           child: AppPrimaryButton(
                             text: 'Continue →',
-                            onPressed: () => context.push(AppRoutes.userReviewRequirementScreen),
+                            onPressed: () {
+                              final draft = context.read<RequirementDraftProvider>();
+                              draft.updateStep4(
+                                passengers: _passengers,
+                                selectedLuggage: _selectedLuggage,
+                                additionalInfo: _additionalInfoController.text.trim(),
+                                additionalStops: _stops,
+                              );
+                              context.push(AppRoutes.userReviewRequirementScreen);
+                            },
                           ),
                         ),
                       ],

@@ -1,3 +1,4 @@
+import 'package:adhocx/shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class KycDrivingSectionWidget extends StatelessWidget {
@@ -35,7 +36,7 @@ class KycDrivingSectionWidget extends StatelessWidget {
                 size: 20,
               ),
               filled: true,
-              fillColor: const Color(0xFF141414), // Dark grey input background
+              fillColor: AppColors.surfaceElevatedDark, // Dark grey input background
               contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -43,15 +44,15 @@ class KycDrivingSectionWidget extends StatelessWidget {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Colors.green),
+                borderSide: const BorderSide(color: AppColors.success),
               ),
               errorBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Colors.red),
+                borderSide: const BorderSide(color: AppColors.error),
               ),
               focusedErrorBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Colors.red),
+                borderSide: const BorderSide(color: AppColors.error),
               ),
             ),
             onSaved: (v) => onSaved({'dl_number': v?.toUpperCase() ?? ''}),
@@ -66,7 +67,7 @@ class KycDrivingSectionWidget extends StatelessWidget {
   Widget _label(String text) => Text(
     text,
     style: const TextStyle(
-      color: Colors.grey, // Soft grey for labels
+      color: AppColors.slate400, // Soft grey for labels
       fontSize: 13,
       fontWeight: FontWeight.w500,
     ),
@@ -80,14 +81,14 @@ class KycDrivingSectionWidget extends StatelessWidget {
           width: 28,
           height: 28,
           decoration: BoxDecoration(
-            color: Colors.green.withValues(alpha: 0.15),
+            color: AppColors.successContainer,
             borderRadius: BorderRadius.circular(6),
           ),
           child: Center(
             child: Text(
               num,
               style: const TextStyle(
-                color: Colors.green,
+                color: AppColors.success,
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
               ),
@@ -98,7 +99,7 @@ class KycDrivingSectionWidget extends StatelessWidget {
         Text(
           title,
           style: const TextStyle(
-            color: Colors.green,
+            color: AppColors.success,
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),

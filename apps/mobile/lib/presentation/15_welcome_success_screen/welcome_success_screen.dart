@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../routes/app_routes.dart';
+import '../../services/auth_provider.dart';
+import '../../services/auth_service.dart';
 import '../../services/onboarding_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
@@ -21,7 +23,7 @@ class WelcomeSuccessScreen extends StatelessWidget {
           Container(
             width: 22,
             height: 22,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: AppColors.accentGreenDark,
             ),
@@ -84,7 +86,7 @@ class WelcomeSuccessScreen extends StatelessWidget {
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.celebration_rounded,
                             size: 64,
                             color: AppColors.primary,
@@ -95,7 +97,7 @@ class WelcomeSuccessScreen extends StatelessWidget {
                             child: Container(
                               width: 28,
                               height: 28,
-                              decoration: const BoxDecoration(
+                              decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: AppColors.accentGreenDark,
                               ),
@@ -162,6 +164,15 @@ class WelcomeSuccessScreen extends StatelessWidget {
                   AppPrimaryButton(
                     text: isUser ? 'Start Booking & Posting Trips' : 'Go to Driver Dashboard',
                     onPressed: () {
+                      final user = UserModel(
+                        id: 'usr_${DateTime.now().millisecondsSinceEpoch}',
+                        phone: onboarding.phone,
+                        email: onboarding.email,
+                        fullName: onboarding.fullName.isNotEmpty ? onboarding.fullName : 'AdhocX User',
+                        role: isUser ? 'USER' : 'DRIVER',
+                      );
+                      context.read<AuthProvider>().setUser(user);
+
                       if (isUser) {
                         context.go(AppRoutes.userHomeScreen);
                       } else {

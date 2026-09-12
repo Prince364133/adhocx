@@ -1,3 +1,4 @@
+import 'package:adhocx/shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class KycVehicleSectionWidget extends StatefulWidget {
@@ -46,7 +47,7 @@ class _KycVehicleSectionWidgetState extends State<KycVehicleSectionWidget> {
           const Text(
             'Vehicle Category',
             style: TextStyle(
-              color: Colors.grey, // Matching grey label
+              color: AppColors.slate400, // Matching grey label
               fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
@@ -101,12 +102,12 @@ class _KycVehicleSectionWidgetState extends State<KycVehicleSectionWidget> {
           // 2. MATCHING TOGGLE BUTTONS: Green highlight when selected, dark grey when not
           decoration: BoxDecoration(
             color: isSelected
-                ? Colors.green.withValues(alpha: 0.15)
-                : const Color(0xFF141414), // Dark grey input background
+                ? AppColors.successContainer
+                : AppColors.surfaceElevatedDark, // Dark grey input background
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: isSelected
-                  ? Colors.green
+                  ? AppColors.success
                   : Colors.white10,
               width: isSelected ? 1.5 : 1,
             ),
@@ -116,8 +117,8 @@ class _KycVehicleSectionWidgetState extends State<KycVehicleSectionWidget> {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: isSelected
-                  ? Colors.green
-                  : Colors.grey,
+                  ? AppColors.success
+                  : AppColors.slate400,
               fontSize: 14,
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
             ),
@@ -141,7 +142,7 @@ class _KycVehicleSectionWidgetState extends State<KycVehicleSectionWidget> {
         Text(
           label,
           style: const TextStyle(
-            color: Colors.grey, // Soft grey for labels
+            color: AppColors.slate400, // Soft grey for labels
             fontSize: 13,
             fontWeight: FontWeight.w500,
           ),
@@ -160,7 +161,7 @@ class _KycVehicleSectionWidgetState extends State<KycVehicleSectionWidget> {
               size: 20,
             ),
             filled: true,
-            fillColor: const Color(0xFF141414), // Dark grey input background
+            fillColor: AppColors.surfaceElevatedDark, // Dark grey input background
             contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
@@ -168,15 +169,15 @@ class _KycVehicleSectionWidgetState extends State<KycVehicleSectionWidget> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Colors.green),
+              borderSide: const BorderSide(color: AppColors.success),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Colors.red),
+              borderSide: const BorderSide(color: AppColors.error),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Colors.red),
+              borderSide: const BorderSide(color: AppColors.error),
             ),
           ),
           onSaved: onSaved,
@@ -194,14 +195,14 @@ class _KycVehicleSectionWidgetState extends State<KycVehicleSectionWidget> {
           width: 28,
           height: 28,
           decoration: BoxDecoration(
-            color: Colors.green.withValues(alpha: 0.15),
+            color: AppColors.successContainer,
             borderRadius: BorderRadius.circular(6),
           ),
           child: Center(
             child: Text(
               num,
               style: const TextStyle(
-                color: Colors.green,
+                color: AppColors.success,
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
               ),
@@ -212,7 +213,7 @@ class _KycVehicleSectionWidgetState extends State<KycVehicleSectionWidget> {
         Text(
           title,
           style: const TextStyle(
-            color: Colors.green,
+            color: AppColors.success,
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),

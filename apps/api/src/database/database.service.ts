@@ -9,9 +9,7 @@ export class DatabaseService extends PrismaClient implements OnModuleInit, OnMod
     super({
       datasources: {
         db: {
-          url:
-            process.env.DATABASE_URL ||
-            'postgresql://adhocx_user:adhocx_password@localhost:5432/adhocx_db?schema=public',
+          url: process.env.DATABASE_URL,
         },
       },
     });

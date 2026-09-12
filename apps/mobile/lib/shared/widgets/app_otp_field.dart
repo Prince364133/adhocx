@@ -127,14 +127,14 @@ class _AppOtpFieldState extends State<AppOtpField> {
                 contentPadding: EdgeInsets.zero,
                 enabledBorder: OutlineInputBorder(
                   borderRadius: AppRadius.borderMd,
-                  borderSide: const BorderSide(
+                  borderSide: BorderSide(
                     color: AppColors.borderDark,
                     width: 1.2,
                   ),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: AppRadius.borderMd,
-                  borderSide: const BorderSide(
+                  borderSide: BorderSide(
                     color: AppColors.primary,
                     width: 2.0,
                   ),

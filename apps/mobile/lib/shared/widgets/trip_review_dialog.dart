@@ -84,7 +84,7 @@ class _TripReviewDialogState extends State<TripReviewDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Thank you for your rating & feedback!'),
-            backgroundColor: Color(0xFF10B981),
+            backgroundColor: AppColors.success,
           ),
         );
       }
@@ -94,7 +94,7 @@ class _TripReviewDialogState extends State<TripReviewDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: const Color(0xFFEF4444),
+            backgroundColor: AppColors.error,
           ),
         );
       }
@@ -119,10 +119,10 @@ class _TripReviewDialogState extends State<TripReviewDialog> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.amber.withValues(alpha: 0.15),
+                  color: AppColors.starAmber.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.star_rounded, color: Colors.amber, size: 36),
+                child: const Icon(Icons.star_rounded, color: AppColors.starAmber, size: 36),
               ),
               const SizedBox(height: AppSpacing.sm),
 
@@ -151,7 +151,7 @@ class _TripReviewDialogState extends State<TripReviewDialog> {
                     onPressed: () => setState(() => _selectedRating = starNum),
                     icon: Icon(
                       starNum <= _selectedRating ? Icons.star_rounded : Icons.star_outline_rounded,
-                      color: starNum <= _selectedRating ? Colors.amber : Colors.grey[400],
+                      color: starNum <= _selectedRating ? AppColors.starAmber : AppColors.slate400,
                       size: 36,
                     ),
                   );
@@ -169,8 +169,8 @@ class _TripReviewDialogState extends State<TripReviewDialog> {
                   return FilterChip(
                     label: Text(tag, style: TextStyle(fontSize: 11, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
                     selected: isSelected,
-                    selectedColor: const Color(0xFF6C5CE7).withValues(alpha: 0.2),
-                    checkmarkColor: const Color(0xFF6C5CE7),
+                    selectedColor: AppColors.primary.withValues(alpha: 0.2),
+                    checkmarkColor: AppColors.primary,
                     onSelected: (selected) {
                       setState(() {
                         if (selected) {

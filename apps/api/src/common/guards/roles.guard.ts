@@ -22,7 +22,25 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('Access denied: unauthenticated or invalid user role');
     }
 
-    const hasRole = requiredRoles.includes(user.role);
+    const userRoleStr = String(user.role).trim().toUpperCase();
+    
+    // ADMIN has unrestricted superuser access
+    if (userRoleStr === 'ADMIN' || userRoleStr === UserRole.ADMIN) {
+      return true;
+    }
+
+    // Normalize user role synonyms: USER / VENDOR / CUSTOMER / BOOKER
+    const isUserVendor = userRoleStr === 'VENDOR' || userRoleStr === 'USER' || userRoleStr === 'CUSTOMER' || userRoleStr === 'BOOKER';
+    const isDriver = userRoleStr === 'DRIVER';
+
+    const hasRole = requiredRoles.some((reqRole) => {
+      const reqRoleStr = String(reqRole).trim().toUpperCase();
+      if (reqRoleStr === userRoleStr) return true;
+      if ((reqRoleStr === 'VENDOR' || reqRoleStr === 'USER') && isUserVendor) return true;
+      if (reqRoleStr === 'DRIVER' && isDriver) return true;
+      return false;
+    });
+
     if (!hasRole) {
       throw new ForbiddenException(`Access denied: required role (${requiredRoles.join(', ')})`);
     }
@@ -30,3 +48,4 @@ export class RolesGuard implements CanActivate {
     return true;
   }
 }
+

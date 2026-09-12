@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../routes/app_routes.dart';
+import '../../services/auth_service.dart';
+import '../../services/driver_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 
-/// Screen 1: Main Earnings dashboard matching exact design mockup.
+/// Screen 1: Main Earnings dashboard matching exact design mockup with live backend wallet metrics.
 class EarningsScreen extends StatefulWidget {
   const EarningsScreen({super.key});
 
@@ -16,9 +18,87 @@ class EarningsScreen extends StatefulWidget {
 
 class _EarningsScreenState extends State<EarningsScreen> {
   bool _showBalance = true;
+  bool _isLoading = true;
+  Map<String, dynamic> _walletSummary = {
+    'walletBalance': 0.0,
+    'totalEarned': 0.0,
+    'totalWithdrawn': 0.0,
+    'pendingSettlements': 0.0,
+    'recentLedgerEntries': [],
+  };
+  int _tripsTotal = 0;
+  int _tripsCompleted = 0;
+  int _tripsCancelled = 0;
+  double _thisWeekEarned = 0.0;
+  Map<int, double> _weekdayEarnings = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWalletData();
+  }
+
+  Future<void> _loadWalletData() async {
+    setState(() => _isLoading = true);
+    try {
+      await AuthService.instance.ensureAuthenticatedSession(role: 'DRIVER');
+
+      final summary = await DriverService.instance.getWalletSummary();
+      final trips = await DriverService.instance.getTrips();
+
+      int completed = 0;
+      int cancelled = 0;
+      double weekTotal = 0.0;
+      final Map<int, double> weekdayMap = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0};
+
+      for (final t in trips) {
+        final st = (t['status'] ?? '').toString().toUpperCase();
+        if (st == 'COMPLETED') {
+          completed++;
+          final fare = (t['fare'] is num)
+              ? (t['fare'] as num).toDouble()
+              : (double.tryParse(t['fare']?.toString() ?? '0') ?? 0.0);
+          weekTotal += fare;
+
+          final dateStr = t['createdAt'] ?? t['dropoffTime'] ?? t['pickupTime'];
+          if (dateStr != null) {
+            try {
+              final d = DateTime.parse(dateStr.toString());
+              weekdayMap[d.weekday] = (weekdayMap[d.weekday] ?? 0) + fare;
+            } catch (_) {}
+          }
+        }
+        if (st == 'CANCELLED') cancelled++;
+      }
+
+      if (mounted) {
+        setState(() {
+          if (summary is Map) {
+            _walletSummary = Map<String, dynamic>.from(summary);
+          }
+          _tripsTotal = trips.length;
+          _tripsCompleted = completed;
+          _tripsCancelled = cancelled;
+          final totalEarnedFromWallet = (_walletSummary['totalEarned'] is num)
+              ? (_walletSummary['totalEarned'] as num).toDouble()
+              : (double.tryParse(_walletSummary['totalEarned']?.toString() ?? '0') ?? 0.0);
+          _thisWeekEarned = weekTotal > 0 ? weekTotal : totalEarnedFromWallet;
+          _weekdayEarnings = weekdayMap;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading earnings: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final balance = (_walletSummary['walletBalance'] ?? 0.0);
+    final totalEarned = (_walletSummary['totalEarned'] ?? 0.0);
+    final totalWithdrawn = (_walletSummary['totalWithdrawn'] ?? 0.0);
+
     return Scaffold(
       backgroundColor: AppColors.bgLight,
       body: SafeArea(
@@ -33,7 +113,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.md,
                   ),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppColors.surfaceLight,
                     border: Border(
                       bottom: BorderSide(color: AppColors.borderLight),
@@ -42,11 +122,9 @@ class _EarningsScreenState extends State<EarningsScreen> {
                   child: Row(
                     children: [
                       IconButton(
-                        onPressed: () {
-                          // Drawer menu or profile
-                        },
-                        icon: const Icon(
-                          Icons.menu,
+                        onPressed: _loadWalletData,
+                        icon: Icon(
+                          Icons.refresh,
                           color: AppColors.textPrimaryLight,
                         ),
                       ),
@@ -62,7 +140,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                       ),
                       IconButton(
                         onPressed: () => context.push(AppRoutes.notificationsSettingsScreen),
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.notifications_none_rounded,
                           color: AppColors.textPrimaryLight,
                         ),
@@ -73,99 +151,101 @@ class _EarningsScreenState extends State<EarningsScreen> {
 
                 // ── Scrollable Content ───────────────────────────────────────
                 Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    children: [
-                      // ── Available Balance Purple Hero Card ─────────────────
-                      Container(
-                        padding: const EdgeInsets.all(AppSpacing.xl),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF6366f1), Color(0xFF4f46e5)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(AppRadius.xl),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF6366f1).withValues(alpha: 0.35),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                  child: _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : ListView(
+                          padding: const EdgeInsets.all(AppSpacing.lg),
                           children: [
-                            Text(
-                              'Available Balance',
-                              style: AppTypography.caption(
-                                color: Colors.white.withValues(alpha: 0.8),
-                                fontWeight: FontWeight.w600,
+                            // ── Available Balance Purple Hero Card ─────────────────
+                            Container(
+                              padding: const EdgeInsets.all(AppSpacing.xl),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [AppColors.primary, AppColors.primaryHover],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(AppRadius.xl),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.primary.withValues(alpha: 0.35),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Available Balance',
+                                    style: AppTypography.caption(
+                                      color: Colors.white.withValues(alpha: 0.8),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        _showBalance ? '₹${balance.toString()}' : '••••••',
+                                        style: AppTypography.h1(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ).copyWith(fontSize: 32),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      GestureDetector(
+                                        onTap: () => setState(() => _showBalance = !_showBalance),
+                                        child: Icon(
+                                          _showBalance
+                                              ? Icons.visibility_outlined
+                                              : Icons.visibility_off_outlined,
+                                          color: Colors.white.withValues(alpha: 0.9),
+                                          size: 20,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: AppSpacing.lg),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Ready to withdraw',
+                                        style: AppTypography.caption(
+                                          color: Colors.white.withValues(alpha: 0.9),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      ElevatedButton(
+                                        onPressed: () => context.push(AppRoutes.earningsWithdrawScreen),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.white,
+                                          foregroundColor: AppColors.primaryHover,
+                                          elevation: 0,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(AppRadius.md),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 10,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          'WITHDRAW NOW',
+                                          style: AppTypography.caption(
+                                            color: AppColors.primaryHover,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                Text(
-                                  _showBalance ? '₹4,850' : '••••••',
-                                  style: AppTypography.h1(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ).copyWith(fontSize: 32),
-                                ),
-                                const SizedBox(width: 10),
-                                GestureDetector(
-                                  onTap: () => setState(() => _showBalance = !_showBalance),
-                                  child: Icon(
-                                    _showBalance
-                                        ? Icons.visibility_outlined
-                                        : Icons.visibility_off_outlined,
-                                    color: Colors.white.withValues(alpha: 0.9),
-                                    size: 20,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: AppSpacing.lg),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Ready to withdraw',
-                                  style: AppTypography.caption(
-                                    color: Colors.white.withValues(alpha: 0.9),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                ElevatedButton(
-                                  onPressed: () => context.push(AppRoutes.earningsWithdrawScreen),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.white,
-                                    foregroundColor: const Color(0xFF4f46e5),
-                                    elevation: 0,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(AppRadius.md),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 10,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    'WITHDRAW NOW',
-                                    style: AppTypography.caption(
-                                      color: const Color(0xFF4f46e5),
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xl),
+                            const SizedBox(height: AppSpacing.xl),
 
                       // ── "This Week" Chart Card ─────────────────────────────
                       Container(
@@ -174,9 +254,9 @@ class _EarningsScreenState extends State<EarningsScreen> {
                           color: AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
                           border: Border.all(color: AppColors.borderLight),
-                          boxShadow: const [
+                          boxShadow: [
                             BoxShadow(
-                              color: Color(0x06000000),
+                              color: Colors.black.withValues(alpha: 0.03),
                               blurRadius: 4,
                               offset: Offset(0, 2),
                             ),
@@ -205,7 +285,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                                     borderRadius: BorderRadius.circular(AppRadius.full),
                                   ),
                                   child: Text(
-                                    '↑ 19% vs last week',
+                                    _thisWeekEarned > 0 ? 'Live Balance' : 'Current Period',
                                     style: AppTypography.caption(
                                       color: AppColors.accentGreenDark,
                                       fontWeight: FontWeight.bold,
@@ -216,7 +296,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '₹12,450',
+                              '₹${_thisWeekEarned.toStringAsFixed(0)}',
                               style: AppTypography.h1(
                                 color: AppColors.textPrimaryLight,
                                 fontWeight: FontWeight.bold,
@@ -229,13 +309,13 @@ class _EarningsScreenState extends State<EarningsScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceAround,
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                _buildBarColumn('Mon', 35),
-                                _buildBarColumn('Tue', 55),
-                                _buildBarColumn('Wed', 40),
-                                _buildBarColumn('Thu', 70),
-                                _buildBarColumn('Fri', 60),
-                                _buildBarColumn('Sat', 95, isHigh: true),
-                                _buildBarColumn('Sun', 50),
+                                _buildBarColumn('Mon', _getBarHeight(1), isHigh: DateTime.now().weekday == 1),
+                                _buildBarColumn('Tue', _getBarHeight(2), isHigh: DateTime.now().weekday == 2),
+                                _buildBarColumn('Wed', _getBarHeight(3), isHigh: DateTime.now().weekday == 3),
+                                _buildBarColumn('Thu', _getBarHeight(4), isHigh: DateTime.now().weekday == 4),
+                                _buildBarColumn('Fri', _getBarHeight(5), isHigh: DateTime.now().weekday == 5),
+                                _buildBarColumn('Sat', _getBarHeight(6), isHigh: DateTime.now().weekday == 6),
+                                _buildBarColumn('Sun', _getBarHeight(7), isHigh: DateTime.now().weekday == 7),
                               ],
                             ),
                           ],
@@ -249,7 +329,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                           Expanded(
                             child: _buildCountCard(
                               title: 'Trips',
-                              count: '18',
+                              count: '$_tripsTotal',
                               icon: Icons.directions_car_outlined,
                               color: AppColors.primary,
                             ),
@@ -258,7 +338,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                           Expanded(
                             child: _buildCountCard(
                               title: 'Completed',
-                              count: '16',
+                              count: '$_tripsCompleted',
                               icon: Icons.check_circle_outline,
                               color: AppColors.accentGreenDark,
                             ),
@@ -267,7 +347,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                           Expanded(
                             child: _buildCountCard(
                               title: 'Cancelled',
-                              count: '2',
+                              count: '$_tripsCancelled',
                               icon: Icons.cancel_outlined,
                               color: AppColors.error,
                             ),
@@ -312,28 +392,21 @@ class _EarningsScreenState extends State<EarningsScreen> {
                             _buildSummaryRow(
                               icon: Icons.account_balance_wallet_outlined,
                               label: 'Total Earnings',
-                              value: '₹22,680',
+                              value: '₹$totalEarned',
                               valueColor: AppColors.textPrimaryLight,
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildSummaryRow(
                               icon: Icons.emoji_events_outlined,
                               label: 'Incentives',
-                              value: '₹2,350',
+                              value: '₹0',
                               valueColor: AppColors.textPrimaryLight,
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
-                            _buildSummaryRow(
-                              icon: Icons.remove_circle_outline,
-                              label: 'Adjustments',
-                              value: '-₹1,580',
-                              valueColor: AppColors.error,
-                            ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildSummaryRow(
                               icon: Icons.unarchive_outlined,
                               label: 'Withdrawn',
-                              value: '-₹18,600',
+                              value: '-₹$totalWithdrawn',
                               valueColor: AppColors.error,
                               onTap: () => context.push(AppRoutes.earningsWithdrawalDetailsScreen),
                             ),
@@ -349,6 +422,13 @@ class _EarningsScreenState extends State<EarningsScreen> {
         ),
       ),
     );
+  }
+
+  double _getBarHeight(int weekday) {
+    final maxVal = _weekdayEarnings.values.fold<double>(0.0, (max, v) => v > max ? v : max);
+    if (maxVal <= 0) return 25.0;
+    final val = _weekdayEarnings[weekday] ?? 0.0;
+    return 15.0 + (val / maxVal) * 75.0;
   }
 
   Widget _buildBarColumn(String label, double heightRatio, {bool isHigh = false}) {
@@ -442,7 +522,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
           ),
           if (onTap != null) ...[
             const SizedBox(width: 4),
-            const Icon(Icons.chevron_right, size: 16, color: AppColors.textMutedLight),
+            Icon(Icons.chevron_right, size: 16, color: AppColors.textMutedLight),
           ],
         ],
       ),

@@ -130,7 +130,7 @@ class _ForgotPasswordOtpScreenState extends State<ForgotPasswordOtpScreen> {
                     children: [
                       IconButton(
                         onPressed: () => context.pop(),
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.arrow_back,
                           color: AppColors.textPrimaryLight,
                         ),
@@ -181,9 +181,9 @@ class _ForgotPasswordOtpScreenState extends State<ForgotPasswordOtpScreen> {
                                     : AppColors.borderLight),
                             width: isCurrent || hasChar ? 1.8 : 1,
                           ),
-                          boxShadow: const [
+                          boxShadow: [
                             BoxShadow(
-                              color: Color(0x06000000),
+                              color: Colors.black.withValues(alpha: 0.03),
                               blurRadius: 2,
                               offset: Offset(0, 1),
                             ),

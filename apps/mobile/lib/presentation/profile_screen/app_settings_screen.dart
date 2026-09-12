@@ -40,7 +40,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.md,
                   ),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppColors.surfaceLight,
                     border: Border(
                       bottom: BorderSide(color: AppColors.borderLight),
@@ -56,7 +56,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
                             context.go(AppRoutes.profileScreen);
                           }
                         },
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.arrow_back,
                           color: AppColors.textPrimaryLight,
                         ),
@@ -99,7 +99,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
                         child: Column(
                           children: [
                             ListTile(
-                              leading: const Icon(Icons.brightness_medium_outlined, color: AppColors.primary),
+                              leading: Icon(Icons.brightness_medium_outlined, color: AppColors.primary),
                               title: Text(
                                 'App Theme',
                                 style: AppTypography.body(
@@ -111,14 +111,14 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
                                 themeProvider.themeModeLabel,
                                 style: AppTypography.caption(color: AppColors.textSecondaryLight),
                               ),
-                              trailing: const Icon(Icons.chevron_right, color: AppColors.textMutedLight),
+                              trailing: Icon(Icons.chevron_right, color: AppColors.textMutedLight),
                               onTap: () {
                                 context.push(AppRoutes.profileScreen);
                               },
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             SwitchListTile(
-                              secondary: const Icon(Icons.contrast_outlined, color: AppColors.primary),
+                              secondary: Icon(Icons.contrast_outlined, color: AppColors.primary),
                               title: Text(
                                 'High Contrast Dark Mode',
                                 style: AppTypography.body(
@@ -158,7 +158,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
                         child: Column(
                           children: [
                             SwitchListTile(
-                              secondary: const Icon(Icons.volume_up_outlined, color: AppColors.primary),
+                              secondary: Icon(Icons.volume_up_outlined, color: AppColors.primary),
                               title: Text(
                                 'Voice Navigation Guidance',
                                 style: AppTypography.body(
@@ -174,9 +174,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
                               activeColor: AppColors.primary,
                               onChanged: (val) => setState(() => _voiceGuidance = val),
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             SwitchListTile(
-                              secondary: const Icon(Icons.flash_on_outlined, color: AppColors.primary),
+                              secondary: Icon(Icons.flash_on_outlined, color: AppColors.primary),
                               title: Text(
                                 'Auto-Accept Matching Trips',
                                 style: AppTypography.body(
@@ -205,7 +205,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
                           border: Border.all(color: AppColors.borderLight),
                         ),
                         child: ListTile(
-                          leading: const Icon(Icons.cleaning_services_outlined, color: AppColors.primary),
+                          leading: Icon(Icons.cleaning_services_outlined, color: AppColors.primary),
                           title: Text(
                             'Clear App Cache',
                             style: AppTypography.body(

@@ -45,7 +45,7 @@ class UserSupportCenterScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF6C5CE7), Color(0xFFA29BFE)],
+                    colors: [AppColors.primary, AppColors.primaryLight],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -69,7 +69,7 @@ class UserSupportCenterScreen extends StatelessWidget {
                     TextField(
                       decoration: InputDecoration(
                         hintText: 'Search for help topics',
-                        prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                        prefixIcon: const Icon(Icons.search, color: AppColors.slate400),
                         fillColor: Colors.white,
                         filled: true,
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md), borderSide: BorderSide.none),
@@ -131,7 +131,7 @@ class UserSupportCenterScreen extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.description_outlined, color: Color(0xFF6C5CE7)),
+                            Icon(Icons.description_outlined, color: AppColors.primary),
                             const SizedBox(height: 8),
                             Text('Raise an Issue', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)),
                             Text('Get help from our team', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontSize: 10)),
@@ -155,7 +155,7 @@ class UserSupportCenterScreen extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.phone_outlined, color: Color(0xFF6C5CE7)),
+                            Icon(Icons.phone_outlined, color: AppColors.primary),
                             const SizedBox(height: 8),
                             Text('Call Support', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)),
                             Text('Talk to our executive', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontSize: 10)),

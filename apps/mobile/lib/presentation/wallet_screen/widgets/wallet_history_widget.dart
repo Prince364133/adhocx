@@ -1,3 +1,4 @@
+import '../../../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import '../../../widgets/status_badge_widget.dart';
 
@@ -11,9 +12,9 @@ class WalletHistoryWidget extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1e293b),
+        color: AppColors.surfaceElevatedDark,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF334155)),
+        border: Border.all(color: AppColors.borderDark),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -34,7 +35,7 @@ class WalletHistoryWidget extends StatelessWidget {
               children: [
                 _HistoryRow(item: item),
                 if (i < history.length - 1)
-                  const Divider(color: Color(0xFF334155), height: 16),
+                  Divider(color: AppColors.borderDark, height: 16),
               ],
             );
           }),
@@ -75,7 +76,7 @@ class _HistoryRow extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 item['date'] as String,
-                style: const TextStyle(color: Color(0xFF94a3b8), fontSize: 11),
+                style: TextStyle(color: AppColors.textMutedDark, fontSize: 11),
               ),
             ],
           ),

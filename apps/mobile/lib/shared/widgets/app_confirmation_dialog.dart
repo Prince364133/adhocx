@@ -17,7 +17,7 @@ class AppConfirmationDialog extends StatelessWidget {
   const AppConfirmationDialog({
     super.key,
     this.icon = Icons.help_outline,
-    this.iconColor = const Color(0xFF6C5CE7),
+    this.iconColor = AppColors.primary,
     required this.title,
     required this.message,
     this.confirmText = 'Confirm',
@@ -28,7 +28,7 @@ class AppConfirmationDialog extends StatelessWidget {
   static Future<bool?> show(
     BuildContext context, {
     IconData icon = Icons.help_outline,
-    Color iconColor = const Color(0xFF6C5CE7),
+    Color iconColor = AppColors.primary,
     required String title,
     required String message,
     String confirmText = 'Confirm',

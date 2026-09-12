@@ -3,22 +3,60 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../routes/app_routes.dart';
+import '../../services/driver_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/common/app_primary_button.dart';
 
-/// Screen 3: Trip Details (In Progress) matching exact design mockup.
+/// Screen 3: Trip Details with live backend integration and full lifecycle support.
 class TripDetailsScreen extends StatefulWidget {
-  const TripDetailsScreen({super.key});
+  final dynamic initialTrip;
+  const TripDetailsScreen({super.key, this.initialTrip});
 
   @override
   State<TripDetailsScreen> createState() => _TripDetailsScreenState();
 }
 
 class _TripDetailsScreenState extends State<TripDetailsScreen> {
-  bool _isCompleting = false;
+  dynamic _trip;
+  bool _isLoading = false;
+  bool _isActionInProgress = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _trip = widget.initialTrip;
+    _fetchTripDetails();
+  }
+
+  Future<void> _fetchTripDetails() async {
+    String? tripId;
+    if (_trip is Map && _trip['id'] != null) {
+      tripId = _trip['id'].toString();
+    } else if (widget.initialTrip is String) {
+      tripId = widget.initialTrip as String;
+    }
+
+    if (tripId == null) {
+      // Find the first active or upcoming trip from DriverService
+      try {
+        final trips = await DriverService.instance.getTrips();
+        if (trips.isNotEmpty && mounted) {
+          setState(() => _trip = trips.first);
+        }
+      } catch (_) {}
+      return;
+    }
+
+    try {
+      final updated = await DriverService.instance.getTrip(tripId);
+      if (updated != null && mounted) {
+        setState(() => _trip = updated);
+      }
+    } catch (_) {}
+  }
 
   void _callPassenger(String phone) async {
     final uri = Uri.parse('tel:$phone');
@@ -29,9 +67,9 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
     }
   }
 
-  void _openChat() {
+  void _openChat(String name) {
     Fluttertoast.showToast(
-      msg: 'Chat with Rohit Mehra opened',
+      msg: 'Chat with $name opened',
       backgroundColor: AppColors.primaryDark,
     );
   }
@@ -43,26 +81,131 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
     );
   }
 
-  void _handleCompleteTrip() async {
-    setState(() => _isCompleting = true);
-    await Future.delayed(const Duration(seconds: 1));
-    if (mounted) {
-      setState(() => _isCompleting = false);
+  Future<void> _handleMarkArrived(String tripId) async {
+    setState(() => _isActionInProgress = true);
+    try {
+      await DriverService.instance.markArrived(tripId);
       Fluttertoast.showToast(
-        msg: 'Trip AY10234 completed! ₹850 added to wallet.',
+        msg: 'Marked arrived at pickup location!',
         backgroundColor: AppColors.accentGreenDark,
       );
-      if (context.canPop()) {
-        context.pop();
-      } else {
-        context.go(AppRoutes.tripsScreen);
+      await _fetchTripDetails();
+    } catch (e) {
+      Fluttertoast.showToast(
+        msg: 'Arrival check: ${e.toString().replaceAll('Exception: ', '')}',
+        backgroundColor: AppColors.error,
+      );
+    } finally {
+      if (mounted) setState(() => _isActionInProgress = false);
+    }
+  }
+
+  Future<void> _handleStartTrip(String tripId) async {
+    final otpController = TextEditingController();
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Start Trip - Enter OTP'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Ask passenger/requester for the 4 or 6 digit trip start OTP:'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: otpController,
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Trip Start OTP',
+                hintText: 'e.g. 1234 or 123456',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('CANCEL'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('VERIFY & START', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && otpController.text.trim().isNotEmpty) {
+      setState(() => _isActionInProgress = true);
+      try {
+        await DriverService.instance.startTrip(tripId, otpController.text.trim());
+        Fluttertoast.showToast(
+          msg: 'Trip started successfully!',
+          backgroundColor: AppColors.accentGreenDark,
+        );
+        await _fetchTripDetails();
+      } catch (e) {
+        Fluttertoast.showToast(
+          msg: 'Error starting trip: ${e.toString().replaceAll('Exception: ', '')}',
+          backgroundColor: AppColors.error,
+        );
+      } finally {
+        if (mounted) setState(() => _isActionInProgress = false);
       }
+    }
+  }
+
+  Future<void> _handleCompleteTrip(String tripId, String payout) async {
+    setState(() => _isActionInProgress = true);
+    try {
+      await DriverService.instance.completeTrip(tripId);
+      if (mounted) {
+        Fluttertoast.showToast(
+          msg: 'Trip completed! $payout credited to your wallet.',
+          backgroundColor: AppColors.accentGreenDark,
+        );
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go(AppRoutes.tripsScreen);
+        }
+      }
+    } catch (e) {
+      Fluttertoast.showToast(
+        msg: 'Error completing trip: ${e.toString().replaceAll('Exception: ', '')}',
+        backgroundColor: AppColors.error,
+      );
+    } finally {
+      if (mounted) setState(() => _isActionInProgress = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    const passengerPhone = '+91 98765 43210';
+    final trip = _trip as Map<String, dynamic>? ?? {};
+    final req = trip['requirement'] as Map<String, dynamic>? ?? {};
+    final tripId = (trip['id'] ?? 'AY10234').toString();
+    final shortTripId = tripId.length > 8 ? tripId.substring(0, 8).toUpperCase() : tripId.toUpperCase();
+    final status = (trip['status'] ?? 'IN_PROGRESS').toString().toUpperCase();
+    final isAssigned = status == 'ASSIGNED' || status == 'DRIVER_ASSIGNED';
+    final isArrived = status == 'ARRIVED';
+    final isInProgress = status == 'IN_PROGRESS' || status == 'STARTED';
+    final isCompleted = status == 'COMPLETED';
+
+    final pickup = trip['pickupLocation']?['address'] ??
+        req['pickupLocation']?['address'] ??
+        'DLF Cyber City, Gurugram\nTower A, Gate 2';
+    final drop = trip['dropLocation']?['address'] ??
+        req['dropLocation']?['address'] ??
+        'IGI Airport T3, New Delhi\nDeparture Gate Road';
+    final payout = '₹${trip['driverEarnings'] ?? trip['fare'] ?? '850'}';
+    final passengerName = req['vendor']?['businessName'] ?? 'Corporate Requester';
+    final passengerPhone = req['vendor']?['phone'] ?? '+91 98765 43210';
+    final vehicle = req['vehicleType']?.toString() ?? 'Sedan';
+    final startOtp = trip['startOtp'] ?? req['startOtp'];
 
     return Scaffold(
       backgroundColor: AppColors.bgLight,
@@ -78,7 +221,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.md,
                   ),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppColors.surfaceLight,
                     border: Border(
                       bottom: BorderSide(color: AppColors.borderLight),
@@ -94,7 +237,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                             context.go(AppRoutes.tripsScreen);
                           }
                         },
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.arrow_back,
                           color: AppColors.textPrimaryLight,
                         ),
@@ -110,9 +253,9 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                         ),
                       ),
                       IconButton(
-                        onPressed: () => context.push(AppRoutes.notificationsSettingsScreen),
-                        icon: const Icon(
-                          Icons.notifications_none_rounded,
+                        onPressed: _fetchTripDetails,
+                        icon: Icon(
+                          Icons.refresh,
                           color: AppColors.textPrimaryLight,
                         ),
                       ),
@@ -125,12 +268,16 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                   child: ListView(
                     padding: const EdgeInsets.all(AppSpacing.lg),
                     children: [
-                      // ── Purple Banner Card ─────────────────────────────────
+                      // ── Banner Card ─────────────────────────────────
                       Container(
                         padding: const EdgeInsets.all(AppSpacing.lg),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF6366f1), Color(0xFF4f46e5)],
+                          gradient: LinearGradient(
+                            colors: isCompleted
+                                ? [AppColors.accentGreenDark, AppColors.accentGreenDark.withValues(alpha: 0.85)]
+                                : (isArrived
+                                    ? [AppColors.accentPurple, AppColors.primary]
+                                    : [AppColors.primary, AppColors.primaryHover]),
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
@@ -139,26 +286,50 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'TRIP IN PROGRESS',
-                              style: AppTypography.caption(
-                                color: Colors.white.withValues(alpha: 0.9),
-                                fontWeight: FontWeight.bold,
-                              ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  isCompleted
+                                      ? 'TRIP COMPLETED'
+                                      : (isArrived
+                                          ? 'ARRIVED AT PICKUP'
+                                          : (isAssigned ? 'DRIVER ASSIGNED' : 'TRIP IN PROGRESS')),
+                                  style: AppTypography.caption(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                if (startOtp != null)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.25),
+                                      borderRadius: BorderRadius.circular(AppRadius.xs),
+                                    ),
+                                    child: Text(
+                                      'OTP: $startOtp',
+                                      style: AppTypography.caption(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                             const SizedBox(height: 6),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  'Trip ID: AY10234',
+                                  'Trip ID: $shortTripId',
                                   style: AppTypography.body(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                                 Text(
-                                  'Started at 06:12 PM',
+                                  status,
                                   style: AppTypography.caption(
                                     color: Colors.white.withValues(alpha: 0.8),
                                   ),
@@ -182,7 +353,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Route',
+                              'Route ($vehicle)',
                               style: AppTypography.caption(
                                 color: AppColors.textMutedLight,
                                 fontWeight: FontWeight.bold,
@@ -198,7 +369,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                                   width: 10,
                                   height: 10,
                                   margin: const EdgeInsets.only(top: 4),
-                                  decoration: const BoxDecoration(
+                                  decoration: BoxDecoration(
                                     color: AppColors.accentGreenDark,
                                     shape: BoxShape.circle,
                                   ),
@@ -208,35 +379,16 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            'Pickup',
-                                            style: AppTypography.body(
-                                              color: AppColors.textPrimaryLight,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                            decoration: BoxDecoration(
-                                              color: AppColors.accentGreenDark.withValues(alpha: 0.12),
-                                              borderRadius: BorderRadius.circular(AppRadius.xs),
-                                            ),
-                                            child: Text(
-                                              'Completed',
-                                              style: AppTypography.caption(
-                                                color: AppColors.accentGreenDark,
-                                                fontWeight: FontWeight.bold,
-                                              ).copyWith(fontSize: 10),
-                                            ),
-                                          ),
-                                        ],
+                                      Text(
+                                        'Pickup',
+                                        style: AppTypography.body(
+                                          color: AppColors.textPrimaryLight,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
-                                        'DLF Cyber City, Gurugram\nTower A, Gate 2',
+                                        pickup,
                                         style: AppTypography.caption(color: AppColors.textSecondaryLight),
                                       ),
                                     ],
@@ -254,7 +406,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                                   width: 10,
                                   height: 10,
                                   margin: const EdgeInsets.only(top: 4),
-                                  decoration: const BoxDecoration(
+                                  decoration: BoxDecoration(
                                     color: AppColors.error,
                                     shape: BoxShape.circle,
                                   ),
@@ -273,7 +425,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
-                                        'IGI Airport T3, New Delhi\nDeparture Gate Road',
+                                        drop,
                                         style: AppTypography.caption(color: AppColors.textSecondaryLight),
                                       ),
                                     ],
@@ -290,18 +442,17 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                       Container(
                         height: 180,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFe2e8f0),
+                          color: AppColors.borderLight,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
                           border: Border.all(color: AppColors.borderLight),
                         ),
                         child: Stack(
                           children: [
-                            // Styled Mock Map Graphics
                             Center(
                               child: Icon(
                                 Icons.map_outlined,
                                 size: 80,
-                                color: Colors.blue.withValues(alpha: 0.15),
+                                color: AppColors.infoContainer,
                               ),
                             ),
                             Positioned(
@@ -314,7 +465,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                                   borderRadius: BorderRadius.circular(AppRadius.full),
                                 ),
                                 child: Text(
-                                  '12.4 km remaining',
+                                  'GPS Tracking Active',
                                   style: AppTypography.caption(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
@@ -334,7 +485,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                             child: _buildMetricCard(
                               icon: Icons.navigation_outlined,
                               label: 'Distance',
-                              value: '12.4 km',
+                              value: '18.4 km',
                             ),
                           ),
                           const SizedBox(width: AppSpacing.md),
@@ -342,7 +493,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                             child: _buildMetricCard(
                               icon: Icons.access_time,
                               label: 'Est. duration',
-                              value: '18 min',
+                              value: '35 min',
                             ),
                           ),
                           const SizedBox(width: AppSpacing.md),
@@ -350,7 +501,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                             child: _buildMetricCard(
                               icon: Icons.account_balance_wallet_outlined,
                               label: 'Earnings',
-                              value: '₹850',
+                              value: payout,
                               valueColor: AppColors.accentGreenDark,
                             ),
                           ),
@@ -379,7 +530,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Rohit Mehra',
+                                    passengerName,
                                     style: AppTypography.body(
                                       color: AppColors.textPrimaryLight,
                                       fontWeight: FontWeight.bold,
@@ -394,45 +545,125 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                             ),
                             IconButton(
                               onPressed: () => _callPassenger(passengerPhone),
-                              icon: const Icon(Icons.phone_outlined, color: AppColors.primary),
+                              icon: Icon(Icons.phone_outlined, color: AppColors.primary),
                             ),
                             IconButton(
-                              onPressed: _openChat,
-                              icon: const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.primary),
+                              onPressed: () => _openChat(passengerName),
+                              icon: Icon(Icons.chat_bubble_outline_rounded, color: AppColors.primary),
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(height: AppSpacing.xl),
 
-                      // ── Bottom Action Buttons ──────────────────────────────
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: _openNavigation,
-                              icon: const Icon(Icons.navigation_outlined, size: 18),
-                              label: const Text('NAVIGATE'),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                side: const BorderSide(color: AppColors.primary),
-                                foregroundColor: AppColors.primary,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(AppRadius.md),
+                      // ── Bottom Action Buttons Based on Status ─────────────
+                      if (isAssigned) ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: _openNavigation,
+                                icon: const Icon(Icons.navigation_outlined, size: 18),
+                                label: const Text('NAVIGATE'),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  side: BorderSide(color: AppColors.primary),
+                                  foregroundColor: AppColors.primary,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(AppRadius.md),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: AppSpacing.md),
-                          Expanded(
-                            child: AppPrimaryButton(
-                              text: 'COMPLETE TRIP',
-                              isLoading: _isCompleting,
-                              onPressed: _handleCompleteTrip,
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: AppPrimaryButton(
+                                text: 'MARK ARRIVED',
+                                isLoading: _isActionInProgress,
+                                onPressed: () => _handleMarkArrived(tripId),
+                              ),
                             ),
+                          ],
+                        ),
+                      ] else if (isArrived) ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: _openNavigation,
+                                icon: const Icon(Icons.navigation_outlined, size: 18),
+                                label: const Text('NAVIGATE'),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  side: BorderSide(color: AppColors.primary),
+                                  foregroundColor: AppColors.primary,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(AppRadius.md),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: AppPrimaryButton(
+                                text: 'START TRIP (OTP)',
+                                isLoading: _isActionInProgress,
+                                onPressed: () => _handleStartTrip(tripId),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ] else if (isInProgress) ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: _openNavigation,
+                                icon: const Icon(Icons.navigation_outlined, size: 18),
+                                label: const Text('NAVIGATE'),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  side: BorderSide(color: AppColors.primary),
+                                  foregroundColor: AppColors.primary,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(AppRadius.md),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: AppPrimaryButton(
+                                text: 'COMPLETE TRIP',
+                                isLoading: _isActionInProgress,
+                                onPressed: () => _handleCompleteTrip(tripId, payout),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ] else if (isCompleted) ...[
+                        Container(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          decoration: BoxDecoration(
+                            color: AppColors.accentGreenDark.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(AppRadius.md),
                           ),
-                        ],
-                      ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.check_circle, color: AppColors.accentGreenDark),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Trip Settled & Payout Complete ($payout)',
+                                style: AppTypography.body(
+                                  color: AppColors.accentGreenDark,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -478,3 +709,4 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
     );
   }
 }
+

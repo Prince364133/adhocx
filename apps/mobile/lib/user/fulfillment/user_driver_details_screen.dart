@@ -1,19 +1,66 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../routes/app_routes.dart';
+import '../../services/user_service.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
 
-class UserDriverDetailsScreen extends StatelessWidget {
-  const UserDriverDetailsScreen({super.key});
+class UserDriverDetailsScreen extends StatefulWidget {
+  final Map<String, dynamic>? trip;
+  const UserDriverDetailsScreen({super.key, this.trip});
+
+  @override
+  State<UserDriverDetailsScreen> createState() => _UserDriverDetailsScreenState();
+}
+
+class _UserDriverDetailsScreenState extends State<UserDriverDetailsScreen> {
+  Map<String, dynamic>? _trip;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.trip != null) {
+      _trip = widget.trip;
+      _isLoading = false;
+    } else {
+      _loadLatestTrip();
+    }
+  }
+
+  Future<void> _loadLatestTrip() async {
+    setState(() => _isLoading = true);
+    try {
+      final list = await UserService.instance.getTrips();
+      if (list.isNotEmpty && mounted) {
+        setState(() => _trip = list.first as Map<String, dynamic>);
+      }
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+
+    final trip = _trip ?? {};
+    final driver = trip['driver'] as Map<String, dynamic>?;
+    final driverUser = driver?['user'] as Map<String, dynamic>?;
+    final driverName = driverUser?['fullName'] ?? driver?['fullName'] ?? 'Assigned Driver';
+    final driverPhone = driverUser?['phone'] ?? driver?['phone'] ?? '+91 98765 43210';
+    final rating = (driver?['rating'] ?? 4.8).toString();
+    final licenseNumber = driver?['licenseNumber'] ?? 'HR26 2020 1234567';
+    final vehiclePlate = driver?['vehiclePlate'] ?? trip['vehiclePlate'] ?? 'DL 01 AB 1234';
+    final vehicleModel = driver?['vehicleModel'] ?? trip['vehicleModel'] ?? 'Sedan';
+    final totalTrips = (driver?['totalTrips'] ?? 320).toString();
+
+    final initials = driverName.split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join().toUpperCase();
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -24,122 +71,151 @@ class UserDriverDetailsScreen extends StatelessWidget {
           onPressed: () => context.pop(),
           icon: Icon(Icons.arrow_back, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
         ),
+        title: Text(
+          'Driver Details',
+          style: AppTypography.h3(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold),
+        ),
         actions: [
           IconButton(
             onPressed: () {},
-            icon: const Icon(Icons.phone, color: Color(0xFF6C5CE7)),
+            icon: Icon(Icons.phone, color: AppColors.primary),
           ),
           IconButton(
             onPressed: () {},
-            icon: const Icon(Icons.chat_bubble_outline, color: Color(0xFF6C5CE7)),
+            icon: Icon(Icons.chat_bubble_outline, color: AppColors.primary),
           ),
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            children: [
-              // Driver Avatar Header + Verified Badge
-              Center(
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(AppSpacing.md),
                 child: Column(
                   children: [
-                    const CircleAvatar(
-                      radius: 36,
-                      backgroundColor: Color(0xFF6C5CE7),
-                      child: Text('RS', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text('Rahul Sharma', style: AppTypography.h2(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
-                        const SizedBox(width: 6),
-                        Row(
-                          children: const [
-                            Icon(Icons.star, size: 16, color: Colors.amber),
-                            SizedBox(width: 2),
-                            Text('4.8', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.verified, size: 14, color: AppColors.success),
-                        SizedBox(width: 4),
-                        Text('Verified Driver', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold, fontSize: 11)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: AppSpacing.xl),
-
-              // Contact Container Card
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.phone_outlined, color: Color(0xFF6C5CE7)),
-                    const SizedBox(width: 10),
-                    Text('+91 98765-43210', style: AppTypography.body(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
-                    const Spacer(),
-                    IconButton(
-                      onPressed: () {},
-                      icon: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(color: const Color(0xFF6C5CE7).withValues(alpha: 0.1), shape: BoxShape.circle),
-                        child: const Icon(Icons.chat_bubble_outline, color: Color(0xFF6C5CE7), size: 18),
+                    // Driver Avatar Header + Verified Badge
+                    Center(
+                      child: Column(
+                        children: [
+                          CircleAvatar(
+                            radius: 36,
+                            backgroundColor: AppColors.primary,
+                            child: Text(
+                              initials.isNotEmpty ? initials : 'D',
+                              style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                driverName,
+                                style: AppTypography.h2(
+                                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Row(
+                                children: [
+                                  const Icon(Icons.star, size: 16, color: AppColors.starAmber),
+                                  const SizedBox(width: 2),
+                                  Text(rating, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              Icon(Icons.verified, size: 14, color: AppColors.success),
+                              SizedBox(width: 4),
+                              Text('Verified Driver', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold, fontSize: 11)),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
+
+                    const SizedBox(height: AppSpacing.xl),
+
+                    // Contact Container Card
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.phone_outlined, color: AppColors.primary),
+                          const SizedBox(width: 10),
+                          Text(
+                            driverPhone,
+                            style: AppTypography.body(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold),
+                          ),
+                          const Spacer(),
+                          IconButton(
+                            onPressed: () {},
+                            icon: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), shape: BoxShape.circle),
+                              child: Icon(Icons.chat_bubble_outline, color: AppColors.primary, size: 18),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: AppSpacing.lg),
+
+                    // Driver Information Grid
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Driver Information', style: AppTypography.h4(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 12),
+                          _buildInfoLine(context, 'Assigned Vehicle', '$vehiclePlate ($vehicleModel)', isDark),
+                          const Divider(),
+                          _buildInfoLine(context, 'License No.', licenseNumber, isDark),
+                          const Divider(),
+                          _buildInfoLine(context, 'Total Completed Trips', totalTrips, isDark),
+                          const Divider(),
+                          _buildInfoLine(context, 'Status', (trip['status'] ?? 'ASSIGNED').toString(), isDark),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: AppSpacing.xl),
+
+                    AppPrimaryButton(
+                      text: 'View Live Location',
+                      onPressed: () => context.push(AppRoutes.userActiveTripScreen, extra: trip),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    OutlinedButton(
+                      onPressed: () => context.push(AppRoutes.userCancelAssignmentScreen, extra: trip),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                        foregroundColor: AppColors.error,
+                        side: BorderSide(color: AppColors.error.withValues(alpha: 0.5)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                      ),
+                      child: const Text('Cancel Assignment', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
                   ],
                 ),
               ),
-
-              const SizedBox(height: AppSpacing.lg),
-
-              // Driver Information Grid
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Driver Information', style: AppTypography.h4(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 12),
-                    _buildInfoLine(context, 'License No.', 'HR26 2020 1234567', isDark),
-                    const Divider(),
-                    _buildInfoLine(context, 'Experience', '4.5 Years', isDark),
-                    const Divider(),
-                    _buildInfoLine(context, 'Total Trips', '320', isDark),
-                    const Divider(),
-                    _buildInfoLine(context, 'Completion Rate', '98%', isDark),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: AppSpacing.xl),
-
-              AppPrimaryButton(
-                text: 'View Live Location',
-                onPressed: () => context.push(AppRoutes.userActiveTripScreen),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

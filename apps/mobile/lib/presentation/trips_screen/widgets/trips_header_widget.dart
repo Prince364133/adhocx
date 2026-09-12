@@ -1,3 +1,4 @@
+import '../../../shared/theme/app_colors.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 
@@ -54,9 +55,9 @@ class _TripsHeaderWidgetState extends State<TripsHeaderWidget>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: const Color(0xFF0d1117).withAlpha(230),
+            color: AppColors.bgDark.withAlpha(230),
             border: const Border(
-              bottom: BorderSide(color: Color(0xFF1a2332), width: 1),
+              bottom: BorderSide(color: AppColors.borderDark, width: 1),
             ),
           ),
           child: Row(
@@ -66,10 +67,10 @@ class _TripsHeaderWidgetState extends State<TripsHeaderWidget>
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0d1117),
+                  color: AppColors.bgDark,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: const Color(0xFF22c55e).withAlpha(77),
+                    color: AppColors.success.withAlpha(77),
                   ),
                 ),
                 child: ClipRRect(
@@ -105,16 +106,16 @@ class _TripsHeaderWidgetState extends State<TripsHeaderWidget>
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF22c55e).withAlpha(38),
+                            color: AppColors.success.withAlpha(38),
                             borderRadius: BorderRadius.circular(4),
                             border: Border.all(
-                              color: const Color(0xFF22c55e).withAlpha(102),
+                              color: AppColors.success.withAlpha(102),
                             ),
                           ),
-                          child: const Text(
+                          child: Text(
                             'Verified',
                             style: TextStyle(
-                              color: Color(0xFF22c55e),
+                              color: AppColors.success,
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
                             ),
@@ -124,8 +125,8 @@ class _TripsHeaderWidgetState extends State<TripsHeaderWidget>
                     ),
                     Text(
                       '${widget.vehicleNumber} · ${widget.vehicleType}',
-                      style: const TextStyle(
-                        color: Color(0xFF94a3b8),
+                      style: TextStyle(
+                        color: AppColors.textMutedDark,
                         fontSize: 11,
                       ),
                     ),
@@ -143,13 +144,13 @@ class _TripsHeaderWidgetState extends State<TripsHeaderWidget>
                   ),
                   decoration: BoxDecoration(
                     color: widget.isOnline
-                        ? const Color(0xFF22c55e).withAlpha(38)
-                        : const Color(0xFF1a2332),
+                        ? AppColors.success.withAlpha(38)
+                        : AppColors.borderDark,
                     borderRadius: BorderRadius.circular(999),
                     border: Border.all(
                       color: widget.isOnline
-                          ? const Color(0xFF22c55e)
-                          : const Color(0xFF475569),
+                          ? AppColors.success
+                          : AppColors.textSecondaryLight,
                     ),
                   ),
                   child: Row(
@@ -183,8 +184,8 @@ class _TripsHeaderWidgetState extends State<TripsHeaderWidget>
                         Container(
                           width: 8,
                           height: 8,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF475569),
+                          decoration: BoxDecoration(
+                            color: AppColors.textSecondaryLight,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -193,8 +194,8 @@ class _TripsHeaderWidgetState extends State<TripsHeaderWidget>
                         widget.isOnline ? 'Online' : 'Offline',
                         style: TextStyle(
                           color: widget.isOnline
-                              ? const Color(0xFF22c55e)
-                              : const Color(0xFF94a3b8),
+                              ? AppColors.success
+                              : AppColors.textMutedDark,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),

@@ -3,6 +3,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../routes/app_routes.dart';
+import '../../services/auth_provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/onboarding_provider.dart';
 import '../../theme/app_colors.dart';
@@ -48,49 +49,55 @@ class _SignInScreenState extends State<SignInScreen> {
 
     try {
       final onboarding = context.read<OnboardingProvider>();
+      final authService = context.read<AuthService>();
 
-      String? phoneTarget;
-      String? emailTarget;
-
+      String identifier;
       if (_inputMode == AuthInputMode.phone) {
         final rawPhone = _phoneController.text.trim().replaceAll(RegExp(r'\D'), '');
-        phoneTarget = '+91$rawPhone';
-        onboarding.setPersonalDetails(
-          fullName: onboarding.fullName.isNotEmpty ? onboarding.fullName : 'Rahul Sharma',
-          dateOfBirth: onboarding.dateOfBirth,
-          gender: onboarding.gender,
-          phone: phoneTarget,
-        );
+        identifier = '+91$rawPhone';
       } else {
-        emailTarget = _emailController.text.trim();
-        onboarding.setPersonalDetails(
-          fullName: onboarding.fullName.isNotEmpty ? onboarding.fullName : 'Rahul Sharma',
-          dateOfBirth: onboarding.dateOfBirth,
-          gender: onboarding.gender,
-          email: emailTarget,
-        );
+        identifier = _emailController.text.trim();
       }
 
-      // Fast authenticated login
-      await Future.delayed(const Duration(milliseconds: 500));
+      final result = await authService.loginWithPassword(
+        identifier: identifier,
+        password: _passwordController.text.trim(),
+        role: onboarding.role,
+      );
 
+      final user = result.user;
       if (mounted) {
+        context.read<AuthProvider>().setUser(user);
+        onboarding.setRole(user.role);
+        if (user.fullName != null) {
+          onboarding.setPersonalDetails(
+            fullName: user.fullName!,
+            phone: user.phone,
+            email: user.email,
+          );
+        }
+
         Fluttertoast.showToast(
-          msg: 'Welcome back! Signed in successfully.',
+          msg: 'Welcome back, ${user.fullName ?? "Partner"}!',
           backgroundColor: AppColors.accentGreenDark,
           textColor: Colors.white,
         );
 
-        if (onboarding.isDriver) {
-          context.go(AppRoutes.homeScreen);
+        if (user.isDriver) {
+          if (user.isUnderReview || user.isRejected) {
+            context.go(AppRoutes.waitlistGateScreen);
+          } else {
+            context.go(AppRoutes.homeScreen);
+          }
         } else {
           context.go(AppRoutes.userHomeScreen);
         }
       }
     } catch (e) {
       if (mounted) {
+        final msg = e.toString().replaceFirst('Exception: ', '').replaceFirst('ApiException: ', '');
         Fluttertoast.showToast(
-          msg: e.toString().replaceFirst('Exception: ', ''),
+          msg: msg,
           backgroundColor: AppColors.error,
           textColor: Colors.white,
         );
@@ -132,8 +139,9 @@ class _SignInScreenState extends State<SignInScreen> {
 
       if (mounted) {
         final targetDisplay = phoneTarget ?? emailTarget ?? 'your address';
+        final message = res is Map && res['message'] != null ? res['message'] : 'OTP sent to $targetDisplay';
         Fluttertoast.showToast(
-          msg: res['message'] ?? 'OTP sent to $targetDisplay',
+          msg: message,
           backgroundColor: AppColors.primaryDark,
           textColor: Colors.white,
         );
@@ -151,7 +159,7 @@ class _SignInScreenState extends State<SignInScreen> {
     } catch (e) {
       if (mounted) {
         Fluttertoast.showToast(
-          msg: e.toString().replaceFirst('Exception: ', ''),
+          msg: e.toString().replaceFirst('Exception: ', '').replaceFirst('ApiException: ', ''),
           backgroundColor: AppColors.error,
           textColor: Colors.white,
         );
@@ -168,32 +176,40 @@ class _SignInScreenState extends State<SignInScreen> {
       final authService = context.read<AuthService>();
       final onboarding = context.read<OnboardingProvider>();
 
-      const socialEmail = 'rahul.google@gmail.com';
-      const socialName = 'Rahul Sharma (Google)';
-
       final result = await authService.signInWithGoogle(role: onboarding.role);
-
-      onboarding.setPersonalDetails(
-        fullName: result.user.fullName ?? socialName,
-        dateOfBirth: onboarding.dateOfBirth,
-        gender: onboarding.gender,
-        email: result.user.email ?? socialEmail,
-        phone: result.user.phone,
-      );
+      final user = result.user;
 
       if (mounted) {
+        context.read<AuthProvider>().setUser(user);
+        onboarding.setRole(user.role);
+        if (user.fullName != null) {
+          onboarding.setPersonalDetails(
+            fullName: user.fullName!,
+            phone: user.phone,
+            email: user.email,
+          );
+        }
+
         Fluttertoast.showToast(
-          msg: 'Google verified! Create your password to continue.',
+          msg: 'Google Sign In successful! Welcome ${user.fullName ?? ""}',
           backgroundColor: AppColors.accentGreenDark,
           textColor: Colors.white,
         );
 
-        context.push(AppRoutes.setPasswordScreen);
+        if (user.isDriver) {
+          if (user.isUnderReview || user.isRejected) {
+            context.go(AppRoutes.waitlistGateScreen);
+          } else {
+            context.go(AppRoutes.homeScreen);
+          }
+        } else {
+          context.go(AppRoutes.userHomeScreen);
+        }
       }
     } catch (e) {
       if (mounted) {
         Fluttertoast.showToast(
-          msg: e.toString().replaceFirst('Exception: ', ''),
+          msg: e.toString().replaceFirst('Exception: ', '').replaceFirst('ApiException: ', ''),
           backgroundColor: AppColors.error,
           textColor: Colors.white,
         );
@@ -232,7 +248,7 @@ class _SignInScreenState extends State<SignInScreen> {
                               context.go(AppRoutes.splashScreen);
                             }
                           },
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.arrow_back,
                             color: AppColors.textPrimaryLight,
                           ),
@@ -380,9 +396,9 @@ class _SignInScreenState extends State<SignInScreen> {
                       AppTextField(
                         controller: _emailController,
                         label: 'Email Address',
-                        hintText: 'rahul.sharma@example.com',
+                        hintText: 'name@example.com',
                         keyboardType: TextInputType.emailAddress,
-                        prefixIcon: const Icon(Icons.email_outlined, size: 20, color: AppColors.textSecondaryLight),
+                        prefixIcon: Icon(Icons.email_outlined, size: 20, color: AppColors.textSecondaryLight),
                         validator: (val) {
                           if (val == null || val.trim().isEmpty) {
                             return 'Email address is required';
@@ -402,7 +418,7 @@ class _SignInScreenState extends State<SignInScreen> {
                       label: 'Password',
                       hintText: 'Enter your password',
                       obscureText: _obscurePassword,
-                      prefixIcon: const Icon(
+                      prefixIcon: Icon(
                         Icons.lock_outline_rounded,
                         size: 20,
                         color: AppColors.textSecondaryLight,
@@ -521,7 +537,7 @@ class _SignInScreenState extends State<SignInScreen> {
                         GestureDetector(
                           onTap: () {
                             final onboarding = context.read<OnboardingProvider>();
-                            onboarding.setRole('USER');
+                            onboarding.setRole('DRIVER');
                             context.push(AppRoutes.signUpScreen);
                           },
                           child: Text(
@@ -533,88 +549,6 @@ class _SignInScreenState extends State<SignInScreen> {
                           ),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
-
-                    // ── Driver Partner Quick CTA Banner ──────────────────────
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                        vertical: AppSpacing.sm + 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primarySubtle,
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                        border: Border.all(
-                          color: AppColors.primaryLight.withValues(alpha: 0.35),
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(AppRadius.sm),
-                            ),
-                            child: const Icon(
-                              Icons.local_taxi_rounded,
-                              color: Colors.white,
-                              size: 18,
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.md),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Drive & Earn with AdhocX',
-                                  style: AppTypography.small(
-                                    color: AppColors.textPrimaryLight,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                Text(
-                                  'Join our verified driver fleet',
-                                  style: AppTypography.caption(
-                                    color: AppColors.textSecondaryLight,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              final onboarding = context.read<OnboardingProvider>();
-                              onboarding.setRole('DRIVER');
-                              context.push(AppRoutes.signUpScreen);
-                            },
-                            style: TextButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 6,
-                              ),
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(AppRadius.sm),
-                              ),
-                            ),
-                            child: const Text(
-                              'Driver Sign Up',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
                   ],
                 ),

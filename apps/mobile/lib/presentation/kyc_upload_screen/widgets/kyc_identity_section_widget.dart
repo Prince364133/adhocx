@@ -1,3 +1,4 @@
+import 'package:adhocx/shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -108,7 +109,7 @@ class _KycSection extends StatelessWidget {
                 width: 24,
                 height: 24,
                 decoration: BoxDecoration(
-                  color: Colors.green, // Changed to brand green
+                  color: AppColors.success, // Changed to brand green
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Center(
@@ -126,7 +127,7 @@ class _KycSection extends StatelessWidget {
               Text(
                 title,
                 style: const TextStyle(
-                  color: Colors.green, // Changed to brand green
+                  color: AppColors.success, // Changed to brand green
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
@@ -187,22 +188,22 @@ class _KycField extends StatelessWidget {
             hintStyle: const TextStyle(color: Colors.white38),
             prefixIcon: Icon(icon, color: Colors.white70, size: 18),
             filled: true,
-            fillColor: const Color(0xFF111111), // Very dark grey inner box
+            fillColor: AppColors.surfaceDark, // Very dark grey inner box
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(color: Colors.white24),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Colors.green), // Green outline when typing
+              borderSide: const BorderSide(color: AppColors.success), // Green outline when typing
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Colors.redAccent),
+              borderSide: const BorderSide(color: AppColors.error),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Colors.redAccent),
+              borderSide: const BorderSide(color: AppColors.error),
             ),
           ),
           onSaved: onSaved,

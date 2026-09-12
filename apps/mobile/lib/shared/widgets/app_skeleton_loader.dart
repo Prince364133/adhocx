@@ -23,7 +23,7 @@ class AppSkeletonLoader extends StatelessWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : Colors.grey[300],
+        color: isDark ? AppColors.surfaceDark : AppColors.slate300,
         borderRadius: BorderRadius.circular(borderRadius),
       ),
     );
@@ -42,7 +42,7 @@ class AppSkeletonLoader extends StatelessWidget {
           decoration: BoxDecoration(
             color: Theme.of(context).brightness == Brightness.dark ? AppColors.surfaceDark : AppColors.surfaceLight,
             borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+            border: Border.all(color: AppColors.slate400.withValues(alpha: 0.2)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

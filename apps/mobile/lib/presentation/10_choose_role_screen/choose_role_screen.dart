@@ -55,7 +55,7 @@ class _ChooseRoleScreenState extends State<ChooseRoleScreen> {
                     children: [
                       IconButton(
                         onPressed: () => context.pop(),
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.arrow_back,
                           color: AppColors.textPrimaryLight,
                         ),
@@ -90,7 +90,7 @@ class _ChooseRoleScreenState extends State<ChooseRoleScreen> {
                     subtitle: 'For outstation trips, events & corporate travel',
                     isSelected: _selectedRole == 'USER' || _selectedRole == 'VENDOR',
                     onTap: () => setState(() => _selectedRole = 'USER'),
-                    iconWidget: const Icon(
+                    iconWidget: Icon(
                       Icons.person_pin_circle_rounded,
                       size: 32,
                       color: AppColors.primary,
@@ -105,7 +105,7 @@ class _ChooseRoleScreenState extends State<ChooseRoleScreen> {
                     subtitle: 'Drive your vehicle and earn with verified rides',
                     isSelected: _selectedRole == 'DRIVER',
                     onTap: () => setState(() => _selectedRole = 'DRIVER'),
-                    iconWidget: const Icon(
+                    iconWidget: Icon(
                       Icons.drive_eta_rounded,
                       size: 32,
                       color: AppColors.primary,

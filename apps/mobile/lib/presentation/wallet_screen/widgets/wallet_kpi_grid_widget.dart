@@ -1,3 +1,4 @@
+import '../../../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class WalletKpiGridWidget extends StatelessWidget {
@@ -19,8 +20,8 @@ class WalletKpiGridWidget extends StatelessWidget {
             label: "Today's Earnings",
             value: '₹${todayEarnings.toStringAsFixed(0)}',
             icon: Icons.trending_up_rounded,
-            valueColor: const Color(0xFF10b981),
-            iconBg: const Color(0xFF10b981),
+            valueColor: AppColors.success,
+            iconBg: AppColors.success,
           ),
         ),
         const SizedBox(width: 12),
@@ -30,7 +31,7 @@ class WalletKpiGridWidget extends StatelessWidget {
             value: '₹${availableBalance.toStringAsFixed(0)}',
             icon: Icons.account_balance_wallet_rounded,
             valueColor: Colors.white,
-            iconBg: const Color(0xFFf59e0b),
+            iconBg: AppColors.warning,
           ),
         ),
       ],
@@ -58,9 +59,9 @@ class _KpiCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1e293b),
+        color: AppColors.surfaceElevatedDark,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF334155)),
+        border: Border.all(color: AppColors.borderDark),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -77,7 +78,7 @@ class _KpiCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             label,
-            style: const TextStyle(color: Color(0xFF94a3b8), fontSize: 11),
+            style: TextStyle(color: AppColors.textMutedDark, fontSize: 11),
           ),
           const SizedBox(height: 4),
           Text(

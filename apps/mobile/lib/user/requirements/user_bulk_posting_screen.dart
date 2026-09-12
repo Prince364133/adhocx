@@ -65,23 +65,23 @@ class _UserBulkPostingScreenState extends State<UserBulkPostingScreen> {
                         padding: const EdgeInsets.all(AppSpacing.md),
                         decoration: BoxDecoration(
                           color: _inputMethod == 'Upload Excel / CSV'
-                              ? const Color(0xFF6C5CE7).withValues(alpha: 0.1)
+                              ? AppColors.primary.withValues(alpha: 0.1)
                               : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
                           borderRadius: BorderRadius.circular(AppRadius.lg),
                           border: Border.all(
                             color: _inputMethod == 'Upload Excel / CSV'
-                                ? const Color(0xFF6C5CE7)
+                                ? AppColors.primary
                                 : (isDark ? AppColors.borderDark : AppColors.borderLight),
                             width: _inputMethod == 'Upload Excel / CSV' ? 2 : 1,
                           ),
                         ),
                         child: Column(
                           children: const [
-                            Icon(Icons.upload_file, size: 32, color: Color(0xFF6C5CE7)),
+                            Icon(Icons.upload_file, size: 32, color: AppColors.primary),
                             SizedBox(height: 8),
                             Text('Upload Excel / CSV', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                             SizedBox(height: 4),
-                            Text('Download template and upload your file', textAlign: TextAlign.center, style: TextStyle(fontSize: 10, color: Colors.grey)),
+                            Text('Download template and upload your file', textAlign: TextAlign.center, style: TextStyle(fontSize: 10, color: AppColors.slate400)),
                           ],
                         ),
                       ),
@@ -95,23 +95,23 @@ class _UserBulkPostingScreenState extends State<UserBulkPostingScreen> {
                         padding: const EdgeInsets.all(AppSpacing.md),
                         decoration: BoxDecoration(
                           color: _inputMethod == 'Manual Entry'
-                              ? const Color(0xFF6C5CE7).withValues(alpha: 0.1)
+                              ? AppColors.primary.withValues(alpha: 0.1)
                               : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
                           borderRadius: BorderRadius.circular(AppRadius.lg),
                           border: Border.all(
                             color: _inputMethod == 'Manual Entry'
-                                ? const Color(0xFF6C5CE7)
+                                ? AppColors.primary
                                 : (isDark ? AppColors.borderDark : AppColors.borderLight),
                             width: _inputMethod == 'Manual Entry' ? 2 : 1,
                           ),
                         ),
                         child: Column(
                           children: const [
-                            Icon(Icons.edit_note, size: 32, color: Colors.grey),
+                            Icon(Icons.edit_note, size: 32, color: AppColors.slate400),
                             SizedBox(height: 8),
                             Text('Manual Entry', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                             SizedBox(height: 4),
-                            Text('Enter requirements one by one', textAlign: TextAlign.center, style: TextStyle(fontSize: 10, color: Colors.grey)),
+                            Text('Enter requirements one by one', textAlign: TextAlign.center, style: TextStyle(fontSize: 10, color: AppColors.slate400)),
                           ],
                         ),
                       ),
@@ -148,8 +148,8 @@ class _UserBulkPostingScreenState extends State<UserBulkPostingScreen> {
                       },
                       icon: Container(
                         padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(color: const Color(0xFF6C5CE7).withValues(alpha: 0.1), shape: BoxShape.circle),
-                        child: const Icon(Icons.download, color: Color(0xFF6C5CE7)),
+                        decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), shape: BoxShape.circle),
+                        child: Icon(Icons.download, color: AppColors.primary),
                       ),
                     ),
                   ],
@@ -184,8 +184,8 @@ class _UserBulkPostingScreenState extends State<UserBulkPostingScreen> {
                       },
                       icon: Container(
                         padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(color: const Color(0xFF6C5CE7).withValues(alpha: 0.1), shape: BoxShape.circle),
-                        child: const Icon(Icons.file_upload_outlined, color: Color(0xFF6C5CE7)),
+                        decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), shape: BoxShape.circle),
+                        child: Icon(Icons.file_upload_outlined, color: AppColors.primary),
                       ),
                     ),
                   ],

@@ -84,6 +84,10 @@ export class SocialAuthDto {
 
   @IsOptional()
   @IsString()
+  token?: string;
+
+  @IsOptional()
+  @IsString()
   fullName?: string;
 
   @IsOptional()
@@ -93,6 +97,36 @@ export class SocialAuthDto {
   @IsOptional()
   @IsString()
   role?: string;
+}
+
+export class LoginDto {
+  @IsNotEmpty({ message: 'Phone number or email is required' })
+  @IsString()
+  identifier!: string;
+
+  @IsNotEmpty({ message: 'Password is required' })
+  @IsString()
+  password!: string;
+
+  @IsOptional()
+  @IsString()
+  role?: string;
+}
+
+export class ResetPasswordDto {
+  @IsNotEmpty({ message: 'Phone number or email is required' })
+  @IsString()
+  identifier!: string;
+
+  @IsNotEmpty({ message: 'OTP is required' })
+  @IsString()
+  @Length(6, 6, { message: 'OTP must be 6 digits' })
+  otp!: string;
+
+  @IsNotEmpty({ message: 'New password is required' })
+  @IsString()
+  @Length(6, 100, { message: 'Password must be at least 6 characters' })
+  password!: string;
 }
 
 export class SetPasswordDto {

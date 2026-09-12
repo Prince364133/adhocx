@@ -1,6 +1,15 @@
 import { Controller, Post, Get, Body, Req, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse as SwaggerResponse } from '@nestjs/swagger';
-import { RequestOtpDto, VerifyOtpDto, RefreshTokenDto, SocialAuthDto, SetPasswordDto, AuthUserDto } from '@adhocx/contracts';
+import {
+  RequestOtpDto,
+  VerifyOtpDto,
+  RefreshTokenDto,
+  SocialAuthDto,
+  SetPasswordDto,
+  LoginDto,
+  ResetPasswordDto,
+  AuthUserDto,
+} from '@adhocx/contracts';
 import { JwtAuthGuard, CurrentUser } from '../../common';
 import { AuthService } from './auth.service';
 
@@ -8,6 +17,14 @@ import { AuthService } from './auth.service';
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @Post('login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Authenticate user using Mobile Number / Email and Password' })
+  @SwaggerResponse({ status: 200, description: 'Authentication successful, JWT tokens returned' })
+  async login(@Body() dto: LoginDto) {
+    return this.authService.login(dto);
+  }
 
   @Post('otp/request')
   @HttpCode(HttpStatus.OK)
@@ -41,6 +58,14 @@ export class AuthController {
   @SwaggerResponse({ status: 200, description: 'Password updated successfully' })
   async setPassword(@CurrentUser() user: AuthUserDto, @Body() dto: SetPasswordDto) {
     return this.authService.setPassword(user.id, dto);
+  }
+
+  @Post('password/reset')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset user password using verified OTP' })
+  @SwaggerResponse({ status: 200, description: 'Password reset successfully' })
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
   }
 
   @Post('refresh')

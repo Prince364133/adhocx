@@ -21,13 +21,13 @@ class PersonalInformationScreen extends StatelessWidget {
 
     final name = onboarding.fullName.isNotEmpty
         ? onboarding.fullName
-        : (user?.fullName ?? 'Rahul Sharma');
+        : (user?.fullName?.isNotEmpty == true ? user!.fullName! : 'Partner Profile');
     final phone = onboarding.phoneNumber.isNotEmpty
         ? onboarding.phoneNumber
-        : (user?.phone ?? '+91 98765 43210');
+        : (user?.phone?.isNotEmpty == true ? user!.phone! : '+91 98765 43210');
     final email = onboarding.email.isNotEmpty
         ? onboarding.email
-        : (user?.email ?? 'rahul.sharma@email.com');
+        : (user?.email?.isNotEmpty == true ? user!.email! : 'partner@adhocx.com');
     final dob = onboarding.dateOfBirth != null
         ? '${onboarding.dateOfBirth!.day}/${onboarding.dateOfBirth!.month}/${onboarding.dateOfBirth!.year}'
         : '15 Aug 1990';
@@ -47,7 +47,7 @@ class PersonalInformationScreen extends StatelessWidget {
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.md,
                   ),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppColors.surfaceLight,
                     border: Border(
                       bottom: BorderSide(color: AppColors.borderLight),
@@ -63,7 +63,7 @@ class PersonalInformationScreen extends StatelessWidget {
                             context.go(AppRoutes.profileScreen);
                           }
                         },
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.arrow_back,
                           color: AppColors.textPrimaryLight,
                         ),
@@ -106,9 +106,9 @@ class PersonalInformationScreen extends StatelessWidget {
                           color: AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
                           border: Border.all(color: AppColors.borderLight),
-                          boxShadow: const [
+                          boxShadow: [
                             BoxShadow(
-                              color: Color(0x06000000),
+                              color: Colors.black.withValues(alpha: 0.03),
                               blurRadius: 4,
                               offset: Offset(0, 2),
                             ),
@@ -134,7 +134,7 @@ class PersonalInformationScreen extends StatelessWidget {
                                   bottom: 0,
                                   child: Container(
                                     padding: const EdgeInsets.all(4),
-                                    decoration: const BoxDecoration(
+                                    decoration: BoxDecoration(
                                       color: AppColors.primary,
                                       shape: BoxShape.circle,
                                     ),
@@ -191,7 +191,7 @@ class PersonalInformationScreen extends StatelessWidget {
                                   const SizedBox(height: 6),
                                   Row(
                                     children: [
-                                      const Icon(Icons.phone_outlined, size: 14, color: AppColors.textSecondaryLight),
+                                      Icon(Icons.phone_outlined, size: 14, color: AppColors.textSecondaryLight),
                                       const SizedBox(width: 6),
                                       Text(
                                         phone,
@@ -202,7 +202,7 @@ class PersonalInformationScreen extends StatelessWidget {
                                   const SizedBox(height: 4),
                                   Row(
                                     children: [
-                                      const Icon(Icons.email_outlined, size: 14, color: AppColors.textSecondaryLight),
+                                      Icon(Icons.email_outlined, size: 14, color: AppColors.textSecondaryLight),
                                       const SizedBox(width: 6),
                                       Text(
                                         email,
@@ -242,25 +242,25 @@ class PersonalInformationScreen extends StatelessWidget {
                               label: 'Full Name',
                               value: name,
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildDetailTile(
                               icon: Icons.cake_outlined,
                               label: 'Date of Birth',
                               value: dob,
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildDetailTile(
                               icon: Icons.alternate_email,
                               label: 'Gender',
                               value: gender,
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildDetailTile(
                               icon: Icons.location_on_outlined,
                               label: 'Address',
                               value: 'DLF Phase 2, Gurugram,\nHaryana 122002',
                             ),
-                            const Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: AppColors.borderLight),
                             _buildDetailTile(
                               icon: Icons.emergency_outlined,
                               label: 'Emergency Contact',
@@ -313,7 +313,7 @@ class PersonalInformationScreen extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(Icons.chevron_right, size: 18, color: AppColors.textMutedLight),
+          Icon(Icons.chevron_right, size: 18, color: AppColors.textMutedLight),
         ],
       ),
     );

@@ -1,6 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-:root {
   /* Primary Brand Tokens (04_DESIGN_SYSTEM.md § 6.1) */
   --primary-900: #0B1220;
   --primary-800: #111827;
@@ -14,8 +13,10 @@
   --bg-base: #F8FAFC;
   --bg-surface: #FFFFFF;
   --bg-surface-muted: #F1F5F9;
+  --bg-surface-elevated: #F1F5F9;
   --bg-surface-hover: #F8FAFC;
   --border: #E2E8F0;
+  --border-light: #E2E8F0;
   --border-strong: #CBD5E1;
   --text-primary: #0F172A;
   --text-secondary: #475569;
@@ -34,6 +35,10 @@
   --color-error-bg: rgba(220, 38, 38, 0.08);
   --color-error-border: rgba(220, 38, 38, 0.25);
 
+  --color-danger: #DC2626;
+  --color-danger-bg: rgba(220, 38, 38, 0.08);
+  --color-danger-border: rgba(220, 38, 38, 0.25);
+
   --color-info: #0284C7;
   --color-info-bg: rgba(2, 132, 199, 0.08);
   --color-info-border: rgba(2, 132, 199, 0.25);
@@ -42,8 +47,6 @@
   --accent-primary: var(--primary-600);
   --accent-primary-hover: #1D4ED8;
   --accent-secondary: var(--color-info);
-  --bg-surface-elevated: var(--bg-surface-muted);
-  --border-light: var(--border);
 
   /* Radius Scale (04_DESIGN_SYSTEM.md § 14) */
   --radius-xs: 4px;

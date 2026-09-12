@@ -73,7 +73,7 @@ class UserProfileScreen extends StatelessWidget {
                 top: 8,
                 child: Container(
                   padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
+                  decoration: BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
                   child: const Text('1', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                 ),
               ),
@@ -100,8 +100,8 @@ class UserProfileScreen extends StatelessWidget {
                     Container(
                       width: 56,
                       height: 56,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF6C5CE7),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
                         shape: BoxShape.circle,
                       ),
                       child: Center(
@@ -171,7 +171,7 @@ class UserProfileScreen extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 14),
                             child: Row(
                               children: [
-                                Icon(item['icon'] as IconData, color: const Color(0xFF6C5CE7), size: 22),
+                                Icon(item['icon'] as IconData, color: AppColors.primary, size: 22),
                                 const SizedBox(width: AppSpacing.md),
                                 Expanded(
                                   child: Text(

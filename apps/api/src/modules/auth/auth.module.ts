@@ -11,7 +11,7 @@ import { AuthController } from './auth.controller';
       global: true,
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('auth.jwtAccessSecret') || 'dev_access_secret_adhocx_2026',
+        secret: config.get<string>('auth.jwtAccessSecret') || process.env.JWT_ACCESS_SECRET,
         signOptions: {
           expiresIn: config.get<string>('auth.jwtAccessExpiresIn') || '1h',
         },

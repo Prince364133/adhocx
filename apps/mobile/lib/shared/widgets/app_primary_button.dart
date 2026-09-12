@@ -45,7 +45,7 @@ class AppPrimaryButton extends StatelessWidget {
       case AppButtonVariant.danger:
         return Colors.white;
       case AppButtonVariant.accentGreen:
-        return const Color(0xFF000000);
+        return Colors.black;
     }
   }
 

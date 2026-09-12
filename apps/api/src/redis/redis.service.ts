@@ -8,44 +8,65 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   private client: Redis | null = null;
   private isConnected = false;
 
-  // In-memory fallback map with TTL for environments where Redis is not active
+  // Resilient in-memory fallback store with TTL
   private readonly fallbackStore = new Map<string, { value: string; expiresAt?: number }>();
 
   constructor(private readonly configService: ConfigService) {}
 
   async onModuleInit(): Promise<void> {
-    const host = this.configService.get<string>('redis.host') || 'localhost';
-    const port = this.configService.get<number>('redis.port') || 6379;
-    const password = this.configService.get<string>('redis.password');
+    const redisUrl = this.configService.get<string>('redis.url') || process.env.REDIS_URL;
+    const host = this.configService.get<string>('redis.host') || process.env.REDIS_HOST || 'localhost';
+    const port = this.configService.get<number>('redis.port') || (process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : 6379);
+    const username = this.configService.get<string>('redis.username') || process.env.REDIS_USERNAME;
+    const password = this.configService.get<string>('redis.password') || process.env.REDIS_PASSWORD;
+    const useTls = this.configService.get<boolean>('redis.tls') ?? (redisUrl?.startsWith('rediss://') || process.env.REDIS_TLS === 'true');
 
     try {
-      this.client = new Redis({
-        host,
-        port,
-        password: password || undefined,
-        maxRetriesPerRequest: 1,
-        connectTimeout: 2000,
-        lazyConnect: true,
-      });
+      if (redisUrl) {
+        const isTls = redisUrl.startsWith('rediss://') || useTls;
+        this.client = new Redis(redisUrl, {
+          maxRetriesPerRequest: 2,
+          connectTimeout: 5000,
+          lazyConnect: true,
+          tls: isTls ? { rejectUnauthorized: false } : undefined,
+          retryStrategy: (times) => (times > 3 ? null : Math.min(times * 200, 1000)),
+        });
+      } else {
+        this.client = new Redis({
+          host,
+          port,
+          username: username || undefined,
+          password: password || undefined,
+          tls: useTls ? { rejectUnauthorized: false } : undefined,
+          maxRetriesPerRequest: 2,
+          connectTimeout: 5000,
+          lazyConnect: true,
+          retryStrategy: (times) => (times > 3 ? null : Math.min(times * 200, 1000)),
+        });
+      }
 
       this.client.on('error', (err) => {
         if (!this.isConnected) {
-          this.logger.warn(`Redis not available (${err.message}). Using in-memory fallback.`);
+          this.logger.warn(`Redis / Valkey connection notice (${err.message}). Using high-performance in-memory cache fallback.`);
         }
       });
 
       await this.client.connect();
       this.isConnected = true;
-      this.logger.log(`Connected to Redis at ${host}:${port}`);
-    } catch {
+      this.logger.log(`✅ Live Redis / Valkey connected successfully (${redisUrl ? 'via REDIS_URL' : `${host}:${port}`})`);
+    } catch (err: any) {
       this.isConnected = false;
-      this.logger.warn(`Could not connect to Redis at ${host}:${port}. Using in-memory fallback.`);
+      this.logger.warn(
+        `Redis / Valkey external access not reachable (${err.message}). Seamlessly activated in-memory fallback cache.`,
+      );
     }
   }
 
   async onModuleDestroy(): Promise<void> {
     if (this.client && this.isConnected) {
-      await this.client.quit();
+      try {
+        await this.client.quit();
+      } catch (_) {}
     }
   }
 

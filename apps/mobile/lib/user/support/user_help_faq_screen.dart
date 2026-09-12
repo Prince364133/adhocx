@@ -50,7 +50,7 @@ class _UserHelpFaqScreenState extends State<UserHelpFaqScreen> {
             padding: const EdgeInsets.all(AppSpacing.md),
             child: Container(
               padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(color: isDark ? AppColors.surfaceDark : Colors.grey[200], borderRadius: BorderRadius.circular(AppRadius.md)),
+              decoration: BoxDecoration(color: isDark ? AppColors.surfaceDark : AppColors.slate200, borderRadius: BorderRadius.circular(AppRadius.md)),
               child: Row(
                 children: _tabs.map((tab) {
                   final isSelected = _selectedTab == tab;
@@ -61,7 +61,7 @@ class _UserHelpFaqScreenState extends State<UserHelpFaqScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         decoration: BoxDecoration(
-                          color: isSelected ? const Color(0xFF6C5CE7) : Colors.transparent,
+                          color: isSelected ? AppColors.primary : Colors.transparent,
                           borderRadius: BorderRadius.circular(AppRadius.sm),
                         ),
                         child: Center(

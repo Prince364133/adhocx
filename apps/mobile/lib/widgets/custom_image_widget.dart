@@ -1,3 +1,4 @@
+import 'package:adhocx/shared/theme/app_colors.dart';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -147,8 +148,8 @@ class CustomImageWidget extends StatelessWidget {
               height: 30,
               width: 30,
               child: LinearProgressIndicator(
-                color: Colors.grey.shade200,
-                backgroundColor: Colors.grey.shade100,
+                color: AppColors.slate200,
+                backgroundColor: AppColors.slate100,
               ),
             ),
             errorWidget: (context, url, error) =>

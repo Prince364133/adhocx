@@ -34,15 +34,15 @@ class UserAccountStatusScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6C5CE7).withValues(alpha: 0.1),
+                  color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppRadius.lg),
-                  border: Border.all(color: const Color(0xFF6C5CE7).withValues(alpha: 0.3)),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(10),
-                      decoration: const BoxDecoration(color: Color(0xFF6C5CE7), shape: BoxShape.circle),
+                      decoration: BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
                       child: const Icon(Icons.verified_user, color: Colors.white, size: 24),
                     ),
                     const SizedBox(width: 14),
@@ -106,7 +106,7 @@ class UserAccountStatusScreen extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(color: AppColors.success.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(AppRadius.sm)),
-                          child: const Text('Active', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold, fontSize: 11)),
+                          child: Text('Active', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold, fontSize: 11)),
                         ),
                       ],
                     ),
@@ -127,11 +127,11 @@ class UserAccountStatusScreen extends StatelessWidget {
   Widget _buildItem(BuildContext context, IconData icon, String label, bool isDark) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: const Color(0xFF6C5CE7)),
+        Icon(icon, size: 20, color: AppColors.primary),
         const SizedBox(width: 12),
         Text(label, style: TextStyle(fontSize: 12, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)),
         const Spacer(),
-        const Text('Verified', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold, fontSize: 11)),
+        Text('Verified', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold, fontSize: 11)),
       ],
     );
   }

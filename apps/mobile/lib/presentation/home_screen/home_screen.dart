@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import '../../routes/app_routes.dart';
+import '../../services/auth_service.dart';
+import '../../services/driver_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
@@ -9,7 +11,7 @@ import '../../theme/app_typography.dart';
 
 enum DriverHomeState { offline, available, offerAttention, assignedTrip, activeTrip, completedTrip }
 
-/// Main Driver Home Screen supporting all 6 dynamic driver operational states.
+/// Main Driver Home Screen supporting live driver operational states & backend sync.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -19,6 +21,105 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   DriverHomeState _currentState = DriverHomeState.offline;
+  bool _isLoading = true;
+  String _driverName = 'Driver Partner';
+  double _todayEarnings = 0.0;
+  int _todayTripsCount = 0;
+  Map<String, dynamic>? _liveOffer;
+  Map<String, dynamic>? _liveTrip;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLiveDriverData();
+  }
+
+  Future<void> _loadLiveDriverData() async {
+    setState(() => _isLoading = true);
+    try {
+      await AuthService.instance.ensureAuthenticatedSession(role: 'DRIVER');
+      final results = await Future.wait([
+        DriverService.instance.getProfile().catchError((_) => null),
+        DriverService.instance.getWalletSummary().catchError((_) => null),
+        DriverService.instance.getOffers().catchError((_) => []),
+        DriverService.instance.getTrips().catchError((_) => []),
+      ]);
+
+      final profile = results[0] as Map<String, dynamic>?;
+      final wallet = results[1] as Map<String, dynamic>?;
+      final offers = results[2] is List ? results[2] as List<dynamic> : [];
+      final trips = results[3] is List ? results[3] as List<dynamic> : [];
+
+      if (mounted) {
+        setState(() {
+          if (profile != null) {
+            final user = profile['user'] as Map<String, dynamic>?;
+            _driverName = user?['name'] as String? ?? 'Driver Partner';
+            final avail = profile['availabilityStatus'] as String? ?? 'OFFLINE';
+            if (avail == 'AVAILABLE') {
+              _currentState = DriverHomeState.available;
+            } else {
+              _currentState = DriverHomeState.offline;
+            }
+          }
+
+          if (wallet != null) {
+            _todayEarnings = (wallet['todayEarnings'] ?? wallet['availableBalance'] ?? 0.0).toDouble();
+            _todayTripsCount = (wallet['completedTripsCount'] ?? 0).toInt();
+          }
+
+          // Check if active trip exists
+          final inProgressTrip = trips.firstWhere(
+            (t) => t['status'] == 'IN_PROGRESS' || t['status'] == 'ARRIVED',
+            orElse: () => null,
+          );
+          if (inProgressTrip != null) {
+            _liveTrip = inProgressTrip as Map<String, dynamic>;
+            _currentState = DriverHomeState.activeTrip;
+          } else {
+            final assignedTrip = trips.firstWhere(
+              (t) => t['status'] == 'ASSIGNED' || t['status'] == 'DRIVER_ASSIGNED',
+              orElse: () => null,
+            );
+            if (assignedTrip != null) {
+              _liveTrip = assignedTrip as Map<String, dynamic>;
+              _currentState = DriverHomeState.assignedTrip;
+            } else if (offers.isNotEmpty) {
+              _liveOffer = offers.first as Map<String, dynamic>;
+              _currentState = DriverHomeState.offerAttention;
+            }
+          }
+        });
+      }
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _toggleOnline(bool goOnline) async {
+    try {
+      await AuthService.instance.ensureAuthenticatedSession(role: 'DRIVER');
+      final newStatus = goOnline ? 'AVAILABLE' : 'OFFLINE';
+      await DriverService.instance.updateAvailability(newStatus);
+      if (mounted) {
+        setState(() {
+          _currentState = goOnline ? DriverHomeState.available : DriverHomeState.offline;
+        });
+        Fluttertoast.showToast(
+          msg: goOnline ? 'You are now ONLINE' : 'You are now OFFLINE',
+          backgroundColor: goOnline ? AppColors.accentGreenDark : AppColors.slate700,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Fluttertoast.showToast(
+          msg: 'Failed to update status: $e',
+          backgroundColor: AppColors.error,
+        );
+      }
+    }
+  }
 
   void _setDriverState(DriverHomeState state) {
     setState(() => _currentState = state);
@@ -40,7 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.md,
                   ),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppColors.surfaceLight,
                     border: Border(
                       bottom: BorderSide(color: AppColors.borderLight),
@@ -49,9 +150,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Row(
                     children: [
                       IconButton(
-                        onPressed: () {},
-                        icon: const Icon(
-                          Icons.menu,
+                        onPressed: _loadLiveDriverData,
+                        icon: Icon(
+                          Icons.refresh,
                           color: AppColors.textPrimaryLight,
                         ),
                       ),
@@ -61,13 +162,13 @@ class _HomeScreenState extends State<HomeScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Good morning,',
+                              'Welcome back,',
                               style: AppTypography.caption(
                                 color: AppColors.textMutedLight,
                               ).copyWith(fontSize: 11),
                             ),
                             Text(
-                              'Rahul Sharma',
+                              _driverName,
                               style: AppTypography.body(
                                 color: AppColors.textPrimaryLight,
                                 fontWeight: FontWeight.bold,
@@ -78,7 +179,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       IconButton(
                         onPressed: () => context.push(AppRoutes.notificationsSettingsScreen),
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.notifications_none_rounded,
                           color: AppColors.textPrimaryLight,
                         ),
@@ -114,7 +215,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         };
 
                         return GestureDetector(
-                          onTap: () => _setDriverState(state),
+                          onTap: () {
+                            if (state == DriverHomeState.available) {
+                              _toggleOnline(true);
+                            } else if (state == DriverHomeState.offline) {
+                              _toggleOnline(false);
+                            } else {
+                              _setDriverState(state);
+                            }
+                          },
                           child: Container(
                             margin: const EdgeInsets.only(right: 6),
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -139,7 +248,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
-                const Divider(height: 1, color: AppColors.borderLight),
+                Divider(height: 1, color: AppColors.borderLight),
 
                 // ── Dynamic State Body ───────────────────────────────────────
                 Expanded(
@@ -177,7 +286,7 @@ class _HomeScreenState extends State<HomeScreen> {
         Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
-            color: const Color(0xFF1e293b),
+            color: AppColors.surfaceElevatedDark,
             borderRadius: BorderRadius.circular(AppRadius.lg),
           ),
           child: Column(
@@ -194,7 +303,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     width: 12,
                     height: 12,
                     decoration: const BoxDecoration(
-                      color: Colors.grey,
+                      color: AppColors.slate400,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -218,9 +327,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 width: double.infinity,
                 height: 44,
                 child: ElevatedButton(
-                  onPressed: () => _setDriverState(DriverHomeState.available),
+                  onPressed: () => _toggleOnline(true),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF334155),
+                    backgroundColor: AppColors.borderDark,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppRadius.md),
@@ -251,7 +360,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: AppColors.borderLight.withValues(alpha: 0.4),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.directions_car_outlined, size: 40, color: AppColors.textMutedLight),
+                child: Icon(Icons.directions_car_outlined, size: 40, color: AppColors.textMutedLight),
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
@@ -278,7 +387,7 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(height: AppSpacing.xl),
 
         // Today's Activity Card
-        _buildActivityCard(trips: '0', earnings: '₹0'),
+        _buildActivityCard(trips: '$_todayTripsCount', earnings: '₹ ${_todayEarnings.toStringAsFixed(0)}'),
       ],
     );
   }
@@ -308,7 +417,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   Container(
                     width: 12,
                     height: 12,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: AppColors.accentGreenDark,
                       shape: BoxShape.circle,
                     ),
@@ -333,9 +442,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 width: double.infinity,
                 height: 44,
                 child: OutlinedButton(
-                  onPressed: () => _setDriverState(DriverHomeState.offline),
+                  onPressed: () => _toggleOnline(false),
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.borderLight),
+                    side: BorderSide(color: AppColors.borderLight),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
@@ -390,7 +499,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: AppColors.accentGreenDark.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.radar, color: AppColors.accentGreenDark),
+                child: Icon(Icons.radar, color: AppColors.accentGreenDark),
               ),
             ],
           ),
@@ -398,68 +507,20 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(height: AppSpacing.xl),
 
         // Today's Activity Card
-        _buildActivityCard(trips: '3', earnings: '₹2,450'),
+        _buildActivityCard(trips: '$_todayTripsCount', earnings: '₹ ${_todayEarnings.toStringAsFixed(0)}'),
         const SizedBox(height: AppSpacing.lg),
 
-        // Recent Activity Card
-        Text(
-          'Recent Activity',
-          style: AppTypography.caption(
-            color: AppColors.textMutedLight,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceLight,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(color: AppColors.borderLight),
-          ),
-          child: Row(
-            children: [
-              const CircleAvatar(
-                radius: 18,
-                backgroundColor: AppColors.bgLight,
-                child: Icon(Icons.check_circle_outline, color: AppColors.accentGreenDark, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Trip completed',
-                      style: AppTypography.body(
-                        color: AppColors.textPrimaryLight,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      'Airport → Bharat Grand',
-                      style: AppTypography.caption(color: AppColors.textMutedLight),
-                    ),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '₹850',
-                    style: AppTypography.body(
-                      color: AppColors.accentGreenDark,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    '10:15 AM',
-                    style: AppTypography.caption(color: AppColors.textMutedLight),
-                  ),
-                ],
-              ),
-            ],
+        // Opportunities button
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () => context.push(AppRoutes.opportunitiesScreen),
+            icon: const Icon(Icons.near_me_outlined),
+            label: const Text('View Live Nearby Opportunities'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+            ),
           ),
         ),
       ],
@@ -470,6 +531,14 @@ class _HomeScreenState extends State<HomeScreen> {
   // STATE 3: OFFER ATTENTION STATE
   // ───────────────────────────────────────────────────────────────────────────
   Widget _buildOfferAttentionState() {
+    final req = _liveOffer?['requirement'] as Map<String, dynamic>?;
+    final title = req?['title'] as String? ?? 'Corporate Transfer';
+    final vehicle = req?['vehicleType'] as String? ?? 'Sedan';
+    final pickup = req?['pickupAddress'] as String? ?? _liveOffer?['pickup'] as String? ?? 'DLF Cyber City, Gurugram';
+    final drop = req?['dropAddress'] as String? ?? _liveOffer?['drop'] as String? ?? 'Indira Gandhi Airport, T3';
+    final earnings = '₹ ${(_liveOffer?['offeredPrice'] ?? req?['budgetPerVehicle'] ?? 850)}';
+    final offerId = _liveOffer?['id'] as String?;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -477,9 +546,9 @@ class _HomeScreenState extends State<HomeScreen> {
         Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
-            color: const Color(0xFFfff7ed),
+            color: AppColors.warningContainer,
             borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: const Color(0xFFffedd5), width: 1.5),
+            border: Border.all(color: AppColors.warningContainer, width: 1.5),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -490,20 +559,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   Text(
                     'New Trip Opportunity',
                     style: AppTypography.caption(
-                      color: const Color(0xFFea580c),
+                      color: AppColors.warning,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFffedd5),
+                      color: AppColors.warningContainer,
                       borderRadius: BorderRadius.circular(AppRadius.xs),
                     ),
                     child: Text(
-                      'Expires in 00:23',
+                      'Expires soon',
                       style: AppTypography.caption(
-                        color: const Color(0xFFea580c),
+                        color: AppColors.warning,
                         fontWeight: FontWeight.bold,
                       ).copyWith(fontSize: 10),
                     ),
@@ -515,14 +584,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Corporate Transfer',
+                    title,
                     style: AppTypography.h3(
                       color: AppColors.textPrimaryLight,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   Text(
-                    'Sedan',
+                    vehicle,
                     style: AppTypography.caption(
                       color: AppColors.textMutedLight,
                       fontWeight: FontWeight.bold,
@@ -538,7 +607,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'DLF Cyber City, Gurugram',
+                      pickup,
                       style: AppTypography.caption(color: AppColors.textSecondaryLight),
                     ),
                   ),
@@ -552,7 +621,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Indira Gandhi Airport, T3',
+                      drop,
                       style: AppTypography.caption(color: AppColors.textSecondaryLight),
                     ),
                   ),
@@ -565,9 +634,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(width: 4),
                   Text('12.4 km away', style: AppTypography.caption(color: AppColors.textMutedLight)),
                   const SizedBox(width: 16),
-                  const Icon(Icons.access_time, size: 14, color: AppColors.textMutedLight),
+                  const Icon(Icons.currency_rupee, size: 14, color: AppColors.accentGreenDark),
                   const SizedBox(width: 4),
-                  Text('Est. 28 min', style: AppTypography.caption(color: AppColors.textMutedLight)),
+                  Text(earnings, style: AppTypography.caption(color: AppColors.accentGreenDark, fontWeight: FontWeight.bold)),
                 ],
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -575,10 +644,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () => _setDriverState(DriverHomeState.available),
+                      onPressed: () async {
+                        if (offerId != null) {
+                          try {
+                            await DriverService.instance.declineOffer(offerId);
+                          } catch (_) {}
+                        }
+                        _setDriverState(DriverHomeState.available);
+                      },
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFFea580c)),
-                        foregroundColor: const Color(0xFFea580c),
+                        side: const BorderSide(color: AppColors.warning),
+                        foregroundColor: AppColors.warning,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppRadius.md),
                         ),
@@ -589,9 +665,21 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () => _setDriverState(DriverHomeState.assignedTrip),
+                      onPressed: () async {
+                        if (offerId != null) {
+                          try {
+                            await DriverService.instance.acceptOffer(offerId);
+                            Fluttertoast.showToast(msg: 'Offer accepted!', backgroundColor: AppColors.accentGreenDark);
+                            context.push(AppRoutes.tripsScreen);
+                            return;
+                          } catch (e) {
+                            Fluttertoast.showToast(msg: 'Failed: $e', backgroundColor: AppColors.error);
+                          }
+                        }
+                        _setDriverState(DriverHomeState.assignedTrip);
+                      },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFea580c),
+                        backgroundColor: AppColors.warning,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppRadius.md),
@@ -607,7 +695,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(height: AppSpacing.xl),
 
-        _buildActivityCard(trips: '1', earnings: '₹850'),
+        _buildActivityCard(trips: '$_todayTripsCount', earnings: '₹ ${_todayEarnings.toStringAsFixed(0)}'),
       ],
     );
   }
@@ -622,7 +710,7 @@ class _HomeScreenState extends State<HomeScreen> {
         // Blue Banner
         Container(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 12),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: AppColors.primary,
             borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
           ),
@@ -672,7 +760,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.circle, size: 8, color: AppColors.accentGreenDark),
+                  Icon(Icons.circle, size: 8, color: AppColors.accentGreenDark),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -686,7 +774,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.circle, size: 8, color: AppColors.error),
+                  Icon(Icons.circle, size: 8, color: AppColors.error),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -699,11 +787,11 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: AppSpacing.md),
               Row(
                 children: [
-                  const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.textMutedLight),
+                  Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.textMutedLight),
                   const SizedBox(width: 4),
                   Text('Today, 6:30 PM', style: AppTypography.caption(color: AppColors.textMutedLight)),
                   const SizedBox(width: 16),
-                  const Icon(Icons.person_outline, size: 14, color: AppColors.textMutedLight),
+                  Icon(Icons.person_outline, size: 14, color: AppColors.textMutedLight),
                   const SizedBox(width: 4),
                   Text('1 Passenger', style: AppTypography.caption(color: AppColors.textMutedLight)),
                 ],
@@ -744,7 +832,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           child: Row(
             children: [
-              const Icon(Icons.access_time_filled_rounded, color: AppColors.primary),
+              Icon(Icons.access_time_filled_rounded, color: AppColors.primary),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -784,8 +872,8 @@ class _HomeScreenState extends State<HomeScreen> {
         // Purple Active Trip Banner
         Container(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 12),
-          decoration: const BoxDecoration(
-            color: Color(0xFF6366f1),
+          decoration: BoxDecoration(
+            color: AppColors.primary,
             borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
           ),
           child: Row(
@@ -820,7 +908,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.circle, size: 8, color: AppColors.accentGreenDark),
+                  Icon(Icons.circle, size: 8, color: AppColors.accentGreenDark),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(
@@ -846,7 +934,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.circle, size: 8, color: AppColors.error),
+                  Icon(Icons.circle, size: 8, color: AppColors.error),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(
@@ -878,7 +966,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                 height: 140,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFe2e8f0),
+                  color: AppColors.borderLight,
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: Stack(
@@ -887,7 +975,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Icon(
                         Icons.map_outlined,
                         size: 64,
-                        color: Colors.blue.withValues(alpha: 0.15),
+                        color: AppColors.infoContainer,
                       ),
                     ),
                     Positioned(
@@ -900,7 +988,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         icon: const Icon(Icons.navigation_outlined, size: 16),
                         label: const Text('Navigate'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4f46e5),
+                          backgroundColor: AppColors.primaryHover,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -1053,7 +1141,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: OutlinedButton(
                   onPressed: () => context.push(AppRoutes.tripDetailsScreen),
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.accentGreenDark),
+                    side: BorderSide(color: AppColors.accentGreenDark),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
@@ -1119,7 +1207,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.check_circle_outline, size: 16, color: AppColors.accentGreenDark),
+        Icon(Icons.check_circle_outline, size: 16, color: AppColors.accentGreenDark),
         const SizedBox(width: 8),
         Text(text, style: AppTypography.caption(color: AppColors.textSecondaryLight)),
       ],
@@ -1192,7 +1280,7 @@ class _HomeScreenState extends State<HomeScreen> {
           height: 18,
           decoration: BoxDecoration(
             color: isActive
-                ? const Color(0xFF6366f1)
+                ? AppColors.primary
                 : (isDone ? AppColors.accentGreenDark : AppColors.borderLight),
             shape: BoxShape.circle,
           ),

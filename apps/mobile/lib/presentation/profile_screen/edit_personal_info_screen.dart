@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../routes/app_routes.dart';
+import '../../services/auth_service.dart';
+import '../../services/onboarding_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
@@ -17,15 +20,32 @@ class EditPersonalInfoScreen extends StatefulWidget {
 }
 
 class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
-  final _nameController = TextEditingController(text: 'Rahul Sharma');
-  final _emailController = TextEditingController(text: 'rahul.sharma@email.com');
+  late final TextEditingController _nameController;
+  late final TextEditingController _emailController;
   final _dobController = TextEditingController(text: '15 Aug 1990');
   final _addressController = TextEditingController(text: 'DLF Phase 2, Gurugram, Haryana 122002');
-  final _emergencyNameController = TextEditingController(text: 'Priya Sharma');
+  final _emergencyNameController = TextEditingController(text: 'Emergency Contact');
   final _emergencyPhoneController = TextEditingController(text: '+91 91234 56789');
 
   String _gender = 'Male';
   bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = AuthService.instance.currentUser;
+    final onboarding = Provider.of<OnboardingProvider>(context, listen: false);
+
+    final initialName = onboarding.fullName.isNotEmpty
+        ? onboarding.fullName
+        : (user?.fullName?.isNotEmpty == true ? user!.fullName! : 'Driver Profile');
+    final initialEmail = onboarding.email.isNotEmpty
+        ? onboarding.email
+        : (user?.email?.isNotEmpty == true ? user!.email! : 'driver@adhocx.com');
+
+    _nameController = TextEditingController(text: initialName);
+    _emailController = TextEditingController(text: initialEmail);
+  }
 
   @override
   void dispose() {
@@ -43,6 +63,12 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
     await Future.delayed(const Duration(milliseconds: 600));
 
     if (mounted) {
+      final onboarding = Provider.of<OnboardingProvider>(context, listen: false);
+      onboarding.updatePersonalInfo(
+        fullName: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+      );
+
       setState(() => _isSaving = false);
       Fluttertoast.showToast(
         msg: 'Personal information updated successfully!',
@@ -58,6 +84,9 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = AuthService.instance.currentUser;
+    final phone = user?.phone ?? '+91 98765 43210';
+
     return Scaffold(
       backgroundColor: AppColors.bgLight,
       body: SafeArea(
@@ -72,7 +101,7 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.md,
                   ),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppColors.surfaceLight,
                     border: Border(
                       bottom: BorderSide(color: AppColors.borderLight),
@@ -88,7 +117,7 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
                             context.go(AppRoutes.personalInfoScreen);
                           }
                         },
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.arrow_back,
                           color: AppColors.textPrimaryLight,
                         ),
@@ -155,15 +184,15 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.phone_outlined, size: 20, color: AppColors.textMutedLight),
+                            Icon(Icons.phone_outlined, size: 20, color: AppColors.textMutedLight),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                '+91 98765 43210',
+                                phone,
                                 style: AppTypography.body(color: AppColors.textMutedLight),
                               ),
                             ),
-                            const Icon(Icons.lock_outline, size: 16, color: AppColors.textMutedLight),
+                            Icon(Icons.lock_outline, size: 16, color: AppColors.textMutedLight),
                           ],
                         ),
                       ),
@@ -202,12 +231,9 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
                                     child: DropdownButton<String>(
                                       value: _gender,
                                       isExpanded: true,
-                                      items: ['Male', 'Female', 'Other'].map((g) {
-                                        return DropdownMenuItem(
-                                          value: g,
-                                          child: Text(g, style: AppTypography.body(color: AppColors.textPrimaryLight)),
-                                        );
-                                      }).toList(),
+                                      items: ['Male', 'Female', 'Other']
+                                          .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                                          .toList(),
                                       onChanged: (val) {
                                         if (val != null) setState(() => _gender = val);
                                       },
@@ -222,7 +248,7 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
                       const SizedBox(height: AppSpacing.lg),
 
                       _buildTextField(
-                        label: 'Residential Address',
+                        label: 'Permanent Address',
                         controller: _addressController,
                         icon: Icons.home_outlined,
                         maxLines: 2,
@@ -231,32 +257,31 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
 
                       Text(
                         'Emergency Contact',
-                        style: AppTypography.h3(
-                          color: AppColors.textPrimaryLight,
+                        style: AppTypography.caption(
+                          color: AppColors.textMutedLight,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(height: AppSpacing.md),
 
                       _buildTextField(
-                        label: 'Contact Person Name',
+                        label: 'Contact Name',
                         controller: _emergencyNameController,
-                        icon: Icons.person_pin_outlined,
+                        icon: Icons.person_outline,
                       ),
-                      const SizedBox(height: AppSpacing.lg),
+                      const SizedBox(height: AppSpacing.md),
 
                       _buildTextField(
-                        label: 'Contact Phone Number',
+                        label: 'Contact Phone',
                         controller: _emergencyPhoneController,
-                        icon: Icons.contact_phone_outlined,
+                        icon: Icons.phone_outlined,
                         keyboardType: TextInputType.phone,
                       ),
                       const SizedBox(height: AppSpacing.xxl),
 
                       AppPrimaryButton(
-                        text: 'SAVE CHANGES',
-                        isLoading: _isSaving,
-                        onPressed: _handleSave,
+                        text: _isSaving ? 'Saving Changes...' : 'Update Information',
+                        onPressed: _isSaving ? null : _handleSave,
                       ),
                     ],
                   ),
@@ -273,7 +298,7 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
     required String label,
     required TextEditingController controller,
     required IconData icon,
-    TextInputType? keyboardType,
+    TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
   }) {
     return Column(
@@ -296,18 +321,18 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
             prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
             filled: true,
             fillColor: AppColors.surfaceLight,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              borderSide: const BorderSide(color: AppColors.borderLight),
+              borderSide: BorderSide(color: AppColors.borderLight),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              borderSide: const BorderSide(color: AppColors.borderLight),
+              borderSide: BorderSide(color: AppColors.borderLight),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              borderSide: const BorderSide(color: AppColors.primary),
+              borderSide: BorderSide(color: AppColors.primary, width: 2),
             ),
           ),
         ),

@@ -1,3 +1,4 @@
+import '../../../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class _ModalShell extends StatelessWidget {
@@ -18,7 +19,7 @@ class _ModalShell extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1e293b),
+        color: AppColors.surfaceElevatedDark,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -54,15 +55,15 @@ class HelpModal extends StatelessWidget {
     return _ModalShell(
       title: 'Help & Operations Support',
       icon: Icons.headset_mic_rounded,
-      iconColor: const Color(0xFF10b981),
+      iconColor: AppColors.success,
       child: Column(
         children: [
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFF0f172a),
+              color: AppColors.textPrimaryLight,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF334155)),
+              border: Border.all(color: AppColors.borderDark),
             ),
             child: const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -70,7 +71,7 @@ class HelpModal extends StatelessWidget {
                 Text(
                   'Operations Hours',
                   style: TextStyle(
-                    color: Color(0xFF94a3b8),
+                    color: AppColors.textMutedDark,
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                   ),
@@ -91,7 +92,7 @@ class HelpModal extends StatelessWidget {
           _contactBtn(
             icon: Icons.call_rounded,
             label: 'Call Dispatch (+91 40 4987 6543)',
-            color: const Color(0xFF10b981),
+            color: AppColors.success,
             onTap: () {
               // TODO: url_launcher: launch('tel:+914049876543') for production
             },
@@ -100,15 +101,15 @@ class HelpModal extends StatelessWidget {
           _contactBtn(
             icon: Icons.chat_rounded,
             label: 'WhatsApp Support Desk',
-            color: const Color(0xFF475569),
+            color: AppColors.textSecondaryLight,
             onTap: () {
               // TODO: url_launcher: launch('https://wa.me/914049876543') for production
             },
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'For trip disputes, wallet issues, or document re-verification — contact the operations team during working hours.',
-            style: TextStyle(color: Color(0xFF475569), fontSize: 12),
+            style: TextStyle(color: AppColors.textSecondaryLight, fontSize: 12),
             textAlign: TextAlign.center,
           ),
         ],

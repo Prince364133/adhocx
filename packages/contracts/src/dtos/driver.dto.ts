@@ -1,11 +1,19 @@
 import { IsEnum, IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { DriverAvailability, VerificationStatus, VehicleType } from '../enums';
 import { GeoLocationDto } from './common.dto';
 
 export class UpdateAvailabilityDto {
+  @Transform(({ value, obj }) => {
+    const raw = value || obj?.availabilityStatus || obj?.status;
+    return typeof raw === 'string' ? raw.toUpperCase() : raw;
+  })
   @IsEnum(DriverAvailability, { message: 'Invalid availability status' })
   status!: DriverAvailability;
+
+  @IsOptional()
+  @IsEnum(DriverAvailability, { message: 'Invalid availability status' })
+  availabilityStatus?: DriverAvailability;
 
   @IsOptional()
   @ValidateNested()

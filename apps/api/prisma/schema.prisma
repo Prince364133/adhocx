@@ -125,8 +125,9 @@ enum LedgerEntryType {
 model User {
   id        String     @id @default(uuid()) @db.Uuid
   phone     String     @unique
-  email     String?    @unique
-  fullName  String?    @map("full_name")
+  email        String?    @unique
+  passwordHash String?    @map("password_hash")
+  fullName     String?    @map("full_name")
   role      UserRole   @default(DRIVER)
   status    UserStatus @default(ACTIVE)
   createdAt DateTime   @default(now()) @map("created_at")

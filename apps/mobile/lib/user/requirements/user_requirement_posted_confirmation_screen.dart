@@ -37,7 +37,7 @@ class UserRequirementPostedConfirmationScreen extends StatelessWidget {
                   child: Container(
                     width: 72,
                     height: 72,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: AppColors.success,
                       shape: BoxShape.circle,
                     ),
@@ -98,13 +98,13 @@ class UserRequirementPostedConfirmationScreen extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: const [
-                        Icon(Icons.location_on_outlined, size: 16, color: Color(0xFF6C5CE7)),
+                        Icon(Icons.location_on_outlined, size: 16, color: AppColors.primary),
                         SizedBox(width: 4),
                         Text('DLF Cyber City, Gurugram', style: TextStyle(fontSize: 12)),
                         SizedBox(width: 6),
-                        Icon(Icons.arrow_forward, size: 14, color: Colors.grey),
+                        Icon(Icons.arrow_forward, size: 14, color: AppColors.slate400),
                         SizedBox(width: 6),
-                        Icon(Icons.pin_drop_outlined, size: 16, color: Color(0xFF6C5CE7)),
+                        Icon(Icons.pin_drop_outlined, size: 16, color: AppColors.primary),
                         SizedBox(width: 4),
                         Text('IGIA, Delhi', style: TextStyle(fontSize: 12)),
                       ],
