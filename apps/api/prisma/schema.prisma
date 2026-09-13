@@ -468,3 +468,37 @@ model AuditLog {
 
   @@map("audit_logs")
 }
+
+enum BlogStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model BlogPost {
+  id             String      @id @default(uuid()) @db.Uuid
+  title          String
+  slug           String      @unique
+  excerpt        String      @db.Text
+  content        String      @db.Text
+  category       String
+  tags           String[]    @default([])
+  coverImage     String?     @map("cover_image")
+  authorName     String      @default("AdhocX Team") @map("author_name")
+  authorRole     String?     @default("Fleet Operations & Mobility Research") @map("author_role")
+  status         BlogStatus  @default(DRAFT)
+  views          Int         @default(0)
+  readTime       String      @default("5 min read") @map("read_time")
+  seoTitle       String?     @map("seo_title")
+  seoDescription String?     @map("seo_description") @db.Text
+  seoKeywords    String?     @map("seo_keywords")
+  publishedAt    DateTime?   @map("published_at")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  @@index([slug])
+  @@index([status, publishedAt])
+  @@index([category])
+  @@map("blog_posts")
+}
+

@@ -205,3 +205,52 @@ export interface AuditLogItem {
   ipAddress?: string;
   createdAt: string;
 }
+
+export interface BlogPostItem {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  category: string;
+  tags: string[];
+  coverImage?: string | null;
+  authorName: string;
+  authorRole?: string | null;
+  status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+  views: number;
+  readTime: string;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  seoKeywords?: string | null;
+  publishedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateBlogPostInput {
+  title: string;
+  slug?: string;
+  excerpt: string;
+  content: string;
+  category: string;
+  tags?: string[];
+  coverImage?: string;
+  authorName?: string;
+  authorRole?: string;
+  status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+  readTime?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  seoKeywords?: string;
+}
+
+export interface UpdateBlogPostInput extends Partial<CreateBlogPostInput> {}
+
+export interface BlogMetrics {
+  total: number;
+  published: number;
+  drafts: number;
+  totalViews: number;
+}
+

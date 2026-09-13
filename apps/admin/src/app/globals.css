@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
+:root {
   /* Primary Brand Tokens (04_DESIGN_SYSTEM.md § 6.1) */
   --primary-900: #0B1220;
   --primary-800: #111827;
