@@ -1,0 +1,43 @@
+# Git
+.git
+.gitignore
+
+# Dependencies & Build artifacts
+node_modules
+.pnpm-store
+.next
+dist
+build
+coverage
+.turbo
+
+# Environment & Local secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Logs & Temporary files
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+.DS_Store
+Thumbs.db
+tmp
+temp
+uploads/*
+!uploads/.gitkeep
+
+# Mobile app files (Flutter)
+apps/mobile/.dart_tool
+apps/mobile/.flutter-plugins
+apps/mobile/.flutter-plugins-dependencies
+apps/mobile/build
+
+# IDE & Editor files
+.vscode
+.idea
+*.swp
+*.swo

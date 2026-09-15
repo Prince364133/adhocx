@@ -1,0 +1,122 @@
+version: '3.8'
+
+services:
+  # 1. Authoritative PostgreSQL with PostGIS Geospatial Extension
+  postgres:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: adhocx_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-adhocx_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-adhocx_password}
+      POSTGRES_DB: ${POSTGRES_DB:-adhocx}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-adhocx_user} -d ${POSTGRES_DB:-adhocx}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - adhocx_network
+
+  # 2. In-Memory Redis / Valkey Engine
+  redis:
+    image: redis:7.2-alpine
+    container_name: adhocx_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - adhocx_network
+
+  # 3. AdhocX Backend API (NestJS + Prisma)
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: adhocx_api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-adhocx_user}:${POSTGRES_PASSWORD:-adhocx_password}@postgres:5432/${POSTGRES_DB:-adhocx}?schema=public
+      REDIS_URL: redis://redis:6379
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:-adhocx_super_production_secret_key_32_chars!}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-adhocx_super_refresh_secret_key_32_chars!}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:3001,http://localhost:80,http://localhost:7003}
+    ports:
+      - "${API_PORT:-7001}:3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/v1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - adhocx_network
+
+  # 4. AdhocX Admin Control Panel (Next.js Standalone)
+  admin:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+    container_name: adhocx_admin
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:7001/api/v1}
+    ports:
+      - "${ADMIN_PORT:-7002}:3001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+    networks:
+      - adhocx_network
+
+  # 5. AdhocX Marketing & SEO Content Portal (Nginx Alpine)
+  marketing:
+    build:
+      context: .
+      dockerfile: apps/marketing/Dockerfile
+    container_name: adhocx_marketing
+    restart: unless-stopped
+    ports:
+      - "${MARKETING_PORT:-8080}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    networks:
+      - adhocx_network
+
+networks:
+  adhocx_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:

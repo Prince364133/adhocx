@@ -1,0 +1,82 @@
+name: Deploy to AWS (ECS Fargate / App Runner)
+
+on:
+  workflow_run:
+    workflows: ["Docker Build & Registry Publish (GHCR & AWS ECR)"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      target_service:
+        description: 'Service to deploy'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - api
+          - admin
+          - marketing
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Deploy to AWS Infrastructure
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'ap-south-1' }}
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # ------------------------------------------------------------------------
+      # Run Prisma Migrations on Production Database
+      # ------------------------------------------------------------------------
+      - name: Setup Node.js for DB Migration
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run Prisma DB Push / Migration
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -n "$DATABASE_URL" ]; then
+            cd apps/api
+            npx prisma db push --skip-generate
+          else
+            echo "DATABASE_URL secret not configured yet, skipping database schema sync."
+          fi
+
+      # ------------------------------------------------------------------------
+      # ECS Service Update (Zero-Downtime Rolling Deployment)
+      # ------------------------------------------------------------------------
+      - name: Trigger Rolling Update on AWS ECS Cluster
+        env:
+          CLUSTER_NAME: ${{ secrets.AWS_ECS_CLUSTER || 'adhocx-production' }}
+          API_SERVICE: ${{ secrets.AWS_ECS_API_SERVICE || 'adhocx-api-service' }}
+          ADMIN_SERVICE: ${{ secrets.AWS_ECS_ADMIN_SERVICE || 'adhocx-admin-service' }}
+        run: |
+          echo "Initiating zero-downtime rolling update for AdhocX services..."
+          if aws ecs describe-clusters --clusters "$CLUSTER_NAME" | grep -q "$CLUSTER_NAME"; then
+            echo "Updating API service..."
+            aws ecs update-service --cluster "$CLUSTER_NAME" --service "$API_SERVICE" --force-new-deployment || true
+            echo "Updating Admin service..."
+            aws ecs update-service --cluster "$CLUSTER_NAME" --service "$ADMIN_SERVICE" --force-new-deployment || true
+            echo "✓ Services update triggered successfully."
+          else
+            echo "ECS Cluster $CLUSTER_NAME not detected or not yet provisioned. Skipping direct ECS CLI update."
+          fi

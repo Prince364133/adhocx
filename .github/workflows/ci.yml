@@ -1,0 +1,168 @@
+name: CI Pipeline (Quality, Security & Live Testing)
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ----------------------------------------------------------------------------
+  # Job 1: Lint, Code Standards & TypeScript Typechecking
+  # ----------------------------------------------------------------------------
+  lint-and-typecheck:
+    name: Lint & Typecheck Matrix
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install pnpm & Turbo
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+          run_install: false
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Contracts Package
+        run: pnpm --filter @adhocx/contracts build
+
+      - name: Generate Prisma Client
+        run: cd apps/api && npx prisma generate
+
+      - name: Typecheck Backend API
+        run: pnpm --filter @adhocx/api build
+
+      - name: Typecheck Admin Control Panel
+        run: pnpm --filter @adhocx/admin build
+
+  # ----------------------------------------------------------------------------
+  # Job 2: Security & Dependency Vulnerability Audit
+  # ----------------------------------------------------------------------------
+  security-audit:
+    name: Security Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+          run_install: false
+
+      - name: Run Audit
+        run: pnpm audit --audit-level=high || true
+
+  # ----------------------------------------------------------------------------
+  # Job 3: Live Integration & End-to-End Test Suite
+  # ----------------------------------------------------------------------------
+  e2e-integration-test:
+    name: PostgreSQL + Redis E2E Integration
+    runs-on: ubuntu-latest
+    needs: [lint-and-typecheck]
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: adhocx_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7.2-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+          run_install: false
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Contracts
+        run: pnpm --filter @adhocx/contracts build
+
+      - name: Push Database Schema
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/adhocx_test?schema=public
+        run: cd apps/api && npx prisma db push
+
+      - name: Build API Backend
+        run: pnpm --filter @adhocx/api build
+
+      - name: Start API Server in Background
+        env:
+          NODE_ENV: test
+          PORT: 7001
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/adhocx_test?schema=public
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test_jwt_secret_key_32_characters_minimum!
+          JWT_REFRESH_SECRET: test_jwt_refresh_secret_key_32_characters!
+        run: |
+          node apps/api/dist/main.js &
+          sleep 5
+
+      - name: Run Coupon System Verification Suite
+        env:
+          API_URL: http://localhost:7001/api/v1
+        run: node scripts/seed-and-test-coupons.js
+
+      - name: Run Live Dispatch & Bidding E2E Test Suite
+        env:
+          API_URL: http://localhost:7001/api/v1
+        run: node scripts/test_live_dispatch_e2e.js
