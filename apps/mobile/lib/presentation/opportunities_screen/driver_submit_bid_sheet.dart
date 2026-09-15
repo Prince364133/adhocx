@@ -8,18 +8,27 @@ import '../../widgets/common/app_primary_button.dart';
 
 class DriverSubmitBidSheet extends StatefulWidget {
   final Map<String, dynamic> opportunity;
+  final VoidCallback? onBidSubmitted;
 
   const DriverSubmitBidSheet({
     super.key,
     required this.opportunity,
+    this.onBidSubmitted,
   });
 
-  static Future<bool?> show(BuildContext context, {required Map<String, dynamic> opportunity}) {
+  static Future<bool?> show(
+    BuildContext context, {
+    required Map<String, dynamic> opportunity,
+    VoidCallback? onBidSubmitted,
+  }) {
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => DriverSubmitBidSheet(opportunity: opportunity),
+      builder: (ctx) => DriverSubmitBidSheet(
+        opportunity: opportunity,
+        onBidSubmitted: onBidSubmitted,
+      ),
     );
   }
 
@@ -79,6 +88,7 @@ class _DriverSubmitBidSheetState extends State<DriverSubmitBidSheet> {
       );
 
       if (mounted) {
+        widget.onBidSubmitted?.call();
         Navigator.of(context).pop(true);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

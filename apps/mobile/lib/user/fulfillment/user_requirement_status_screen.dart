@@ -126,7 +126,12 @@ class _UserRequirementStatusScreenState extends State<UserRequirementStatusScree
                     const SizedBox(height: AppSpacing.xl),
 
                     // Graphic & Message
-                    _buildGraphicAndMessage(context, isDark),
+                    _buildGraphicAndMessage(
+                      context,
+                      isDark,
+                      (quantity is num) ? quantity.toInt() : 1,
+                      (fulfilledCount is num) ? fulfilledCount.toInt() : 0,
+                    ),
 
                     const SizedBox(height: AppSpacing.xl),
 
@@ -168,7 +173,7 @@ class _UserRequirementStatusScreenState extends State<UserRequirementStatusScree
     }
   }
 
-  Widget _buildGraphicAndMessage(BuildContext context, bool isDark) {
+  Widget _buildGraphicAndMessage(BuildContext context, bool isDark, int quantity, int fulfilledCount) {
     switch (_currentState) {
       case RequirementFulfillmentState.fulfilled:
         return Column(

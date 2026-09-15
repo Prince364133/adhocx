@@ -7,18 +7,20 @@ import '../../shared/theme/app_typography.dart';
 
 class UserBidsBottomSheet extends StatefulWidget {
   final String requirementId;
+  final VoidCallback? onBidAccepted;
 
   const UserBidsBottomSheet({
     super.key,
     required this.requirementId,
+    this.onBidAccepted,
   });
 
-  static Future<bool?> show(BuildContext context, {required String requirementId}) {
+  static Future<bool?> show(BuildContext context, {required String requirementId, VoidCallback? onBidAccepted}) {
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => UserBidsBottomSheet(requirementId: requirementId),
+      builder: (ctx) => UserBidsBottomSheet(requirementId: requirementId, onBidAccepted: onBidAccepted),
     );
   }
 
@@ -63,6 +65,7 @@ class _UserBidsBottomSheetState extends State<UserBidsBottomSheet> {
     try {
       await UserService.instance.acceptBid(bidId);
       if (mounted) {
+        widget.onBidAccepted?.call();
         Navigator.of(context).pop(true);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

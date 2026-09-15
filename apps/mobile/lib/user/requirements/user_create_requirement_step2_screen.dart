@@ -298,7 +298,7 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                               ),
                             ),
                           );
-                        }).toList),
+                        }).toList(),
                       ),
                     ),
 
