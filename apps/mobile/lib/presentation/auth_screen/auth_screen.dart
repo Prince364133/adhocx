@@ -67,9 +67,10 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final isTablet = size.width >= 600;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: AppColors.bgDark,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -89,8 +90,8 @@ class _AuthScreenState extends State<AuthScreen> {
                   // ── Main Card Container ────────────────────────────────────
                   AppCard(
                     padding: AppSpacing.paddingXl,
-                    backgroundColor: AppColors.surfaceDark,
-                    borderColor: AppColors.borderDark,
+                    backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                    borderColor: isDark ? AppColors.borderDark : AppColors.borderLight,
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 240),
                       switchInCurve: Curves.easeOutCubic,
@@ -136,10 +137,10 @@ class _AuthScreenState extends State<AuthScreen> {
                       vertical: AppSpacing.md,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceDark.withAlpha(160),
+                      color: (isDark ? AppColors.surfaceDark : AppColors.surfaceLight).withAlpha(160),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: AppColors.borderDark.withAlpha(120),
+                        color: (isDark ? AppColors.borderDark : AppColors.borderLight).withAlpha(120),
                       ),
                     ),
                     child: Row(
@@ -148,13 +149,13 @@ class _AuthScreenState extends State<AuthScreen> {
                         Icon(
                           Icons.shield_outlined,
                           size: 14,
-                          color: AppColors.accentGreen,
+                          color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
                         ),
                         const SizedBox(width: AppSpacing.xs),
                         Text(
                           'AdhocX B2B Network · Enterprise Mobility Security',
                           style: AppTypography.caption(
-                            color: AppColors.textSecondaryDark,
+                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                           ),
                           textAlign: TextAlign.center,
                         ),

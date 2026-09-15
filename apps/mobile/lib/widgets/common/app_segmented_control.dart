@@ -33,13 +33,15 @@ class AppSegmentedControl<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.xs),
       decoration: BoxDecoration(
-        color: AppColors.surfaceDark,
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
         borderRadius: AppRadius.borderLg,
         border: Border.all(
-          color: AppColors.borderDark,
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
           width: 1.2,
         ),
       ),
@@ -68,7 +70,7 @@ class AppSegmentedControl<T> extends StatelessWidget {
                         size: 16,
                         color: isSelected
                             ? Colors.white
-                            : AppColors.textSecondaryDark,
+                            : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
                       ),
                       const SizedBox(width: AppSpacing.xs),
                     ],
@@ -77,7 +79,7 @@ class AppSegmentedControl<T> extends StatelessWidget {
                       style: AppTypography.bodyMedium(
                         color: isSelected
                             ? Colors.white
-                            : AppColors.textSecondaryDark,
+                            : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
                       ).copyWith(
                         fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                       ),

@@ -1,15 +1,28 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { adminApi } from '../../lib/api/client';
 import { SettlementListItem } from '../../lib/api/types';
-import { Badge } from '../../components/Badge';
-import { Modal } from '../../components/Modal';
+import {
+  PageHeader,
+  MetricCard,
+  FilterBar,
+  DataTable,
+  StatusBadge,
+  Button,
+  Drawer,
+} from '../../components/common';
 
-const STATUS_TABS = ['ALL', 'PENDING', 'SETTLED', 'FAILED'];
+const STATUS_TABS = [
+  { id: 'ALL', label: 'All Settlements' },
+  { id: 'PENDING', label: 'Pending Payouts' },
+  { id: 'SETTLED', label: 'Settled' },
+  { id: 'FAILED', label: 'Failed / Refunded' },
+];
 
 export default function SettlementsPage() {
   const [activeTab, setActiveTab] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
   const [settlements, setSettlements] = useState<SettlementListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSettlement, setSelectedSettlement] = useState<SettlementListItem | null>(null);
@@ -58,6 +71,38 @@ export default function SettlementsPage() {
     }
   }
 
+  // Filter settlements by search query
+  const filteredSettlements = useMemo(() => {
+    if (!searchQuery.trim()) return settlements;
+    const q = searchQuery.toLowerCase();
+    return settlements.filter(
+      (s) =>
+        s.id.toLowerCase().includes(q) ||
+        s.driverName?.toLowerCase().includes(q) ||
+        s.bankAccountName?.toLowerCase().includes(q) ||
+        s.bankIfsc?.toLowerCase().includes(q) ||
+        s.transactionRef?.toLowerCase().includes(q)
+    );
+  }, [settlements, searchQuery]);
+
+  // Settlement KPI calculations
+  const metrics = useMemo(() => {
+    const pending = settlements.filter((s) => s.status === 'PENDING');
+    const settled = settlements.filter((s) => s.status === 'SETTLED');
+    const failed = settlements.filter((s) => s.status === 'FAILED');
+
+    const pendingTotal = pending.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+    const settledTotal = settled.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+
+    return {
+      pendingCount: pending.length,
+      pendingTotal,
+      settledCount: settled.length,
+      settledTotal,
+      failedCount: failed.length,
+    };
+  }, [settlements]);
+
   async function handleExecuteAction() {
     if (!selectedSettlement || !actionType) return;
     setActionLoading(true);
@@ -75,7 +120,7 @@ export default function SettlementsPage() {
         });
         setAlert({
           type: 'success',
-          message: `Payout of ₹${selectedSettlement.amount} successfully marked SETTLED with UTR: ${transactionRef}`,
+          message: `Payout of ₹${selectedSettlement.amount.toLocaleString('en-IN')} successfully marked SETTLED with UTR: ${transactionRef}`,
         });
       } else if (actionType === 'FAILED') {
         if (!failureReason.trim()) {
@@ -89,7 +134,7 @@ export default function SettlementsPage() {
         });
         setAlert({
           type: 'success',
-          message: `Settlement marked FAILED. Funds of ₹${selectedSettlement.amount} have been automatically refunded back to driver's wallet.`,
+          message: `Settlement marked FAILED. Funds of ₹${selectedSettlement.amount.toLocaleString('en-IN')} have been automatically refunded back to driver's wallet.`,
         });
       }
 
@@ -104,264 +149,434 @@ export default function SettlementsPage() {
   }
 
   return (
-    <div>
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 className="page-title">Driver Settlements & Payout Processing</h1>
-        <p className="page-subtitle">Inspect withdrawal requests, verify bank IFSC details, authorize bank payouts, and audit automated refund rollbacks</p>
-      </div>
-
+    <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      {/* Alert Banner */}
       {alert && (
         <div
           style={{
-            padding: '1rem 1.25rem',
-            borderRadius: '8px',
-            marginBottom: '1.5rem',
+            padding: '0.875rem 1.25rem',
+            borderRadius: 'var(--radius-md)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            background: alert.type === 'success' ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
-            border: `1px solid ${alert.type === 'success' ? 'rgba(16,185,129,0.3)' : 'rgba(244,63,94,0.3)'}`,
+            background: alert.type === 'success' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+            border: `1px solid ${alert.type === 'success' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
             color: alert.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)',
+            fontSize: '0.875rem',
+            fontWeight: 500,
           }}
         >
           <span>{alert.message}</span>
           <button
             onClick={() => setAlert(null)}
-            style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer' }}
+            style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', fontWeight: 'bold' }}
           >
             ✕
           </button>
         </div>
       )}
 
-      {/* Filter Tabs */}
-      <div className="tabs">
-        {STATUS_TABS.map((tab) => (
-          <button
-            key={tab}
-            className={`tab-item ${activeTab === tab ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab)}
-          >
-            {tab}
-          </button>
-        ))}
+      {/* Page Header */}
+      <PageHeader
+        title="Driver Settlements & Payouts"
+        subtitle="Inspect withdrawal requests, verify bank IFSC details, authorize bank payouts, and audit automated refund rollbacks"
+        liveStatus="Bank Gateway Synchronized"
+      />
+
+      {/* Settlement Metrics KPI Grid */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gap: '1.25rem',
+        }}
+      >
+        <MetricCard
+          label="Pending Payouts"
+          value={metrics.pendingCount}
+          subtext={`₹ ${metrics.pendingTotal.toLocaleString('en-IN')} awaiting authorization`}
+          icon="⏳"
+          accentColor="var(--color-warning)"
+        />
+        <MetricCard
+          label="Settled Disbursals"
+          value={metrics.settledCount}
+          subtext={`₹ ${metrics.settledTotal.toLocaleString('en-IN')} successfully wired`}
+          icon="💳"
+          accentColor="var(--color-success)"
+        />
+        <MetricCard
+          label="Failed / Rollbacks"
+          value={metrics.failedCount}
+          subtext="Refunded to driver wallets"
+          icon="🔄"
+          accentColor="var(--color-danger)"
+        />
       </div>
 
-      {/* Settlements Table */}
-      <div className="table-container">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Settlement ID</th>
-              <th>Driver Info</th>
-              <th>Payout Amount</th>
-              <th>Bank Account & IFSC</th>
-              <th>Status</th>
-              <th>UTR / Reference</th>
-              <th style={{ textAlign: 'right' }}>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
-                  Loading settlements...
-                </td>
-              </tr>
-            ) : settlements.length === 0 ? (
-              <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-                  No settlements found for status: {activeTab}
-                </td>
-              </tr>
-            ) : (
-              settlements.map((set) => (
-                <tr key={set.id}>
-                  <td>
-                    <div style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--accent-secondary)' }}>
-                      #{set.id.slice(0, 8)}
-                    </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      Requested {new Date(set.createdAt).toLocaleDateString()}
-                    </div>
-                  </td>
-                  <td>
-                    <div style={{ fontWeight: 600 }}>{set.driverName || 'Driver'}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                      ID: {set.driverId?.slice(0, 8)}...
-                    </div>
-                  </td>
-                  <td style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--color-success)' }}>
-                    ₹{Number(set.amount).toLocaleString('en-IN')}
-                  </td>
-                  <td>
-                    <div>{set.bankAccountName || 'Account Holder'}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                      {set.bankAccountNumber} • {set.bankIfsc}
-                    </div>
-                  </td>
-                  <td>
-                    <Badge status={set.status} />
-                  </td>
-                  <td style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}>
-                    {set.transactionRef || '—'}
-                  </td>
-                  <td style={{ textAlign: 'right' }}>
-                    {set.status === 'PENDING' ? (
-                      <button
-                        className="btn btn-primary btn-sm"
-                        onClick={() => {
-                          setSelectedSettlement(set);
-                          setActionType(null);
-                          setTransactionRef('');
-                          setFailureReason('');
-                        }}
-                      >
-                        Process Payout →
-                      </button>
-                    ) : (
-                      <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-                        {set.status === 'SETTLED' ? 'Settled' : 'Failed'}
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      {/* Filter Bar */}
+      <FilterBar
+        tabs={STATUS_TABS.map((t) => ({
+          id: t.id,
+          label: t.label,
+          count:
+            t.id === 'ALL'
+              ? settlements.length
+              : settlements.filter((s) => s.status === t.id).length,
+        }))}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search by ID, driver name, IFSC, or UTR..."
+      />
 
-      {/* Settlement Processing Modal */}
-      {selectedSettlement && (
-        <Modal
-          isOpen={!!selectedSettlement}
-          onClose={() => {
-            setSelectedSettlement(null);
-            setActionType(null);
-          }}
-          title={`Process Settlement Payout — ₹${Number(selectedSettlement.amount).toLocaleString('en-IN')}`}
-          maxWidth="600px"
-          footer={
+      {/* Settlements DataTable */}
+      <DataTable<SettlementListItem>
+        columns={[
+          {
+            header: 'SETTLEMENT ID',
+            accessor: (s) => (
+              <div>
+                <div style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--brand-primary)', fontSize: '0.8125rem' }}>
+                  #{s.id.slice(0, 10)}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                  Requested {new Date(s.createdAt).toLocaleDateString()}
+                </div>
+              </div>
+            ),
+          },
+          {
+            header: 'DRIVER INFO',
+            accessor: (s) => (
+              <div>
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.875rem' }}>
+                  {s.driverName || 'Driver'}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '0.125rem' }}>
+                  ID: {s.driverId?.slice(0, 12)}
+                </div>
+              </div>
+            ),
+          },
+          {
+            header: 'PAYOUT AMOUNT',
+            accessor: (s) => (
+              <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--color-success)' }}>
+                ₹ {Number(s.amount).toLocaleString('en-IN')}
+              </div>
+            ),
+          },
+          {
+            header: 'BANK ACCOUNT & IFSC',
+            accessor: (s) => (
+              <div>
+                <div style={{ fontWeight: 500, color: 'var(--text-primary)', fontSize: '0.8125rem' }}>
+                  {s.bankAccountName || 'Account Holder'}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '0.125rem' }}>
+                  {s.bankAccountNumber} • <span style={{ color: 'var(--text-secondary)' }}>{s.bankIfsc}</span>
+                </div>
+              </div>
+            ),
+          },
+          {
+            header: 'STATUS',
+            accessor: (s) => <StatusBadge status={s.status} />,
+          },
+          {
+            header: 'UTR / REFERENCE',
+            accessor: (s) => (
+              <span style={{ fontFamily: 'monospace', fontSize: '0.8125rem', color: s.transactionRef ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                {s.transactionRef || '—'}
+              </span>
+            ),
+          },
+          {
+            header: 'ACTIONS',
+            align: 'right',
+            accessor: (s) => (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                {s.status === 'PENDING' ? (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedSettlement(s);
+                      setActionType(null);
+                      setTransactionRef('');
+                      setFailureReason('');
+                    }}
+                  >
+                    Process Payout →
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedSettlement(s);
+                      setActionType(null);
+                    }}
+                  >
+                    Inspect Dossier
+                  </Button>
+                )}
+              </div>
+            ),
+          },
+        ]}
+        data={filteredSettlements}
+        keyExtractor={(s) => s.id}
+        loading={loading}
+        onRowClick={(s) => {
+          setSelectedSettlement(s);
+          setActionType(null);
+          setTransactionRef('');
+          setFailureReason('');
+        }}
+        emptyIcon="💳"
+        emptyMessage="No settlement records found matching your filters"
+      />
+
+      {/* Slide-out Settlement Drawer */}
+      <Drawer
+        isOpen={!!selectedSettlement}
+        onClose={() => {
+          setSelectedSettlement(null);
+          setActionType(null);
+        }}
+        title={
+          selectedSettlement
+            ? `Payout Dossier: ₹${Number(selectedSettlement.amount).toLocaleString('en-IN')}`
+            : 'Payout Dossier'
+        }
+        subtitle={selectedSettlement ? `Settlement ID #${selectedSettlement.id}` : ''}
+        footer={
+          selectedSettlement && selectedSettlement.status === 'PENDING' ? (
             actionType ? (
               <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end' }}>
-                <button
-                  className="btn btn-secondary btn-sm"
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => setActionType(null)}
                   disabled={actionLoading}
                 >
                   Back
-                </button>
-                <button
-                  className={`btn btn-sm ${actionType === 'SETTLED' ? 'btn-success' : 'btn-danger'}`}
+                </Button>
+                <Button
+                  variant={actionType === 'SETTLED' ? 'success' : 'danger'}
+                  size="sm"
                   onClick={handleExecuteAction}
-                  disabled={actionLoading}
+                  loading={actionLoading}
                 >
-                  {actionLoading ? 'Processing...' : `Confirm ${actionType}`}
-                </button>
+                  Confirm {actionType === 'SETTLED' ? 'Settlement' : 'Rollback'}
+                </Button>
               </div>
             ) : (
               <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end' }}>
-                <button
-                  className="btn btn-danger btn-sm"
+                <Button
+                  variant="danger"
+                  size="sm"
                   onClick={() => setActionType('FAILED')}
                 >
                   Mark as Failed (Refund)
-                </button>
-                <button
-                  className="btn btn-success btn-sm"
+                </Button>
+                <Button
+                  variant="success"
+                  size="sm"
                   onClick={() => setActionType('SETTLED')}
                 >
                   Mark as Settled
-                </button>
-                <button
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => setSelectedSettlement(null)}
-                >
-                  Close
-                </button>
+                </Button>
               </div>
             )
-          }
-        >
-          {actionType === 'SETTLED' ? (
-            <div className="form-group">
-              <label className="form-label">Bank UTR / Payout Transaction Reference:</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="e.g. UTR1234567890 or NEFT-REF-889"
-                value={transactionRef}
-                onChange={(e) => setTransactionRef(e.target.value)}
-              />
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                Entering the bank confirmation reference marks this payout as settled and notifies the driver.
-              </p>
-            </div>
-          ) : actionType === 'FAILED' ? (
-            <div className="form-group">
-              <label className="form-label">Mandatory Rejection / Failure Reason:</label>
-              <textarea
-                className="form-textarea"
-                rows={3}
-                placeholder="e.g. Beneficiary account closed or invalid IFSC code"
-                value={failureReason}
-                onChange={(e) => setFailureReason(e.target.value)}
-              />
-              <div
-                style={{
-                  marginTop: '0.75rem',
-                  padding: '0.75rem',
-                  borderRadius: '6px',
-                  background: 'var(--color-warning-bg)',
-                  border: '1px solid rgba(245, 158, 11, 0.3)',
-                  fontSize: '0.75rem',
-                  color: 'var(--color-warning)',
-                }}
-              >
-                ℹ️ <strong>Automated Ledger Safeguard:</strong> Marking this payout as FAILED will automatically credit ₹
-                {selectedSettlement.amount} back into the driver's wallet with a <code>WITHDRAWAL_REFUND</code> ledger entry.
+          ) : (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setSelectedSettlement(null)}
+            >
+              Close Dossier
+            </Button>
+          )
+        }
+      >
+        {selectedSettlement && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            {/* Status Summary Banner */}
+            <div
+              style={{
+                padding: '1rem',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'var(--bg-card-elevated)',
+                border: '1px solid var(--border-subtle)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Status</div>
+                <div style={{ marginTop: '0.25rem' }}>
+                  <StatusBadge status={selectedSettlement.status} />
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Amount Payable</div>
+                <div style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--color-success)', marginTop: '0.125rem' }}>
+                  ₹ {Number(selectedSettlement.amount).toLocaleString('en-IN')}
+                </div>
               </div>
             </div>
-          ) : (
-            <div>
+
+            {/* Bank Details Card */}
+            <div
+              style={{
+                padding: '1.25rem',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'var(--bg-card)',
+                border: '1px solid var(--border-subtle)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.875rem',
+              }}
+            >
+              <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.5rem' }}>
+                Beneficiary Banking Profile
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Account Holder:</span>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedSettlement.bankAccountName}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Account Number:</span>
+                <span style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--text-primary)' }}>{selectedSettlement.bankAccountNumber}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Bank IFSC Code:</span>
+                <span style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--brand-primary)' }}>{selectedSettlement.bankIfsc}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Driver ID:</span>
+                <span style={{ fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{selectedSettlement.driverId}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Requested On:</span>
+                <span style={{ color: 'var(--text-primary)' }}>{new Date(selectedSettlement.createdAt).toLocaleString()}</span>
+              </div>
+              {selectedSettlement.transactionRef && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Bank UTR / Ref:</span>
+                  <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--color-success)' }}>
+                    {selectedSettlement.transactionRef}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Action forms for PENDING settlements */}
+            {selectedSettlement.status === 'PENDING' && actionType === 'SETTLED' && (
               <div
                 style={{
-                  padding: '1rem',
-                  borderRadius: '8px',
-                  background: 'var(--bg-surface-elevated)',
+                  padding: '1.25rem',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'rgba(16, 185, 129, 0.06)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '0.75rem',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>Driver</span>
-                  <span style={{ fontWeight: 600 }}>{selectedSettlement.driverName || 'Driver'}</span>
+                <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-success)' }}>
+                  Authorize Bank Disbursal
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>Bank Beneficiary</span>
-                  <span style={{ fontWeight: 600 }}>{selectedSettlement.bankAccountName}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>Account Number</span>
-                  <span style={{ fontFamily: 'monospace' }}>{selectedSettlement.bankAccountNumber}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>Bank IFSC</span>
-                  <span style={{ fontFamily: 'monospace' }}>{selectedSettlement.bankIfsc}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
-                  <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Payout Amount</span>
-                  <span style={{ fontWeight: 700, fontSize: '1.125rem', color: 'var(--color-success)' }}>
-                    ₹{Number(selectedSettlement.amount).toLocaleString('en-IN')}
-                  </span>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.375rem', color: 'var(--text-primary)' }}>
+                    Bank UTR / Transaction Reference *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. UTR1234567890 or NEFT-REF-889"
+                    value={transactionRef}
+                    onChange={(e) => setTransactionRef(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '0.625rem 0.875rem',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: 'var(--bg-card)',
+                      border: '1px solid var(--border-subtle)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.875rem',
+                      fontFamily: 'monospace',
+                    }}
+                  />
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.375rem' }}>
+                    Entering the bank UTR reference marks this payout as settled and triggers a push confirmation to the driver app.
+                  </p>
                 </div>
               </div>
-            </div>
-          )}
-        </Modal>
-      )}
+            )}
+
+            {selectedSettlement.status === 'PENDING' && actionType === 'FAILED' && (
+              <div
+                style={{
+                  padding: '1.25rem',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'rgba(239, 68, 68, 0.06)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.75rem',
+                }}
+              >
+                <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-danger)' }}>
+                  Fail & Rollback Settlement
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.375rem', color: 'var(--text-primary)' }}>
+                    Rejection / Failure Reason *
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="e.g. Beneficiary account closed or invalid IFSC code"
+                    value={failureReason}
+                    onChange={(e) => setFailureReason(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '0.625rem 0.875rem',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: 'var(--bg-card)',
+                      border: '1px solid var(--border-subtle)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.875rem',
+                      resize: 'vertical',
+                    }}
+                  />
+                  <div
+                    style={{
+                      marginTop: '0.75rem',
+                      padding: '0.75rem',
+                      borderRadius: 'var(--radius-sm)',
+                      background: 'rgba(245, 158, 11, 0.1)',
+                      border: '1px solid rgba(245, 158, 11, 0.3)',
+                      fontSize: '0.75rem',
+                      color: 'var(--color-warning)',
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    🛡️ <strong>Automated Ledger Safeguard:</strong> Marking this payout as FAILED will automatically credit ₹
+                    {selectedSettlement.amount.toLocaleString('en-IN')} back into the driver's wallet with an audited <code>WITHDRAWAL_REFUND</code> ledger transaction.
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </Drawer>
     </div>
   );
 }

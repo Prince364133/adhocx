@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
+import '../animations/app_bouncing_wrapper.dart';
 
 /// Centralized Surface Card for AdhocX Mobile according to docs/04_DESIGN_SYSTEM.md.
 class AppCard extends StatelessWidget {
@@ -42,12 +43,16 @@ class AppCard extends StatelessWidget {
     );
 
     if (onTap != null) {
-      return Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: AppRadius.borderLg,
-          child: cardContent,
+      return AppBouncingWrapper(
+        onTap: onTap,
+        lowerBound: 0.98,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: AppRadius.borderLg,
+            child: cardContent,
+          ),
         ),
       );
     }
@@ -55,3 +60,4 @@ class AppCard extends StatelessWidget {
     return cardContent;
   }
 }
+

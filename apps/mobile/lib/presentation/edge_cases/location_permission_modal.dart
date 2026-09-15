@@ -13,16 +13,18 @@ class LocationPermissionModal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
+            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.1),
             blurRadius: 16,
-            offset: Offset(0, -4),
+            offset: const Offset(0, -4),
           ),
         ],
       ),
@@ -33,7 +35,7 @@ class LocationPermissionModal extends StatelessWidget {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: AppColors.borderLight,
+              color: isDark ? AppColors.borderDark : AppColors.borderLight,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -43,12 +45,12 @@ class LocationPermissionModal extends StatelessWidget {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
+              color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.location_on_outlined,
-              color: AppColors.primary,
+              color: isDark ? AppColors.primaryLight : AppColors.primary,
               size: 36,
             ),
           ),
@@ -57,7 +59,7 @@ class LocationPermissionModal extends StatelessWidget {
           Text(
             'Location Permission Required',
             style: AppTypography.h2(
-              color: AppColors.textPrimaryLight,
+              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
               fontWeight: FontWeight.bold,
             ),
             textAlign: TextAlign.center,
@@ -67,7 +69,7 @@ class LocationPermissionModal extends StatelessWidget {
           Text(
             'AdhocX requires background location access to match you with nearby trip requests and navigate during active trips.',
             style: AppTypography.body(
-              color: AppColors.textSecondaryLight,
+              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
             ),
             textAlign: TextAlign.center,
           ),
@@ -79,7 +81,7 @@ class LocationPermissionModal extends StatelessWidget {
               EdgeCaseManager.instance.grantLocationPermission();
               Fluttertoast.showToast(
                 msg: 'Location permission granted!',
-                backgroundColor: AppColors.accentGreenDark,
+                backgroundColor: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
               );
             },
           ),
@@ -94,7 +96,9 @@ class LocationPermissionModal extends StatelessWidget {
             },
             child: Text(
               'Not Now',
-              style: AppTypography.body(color: AppColors.textMutedLight),
+              style: AppTypography.body(
+                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+              ),
             ),
           ),
         ],

@@ -14,7 +14,9 @@ class AppNumericKeypad extends StatelessWidget {
     required this.onDeletePressed,
   });
 
-  Widget _buildKey(String label, {VoidCallback? customAction, Widget? customWidget}) {
+  Widget _buildKey(BuildContext context, String label, {VoidCallback? customAction, Widget? customWidget}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -27,14 +29,14 @@ class AppNumericKeypad extends StatelessWidget {
               height: 52,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
+                color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight,
                 borderRadius: BorderRadius.circular(AppRadius.md),
-                border: Border.all(color: AppColors.borderLight),
+                border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
+                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
                     blurRadius: 2,
-                    offset: Offset(0, 1),
+                    offset: const Offset(0, 1),
                   ),
                 ],
               ),
@@ -42,7 +44,7 @@ class AppNumericKeypad extends StatelessWidget {
                   Text(
                     label,
                     style: AppTypography.h3(
-                      color: AppColors.textPrimaryLight,
+                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -55,41 +57,44 @@ class AppNumericKeypad extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Row(
           children: [
-            _buildKey('1'),
-            _buildKey('2'),
-            _buildKey('3'),
+            _buildKey(context, '1'),
+            _buildKey(context, '2'),
+            _buildKey(context, '3'),
           ],
         ),
         Row(
           children: [
-            _buildKey('4'),
-            _buildKey('5'),
-            _buildKey('6'),
+            _buildKey(context, '4'),
+            _buildKey(context, '5'),
+            _buildKey(context, '6'),
           ],
         ),
         Row(
           children: [
-            _buildKey('7'),
-            _buildKey('8'),
-            _buildKey('9'),
+            _buildKey(context, '7'),
+            _buildKey(context, '8'),
+            _buildKey(context, '9'),
           ],
         ),
         Row(
           children: [
             const Expanded(child: SizedBox()),
-            _buildKey('0'),
+            _buildKey(context, '0'),
             _buildKey(
+              context,
               'backspace',
               customAction: onDeletePressed,
               customWidget: Icon(
                 Icons.backspace_outlined,
                 size: 22,
-                color: AppColors.textSecondaryLight,
+                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
               ),
             ),
           ],

@@ -221,8 +221,10 @@ class _SignInScreenState extends State<SignInScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -250,7 +252,7 @@ class _SignInScreenState extends State<SignInScreen> {
                           },
                           icon: Icon(
                             Icons.arrow_back,
-                            color: AppColors.textPrimaryLight,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                           ),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
@@ -263,7 +265,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     Text(
                       'Welcome back!',
                       style: AppTypography.h1(
-                        color: AppColors.textPrimaryLight,
+                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -271,7 +273,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     Text(
                       'Sign in with your phone or email and password',
                       style: AppTypography.body(
-                        color: AppColors.textSecondaryLight,
+                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xl),
@@ -280,8 +282,9 @@ class _SignInScreenState extends State<SignInScreen> {
                     Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: AppColors.borderLight.withValues(alpha: 0.4),
+                        color: isDark ? AppColors.surfaceDark : AppColors.borderLight.withValues(alpha: 0.4),
                         borderRadius: BorderRadius.circular(AppRadius.md),
+                        border: Border.all(color: isDark ? AppColors.borderDark : Colors.transparent),
                       ),
                       child: Row(
                         children: [
@@ -291,12 +294,14 @@ class _SignInScreenState extends State<SignInScreen> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(vertical: 10),
                                 decoration: BoxDecoration(
-                                  color: _inputMode == AuthInputMode.phone ? Colors.white : Colors.transparent,
+                                  color: _inputMode == AuthInputMode.phone
+                                      ? (isDark ? AppColors.surfaceElevatedDark : Colors.white)
+                                      : Colors.transparent,
                                   borderRadius: BorderRadius.circular(AppRadius.sm),
                                   boxShadow: _inputMode == AuthInputMode.phone
                                       ? [
                                           BoxShadow(
-                                            color: Colors.black.withValues(alpha: 0.08),
+                                            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
                                             blurRadius: 4,
                                             offset: const Offset(0, 2),
                                           ),
@@ -310,8 +315,8 @@ class _SignInScreenState extends State<SignInScreen> {
                                       Icons.phone_iphone_rounded,
                                       size: 16,
                                       color: _inputMode == AuthInputMode.phone
-                                          ? AppColors.primary
-                                          : AppColors.textSecondaryLight,
+                                          ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                                          : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
                                     ),
                                     const SizedBox(width: 6),
                                     Text(
@@ -320,8 +325,8 @@ class _SignInScreenState extends State<SignInScreen> {
                                         fontSize: 13,
                                         fontWeight: _inputMode == AuthInputMode.phone ? FontWeight.w700 : FontWeight.w500,
                                         color: _inputMode == AuthInputMode.phone
-                                            ? AppColors.textPrimaryLight
-                                            : AppColors.textSecondaryLight,
+                                            ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)
+                                            : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
                                       ),
                                     ),
                                   ],
@@ -335,12 +340,14 @@ class _SignInScreenState extends State<SignInScreen> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(vertical: 10),
                                 decoration: BoxDecoration(
-                                  color: _inputMode == AuthInputMode.email ? Colors.white : Colors.transparent,
+                                  color: _inputMode == AuthInputMode.email
+                                      ? (isDark ? AppColors.surfaceElevatedDark : Colors.white)
+                                      : Colors.transparent,
                                   borderRadius: BorderRadius.circular(AppRadius.sm),
                                   boxShadow: _inputMode == AuthInputMode.email
                                       ? [
                                           BoxShadow(
-                                            color: Colors.black.withValues(alpha: 0.08),
+                                            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
                                             blurRadius: 4,
                                             offset: const Offset(0, 2),
                                           ),
@@ -354,8 +361,8 @@ class _SignInScreenState extends State<SignInScreen> {
                                       Icons.email_outlined,
                                       size: 16,
                                       color: _inputMode == AuthInputMode.email
-                                          ? AppColors.primary
-                                          : AppColors.textSecondaryLight,
+                                          ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                                          : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
                                     ),
                                     const SizedBox(width: 6),
                                     Text(
@@ -364,8 +371,8 @@ class _SignInScreenState extends State<SignInScreen> {
                                         fontSize: 13,
                                         fontWeight: _inputMode == AuthInputMode.email ? FontWeight.w700 : FontWeight.w500,
                                         color: _inputMode == AuthInputMode.email
-                                            ? AppColors.textPrimaryLight
-                                            : AppColors.textSecondaryLight,
+                                            ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)
+                                            : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
                                       ),
                                     ),
                                   ],
@@ -398,7 +405,11 @@ class _SignInScreenState extends State<SignInScreen> {
                         label: 'Email Address',
                         hintText: 'name@example.com',
                         keyboardType: TextInputType.emailAddress,
-                        prefixIcon: Icon(Icons.email_outlined, size: 20, color: AppColors.textSecondaryLight),
+                        prefixIcon: Icon(
+                          Icons.email_outlined,
+                          size: 20,
+                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                        ),
                         validator: (val) {
                           if (val == null || val.trim().isEmpty) {
                             return 'Email address is required';
@@ -421,7 +432,7 @@ class _SignInScreenState extends State<SignInScreen> {
                       prefixIcon: Icon(
                         Icons.lock_outline_rounded,
                         size: 20,
-                        color: AppColors.textSecondaryLight,
+                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                       ),
                       suffixIcon: IconButton(
                         icon: Icon(
@@ -429,7 +440,7 @@ class _SignInScreenState extends State<SignInScreen> {
                               ? Icons.visibility_off_outlined
                               : Icons.visibility_outlined,
                           size: 20,
-                          color: AppColors.textSecondaryLight,
+                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                         ),
                         onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                       ),
@@ -453,11 +464,15 @@ class _SignInScreenState extends State<SignInScreen> {
                       children: [
                         TextButton.icon(
                           onPressed: _handleOtpSignIn,
-                          icon: const Icon(Icons.sms_outlined, size: 14),
+                          icon: Icon(
+                            Icons.sms_outlined,
+                            size: 14,
+                            color: isDark ? AppColors.primaryLight : AppColors.primary,
+                          ),
                           label: Text(
                             'Sign In with OTP',
                             style: AppTypography.caption(
-                              color: AppColors.primary,
+                              color: isDark ? AppColors.primaryLight : AppColors.primary,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -477,7 +492,7 @@ class _SignInScreenState extends State<SignInScreen> {
                           child: Text(
                             'Forgot Password?',
                             style: AppTypography.caption(
-                              color: AppColors.textSecondaryLight,
+                              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -497,21 +512,21 @@ class _SignInScreenState extends State<SignInScreen> {
                     // ── OR Divider ───────────────────────────────────────────
                     Row(
                       children: [
-                        const Expanded(
-                          child: Divider(color: AppColors.borderLight),
+                        Expanded(
+                          child: Divider(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                         ),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                           child: Text(
                             'OR',
                             style: AppTypography.caption(
-                              color: AppColors.textMutedLight,
+                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
-                        const Expanded(
-                          child: Divider(color: AppColors.borderLight),
+                        Expanded(
+                          child: Divider(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                         ),
                       ],
                     ),
@@ -531,7 +546,7 @@ class _SignInScreenState extends State<SignInScreen> {
                         Text(
                           "Don't have an account? ",
                           style: AppTypography.body(
-                            color: AppColors.textSecondaryLight,
+                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                           ),
                         ),
                         GestureDetector(
@@ -543,7 +558,7 @@ class _SignInScreenState extends State<SignInScreen> {
                           child: Text(
                             'Sign up',
                             style: AppTypography.body(
-                              color: AppColors.primary,
+                              color: isDark ? AppColors.primaryLight : AppColors.primary,
                               fontWeight: FontWeight.bold,
                             ),
                           ),

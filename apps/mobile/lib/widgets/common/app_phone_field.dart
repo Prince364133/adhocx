@@ -30,6 +30,8 @@ class AppPhoneField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -37,7 +39,7 @@ class AppPhoneField extends StatelessWidget {
         Text(
           label,
           style: AppTypography.caption(
-            color: AppColors.textSecondaryLight,
+            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -52,18 +54,22 @@ class AppPhoneField extends StatelessWidget {
           ],
           onChanged: onChanged,
           onFieldSubmitted: onSubmitted,
-          cursorColor: AppColors.primary,
-          style: AppTypography.body(color: AppColors.textPrimaryLight),
+          cursorColor: isDark ? AppColors.primaryLight : AppColors.primary,
+          style: AppTypography.body(
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+          ),
           decoration: InputDecoration(
             hintText: hintText,
-            hintStyle: AppTypography.body(color: AppColors.textMutedLight),
+            hintStyle: AppTypography.body(
+              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+            ),
             prefixIcon: Container(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
               margin: const EdgeInsets.only(right: AppSpacing.sm),
               decoration: BoxDecoration(
                 border: Border(
                   right: BorderSide(
-                    color: AppColors.borderLight,
+                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
                     width: 1.2,
                   ),
                 ),
@@ -74,13 +80,13 @@ class AppPhoneField extends StatelessWidget {
                   Icon(
                     Icons.phone_iphone_rounded,
                     size: 18,
-                    color: AppColors.textSecondaryLight,
+                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                   ),
                   const SizedBox(width: AppSpacing.xs),
                   Text(
                     '+91',
                     style: AppTypography.body(
-                      color: AppColors.textPrimaryLight,
+                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -88,7 +94,7 @@ class AppPhoneField extends StatelessWidget {
               ),
             ),
             filled: true,
-            fillColor: AppColors.surfaceLight,
+            fillColor: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.lg,
               vertical: AppSpacing.md,
@@ -96,14 +102,14 @@ class AppPhoneField extends StatelessWidget {
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
               borderSide: BorderSide(
-                color: AppColors.borderLight,
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
                 width: 1.2,
               ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
               borderSide: BorderSide(
-                color: AppColors.primary,
+                color: isDark ? AppColors.primaryLight : AppColors.primary,
                 width: 1.8,
               ),
             ),

@@ -26,9 +26,10 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
   @override
   Widget build(BuildContext context) {
     const withdrawalId = 'WD2505190001';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -42,9 +43,11 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
                     vertical: AppSpacing.md,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
+                    color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                     border: Border(
-                      bottom: BorderSide(color: AppColors.borderLight),
+                      bottom: BorderSide(
+                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      ),
                     ),
                   ),
                   child: Row(
@@ -59,7 +62,7 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
                         },
                         icon: Icon(
                           Icons.arrow_back,
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -67,7 +70,7 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
                         child: Text(
                           'Withdrawal Details',
                           style: AppTypography.h3(
-                            color: AppColors.textPrimaryLight,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -76,7 +79,7 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
                         onPressed: () => context.push(AppRoutes.helpSupportScreen),
                         icon: Icon(
                           Icons.help_outline_rounded,
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                       ),
                     ],
@@ -85,7 +88,7 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
 
                 // ── Live Withdrawal State Switcher Bar ────────────────────────
                 Container(
-                  color: AppColors.surfaceLight,
+                  color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
@@ -106,10 +109,14 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
                             margin: const EdgeInsets.only(right: 6),
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: isSelected ? AppColors.primary : AppColors.bgLight,
+                              color: isSelected
+                                  ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                                  : (isDark ? AppColors.surfaceElevatedDark : AppColors.bgLight),
                               borderRadius: BorderRadius.circular(AppRadius.full),
                               border: Border.all(
-                                color: isSelected ? AppColors.primary : AppColors.borderLight,
+                                color: isSelected
+                                    ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                                    : (isDark ? AppColors.borderDark : AppColors.borderLight),
                               ),
                             ),
                             child: Text(
@@ -117,7 +124,9 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                color: isSelected ? Colors.white : AppColors.textPrimaryLight,
+                                color: isSelected
+                                    ? (isDark ? AppColors.bgDark : Colors.white)
+                                    : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
                               ),
                             ),
                           ),
@@ -126,7 +135,10 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
                     ),
                   ),
                 ),
-                Divider(height: 1, color: AppColors.borderLight),
+                Divider(
+                  height: 1,
+                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                ),
 
                 // ── Scrollable Body ──────────────────────────────────────────
                 Expanded(
@@ -134,26 +146,26 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
                     padding: const EdgeInsets.all(AppSpacing.lg),
                     children: [
                       // ── Dynamic Status Banner Header Card ───────────────────
-                      _buildStatusCard(withdrawalId),
+                      _buildStatusCard(withdrawalId, isDark),
                       const SizedBox(height: AppSpacing.xl),
 
                       // ── Dynamic Status Progress Stepper ────────────────────
                       Text(
                         'Status Progress',
                         style: AppTypography.caption(
-                          color: AppColors.textMutedLight,
+                          color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(height: AppSpacing.md),
-                      _buildStepperCard(),
+                      _buildStepperCard(isDark),
                       const SizedBox(height: AppSpacing.xl),
 
                       // ── Details Breakdown Card ─────────────────────────────
                       Text(
                         'Details',
                         style: AppTypography.caption(
-                          color: AppColors.textMutedLight,
+                          color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -161,22 +173,24 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
 
                       Container(
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
+                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: AppColors.borderLight),
+                          border: Border.all(
+                            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                          ),
                         ),
                         child: Column(
                           children: [
-                            _buildDetailRow('Amount', '₹2,000', isBold: true),
-                            Divider(height: 1, color: AppColors.borderLight),
-                            _buildDetailRow('Bank', 'HDFC Bank'),
-                            Divider(height: 1, color: AppColors.borderLight),
-                            _buildDetailRow('Account Number', '•••• 4321'),
-                            Divider(height: 1, color: AppColors.borderLight),
-                            _buildDetailRow('Account Holder', AuthService.instance.currentUser?.fullName ?? 'Driver Account Holder'),
-                            Divider(height: 1, color: AppColors.borderLight),
-                            _buildDetailRow('Requested On', 'May 19, 2025 • 09:15 AM'),
-                            Divider(height: 1, color: AppColors.borderLight),
+                            _buildDetailRow('Amount', '₹2,000', isDark, isBold: true),
+                            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                            _buildDetailRow('Bank', 'HDFC Bank', isDark),
+                            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                            _buildDetailRow('Account Number', '•••• 4321', isDark),
+                            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                            _buildDetailRow('Account Holder', AuthService.instance.currentUser?.fullName ?? 'Driver Account Holder', isDark),
+                            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                            _buildDetailRow('Requested On', 'May 19, 2025 • 09:15 AM', isDark),
+                            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                             _buildDetailRow(
                               'Processed On',
                               switch (_currentState) {
@@ -186,13 +200,15 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
                                 WithdrawalStatusState.failed => 'May 19, 2025 • 09:30 AM (Failed)',
                                 WithdrawalStatusState.cancelled => 'May 19, 2025 • 09:30 AM (Cancelled)',
                               },
+                              isDark,
                             ),
-                            Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                             _buildDetailRow(
                               'Reference ID',
                               _currentState == WithdrawalStatusState.successful
                                   ? 'UTR512398475612'
                                   : 'N/A',
+                              isDark,
                             ),
                           ],
                         ),
@@ -218,15 +234,17 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
                       Container(
                         padding: const EdgeInsets.all(AppSpacing.lg),
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
+                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: AppColors.borderLight),
+                          border: Border.all(
+                            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                          ),
                         ),
                         child: Row(
                           children: [
                             Icon(
                               Icons.headset_mic_outlined,
-                              color: AppColors.primary,
+                              color: isDark ? AppColors.primaryLight : AppColors.primary,
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -236,7 +254,7 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
                                   Text(
                                     'Need Help?',
                                     style: AppTypography.body(
-                                      color: AppColors.textPrimaryLight,
+                                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -244,7 +262,7 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
                                   Text(
                                     'Contact our support team for any queries',
                                     style: AppTypography.caption(
-                                      color: AppColors.textSecondaryLight,
+                                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                                     ),
                                   ),
                                 ],
@@ -253,8 +271,10 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
                             ElevatedButton(
                               onPressed: () => context.push(AppRoutes.helpSupportScreen),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primaryLight.withValues(alpha: 0.15),
-                                foregroundColor: AppColors.primary,
+                                backgroundColor: isDark
+                                    ? AppColors.primary.withValues(alpha: 0.25)
+                                    : AppColors.primaryLight.withValues(alpha: 0.15),
+                                foregroundColor: isDark ? AppColors.primaryLight : AppColors.primary,
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(AppRadius.md),
@@ -263,7 +283,7 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
                               child: Text(
                                 'SUPPORT',
                                 style: AppTypography.caption(
-                                  color: AppColors.primary,
+                                  color: isDark ? AppColors.primaryLight : AppColors.primary,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -283,7 +303,7 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
     );
   }
 
-  Widget _buildStatusCard(String withdrawalId) {
+  Widget _buildStatusCard(String withdrawalId, bool isDark) {
     final title = switch (_currentState) {
       WithdrawalStatusState.requested => 'Withdrawal Requested',
       WithdrawalStatusState.processing => 'Processing Transfer',
@@ -303,9 +323,9 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
     final Color statusColor = switch (_currentState) {
       WithdrawalStatusState.requested => AppColors.warning,
       WithdrawalStatusState.processing => AppColors.info,
-      WithdrawalStatusState.successful => AppColors.accentGreenDark,
+      WithdrawalStatusState.successful => isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
       WithdrawalStatusState.failed => AppColors.error,
-      WithdrawalStatusState.cancelled => AppColors.textMutedLight,
+      WithdrawalStatusState.cancelled => isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
     };
 
     final IconData icon = switch (_currentState) {
@@ -319,10 +339,10 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
     return Container(
       padding: const EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
-        color: statusColor.withValues(alpha: 0.08),
+        color: statusColor.withValues(alpha: isDark ? 0.15 : 0.08),
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(
-          color: statusColor.withValues(alpha: 0.25),
+          color: statusColor.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
@@ -342,26 +362,30 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
                 Text(
                   '₹2,000',
                   style: AppTypography.h1(
-                    color: AppColors.textPrimaryLight,
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                     fontWeight: FontWeight.bold,
                   ).copyWith(fontSize: 30),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: AppTypography.caption(color: AppColors.textSecondaryLight),
+                  style: AppTypography.caption(
+                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Row(
                   children: [
                     Text(
                       'Withdrawal ID: ',
-                      style: AppTypography.caption(color: AppColors.textMutedLight),
+                      style: AppTypography.caption(
+                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                      ),
                     ),
                     Text(
                       withdrawalId,
                       style: AppTypography.caption(
-                        color: AppColors.textPrimaryLight,
+                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -374,7 +398,7 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
                       child: Icon(
                         Icons.copy_rounded,
                         size: 14,
-                        color: AppColors.primary,
+                        color: isDark ? AppColors.primaryLight : AppColors.primary,
                       ),
                     ),
                   ],
@@ -401,7 +425,7 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
     );
   }
 
-  Widget _buildStepperCard() {
+  Widget _buildStepperCard(bool isDark) {
     final bool step1Done = true;
     final bool step2Done = _currentState == WithdrawalStatusState.processing ||
         _currentState == WithdrawalStatusState.successful;
@@ -412,21 +436,24 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.borderLight),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _buildStepNode(title: 'Requested', isDone: step1Done),
-          Expanded(child: _buildStepLine(isDone: step2Done)),
+          _buildStepNode(title: 'Requested', isDone: step1Done, isDark: isDark),
+          Expanded(child: _buildStepLine(isDone: step2Done, isDark: isDark)),
           _buildStepNode(
             title: 'Processing',
             isDone: step2Done,
             isActive: _currentState == WithdrawalStatusState.processing,
+            isDark: isDark,
           ),
-          Expanded(child: _buildStepLine(isDone: step3Done)),
+          Expanded(child: _buildStepLine(isDone: step3Done, isDark: isDark)),
           _buildStepNode(
             title: isFailed
                 ? 'Failed'
@@ -434,6 +461,7 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
             isDone: step3Done,
             isFailed: isFailed,
             isCancelled: isCancelled,
+            isDark: isDark,
           ),
         ],
       ),
@@ -443,6 +471,7 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
   Widget _buildStepNode({
     required String title,
     required bool isDone,
+    required bool isDark,
     bool isActive = false,
     bool isFailed = false,
     bool isCancelled = false,
@@ -450,10 +479,12 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
     final Color bg = isFailed
         ? AppColors.error
         : (isCancelled
-            ? AppColors.textMutedLight
+            ? (isDark ? AppColors.textMutedDark : AppColors.textMutedLight)
             : (isActive
                 ? AppColors.info
-                : (isDone ? AppColors.accentGreenDark : AppColors.borderLight)));
+                : (isDone
+                    ? (isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark)
+                    : (isDark ? AppColors.borderDark : AppColors.borderLight))));
 
     final IconData icon = isFailed
         ? Icons.close
@@ -479,8 +510,8 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
           title,
           style: AppTypography.caption(
             color: isDone || isActive || isFailed
-                ? AppColors.textPrimaryLight
-                : AppColors.textMutedLight,
+                ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)
+                : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
             fontWeight: isDone || isActive ? FontWeight.bold : FontWeight.w500,
           ).copyWith(fontSize: 11),
         ),
@@ -488,14 +519,16 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
     );
   }
 
-  Widget _buildStepLine({required bool isDone}) {
+  Widget _buildStepLine({required bool isDone, required bool isDark}) {
     return Container(
       height: 2,
-      color: isDone ? AppColors.accentGreenDark : AppColors.borderLight,
+      color: isDone
+          ? (isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark)
+          : (isDark ? AppColors.borderDark : AppColors.borderLight),
     );
   }
 
-  Widget _buildDetailRow(String label, String value, {bool isBold = false}) {
+  Widget _buildDetailRow(String label, String value, bool isDark, {bool isBold = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
@@ -506,12 +539,14 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
         children: [
           Text(
             label,
-            style: AppTypography.body(color: AppColors.textSecondaryLight),
+            style: AppTypography.body(
+              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+            ),
           ),
           Text(
             value,
             style: AppTypography.body(
-              color: AppColors.textPrimaryLight,
+              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
               fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
             ),
           ),

@@ -17,6 +17,8 @@ class AppStepperHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       children: [
         Row(
@@ -26,7 +28,7 @@ class AppStepperHeader extends StatelessWidget {
                 onPressed: onBack,
                 icon: Icon(
                   Icons.arrow_back,
-                  color: AppColors.textPrimaryLight,
+                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                 ),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
@@ -49,12 +51,12 @@ class AppStepperHeader extends StatelessWidget {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: isActive || isCompleted
-                                ? AppColors.primary
-                                : AppColors.surfaceElevatedLight,
+                                ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                                : (isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight),
                             border: Border.all(
                               color: isActive || isCompleted
-                                  ? AppColors.primary
-                                  : AppColors.borderLight,
+                                  ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                                  : (isDark ? AppColors.borderDark : AppColors.borderLight),
                               width: 1.5,
                             ),
                           ),
@@ -69,7 +71,7 @@ class AppStepperHeader extends StatelessWidget {
                                   style: TextStyle(
                                     color: isActive
                                         ? Colors.white
-                                        : AppColors.textSecondaryLight,
+                                        : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -80,8 +82,8 @@ class AppStepperHeader extends StatelessWidget {
                             child: Container(
                               height: 3,
                               color: isCompleted
-                                  ? AppColors.primary
-                                  : AppColors.borderLight,
+                                  ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                                  : (isDark ? AppColors.borderDark : AppColors.borderLight),
                             ),
                           ),
                       ],

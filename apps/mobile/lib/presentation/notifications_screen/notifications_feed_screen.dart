@@ -151,8 +151,10 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -166,9 +168,11 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen> {
                     vertical: AppSpacing.md,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
+                    color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                     border: Border(
-                      bottom: BorderSide(color: AppColors.borderLight),
+                      bottom: BorderSide(
+                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      ),
                     ),
                   ),
                   child: Row(
@@ -183,7 +187,7 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen> {
                         },
                         icon: Icon(
                           Icons.arrow_back,
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -191,7 +195,7 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen> {
                         child: Text(
                           'Notifications',
                           style: AppTypography.h3(
-                            color: AppColors.textPrimaryLight,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -201,7 +205,7 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen> {
                         child: Text(
                           'Mark All Read',
                           style: AppTypography.caption(
-                            color: AppColors.primary,
+                            color: isDark ? AppColors.primaryLight : AppColors.primary,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -219,11 +223,17 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen> {
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.notifications_none, size: 48, color: AppColors.textMutedLight),
+                                  Icon(
+                                    Icons.notifications_none,
+                                    size: 48,
+                                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                  ),
                                   const SizedBox(height: 12),
                                   Text(
                                     'No notifications yet',
-                                    style: AppTypography.body(color: AppColors.textMutedLight),
+                                    style: AppTypography.body(
+                                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -242,10 +252,14 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen> {
                                   child: Container(
                                     padding: const EdgeInsets.all(AppSpacing.md),
                                     decoration: BoxDecoration(
-                                      color: item.isUnread ? AppColors.surfaceLight : AppColors.bgLight,
+                                      color: item.isUnread
+                                          ? (isDark ? AppColors.surfaceDark : AppColors.surfaceLight)
+                                          : (isDark ? AppColors.surfaceElevatedDark : AppColors.bgLight),
                                       borderRadius: BorderRadius.circular(AppRadius.lg),
                                       border: Border.all(
-                                        color: item.isUnread ? AppColors.primary.withValues(alpha: 0.3) : AppColors.borderLight,
+                                        color: item.isUnread
+                                            ? (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.3)
+                                            : (isDark ? AppColors.borderDark : AppColors.borderLight),
                                       ),
                                     ),
                                     child: Row(
@@ -254,7 +268,7 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen> {
                                         Container(
                                           padding: const EdgeInsets.all(10),
                                           decoration: BoxDecoration(
-                                            color: item.color.withValues(alpha: 0.12),
+                                            color: item.color.withValues(alpha: isDark ? 0.2 : 0.12),
                                             shape: BoxShape.circle,
                                           ),
                                           child: Icon(item.icon, color: item.color, size: 20),
@@ -271,7 +285,7 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen> {
                                                     child: Text(
                                                       item.title,
                                                       style: AppTypography.body(
-                                                        color: AppColors.textPrimaryLight,
+                                                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                                         fontWeight: FontWeight.bold,
                                                       ),
                                                     ),
@@ -279,7 +293,7 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen> {
                                                   Text(
                                                     item.timestamp,
                                                     style: AppTypography.caption(
-                                                      color: AppColors.textMutedLight,
+                                                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                                                       fontSize: 10,
                                                     ),
                                                   ),
@@ -289,7 +303,7 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen> {
                                               Text(
                                                 item.body,
                                                 style: AppTypography.caption(
-                                                  color: AppColors.textSecondaryLight,
+                                                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                                                 ),
                                               ),
                                             ],

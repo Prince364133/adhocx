@@ -12,8 +12,10 @@ class KycVerificationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -27,9 +29,11 @@ class KycVerificationScreen extends StatelessWidget {
                     vertical: AppSpacing.md,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
+                    color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                     border: Border(
-                      bottom: BorderSide(color: AppColors.borderLight),
+                      bottom: BorderSide(
+                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      ),
                     ),
                   ),
                   child: Row(
@@ -44,14 +48,14 @@ class KycVerificationScreen extends StatelessWidget {
                         },
                         icon: Icon(
                           Icons.arrow_back,
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                       ),
                       const SizedBox(width: 8),
                       Text(
                         'KYC & Verification',
                         style: AppTypography.h3(
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -68,7 +72,7 @@ class KycVerificationScreen extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(AppSpacing.xl),
                         decoration: BoxDecoration(
-                          color: AppColors.accentGreenDark.withValues(alpha: 0.08),
+                          color: AppColors.accentGreenDark.withValues(alpha: isDark ? 0.15 : 0.08),
                           borderRadius: BorderRadius.circular(AppRadius.lg),
                           border: Border.all(
                             color: AppColors.accentGreenDark.withValues(alpha: 0.25),
@@ -83,7 +87,7 @@ class KycVerificationScreen extends StatelessWidget {
                                   Text(
                                     'KYC Status',
                                     style: AppTypography.caption(
-                                      color: AppColors.accentGreenDark,
+                                      color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -91,7 +95,7 @@ class KycVerificationScreen extends StatelessWidget {
                                   Text(
                                     'Verified',
                                     style: AppTypography.h1(
-                                      color: AppColors.accentGreenDark,
+                                      color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -99,7 +103,7 @@ class KycVerificationScreen extends StatelessWidget {
                                   Text(
                                     'Your documents are verified',
                                     style: AppTypography.body(
-                                      color: AppColors.textSecondaryLight,
+                                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                                     ),
                                   ),
                                 ],
@@ -109,16 +113,16 @@ class KycVerificationScreen extends StatelessWidget {
                               width: 48,
                               height: 48,
                               decoration: BoxDecoration(
-                                color: AppColors.accentGreenDark.withValues(alpha: 0.15),
+                                color: AppColors.accentGreenDark.withValues(alpha: isDark ? 0.2 : 0.15),
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                  color: AppColors.accentGreenDark,
+                                  color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
                                   width: 2,
                                 ),
                               ),
                               child: Icon(
                                 Icons.check_rounded,
-                                color: AppColors.accentGreenDark,
+                                color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
                                 size: 28,
                               ),
                             ),
@@ -131,7 +135,7 @@ class KycVerificationScreen extends StatelessWidget {
                       Text(
                         'Submitted Documents',
                         style: AppTypography.body(
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -140,9 +144,11 @@ class KycVerificationScreen extends StatelessWidget {
                       // ── Documents Card List ────────────────────────────────
                       Container(
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
+                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: AppColors.borderLight),
+                          border: Border.all(
+                            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                          ),
                         ),
                         child: Column(
                           children: [
@@ -150,30 +156,35 @@ class KycVerificationScreen extends StatelessWidget {
                               context: context,
                               icon: Icons.badge_outlined,
                               title: 'Aadhaar Card',
+                              isDark: isDark,
                             ),
-                            Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                             _buildDocumentTile(
                               context: context,
                               icon: Icons.credit_card_outlined,
                               title: 'PAN Card',
+                              isDark: isDark,
                             ),
-                            Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                             _buildDocumentTile(
                               context: context,
                               icon: Icons.drive_eta_outlined,
                               title: 'Driving License',
+                              isDark: isDark,
                             ),
-                            Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                             _buildDocumentTile(
                               context: context,
                               icon: Icons.account_circle_outlined,
                               title: 'Profile Photo',
+                              isDark: isDark,
                             ),
-                            Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                             _buildDocumentTile(
                               context: context,
                               icon: Icons.home_outlined,
                               title: 'Address Proof',
+                              isDark: isDark,
                             ),
                           ],
                         ),
@@ -187,7 +198,7 @@ class KycVerificationScreen extends StatelessWidget {
                           vertical: AppSpacing.md,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryLight.withValues(alpha: 0.12),
+                          color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: isDark ? 0.15 : 0.12),
                           borderRadius: BorderRadius.circular(AppRadius.md),
                         ),
                         child: Row(
@@ -195,14 +206,14 @@ class KycVerificationScreen extends StatelessWidget {
                             Icon(
                               Icons.info_outline_rounded,
                               size: 18,
-                              color: AppColors.primary,
+                              color: isDark ? AppColors.primaryLight : AppColors.primary,
                             ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 'All documents are verified and up to date.',
                                 style: AppTypography.caption(
-                                  color: AppColors.primary,
+                                  color: isDark ? AppColors.primaryLight : AppColors.primary,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -225,14 +236,19 @@ class KycVerificationScreen extends StatelessWidget {
     required BuildContext context,
     required IconData icon,
     required String title,
+    required bool isDark,
   }) {
     return ListTile(
       onTap: () => context.push(AppRoutes.documentDetailsScreen),
-      leading: Icon(icon, size: 20, color: AppColors.textSecondaryLight),
+      leading: Icon(
+        icon,
+        size: 20,
+        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+      ),
       title: Text(
         title,
         style: AppTypography.body(
-          color: AppColors.textPrimaryLight,
+          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -242,7 +258,7 @@ class KycVerificationScreen extends StatelessWidget {
           Text(
             'Verified',
             style: AppTypography.caption(
-              color: AppColors.accentGreenDark,
+              color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -250,7 +266,7 @@ class KycVerificationScreen extends StatelessWidget {
           Icon(
             Icons.check_circle_rounded,
             size: 18,
-            color: AppColors.accentGreenDark,
+            color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
           ),
         ],
       ),

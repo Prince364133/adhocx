@@ -54,8 +54,10 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -69,9 +71,11 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                     vertical: AppSpacing.md,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
+                    color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                     border: Border(
-                      bottom: BorderSide(color: AppColors.borderLight),
+                      bottom: BorderSide(
+                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      ),
                     ),
                   ),
                   child: Row(
@@ -86,7 +90,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                         },
                         icon: Icon(
                           Icons.arrow_back,
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -94,7 +98,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                         child: Text(
                           'Add / Replace Vehicle',
                           style: AppTypography.h3(
-                            color: AppColors.textPrimaryLight,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -113,13 +117,14 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                         controller: _makeModelController,
                         icon: Icons.directions_car_outlined,
                         hint: 'e.g. Honda City, Maruti Dzire',
+                        isDark: isDark,
                       ),
                       const SizedBox(height: AppSpacing.lg),
 
                       Text(
                         'Vehicle Category',
                         style: AppTypography.caption(
-                          color: AppColors.textMutedLight,
+                          color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -137,11 +142,13 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? AppColors.primaryLight.withValues(alpha: 0.15)
-                                      : AppColors.surfaceLight,
+                                      ? (isDark ? AppColors.primary.withValues(alpha: 0.25) : AppColors.primaryLight.withValues(alpha: 0.15))
+                                      : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
                                   borderRadius: BorderRadius.circular(AppRadius.md),
                                   border: Border.all(
-                                    color: isSelected ? AppColors.primary : AppColors.borderLight,
+                                    color: isSelected
+                                        ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                                        : (isDark ? AppColors.borderDark : AppColors.borderLight),
                                     width: isSelected ? 1.5 : 1,
                                   ),
                                 ),
@@ -150,7 +157,9 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                                    color: isSelected ? AppColors.primary : AppColors.textPrimaryLight,
+                                    color: isSelected
+                                        ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                                        : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
                                   ),
                                 ),
                               ),
@@ -165,6 +174,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                         controller: _plateController,
                         icon: Icons.badge_outlined,
                         hint: 'e.g. HR 26 AB 1234',
+                        isDark: isDark,
                       ),
                       const SizedBox(height: AppSpacing.lg),
 
@@ -176,6 +186,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                               controller: _yearController,
                               icon: Icons.calendar_today_outlined,
                               keyboardType: TextInputType.number,
+                              isDark: isDark,
                             ),
                           ),
                           const SizedBox(width: AppSpacing.md),
@@ -184,6 +195,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                               label: 'Color',
                               controller: _colorController,
                               icon: Icons.palette_outlined,
+                              isDark: isDark,
                             ),
                           ),
                         ],
@@ -193,15 +205,15 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                       Text(
                         'Upload Vehicle Documents',
                         style: AppTypography.h3(
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(height: AppSpacing.md),
 
-                      _buildUploadTile('Vehicle RC Photo (Front & Back)'),
+                      _buildUploadTile('Vehicle RC Photo (Front & Back)', isDark),
                       const SizedBox(height: AppSpacing.md),
-                      _buildUploadTile('Commercial Insurance Certificate'),
+                      _buildUploadTile('Commercial Insurance Certificate', isDark),
                       const SizedBox(height: AppSpacing.xxl),
 
                       AppPrimaryButton(
@@ -224,6 +236,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     required String label,
     required TextEditingController controller,
     required IconData icon,
+    required bool isDark,
     String? hint,
     TextInputType? keyboardType,
   }) {
@@ -233,7 +246,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
         Text(
           label,
           style: AppTypography.caption(
-            color: AppColors.textMutedLight,
+            color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -241,24 +254,39 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
         TextField(
           controller: controller,
           keyboardType: keyboardType,
-          style: AppTypography.body(color: AppColors.textPrimaryLight),
+          style: AppTypography.body(
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+          ),
           decoration: InputDecoration(
-            prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
+            prefixIcon: Icon(
+              icon,
+              color: isDark ? AppColors.primaryLight : AppColors.primary,
+              size: 20,
+            ),
             hintText: hint,
+            hintStyle: TextStyle(
+              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+            ),
             filled: true,
-            fillColor: AppColors.surfaceLight,
+            fillColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              borderSide: BorderSide(color: AppColors.borderLight),
+              borderSide: BorderSide(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              ),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              borderSide: BorderSide(color: AppColors.borderLight),
+              borderSide: BorderSide(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              borderSide: BorderSide(color: AppColors.primary),
+              borderSide: BorderSide(
+                color: isDark ? AppColors.primaryLight : AppColors.primary,
+              ),
             ),
           ),
         ),
@@ -266,23 +294,28 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     );
   }
 
-  Widget _buildUploadTile(String label) {
+  Widget _buildUploadTile(String label, bool isDark) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.borderLight),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
       ),
       child: Row(
         children: [
-          Icon(Icons.cloud_upload_outlined, color: AppColors.primary),
+          Icon(
+            Icons.cloud_upload_outlined,
+            color: isDark ? AppColors.primaryLight : AppColors.primary,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               label,
               style: AppTypography.body(
-                color: AppColors.textPrimaryLight,
+                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -290,7 +323,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
           Text(
             'Upload',
             style: AppTypography.caption(
-              color: AppColors.primary,
+              color: isDark ? AppColors.primaryLight : AppColors.primary,
               fontWeight: FontWeight.bold,
             ),
           ),

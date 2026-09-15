@@ -15,7 +15,7 @@ import '../../widgets/common/app_primary_button.dart';
 class WelcomeSuccessScreen extends StatelessWidget {
   const WelcomeSuccessScreen({super.key});
 
-  Widget _buildCheckItem(String text) {
+  Widget _buildCheckItem(String text, bool isDark) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -25,12 +25,12 @@ class WelcomeSuccessScreen extends StatelessWidget {
             height: 22,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: AppColors.accentGreenDark,
+              color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.check,
               size: 14,
-              color: Colors.white,
+              color: isDark ? AppColors.bgDark : Colors.white,
             ),
           ),
           const SizedBox(width: AppSpacing.md),
@@ -38,7 +38,7 @@ class WelcomeSuccessScreen extends StatelessWidget {
             child: Text(
               text,
               style: AppTypography.body(
-                color: AppColors.textPrimaryLight,
+                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -52,9 +52,10 @@ class WelcomeSuccessScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final onboarding = context.watch<OnboardingProvider>();
     final isUser = onboarding.isUser;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -76,10 +77,12 @@ class WelcomeSuccessScreen extends StatelessWidget {
                       width: 120,
                       height: 120,
                       decoration: BoxDecoration(
-                        color: AppColors.primarySubtle,
+                        color: isDark
+                            ? AppColors.primaryLight.withValues(alpha: 0.15)
+                            : AppColors.primarySubtle,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.4),
+                          color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.4),
                           width: 2,
                         ),
                       ),
@@ -89,7 +92,7 @@ class WelcomeSuccessScreen extends StatelessWidget {
                           Icon(
                             Icons.celebration_rounded,
                             size: 64,
-                            color: AppColors.primary,
+                            color: isDark ? AppColors.primaryLight : AppColors.primary,
                           ),
                           Positioned(
                             bottom: 10,
@@ -99,12 +102,12 @@ class WelcomeSuccessScreen extends StatelessWidget {
                               height: 28,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: AppColors.accentGreenDark,
+                                color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.check,
                                 size: 18,
-                                color: Colors.white,
+                                color: isDark ? AppColors.bgDark : Colors.white,
                               ),
                             ),
                           ),
@@ -118,7 +121,7 @@ class WelcomeSuccessScreen extends StatelessWidget {
                   Text(
                     'Welcome to AdhocX!',
                     style: AppTypography.h1(
-                      color: AppColors.textPrimaryLight,
+                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                       fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
@@ -129,7 +132,7 @@ class WelcomeSuccessScreen extends StatelessWidget {
                         ? 'Your account is ready to book bulk & outstation rides.'
                         : 'Your account has been created successfully.',
                     style: AppTypography.body(
-                      color: AppColors.textSecondaryLight,
+                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -139,21 +142,23 @@ class WelcomeSuccessScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(AppSpacing.lg),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceLight,
+                      color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                       borderRadius: BorderRadius.circular(AppRadius.lg),
-                      border: Border.all(color: AppColors.borderLight),
+                      border: Border.all(
+                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      ),
                     ),
                     child: Column(
                       children: isUser
                           ? [
-                              _buildCheckItem('Post trip requirements for competitive driver bids'),
-                              _buildCheckItem('Instant booking for outstation and bulk fleets'),
-                              _buildCheckItem('Track trips & receipts in real-time'),
+                              _buildCheckItem('Post trip requirements for competitive driver bids', isDark),
+                              _buildCheckItem('Instant booking for outstation and bulk fleets', isDark),
+                              _buildCheckItem('Track trips & receipts in real-time', isDark),
                             ]
                           : [
-                              _buildCheckItem('You are all set to start earning'),
-                              _buildCheckItem('Go online to receive trip offers'),
-                              _buildCheckItem('Complete trips and earn more'),
+                              _buildCheckItem('You are all set to start earning', isDark),
+                              _buildCheckItem('Go online to receive trip offers', isDark),
+                              _buildCheckItem('Complete trips and earn more', isDark),
                             ],
                     ),
                   ),

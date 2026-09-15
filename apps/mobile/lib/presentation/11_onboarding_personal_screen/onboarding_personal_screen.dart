@@ -49,6 +49,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
   }
 
   Future<void> _pickDate() async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate ?? DateTime(1995, 1, 1),
@@ -57,11 +58,18 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppColors.primary,
-              onPrimary: Colors.white,
-              onSurface: AppColors.textPrimaryLight,
-            ),
+            colorScheme: isDark
+                ? ColorScheme.dark(
+                    primary: AppColors.primaryLight,
+                    onPrimary: Colors.black,
+                    surface: AppColors.surfaceDark,
+                    onSurface: AppColors.textPrimaryDark,
+                  )
+                : const ColorScheme.light(
+                    primary: AppColors.primary,
+                    onPrimary: Colors.white,
+                    onSurface: AppColors.textPrimaryLight,
+                  ),
           ),
           child: child!,
         );
@@ -107,11 +115,12 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final onboarding = context.watch<OnboardingProvider>();
     final isDriver = onboarding.isDriver;
 
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -139,7 +148,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                             onPressed: () => context.pop(),
                             icon: Icon(
                               Icons.arrow_back,
-                              color: AppColors.textPrimaryLight,
+                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             ),
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
@@ -151,13 +160,13 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.primarySubtle,
+                              color: isDark ? AppColors.primary.withValues(alpha: 0.25) : AppColors.primarySubtle,
                               borderRadius: BorderRadius.circular(AppRadius.full),
                             ),
                             child: Text(
                               'Quick Profile Setup',
                               style: AppTypography.micro(
-                                color: AppColors.primary,
+                                color: isDark ? AppColors.primaryLight : AppColors.primary,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -170,7 +179,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                     Text(
                       isDriver ? "Driver Personal Details" : "Complete your profile",
                       style: AppTypography.h1(
-                        color: AppColors.textPrimaryLight,
+                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -180,7 +189,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                           ? 'Please provide your legal personal details'
                           : 'Just a few quick details to personalize your ride bookings',
                       style: AppTypography.body(
-                        color: AppColors.textSecondaryLight,
+                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xxl),
@@ -206,7 +215,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                         Text(
                           'Date of Birth (Optional)',
                           style: AppTypography.caption(
-                            color: AppColors.textSecondaryLight,
+                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -220,9 +229,9 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                               vertical: 14,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.surfaceLight,
+                              color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight,
                               borderRadius: BorderRadius.circular(AppRadius.md),
-                              border: Border.all(color: AppColors.borderLight),
+                              border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -232,13 +241,13 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                                       ? _formatDate(_selectedDate!)
                                       : 'Select Date',
                                   style: AppTypography.body(
-                                    color: AppColors.textPrimaryLight,
+                                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                   ),
                                 ),
                                 Icon(
                                   Icons.calendar_today_outlined,
                                   size: 18,
-                                  color: AppColors.textSecondaryLight,
+                                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                                 ),
                               ],
                             ),
@@ -256,7 +265,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                         Text(
                           'Gender (Optional)',
                           style: AppTypography.caption(
-                            color: AppColors.textSecondaryLight,
+                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -275,14 +284,14 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                                     alignment: Alignment.center,
                                     decoration: BoxDecoration(
                                       color: isSelected
-                                          ? AppColors.primary
-                                          : AppColors.surfaceLight,
+                                          ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                                          : (isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight),
                                       borderRadius:
                                           BorderRadius.circular(AppRadius.md),
                                       border: Border.all(
                                         color: isSelected
-                                            ? AppColors.primary
-                                            : AppColors.borderLight,
+                                            ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                                            : (isDark ? AppColors.borderDark : AppColors.borderLight),
                                       ),
                                     ),
                                     child: Text(
@@ -290,7 +299,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                                       style: AppTypography.body(
                                         color: isSelected
                                             ? Colors.white
-                                            : AppColors.textPrimaryLight,
+                                            : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
                                         fontWeight: isSelected
                                             ? FontWeight.w600
                                             : FontWeight.normal,
@@ -311,9 +320,9 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                       Container(
                         padding: const EdgeInsets.all(AppSpacing.md),
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
+                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(AppRadius.md),
-                          border: Border.all(color: AppColors.borderLight),
+                          border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                         ),
                         child: Column(
                           children: [
@@ -326,14 +335,14 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                                       Icon(
                                         Icons.business_outlined,
                                         size: 20,
-                                        color: AppColors.primary,
+                                        color: isDark ? AppColors.primaryLight : AppColors.primary,
                                       ),
                                       const SizedBox(width: AppSpacing.sm),
                                       Expanded(
                                         child: Text(
                                           'Booking for Company / Event?',
                                           style: AppTypography.bodyMedium(
-                                            color: AppColors.textPrimaryLight,
+                                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                             fontWeight: FontWeight.w600,
                                           ),
                                           maxLines: 1,
@@ -348,7 +357,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                                   onChanged: (val) {
                                     setState(() => _isCorporateBooking = val);
                                   },
-                                  activeColor: AppColors.primary,
+                                  activeColor: isDark ? AppColors.primaryLight : AppColors.primary,
                                 ),
                               ],
                             ),

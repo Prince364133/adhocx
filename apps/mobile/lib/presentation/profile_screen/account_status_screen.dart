@@ -12,8 +12,10 @@ class AccountStatusScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -27,9 +29,9 @@ class AccountStatusScreen extends StatelessWidget {
                     vertical: AppSpacing.md,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
+                    color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                     border: Border(
-                      bottom: BorderSide(color: AppColors.borderLight),
+                      bottom: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                     ),
                   ),
                   child: Row(
@@ -44,14 +46,14 @@ class AccountStatusScreen extends StatelessWidget {
                         },
                         icon: Icon(
                           Icons.arrow_back,
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                       ),
                       const SizedBox(width: 8),
                       Text(
                         'Account Status',
                         style: AppTypography.h3(
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -68,14 +70,14 @@ class AccountStatusScreen extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(AppSpacing.xl),
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
+                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: AppColors.borderLight),
+                          border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.03),
+                              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
                               blurRadius: 4,
-                              offset: Offset(0, 2),
+                              offset: const Offset(0, 2),
                             ),
                           ],
                         ),
@@ -85,12 +87,12 @@ class AccountStatusScreen extends StatelessWidget {
                               width: 44,
                               height: 44,
                               decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.12),
+                                color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(AppRadius.md),
                               ),
                               child: Icon(
                                 Icons.work_outline_rounded,
-                                color: AppColors.primary,
+                                color: isDark ? AppColors.primaryLight : AppColors.primary,
                               ),
                             ),
                             const SizedBox(width: 14),
@@ -104,7 +106,7 @@ class AccountStatusScreen extends StatelessWidget {
                                       Text(
                                         'Active Driver',
                                         style: AppTypography.h3(
-                                          color: AppColors.textPrimaryLight,
+                                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
@@ -112,7 +114,7 @@ class AccountStatusScreen extends StatelessWidget {
                                         width: 10,
                                         height: 10,
                                         decoration: BoxDecoration(
-                                          color: AppColors.accentGreenDark,
+                                          color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
                                           shape: BoxShape.circle,
                                         ),
                                       ),
@@ -122,7 +124,7 @@ class AccountStatusScreen extends StatelessWidget {
                                   Text(
                                     'Your account is active and in good standing',
                                     style: AppTypography.caption(
-                                      color: AppColors.textSecondaryLight,
+                                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                                     ),
                                   ),
                                 ],
@@ -136,20 +138,21 @@ class AccountStatusScreen extends StatelessWidget {
                       // ── Account Details Card List ─────────────────────────
                       Container(
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
+                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: AppColors.borderLight),
+                          border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                         ),
                         child: Column(
                           children: [
                             _buildMetricTile(
+                              isDark: isDark,
                               label: 'Verification Status',
                               valueWidget: Row(
                                 children: [
                                   Text(
                                     'Verified',
                                     style: AppTypography.body(
-                                      color: AppColors.accentGreenDark,
+                                      color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -157,59 +160,63 @@ class AccountStatusScreen extends StatelessWidget {
                                   Icon(
                                     Icons.check_circle_rounded,
                                     size: 16,
-                                    color: AppColors.accentGreenDark,
+                                    color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
                                   ),
                                 ],
                               ),
                             ),
-                            Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                             _buildMetricTile(
+                              isDark: isDark,
                               label: 'Account Created',
                               valueWidget: Row(
                                 children: [
                                   Text(
                                     '12 Jan 2024',
                                     style: AppTypography.body(
-                                      color: AppColors.textPrimaryLight,
+                                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                   const SizedBox(width: 4),
-                                  Icon(Icons.chevron_right, size: 16, color: AppColors.textMutedLight),
+                                  Icon(Icons.chevron_right, size: 16, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
                                 ],
                               ),
                             ),
-                            Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                             _buildMetricTile(
+                              isDark: isDark,
                               label: 'Last Login',
                               valueWidget: Text(
                                 'Today, 09:35 AM',
                                 style: AppTypography.body(
-                                  color: AppColors.textPrimaryLight,
+                                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
-                            Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                             _buildMetricTile(
+                              isDark: isDark,
                               label: 'Total Trips Completed',
                               valueWidget: Text(
                                 '156',
                                 style: AppTypography.body(
-                                  color: AppColors.textPrimaryLight,
+                                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),
-                            Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                             _buildMetricTile(
+                              isDark: isDark,
                               label: 'Cancellation Rate',
                               valueWidget: Row(
                                 children: [
                                   Text(
                                     '2%',
                                     style: AppTypography.body(
-                                      color: AppColors.textPrimaryLight,
+                                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -217,13 +224,13 @@ class AccountStatusScreen extends StatelessWidget {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: AppColors.accentGreenDark.withValues(alpha: 0.12),
+                                      color: (isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark).withValues(alpha: isDark ? 0.2 : 0.12),
                                       borderRadius: BorderRadius.circular(AppRadius.xs),
                                     ),
                                     child: Text(
                                       'Good',
                                       style: AppTypography.caption(
-                                        color: AppColors.accentGreenDark,
+                                        color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
@@ -231,15 +238,16 @@ class AccountStatusScreen extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                             _buildMetricTile(
+                              isDark: isDark,
                               label: 'Customer Rating',
                               valueWidget: Row(
                                 children: [
                                   Text(
                                     '4.8',
                                     style: AppTypography.body(
-                                      color: AppColors.textPrimaryLight,
+                                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -247,13 +255,13 @@ class AccountStatusScreen extends StatelessWidget {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: AppColors.accentGreenDark.withValues(alpha: 0.12),
+                                      color: (isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark).withValues(alpha: isDark ? 0.2 : 0.12),
                                       borderRadius: BorderRadius.circular(AppRadius.xs),
                                     ),
                                     child: Text(
                                       'Excellent',
                                       style: AppTypography.caption(
-                                        color: AppColors.accentGreenDark,
+                                        color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
@@ -269,9 +277,9 @@ class AccountStatusScreen extends StatelessWidget {
                       // ── View Account Policies Tile ─────────────────────────
                       Container(
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
+                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: AppColors.borderLight),
+                          border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                         ),
                         child: ListTile(
                           onTap: () {
@@ -279,18 +287,18 @@ class AccountStatusScreen extends StatelessWidget {
                           },
                           leading: Icon(
                             Icons.article_outlined,
-                            color: AppColors.primary,
+                            color: isDark ? AppColors.primaryLight : AppColors.primary,
                           ),
                           title: Text(
                             'View Account Policies',
                             style: AppTypography.body(
-                              color: AppColors.primary,
+                              color: isDark ? AppColors.primaryLight : AppColors.primary,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           trailing: Icon(
                             Icons.chevron_right,
-                            color: AppColors.primary,
+                            color: isDark ? AppColors.primaryLight : AppColors.primary,
                           ),
                         ),
                       ),
@@ -306,6 +314,7 @@ class AccountStatusScreen extends StatelessWidget {
   }
 
   Widget _buildMetricTile({
+    required bool isDark,
     required String label,
     required Widget valueWidget,
   }) {
@@ -319,7 +328,7 @@ class AccountStatusScreen extends StatelessWidget {
         children: [
           Text(
             label,
-            style: AppTypography.body(color: AppColors.textSecondaryLight),
+            style: AppTypography.body(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
           ),
           valueWidget,
         ],

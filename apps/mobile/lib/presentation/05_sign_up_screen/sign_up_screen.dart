@@ -168,11 +168,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final onboarding = context.watch<OnboardingProvider>();
     final isDriver = onboarding.isDriver;
 
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -200,7 +201,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           },
                           icon: Icon(
                             Icons.arrow_back,
-                            color: AppColors.textPrimaryLight,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                           ),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
@@ -209,13 +210,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     const SizedBox(height: AppSpacing.md),
 
-                    const SizedBox(height: AppSpacing.md),
-
                     // ── Title & Subtitle ─────────────────────────────────────
                     Text(
                       isDriver ? 'Create Driver Account' : 'Create Business Account',
                       style: AppTypography.h1(
-                        color: AppColors.textPrimaryLight,
+                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -225,7 +224,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           ? 'Drive, earn & fulfill corporate fleet trips with AdhocX'
                           : 'Book outstation rides & bulk corporate travel with ease',
                       style: AppTypography.body(
-                        color: AppColors.textSecondaryLight,
+                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xl),
@@ -234,8 +233,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: AppColors.borderLight.withValues(alpha: 0.4),
+                        color: isDark ? AppColors.surfaceDark : AppColors.borderLight.withValues(alpha: 0.4),
                         borderRadius: BorderRadius.circular(AppRadius.md),
+                        border: Border.all(color: isDark ? AppColors.borderDark : Colors.transparent),
                       ),
                       child: Row(
                         children: [
@@ -245,12 +245,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(vertical: 10),
                                 decoration: BoxDecoration(
-                                  color: _inputMode == SignUpInputMode.phone ? Colors.white : Colors.transparent,
+                                  color: _inputMode == SignUpInputMode.phone
+                                      ? (isDark ? AppColors.surfaceElevatedDark : Colors.white)
+                                      : Colors.transparent,
                                   borderRadius: BorderRadius.circular(AppRadius.sm),
                                   boxShadow: _inputMode == SignUpInputMode.phone
                                       ? [
                                           BoxShadow(
-                                            color: Colors.black.withValues(alpha: 0.08),
+                                            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
                                             blurRadius: 4,
                                             offset: const Offset(0, 2),
                                           ),
@@ -264,8 +266,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                       Icons.phone_iphone_rounded,
                                       size: 16,
                                       color: _inputMode == SignUpInputMode.phone
-                                          ? AppColors.primary
-                                          : AppColors.textSecondaryLight,
+                                          ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                                          : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
                                     ),
                                     const SizedBox(width: 6),
                                     Text(
@@ -274,8 +276,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                         fontSize: 13,
                                         fontWeight: _inputMode == SignUpInputMode.phone ? FontWeight.w700 : FontWeight.w500,
                                         color: _inputMode == SignUpInputMode.phone
-                                            ? AppColors.textPrimaryLight
-                                            : AppColors.textSecondaryLight,
+                                            ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)
+                                            : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
                                       ),
                                     ),
                                   ],
@@ -289,12 +291,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(vertical: 10),
                                 decoration: BoxDecoration(
-                                  color: _inputMode == SignUpInputMode.email ? Colors.white : Colors.transparent,
+                                  color: _inputMode == SignUpInputMode.email
+                                      ? (isDark ? AppColors.surfaceElevatedDark : Colors.white)
+                                      : Colors.transparent,
                                   borderRadius: BorderRadius.circular(AppRadius.sm),
                                   boxShadow: _inputMode == SignUpInputMode.email
                                       ? [
                                           BoxShadow(
-                                            color: Colors.black.withValues(alpha: 0.08),
+                                            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
                                             blurRadius: 4,
                                             offset: const Offset(0, 2),
                                           ),
@@ -308,8 +312,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                       Icons.email_outlined,
                                       size: 16,
                                       color: _inputMode == SignUpInputMode.email
-                                          ? AppColors.primary
-                                          : AppColors.textSecondaryLight,
+                                          ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                                          : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
                                     ),
                                     const SizedBox(width: 6),
                                     Text(
@@ -318,8 +322,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                         fontSize: 13,
                                         fontWeight: _inputMode == SignUpInputMode.email ? FontWeight.w700 : FontWeight.w500,
                                         color: _inputMode == SignUpInputMode.email
-                                            ? AppColors.textPrimaryLight
-                                            : AppColors.textSecondaryLight,
+                                            ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)
+                                            : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
                                       ),
                                     ),
                                   ],
@@ -365,7 +369,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         label: 'Email Address',
                         hintText: 'name@example.com',
                         keyboardType: TextInputType.emailAddress,
-                        prefixIcon: Icon(Icons.email_outlined, size: 20, color: AppColors.textSecondaryLight),
+                        prefixIcon: Icon(
+                          Icons.email_outlined,
+                          size: 20,
+                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                        ),
                         validator: (val) {
                           if (val == null || val.trim().isEmpty) {
                             return 'Email address is required';
@@ -393,28 +401,28 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         Checkbox(
                           value: _agreeToTerms,
                           onChanged: (val) => setState(() => _agreeToTerms = val ?? false),
-                          activeColor: AppColors.primary,
+                          activeColor: isDark ? AppColors.primaryLight : AppColors.primary,
                         ),
                         Expanded(
                           child: Text.rich(
                             TextSpan(
                               text: 'I agree to the ',
                               style: AppTypography.caption(
-                                color: AppColors.textSecondaryLight,
+                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                               ),
-                              children: const [
+                              children: [
                                 TextSpan(
                                   text: 'Terms & Conditions',
                                   style: TextStyle(
-                                    color: AppColors.primary,
+                                    color: isDark ? AppColors.primaryLight : AppColors.primary,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                                TextSpan(text: ' and '),
+                                const TextSpan(text: ' and '),
                                 TextSpan(
                                   text: 'Privacy Policy',
                                   style: TextStyle(
-                                    color: AppColors.primary,
+                                    color: isDark ? AppColors.primaryLight : AppColors.primary,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -437,18 +445,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     // ── OR Divider ───────────────────────────────────────────
                     Row(
                       children: [
-                        const Expanded(child: Divider(color: AppColors.borderLight)),
+                        Expanded(child: Divider(color: isDark ? AppColors.borderDark : AppColors.borderLight)),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                           child: Text(
                             'OR',
                             style: AppTypography.caption(
-                              color: AppColors.textMutedLight,
+                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
-                        const Expanded(child: Divider(color: AppColors.borderLight)),
+                        Expanded(child: Divider(color: isDark ? AppColors.borderDark : AppColors.borderLight)),
                       ],
                     ),
                     const SizedBox(height: AppSpacing.lg),
@@ -468,13 +476,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           TextSpan(
                             text: 'Already have an account? ',
                             style: AppTypography.body(
-                              color: AppColors.textSecondaryLight,
+                              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                             ),
                             children: [
                               TextSpan(
                                 text: 'Sign in',
                                 style: AppTypography.body(
-                                  color: AppColors.primary,
+                                  color: isDark ? AppColors.primaryLight : AppColors.primary,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -496,7 +504,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             msg: isDriver
                                 ? 'Switched to Business Account registration'
                                 : 'Switched to Driver Partner registration',
-                            backgroundColor: AppColors.primaryDark,
+                            backgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.primaryDark,
                             textColor: Colors.white,
                           );
                         },
@@ -507,10 +515,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             vertical: AppSpacing.sm + 4,
                           ),
                           decoration: BoxDecoration(
-                            color: AppColors.primarySubtle,
+                            color: isDark ? AppColors.surfaceDark : AppColors.primarySubtle,
                             borderRadius: BorderRadius.circular(AppRadius.md),
                             border: Border.all(
-                              color: AppColors.primaryLight.withValues(alpha: 0.4),
+                              color: isDark ? AppColors.borderDark : AppColors.primaryLight.withValues(alpha: 0.4),
                               width: 1.2,
                             ),
                           ),
@@ -519,7 +527,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primary,
+                                  color: isDark ? AppColors.primaryLight : AppColors.primary,
                                   borderRadius: BorderRadius.circular(AppRadius.sm),
                                 ),
                                 child: Icon(
@@ -538,7 +546,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                           ? 'Sign up as a Business'
                                           : 'Drive & Earn with AdhocX',
                                       style: AppTypography.small(
-                                        color: AppColors.textPrimaryLight,
+                                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                         fontWeight: FontWeight.w700,
                                       ),
                                     ),
@@ -547,7 +555,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                           ? 'Book outstation rides & bulk corporate travel'
                                           : 'Join as a verified driver partner',
                                       style: AppTypography.caption(
-                                        color: AppColors.textSecondaryLight,
+                                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                                       ),
                                     ),
                                   ],
@@ -559,7 +567,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   vertical: 6,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primary,
+                                  color: isDark ? AppColors.primaryLight : AppColors.primary,
                                   borderRadius: BorderRadius.circular(AppRadius.sm),
                                 ),
                                 child: Text(

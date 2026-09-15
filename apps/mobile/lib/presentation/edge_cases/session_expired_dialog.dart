@@ -14,7 +14,10 @@ class SessionExpiredDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Dialog(
+      backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.xl),
@@ -38,7 +41,7 @@ class SessionExpiredDialog extends StatelessWidget {
             Text(
               'Session Expired',
               style: AppTypography.h3(
-                color: AppColors.textPrimaryLight,
+                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -46,7 +49,9 @@ class SessionExpiredDialog extends StatelessWidget {
 
             Text(
               'Your login session has ended for security reasons. Please sign in again to continue driving.',
-              style: AppTypography.body(color: AppColors.textSecondaryLight),
+              style: AppTypography.body(
+                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.xl),

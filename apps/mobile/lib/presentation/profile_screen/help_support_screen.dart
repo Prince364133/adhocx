@@ -14,27 +14,30 @@ class HelpSupportScreen extends StatelessWidget {
   const HelpSupportScreen({super.key});
 
   void _handleLogout(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
         title: Text(
           'Sign Out',
           style: AppTypography.h3(
-            color: AppColors.textPrimaryLight,
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
             fontWeight: FontWeight.bold,
           ),
         ),
         content: Text(
           'Are you sure you want to sign out of your account?',
-          style: AppTypography.body(color: AppColors.textSecondaryLight),
+          style: AppTypography.body(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
             child: Text(
               'Cancel',
-              style: AppTypography.body(color: AppColors.textSecondaryLight),
+              style: AppTypography.body(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
             ),
           ),
           ElevatedButton(
@@ -47,7 +50,7 @@ class HelpSupportScreen extends StatelessWidget {
               if (context.mounted) {
                 Fluttertoast.showToast(
                   msg: 'Signed out successfully',
-                  backgroundColor: AppColors.textPrimaryLight,
+                  backgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.textPrimaryLight,
                 );
                 context.go(AppRoutes.signInScreen);
               }
@@ -68,8 +71,10 @@ class HelpSupportScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -83,9 +88,9 @@ class HelpSupportScreen extends StatelessWidget {
                     vertical: AppSpacing.md,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
+                    color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                     border: Border(
-                      bottom: BorderSide(color: AppColors.borderLight),
+                      bottom: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                     ),
                   ),
                   child: Row(
@@ -100,14 +105,14 @@ class HelpSupportScreen extends StatelessWidget {
                         },
                         icon: Icon(
                           Icons.arrow_back,
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                       ),
                       const SizedBox(width: 8),
                       Text(
                         'Help & Support',
                         style: AppTypography.h3(
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -124,14 +129,14 @@ class HelpSupportScreen extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(AppSpacing.xl),
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
+                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: AppColors.borderLight),
+                          border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.03),
+                              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
                               blurRadius: 4,
-                              offset: Offset(0, 2),
+                              offset: const Offset(0, 2),
                             ),
                           ],
                         ),
@@ -144,7 +149,7 @@ class HelpSupportScreen extends StatelessWidget {
                                   Text(
                                     'How can we help you?',
                                     style: AppTypography.h3(
-                                      color: AppColors.textPrimaryLight,
+                                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -152,7 +157,7 @@ class HelpSupportScreen extends StatelessWidget {
                                   Text(
                                     "We're here to support you 24/7",
                                     style: AppTypography.body(
-                                      color: AppColors.textSecondaryLight,
+                                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                                     ),
                                   ),
                                 ],
@@ -162,12 +167,12 @@ class HelpSupportScreen extends StatelessWidget {
                               width: 56,
                               height: 56,
                               decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.1),
+                                color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.12),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
                                 Icons.headset_mic_outlined,
-                                color: AppColors.primary,
+                                color: isDark ? AppColors.primaryLight : AppColors.primary,
                                 size: 30,
                               ),
                             ),
@@ -179,37 +184,40 @@ class HelpSupportScreen extends StatelessWidget {
                       // ── Options List Card ──────────────────────────────────
                       Container(
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
+                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: AppColors.borderLight),
+                          border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                         ),
                         child: Column(
                           children: [
                             _buildOptionTile(
+                              isDark: isDark,
                               icon: Icons.help_outline_rounded,
                               title: 'Help Center',
                               subtitle: 'FAQs and guides',
                               onTap: () {
                                 Fluttertoast.showToast(
                                   msg: 'Help Center opened',
-                                  backgroundColor: AppColors.primaryDark,
+                                  backgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.primaryDark,
                                 );
                               },
                             ),
-                            Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                             _buildOptionTile(
+                              isDark: isDark,
                               icon: Icons.chat_bubble_outline_rounded,
                               title: 'Contact Support',
                               subtitle: 'Chat with our support team',
                               onTap: () {
                                 Fluttertoast.showToast(
                                   msg: 'Support chat initiated',
-                                  backgroundColor: AppColors.primaryDark,
+                                  backgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.primaryDark,
                                 );
                               },
                             ),
-                            Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                             _buildOptionTile(
+                              isDark: isDark,
                               icon: Icons.phone_outlined,
                               title: 'Call Support',
                               subtitle: '+91 80 1234 5678',
@@ -217,31 +225,33 @@ class HelpSupportScreen extends StatelessWidget {
                               onTap: () {
                                 Fluttertoast.showToast(
                                   msg: 'Calling +91 80 1234 5678...',
-                                  backgroundColor: AppColors.primaryDark,
+                                  backgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.primaryDark,
                                 );
                               },
                             ),
-                            Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                             _buildOptionTile(
+                              isDark: isDark,
                               icon: Icons.report_problem_outlined,
                               title: 'Report an Issue',
                               subtitle: 'Something not working?',
                               onTap: () {
                                 Fluttertoast.showToast(
                                   msg: 'Report issue form opened',
-                                  backgroundColor: AppColors.primaryDark,
+                                  backgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.primaryDark,
                                 );
                               },
                             ),
-                            Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                             _buildOptionTile(
+                              isDark: isDark,
                               icon: Icons.rate_review_outlined,
                               title: 'App Feedback',
                               subtitle: 'Share your feedback',
                               onTap: () {
                                 Fluttertoast.showToast(
                                   msg: 'Feedback form opened',
-                                  backgroundColor: AppColors.primaryDark,
+                                  backgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.primaryDark,
                                 );
                               },
                             ),
@@ -253,7 +263,7 @@ class HelpSupportScreen extends StatelessWidget {
                       // ── Logout Red Action Button ───────────────────────────
                       Container(
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
+                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
                           border: Border.all(
                             color: AppColors.error.withValues(alpha: 0.3),
@@ -286,6 +296,7 @@ class HelpSupportScreen extends StatelessWidget {
   }
 
   Widget _buildOptionTile({
+    required bool isDark,
     required IconData icon,
     required String title,
     required String subtitle,
@@ -294,17 +305,17 @@ class HelpSupportScreen extends StatelessWidget {
   }) {
     return ListTile(
       onTap: onTap,
-      leading: Icon(icon, color: AppColors.textPrimaryLight, size: 22),
+      leading: Icon(icon, color: isDark ? AppColors.primaryLight : AppColors.textPrimaryLight, size: 22),
       title: Text(
         title,
         style: AppTypography.body(
-          color: AppColors.textPrimaryLight,
+          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
           fontWeight: FontWeight.bold,
         ),
       ),
       subtitle: Text(
         subtitle,
-        style: AppTypography.caption(color: AppColors.textSecondaryLight),
+        style: AppTypography.caption(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -313,13 +324,13 @@ class HelpSupportScreen extends StatelessWidget {
             Text(
               badgeText,
               style: AppTypography.caption(
-                color: AppColors.textSecondaryLight,
+                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(width: 6),
           ],
-          Icon(Icons.chevron_right, size: 18, color: AppColors.textMutedLight),
+          Icon(Icons.chevron_right, size: 18, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
         ],
       ),
     );

@@ -53,6 +53,7 @@ class AppTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final effectiveHint = hintText ?? hint;
 
     return Column(
@@ -63,7 +64,7 @@ class AppTextField extends StatelessWidget {
           Text(
             label!,
             style: AppTypography.caption(
-              color: AppColors.textSecondaryLight,
+              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -82,15 +83,19 @@ class AppTextField extends StatelessWidget {
           onChanged: onChanged,
           onFieldSubmitted: onSubmitted,
           validator: validator,
-          cursorColor: AppColors.primary,
-          style: AppTypography.body(color: AppColors.textPrimaryLight),
+          cursorColor: isDark ? AppColors.primaryLight : AppColors.primary,
+          style: AppTypography.body(
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+          ),
           decoration: InputDecoration(
             hintText: effectiveHint,
-            hintStyle: AppTypography.body(color: AppColors.textMutedLight),
+            hintStyle: AppTypography.body(
+              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+            ),
             prefixIcon: prefixIcon,
             suffixIcon: suffixIcon,
             filled: true,
-            fillColor: AppColors.surfaceLight,
+            fillColor: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.lg,
               vertical: AppSpacing.md,
@@ -98,14 +103,14 @@ class AppTextField extends StatelessWidget {
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
               borderSide: BorderSide(
-                color: AppColors.borderLight,
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
                 width: 1.2,
               ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
               borderSide: BorderSide(
-                color: AppColors.primary,
+                color: isDark ? AppColors.primaryLight : AppColors.primary,
                 width: 1.8,
               ),
             ),
@@ -126,7 +131,7 @@ class AppTextField extends StatelessWidget {
             disabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
               borderSide: BorderSide(
-                color: AppColors.borderLight.withAlpha(120),
+                color: (isDark ? AppColors.borderDark : AppColors.borderLight).withAlpha(120),
                 width: 1,
               ),
             ),
@@ -142,7 +147,9 @@ class AppTextField extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(
             helperText!,
-            style: AppTypography.caption(color: AppColors.textMutedLight),
+            style: AppTypography.caption(
+              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+            ),
           ),
         ],
       ],

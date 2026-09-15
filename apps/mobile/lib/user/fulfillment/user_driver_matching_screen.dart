@@ -4,6 +4,7 @@ import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
+import '../../shared/animations/app_radar_pulse.dart';
 
 class UserDriverMatchingScreen extends StatelessWidget {
   final Map<String, dynamic>? requirement;
@@ -83,33 +84,42 @@ class UserDriverMatchingScreen extends StatelessWidget {
               // Radar Pulse Animation Graphic Container
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(AppSpacing.xl),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xl),
                 decoration: BoxDecoration(
                   color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                   borderRadius: BorderRadius.circular(AppRadius.lg),
                   border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withAlpha(20),
+                      blurRadius: 20,
+                      spreadRadius: 2,
+                    ),
+                  ],
                 ),
                 child: Column(
                   children: [
-                    Text('Finding drivers for $quantity vehicle${quantity > 1 ? "s" : ""}', style: AppTypography.h3(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
+                    Text(
+                      'Finding drivers for $quantity vehicle${quantity > 1 ? "s" : ""}',
+                      style: AppTypography.h3(
+                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     const SizedBox(height: 4),
-                    Text('Expanding search radius...', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
+                    Text(
+                      'Broadcasting dispatch beacon to nearby fleet...',
+                      style: AppTypography.caption(
+                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                      ),
+                    ),
                     const SizedBox(height: AppSpacing.xl),
 
-                    // Radar Graphic circles
-                    Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Container(width: 180, height: 180, decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.primary.withValues(alpha: 0.05))),
-                        Container(width: 130, height: 130, decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.primary.withValues(alpha: 0.1))),
-                        Container(width: 80, height: 80, decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.primary.withValues(alpha: 0.2))),
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-                          child: const Icon(Icons.directions_car, color: Colors.white),
-                        ),
-                      ],
+                    // Dynamic 360-degree rotating radar scanner with multi-ring pulses
+                    const AppRadarPulse(
+                      size: 210,
+                      numberOfRings: 4,
+                      showSweep: true,
                     ),
                   ],
                 ),

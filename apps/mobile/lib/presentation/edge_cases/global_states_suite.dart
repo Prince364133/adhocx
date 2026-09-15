@@ -15,6 +15,8 @@ class NoInternetWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.xl),
       alignment: Alignment.center,
@@ -32,12 +34,17 @@ class NoInternetWidget extends StatelessWidget {
           const SizedBox(height: AppSpacing.lg),
           Text(
             'No Internet Connection',
-            style: AppTypography.h2(color: AppColors.textPrimaryLight, fontWeight: FontWeight.bold),
+            style: AppTypography.h2(
+              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
             'Please check your Wi-Fi or mobile data connection and try again.',
-            style: AppTypography.body(color: AppColors.textSecondaryLight),
+            style: AppTypography.body(
+              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpacing.xl),
@@ -57,6 +64,8 @@ class ServerErrorWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.xl),
       alignment: Alignment.center,
@@ -74,12 +83,17 @@ class ServerErrorWidget extends StatelessWidget {
           const SizedBox(height: AppSpacing.lg),
           Text(
             'Server Error (500)',
-            style: AppTypography.h2(color: AppColors.textPrimaryLight, fontWeight: FontWeight.bold),
+            style: AppTypography.h2(
+              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
             'Our servers are experiencing technical difficulties. Please try again in a few moments.',
-            style: AppTypography.body(color: AppColors.textSecondaryLight),
+            style: AppTypography.body(
+              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpacing.xl),
@@ -99,6 +113,8 @@ class SomethingWentWrongWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.xl),
       alignment: Alignment.center,
@@ -108,20 +124,29 @@ class SomethingWentWrongWidget extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(AppSpacing.lg),
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
+              color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.warning_amber_rounded, size: 48, color: AppColors.primary),
+            child: Icon(
+              Icons.warning_amber_rounded,
+              size: 48,
+              color: isDark ? AppColors.primaryLight : AppColors.primary,
+            ),
           ),
           const SizedBox(height: AppSpacing.lg),
           Text(
             'Something Went Wrong',
-            style: AppTypography.h2(color: AppColors.textPrimaryLight, fontWeight: FontWeight.bold),
+            style: AppTypography.h2(
+              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
             'An unexpected error occurred. Don\'t worry, your data is safe.',
-            style: AppTypography.body(color: AppColors.textSecondaryLight),
+            style: AppTypography.body(
+              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpacing.xl),
@@ -141,6 +166,8 @@ class SessionExpiredWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.xl),
       alignment: Alignment.center,
@@ -158,12 +185,17 @@ class SessionExpiredWidget extends StatelessWidget {
           const SizedBox(height: AppSpacing.lg),
           Text(
             'Session Expired',
-            style: AppTypography.h2(color: AppColors.textPrimaryLight, fontWeight: FontWeight.bold),
+            style: AppTypography.h2(
+              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
             'Your session has ended for security. Please sign in again to access driver features.',
-            style: AppTypography.body(color: AppColors.textSecondaryLight),
+            style: AppTypography.body(
+              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpacing.xl),
@@ -183,6 +215,8 @@ class PermissionRequiredWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.xl),
       alignment: Alignment.center,
@@ -192,20 +226,29 @@ class PermissionRequiredWidget extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(AppSpacing.lg),
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
+              color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.security_rounded, size: 48, color: AppColors.primary),
+            child: Icon(
+              Icons.security_rounded,
+              size: 48,
+              color: isDark ? AppColors.primaryLight : AppColors.primary,
+            ),
           ),
           const SizedBox(height: AppSpacing.lg),
           Text(
             'System Permission Required',
-            style: AppTypography.h2(color: AppColors.textPrimaryLight, fontWeight: FontWeight.bold),
+            style: AppTypography.h2(
+              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
             'AdhocX requires device permissions to provide driver dispatch and safety services.',
-            style: AppTypography.body(color: AppColors.textSecondaryLight),
+            style: AppTypography.body(
+              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpacing.xl),
@@ -225,6 +268,8 @@ class LocationPermissionWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.xl),
       alignment: Alignment.center,
@@ -234,20 +279,29 @@ class LocationPermissionWidget extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(AppSpacing.lg),
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
+              color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.location_on_outlined, size: 48, color: AppColors.primary),
+            child: Icon(
+              Icons.location_on_outlined,
+              size: 48,
+              color: isDark ? AppColors.primaryLight : AppColors.primary,
+            ),
           ),
           const SizedBox(height: AppSpacing.lg),
           Text(
             'Location Access Needed',
-            style: AppTypography.h2(color: AppColors.textPrimaryLight, fontWeight: FontWeight.bold),
+            style: AppTypography.h2(
+              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
             'Turn on background location to receive nearby trip requests and active navigation.',
-            style: AppTypography.body(color: AppColors.textSecondaryLight),
+            style: AppTypography.body(
+              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpacing.xl),
@@ -267,6 +321,8 @@ class NotificationPermissionWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.xl),
       alignment: Alignment.center,
@@ -284,12 +340,17 @@ class NotificationPermissionWidget extends StatelessWidget {
           const SizedBox(height: AppSpacing.lg),
           Text(
             'Enable Notifications',
-            style: AppTypography.h2(color: AppColors.textPrimaryLight, fontWeight: FontWeight.bold),
+            style: AppTypography.h2(
+              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
             'Don\'t miss high-payout trip offers! Allow notifications to receive instant ride alerts.',
-            style: AppTypography.body(color: AppColors.textSecondaryLight),
+            style: AppTypography.body(
+              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpacing.xl),
@@ -309,22 +370,32 @@ class GlobalLoadingWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.xl),
       alignment: Alignment.center,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CircularProgressIndicator(color: AppColors.primary, strokeWidth: 3),
+          CircularProgressIndicator(
+            color: isDark ? AppColors.primaryLight : AppColors.primary,
+            strokeWidth: 3,
+          ),
           const SizedBox(height: AppSpacing.lg),
           Text(
             'Loading Driver Data...',
-            style: AppTypography.body(color: AppColors.textPrimaryLight, fontWeight: FontWeight.bold),
+            style: AppTypography.body(
+              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             'Syncing trips, wallet & settings',
-            style: AppTypography.caption(color: AppColors.textMutedLight),
+            style: AppTypography.caption(
+              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+            ),
           ),
         ],
       ),
@@ -351,6 +422,8 @@ class GlobalEmptyWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.xl),
       alignment: Alignment.center,
@@ -360,20 +433,29 @@ class GlobalEmptyWidget extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(AppSpacing.lg),
             decoration: BoxDecoration(
-              color: AppColors.borderLight.withValues(alpha: 0.5),
+              color: (isDark ? AppColors.borderDark : AppColors.borderLight).withValues(alpha: 0.5),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, size: 48, color: AppColors.textMutedLight),
+            child: Icon(
+              icon,
+              size: 48,
+              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+            ),
           ),
           const SizedBox(height: AppSpacing.lg),
           Text(
             title,
-            style: AppTypography.h2(color: AppColors.textPrimaryLight, fontWeight: FontWeight.bold),
+            style: AppTypography.h2(
+              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
             message,
-            style: AppTypography.body(color: AppColors.textSecondaryLight),
+            style: AppTypography.body(
+              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+            ),
             textAlign: TextAlign.center,
           ),
           if (buttonText != null && onAction != null) ...[
@@ -392,6 +474,8 @@ class MaintenanceWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.xl),
       alignment: Alignment.center,
@@ -409,12 +493,17 @@ class MaintenanceWidget extends StatelessWidget {
           const SizedBox(height: AppSpacing.lg),
           Text(
             'System Under Maintenance',
-            style: AppTypography.h2(color: AppColors.textPrimaryLight, fontWeight: FontWeight.bold),
+            style: AppTypography.h2(
+              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
             'AdhocX is undergoing scheduled system upgrades. We will be back online shortly (Est. 02:00 AM).',
-            style: AppTypography.body(color: AppColors.textSecondaryLight),
+            style: AppTypography.body(
+              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpacing.xl),

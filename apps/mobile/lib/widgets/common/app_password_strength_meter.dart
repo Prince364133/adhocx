@@ -56,6 +56,7 @@ class AppPasswordStrengthMeter extends StatelessWidget {
   Widget build(BuildContext context) {
     if (password.isEmpty) return const SizedBox.shrink();
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final score = _calculateStrength();
     final label = _getStrengthLabel(score);
     final color = _getStrengthColor(score);
@@ -83,7 +84,7 @@ class AppPasswordStrengthMeter extends StatelessWidget {
                       height: 4,
                       margin: const EdgeInsets.symmetric(horizontal: 2),
                       decoration: BoxDecoration(
-                        color: isFilled ? color : AppColors.borderLight,
+                        color: isFilled ? color : (isDark ? AppColors.borderDark : AppColors.borderLight),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),

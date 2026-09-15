@@ -1,15 +1,41 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Badge } from '../../components/Badge';
-import { EmptyState } from '../../components/EmptyState';
+import React, { useState, useMemo } from 'react';
+import {
+  PageHeader,
+  FilterBar,
+  DataTable,
+  Column,
+  StatusBadge,
+  Button,
+  Drawer,
+} from '../../components/common';
+
+interface AssignmentItem {
+  id: string;
+  requirementId: string;
+  driverName: string;
+  driverPhone: string;
+  vehiclePlate: string;
+  vehicleType: string;
+  status: string;
+  assignedAt: string;
+}
+
+const STATUS_TABS = [
+  { id: 'ALL', label: 'All Assignments' },
+  { id: 'CONFIRMED', label: 'Confirmed' },
+  { id: 'PENDING', label: 'Pending' },
+  { id: 'COMPLETED', label: 'Completed' },
+  { id: 'CANCELLED', label: 'Cancelled' },
+];
 
 export default function AssignmentsPage() {
   const [activeTab, setActiveTab] = useState('ALL');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [search, setSearch] = useState('');
+  const [selectedAsg, setSelectedAsg] = useState<AssignmentItem | null>(null);
 
-  // Sourced operational data
-  const assignments = [
+  const assignments: AssignmentItem[] = [
     {
       id: 'asg-701',
       requirementId: 'req-201',
@@ -42,114 +68,176 @@ export default function AssignmentsPage() {
     },
   ];
 
-  const filtered = assignments.filter((asg) => {
-    if (activeTab !== 'ALL' && asg.status !== activeTab) return false;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      return (
-        asg.id.toLowerCase().includes(q) ||
-        asg.requirementId.toLowerCase().includes(q) ||
-        asg.driverName.toLowerCase().includes(q) ||
-        asg.vehiclePlate.toLowerCase().includes(q)
-      );
-    }
-    return true;
-  });
+  const filtered = useMemo(() => {
+    return assignments.filter((asg) => {
+      if (activeTab !== 'ALL' && asg.status !== activeTab) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase().trim();
+        return (
+          asg.id.toLowerCase().includes(q) ||
+          asg.requirementId.toLowerCase().includes(q) ||
+          asg.driverName.toLowerCase().includes(q) ||
+          asg.vehiclePlate.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [assignments, activeTab, search]);
+
+  const columns: Column<AssignmentItem>[] = [
+    {
+      key: 'id',
+      label: 'Assignment ID & Requirement',
+      sortable: true,
+      render: (asg) => (
+        <div>
+          <span className="code-tag">{asg.id.toUpperCase()}</span>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+            Ref: {asg.requirementId.toUpperCase()}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'driverName',
+      label: 'Assigned Driver',
+      sortable: true,
+      render: (asg) => (
+        <div>
+          <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{asg.driverName}</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{asg.driverPhone}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'vehiclePlate',
+      label: 'Vehicle Assigned',
+      render: (asg) => (
+        <div>
+          <span className="code-tag">{asg.vehiclePlate}</span>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+            {asg.vehicleType}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Assignment Status',
+      sortable: true,
+      render: (asg) => <StatusBadge status={asg.status} size="sm" />,
+    },
+    {
+      key: 'assignedAt',
+      label: 'Matched At',
+      sortable: true,
+      render: (asg) => (
+        <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+          {new Date(asg.assignedAt).toLocaleString()}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'Action',
+      align: 'right',
+      render: (asg) => (
+        <Button variant="secondary" size="sm" onClick={() => setSelectedAsg(asg)}>
+          Inspect →
+        </Button>
+      ),
+    },
+  ];
 
   return (
     <div>
-      <div style={{ marginBottom: '1.75rem' }}>
-        <h1 className="page-title">Driver Assignments & Dispatch Telemetry</h1>
-        <p className="page-subtitle">
-          Monitor requirement-to-driver dispatch assignments, accepted slots, and vehicle pairing.
-        </p>
-      </div>
+      <PageHeader
+        title="Driver Assignments & Dispatch Telemetry"
+        subtitle="Monitor requirement-to-driver dispatch assignments, accepted slots, and vehicle pairing"
+        liveStatus="Matching Engine Active"
+      />
 
-      <div className="tabs">
-        {['ALL', 'CONFIRMED', 'PENDING', 'COMPLETED', 'CANCELLED'].map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            className={`tab-item ${activeTab === tab ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab)}
-          >
-            {tab.replace('_', ' ')}
-          </button>
-        ))}
-      </div>
+      <FilterBar
+        tabs={STATUS_TABS}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search assignment ID, requirement, driver, plate..."
+      />
 
-      <div className="filter-bar">
-        <div className="search-input-wrapper">
-          <span className="search-icon">🔍</span>
-          <input
-            type="text"
-            className="search-input"
-            placeholder="Search assignments by driver, vehicle plate, requirement..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-          Showing <strong>{filtered.length}</strong> assignments
-        </div>
-      </div>
+      <DataTable
+        columns={columns}
+        data={filtered}
+        keyExtractor={(a) => a.id}
+        emptyTitle="No assignments found"
+        emptySubtitle={`No dispatch assignments match the filter: "${activeTab}".`}
+      />
 
-      <div className="table-container">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Assignment ID</th>
-              <th>Requirement ID</th>
-              <th>Assigned Driver</th>
-              <th>Vehicle & Type</th>
-              <th>Status</th>
-              <th>Assigned At</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 ? (
-              <tr>
-                <td colSpan={6}>
-                  <EmptyState
-                    icon="🔄"
-                    title="No assignments found"
-                    description="No dispatch assignments match your selected status."
-                  />
-                </td>
-              </tr>
-            ) : (
-              filtered.map((asg) => (
-                <tr key={asg.id}>
-                  <td>
-                    <div style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--primary-600)' }}>
-                      #{asg.id}
-                    </div>
-                  </td>
-                  <td>
-                    <div style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}>
-                      #{asg.requirementId}
-                    </div>
-                  </td>
-                  <td>
-                    <div style={{ fontWeight: 600 }}>{asg.driverName}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{asg.driverPhone}</div>
-                  </td>
-                  <td>
-                    <div>{asg.vehiclePlate}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{asg.vehicleType}</div>
-                  </td>
-                  <td>
-                    <Badge status={asg.status} />
-                  </td>
-                  <td style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                    {new Date(asg.assignedAt).toLocaleString()}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      {/* Slide-out Assignment Details Drawer */}
+      <Drawer
+        isOpen={!!selectedAsg}
+        onClose={() => setSelectedAsg(null)}
+        title={selectedAsg ? `Assignment ${selectedAsg.id.toUpperCase()}` : ''}
+        subtitle={selectedAsg ? `Requirement: ${selectedAsg.requirementId.toUpperCase()}` : ''}
+        width="540px"
+        footer={
+          <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end' }}>
+            <Button variant="secondary" size="sm" onClick={() => setSelectedAsg(null)}>
+              Close
+            </Button>
+          </div>
+        }
+      >
+        {selectedAsg && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: '1rem',
+              }}
+            >
+              <div style={{ background: 'var(--bg-surface-elevated)', padding: '1rem', borderRadius: 'var(--radius-lg)' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Status</div>
+                <div style={{ marginTop: '0.35rem' }}>
+                  <StatusBadge status={selectedAsg.status} />
+                </div>
+              </div>
+              <div style={{ background: 'var(--bg-surface-elevated)', padding: '1rem', borderRadius: 'var(--radius-lg)' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Vehicle Type</div>
+                <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.2rem' }}>
+                  {selectedAsg.vehicleType}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ background: 'var(--bg-surface-elevated)', padding: '1.25rem', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                ASSIGNED DRIVER & VEHICLE
+              </div>
+              <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>
+                {selectedAsg.driverName}
+              </div>
+              <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                Contact: {selectedAsg.driverPhone}
+              </div>
+              <div style={{ marginTop: '0.75rem' }}>
+                <span className="code-tag">{selectedAsg.vehiclePlate}</span>
+              </div>
+            </div>
+
+            <div style={{ background: 'var(--bg-surface-elevated)', padding: '1.25rem', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                ASSIGNMENT TIMELINE
+              </div>
+              <div style={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                Matched at: {new Date(selectedAsg.assignedAt).toLocaleString()}
+              </div>
+            </div>
+          </div>
+        )}
+      </Drawer>
     </div>
   );
 }

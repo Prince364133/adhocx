@@ -105,9 +105,10 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
   @override
   Widget build(BuildContext context) {
     final onboarding = context.watch<OnboardingProvider>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -131,7 +132,7 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
                   Text(
                     'Upload Documents',
                     style: AppTypography.h1(
-                      color: AppColors.textPrimaryLight,
+                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -139,7 +140,7 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
                   Text(
                     'Please upload your documents (Optional)',
                     style: AppTypography.body(
-                      color: AppColors.textSecondaryLight,
+                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xxl),

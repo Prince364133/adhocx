@@ -27,6 +27,8 @@ class AppDocumentUploadTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -38,10 +40,12 @@ class AppDocumentUploadTile extends StatelessWidget {
             vertical: AppSpacing.md,
           ),
           decoration: BoxDecoration(
-            color: AppColors.surfaceLight,
+            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
             borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(
-              color: isUploaded ? AppColors.accentGreenDark : AppColors.borderLight,
+              color: isUploaded
+                  ? (isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark)
+                  : (isDark ? AppColors.borderDark : AppColors.borderLight),
               width: isUploaded ? 1.5 : 1,
             ),
           ),
@@ -53,8 +57,8 @@ class AppDocumentUploadTile extends StatelessWidget {
                 height: 44,
                 decoration: BoxDecoration(
                   color: isUploaded
-                      ? AppColors.successContainer
-                      : AppColors.surfaceElevatedLight,
+                      ? (isDark ? AppColors.accentGreenLight.withValues(alpha: 0.15) : AppColors.successContainer)
+                      : (isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight),
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 alignment: Alignment.center,
@@ -62,8 +66,8 @@ class AppDocumentUploadTile extends StatelessWidget {
                   icon,
                   size: 22,
                   color: isUploaded
-                      ? AppColors.accentGreenDark
-                      : AppColors.primary,
+                      ? (isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark)
+                      : (isDark ? AppColors.primaryLight : AppColors.primary),
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
@@ -76,7 +80,7 @@ class AppDocumentUploadTile extends StatelessWidget {
                     Text(
                       title,
                       style: AppTypography.body(
-                        color: AppColors.textPrimaryLight,
+                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -87,8 +91,8 @@ class AppDocumentUploadTile extends StatelessWidget {
                           : subtitle,
                       style: AppTypography.caption(
                         color: isUploaded
-                            ? AppColors.accentGreenDark
-                            : AppColors.textSecondaryLight,
+                            ? (isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark)
+                            : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -99,12 +103,12 @@ class AppDocumentUploadTile extends StatelessWidget {
 
               // Status indicator / Upload action
               if (isUploading)
-                const SizedBox(
+                SizedBox(
                   width: 24,
                   height: 24,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: AppColors.primary,
+                    color: isDark ? AppColors.primaryLight : AppColors.primary,
                   ),
                 )
               else if (isUploaded)
@@ -113,7 +117,7 @@ class AppDocumentUploadTile extends StatelessWidget {
                   height: 24,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: AppColors.accentGreenDark,
+                    color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
                   ),
                   child: const Icon(
                     Icons.check,
@@ -125,13 +129,13 @@ class AppDocumentUploadTile extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: AppColors.primarySubtle,
+                    color: isDark ? AppColors.primary.withValues(alpha: 0.25) : AppColors.primarySubtle,
                     borderRadius: BorderRadius.circular(AppRadius.pill),
                   ),
                   child: Text(
                     'Upload',
                     style: AppTypography.caption(
-                      color: AppColors.primary,
+                      color: isDark ? AppColors.primaryLight : AppColors.primary,
                       fontWeight: FontWeight.w600,
                     ),
                   ),

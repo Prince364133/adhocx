@@ -1,5 +1,4 @@
-import '../../shared/theme/app_colors.dart';
-import 'dart:typed_data'; 
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../routes/app_routes.dart';
+import '../../theme/app_colors.dart';
 import './widgets/kyc_banking_section_widget.dart';
 import './widgets/kyc_documents_section_widget.dart';
 import './widgets/kyc_driving_section_widget.dart';
@@ -68,7 +68,7 @@ class _KycUploadScreenState extends State<KycUploadScreen> {
 
       final fileName = '${user.id}/${prefix}_${DateTime.now().millisecondsSinceEpoch}.jpg';
       
-      // FIX: Matches exact case of Supabase Storage Bucket
+      // Matches exact case of Supabase Storage Bucket
       final storage = Supabase.instance.client.storage.from('kyc-documents');
 
       if (bytes != null) {
@@ -175,10 +175,13 @@ class _KycUploadScreenState extends State<KycUploadScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.black, 
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       appBar: AppBar(
-        backgroundColor: Colors.black, 
+        backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        elevation: 0,
         leading: GestureDetector(
           onTap: () {
             if (context.canPop()) {
@@ -187,19 +190,25 @@ class _KycUploadScreenState extends State<KycUploadScreen> {
               context.go(AppRoutes.authScreen); 
             }
           },
-          child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+          child: Icon(
+            Icons.arrow_back_rounded,
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+          ),
         ),
-        title: const Text(
+        title: Text(
           'KYC Onboarding',
           style: TextStyle(
-            color: Colors.white,
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
             fontSize: 18,
             fontWeight: FontWeight.w600,
           ),
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: Colors.white24), 
+          child: Container(
+            height: 1,
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          ), 
         ),
       ),
       body: SafeArea(
@@ -270,15 +279,15 @@ class _KycUploadScreenState extends State<KycUploadScreen> {
                   child: ElevatedButton(
                     onPressed: _isSubmitting ? null : _submitKyc,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.success, 
-                      foregroundColor: Colors.white, 
+                      backgroundColor: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark, 
+                      foregroundColor: isDark ? AppColors.bgDark : Colors.white, 
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      disabledBackgroundColor: AppColors.success.withValues(alpha: 0.4),
+                      disabledBackgroundColor: (isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark).withValues(alpha: 0.4),
                     ),
                     child: _isSubmitting
-                        ? const Row(
+                        ? Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               SizedBox(
@@ -286,24 +295,26 @@ class _KycUploadScreenState extends State<KycUploadScreen> {
                                 height: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: Colors.white, 
+                                  color: isDark ? AppColors.bgDark : Colors.white, 
                                 ),
                               ),
-                              SizedBox(width: 12),
+                              const SizedBox(width: 12),
                               Text(
                                 'Submitting...',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w600,
                                   fontSize: 15,
+                                  color: isDark ? AppColors.bgDark : Colors.white,
                                 ),
                               ),
                             ],
                           )
-                        : const Text(
+                        : Text(
                             'Submit KYC for Review',
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 15,
+                              color: isDark ? AppColors.bgDark : Colors.white,
                             ),
                           ),
                   ),

@@ -61,8 +61,10 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -76,9 +78,11 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
                     vertical: AppSpacing.md,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
+                    color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                     border: Border(
-                      bottom: BorderSide(color: AppColors.borderLight),
+                      bottom: BorderSide(
+                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      ),
                     ),
                   ),
                   child: Row(
@@ -87,7 +91,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
                         onPressed: _loadTrips,
                         icon: Icon(
                           Icons.refresh,
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -95,7 +99,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
                         child: Text(
                           'Trips',
                           style: AppTypography.h2(
-                            color: AppColors.textPrimaryLight,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -104,7 +108,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
                         onPressed: () => context.push(AppRoutes.notificationsSettingsScreen),
                         icon: Icon(
                           Icons.notifications_none_rounded,
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                       ),
                     ],
@@ -113,13 +117,13 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
 
                 // ── 3 Tabs Bar ───────────────────────────────────────────────
                 Container(
-                  color: AppColors.surfaceLight,
+                  color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                   child: TabBar(
                     controller: _tabController,
                     indicatorColor: AppColors.primary,
                     indicatorWeight: 3,
                     labelColor: AppColors.primary,
-                    unselectedLabelColor: AppColors.textMutedLight,
+                    unselectedLabelColor: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                     labelStyle: AppTypography.body(fontWeight: FontWeight.bold),
                     tabs: [
                       Tab(text: 'Upcoming (${_upcomingTrips.length})'),
@@ -136,9 +140,9 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
                       : TabBarView(
                           controller: _tabController,
                           children: [
-                            _buildUpcomingTab(),
-                            _buildActiveTab(),
-                            _buildCompletedTab(),
+                            _buildUpcomingTab(isDark),
+                            _buildActiveTab(isDark),
+                            _buildCompletedTab(isDark),
                           ],
                         ),
                 ),
@@ -153,7 +157,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
   // ───────────────────────────────────────────────────────────────────────────
   // TAB 1: UPCOMING TRIPS VIEW
   // ───────────────────────────────────────────────────────────────────────────
-  Widget _buildUpcomingTab() {
+  Widget _buildUpcomingTab(bool isDark) {
     if (_upcomingTrips.isEmpty) {
       return Center(
         child: Padding(
@@ -164,10 +168,10 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.08),
+                  color: AppColors.primary.withValues(alpha: isDark ? 0.15 : 0.08),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.calendar_today_outlined,
                   size: 48,
                   color: AppColors.primary,
@@ -177,7 +181,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
               Text(
                 'No Upcoming Trips',
                 style: AppTypography.h3(
-                  color: AppColors.textPrimaryLight,
+                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -185,7 +189,9 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
               Text(
                 'Check the Opportunities tab to accept available requests in your area.',
                 textAlign: TextAlign.center,
-                style: AppTypography.body(color: AppColors.textMutedLight),
+                style: AppTypography.body(
+                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                ),
               ),
               const SizedBox(height: AppSpacing.xl),
               ElevatedButton.icon(
@@ -213,7 +219,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
         Text(
           'Scheduled Trips (${_upcomingTrips.length})',
           style: AppTypography.caption(
-            color: AppColors.textMutedLight,
+            color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -246,6 +252,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
               vehicle: vehicle,
               passengers: '1 Passenger',
               payout: payout,
+              isDark: isDark,
             ),
           );
         }),
@@ -263,13 +270,16 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
     required String vehicle,
     required String passengers,
     required String payout,
+    required bool isDark,
   }) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.borderLight),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -288,7 +298,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
                 child: Text(
                   title,
                   style: AppTypography.body(
-                    color: AppColors.textPrimaryLight,
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -302,7 +312,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
                 child: Text(
                   badgeText,
                   style: AppTypography.caption(
-                    color: AppColors.primary,
+                    color: AppColors.primaryLight,
                     fontWeight: FontWeight.bold,
                   ).copyWith(fontSize: 10),
                 ),
@@ -315,12 +325,14 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.circle, size: 8, color: AppColors.accentGreenDark),
+              const Icon(Icons.circle, size: 8, color: AppColors.accentGreenDark),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   pickup,
-                  style: AppTypography.caption(color: AppColors.textSecondaryLight),
+                  style: AppTypography.caption(
+                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                  ),
                 ),
               ),
             ],
@@ -331,34 +343,57 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.circle, size: 8, color: AppColors.error),
+              const Icon(Icons.circle, size: 8, color: AppColors.error),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   drop,
-                  style: AppTypography.caption(color: AppColors.textSecondaryLight),
+                  style: AppTypography.caption(
+                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          Divider(height: 1, color: AppColors.borderLight),
+          Divider(
+            height: 1,
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          ),
           const SizedBox(height: AppSpacing.md),
 
           Row(
             children: [
-              Icon(Icons.directions_car_outlined, size: 14, color: AppColors.textMutedLight),
+              Icon(
+                Icons.directions_car_outlined,
+                size: 14,
+                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+              ),
               const SizedBox(width: 4),
-              Text(vehicle, style: AppTypography.caption(color: AppColors.textMutedLight)),
+              Text(
+                vehicle,
+                style: AppTypography.caption(
+                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                ),
+              ),
               const SizedBox(width: 16),
-              Icon(Icons.person_outline, size: 14, color: AppColors.textMutedLight),
+              Icon(
+                Icons.person_outline,
+                size: 14,
+                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+              ),
               const SizedBox(width: 4),
-              Text(passengers, style: AppTypography.caption(color: AppColors.textMutedLight)),
+              Text(
+                passengers,
+                style: AppTypography.caption(
+                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                ),
+              ),
               const Spacer(),
               Text(
                 payout,
                 style: AppTypography.body(
-                  color: AppColors.textPrimaryLight,
+                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -374,12 +409,16 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
                 Text(
                   'VIEW DETAILS',
                   style: AppTypography.caption(
-                    color: AppColors.primary,
+                    color: isDark ? AppColors.primaryLight : AppColors.primary,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(width: 4),
-                Icon(Icons.chevron_right, size: 16, color: AppColors.primary),
+                Icon(
+                  Icons.chevron_right,
+                  size: 16,
+                  color: isDark ? AppColors.primaryLight : AppColors.primary,
+                ),
               ],
             ),
           ),
@@ -391,7 +430,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
   // ───────────────────────────────────────────────────────────────────────────
   // TAB 2: ACTIVE TRIP VIEW
   // ───────────────────────────────────────────────────────────────────────────
-  Widget _buildActiveTab() {
+  Widget _buildActiveTab(bool isDark) {
     if (_activeTrips.isEmpty) {
       return Center(
         child: Padding(
@@ -402,10 +441,10 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: AppColors.accentGreenDark.withValues(alpha: 0.08),
+                  color: AppColors.accentGreenDark.withValues(alpha: isDark ? 0.15 : 0.08),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.navigation_outlined,
                   size: 48,
                   color: AppColors.accentGreenDark,
@@ -415,7 +454,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
               Text(
                 'No Active Trips',
                 style: AppTypography.h3(
-                  color: AppColors.textPrimaryLight,
+                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -423,7 +462,9 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
               Text(
                 'When you accept a booking and arrive or start a trip, live telemetry and route progress will appear here.',
                 textAlign: TextAlign.center,
-                style: AppTypography.body(color: AppColors.textMutedLight),
+                style: AppTypography.body(
+                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                ),
               ),
             ],
           ),
@@ -456,7 +497,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
             // Green Banner
             Container(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 12),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: AppColors.accentGreenDark,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
               ),
@@ -485,9 +526,11 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
             Container(
               padding: const EdgeInsets.all(AppSpacing.lg),
               decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
+                color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                 borderRadius: const BorderRadius.vertical(bottom: Radius.circular(AppRadius.lg)),
-                border: Border.all(color: AppColors.borderLight),
+                border: Border.all(
+                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -498,20 +541,20 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
                       Text(
                         '$vehicle Transfer',
                         style: AppTypography.h3(
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: AppColors.accentGreenDark.withValues(alpha: 0.12),
+                          color: AppColors.accentGreenDark.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(AppRadius.xs),
                         ),
                         child: Text(
                           status,
                           style: AppTypography.caption(
-                            color: AppColors.accentGreenDark,
+                            color: isDark ? AppColors.accentGreen : AppColors.accentGreenDark,
                             fontWeight: FontWeight.bold,
                           ).copyWith(fontSize: 10),
                         ),
@@ -524,7 +567,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.circle, size: 8, color: AppColors.accentGreenDark),
+                      const Icon(Icons.circle, size: 8, color: AppColors.accentGreenDark),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
@@ -533,13 +576,15 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
                             Text(
                               'Pickup',
                               style: AppTypography.caption(
-                                color: AppColors.textPrimaryLight,
+                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             Text(
                               pickup,
-                              style: AppTypography.caption(color: AppColors.textSecondaryLight),
+                              style: AppTypography.caption(
+                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                              ),
                             ),
                           ],
                         ),
@@ -552,7 +597,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.circle, size: 8, color: AppColors.error),
+                      const Icon(Icons.circle, size: 8, color: AppColors.error),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
@@ -561,13 +606,15 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
                             Text(
                               'Drop',
                               style: AppTypography.caption(
-                                color: AppColors.textPrimaryLight,
+                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             Text(
                               drop,
-                              style: AppTypography.caption(color: AppColors.textSecondaryLight),
+                              style: AppTypography.caption(
+                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                              ),
                             ),
                           ],
                         ),
@@ -580,7 +627,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
                   Container(
                     height: 140,
                     decoration: BoxDecoration(
-                      color: AppColors.borderLight,
+                      color: isDark ? AppColors.surfaceElevatedDark : AppColors.borderLight,
                       borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
                     child: Stack(
@@ -589,7 +636,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
                           child: Icon(
                             Icons.map_outlined,
                             size: 64,
-                            color: AppColors.infoContainer,
+                            color: isDark ? AppColors.textMutedDark : AppColors.infoContainer,
                           ),
                         ),
                         Positioned(
@@ -597,7 +644,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
                           right: 8,
                           child: Container(
                             padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               color: AppColors.primary,
                               shape: BoxShape.circle,
                             ),
@@ -617,7 +664,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
                   Text(
                     'Trip Progress',
                     style: AppTypography.caption(
-                      color: AppColors.textMutedLight,
+                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -625,17 +672,20 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildStepNode(title: 'Assigned', isDone: true),
-                      Expanded(child: _buildStepLine(isDone: isArrived || isInProgress)),
-                      _buildStepNode(title: 'Arrived', isDone: isArrived || isInProgress, isActive: isArrived),
-                      Expanded(child: _buildStepLine(isDone: isInProgress)),
-                      _buildStepNode(title: 'In Progress', isDone: isInProgress, isActive: isInProgress),
-                      Expanded(child: _buildStepLine(isDone: false)),
-                      _buildStepNode(title: 'Completed', isDone: false),
+                      _buildStepNode(title: 'Assigned', isDone: true, isDark: isDark),
+                      Expanded(child: _buildStepLine(isDone: isArrived || isInProgress, isDark: isDark)),
+                      _buildStepNode(title: 'Arrived', isDone: isArrived || isInProgress, isActive: isArrived, isDark: isDark),
+                      Expanded(child: _buildStepLine(isDone: isInProgress, isDark: isDark)),
+                      _buildStepNode(title: 'In Progress', isDone: isInProgress, isActive: isInProgress, isDark: isDark),
+                      Expanded(child: _buildStepLine(isDone: false, isDark: isDark)),
+                      _buildStepNode(title: 'Completed', isDone: false, isDark: isDark),
                     ],
                   ),
                   const SizedBox(height: AppSpacing.lg),
-                  Divider(height: 1, color: AppColors.borderLight),
+                  Divider(
+                    height: 1,
+                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                  ),
                   const SizedBox(height: AppSpacing.md),
 
                   // Passenger & Payout Row
@@ -645,17 +695,24 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Passenger / Requester', style: AppTypography.caption(color: AppColors.textMutedLight)),
+                            Text(
+                              'Passenger / Requester',
+                              style: AppTypography.caption(
+                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                              ),
+                            ),
                             Text(
                               passengerName,
                               style: AppTypography.body(
-                                color: AppColors.textPrimaryLight,
+                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             Text(
                               passengerPhone,
-                              style: AppTypography.caption(color: AppColors.textMutedLight),
+                              style: AppTypography.caption(
+                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                              ),
                             ),
                           ],
                         ),
@@ -663,15 +720,25 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text('Earnings', style: AppTypography.caption(color: AppColors.textMutedLight)),
+                          Text(
+                            'Earnings',
+                            style: AppTypography.caption(
+                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                            ),
+                          ),
                           Text(
                             payout,
                             style: AppTypography.h3(
-                              color: AppColors.textPrimaryLight,
+                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          Text('Est.', style: AppTypography.caption(color: AppColors.textMutedLight)),
+                          Text(
+                            'Est.',
+                            style: AppTypography.caption(
+                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                            ),
+                          ),
                         ],
                       ),
                     ],
@@ -713,7 +780,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
   // ───────────────────────────────────────────────────────────────────────────
   // TAB 3: COMPLETED TRIPS VIEW
   // ───────────────────────────────────────────────────────────────────────────
-  Widget _buildCompletedTab() {
+  Widget _buildCompletedTab(bool isDark) {
     final double totalEarnings = _completedTrips.fold(
       0.0,
       (sum, trip) => sum + (double.tryParse((trip['driverEarnings'] ?? trip['fare'] ?? '0').toString()) ?? 0.0),
@@ -729,20 +796,20 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: AppColors.slate200,
+                  color: isDark ? AppColors.surfaceElevatedDark : AppColors.slate200,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   Icons.check_circle_outline,
                   size: 48,
-                  color: AppColors.textMutedLight,
+                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
               Text(
                 'No Completed Trips Yet',
                 style: AppTypography.h3(
-                  color: AppColors.textPrimaryLight,
+                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -750,7 +817,9 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
               Text(
                 'Trips you conclude will be archived here with detailed earnings breakdown.',
                 textAlign: TextAlign.center,
-                style: AppTypography.body(color: AppColors.textMutedLight),
+                style: AppTypography.body(
+                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                ),
               ),
             ],
           ),
@@ -765,9 +834,11 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
         Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
-            color: AppColors.accentGreenDark.withValues(alpha: 0.08),
+            color: AppColors.accentGreenDark.withValues(alpha: isDark ? 0.12 : 0.08),
             borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: AppColors.accentGreenDark.withValues(alpha: 0.2)),
+            border: Border.all(
+              color: AppColors.accentGreenDark.withValues(alpha: isDark ? 0.35 : 0.2),
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -775,7 +846,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
               Text(
                 "Completed Summary",
                 style: AppTypography.caption(
-                  color: AppColors.accentGreenDark,
+                  color: isDark ? AppColors.accentGreen : AppColors.accentGreenDark,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -783,9 +854,9 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildSummaryMetric('Trips', '${_completedTrips.length}'),
-                  _buildSummaryMetric('Earnings', '₹${totalEarnings.toStringAsFixed(0)}'),
-                  _buildSummaryMetric('Status', 'Settled'),
+                  _buildSummaryMetric('Trips', '${_completedTrips.length}', isDark),
+                  _buildSummaryMetric('Earnings', '₹${totalEarnings.toStringAsFixed(0)}', isDark),
+                  _buildSummaryMetric('Status', 'Settled', isDark),
                 ],
               ),
             ],
@@ -796,7 +867,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
         Text(
           'Trip History',
           style: AppTypography.caption(
-            color: AppColors.textMutedLight,
+            color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -826,6 +897,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
               drop: drop,
               vehicle: vehicle,
               passengers: '1 Passenger',
+              isDark: isDark,
             ),
           );
         }),
@@ -841,13 +913,16 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
     required String drop,
     required String vehicle,
     required String passengers,
+    required bool isDark,
   }) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.borderLight),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -866,7 +941,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
                 child: Text(
                   title,
                   style: AppTypography.body(
-                    color: AppColors.textPrimaryLight,
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -874,7 +949,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
               Text(
                 payout,
                 style: AppTypography.body(
-                  color: AppColors.accentGreenDark,
+                  color: isDark ? AppColors.accentGreen : AppColors.accentGreenDark,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -885,10 +960,15 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.circle, size: 8, color: AppColors.accentGreenDark),
+              const Icon(Icons.circle, size: 8, color: AppColors.accentGreenDark),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(pickup, style: AppTypography.caption(color: AppColors.textSecondaryLight)),
+                child: Text(
+                  pickup,
+                  style: AppTypography.caption(
+                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                  ),
+                ),
               ),
             ],
           ),
@@ -897,37 +977,63 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.circle, size: 8, color: AppColors.error),
+              const Icon(Icons.circle, size: 8, color: AppColors.error),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(drop, style: AppTypography.caption(color: AppColors.textSecondaryLight)),
+                child: Text(
+                  drop,
+                  style: AppTypography.caption(
+                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                  ),
+                ),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          Divider(height: 1, color: AppColors.borderLight),
+          Divider(
+            height: 1,
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          ),
           const SizedBox(height: AppSpacing.md),
 
           Row(
             children: [
-              Icon(Icons.directions_car_outlined, size: 14, color: AppColors.textMutedLight),
+              Icon(
+                Icons.directions_car_outlined,
+                size: 14,
+                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+              ),
               const SizedBox(width: 4),
-              Text(vehicle, style: AppTypography.caption(color: AppColors.textMutedLight)),
+              Text(
+                vehicle,
+                style: AppTypography.caption(
+                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                ),
+              ),
               const SizedBox(width: 16),
-              Icon(Icons.person_outline, size: 14, color: AppColors.textMutedLight),
+              Icon(
+                Icons.person_outline,
+                size: 14,
+                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+              ),
               const SizedBox(width: 4),
-              Text(passengers, style: AppTypography.caption(color: AppColors.textMutedLight)),
+              Text(
+                passengers,
+                style: AppTypography.caption(
+                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                ),
+              ),
               const Spacer(),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppColors.accentGreenDark.withValues(alpha: 0.12),
+                  color: AppColors.accentGreenDark.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(AppRadius.xs),
                 ),
                 child: Text(
                   'Completed',
                   style: AppTypography.caption(
-                    color: AppColors.accentGreenDark,
+                    color: isDark ? AppColors.accentGreen : AppColors.accentGreenDark,
                     fontWeight: FontWeight.bold,
                   ).copyWith(fontSize: 10),
                 ),
@@ -939,7 +1045,12 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
     );
   }
 
-  Widget _buildStepNode({required String title, required bool isDone, bool isActive = false}) {
+  Widget _buildStepNode({
+    required String title,
+    required bool isDone,
+    bool isActive = false,
+    required bool isDark,
+  }) {
     return Column(
       children: [
         Container(
@@ -948,10 +1059,12 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
           decoration: BoxDecoration(
             color: isActive
                 ? AppColors.primary
-                : (isDone ? AppColors.accentGreenDark : AppColors.borderLight),
+                : (isDone
+                    ? AppColors.accentGreenDark
+                    : (isDark ? AppColors.surfaceElevatedDark : AppColors.borderLight)),
             shape: BoxShape.circle,
           ),
-          child: Icon(
+          child: const Icon(
             Icons.check,
             size: 12,
             color: Colors.white,
@@ -963,29 +1076,38 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
           style: TextStyle(
             fontSize: 10,
             fontWeight: isDone || isActive ? FontWeight.bold : FontWeight.w500,
-            color: isDone || isActive ? AppColors.textPrimaryLight : AppColors.textMutedLight,
+            color: isDone || isActive
+                ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)
+                : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildStepLine({required bool isDone}) {
+  Widget _buildStepLine({required bool isDone, required bool isDark}) {
     return Container(
       height: 2,
-      color: isDone ? AppColors.accentGreenDark : AppColors.borderLight,
+      color: isDone
+          ? AppColors.accentGreenDark
+          : (isDark ? AppColors.borderDark : AppColors.borderLight),
     );
   }
 
-  Widget _buildSummaryMetric(String label, String value) {
+  Widget _buildSummaryMetric(String label, String value, bool isDark) {
     return Column(
       children: [
-        Text(label, style: AppTypography.caption(color: AppColors.textMutedLight)),
+        Text(
+          label,
+          style: AppTypography.caption(
+            color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+          ),
+        ),
         const SizedBox(height: 2),
         Text(
           value,
           style: AppTypography.h3(
-            color: AppColors.textPrimaryLight,
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
             fontWeight: FontWeight.bold,
           ),
         ),

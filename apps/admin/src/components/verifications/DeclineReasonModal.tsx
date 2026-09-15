@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React from 'react';
 import { VerificationItem } from '../../lib/api/types';
@@ -41,11 +41,13 @@ export const DeclineReasonModal: React.FC<DeclineModalProps> = ({
 
   return (
     <div
+      className="modal-overlay"
       style={{
         position: 'fixed',
         inset: 0,
         backgroundColor: 'rgba(0, 0, 0, 0.75)',
         backdropFilter: 'blur(6px)',
+        WebkitBackdropFilter: 'blur(6px)',
         zIndex: 100,
         display: 'flex',
         alignItems: 'center',
@@ -55,14 +57,15 @@ export const DeclineReasonModal: React.FC<DeclineModalProps> = ({
       onClick={onClose}
     >
       <div
+        className="animate-modal"
         style={{
           background: 'var(--bg-surface)',
           border: '1px solid rgba(244, 63, 94, 0.4)',
-          borderRadius: '16px',
-          padding: '1.75rem',
-          maxWidth: '560px',
+          borderRadius: 'var(--radius-xl)',
           width: '100%',
-          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
+          maxWidth: '560px',
+          padding: '1.75rem',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
           display: 'flex',
           flexDirection: 'column',
           gap: '1.25rem',
@@ -73,13 +76,13 @@ export const DeclineReasonModal: React.FC<DeclineModalProps> = ({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '1.25rem' }}>❌</span>
-              <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              <span style={{ fontSize: '1.25rem' }}>⚠️</span>
+              <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
                 Decline Application
               </h3>
             </div>
-            <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-              Specify the exact reason. This feedback will be sent directly to <strong>{target.name}</strong> on their mobile waitlist screen.
+            <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: '0.25rem', margin: 0 }}>
+              Specify the exact reason. This feedback will be sent directly to <strong>{target.name}</strong>.
             </p>
           </div>
           <button
@@ -90,10 +93,53 @@ export const DeclineReasonModal: React.FC<DeclineModalProps> = ({
               color: 'var(--text-muted)',
               fontSize: '1.25rem',
               cursor: 'pointer',
+              padding: '0.25rem',
+              borderRadius: 'var(--radius-sm)',
+              transition: 'all 0.18s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--text-primary)';
+              e.currentTarget.style.transform = 'rotate(90deg)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--text-muted)';
+              e.currentTarget.style.transform = 'rotate(0deg)';
             }}
           >
             ✕
           </button>
+        </div>
+
+        {/* Target summary banner */}
+        <div
+          style={{
+            padding: '0.75rem 1rem',
+            background: 'var(--bg-surface-elevated)',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--border)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontSize: '0.8125rem',
+          }}
+        >
+          <div>
+            <span style={{ color: 'var(--text-muted)' }}>Target: </span>
+            <strong style={{ color: 'var(--text-primary)' }}>{target.name}</strong>
+            <span style={{ color: 'var(--text-muted)' }}> ({target.phone})</span>
+          </div>
+          <span
+            style={{
+              padding: '0.2rem 0.5rem',
+              borderRadius: 'var(--radius-pill)',
+              fontSize: '0.6875rem',
+              fontWeight: 700,
+              backgroundColor: target.entityType === 'DRIVER' ? 'rgba(91, 66, 243, 0.2)' : 'rgba(2, 132, 199, 0.2)',
+              color: target.entityType === 'DRIVER' ? 'var(--brand-primary)' : 'var(--color-info)',
+            }}
+          >
+            {target.entityType}
+          </span>
         </div>
 
         {/* Preset chips */}
@@ -103,7 +149,7 @@ export const DeclineReasonModal: React.FC<DeclineModalProps> = ({
               fontSize: '0.75rem',
               fontWeight: 700,
               textTransform: 'uppercase',
-              letterSpacing: '0.06em',
+              letterSpacing: '0.05em',
               color: 'var(--text-secondary)',
               display: 'block',
               marginBottom: '0.5rem',
@@ -121,18 +167,18 @@ export const DeclineReasonModal: React.FC<DeclineModalProps> = ({
                   onClick={() => onPresetReasonChange(r)}
                   style={{
                     padding: '0.375rem 0.625rem',
-                    borderRadius: '6px',
+                    borderRadius: 'var(--radius-sm)',
                     fontSize: '0.75rem',
-                    fontWeight: isSelected ? 600 : 500,
-                    border: `1px solid ${isSelected ? 'var(--color-danger)' : 'var(--border-light)'}`,
-                    background: isSelected ? 'rgba(244, 63, 94, 0.15)' : 'var(--bg-base)',
-                    color: isSelected ? '#f43f5e' : 'var(--text-secondary)',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
+                    fontWeight: isSelected ? 700 : 500,
                     textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
+                    background: isSelected ? 'rgba(244, 63, 94, 0.2)' : 'var(--bg-surface-elevated)',
+                    color: isSelected ? '#f43f5e' : 'var(--text-secondary)',
+                    border: isSelected ? '1px solid #f43f5e' : '1px solid var(--border)',
                   }}
                 >
-                  {isSelected ? '✓ ' : ''}{r}
+                  {r}
                 </button>
               );
             })}
@@ -146,13 +192,13 @@ export const DeclineReasonModal: React.FC<DeclineModalProps> = ({
               fontSize: '0.75rem',
               fontWeight: 700,
               textTransform: 'uppercase',
-              letterSpacing: '0.06em',
+              letterSpacing: '0.05em',
               color: 'var(--text-secondary)',
               display: 'block',
-              marginBottom: '0.5rem',
+              marginBottom: '0.375rem',
             }}
           >
-            Additional Explanation (Optional):
+            Additional Operational Notes / Instructions:
           </label>
           <textarea
             rows={3}
@@ -162,13 +208,22 @@ export const DeclineReasonModal: React.FC<DeclineModalProps> = ({
             style={{
               width: '100%',
               padding: '0.75rem',
-              background: 'var(--bg-base)',
-              border: '1px solid var(--border-light)',
-              borderRadius: '8px',
+              background: 'var(--bg-surface-elevated)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-md)',
               color: 'var(--text-primary)',
               fontSize: '0.8125rem',
+              fontFamily: 'inherit',
+              resize: 'none',
               outline: 'none',
-              resize: 'vertical',
+              boxSizing: 'border-box',
+              transition: 'border-color 0.15s ease',
+            }}
+            onFocus={(e) => {
+              e.target.style.borderColor = '#f43f5e';
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = 'var(--border)';
             }}
           />
         </div>
@@ -181,38 +236,36 @@ export const DeclineReasonModal: React.FC<DeclineModalProps> = ({
             disabled={isProcessing}
             style={{
               padding: '0.625rem 1.25rem',
-              borderRadius: '8px',
+              borderRadius: 'var(--radius-md)',
               background: 'var(--bg-surface-elevated)',
-              border: '1px solid var(--border-light)',
               color: 'var(--text-secondary)',
+              border: '1px solid var(--border)',
               fontSize: '0.875rem',
               fontWeight: 600,
-              cursor: 'pointer',
+              cursor: isProcessing ? 'not-allowed' : 'pointer',
+              transition: 'all 0.15s ease',
             }}
           >
             Cancel
           </button>
-
           <button
             type="button"
             onClick={onConfirm}
             disabled={isProcessing || !presetReason}
             style={{
               padding: '0.625rem 1.25rem',
-              borderRadius: '8px',
+              borderRadius: 'var(--radius-md)',
               background: '#f43f5e',
-              border: 'none',
               color: '#ffffff',
+              border: 'none',
               fontSize: '0.875rem',
               fontWeight: 700,
               cursor: isProcessing || !presetReason ? 'not-allowed' : 'pointer',
-              opacity: isProcessing || !presetReason ? 0.6 : 1,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
+              opacity: isProcessing || !presetReason ? 0.5 : 1,
+              transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
           >
-            {isProcessing ? 'Submitting Decline...' : 'Confirm & Send Decline to User'}
+            {isProcessing ? 'Processing...' : 'Confirm Decline'}
           </button>
         </div>
       </div>

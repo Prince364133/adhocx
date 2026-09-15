@@ -1,8 +1,16 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { adminApi } from '@/lib/api/client';
 import { BlogPostItem, CreateBlogPostInput, BlogMetrics } from '@/lib/api/types';
+import {
+  PageHeader,
+  MetricCard,
+  FilterBar,
+  DataTable,
+  StatusBadge,
+  Button,
+} from '../../components/common';
 
 const CATEGORIES = [
   'B2B Fleet Operations',
@@ -92,7 +100,7 @@ export default function BlogsPage() {
       title: '',
       slug: '',
       excerpt: '',
-      content: `## Introduction\n\nExplain the context, key industry challenge, and why commercial fleet operations in Hyderabad require modernization.\n\n---\n\n## Core Strategic Insights\n\n1. **First Advantage:** Direct reverse auction matching eliminates middleman broker markups.\n2. **Second Advantage:** Instant 1-hour driver bank payouts improve retention and route punctuality.\n\n\`\`\`\n[Enterprise Request] ──> [AdhocX Verified Pool] ──> [1-Hour Settlement]\n\`\`\`\n\n---\n\n## Conclusion & Action Items\n\nContact the AdhocX team to benchmark your corporate mobility fleet.`,
+      content: `## Introduction\n\nExplain the context, key industry challenge, and why commercial fleet operations in Hyderabad require modernization.\n\n---\n\n## Core Strategic Insights\n\n1. **First Advantage:** Direct reverse auction matching eliminates middleman broker markups.\n2. **Second Advantage:** Instant 1-hour driver bank payouts improve retention and route punctuality.\n\n\`\`\`\n[Enterprise Request] â”€â”€> [AdhocX Verified Pool] â”€â”€> [1-Hour Settlement]\n\`\`\`\n\n---\n\n## Conclusion & Action Items\n\nContact the AdhocX team to benchmark your corporate mobility fleet.`,
       category: CATEGORIES[0],
       tags: ['Corporate Mobility', 'Fleet Management', 'Hyderabad Transit'],
       coverImage: PRESET_COVERS[0].url,
@@ -251,186 +259,114 @@ export default function BlogsPage() {
   }, [blogs, searchQuery, statusFilter, categoryFilter]);
 
   return (
-    <div className="admin-page-container">
-      {/* Top Header */}
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '24px' }}>📰</span>
-            <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#f8fafc', margin: 0 }}>
-              Blog Posts & SEO Content Engine
-            </h1>
-          </div>
-          <p style={{ color: '#94a3b8', fontSize: '14px', marginTop: '4px', margin: 0 }}>
-            Create, manage, and optimize high-ranking articles for the AdhocX Marketing Hub & Search Engine visibility.
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button
-            onClick={loadData}
-            style={{
-              background: '#1e293b',
-              color: '#94a3b8',
-              border: '1px solid #334155',
-              borderRadius: '8px',
-              padding: '10px 16px',
-              fontSize: '13px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
-            <span>🔄</span> Refresh
-          </button>
-          <button
-            onClick={handleOpenCreate}
-            style={{
-              background: 'linear-gradient(135deg, #10b981, #059669)',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '8px',
-              padding: '10px 20px',
-              fontSize: '14px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-            }}
-          >
-            <span>✍️</span> Create New Article
-          </button>
-        </div>
-      </div>
-
+    <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Notification Toast */}
       {notification && (
         <div
           style={{
-            padding: '12px 16px',
-            borderRadius: '8px',
-            marginBottom: '20px',
-            fontSize: '14px',
-            fontWeight: '500',
-            background: notification.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-            border: `1px solid ${notification.type === 'success' ? '#10b981' : '#ef4444'}`,
-            color: notification.type === 'success' ? '#34d399' : '#f87171',
+            padding: '0.875rem 1.25rem',
+            borderRadius: 'var(--radius-md)',
+            fontSize: '0.875rem',
+            fontWeight: 500,
+            background: notification.type === 'success' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+            border: `1px solid ${notification.type === 'success' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+            color: notification.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)',
             display: 'flex',
             alignItems: 'center',
-            gap: '10px',
+            justifyContent: 'space-between',
           }}
         >
-          <span>{notification.type === 'success' ? '✅' : '⚠️'}</span>
-          <span>{notification.message}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span>{notification.type === 'success' ? '✓' : '⚠️'}</span>
+            <span>{notification.message}</span>
+          </div>
+          <button
+            onClick={() => setNotification(null)}
+            style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', fontWeight: 'bold' }}
+          >
+            âœ•
+          </button>
         </div>
       )}
 
-      {/* Metrics Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-        <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '20px' }}>
-          <div style={{ color: '#94a3b8', fontSize: '13px', fontWeight: '500' }}>Total Articles</div>
-          <div style={{ color: '#f8fafc', fontSize: '28px', fontWeight: '700', marginTop: '6px' }}>{metrics.total}</div>
-          <div style={{ color: '#64748b', fontSize: '12px', marginTop: '4px' }}>All content records</div>
-        </div>
-
-        <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '20px' }}>
-          <div style={{ color: '#94a3b8', fontSize: '13px', fontWeight: '500' }}>Published & Indexed</div>
-          <div style={{ color: '#10b981', fontSize: '28px', fontWeight: '700', marginTop: '6px' }}>{metrics.published}</div>
-          <div style={{ color: '#10b981', fontSize: '12px', marginTop: '4px' }}>Live on marketing web</div>
-        </div>
-
-        <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '20px' }}>
-          <div style={{ color: '#94a3b8', fontSize: '13px', fontWeight: '500' }}>Drafts & Revisions</div>
-          <div style={{ color: '#f59e0b', fontSize: '28px', fontWeight: '700', marginTop: '6px' }}>{metrics.drafts}</div>
-          <div style={{ color: '#f59e0b', fontSize: '12px', marginTop: '4px' }}>Pending publication</div>
-        </div>
-
-        <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '20px' }}>
-          <div style={{ color: '#94a3b8', fontSize: '13px', fontWeight: '500' }}>Total Lifetime Reads</div>
-          <div style={{ color: '#38bdf8', fontSize: '28px', fontWeight: '700', marginTop: '6px' }}>
-            {metrics.totalViews.toLocaleString()}
+      {/* Page Header */}
+      <PageHeader
+        title="Blog Posts & Marketing Content Hub"
+        subtitle="Create, manage, and optimize high-ranking articles for the AdhocX Marketing Hub & Search Engine visibility"
+        liveStatus="Content Engine Active"
+        actions={
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <Button variant="secondary" size="md" onClick={loadData} leftIcon="ðŸ”„">
+              Refresh
+            </Button>
+            <Button variant="primary" size="md" onClick={handleOpenCreate} leftIcon="âœï¸">
+              Create New Article
+            </Button>
           </div>
-          <div style={{ color: '#38bdf8', fontSize: '12px', marginTop: '4px' }}>Organic impressions</div>
-        </div>
+        }
+      />
+
+      {/* KPI Metrics */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gap: '1.25rem',
+        }}
+      >
+        <MetricCard
+          label="Total Articles"
+          value={metrics.total}
+          subtext="Indexed editorial records"
+          icon="ðŸ“°"
+          accentColor="var(--brand-primary)"
+        />
+        <MetricCard
+          label="Published & Indexed"
+          value={metrics.published}
+          subtext="Live on marketing web"
+          icon="ðŸŸ¢"
+          accentColor="var(--color-success)"
+        />
+        <MetricCard
+          label="Drafts & Revisions"
+          value={metrics.drafts}
+          subtext="Pending publication"
+          icon="ðŸ“"
+          accentColor="var(--color-warning)"
+        />
+        <MetricCard
+          label="Total Lifetime Reads"
+          value={metrics.totalViews.toLocaleString()}
+          subtext="Organic reader impressions"
+          icon="ðŸ‘ï¸"
+          accentColor="#38bdf8"
+        />
       </div>
 
       {/* Filter and Search Bar */}
-      <div
-        style={{
-          background: '#0f172a',
-          border: '1px solid #1e293b',
-          borderRadius: '12px',
-          padding: '16px',
-          marginBottom: '20px',
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '16px',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <div style={{ display: 'flex', gap: '12px', flex: '1 1 320px', alignItems: 'center' }}>
-          <div style={{ position: 'relative', width: '100%' }}>
-            <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>🔍</span>
-            <input
-              type="text"
-              placeholder="Search by title, keywords, tags, slug..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                width: '100%',
-                background: '#1e293b',
-                border: '1px solid #334155',
-                borderRadius: '8px',
-                padding: '10px 12px 10px 36px',
-                color: '#f8fafc',
-                fontSize: '14px',
-                outline: 'none',
-              }}
-            />
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-          {/* Status Tabs */}
-          <div style={{ display: 'flex', background: '#1e293b', padding: '4px', borderRadius: '8px' }}>
-            {(['ALL', 'PUBLISHED', 'DRAFT'] as const).map((st) => (
-              <button
-                key={st}
-                onClick={() => setStatusFilter(st)}
-                style={{
-                  background: statusFilter === st ? '#334155' : 'transparent',
-                  color: statusFilter === st ? '#f8fafc' : '#94a3b8',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '6px 14px',
-                  fontSize: '13px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                }}
-              >
-                {st === 'ALL' ? 'All' : st === 'PUBLISHED' ? 'Published' : 'Drafts'}
-              </button>
-            ))}
-          </div>
-
-          {/* Category Dropdown */}
+      <FilterBar
+        tabs={[
+          { id: 'ALL', label: 'All Articles', count: blogs.length },
+          { id: 'PUBLISHED', label: 'Published', count: blogs.filter((b) => b.status === 'PUBLISHED').length },
+          { id: 'DRAFT', label: 'Drafts', count: blogs.filter((b) => b.status === 'DRAFT').length },
+        ]}
+        activeTab={statusFilter}
+        onTabChange={(t) => setStatusFilter(t as any)}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search by title, keywords, tags, slug..."
+        extraFilters={
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
             style={{
-              background: '#1e293b',
-              color: '#f8fafc',
-              border: '1px solid #334155',
-              borderRadius: '8px',
-              padding: '8px 14px',
-              fontSize: '13px',
-              cursor: 'pointer',
-              outline: 'none',
+              padding: '0.4375rem 0.75rem',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: 'var(--bg-card)',
+              border: '1px solid var(--border-subtle)',
+              color: 'var(--text-primary)',
+              fontSize: '0.8125rem',
             }}
           >
             <option value="ALL">All Categories</option>
@@ -440,164 +376,165 @@ export default function BlogsPage() {
               </option>
             ))}
           </select>
-        </div>
-      </div>
+        }
+      />
 
-      {/* Articles List / Table */}
-      <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', overflow: 'hidden' }}>
-        {isLoading ? (
-          <div style={{ padding: '60px 20px', textAlign: 'center', color: '#94a3b8' }}>
-            <div style={{ fontSize: '24px', marginBottom: '8px' }}>⏳</div>
-            Loading articles & SEO registry...
-          </div>
-        ) : filteredBlogs.length === 0 ? (
-          <div style={{ padding: '60px 20px', textAlign: 'center', color: '#94a3b8' }}>
-            <div style={{ fontSize: '32px', marginBottom: '8px' }}>📄</div>
-            <div style={{ fontSize: '16px', fontWeight: '600', color: '#e2e8f0' }}>No blog articles found</div>
-            <div style={{ fontSize: '13px', marginTop: '4px' }}>
-              {searchQuery || categoryFilter !== 'ALL' || statusFilter !== 'ALL'
-                ? 'Try changing your search or filter parameters.'
-                : 'Click "Create New Article" above to publish your first post.'}
-            </div>
-          </div>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
-              <thead>
-                <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#94a3b8', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  <th style={{ padding: '14px 16px' }}>Article Details</th>
-                  <th style={{ padding: '14px 16px' }}>Category</th>
-                  <th style={{ padding: '14px 16px' }}>Status</th>
-                  <th style={{ padding: '14px 16px' }}>Views</th>
-                  <th style={{ padding: '14px 16px' }}>Author / Read Time</th>
-                  <th style={{ padding: '14px 16px' }}>Published Date</th>
-                  <th style={{ padding: '14px 16px', textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredBlogs.map((blog) => (
-                  <tr key={blog.id} style={{ borderBottom: '1px solid #1e293b', transition: 'background 0.2s' }}>
-                    <td style={{ padding: '16px', maxWidth: '360px' }}>
-                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                        {blog.coverImage && (
-                          <img
-                            src={blog.coverImage}
-                            alt={blog.title}
-                            style={{ width: '48px', height: '48px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }}
-                          />
-                        )}
-                        <div>
-                          <div style={{ fontWeight: '600', color: '#f8fafc', lineHeight: '1.3' }}>{blog.title}</div>
-                          <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px', fontFamily: 'monospace' }}>
-                            /{blog.slug}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td style={{ padding: '16px' }}>
-                      <span
-                        style={{
-                          background: 'rgba(56, 189, 248, 0.1)',
-                          color: '#38bdf8',
-                          border: '1px solid rgba(56, 189, 248, 0.25)',
-                          padding: '4px 10px',
-                          borderRadius: '6px',
-                          fontSize: '12px',
-                          fontWeight: '500',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {blog.category}
-                      </span>
-                    </td>
-                    <td style={{ padding: '16px' }}>
-                      <button
-                        onClick={() => handleToggleStatus(blog)}
-                        title="Click to toggle publish status"
-                        style={{
-                          background: blog.status === 'PUBLISHED' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                          color: blog.status === 'PUBLISHED' ? '#34d399' : '#fbbf24',
-                          border: `1px solid ${blog.status === 'PUBLISHED' ? '#10b981' : '#f59e0b'}`,
-                          padding: '4px 10px',
-                          borderRadius: '6px',
-                          fontSize: '12px',
-                          fontWeight: '600',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {blog.status === 'PUBLISHED' ? '● Published' : '○ Draft'}
-                      </button>
-                    </td>
-                    <td style={{ padding: '16px', color: '#94a3b8', fontWeight: '500' }}>
-                      👁️ {blog.views}
-                    </td>
-                    <td style={{ padding: '16px' }}>
-                      <div style={{ color: '#e2e8f0', fontSize: '13px' }}>{blog.authorName}</div>
-                      <div style={{ color: '#64748b', fontSize: '12px' }}>{blog.readTime}</div>
-                    </td>
-                    <td style={{ padding: '16px', color: '#94a3b8', fontSize: '13px' }}>
-                      {blog.publishedAt
-                        ? new Date(blog.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                        : 'Unpublished'}
-                    </td>
-                    <td style={{ padding: '16px', textAlign: 'right' }}>
-                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                        <a
-                          href={`http://localhost:3000/blog-detail.html?slug=${blog.slug}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          title="Preview live on marketing site"
-                          style={{
-                            background: '#1e293b',
-                            color: '#38bdf8',
-                            border: '1px solid #334155',
-                            padding: '6px 10px',
-                            borderRadius: '6px',
-                            fontSize: '12px',
-                            textDecoration: 'none',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                          }}
-                        >
-                          👁️ View
-                        </a>
-                        <button
-                          onClick={() => handleOpenEdit(blog)}
-                          style={{
-                            background: '#1e293b',
-                            color: '#f8fafc',
-                            border: '1px solid #334155',
-                            padding: '6px 12px',
-                            borderRadius: '6px',
-                            fontSize: '12px',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          ✏️ Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(blog.id, blog.title)}
-                          style={{
-                            background: 'rgba(239, 68, 68, 0.1)',
-                            color: '#f87171',
-                            border: '1px solid rgba(239, 68, 68, 0.3)',
-                            padding: '6px 10px',
-                            borderRadius: '6px',
-                            fontSize: '12px',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      {/* Articles DataTable */}
+      <DataTable<BlogPostItem>
+        columns={[
+          {
+            header: 'ARTICLE DETAILS',
+            accessor: (blog) => (
+              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                {blog.coverImage && (
+                  <img
+                    src={blog.coverImage}
+                    alt={blog.title}
+                    style={{
+                      width: '44px',
+                      height: '44px',
+                      borderRadius: 'var(--radius-md)',
+                      objectFit: 'cover',
+                      flexShrink: 0,
+                    }}
+                  />
+                )}
+                <div>
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.875rem', lineHeight: 1.3 }}>
+                    {blog.title}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--brand-primary)', marginTop: '0.2rem', fontFamily: 'monospace' }}>
+                    /{blog.slug}
+                  </div>
+                </div>
+              </div>
+            ),
+          },
+          {
+            header: 'CATEGORY',
+            accessor: (blog) => (
+              <span
+                style={{
+                  background: 'rgba(91, 66, 243, 0.12)',
+                  color: 'var(--brand-primary)',
+                  border: '1px solid rgba(91, 66, 243, 0.25)',
+                  padding: '0.25rem 0.625rem',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {blog.category}
+              </span>
+            ),
+          },
+          {
+            header: 'STATUS',
+            accessor: (blog) => (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleStatus(blog);
+                }}
+                title="Click to toggle publish status"
+                style={{
+                  background: blog.status === 'PUBLISHED' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                  color: blog.status === 'PUBLISHED' ? 'var(--color-success)' : 'var(--color-warning)',
+                  border: `1px solid ${blog.status === 'PUBLISHED' ? 'var(--color-success)' : 'var(--color-warning)'}`,
+                  padding: '0.25rem 0.625rem',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                {blog.status === 'PUBLISHED' ? 'â— Published' : 'â—‹ Draft'}
+              </button>
+            ),
+          },
+          {
+            header: 'READS',
+            accessor: (blog) => (
+              <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                ðŸ‘ï¸ {blog.views}
+              </span>
+            ),
+          },
+          {
+            header: 'AUTHOR / READ TIME',
+            accessor: (blog) => (
+              <div>
+                <div style={{ color: 'var(--text-primary)', fontSize: '0.8125rem', fontWeight: 500 }}>{blog.authorName}</div>
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{blog.readTime}</div>
+              </div>
+            ),
+          },
+          {
+            header: 'PUBLISHED DATE',
+            accessor: (blog) => (
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                {blog.publishedAt
+                  ? new Date(blog.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                  : 'Unpublished'}
+              </span>
+            ),
+          },
+          {
+            header: 'ACTIONS',
+            align: 'right',
+            accessor: (blog) => (
+              <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end' }}>
+                <a
+                  href={`http://localhost:3000/blog-detail.html?slug=${blog.slug}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Preview live on marketing site"
+                  style={{
+                    backgroundColor: 'var(--bg-card-elevated)',
+                    color: 'var(--brand-primary)',
+                    border: '1px solid var(--border-subtle)',
+                    padding: '0.375rem 0.625rem',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '0.75rem',
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    fontWeight: 600,
+                  }}
+                >
+                  ðŸ‘ï¸ Preview
+                </a>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenEdit(blog);
+                  }}
+                >
+                  Edit
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(blog.id, blog.title);
+                  }}
+                >
+                  Delete
+                </Button>
+              </div>
+            ),
+          },
+        ]}
+        data={filteredBlogs}
+        keyExtractor={(b) => b.id}
+        loading={isLoading}
+        emptyIcon="ðŸ“„"
+        emptyMessage="No blog articles found matching your query"
+      />
 
       {/* ============================================================ */}
       {/* Create / Edit Article Modal / Drawer */}
@@ -660,7 +597,7 @@ export default function BlogsPage() {
                   padding: '4px 8px',
                 }}
               >
-                ✕
+                âœ•
               </button>
             </div>
 
@@ -922,7 +859,7 @@ export default function BlogsPage() {
                           cursor: 'pointer',
                         }}
                       >
-                        🚀 Published
+                        ðŸš€ Published
                       </button>
                       <button
                         type="button"
@@ -938,7 +875,7 @@ export default function BlogsPage() {
                           cursor: 'pointer',
                         }}
                       >
-                        📝 Draft Only
+                        ðŸ“ Draft Only
                       </button>
                     </div>
                   </div>
@@ -1094,7 +1031,7 @@ export default function BlogsPage() {
                             onClick={() => handleRemoveTag(tag)}
                             style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '12px', padding: 0 }}
                           >
-                            ×
+                            Ã—
                           </button>
                         </span>
                       ))}
@@ -1104,10 +1041,10 @@ export default function BlogsPage() {
                   {/* Google SERP Search Snippet Simulator */}
                   <div style={{ background: '#090d16', border: '1px solid #1e293b', borderRadius: '10px', padding: '14px', marginTop: '8px' }}>
                     <div style={{ color: '#94a3b8', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
-                      🔍 Google Search SERP Simulator
+                      ðŸ” Google Search SERP Simulator
                     </div>
                     <div style={{ fontSize: '12px', color: '#10b981', fontFamily: 'sans-serif' }}>
-                      https://adhocx.com › blogs › {formData.slug || 'article-url'}
+                      https://adhocx.com â€º blogs â€º {formData.slug || 'article-url'}
                     </div>
                     <div style={{ fontSize: '15px', color: '#60a5fa', fontWeight: '600', marginTop: '2px', cursor: 'pointer' }}>
                       {formData.seoTitle || formData.title || 'Your Article Title'}

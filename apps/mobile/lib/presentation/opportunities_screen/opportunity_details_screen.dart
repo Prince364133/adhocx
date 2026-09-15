@@ -65,6 +65,7 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final offer = _offer ?? {};
     final vehicleType = (offer['vehicleType'] ?? 'Sedan').toString();
     final pickup = offer['pickupLocation'] as Map<String, dynamic>?;
@@ -77,7 +78,7 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
     final reqCode = rawId.length > 8 ? 'REQ-${rawId.substring(0, 8).toUpperCase()}' : rawId;
 
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -91,9 +92,11 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
                     vertical: AppSpacing.md,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
+                    color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                     border: Border(
-                      bottom: BorderSide(color: AppColors.borderLight),
+                      bottom: BorderSide(
+                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      ),
                     ),
                   ),
                   child: Row(
@@ -108,7 +111,7 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
                         },
                         icon: Icon(
                           Icons.arrow_back,
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -116,7 +119,7 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
                         child: Text(
                           'Opportunity Details',
                           style: AppTypography.h3(
-                            color: AppColors.textPrimaryLight,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -127,7 +130,7 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
                         },
                         icon: Icon(
                           Icons.share_outlined,
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                       ),
                     ],
@@ -147,12 +150,12 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
                                 Container(
                                   padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
-                                    color: AppColors.primary.withValues(alpha: 0.1),
+                                    color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(AppRadius.md),
                                   ),
                                   child: Icon(
                                     Icons.directions_car_rounded,
-                                    color: AppColors.primary,
+                                    color: isDark ? AppColors.primaryLight : AppColors.primary,
                                     size: 24,
                                   ),
                                 ),
@@ -164,14 +167,14 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
                                       Text(
                                         '$vehicleType Trip Opportunity',
                                         style: AppTypography.h2(
-                                          color: AppColors.textPrimaryLight,
+                                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                       Text(
                                         reqCode.toString(),
                                         style: AppTypography.caption(
-                                          color: AppColors.textMutedLight,
+                                          color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                                         ),
                                       ),
                                     ],
@@ -183,13 +186,13 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
                                     vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: AppColors.primary.withValues(alpha: 0.1),
+                                    color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(AppRadius.full),
                                   ),
                                   child: Text(
                                     vehicleType,
                                     style: AppTypography.caption(
-                                      color: AppColors.primary,
+                                      color: isDark ? AppColors.primaryLight : AppColors.primary,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -202,9 +205,11 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
                             Container(
                               height: 180,
                               decoration: BoxDecoration(
-                                color: AppColors.surfaceLight,
+                                color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                                 borderRadius: BorderRadius.circular(AppRadius.lg),
-                                border: Border.all(color: AppColors.borderLight),
+                                border: Border.all(
+                                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                ),
                               ),
                               child: Stack(
                                 children: [
@@ -212,7 +217,7 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
                                     child: Icon(
                                       Icons.map_outlined,
                                       size: 80,
-                                      color: AppColors.primary.withValues(alpha: 0.3),
+                                      color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.3),
                                     ),
                                   ),
                                   Positioned(
@@ -224,14 +229,16 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
                                         vertical: 4,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: AppColors.surfaceLight,
+                                        color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight,
                                         borderRadius: BorderRadius.circular(AppRadius.full),
-                                        border: Border.all(color: AppColors.borderLight),
+                                        border: Border.all(
+                                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                        ),
                                       ),
                                       child: Text(
                                         'Verified Route',
                                         style: AppTypography.caption(
-                                          color: AppColors.textPrimaryLight,
+                                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
@@ -246,9 +253,11 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
                             Container(
                               padding: const EdgeInsets.all(AppSpacing.lg),
                               decoration: BoxDecoration(
-                                color: AppColors.surfaceLight,
+                                color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                                 borderRadius: BorderRadius.circular(AppRadius.lg),
-                                border: Border.all(color: AppColors.borderLight),
+                                border: Border.all(
+                                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                ),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -265,14 +274,16 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
                                             Text(
                                               'Pickup',
                                               style: AppTypography.body(
-                                                color: AppColors.textPrimaryLight,
+                                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
                                             const SizedBox(height: 2),
                                             Text(
                                               pickupAddr,
-                                              style: AppTypography.caption(color: AppColors.textSecondaryLight),
+                                              style: AppTypography.caption(
+                                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -292,14 +303,16 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
                                             Text(
                                               'Destination',
                                               style: AppTypography.body(
-                                                color: AppColors.textPrimaryLight,
+                                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
                                             const SizedBox(height: 2),
                                             Text(
                                               dropAddr,
-                                              style: AppTypography.caption(color: AppColors.textSecondaryLight),
+                                              style: AppTypography.caption(
+                                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -315,9 +328,11 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
                             Container(
                               padding: const EdgeInsets.all(AppSpacing.lg),
                               decoration: BoxDecoration(
-                                color: AppColors.surfaceLight,
+                                color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                                 borderRadius: BorderRadius.circular(AppRadius.lg),
-                                border: Border.all(color: AppColors.borderLight),
+                                border: Border.all(
+                                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                ),
                               ),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -325,9 +340,20 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
                                   Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text('Estimated Driver Earnings', style: AppTypography.caption(color: AppColors.textMutedLight)),
+                                      Text(
+                                        'Estimated Driver Earnings',
+                                        style: AppTypography.caption(
+                                          color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                        ),
+                                      ),
                                       const SizedBox(height: 4),
-                                      Text('₹ $payout.00', style: AppTypography.h1(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                                      Text(
+                                        '₹ $payout.00',
+                                        style: AppTypography.h1(
+                                          color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                   Container(
@@ -336,9 +362,13 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
                                       color: AppColors.success.withValues(alpha: 0.12),
                                       borderRadius: BorderRadius.circular(AppRadius.sm),
                                     ),
-                                    child: const Text(
+                                    child: Text(
                                       'Guaranteed Payout',
-                                      style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold, fontSize: 11),
+                                      style: TextStyle(
+                                        color: isDark ? AppColors.accentGreenLight : AppColors.success,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 11,
+                                      ),
                                     ),
                                   ),
                                 ],

@@ -171,8 +171,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -186,9 +188,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     vertical: AppSpacing.md,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
+                    color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                     border: Border(
-                      bottom: BorderSide(color: AppColors.borderLight),
+                      bottom: BorderSide(
+                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      ),
                     ),
                   ),
                   child: Row(
@@ -197,7 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         onPressed: () => _loadLiveDriverData(silent: false),
                         icon: Icon(
                           Icons.refresh,
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                         tooltip: 'Sync Live Offers',
                       ),
@@ -209,13 +213,13 @@ class _HomeScreenState extends State<HomeScreen> {
                             Text(
                               'Welcome back,',
                               style: AppTypography.caption(
-                                color: AppColors.textMutedLight,
+                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                               ).copyWith(fontSize: 11),
                             ),
                             Text(
                               _driverName,
                               style: AppTypography.body(
-                                color: AppColors.textPrimaryLight,
+                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -226,15 +230,19 @@ class _HomeScreenState extends State<HomeScreen> {
                         onPressed: () => context.push(AppRoutes.notificationsSettingsScreen),
                         icon: Icon(
                           Icons.notifications_none_rounded,
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                       ),
                       GestureDetector(
                         onTap: () => context.push(AppRoutes.personalInfoScreen),
-                        child: const CircleAvatar(
+                        child: CircleAvatar(
                           radius: 18,
-                          backgroundColor: AppColors.borderLight,
-                          child: Icon(Icons.person, size: 20, color: AppColors.textSecondaryLight),
+                          backgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.borderLight,
+                          child: Icon(
+                            Icons.person,
+                            size: 20,
+                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                          ),
                         ),
                       ),
                     ],
@@ -243,7 +251,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 // ── Live Driver State Simulator Bar ──────────────────────────
                 Container(
-                  color: AppColors.surfaceLight,
+                  color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
@@ -273,10 +281,14 @@ class _HomeScreenState extends State<HomeScreen> {
                             margin: const EdgeInsets.only(right: 6),
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: isSelected ? AppColors.primary : AppColors.bgLight,
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : (isDark ? AppColors.surfaceElevatedDark : AppColors.bgLight),
                               borderRadius: BorderRadius.circular(AppRadius.full),
                               border: Border.all(
-                                color: isSelected ? AppColors.primary : AppColors.borderLight,
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : (isDark ? AppColors.borderDark : AppColors.borderLight),
                               ),
                             ),
                             child: Text(
@@ -284,7 +296,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                color: isSelected ? Colors.white : AppColors.textPrimaryLight,
+                                color: isSelected
+                                    ? Colors.white
+                                    : (isDark ? AppColors.textSecondaryDark : AppColors.textPrimaryLight),
                               ),
                             ),
                           ),
@@ -293,7 +307,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
-                Divider(height: 1, color: AppColors.borderLight),
+                Divider(
+                  height: 1,
+                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                ),
 
                 // ── Dynamic State Body ───────────────────────────────────────
                 Expanded(
@@ -305,12 +322,12 @@ class _HomeScreenState extends State<HomeScreen> {
                             padding: const EdgeInsets.all(AppSpacing.lg),
                             children: [
                               switch (_currentState) {
-                                DriverHomeState.offline => _buildOfflineState(),
-                                DriverHomeState.available => _buildAvailableState(),
-                                DriverHomeState.offerAttention => _buildOfferAttentionState(),
-                                DriverHomeState.assignedTrip => _buildAssignedState(),
-                                DriverHomeState.activeTrip => _buildActiveTripState(),
-                                DriverHomeState.completedTrip => _buildCompletedTripState(),
+                                DriverHomeState.offline => _buildOfflineState(isDark),
+                                DriverHomeState.available => _buildAvailableState(isDark),
+                                DriverHomeState.offerAttention => _buildOfferAttentionState(isDark),
+                                DriverHomeState.assignedTrip => _buildAssignedState(isDark),
+                                DriverHomeState.activeTrip => _buildActiveTripState(isDark),
+                                DriverHomeState.completedTrip => _buildCompletedTripState(isDark),
                               },
                               const SizedBox(height: 100),
                             ],
@@ -328,15 +345,18 @@ class _HomeScreenState extends State<HomeScreen> {
   // ───────────────────────────────────────────────────────────────────────────
   // STATE 1: OFFLINE STATE
   // ───────────────────────────────────────────────────────────────────────────
-  Widget _buildOfflineState() {
+  Widget _buildOfflineState(bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
-            color: AppColors.surfaceElevatedDark,
+            color: isDark ? AppColors.surfaceDark : AppColors.surfaceElevatedDark,
             borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(
+              color: isDark ? AppColors.borderDark : Colors.transparent,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -406,35 +426,45 @@ class _HomeScreenState extends State<HomeScreen> {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: AppColors.borderLight.withValues(alpha: 0.4),
+                  color: isDark ? AppColors.surfaceElevatedDark : AppColors.borderLight.withValues(alpha: 0.4),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.directions_car_outlined, size: 40, color: AppColors.textMutedLight),
+                child: Icon(
+                  Icons.directions_car_outlined,
+                  size: 40,
+                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
                 'You are offline',
                 style: AppTypography.h3(
-                  color: AppColors.textPrimaryLight,
+                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 'Go online to receive trip opportunities in real-time',
-                style: AppTypography.caption(color: AppColors.textMutedLight),
+                style: AppTypography.caption(
+                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                ),
               ),
               const SizedBox(height: AppSpacing.lg),
-              _buildBullet('Go online to get live trip dispatches'),
+              _buildBullet('Go online to get live trip dispatches', isDark),
               const SizedBox(height: 4),
-              _buildBullet("We'll notify you automatically on new requests"),
+              _buildBullet("We'll notify you automatically on new requests", isDark),
               const SizedBox(height: 4),
-              _buildBullet('You can go offline anytime with one tap'),
+              _buildBullet('You can go offline anytime with one tap', isDark),
             ],
           ),
         ),
         const SizedBox(height: AppSpacing.xl),
-        _buildActivityCard(trips: '$_todayTripsCount', earnings: '₹ ${_todayEarnings.toStringAsFixed(0)}'),
+        _buildActivityCard(
+          trips: '$_todayTripsCount',
+          earnings: '₹ ${_todayEarnings.toStringAsFixed(0)}',
+          isDark: isDark,
+        ),
       ],
     );
   }
@@ -442,28 +472,35 @@ class _HomeScreenState extends State<HomeScreen> {
   // ───────────────────────────────────────────────────────────────────────────
   // STATE 2: AVAILABLE STATE
   // ───────────────────────────────────────────────────────────────────────────
-  Widget _buildAvailableState() {
+  Widget _buildAvailableState(bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
-            color: AppColors.surfaceLight,
+            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
             borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: AppColors.accentGreenDark.withValues(alpha: 0.3)),
+            border: Border.all(
+              color: AppColors.accentGreenDark.withValues(alpha: isDark ? 0.5 : 0.3),
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Availability', style: AppTypography.caption(color: AppColors.textMutedLight)),
+              Text(
+                'Availability',
+                style: AppTypography.caption(
+                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                ),
+              ),
               const SizedBox(height: 8),
               Row(
                 children: [
                   Container(
                     width: 12,
                     height: 12,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: AppColors.accentGreenDark,
                       shape: BoxShape.circle,
                     ),
@@ -472,7 +509,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   Text(
                     'Available',
                     style: AppTypography.h2(
-                      color: AppColors.accentGreenDark,
+                      color: isDark ? AppColors.accentGreen : AppColors.accentGreenDark,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -481,7 +518,9 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 2),
               Text(
                 'You are online and listening for live nearby trips',
-                style: AppTypography.caption(color: AppColors.textSecondaryLight),
+                style: AppTypography.caption(
+                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                ),
               ),
               const SizedBox(height: AppSpacing.lg),
               SizedBox(
@@ -490,7 +529,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: OutlinedButton(
                   onPressed: () => _toggleOnline(false),
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: AppColors.borderLight),
+                    side: BorderSide(
+                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
@@ -498,7 +539,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Text(
                     'GO OFFLINE',
                     style: AppTypography.body(
-                      color: AppColors.textPrimaryLight,
+                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -513,9 +554,11 @@ class _HomeScreenState extends State<HomeScreen> {
         Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
-            color: AppColors.accentGreenDark.withValues(alpha: 0.08),
+            color: AppColors.accentGreenDark.withValues(alpha: isDark ? 0.12 : 0.08),
             borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: AppColors.accentGreenDark.withValues(alpha: 0.2)),
+            border: Border.all(
+              color: AppColors.accentGreenDark.withValues(alpha: isDark ? 0.35 : 0.2),
+            ),
           ),
           child: Row(
             children: [
@@ -526,14 +569,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text(
                       "You're available",
                       style: AppTypography.body(
-                        color: AppColors.textPrimaryLight,
+                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'Auto-scanning for incoming booking requests...',
-                      style: AppTypography.caption(color: AppColors.textSecondaryLight),
+                      style: AppTypography.caption(
+                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                      ),
                     ),
                   ],
                 ),
@@ -545,14 +590,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: AppColors.accentGreenDark.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.radar, color: AppColors.accentGreenDark),
+                child: const Icon(Icons.radar, color: AppColors.accentGreenDark),
               ),
             ],
           ),
         ),
         const SizedBox(height: AppSpacing.xl),
 
-        _buildActivityCard(trips: '$_todayTripsCount', earnings: '₹ ${_todayEarnings.toStringAsFixed(0)}'),
+        _buildActivityCard(
+          trips: '$_todayTripsCount',
+          earnings: '₹ ${_todayEarnings.toStringAsFixed(0)}',
+          isDark: isDark,
+        ),
         const SizedBox(height: AppSpacing.lg),
 
         SizedBox(
@@ -563,6 +612,10 @@ class _HomeScreenState extends State<HomeScreen> {
             label: const Text('View All Live Opportunities'),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14),
+              foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+              side: BorderSide(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              ),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
             ),
           ),
@@ -574,7 +627,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // ───────────────────────────────────────────────────────────────────────────
   // STATE 3: LIVE OFFER / OPPORTUNITY ATTENTION STATE
   // ───────────────────────────────────────────────────────────────────────────
-  Widget _buildOfferAttentionState() {
+  Widget _buildOfferAttentionState(bool isDark) {
     final offer = _liveOffer;
     final isDirectOffer = offer != null && offer['offeredRate'] != null;
     final isBidding = offer != null && (offer['fulfillmentMode'] == 'BIDDING' || offer['suggestedBudget'] != null);
@@ -597,7 +650,9 @@ class _HomeScreenState extends State<HomeScreen> {
         Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
-            color: isBidding ? AppColors.primary.withValues(alpha: 0.08) : AppColors.warningContainer,
+            color: isBidding
+                ? AppColors.primary.withValues(alpha: isDark ? 0.15 : 0.08)
+                : (isDark ? AppColors.warningContainer.withValues(alpha: 0.15) : AppColors.warningContainer),
             borderRadius: BorderRadius.circular(AppRadius.lg),
             border: Border.all(
               color: isBidding ? AppColors.primary : AppColors.warning,
@@ -615,13 +670,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       Icon(
                         isBidding ? Icons.gavel_rounded : Icons.flash_on_rounded,
                         size: 16,
-                        color: isBidding ? AppColors.primary : AppColors.warning,
+                        color: isBidding ? AppColors.primaryLight : AppColors.warning,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         isBidding ? 'New Outstation Bidding Trip' : 'Direct Dispatch Trip Offer',
                         style: TextStyle(
-                          color: isBidding ? AppColors.primary : AppColors.warning,
+                          color: isBidding ? AppColors.primaryLight : AppColors.warning,
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
                         ),
@@ -637,7 +692,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Text(
                       rawDisplayId,
                       style: TextStyle(
-                        color: isBidding ? AppColors.primary : AppColors.warning,
+                        color: isBidding ? AppColors.primaryLight : AppColors.warning,
                         fontWeight: FontWeight.bold,
                         fontSize: 10,
                       ),
@@ -652,20 +707,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   Text(
                     isBidding ? 'Outstation Booking' : 'Corporate Transfer',
                     style: AppTypography.h3(
-                      color: AppColors.textPrimaryLight,
+                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
+                      color: AppColors.primary.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(AppRadius.sm),
                     ),
                     child: Text(
                       vehicle,
-                      style: TextStyle(
-                        color: AppColors.primary,
+                      style: const TextStyle(
+                        color: AppColors.primaryLight,
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
                       ),
@@ -685,8 +740,22 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Pickup', style: TextStyle(fontSize: 10, color: AppColors.slate500, fontWeight: FontWeight.bold)),
-                        Text(pickup, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                        Text(
+                          'Pickup',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: isDark ? AppColors.textMutedDark : AppColors.slate500,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          pickup,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -702,8 +771,22 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Destination', style: TextStyle(fontSize: 10, color: AppColors.slate500, fontWeight: FontWeight.bold)),
-                        Text(drop, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                        Text(
+                          'Destination',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: isDark ? AppColors.textMutedDark : AppColors.slate500,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          drop,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -715,20 +798,29 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceLight,
+                  color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight,
                   borderRadius: BorderRadius.circular(AppRadius.md),
-                  border: Border.all(color: AppColors.borderLight),
+                  border: Border.all(
+                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       isBidding ? 'Suggested Budget / Guide Price:' : 'Offered Payout:',
-                      style: const TextStyle(fontSize: 12, color: AppColors.slate600),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? AppColors.textSecondaryDark : AppColors.slate600,
+                      ),
                     ),
                     Text(
                       rateStr,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.accentGreenDark),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: isDark ? AppColors.accentGreen : AppColors.accentGreenDark,
+                      ),
                     ),
                   ],
                 ),
@@ -804,6 +896,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         },
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 12),
+                          foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                          side: BorderSide(
+                            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                          ),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                         ),
                         child: const Text('Custom Quote', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -843,7 +939,11 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         const SizedBox(height: AppSpacing.xl),
-        _buildActivityCard(trips: '$_todayTripsCount', earnings: '₹ ${_todayEarnings.toStringAsFixed(0)}'),
+        _buildActivityCard(
+          trips: '$_todayTripsCount',
+          earnings: '₹ ${_todayEarnings.toStringAsFixed(0)}',
+          isDark: isDark,
+        ),
       ],
     );
   }
@@ -851,7 +951,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // ───────────────────────────────────────────────────────────────────────────
   // STATE 4: ASSIGNED STATE
   // ───────────────────────────────────────────────────────────────────────────
-  Widget _buildAssignedState() {
+  Widget _buildAssignedState(bool isDark) {
     final trip = _liveTrip;
     final tripId = trip?['id'] as String? ?? 'LIVE';
     final pickup = (trip?['pickupLocation']?['address'] ?? trip?['pickupAddress'] ?? 'Pickup Point').toString();
@@ -863,9 +963,9 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Container(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 12),
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: AppColors.primary,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -884,9 +984,11 @@ class _HomeScreenState extends State<HomeScreen> {
         Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
-            color: AppColors.surfaceLight,
+            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
             borderRadius: const BorderRadius.vertical(bottom: Radius.circular(AppRadius.lg)),
-            border: Border.all(color: AppColors.borderLight),
+            border: Border.all(
+              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -894,8 +996,17 @@ class _HomeScreenState extends State<HomeScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Assigned Booking', style: AppTypography.h3(color: AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
-                  Text(vehicle, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
+                  Text(
+                    'Assigned Booking',
+                    style: AppTypography.h3(
+                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    vehicle,
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryLight),
+                  ),
                 ],
               ),
               const SizedBox(height: AppSpacing.md),
@@ -904,7 +1015,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   const Icon(Icons.circle, size: 8, color: AppColors.accentGreenDark),
                   const SizedBox(width: 8),
-                  Expanded(child: Text(pickup, style: const TextStyle(fontWeight: FontWeight.w600))),
+                  Expanded(
+                    child: Text(
+                      pickup,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                      ),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 4),
@@ -913,7 +1032,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   const Icon(Icons.circle, size: 8, color: AppColors.error),
                   const SizedBox(width: 8),
-                  Expanded(child: Text(drop, style: const TextStyle(color: AppColors.slate600))),
+                  Expanded(
+                    child: Text(
+                      drop,
+                      style: TextStyle(
+                        color: isDark ? AppColors.textSecondaryDark : AppColors.slate600,
+                      ),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -948,7 +1074,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // ───────────────────────────────────────────────────────────────────────────
   // STATE 5: ACTIVE TRIP STATE
   // ───────────────────────────────────────────────────────────────────────────
-  Widget _buildActiveTripState() {
+  Widget _buildActiveTripState(bool isDark) {
     final trip = _liveTrip;
     final tripId = trip?['id'] as String? ?? '';
     final status = (trip?['status'] as String? ?? 'IN_PROGRESS');
@@ -981,25 +1107,37 @@ class _HomeScreenState extends State<HomeScreen> {
         Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
-            color: AppColors.surfaceLight,
+            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
             borderRadius: const BorderRadius.vertical(bottom: Radius.circular(AppRadius.lg)),
-            border: Border.all(color: AppColors.borderLight),
+            border: Border.all(
+              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (status == 'ARRIVED') ...[
-                const Text(
+                Text(
                   'Enter Passenger Start OTP',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 TextField(
                   controller: _otpController,
                   keyboardType: TextInputType.number,
                   maxLength: 4,
+                  style: TextStyle(
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                  ),
                   decoration: InputDecoration(
                     hintText: 'Enter 4-digit OTP (e.g. 1234)',
+                    hintStyle: TextStyle(
+                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                    ),
                     prefixIcon: const Icon(Icons.lock_clock_outlined),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                   ),
@@ -1031,9 +1169,21 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ] else ...[
-                Text('Driving to Destination', style: AppTypography.h3(color: AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
+                Text(
+                  'Driving to Destination',
+                  style: AppTypography.h3(
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 8),
-                Text('Drop: $drop', style: const TextStyle(fontWeight: FontWeight.w600)),
+                Text(
+                  'Drop: $drop',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                  ),
+                ),
                 const SizedBox(height: AppSpacing.lg),
                 SizedBox(
                   width: double.infinity,
@@ -1067,23 +1217,37 @@ class _HomeScreenState extends State<HomeScreen> {
   // ───────────────────────────────────────────────────────────────────────────
   // STATE 6: COMPLETED TRIP STATE
   // ───────────────────────────────────────────────────────────────────────────
-  Widget _buildCompletedTripState() {
+  Widget _buildCompletedTripState(bool isDark) {
     return Column(
       children: [
         Container(
           padding: const EdgeInsets.all(AppSpacing.xl),
           decoration: BoxDecoration(
-            color: AppColors.surfaceLight,
+            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
             borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: AppColors.accentGreenDark.withValues(alpha: 0.3)),
+            border: Border.all(
+              color: AppColors.accentGreenDark.withValues(alpha: isDark ? 0.5 : 0.3),
+            ),
           ),
           child: Column(
             children: [
               const Icon(Icons.check_circle_rounded, size: 64, color: AppColors.accentGreenDark),
               const SizedBox(height: 12),
-              Text('Trip Successfully Completed!', style: AppTypography.h2(color: AppColors.accentGreenDark, fontWeight: FontWeight.bold)),
+              Text(
+                'Trip Successfully Completed!',
+                style: AppTypography.h2(
+                  color: isDark ? AppColors.accentGreen : AppColors.accentGreenDark,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 4),
-              const Text('Fare has been credited to your AdhocX Wallet.', style: TextStyle(fontSize: 12, color: AppColors.slate600)),
+              Text(
+                'Fare has been credited to your AdhocX Wallet.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? AppColors.textSecondaryDark : AppColors.slate600,
+                ),
+              ),
               const SizedBox(height: AppSpacing.xl),
               ElevatedButton(
                 onPressed: () {
@@ -1104,18 +1268,29 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildActivityCard({required String trips, required String earnings}) {
+  Widget _buildActivityCard({
+    required String trips,
+    required String earnings,
+    required bool isDark,
+  }) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.borderLight),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Today's Activity", style: AppTypography.caption(color: AppColors.textMutedLight)),
+          Text(
+            "Today's Activity",
+            style: AppTypography.caption(
+              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+            ),
+          ),
           const SizedBox(height: AppSpacing.md),
           Row(
             children: [
@@ -1123,8 +1298,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Trips', style: AppTypography.caption(color: AppColors.textMutedLight)),
-                    Text(trips, style: AppTypography.h2(color: AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
+                    Text(
+                      'Trips',
+                      style: AppTypography.caption(
+                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                      ),
+                    ),
+                    Text(
+                      trips,
+                      style: AppTypography.h2(
+                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -1132,8 +1318,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Earnings', style: AppTypography.caption(color: AppColors.textMutedLight)),
-                    Text(earnings, style: AppTypography.h2(color: AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
+                    Text(
+                      'Earnings',
+                      style: AppTypography.caption(
+                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                      ),
+                    ),
+                    Text(
+                      earnings,
+                      style: AppTypography.h2(
+                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -1144,13 +1341,19 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildBullet(String text) {
+  Widget _buildBullet(String text, bool isDark) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.check, size: 14, color: AppColors.accentGreenDark),
+        const Icon(Icons.check, size: 14, color: AppColors.accentGreenDark),
         const SizedBox(width: 6),
-        Text(text, style: const TextStyle(fontSize: 12, color: AppColors.slate600)),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 12,
+            color: isDark ? AppColors.textSecondaryDark : AppColors.slate600,
+          ),
+        ),
       ],
     );
   }

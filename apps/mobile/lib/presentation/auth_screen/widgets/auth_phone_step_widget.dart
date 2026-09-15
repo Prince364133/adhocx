@@ -118,6 +118,7 @@ class _AuthPhoneStepWidgetState extends State<AuthPhoneStepWidget> {
   @override
   Widget build(BuildContext context) {
     final isDriver = _role == 'DRIVER';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Form(
       key: _formKey,
@@ -132,20 +133,25 @@ class _AuthPhoneStepWidgetState extends State<AuthPhoneStepWidget> {
             ],
             selectedValue: _isRegister,
             onValueChanged: _onModeChanged,
-            activeColor: isDriver ? AppColors.accentGreenDark : AppColors.primary,
+            activeColor: isDriver
+                ? (isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark)
+                : (isDark ? AppColors.primaryLight : AppColors.primary),
           ),
           const SizedBox(height: AppSpacing.lg),
 
           // ── Driver vs Vendor Role Selector ──────────────────────────────
           AppCard(
             padding: AppSpacing.paddingMd,
-            backgroundColor: AppColors.surfaceDark,
+            backgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight,
+            borderColor: isDark ? AppColors.borderDark : AppColors.borderLight,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Account Role',
-                  style: AppTypography.label(color: AppColors.textSecondaryDark),
+                  style: AppTypography.label(
+                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 AppSegmentedControl<String>(
@@ -163,7 +169,9 @@ class _AuthPhoneStepWidgetState extends State<AuthPhoneStepWidget> {
                   ],
                   selectedValue: _role,
                   onValueChanged: _onRoleChanged,
-                  activeColor: isDriver ? AppColors.accentGreenDark : AppColors.primary,
+                  activeColor: isDriver
+                      ? (isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark)
+                      : (isDark ? AppColors.primaryLight : AppColors.primary),
                 ),
               ],
             ),
@@ -175,10 +183,10 @@ class _AuthPhoneStepWidgetState extends State<AuthPhoneStepWidget> {
             AppTextField(
               controller: _nameController,
               label: 'Full Name (Optional)',
-              hint: isDriver ? 'e.g. Ramesh Kumar' : 'e.g. Sarah Jenkins',
+              hintText: isDriver ? 'e.g. Ramesh Kumar' : 'e.g. Sarah Jenkins',
               prefixIcon: Icon(
                 Icons.person_outline_rounded,
-                color: AppColors.textSecondaryDark,
+                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                 size: 20,
               ),
             ),
@@ -187,10 +195,10 @@ class _AuthPhoneStepWidgetState extends State<AuthPhoneStepWidget> {
               AppTextField(
                 controller: _companyController,
                 label: 'Company / Organization Name (Optional)',
-                hint: 'e.g. Horizon Logistics Pvt Ltd',
+                hintText: 'e.g. Horizon Logistics Pvt Ltd',
                 prefixIcon: Icon(
                   Icons.business_outlined,
-                  color: AppColors.textSecondaryDark,
+                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                   size: 20,
                 ),
               ),
@@ -253,7 +261,9 @@ class _AuthPhoneStepWidgetState extends State<AuthPhoneStepWidget> {
           Center(
             child: Text(
               'By continuing, you agree to the AdhocX Terms of Service & Privacy Policy.',
-              style: AppTypography.caption(color: AppColors.textMutedDark),
+              style: AppTypography.caption(
+                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+              ),
               textAlign: TextAlign.center,
             ),
           ),

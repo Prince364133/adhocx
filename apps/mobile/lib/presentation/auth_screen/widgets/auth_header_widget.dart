@@ -20,6 +20,7 @@ class AuthHeaderWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final languageProvider = context.watch<LanguageProvider>();
     final isDriver = role == 'DRIVER';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
       children: [
@@ -40,7 +41,7 @@ class AuthHeaderWidget extends StatelessWidget {
               TextSpan(
                 text: 'Adhoc',
                 style: AppTypography.display(
-                  color: AppColors.textPrimaryDark,
+                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                   fontWeight: FontWeight.w800,
                   fontSize: 38,
                 ),
@@ -59,11 +60,12 @@ class AuthHeaderWidget extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
 
-
         // Portal Heading
         Text(
           isDriver ? 'AdhocX Driver Partner' : 'AdhocX User Portal',
-          style: AppTypography.h2(color: AppColors.textPrimaryDark),
+          style: AppTypography.h2(
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+          ),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: AppSpacing.xs),
@@ -73,7 +75,9 @@ class AuthHeaderWidget extends StatelessWidget {
           isDriver
               ? 'On-Demand Fleet Dispatch & Trip Management'
               : 'Corporate Mobility & Requirement Fulfillment',
-          style: AppTypography.small(color: AppColors.textSecondaryDark),
+          style: AppTypography.small(
+            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+          ),
           textAlign: TextAlign.center,
         ),
       ],

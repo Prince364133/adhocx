@@ -132,6 +132,7 @@ class _AuthOtpStepWidgetState extends State<AuthOtpStepWidget> {
   @override
   Widget build(BuildContext context) {
     final isDriver = widget.role == 'DRIVER';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -139,7 +140,8 @@ class _AuthOtpStepWidgetState extends State<AuthOtpStepWidget> {
         // ── Target Phone Summary Card ───────────────────────────────────
         AppCard(
           padding: AppSpacing.paddingMd,
-          backgroundColor: AppColors.surfaceDark,
+          backgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight,
+          borderColor: isDark ? AppColors.borderDark : AppColors.borderLight,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -147,7 +149,7 @@ class _AuthOtpStepWidgetState extends State<AuthOtpStepWidget> {
                 children: [
                   Icon(
                     Icons.verified_user_outlined,
-                    color: AppColors.accentGreen,
+                    color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
                     size: 20,
                   ),
                   const SizedBox(width: AppSpacing.sm),
@@ -157,13 +159,13 @@ class _AuthOtpStepWidgetState extends State<AuthOtpStepWidget> {
                       Text(
                         'Sent to',
                         style: AppTypography.caption(
-                          color: AppColors.textSecondaryDark,
+                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                         ),
                       ),
                       Text(
                         widget.phone,
                         style: AppTypography.bodyMedium(
-                          color: AppColors.textPrimaryDark,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                       ),
                     ],
@@ -180,7 +182,9 @@ class _AuthOtpStepWidgetState extends State<AuthOtpStepWidget> {
                 ),
                 child: Text(
                   'Change',
-                  style: AppTypography.small(color: AppColors.primaryLight),
+                  style: AppTypography.small(
+                    color: isDark ? AppColors.primaryLight : AppColors.primary,
+                  ),
                 ),
               ),
             ],
@@ -191,13 +195,17 @@ class _AuthOtpStepWidgetState extends State<AuthOtpStepWidget> {
         // ── OTP Header ──────────────────────────────────────────────────
         Text(
           'Enter 6-Digit OTP',
-          style: AppTypography.h3(color: AppColors.textPrimaryDark),
+          style: AppTypography.h3(
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+          ),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
           'For security, please enter the one-time password code',
-          style: AppTypography.small(color: AppColors.textSecondaryDark),
+          style: AppTypography.small(
+            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+          ),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: AppSpacing.xl),
@@ -265,7 +273,9 @@ class _AuthOtpStepWidgetState extends State<AuthOtpStepWidget> {
           child: _secondsRemaining > 0
               ? Text(
                   'Resend code in ${_secondsRemaining}s',
-                  style: AppTypography.small(color: AppColors.textSecondaryDark),
+                  style: AppTypography.small(
+                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                  ),
                 )
               : TextButton(
                   onPressed: _isLoading ? null : _handleResendOtp,
@@ -273,8 +283,8 @@ class _AuthOtpStepWidgetState extends State<AuthOtpStepWidget> {
                     'Resend Verification Code',
                     style: AppTypography.bodyMedium(
                       color: isDriver
-                          ? AppColors.accentGreen
-                          : AppColors.primaryLight,
+                          ? (isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark)
+                          : (isDark ? AppColors.primaryLight : AppColors.primary),
                     ),
                   ),
                 ),

@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 
 export interface ErrorStateProps {
   title?: string;
@@ -12,16 +12,36 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
   onRetry,
 }) => {
   return (
-    <div className="card" style={{ borderColor: 'var(--color-error-border)', backgroundColor: 'var(--color-error-bg)', padding: '2rem', textAlign: 'center' }}>
+    <div
+      className="card animate-shake"
+      style={{
+        borderColor: 'var(--color-danger-border)',
+        backgroundColor: 'var(--color-danger-bg)',
+        padding: '2rem',
+        textAlign: 'center',
+        borderRadius: 'var(--radius-xl)',
+      }}
+    >
       <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⚠️</div>
-      <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-error)', marginBottom: '0.25rem' }}>
+      <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-danger)', marginBottom: '0.25rem' }}>
         {title}
       </h3>
       <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', maxWidth: '480px', margin: '0 auto 1.25rem auto' }}>
         {message}
       </p>
       {onRetry && (
-        <button type="button" onClick={onRetry} className="btn btn-secondary btn-sm">
+        <button
+          type="button"
+          onClick={onRetry}
+          className="btn btn-secondary btn-sm"
+          style={{
+            padding: '0.45rem 1rem',
+            borderRadius: 'var(--radius-md)',
+            fontWeight: 600,
+            cursor: 'pointer',
+            transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+          }}
+        >
           Retry Operation
         </button>
       )}

@@ -36,8 +36,10 @@ class _ChooseRoleScreenState extends State<ChooseRoleScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -57,7 +59,7 @@ class _ChooseRoleScreenState extends State<ChooseRoleScreen> {
                         onPressed: () => context.pop(),
                         icon: Icon(
                           Icons.arrow_back,
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
@@ -70,7 +72,7 @@ class _ChooseRoleScreenState extends State<ChooseRoleScreen> {
                   Text(
                     'Choose your role',
                     style: AppTypography.h1(
-                      color: AppColors.textPrimaryLight,
+                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -78,7 +80,7 @@ class _ChooseRoleScreenState extends State<ChooseRoleScreen> {
                   Text(
                     'Select how you want to join AdhocX',
                     style: AppTypography.body(
-                      color: AppColors.textSecondaryLight,
+                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xxl),
@@ -93,7 +95,7 @@ class _ChooseRoleScreenState extends State<ChooseRoleScreen> {
                     iconWidget: Icon(
                       Icons.person_pin_circle_rounded,
                       size: 32,
-                      color: AppColors.primary,
+                      color: isDark ? AppColors.primaryLight : AppColors.primary,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
@@ -108,7 +110,7 @@ class _ChooseRoleScreenState extends State<ChooseRoleScreen> {
                     iconWidget: Icon(
                       Icons.drive_eta_rounded,
                       size: 32,
-                      color: AppColors.primary,
+                      color: isDark ? AppColors.primaryLight : AppColors.primary,
                     ),
                   ),
                   const Spacer(),

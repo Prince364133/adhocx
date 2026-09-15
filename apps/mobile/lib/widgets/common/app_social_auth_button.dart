@@ -95,15 +95,16 @@ class AppSocialAuthButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isGoogle = type == SocialAuthType.google;
     final label = isGoogle ? 'Continue with Google' : 'Continue with Apple';
 
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.textPrimaryLight,
-        backgroundColor: AppColors.surfaceLight,
-        side: BorderSide(color: AppColors.borderLight),
+        foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+        backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        side: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
         minimumSize: const Size(double.infinity, 48),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
@@ -116,16 +117,16 @@ class AppSocialAuthButton extends StatelessWidget {
           if (isGoogle)
             const GoogleVectorIcon(size: 20)
           else
-            const Icon(
+            Icon(
               Icons.apple,
               size: 22,
-              color: Colors.black,
+              color: isDark ? Colors.white : Colors.black,
             ),
           const SizedBox(width: AppSpacing.md),
           Text(
             label,
             style: AppTypography.body(
-              color: AppColors.textPrimaryLight,
+              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
               fontWeight: FontWeight.w500,
             ),
           ),

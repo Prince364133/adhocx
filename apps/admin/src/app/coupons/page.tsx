@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useState } from 'react';
 import { adminApi } from '../../lib/api/client';
@@ -9,8 +9,8 @@ import {
   CreateCouponPayload,
   UpdateCouponPayload,
 } from '../../lib/api/types';
-import { Badge } from '../../components/Badge';
 import { Modal } from '../../components/Modal';
+import { PageHeader, MetricCard, Button, FilterBar, DataTable, StatusBadge } from '../../components/common';
 
 const STATUS_TABS = ['ALL', 'ACTIVE', 'EXPIRED', 'INACTIVE', 'EXHAUSTED'];
 
@@ -238,149 +238,86 @@ export default function CouponsPage() {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontWeight: 500 }}>
-            <span>{alert.type === 'success' ? '✅' : '⚠️'}</span>
+            <span>{alert.type === 'success' ? '✓' : '⚠️'}</span>
             <span>{alert.message}</span>
           </div>
           <button
             onClick={() => setAlert(null)}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', fontWeight: 'bold' }}
           >
-            ✕
+            âœ•
           </button>
         </div>
       )}
 
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
-        <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-            Coupons & Promotion Management
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.375rem' }}>
-            Configure promotional codes, percentage discounts, cashbacks, and AdhocX Wallet top-up bonus rules.
-          </p>
-        </div>
-        <button
-          onClick={() => setIsCreateOpen(true)}
-          style={{
-            padding: '0.75rem 1.25rem',
-            backgroundColor: 'var(--accent-primary)',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: '8px',
-            fontWeight: 600,
-            fontSize: '0.875rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)',
-          }}
-        >
-          <span>＋</span> Create Promo Coupon
-        </button>
-      </div>
+      {/* Page Header */}
+      <PageHeader
+        title="Coupons & Promotion Management"
+        subtitle="Configure promotional codes, percentage discounts, cashbacks, and AdhocX Wallet top-up bonus rules"
+        liveStatus="Campaign Engine Active"
+        actions={
+          <Button variant="primary" size="md" onClick={() => setIsCreateOpen(true)} leftIcon="ï¼‹">
+            Create Promo Coupon
+          </Button>
+        }
+      />
 
       {/* KPI Cards Grid */}
       <div
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: '1rem',
+          gap: '1.25rem',
           marginBottom: '2rem',
         }}
       >
-        <div className="card" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>TOTAL COUPONS</span>
-            <span style={{ fontSize: '1.25rem' }}>🏷️</span>
-          </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.5rem' }}>
-            {metrics?.totalCoupons ?? 0}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>Configured promos</div>
-        </div>
-
-        <div className="card" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>ACTIVE PROMOS</span>
-            <span style={{ fontSize: '1.25rem' }}>🟢</span>
-          </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--success)', marginTop: '0.5rem' }}>
-            {metrics?.activeCoupons ?? 0}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>Currently claimable by users</div>
-        </div>
-
-        <div className="card" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>TOTAL REDEMPTIONS</span>
-            <span style={{ fontSize: '1.25rem' }}>🎟️</span>
-          </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--accent-primary)', marginTop: '0.5rem' }}>
-            {metrics?.totalRedemptions ?? 0}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>Claimed across trips & wallet topups</div>
-        </div>
-
-        <div className="card" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>TOTAL DISCOUNT DISBURSED</span>
-            <span style={{ fontSize: '1.25rem' }}>💰</span>
-          </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f59e0b', marginTop: '0.5rem' }}>
-            ₹ {(metrics?.totalDiscountDisbursed ?? 0).toLocaleString('en-IN')}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>Cumulative platform promotional savings</div>
-        </div>
+        <MetricCard
+          label="Total Coupons"
+          value={metrics?.totalCoupons ?? 0}
+          subtext="Configured promos"
+          icon="ðŸ·ï¸"
+          accentColor="var(--brand-primary)"
+        />
+        <MetricCard
+          label="Active Promos"
+          value={metrics?.activeCoupons ?? 0}
+          subtext="Claimable by users"
+          icon="ðŸŸ¢"
+          accentColor="var(--color-success)"
+        />
+        <MetricCard
+          label="Total Redemptions"
+          value={metrics?.totalRedemptions ?? 0}
+          subtext="Trips & wallet topups"
+          icon="ðŸŽŸï¸"
+          accentColor="#8B5CF6"
+        />
+        <MetricCard
+          label="Discount Disbursed"
+          value={`â‚¹ ${(metrics?.totalDiscountDisbursed ?? 0).toLocaleString('en-IN')}`}
+          subtext="Platform promo savings"
+          icon="ðŸ’°"
+          accentColor="var(--color-warning)"
+        />
       </div>
 
       {/* Toolbar / Filters */}
-      <div
-        className="card"
-        style={{
-          padding: '1rem 1.25rem',
-          marginBottom: '1.5rem',
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '1rem',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
-        {/* Status Tabs */}
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          {STATUS_TABS.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              style={{
-                padding: '0.5rem 0.875rem',
-                borderRadius: '6px',
-                border: 'none',
-                fontSize: '0.8125rem',
-                fontWeight: activeTab === tab ? 600 : 500,
-                backgroundColor: activeTab === tab ? 'var(--accent-primary)' : 'var(--bg-surface-elevated)',
-                color: activeTab === tab ? '#ffffff' : 'var(--text-secondary)',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-
-        {/* Search & Scope Filters */}
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+      <FilterBar
+        tabs={STATUS_TABS.map((tab) => ({ id: tab, label: tab }))}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search code or title..."
+        extraFilters={
           <select
             value={scopeFilter}
             onChange={(e) => setScopeFilter(e.target.value)}
             style={{
-              padding: '0.5rem 0.75rem',
-              borderRadius: '6px',
-              backgroundColor: 'var(--bg-surface-elevated)',
-              border: '1px solid var(--border)',
+              padding: '0.4375rem 0.75rem',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: 'var(--bg-card)',
+              border: '1px solid var(--border-subtle)',
               color: 'var(--text-primary)',
               fontSize: '0.8125rem',
             }}
@@ -389,277 +326,193 @@ export default function CouponsPage() {
             <option value="WALLET_TOPUP">Wallet Top-up Only</option>
             <option value="REQUIREMENT_BOOKING">Trip Booking Only</option>
           </select>
-
-          <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.5rem' }}>
-            <input
-              type="text"
-              placeholder="Search code or title..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                padding: '0.5rem 0.875rem',
-                borderRadius: '6px',
-                backgroundColor: 'var(--bg-surface-elevated)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-primary)',
-                fontSize: '0.8125rem',
-                minWidth: '200px',
-              }}
-            />
-            <button
-              type="submit"
-              style={{
-                padding: '0.5rem 0.875rem',
-                backgroundColor: 'var(--accent-primary)',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '6px',
-                fontSize: '0.8125rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Filter
-            </button>
-          </form>
-        </div>
-      </div>
+        }
+      />
 
       {/* Coupons Table */}
-      <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--bg-surface-elevated)' }}>
-              <th style={{ padding: '1rem', fontWeight: 600, color: 'var(--text-secondary)' }}>COUPON CODE</th>
-              <th style={{ padding: '1rem', fontWeight: 600, color: 'var(--text-secondary)' }}>DISCOUNT & BENEFIT</th>
-              <th style={{ padding: '1rem', fontWeight: 600, color: 'var(--text-secondary)' }}>MIN SPEND</th>
-              <th style={{ padding: '1rem', fontWeight: 600, color: 'var(--text-secondary)' }}>APPLICABLE TO</th>
-              <th style={{ padding: '1rem', fontWeight: 600, color: 'var(--text-secondary)' }}>USAGE & LIMITS</th>
-              <th style={{ padding: '1rem', fontWeight: 600, color: 'var(--text-secondary)' }}>VALIDITY</th>
-              <th style={{ padding: '1rem', fontWeight: 600, color: 'var(--text-secondary)' }}>STATUS</th>
-              <th style={{ padding: '1rem', fontWeight: 600, color: 'var(--text-secondary)', textAlign: 'right' }}>ACTIONS</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={8} style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                  Loading coupon promos...
-                </td>
-              </tr>
-            ) : coupons.length === 0 ? (
-              <tr>
-                <td colSpan={8} style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                  <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🏷️</div>
-                  <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>No coupons found</div>
-                  <div style={{ fontSize: '0.8125rem', marginTop: '0.25rem' }}>
-                    Click "+ Create Promo Coupon" to launch your first promotional discount.
+      <DataTable<CouponListItem>
+        columns={[
+          {
+            header: 'COUPON CODE',
+            accessor: (c) => (
+              <div>
+                <span
+                  style={{
+                    fontFamily: 'monospace',
+                    fontWeight: 700,
+                    padding: '0.2rem 0.5rem',
+                    backgroundColor: 'rgba(91, 66, 243, 0.12)',
+                    color: 'var(--brand-primary)',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px dashed var(--brand-primary)',
+                    fontSize: '0.8125rem',
+                  }}
+                >
+                  {c.code}
+                </span>
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginTop: '0.375rem', fontSize: '0.8125rem' }}>
+                  {c.title}
+                </div>
+                {c.description && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem', maxWidth: '240px' }}>
+                    {c.description}
                   </div>
-                </td>
-              </tr>
-            ) : (
-              coupons.map((coupon) => {
-                const status = getCouponStatus(coupon);
-                const isPercentage = coupon.discountType === 'PERCENTAGE';
-                const usagePercent = coupon.usageLimitTotal
-                  ? Math.min(100, Math.round((coupon.usedCount / coupon.usageLimitTotal) * 100))
-                  : 0;
+                )}
+              </div>
+            ),
+          },
+          {
+            header: 'DISCOUNT & BENEFIT',
+            accessor: (c) => (
+              <div>
+                <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.875rem' }}>
+                  {c.discountType === 'PERCENTAGE' ? `${c.discountValue}% OFF` : `â‚¹${c.discountValue} FLAT`}
+                </div>
+                {c.discountType === 'PERCENTAGE' && c.maxDiscountAmount && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>
+                    Max cap â‚¹{c.maxDiscountAmount}
+                  </div>
+                )}
+              </div>
+            ),
+          },
+          {
+            header: 'MIN SPEND',
+            accessor: (c) => (
+              <span style={{ fontWeight: 500, color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
+                {c.minOrderAmount > 0 ? `â‚¹${c.minOrderAmount}` : 'No Min.'}
+              </span>
+            ),
+          },
+          {
+            header: 'APPLICABLE TO',
+            accessor: (c) => (
+              <StatusBadge
+                status={
+                  c.applicableTo === 'ALL'
+                    ? 'UNIVERSAL'
+                    : c.applicableTo === 'WALLET_TOPUP'
+                    ? 'WALLET_TOPUP'
+                    : 'TRIP_BOOKING'
+                }
+              />
+            ),
+          },
+          {
+            header: 'USAGE & LIMITS',
+            accessor: (c) => {
+              const usagePercent = c.usageLimitTotal
+                ? Math.min(100, Math.round((c.usedCount / c.usageLimitTotal) * 100))
+                : 0;
+              return (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.8125rem' }}>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{c.usedCount}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>/ {c.usageLimitTotal ? c.usageLimitTotal : 'âˆž'}</span>
+                  </div>
+                  {c.usageLimitTotal && (
+                    <div
+                      style={{
+                        width: '90px',
+                        height: '4px',
+                        backgroundColor: 'var(--border-subtle)',
+                        borderRadius: '2px',
+                        marginTop: '0.375rem',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: `${usagePercent}%`,
+                          height: '100%',
+                          backgroundColor: usagePercent > 90 ? 'var(--color-danger)' : 'var(--brand-primary)',
+                        }}
+                      />
+                    </div>
+                  )}
+                  <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                    Limit {c.usageLimitPerUser}/user
+                  </div>
+                </div>
+              );
+            },
+          },
+          {
+            header: 'VALIDITY',
+            accessor: (c) => (
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                <div>{new Date(c.validFrom).toLocaleDateString()}</div>
+                <div style={{ color: 'var(--text-muted)' }}>to {new Date(c.validUntil).toLocaleDateString()}</div>
+              </div>
+            ),
+          },
+          {
+            header: 'STATUS',
+            accessor: (c) => {
+              const s = getCouponStatus(c);
+              return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <StatusBadge status={s.label} />
+                  <Button
+                    variant={c.isActive ? 'danger' : 'success'}
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleStatus(c);
+                    }}
+                  >
+                    {c.isActive ? 'Pause' : 'Enable'}
+                  </Button>
+                </div>
+              );
+            },
+          },
+          {
+            header: 'ACTIONS',
+            align: 'right',
+            accessor: (c) => (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.375rem' }}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenRedemptions(c);
+                  }}
+                >
+                  Logs ({c.redemptionsCount ?? c.usedCount})
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenEdit(c);
+                  }}
+                >
+                  Edit
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeletingCoupon(c);
+                  }}
+                >
+                  Delete
+                </Button>
+              </div>
+            ),
+          },
+        ]}
+        data={coupons}
+        keyExtractor={(c) => c.id}
+        loading={loading}
+        emptyIcon="ðŸ·ï¸"
+        emptyMessage="No promotional coupons found for this filter"
+      />
 
-                return (
-                  <tr key={coupon.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                    {/* Code & Title */}
-                    <td style={{ padding: '1rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span
-                          style={{
-                            fontFamily: 'monospace',
-                            fontWeight: 700,
-                            padding: '0.25rem 0.5rem',
-                            backgroundColor: 'rgba(99, 102, 241, 0.12)',
-                            color: 'var(--accent-primary)',
-                            borderRadius: '4px',
-                            border: '1px dashed var(--accent-primary)',
-                          }}
-                        >
-                          {coupon.code}
-                        </span>
-                      </div>
-                      <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginTop: '0.25rem' }}>
-                        {coupon.title}
-                      </div>
-                      {coupon.description && (
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>
-                          {coupon.description}
-                        </div>
-                      )}
-                    </td>
-
-                    {/* Discount */}
-                    <td style={{ padding: '1rem' }}>
-                      <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {isPercentage ? `${coupon.discountValue}% OFF` : `₹${coupon.discountValue} FLAT`}
-                      </div>
-                      {isPercentage && coupon.maxDiscountAmount && (
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                          Max cap ₹{coupon.maxDiscountAmount}
-                        </div>
-                      )}
-                    </td>
-
-                    {/* Min Spend */}
-                    <td style={{ padding: '1rem' }}>
-                      <span style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>
-                        {coupon.minOrderAmount > 0 ? `₹${coupon.minOrderAmount}` : 'No Min.'}
-                      </span>
-                    </td>
-
-                    {/* Applicable Context */}
-                    <td style={{ padding: '1rem' }}>
-                      <Badge
-                        variant={
-                          coupon.applicableTo === 'ALL'
-                            ? 'info'
-                            : coupon.applicableTo === 'WALLET_TOPUP'
-                            ? 'warning'
-                            : 'neutral'
-                        }
-                      >
-                        {coupon.applicableTo === 'ALL'
-                          ? 'Universal'
-                          : coupon.applicableTo === 'WALLET_TOPUP'
-                          ? 'Wallet Top-up'
-                          : 'Trip Booking'}
-                      </Badge>
-                    </td>
-
-                    {/* Usage & Limits */}
-                    <td style={{ padding: '1rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                          {coupon.usedCount}
-                        </span>
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                          / {coupon.usageLimitTotal ? coupon.usageLimitTotal : '∞'} used
-                        </span>
-                      </div>
-                      {coupon.usageLimitTotal && (
-                        <div
-                          style={{
-                            width: '100px',
-                            height: '4px',
-                            backgroundColor: 'var(--border)',
-                            borderRadius: '2px',
-                            marginTop: '0.375rem',
-                            overflow: 'hidden',
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: `${usagePercent}%`,
-                              height: '100%',
-                              backgroundColor: usagePercent > 90 ? 'var(--danger)' : 'var(--accent-primary)',
-                            }}
-                          />
-                        </div>
-                      )}
-                      <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                        Limit {coupon.usageLimitPerUser}/user
-                      </div>
-                    </td>
-
-                    {/* Validity Range */}
-                    <td style={{ padding: '1rem' }}>
-                      <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                        {new Date(coupon.validFrom).toLocaleDateString()}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        to {new Date(coupon.validUntil).toLocaleDateString()}
-                      </div>
-                    </td>
-
-                    {/* Status Toggle & Badge */}
-                    <td style={{ padding: '1rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <Badge variant={status.variant}>{status.label}</Badge>
-                        <button
-                          onClick={() => handleToggleStatus(coupon)}
-                          title={coupon.isActive ? 'Deactivate Coupon' : 'Activate Coupon'}
-                          style={{
-                            padding: '0.25rem 0.5rem',
-                            backgroundColor: coupon.isActive ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                            border: `1px solid ${coupon.isActive ? 'var(--danger)' : 'var(--success)'}`,
-                            color: coupon.isActive ? 'var(--danger)' : 'var(--success)',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontSize: '0.6875rem',
-                            fontWeight: 600,
-                          }}
-                        >
-                          {coupon.isActive ? 'Pause' : 'Enable'}
-                        </button>
-                      </div>
-                    </td>
-
-                    {/* Actions */}
-                    <td style={{ padding: '1rem', textAlign: 'right' }}>
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.375rem' }}>
-                        <button
-                          onClick={() => handleOpenRedemptions(coupon)}
-                          title="View Redemptions"
-                          style={{
-                            padding: '0.375rem 0.625rem',
-                            borderRadius: '4px',
-                            border: '1px solid var(--border)',
-                            backgroundColor: 'var(--bg-surface-elevated)',
-                            color: 'var(--text-primary)',
-                            fontSize: '0.75rem',
-                            cursor: 'pointer',
-                            fontWeight: 500,
-                          }}
-                        >
-                          Logs ({coupon.redemptionsCount ?? coupon.usedCount})
-                        </button>
-                        <button
-                          onClick={() => handleOpenEdit(coupon)}
-                          title="Edit Coupon"
-                          style={{
-                            padding: '0.375rem 0.625rem',
-                            borderRadius: '4px',
-                            border: '1px solid var(--border)',
-                            backgroundColor: 'var(--bg-surface-elevated)',
-                            color: 'var(--accent-primary)',
-                            fontSize: '0.75rem',
-                            cursor: 'pointer',
-                            fontWeight: 600,
-                          }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => setDeletingCoupon(coupon)}
-                          title="Delete Coupon"
-                          style={{
-                            padding: '0.375rem 0.625rem',
-                            borderRadius: '4px',
-                            border: '1px solid rgba(239, 68, 68, 0.3)',
-                            backgroundColor: 'rgba(239, 68, 68, 0.08)',
-                            color: 'var(--danger)',
-                            fontSize: '0.75rem',
-                            cursor: 'pointer',
-                            fontWeight: 600,
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
 
       {/* CREATE COUPON MODAL */}
       <Modal
@@ -755,13 +608,13 @@ export default function CouponsPage() {
                 }}
               >
                 <option value="PERCENTAGE">Percentage (%)</option>
-                <option value="FLAT">Flat Amount (₹)</option>
+                <option value="FLAT">Flat Amount (â‚¹)</option>
               </select>
             </div>
 
             <div>
               <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
-                {createForm.discountType === 'PERCENTAGE' ? 'Discount Rate (%) *' : 'Flat Discount (₹) *'}
+                {createForm.discountType === 'PERCENTAGE' ? 'Discount Rate (%) *' : 'Flat Discount (â‚¹) *'}
               </label>
               <input
                 type="number"
@@ -784,7 +637,7 @@ export default function CouponsPage() {
 
             <div>
               <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
-                Max Cap (₹)
+                Max Cap (â‚¹)
               </label>
               <input
                 type="number"
@@ -812,7 +665,7 @@ export default function CouponsPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
-                Min Order Spend (₹)
+                Min Order Spend (â‚¹)
               </label>
               <input
                 type="number"
@@ -1051,7 +904,7 @@ export default function CouponsPage() {
                 }}
               >
                 <option value="PERCENTAGE">Percentage (%)</option>
-                <option value="FLAT">Flat (₹)</option>
+                <option value="FLAT">Flat (â‚¹)</option>
               </select>
             </div>
 
@@ -1078,7 +931,7 @@ export default function CouponsPage() {
 
             <div>
               <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
-                Max Cap (₹)
+                Max Cap (â‚¹)
               </label>
               <input
                 type="number"
@@ -1105,7 +958,7 @@ export default function CouponsPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
-                Min Order Spend (₹)
+                Min Order Spend (â‚¹)
               </label>
               <input
                 type="number"
@@ -1279,11 +1132,11 @@ export default function CouponsPage() {
                         {r.referenceType}: {r.referenceId.slice(0, 14)}...
                       </span>
                     </td>
-                    <td style={{ padding: '0.75rem 1rem' }}>₹{r.orderAmount.toFixed(2)}</td>
+                    <td style={{ padding: '0.75rem 1rem' }}>â‚¹{r.orderAmount.toFixed(2)}</td>
                     <td style={{ padding: '0.75rem 1rem', color: 'var(--success)', fontWeight: 700 }}>
-                      - ₹{r.discountAmount.toFixed(2)}
+                      - â‚¹{r.discountAmount.toFixed(2)}
                     </td>
-                    <td style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>₹{r.finalAmount.toFixed(2)}</td>
+                    <td style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>â‚¹{r.finalAmount.toFixed(2)}</td>
                     <td style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>
                       {new Date(r.redeemedAt).toLocaleString()}
                     </td>

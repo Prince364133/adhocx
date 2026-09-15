@@ -111,8 +111,10 @@ class _ForgotPasswordOtpScreenState extends State<ForgotPasswordOtpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -132,7 +134,7 @@ class _ForgotPasswordOtpScreenState extends State<ForgotPasswordOtpScreen> {
                         onPressed: () => context.pop(),
                         icon: Icon(
                           Icons.arrow_back,
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
@@ -145,7 +147,7 @@ class _ForgotPasswordOtpScreenState extends State<ForgotPasswordOtpScreen> {
                   Text(
                     'Enter OTP',
                     style: AppTypography.h1(
-                      color: AppColors.textPrimaryLight,
+                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -153,7 +155,7 @@ class _ForgotPasswordOtpScreenState extends State<ForgotPasswordOtpScreen> {
                   Text(
                     "We've sent a 6-digit code to ${widget.phone}",
                     style: AppTypography.body(
-                      color: AppColors.textSecondaryLight,
+                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xxl),
@@ -171,28 +173,28 @@ class _ForgotPasswordOtpScreenState extends State<ForgotPasswordOtpScreen> {
                         height: 52,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
+                          color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(AppRadius.md),
                           border: Border.all(
                             color: isCurrent
-                                ? AppColors.primary
+                                ? (isDark ? AppColors.primaryLight : AppColors.primary)
                                 : (hasChar
-                                    ? AppColors.primaryLight
-                                    : AppColors.borderLight),
+                                    ? (isDark ? AppColors.primaryLight : AppColors.primaryLight)
+                                    : (isDark ? AppColors.borderDark : AppColors.borderLight)),
                             width: isCurrent || hasChar ? 1.8 : 1,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.03),
+                              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
                               blurRadius: 2,
-                              offset: Offset(0, 1),
+                              offset: const Offset(0, 1),
                             ),
                           ],
                         ),
                         child: Text(
                           char,
                           style: AppTypography.h2(
-                            color: AppColors.textPrimaryLight,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -206,19 +208,19 @@ class _ForgotPasswordOtpScreenState extends State<ForgotPasswordOtpScreen> {
                     child: Text(
                       'Resend OTP in 00:${_secondsRemaining.toString().padLeft(2, '0')}',
                       style: AppTypography.caption(
-                        color: AppColors.textMutedLight,
+                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                       ),
                     ),
                   ),
                   const Spacer(),
 
                   if (_isVerifying)
-                    const Center(
+                    Center(
                       child: Padding(
-                        padding: EdgeInsets.all(AppSpacing.md),
+                        padding: const EdgeInsets.all(AppSpacing.md),
                         child: CircularProgressIndicator(
                           strokeWidth: 2.5,
-                          color: AppColors.primary,
+                          color: isDark ? AppColors.primaryLight : AppColors.primary,
                         ),
                       ),
                     ),

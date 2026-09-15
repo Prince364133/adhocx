@@ -185,6 +185,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final trip = _trip as Map<String, dynamic>? ?? {};
     final req = trip['requirement'] as Map<String, dynamic>? ?? {};
     final tripId = (trip['id'] ?? 'AY10234').toString();
@@ -208,7 +209,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
     final startOtp = trip['startOtp'] ?? req['startOtp'];
 
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -222,9 +223,11 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                     vertical: AppSpacing.md,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
+                    color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                     border: Border(
-                      bottom: BorderSide(color: AppColors.borderLight),
+                      bottom: BorderSide(
+                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      ),
                     ),
                   ),
                   child: Row(
@@ -239,7 +242,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                         },
                         icon: Icon(
                           Icons.arrow_back,
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -247,7 +250,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                         child: Text(
                           'Trip Details',
                           style: AppTypography.h3(
-                            color: AppColors.textPrimaryLight,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -256,7 +259,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                         onPressed: _fetchTripDetails,
                         icon: Icon(
                           Icons.refresh,
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                       ),
                     ],
@@ -276,7 +279,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                             colors: isCompleted
                                 ? [AppColors.accentGreenDark, AppColors.accentGreenDark.withValues(alpha: 0.85)]
                                 : (isArrived
-                                    ? [AppColors.accentPurple, AppColors.primary]
+                                    ? [AppColors.accentPurple, isDark ? AppColors.primaryLight : AppColors.primary]
                                     : [AppColors.primary, AppColors.primaryHover]),
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
@@ -345,9 +348,11 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                       Container(
                         padding: const EdgeInsets.all(AppSpacing.lg),
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
+                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: AppColors.borderLight),
+                          border: Border.all(
+                            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                          ),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -355,7 +360,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                             Text(
                               'Route ($vehicle)',
                               style: AppTypography.caption(
-                                color: AppColors.textMutedLight,
+                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -369,7 +374,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                                   width: 10,
                                   height: 10,
                                   margin: const EdgeInsets.only(top: 4),
-                                  decoration: BoxDecoration(
+                                  decoration: const BoxDecoration(
                                     color: AppColors.accentGreenDark,
                                     shape: BoxShape.circle,
                                   ),
@@ -382,14 +387,16 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                                       Text(
                                         'Pickup',
                                         style: AppTypography.body(
-                                          color: AppColors.textPrimaryLight,
+                                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
                                         pickup,
-                                        style: AppTypography.caption(color: AppColors.textSecondaryLight),
+                                        style: AppTypography.caption(
+                                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -406,7 +413,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                                   width: 10,
                                   height: 10,
                                   margin: const EdgeInsets.only(top: 4),
-                                  decoration: BoxDecoration(
+                                  decoration: const BoxDecoration(
                                     color: AppColors.error,
                                     shape: BoxShape.circle,
                                   ),
@@ -419,14 +426,16 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                                       Text(
                                         'Drop',
                                         style: AppTypography.body(
-                                          color: AppColors.textPrimaryLight,
+                                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
                                         drop,
-                                        style: AppTypography.caption(color: AppColors.textSecondaryLight),
+                                        style: AppTypography.caption(
+                                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -442,9 +451,11 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                       Container(
                         height: 180,
                         decoration: BoxDecoration(
-                          color: AppColors.borderLight,
+                          color: isDark ? AppColors.surfaceDark : AppColors.borderLight,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: AppColors.borderLight),
+                          border: Border.all(
+                            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                          ),
                         ),
                         child: Stack(
                           children: [
@@ -452,7 +463,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                               child: Icon(
                                 Icons.map_outlined,
                                 size: 80,
-                                color: AppColors.infoContainer,
+                                color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.3),
                               ),
                             ),
                             Positioned(
@@ -461,13 +472,13 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primary,
+                                  color: isDark ? AppColors.primaryLight : AppColors.primary,
                                   borderRadius: BorderRadius.circular(AppRadius.full),
                                 ),
                                 child: Text(
                                   'GPS Tracking Active',
                                   style: AppTypography.caption(
-                                    color: Colors.white,
+                                    color: isDark ? AppColors.bgDark : Colors.white,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -486,6 +497,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                               icon: Icons.navigation_outlined,
                               label: 'Distance',
                               value: '18.4 km',
+                              isDark: isDark,
                             ),
                           ),
                           const SizedBox(width: AppSpacing.md),
@@ -494,6 +506,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                               icon: Icons.access_time,
                               label: 'Est. duration',
                               value: '35 min',
+                              isDark: isDark,
                             ),
                           ),
                           const SizedBox(width: AppSpacing.md),
@@ -502,7 +515,8 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                               icon: Icons.account_balance_wallet_outlined,
                               label: 'Earnings',
                               value: payout,
-                              valueColor: AppColors.accentGreenDark,
+                              valueColor: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
+                              isDark: isDark,
                             ),
                           ),
                         ],
@@ -513,16 +527,21 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                       Container(
                         padding: const EdgeInsets.all(AppSpacing.md),
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
+                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: AppColors.borderLight),
+                          border: Border.all(
+                            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                          ),
                         ),
                         child: Row(
                           children: [
-                            const CircleAvatar(
+                            CircleAvatar(
                               radius: 20,
-                              backgroundColor: AppColors.borderLight,
-                              child: Icon(Icons.person, color: AppColors.textSecondaryLight),
+                              backgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.borderLight,
+                              child: Icon(
+                                Icons.person,
+                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                              ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -532,24 +551,32 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                                   Text(
                                     passengerName,
                                     style: AppTypography.body(
-                                      color: AppColors.textPrimaryLight,
+                                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                   Text(
                                     passengerPhone,
-                                    style: AppTypography.caption(color: AppColors.textMutedLight),
+                                    style: AppTypography.caption(
+                                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
                             IconButton(
                               onPressed: () => _callPassenger(passengerPhone),
-                              icon: Icon(Icons.phone_outlined, color: AppColors.primary),
+                              icon: Icon(
+                                Icons.phone_outlined,
+                                color: isDark ? AppColors.primaryLight : AppColors.primary,
+                              ),
                             ),
                             IconButton(
                               onPressed: () => _openChat(passengerName),
-                              icon: Icon(Icons.chat_bubble_outline_rounded, color: AppColors.primary),
+                              icon: Icon(
+                                Icons.chat_bubble_outline_rounded,
+                                color: isDark ? AppColors.primaryLight : AppColors.primary,
+                              ),
                             ),
                           ],
                         ),
@@ -567,8 +594,10 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                                 label: const Text('NAVIGATE'),
                                 style: OutlinedButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(vertical: 14),
-                                  side: BorderSide(color: AppColors.primary),
-                                  foregroundColor: AppColors.primary,
+                                  side: BorderSide(
+                                    color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                  ),
+                                  foregroundColor: isDark ? AppColors.primaryLight : AppColors.primary,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(AppRadius.md),
                                   ),
@@ -595,8 +624,10 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                                 label: const Text('NAVIGATE'),
                                 style: OutlinedButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(vertical: 14),
-                                  side: BorderSide(color: AppColors.primary),
-                                  foregroundColor: AppColors.primary,
+                                  side: BorderSide(
+                                    color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                  ),
+                                  foregroundColor: isDark ? AppColors.primaryLight : AppColors.primary,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(AppRadius.md),
                                   ),
@@ -623,8 +654,10 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                                 label: const Text('NAVIGATE'),
                                 style: OutlinedButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(vertical: 14),
-                                  side: BorderSide(color: AppColors.primary),
-                                  foregroundColor: AppColors.primary,
+                                  side: BorderSide(
+                                    color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                  ),
+                                  foregroundColor: isDark ? AppColors.primaryLight : AppColors.primary,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(AppRadius.md),
                                   ),
@@ -645,18 +678,24 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                         Container(
                           padding: const EdgeInsets.all(AppSpacing.md),
                           decoration: BoxDecoration(
-                            color: AppColors.accentGreenDark.withValues(alpha: 0.12),
+                            color: AppColors.accentGreenDark.withValues(alpha: isDark ? 0.2 : 0.12),
                             borderRadius: BorderRadius.circular(AppRadius.md),
+                            border: Border.all(
+                              color: isDark ? AppColors.accentGreenDark.withValues(alpha: 0.3) : Colors.transparent,
+                            ),
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.check_circle, color: AppColors.accentGreenDark),
+                              Icon(
+                                Icons.check_circle,
+                                color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
+                              ),
                               const SizedBox(width: 8),
                               Text(
                                 'Trip Settled & Payout Complete ($payout)',
                                 style: AppTypography.body(
-                                  color: AppColors.accentGreenDark,
+                                  color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -679,28 +718,37 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
     required IconData icon,
     required String label,
     required String value,
+    required bool isDark,
     Color? valueColor,
   }) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.borderLight),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
       ),
       child: Column(
         children: [
-          Icon(icon, size: 18, color: AppColors.textMutedLight),
+          Icon(
+            icon,
+            size: 18,
+            color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+          ),
           const SizedBox(height: 4),
           Text(
             label,
-            style: AppTypography.caption(color: AppColors.textMutedLight).copyWith(fontSize: 11),
+            style: AppTypography.caption(
+              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+            ).copyWith(fontSize: 11),
           ),
           const SizedBox(height: 2),
           Text(
             value,
             style: AppTypography.body(
-              color: valueColor ?? AppColors.textPrimaryLight,
+              color: valueColor ?? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -709,4 +757,3 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
     );
   }
 }
-

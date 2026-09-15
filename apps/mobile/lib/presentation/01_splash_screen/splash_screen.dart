@@ -13,8 +13,10 @@ class SplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: Stack(
         children: [
           // ── Background Illustrated Artwork ─────────────────────────────────
@@ -25,14 +27,19 @@ class SplashScreen extends StatelessWidget {
               alignment: Alignment.center,
               errorBuilder: (context, error, stackTrace) {
                 return Container(
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [
-                        AppColors.primarySubtle,
-                        AppColors.borderLight,
-                      ],
+                      colors: isDark
+                          ? [
+                              AppColors.surfaceElevatedDark,
+                              AppColors.bgDark,
+                            ]
+                          : [
+                              AppColors.primarySubtle,
+                              AppColors.borderLight,
+                            ],
                     ),
                   ),
                 );
@@ -48,12 +55,19 @@ class SplashScreen extends StatelessWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   stops: const [0.0, 0.25, 0.65, 1.0],
-                  colors: [
-                    Colors.white.withValues(alpha: 0.92),
-                    Colors.white.withValues(alpha: 0.2),
-                    Colors.white.withValues(alpha: 0.4),
-                    Colors.white.withValues(alpha: 0.96),
-                  ],
+                  colors: isDark
+                      ? [
+                          AppColors.bgDark.withValues(alpha: 0.95),
+                          AppColors.bgDark.withValues(alpha: 0.6),
+                          AppColors.bgDark.withValues(alpha: 0.8),
+                          AppColors.bgDark.withValues(alpha: 0.98),
+                        ]
+                      : [
+                          Colors.white.withValues(alpha: 0.92),
+                          Colors.white.withValues(alpha: 0.2),
+                          Colors.white.withValues(alpha: 0.4),
+                          Colors.white.withValues(alpha: 0.96),
+                        ],
                 ),
               ),
             ),
@@ -84,7 +98,7 @@ class SplashScreen extends StatelessWidget {
                                 TextSpan(
                                   text: 'Adhoc',
                                   style: AppTypography.display(
-                                    color: AppColors.primary,
+                                    color: isDark ? AppColors.primaryLight : AppColors.primary,
                                     fontWeight: FontWeight.w900,
                                     fontSize: 44,
                                   ),
@@ -105,7 +119,7 @@ class SplashScreen extends StatelessWidget {
                           Text(
                             'Your ride. Your way.',
                             style: AppTypography.bodyLarge(
-                              color: AppColors.textSecondaryLight,
+                              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                               fontWeight: FontWeight.w600,
                             ),
                             textAlign: TextAlign.center,
@@ -117,16 +131,16 @@ class SplashScreen extends StatelessWidget {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.08),
+                              color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: AppColors.primary.withValues(alpha: 0.2),
+                                color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.3),
                               ),
                             ),
                             child: Text(
                               'Corporate Mobility & Bulk Booking Platform',
                               style: TextStyle(
-                                color: AppColors.primary,
+                                color: isDark ? AppColors.primaryLight : AppColors.primary,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.4,
@@ -143,15 +157,15 @@ class SplashScreen extends StatelessWidget {
                           vertical: AppSpacing.md,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.92),
+                          color: isDark ? AppColors.surfaceDark.withValues(alpha: 0.95) : Colors.white.withValues(alpha: 0.92),
                           borderRadius: BorderRadius.circular(AppRadius.lg),
                           border: Border.all(
-                            color: Colors.white,
+                            color: isDark ? AppColors.borderDark : Colors.white,
                             width: 1.5,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.08),
+                              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
                               blurRadius: 16,
                               offset: const Offset(0, 4),
                             ),
@@ -161,9 +175,10 @@ class SplashScreen extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             _buildFeatureRow(
+                              isDark: isDark,
                               icon: Icons.corporate_fare_rounded,
-                              iconBg: AppColors.primary.withValues(alpha: 0.12),
-                              iconColor: AppColors.primary,
+                              iconBg: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.15),
+                              iconColor: isDark ? AppColors.primaryLight : AppColors.primary,
                               title: 'Corporate Bulk Booking',
                               subtitle:
                                   'Multi-vehicle fleet reservation & group transit',
@@ -171,11 +186,12 @@ class SplashScreen extends StatelessWidget {
                             Divider(
                               height: 18,
                               thickness: 1,
-                              color: AppColors.surfaceElevatedLight,
+                              color: isDark ? AppColors.borderDark : AppColors.surfaceElevatedLight,
                             ),
                             _buildFeatureRow(
+                              isDark: isDark,
                               icon: Icons.hub_rounded,
-                              iconBg: AppColors.info.withValues(alpha: 0.12),
+                              iconBg: AppColors.info.withValues(alpha: 0.15),
                               iconColor: AppColors.info,
                               title: 'Location & Hub Dispatch',
                               subtitle:
@@ -184,11 +200,12 @@ class SplashScreen extends StatelessWidget {
                             Divider(
                               height: 18,
                               thickness: 1,
-                              color: AppColors.surfaceElevatedLight,
+                              color: isDark ? AppColors.borderDark : AppColors.surfaceElevatedLight,
                             ),
                             _buildFeatureRow(
+                              isDark: isDark,
                               icon: Icons.verified_user_rounded,
-                              iconBg: AppColors.brandOrange.withValues(alpha: 0.12),
+                              iconBg: AppColors.brandOrange.withValues(alpha: 0.15),
                               iconColor: AppColors.brandOrange,
                               title: 'Enterprise SLAs',
                               subtitle:
@@ -215,24 +232,24 @@ class SplashScreen extends StatelessWidget {
                             child: OutlinedButton(
                               onPressed: () => context.push(AppRoutes.signInScreen),
                               style: OutlinedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: AppColors.primary,
+                                backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
+                                foregroundColor: isDark ? AppColors.primaryLight : AppColors.primary,
                                 side: BorderSide(
-                                  color: AppColors.primary,
+                                  color: isDark ? AppColors.primaryLight : AppColors.primary,
                                   width: 1.5,
                                 ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius:
                                       BorderRadius.circular(AppRadius.md),
                                 ),
-                                elevation: 2,
+                                elevation: isDark ? 0 : 2,
                                 shadowColor:
                                     Colors.black.withValues(alpha: 0.06),
                               ),
                               child: Text(
                                 'Log In',
                                 style: AppTypography.body(
-                                  color: AppColors.primary,
+                                  color: isDark ? AppColors.primaryLight : AppColors.primary,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -253,6 +270,7 @@ class SplashScreen extends StatelessWidget {
   }
 
   Widget _buildFeatureRow({
+    required bool isDark,
     required IconData icon,
     required Color iconBg,
     required Color iconColor,
@@ -278,7 +296,7 @@ class SplashScreen extends StatelessWidget {
               Text(
                 title,
                 style: TextStyle(
-                  color: AppColors.textPrimaryLight,
+                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),
@@ -287,7 +305,7 @@ class SplashScreen extends StatelessWidget {
               Text(
                 subtitle,
                 style: TextStyle(
-                  color: AppColors.textSecondaryLight,
+                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
                 ),

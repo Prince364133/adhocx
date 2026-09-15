@@ -100,6 +100,8 @@ class _AppOtpFieldState extends State<AppOtpField> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: List.generate(widget.length, (index) {
@@ -119,23 +121,25 @@ class _AppOtpFieldState extends State<AppOtpField> {
                 FilteringTextInputFormatter.digitsOnly,
                 LengthLimitingTextInputFormatter(widget.length), // Allow paste
               ],
-              cursorColor: AppColors.primaryLight,
-              style: AppTypography.h2(color: AppColors.textPrimaryDark),
+              cursorColor: isDark ? AppColors.primaryLight : AppColors.primary,
+              style: AppTypography.h2(
+                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+              ),
               decoration: InputDecoration(
                 filled: true,
-                fillColor: AppColors.surfaceDark,
+                fillColor: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight,
                 contentPadding: EdgeInsets.zero,
                 enabledBorder: OutlineInputBorder(
                   borderRadius: AppRadius.borderMd,
                   borderSide: BorderSide(
-                    color: AppColors.borderDark,
+                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
                     width: 1.2,
                   ),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: AppRadius.borderMd,
                   borderSide: BorderSide(
-                    color: AppColors.primary,
+                    color: isDark ? AppColors.primaryLight : AppColors.primary,
                     width: 2.0,
                   ),
                 ),

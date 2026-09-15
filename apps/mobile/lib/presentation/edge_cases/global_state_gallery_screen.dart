@@ -33,8 +33,10 @@ class _GlobalStateGalleryScreenState extends State<GlobalStateGalleryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -48,9 +50,11 @@ class _GlobalStateGalleryScreenState extends State<GlobalStateGalleryScreen> {
                     vertical: AppSpacing.md,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
+                    color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                     border: Border(
-                      bottom: BorderSide(color: AppColors.borderLight),
+                      bottom: BorderSide(
+                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      ),
                     ),
                   ),
                   child: Row(
@@ -65,7 +69,7 @@ class _GlobalStateGalleryScreenState extends State<GlobalStateGalleryScreen> {
                         },
                         icon: Icon(
                           Icons.arrow_back,
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -73,7 +77,7 @@ class _GlobalStateGalleryScreenState extends State<GlobalStateGalleryScreen> {
                         child: Text(
                           '10 Global States Gallery',
                           style: AppTypography.h3(
-                            color: AppColors.textPrimaryLight,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -84,7 +88,7 @@ class _GlobalStateGalleryScreenState extends State<GlobalStateGalleryScreen> {
 
                 // ── Pill Selector Bar ─────────────────────────────────────────
                 Container(
-                  color: AppColors.surfaceLight,
+                  color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
@@ -110,10 +114,14 @@ class _GlobalStateGalleryScreenState extends State<GlobalStateGalleryScreen> {
                             margin: const EdgeInsets.only(right: 6),
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: isSelected ? AppColors.primary : AppColors.bgLight,
+                              color: isSelected
+                                  ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                                  : (isDark ? AppColors.surfaceElevatedDark : AppColors.bgLight),
                               borderRadius: BorderRadius.circular(AppRadius.full),
                               border: Border.all(
-                                color: isSelected ? AppColors.primary : AppColors.borderLight,
+                                color: isSelected
+                                    ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                                    : (isDark ? AppColors.borderDark : AppColors.borderLight),
                               ),
                             ),
                             child: Text(
@@ -121,7 +129,9 @@ class _GlobalStateGalleryScreenState extends State<GlobalStateGalleryScreen> {
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                color: isSelected ? Colors.white : AppColors.textPrimaryLight,
+                                color: isSelected
+                                    ? (isDark ? AppColors.bgDark : Colors.white)
+                                    : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
                               ),
                             ),
                           ),
@@ -130,7 +140,10 @@ class _GlobalStateGalleryScreenState extends State<GlobalStateGalleryScreen> {
                     ),
                   ),
                 ),
-                Divider(height: 1, color: AppColors.borderLight),
+                Divider(
+                  height: 1,
+                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                ),
 
                 // ── Displayed State Body ─────────────────────────────────────
                 Expanded(

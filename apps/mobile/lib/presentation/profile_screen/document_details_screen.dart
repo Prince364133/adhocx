@@ -13,6 +13,7 @@ class DocumentDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final docs = [
       {
         'title': 'Driving License',
@@ -59,7 +60,7 @@ class DocumentDetailsScreen extends StatelessWidget {
     ];
 
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -73,9 +74,11 @@ class DocumentDetailsScreen extends StatelessWidget {
                     vertical: AppSpacing.md,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
+                    color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                     border: Border(
-                      bottom: BorderSide(color: AppColors.borderLight),
+                      bottom: BorderSide(
+                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      ),
                     ),
                   ),
                   child: Row(
@@ -90,7 +93,7 @@ class DocumentDetailsScreen extends StatelessWidget {
                         },
                         icon: Icon(
                           Icons.arrow_back,
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -98,7 +101,7 @@ class DocumentDetailsScreen extends StatelessWidget {
                         child: Text(
                           'Document Details',
                           style: AppTypography.h3(
-                            color: AppColors.textPrimaryLight,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -119,21 +122,23 @@ class DocumentDetailsScreen extends StatelessWidget {
                       return Container(
                         padding: const EdgeInsets.all(AppSpacing.lg),
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
+                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: AppColors.borderLight),
+                          border: Border.all(
+                            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                          ),
                         ),
                         child: Row(
                           children: [
                             Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.1),
+                                color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: isDark ? 0.2 : 0.1),
                                 borderRadius: BorderRadius.circular(AppRadius.md),
                               ),
                               child: Icon(
                                 doc['icon'] as IconData,
-                                color: AppColors.primary,
+                                color: isDark ? AppColors.primaryLight : AppColors.primary,
                                 size: 22,
                               ),
                             ),
@@ -145,7 +150,7 @@ class DocumentDetailsScreen extends StatelessWidget {
                                   Text(
                                     doc['title'] as String,
                                     style: AppTypography.body(
-                                      color: AppColors.textPrimaryLight,
+                                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -153,13 +158,13 @@ class DocumentDetailsScreen extends StatelessWidget {
                                   Text(
                                     'Number: ${doc['docNumber']}',
                                     style: AppTypography.caption(
-                                      color: AppColors.textSecondaryLight,
+                                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                                     ),
                                   ),
                                   Text(
                                     'Valid Till: ${doc['validTill']}',
                                     style: AppTypography.caption(
-                                      color: AppColors.textMutedLight,
+                                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                                     ),
                                   ),
                                 ],
@@ -171,13 +176,13 @@ class DocumentDetailsScreen extends StatelessWidget {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: AppColors.accentGreenDark.withValues(alpha: 0.12),
+                                    color: AppColors.accentGreenDark.withValues(alpha: isDark ? 0.2 : 0.12),
                                     borderRadius: BorderRadius.circular(AppRadius.xs),
                                   ),
                                   child: Text(
                                     doc['status'] as String,
                                     style: AppTypography.caption(
-                                      color: AppColors.accentGreenDark,
+                                      color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
                                       fontWeight: FontWeight.bold,
                                     ).copyWith(fontSize: 10),
                                   ),
@@ -190,7 +195,7 @@ class DocumentDetailsScreen extends StatelessWidget {
                                   child: Text(
                                     'View Photo',
                                     style: AppTypography.caption(
-                                      color: AppColors.primary,
+                                      color: isDark ? AppColors.primaryLight : AppColors.primary,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),

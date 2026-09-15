@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../routes/app_routes.dart';
 import '../../services/user_service.dart';
+import '../../shared/animations/app_bouncing_wrapper.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
@@ -16,19 +18,32 @@ class UserActiveTripScreen extends StatefulWidget {
   State<UserActiveTripScreen> createState() => _UserActiveTripScreenState();
 }
 
-class _UserActiveTripScreenState extends State<UserActiveTripScreen> {
+class _UserActiveTripScreenState extends State<UserActiveTripScreen>
+    with SingleTickerProviderStateMixin {
   Map<String, dynamic>? _trip;
   bool _isLoading = true;
+  late AnimationController _pulseController;
 
   @override
   void initState() {
     super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat(reverse: true);
+
     if (widget.trip != null) {
       _trip = widget.trip;
       _isLoading = false;
     } else {
       _loadActiveTrip();
     }
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadActiveTrip() async {
@@ -62,6 +77,7 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen> {
     final rating = (driver?['rating'] ?? 4.8).toString();
     final status = (trip['status'] ?? 'IN_PROGRESS').toString();
     final tripCode = trip['tripCode'] ?? trip['id'] ?? 'TRP-LIVE';
+    final otp = trip['startOtp'] ?? trip['otp'] ?? '4829';
 
     final pickup = trip['pickupLocation'] as Map<String, dynamic>?;
     final drop = trip['dropLocation'] as Map<String, dynamic>?;
@@ -74,10 +90,10 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen> {
     final isCompleted = status == 'COMPLETED';
 
     final timelineSteps = [
-      {'time': 'Assigned', 'title': 'Driver Assigned & Accepted', 'isDone': isAssigned},
+      {'time': 'Assigned', 'title': 'Driver Assigned & Accepted', 'isDone': isAssigned, 'isCurrent': status == 'ACCEPTED' || status == 'ASSIGNED'},
       {'time': 'Arrived', 'title': 'Driver Arrived at Pickup Location', 'isDone': isArrived, 'isCurrent': status == 'ARRIVED'},
-      {'time': 'In-Transit', 'title': 'Trip In Progress with OTP Verification', 'isDone': isStarted, 'isCurrent': status == 'IN_PROGRESS'},
-      {'time': 'Completed', 'title': 'Dropoff & Trip Settlement', 'isDone': isCompleted},
+      {'time': 'In-Transit', 'title': 'Trip In Progress with Live Telemetry', 'isDone': isStarted, 'isCurrent': status == 'IN_PROGRESS'},
+      {'time': 'Completed', 'title': 'Dropoff & Trip Settlement', 'isDone': isCompleted, 'isCurrent': status == 'COMPLETED'},
     ];
 
     final initials = driverName.split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join().toUpperCase();
@@ -138,12 +154,33 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: AppColors.info.withValues(alpha: 0.15),
+                            color: AppColors.info.withAlpha(35),
                             borderRadius: BorderRadius.circular(AppRadius.sm),
+                            border: Border.all(color: AppColors.info.withAlpha(60)),
                           ),
-                          child: Text(
-                            status,
-                            style: TextStyle(color: AppColors.info, fontWeight: FontWeight.bold, fontSize: 12),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppColors.info,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AppColors.info.withAlpha(150),
+                                      blurRadius: 6,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                status,
+                                style: const TextStyle(color: AppColors.info, fontWeight: FontWeight.bold, fontSize: 12),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -158,6 +195,13 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen> {
                         color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                         borderRadius: BorderRadius.circular(AppRadius.lg),
                         border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withAlpha(20),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
                       ),
                       child: Row(
                         children: [
@@ -203,15 +247,84 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen> {
                               ],
                             ),
                           ),
-                          IconButton(
-                            onPressed: () {},
-                            icon: Container(
-                              padding: const EdgeInsets.all(8),
+                          AppBouncingWrapper(
+                            onTap: () {},
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.1),
+                                color: AppColors.primary.withAlpha(30),
                                 shape: BoxShape.circle,
                               ),
-                              child: Icon(Icons.phone, color: AppColors.primary, size: 20),
+                              child: const Icon(Icons.phone, color: AppColors.primary, size: 20),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: AppSpacing.lg),
+
+                    // Start OTP Verification Card
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withAlpha(18),
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                        border: Border.all(color: AppColors.primary.withAlpha(60)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'START TRIP OTP',
+                                style: AppTypography.caption(
+                                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Share with driver at pickup',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                ),
+                              ),
+                            ],
+                          ),
+                          AppBouncingWrapper(
+                            onTap: () {
+                              Clipboard.setData(ClipboardData(text: otp.toString()));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Trip OTP copied to clipboard!'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                borderRadius: BorderRadius.circular(AppRadius.md),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.primary.withAlpha(80),
+                                    blurRadius: 8,
+                                  ),
+                                ],
+                              ),
+                              child: Text(
+                                otp.toString(),
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 3,
+                                  color: Colors.white,
+                                ),
+                              ),
                             ),
                           ),
                         ],
@@ -272,7 +385,7 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen> {
 
                     const SizedBox(height: AppSpacing.xl),
 
-                    // Timeline Stepper Section
+                    // Timeline Stepper Section with Pulsing Active Step
                     Text(
                       'Trip Lifecycle',
                       style: AppTypography.h3(
@@ -294,6 +407,7 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen> {
                         children: List.generate(timelineSteps.length, (index) {
                           final step = timelineSteps[index];
                           final isDone = step['isDone'] == true;
+                          final isCurrent = step['isCurrent'] == true;
                           final isLast = index == timelineSteps.length - 1;
 
                           return Row(
@@ -312,14 +426,36 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen> {
                               ),
                               Column(
                                 children: [
-                                  Container(
-                                    width: 12,
-                                    height: 12,
-                                    decoration: BoxDecoration(
-                                      color: isDone ? AppColors.primary : AppColors.slate400,
-                                      shape: BoxShape.circle,
+                                  if (isCurrent)
+                                    AnimatedBuilder(
+                                      animation: _pulseController,
+                                      builder: (context, _) {
+                                        return Container(
+                                          width: 14,
+                                          height: 14,
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primary,
+                                            shape: BoxShape.circle,
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: AppColors.primary.withAlpha((_pulseController.value * 180).toInt()),
+                                                blurRadius: 10,
+                                                spreadRadius: 2,
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    )
+                                  else
+                                    Container(
+                                      width: 12,
+                                      height: 12,
+                                      decoration: BoxDecoration(
+                                        color: isDone ? AppColors.primary : AppColors.slate400,
+                                        shape: BoxShape.circle,
+                                      ),
                                     ),
-                                  ),
                                   if (!isLast) Container(width: 2, height: 32, color: isDone ? AppColors.primary : AppColors.slate300),
                                 ],
                               ),

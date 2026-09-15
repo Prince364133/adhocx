@@ -69,12 +69,13 @@ class _EarningsTransactionsScreenState extends State<EarningsTransactionsScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final filteredList = _selectedFilter == 'All'
         ? _transactions
         : _transactions.where((t) => t['category'] == _selectedFilter).toList();
 
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -88,9 +89,11 @@ class _EarningsTransactionsScreenState extends State<EarningsTransactionsScreen>
                     vertical: AppSpacing.md,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
+                    color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                     border: Border(
-                      bottom: BorderSide(color: AppColors.borderLight),
+                      bottom: BorderSide(
+                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      ),
                     ),
                   ),
                   child: Row(
@@ -105,7 +108,7 @@ class _EarningsTransactionsScreenState extends State<EarningsTransactionsScreen>
                         },
                         icon: Icon(
                           Icons.arrow_back,
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -113,7 +116,7 @@ class _EarningsTransactionsScreenState extends State<EarningsTransactionsScreen>
                         child: Text(
                           'Transactions',
                           style: AppTypography.h3(
-                            color: AppColors.textPrimaryLight,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -124,7 +127,7 @@ class _EarningsTransactionsScreenState extends State<EarningsTransactionsScreen>
                         },
                         icon: Icon(
                           Icons.filter_list_rounded,
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                       ),
                     ],
@@ -148,10 +151,14 @@ class _EarningsTransactionsScreenState extends State<EarningsTransactionsScreen>
                               vertical: 8,
                             ),
                             decoration: BoxDecoration(
-                              color: isSelected ? AppColors.primary : AppColors.surfaceLight,
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
                               borderRadius: BorderRadius.circular(AppRadius.full),
                               border: Border.all(
-                                color: isSelected ? AppColors.primary : AppColors.borderLight,
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : (isDark ? AppColors.borderDark : AppColors.borderLight),
                               ),
                             ),
                             child: Text(
@@ -159,7 +166,9 @@ class _EarningsTransactionsScreenState extends State<EarningsTransactionsScreen>
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                color: isSelected ? Colors.white : AppColors.textPrimaryLight,
+                                color: isSelected
+                                    ? Colors.white
+                                    : (isDark ? AppColors.textSecondaryDark : AppColors.textPrimaryLight),
                               ),
                             ),
                           ),
@@ -177,7 +186,12 @@ class _EarningsTransactionsScreenState extends State<EarningsTransactionsScreen>
                           ? Center(
                               child: Padding(
                                 padding: const EdgeInsets.all(32),
-                                child: Text('No transactions recorded yet', style: AppTypography.body(color: AppColors.textSecondaryLight)),
+                                child: Text(
+                                  'No transactions recorded yet',
+                                  style: AppTypography.body(
+                                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                  ),
+                                ),
                               ),
                             )
                           : ListView(
@@ -186,7 +200,7 @@ class _EarningsTransactionsScreenState extends State<EarningsTransactionsScreen>
                                 Text(
                                   'Recent Activity',
                                   style: AppTypography.caption(
-                                    color: AppColors.textMutedLight,
+                                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -194,9 +208,11 @@ class _EarningsTransactionsScreenState extends State<EarningsTransactionsScreen>
 
                                 Container(
                                   decoration: BoxDecoration(
-                                    color: AppColors.surfaceLight,
+                                    color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                                     borderRadius: BorderRadius.circular(AppRadius.lg),
-                                    border: Border.all(color: AppColors.borderLight),
+                                    border: Border.all(
+                                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                    ),
                                   ),
                                   child: Column(
                                     children: List.generate(filteredList.length, (index) {
@@ -206,82 +222,89 @@ class _EarningsTransactionsScreenState extends State<EarningsTransactionsScreen>
                                       return Column(
                                         children: [
                                           ListTile(
-                                  onTap: () {
-                                    if (tx['isWithdrawal'] == true) {
-                                      context.push(AppRoutes.earningsWithdrawalDetailsScreen);
-                                    }
-                                  },
-                                  leading: Container(
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.bgLight,
-                                      borderRadius: BorderRadius.circular(AppRadius.md),
-                                    ),
-                                    child: Icon(
-                                      tx['icon'] as IconData,
-                                      size: 20,
-                                      color: tx['isCredit'] ? AppColors.accentGreenDark : AppColors.error,
-                                    ),
-                                  ),
-                                  title: Row(
-                                    children: [
-                                      Text(
-                                        tx['title'] as String,
-                                        style: AppTypography.body(
-                                          color: AppColors.textPrimaryLight,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  subtitle: Text(
-                                    '${tx['subtitle']}\n${tx['date']}',
-                                    style: AppTypography.caption(
-                                      color: AppColors.textMutedLight,
-                                    ),
-                                  ),
-                                  isThreeLine: true,
-                                  trailing: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(
-                                        tx['amount'] as String,
-                                        style: AppTypography.body(
-                                          color: tx['isCredit'] ? AppColors.accentGreenDark : AppColors.error,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      if (tx['status'] != null) ...[
-                                        const SizedBox(height: 2),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.accentGreenDark.withValues(alpha: 0.12),
-                                            borderRadius: BorderRadius.circular(AppRadius.xs),
+                                            onTap: () {
+                                              if (tx['isWithdrawal'] == true) {
+                                                context.push(AppRoutes.earningsWithdrawalDetailsScreen);
+                                              }
+                                            },
+                                            leading: Container(
+                                              padding: const EdgeInsets.all(10),
+                                              decoration: BoxDecoration(
+                                                color: isDark ? AppColors.surfaceElevatedDark : AppColors.bgLight,
+                                                borderRadius: BorderRadius.circular(AppRadius.md),
+                                              ),
+                                              child: Icon(
+                                                tx['icon'] as IconData,
+                                                size: 20,
+                                                color: tx['isCredit']
+                                                    ? (isDark ? AppColors.accentGreen : AppColors.accentGreenDark)
+                                                    : AppColors.error,
+                                              ),
+                                            ),
+                                            title: Row(
+                                              children: [
+                                                Text(
+                                                  tx['title'] as String,
+                                                  style: AppTypography.body(
+                                                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            subtitle: Text(
+                                              '${tx['subtitle']}\n${tx['date']}',
+                                              style: AppTypography.caption(
+                                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                              ),
+                                            ),
+                                            isThreeLine: true,
+                                            trailing: Column(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              crossAxisAlignment: CrossAxisAlignment.end,
+                                              children: [
+                                                Text(
+                                                  tx['amount'] as String,
+                                                  style: AppTypography.body(
+                                                    color: tx['isCredit']
+                                                        ? (isDark ? AppColors.accentGreen : AppColors.accentGreenDark)
+                                                        : AppColors.error,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                if (tx['status'] != null) ...[
+                                                  const SizedBox(height: 2),
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                    decoration: BoxDecoration(
+                                                      color: AppColors.accentGreenDark.withValues(alpha: isDark ? 0.2 : 0.12),
+                                                      borderRadius: BorderRadius.circular(AppRadius.xs),
+                                                    ),
+                                                    child: Text(
+                                                      tx['status'] as String,
+                                                      style: AppTypography.caption(
+                                                        color: isDark ? AppColors.accentGreen : AppColors.accentGreenDark,
+                                                        fontWeight: FontWeight.bold,
+                                                      ).copyWith(fontSize: 10),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
                                           ),
-                                          child: Text(
-                                            tx['status'] as String,
-                                            style: AppTypography.caption(
-                                              color: AppColors.accentGreenDark,
-                                              fontWeight: FontWeight.bold,
-                                            ).copyWith(fontSize: 10),
-                                          ),
-                                        ),
-                                      ],
-                                    ],
+                                          if (!isLast)
+                                            Divider(
+                                              height: 1,
+                                              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                            ),
+                                        ],
+                                      );
+                                    }),
                                   ),
                                 ),
-                                if (!isLast)
-                                  Divider(height: 1, color: AppColors.borderLight),
+                                const SizedBox(height: AppSpacing.xxl),
                               ],
-                            );
-                          }),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xxl),
-                    ],
-                  ),
+                            ),
                 ),
               ],
             ),

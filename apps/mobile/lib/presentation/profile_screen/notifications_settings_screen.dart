@@ -24,8 +24,10 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -39,9 +41,9 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                     vertical: AppSpacing.md,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
+                    color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                     border: Border(
-                      bottom: BorderSide(color: AppColors.borderLight),
+                      bottom: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                     ),
                   ),
                   child: Row(
@@ -56,14 +58,14 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                         },
                         icon: Icon(
                           Icons.arrow_back,
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                       ),
                       const SizedBox(width: 8),
                       Text(
                         'Notifications',
                         style: AppTypography.h3(
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -80,14 +82,14 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                       Container(
                         padding: const EdgeInsets.all(AppSpacing.md),
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
+                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: AppColors.borderLight),
+                          border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.03),
+                              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
                               blurRadius: 4,
-                              offset: Offset(0, 2),
+                              offset: const Offset(0, 2),
                             ),
                           ],
                         ),
@@ -96,12 +98,12 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                             Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.12),
+                                color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(AppRadius.md),
                               ),
                               child: Icon(
                                 Icons.notifications_none_outlined,
-                                color: AppColors.primary,
+                                color: isDark ? AppColors.primaryLight : AppColors.primary,
                               ),
                             ),
                             const SizedBox(width: 14),
@@ -112,7 +114,7 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                                   Text(
                                     'Push Notifications',
                                     style: AppTypography.body(
-                                      color: AppColors.textPrimaryLight,
+                                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -120,7 +122,7 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                                   Text(
                                     'Receive alerts on your phone',
                                     style: AppTypography.caption(
-                                      color: AppColors.textSecondaryLight,
+                                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                                     ),
                                   ),
                                 ],
@@ -129,7 +131,7 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                             Switch.adaptive(
                               value: _pushEnabled,
                               onChanged: (val) => setState(() => _pushEnabled = val),
-                              activeColor: AppColors.primary,
+                              activeColor: isDark ? AppColors.primaryLight : AppColors.primary,
                             ),
                           ],
                         ),
@@ -140,7 +142,7 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                       Text(
                         'Notification Preferences',
                         style: AppTypography.body(
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -149,45 +151,50 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                       // ── Toggles List Card ──────────────────────────────────
                       Container(
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
+                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: AppColors.borderLight),
+                          border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                         ),
                         child: Column(
                           children: [
                             _buildToggleTile(
+                              isDark: isDark,
                               icon: Icons.notifications_active_outlined,
                               title: 'Trip Offers',
                               subtitle: 'New trip offers and updates',
                               value: _tripOffersEnabled,
                               onChanged: (val) => setState(() => _tripOffersEnabled = val),
                             ),
-                            Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                             _buildToggleTile(
+                              isDark: isDark,
                               icon: Icons.directions_car_outlined,
                               title: 'Trip Updates',
                               subtitle: 'Updates about your assigned trips',
                               value: _tripUpdatesEnabled,
                               onChanged: (val) => setState(() => _tripUpdatesEnabled = val),
                             ),
-                            Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                             _buildToggleTile(
+                              isDark: isDark,
                               icon: Icons.account_balance_wallet_outlined,
                               title: 'Earnings & Payments',
                               subtitle: 'Earnings, settlements and payments',
                               value: _earningsEnabled,
                               onChanged: (val) => setState(() => _earningsEnabled = val),
                             ),
-                            Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                             _buildToggleTile(
+                              isDark: isDark,
                               icon: Icons.verified_user_outlined,
                               title: 'Account & KYC',
                               subtitle: 'KYC updates and account alerts',
                               value: _accountKycEnabled,
                               onChanged: (val) => setState(() => _accountKycEnabled = val),
                             ),
-                            Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                             _buildToggleTile(
+                              isDark: isDark,
                               icon: Icons.local_offer_outlined,
                               title: 'Promotions',
                               subtitle: 'Offers and promotional messages',
@@ -206,7 +213,7 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                           vertical: AppSpacing.md,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryLight.withValues(alpha: 0.12),
+                          color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(AppRadius.md),
                         ),
                         child: Row(
@@ -214,14 +221,14 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                             Icon(
                               Icons.info_outline_rounded,
                               size: 18,
-                              color: AppColors.primary,
+                              color: isDark ? AppColors.primaryLight : AppColors.primary,
                             ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 'You can update your preferences anytime.',
                                 style: AppTypography.caption(
-                                  color: AppColors.primary,
+                                  color: isDark ? AppColors.primaryLight : AppColors.primary,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -241,6 +248,7 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
   }
 
   Widget _buildToggleTile({
+    required bool isDark,
     required IconData icon,
     required String title,
     required String subtitle,
@@ -254,7 +262,7 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
       ),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: AppColors.primary),
+          Icon(icon, size: 20, color: isDark ? AppColors.primaryLight : AppColors.primary),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -263,7 +271,7 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                 Text(
                   title,
                   style: AppTypography.body(
-                    color: AppColors.textPrimaryLight,
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -271,7 +279,7 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                 Text(
                   subtitle,
                   style: AppTypography.caption(
-                    color: AppColors.textMutedLight,
+                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                   ),
                 ),
               ],
@@ -280,7 +288,7 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
           Switch.adaptive(
             value: value,
             onChanged: onChanged,
-            activeColor: AppColors.primary,
+            activeColor: isDark ? AppColors.primaryLight : AppColors.primary,
           ),
         ],
       ),

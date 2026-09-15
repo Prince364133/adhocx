@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect } from 'react';
 
@@ -44,7 +44,7 @@ export const Modal: React.FC<ModalProps> = ({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
-        className="modal-content"
+        className="modal-content animate-modal"
         style={{ maxWidth }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -59,7 +59,24 @@ export const Modal: React.FC<ModalProps> = ({
               fontSize: '1.25rem',
               cursor: 'pointer',
               lineHeight: 1,
+              padding: '0.25rem',
+              borderRadius: 'var(--radius-sm)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--text-primary)';
+              e.currentTarget.style.transform = 'rotate(90deg)';
+              e.currentTarget.style.backgroundColor = 'var(--bg-surface-elevated)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--text-secondary)';
+              e.currentTarget.style.transform = 'rotate(0deg)';
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+            title="Close Modal (Esc)"
           >
             ✕
           </button>

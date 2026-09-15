@@ -1,15 +1,31 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { adminApi } from '../../lib/api/client';
 import { TripListItem, TripEvent } from '../../lib/api/types';
-import { Badge } from '../../components/Badge';
-import { Modal } from '../../components/Modal';
+import {
+  PageHeader,
+  FilterBar,
+  DataTable,
+  Column,
+  StatusBadge,
+  Button,
+  Drawer,
+} from '../../components/common';
 
-const STATUS_TABS = ['ALL', 'ASSIGNED', 'ARRIVED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW'];
+const STATUS_TABS = [
+  { id: 'ALL', label: 'All Trips' },
+  { id: 'IN_PROGRESS', label: 'In Progress' },
+  { id: 'ASSIGNED', label: 'Assigned' },
+  { id: 'ARRIVED', label: 'Arrived' },
+  { id: 'COMPLETED', label: 'Completed' },
+  { id: 'CANCELLED', label: 'Cancelled' },
+  { id: 'NO_SHOW', label: 'No Show' },
+];
 
 export default function TripsPage() {
   const [activeTab, setActiveTab] = useState('ALL');
+  const [search, setSearch] = useState('');
   const [trips, setTrips] = useState<TripListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTrip, setSelectedTrip] = useState<TripListItem | null>(null);
@@ -66,6 +82,19 @@ export default function TripsPage() {
     }
   }
 
+  const filtered = useMemo(() => {
+    if (!search) return trips;
+    const q = search.toLowerCase();
+    return trips.filter(
+      (t) =>
+        t.id.toLowerCase().includes(q) ||
+        (t.driverName && t.driverName.toLowerCase().includes(q)) ||
+        (t.vehiclePlate && t.vehiclePlate.toLowerCase().includes(q)) ||
+        t.pickupAddress.toLowerCase().includes(q) ||
+        t.dropAddress.toLowerCase().includes(q)
+    );
+  }, [trips, search]);
+
   async function handleOpenTelemetry(trip: TripListItem) {
     setSelectedTrip(trip);
     setEventsLoading(true);
@@ -76,7 +105,7 @@ export default function TripsPage() {
           tripId: trip.id,
           eventType: 'DRIVER_ARRIVED',
           latitude: 28.5562,
-          longitude: 77.1000,
+          longitude: 77.1,
           createdAt: new Date(Date.now() - 2400000).toISOString(),
         },
         {
@@ -84,26 +113,17 @@ export default function TripsPage() {
           tripId: trip.id,
           eventType: 'TRIP_STARTED',
           latitude: 28.5562,
-          longitude: 77.1000,
+          longitude: 77.1,
           createdAt: new Date(Date.now() - 1800000).toISOString(),
         },
         {
           id: 'evt-3',
           tripId: trip.id,
           eventType: 'LOCATION_PING',
-          latitude: 28.5100,
-          longitude: 77.0850,
+          latitude: 28.51,
+          longitude: 77.085,
           metadata: { speed: 48, heading: 195 },
           createdAt: new Date(Date.now() - 900000).toISOString(),
-        },
-        {
-          id: 'evt-4',
-          tripId: trip.id,
-          eventType: 'LOCATION_PING',
-          latitude: 28.4950,
-          longitude: 77.0890,
-          metadata: { speed: 52, heading: 205 },
-          createdAt: new Date(Date.now() - 300000).toISOString(),
         },
       ]);
       setEvents(data);
@@ -112,189 +132,209 @@ export default function TripsPage() {
     }
   }
 
+  const columns: Column<TripListItem>[] = [
+    {
+      key: 'id',
+      label: 'Trip ID',
+      sortable: true,
+      render: (t) => (
+        <div>
+          <span className="code-tag">TRP-{t.id.slice(0, 8).toUpperCase()}</span>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+            Req: REQ-{t.requirementId.slice(0, 8).toUpperCase()}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'driverName',
+      label: 'Assigned Driver & Vehicle',
+      render: (t) => (
+        <div>
+          <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{t.driverName}</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{t.driverPhone}</div>
+          <div style={{ marginTop: '0.2rem' }}>
+            <span className="code-tag">{t.vehiclePlate}</span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'route',
+      label: 'Route',
+      render: (t) => (
+        <div style={{ maxWidth: '300px' }}>
+          <div style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <span style={{ color: 'var(--color-success)' }}>●</span> {t.pickupAddress}
+          </div>
+          <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '0.15rem' }}>
+            <span style={{ color: 'var(--color-danger)' }}>▼</span> {t.dropAddress}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Trip Status',
+      sortable: true,
+      render: (t) => <StatusBadge status={t.status} size="sm" showPulse />,
+    },
+    {
+      key: 'totalDriverEarnings',
+      label: 'Earnings',
+      sortable: true,
+      render: (t) => (
+        <div>
+          <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>
+            ₹{Number(t.totalDriverEarnings || t.driverRate || 0).toLocaleString('en-IN')}
+          </div>
+          {(t.tollCharges || t.parkingCharges) && (
+            <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+              +₹{(t.tollCharges || 0) + (t.parkingCharges || 0)} tolls/parking
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'Telemetry',
+      align: 'right',
+      render: (t) => (
+        <Button variant="secondary" size="sm" onClick={() => handleOpenTelemetry(t)}>
+          Telemetry ↗
+        </Button>
+      ),
+    },
+  ];
+
   return (
     <div>
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 className="page-title">Trip Operations & Geolocation Telemetry</h1>
-        <p className="page-subtitle">Monitor real-time ride execution, GPS breadcrumb pings, driver arrivals, and completion fares</p>
-      </div>
+      <PageHeader
+        title="Trips & Telemetry Tracking"
+        subtitle="Real-time ride execution tracking, GPS breadcrumbs, driver arrival confirmation, and billing breakdown"
+        liveStatus="GPS Fleet Active"
+      />
 
-      {/* Filter Tabs */}
-      <div className="tabs" style={{ flexWrap: 'wrap' }}>
-        {STATUS_TABS.map((tab) => (
-          <button
-            key={tab}
-            className={`tab-item ${activeTab === tab ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab)}
-          >
-            {tab.replace('_', ' ')}
-          </button>
-        ))}
-      </div>
+      <FilterBar
+        tabs={STATUS_TABS}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search trip ID, driver, vehicle plate, route..."
+      />
 
-      {/* Trips Table */}
-      <div className="table-container">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Trip ID</th>
-              <th>Assigned Driver</th>
-              <th>Pickup & Drop</th>
-              <th>Status</th>
-              <th>Driver Earnings</th>
-              <th>Reporting Schedule</th>
-              <th style={{ textAlign: 'right' }}>Telemetry</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
-                  Loading trips...
-                </td>
-              </tr>
-            ) : trips.length === 0 ? (
-              <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-                  No trips found for status: {activeTab}
-                </td>
-              </tr>
-            ) : (
-              trips.map((trip) => (
-                <tr key={trip.id}>
-                  <td>
-                    <div style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--accent-primary)' }}>
-                      #{trip.id.slice(0, 8)}
-                    </div>
-                  </td>
-                  <td>
-                    <div style={{ fontWeight: 600 }}>{trip.driverName || 'Driver'}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{trip.vehiclePlate}</div>
-                  </td>
-                  <td style={{ maxWidth: '280px' }}>
-                    <div style={{ fontSize: '0.8125rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      <span style={{ color: 'var(--color-success)', marginRight: '0.25rem' }}>●</span> {trip.pickupAddress}
-                    </div>
-                    <div style={{ fontSize: '0.8125rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>
-                      <span style={{ color: 'var(--color-danger)', marginRight: '0.25rem' }}>●</span> {trip.dropAddress}
-                    </div>
-                  </td>
-                  <td>
-                    <Badge status={trip.status} />
-                  </td>
-                  <td>
-                    <div style={{ fontWeight: 600 }}>₹{(trip.totalDriverEarnings || trip.driverRate).toLocaleString('en-IN')}</div>
-                    {(trip.tollCharges || trip.parkingCharges) ? (
-                      <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
-                        Includes Toll: ₹{trip.tollCharges || 0}, Park: ₹{trip.parkingCharges || 0}
-                      </div>
-                    ) : null}
-                  </td>
-                  <td>
-                    <div style={{ fontSize: '0.8125rem' }}>
-                      {new Date(trip.reportingTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      {new Date(trip.reportingTime).toLocaleDateString()}
-                    </div>
-                  </td>
-                  <td style={{ textAlign: 'right' }}>
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => handleOpenTelemetry(trip)}
-                    >
-                      Route Trail →
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        columns={columns}
+        data={filtered}
+        keyExtractor={(t) => t.id}
+        loading={loading}
+        emptyTitle="No trips found"
+        emptySubtitle={`No trips currently match the filter: "${activeTab}".`}
+      />
 
-      {/* Telemetry Modal */}
-      {selectedTrip && (
-        <Modal
-          isOpen={!!selectedTrip}
-          onClose={() => setSelectedTrip(null)}
-          title={`Trip Telemetry Trail — #${selectedTrip.id.slice(0, 8)}`}
-          maxWidth="600px"
-          footer={
-            <button className="btn btn-secondary btn-sm" onClick={() => setSelectedTrip(null)}>
+      {/* Slide-out Telemetry Drawer */}
+      <Drawer
+        isOpen={!!selectedTrip}
+        onClose={() => setSelectedTrip(null)}
+        title={selectedTrip ? `Trip Telemetry — TRP-${selectedTrip.id.slice(0, 8).toUpperCase()}` : ''}
+        subtitle={selectedTrip ? `Driver: ${selectedTrip.driverName} (${selectedTrip.vehiclePlate})` : ''}
+        width="600px"
+        footer={
+          <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end' }}>
+            <Button variant="secondary" size="sm" onClick={() => setSelectedTrip(null)}>
               Close
-            </button>
-          }
-        >
+            </Button>
+          </div>
+        }
+      >
+        {selectedTrip && (
           <div>
             <div
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(2, 1fr)',
                 gap: '1rem',
-                padding: '1rem',
-                background: 'var(--bg-surface-elevated)',
-                borderRadius: '8px',
-                marginBottom: '1.25rem',
+                marginBottom: '1.5rem',
               }}
             >
-              <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Driver / Vehicle</div>
-                <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{selectedTrip.driverName} ({selectedTrip.vehiclePlate})</div>
+              <div style={{ background: 'var(--bg-surface-elevated)', padding: '1rem', borderRadius: 'var(--radius-lg)' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Status</div>
+                <div style={{ marginTop: '0.35rem' }}>
+                  <StatusBadge status={selectedTrip.status} showPulse />
+                </div>
               </div>
-              <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Current Status</div>
-                <Badge status={selectedTrip.status} />
+              <div style={{ background: 'var(--bg-surface-elevated)', padding: '1rem', borderRadius: 'var(--radius-lg)' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Driver Earnings</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-success)', marginTop: '0.2rem' }}>
+                  ₹{Number(selectedTrip.totalDriverEarnings || selectedTrip.driverRate).toLocaleString('en-IN')}
+                </div>
               </div>
             </div>
 
-            <h4 style={{ fontSize: '0.9375rem', fontWeight: 600, marginBottom: '0.75rem' }}>
-              GPS Breadcrumbs & Event Log
-            </h4>
+            {/* Route */}
+            <div style={{ marginBottom: '1.5rem', background: 'var(--bg-surface-elevated)', padding: '1.25rem', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-success)' }}>● PICKUP</div>
+              <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '0.2rem' }}>
+                {selectedTrip.pickupAddress}
+              </div>
+              <div style={{ borderTop: '1px solid var(--border)', margin: '0.75rem 0' }} />
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-danger)' }}>▼ DROP OFF</div>
+              <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '0.2rem' }}>
+                {selectedTrip.dropAddress}
+              </div>
+            </div>
 
-            {eventsLoading ? (
-              <p style={{ color: 'var(--text-secondary)', padding: '1rem', textAlign: 'center' }}>Loading telemetry breadcrumbs...</p>
-            ) : events.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)', padding: '1rem', textAlign: 'center' }}>No telemetry events recorded for this trip.</p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '350px', overflowY: 'auto' }}>
-                {events.map((evt, idx) => (
-                  <div
-                    key={evt.id || idx}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '0.75rem 1rem',
-                      borderRadius: '8px',
-                      background: 'rgba(255, 255, 255, 0.02)',
-                      border: '1px solid var(--border-light)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <span style={{ fontSize: '1rem' }}>
-                        {evt.eventType === 'DRIVER_ARRIVED' ? '📍' : evt.eventType === 'TRIP_STARTED' ? '🟢' : evt.eventType === 'TRIP_COMPLETED' ? '🏁' : '📡'}
-                      </span>
+            {/* Event Telemetry Breadcrumbs */}
+            <div>
+              <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
+                Live Geospatial Breadcrumbs & Events
+              </h4>
+              {eventsLoading ? (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  Loading telemetry breadcrumbs...
+                </div>
+              ) : events.length === 0 ? (
+                <div style={{ padding: '2rem', textAlign: 'center', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', color: 'var(--text-muted)' }}>
+                  No GPS breadcrumbs logged for this trip yet.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {events.map((evt) => (
+                    <div
+                      key={evt.id}
+                      style={{
+                        padding: '0.875rem 1rem',
+                        background: 'var(--bg-surface-elevated)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-md)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                    >
                       <div>
-                        <div style={{ fontWeight: 600, fontSize: '0.8125rem' }}>
-                          {evt.eventType.replace('_', ' ')}
+                        <div style={{ fontWeight: 700, fontSize: '0.8125rem', color: 'var(--text-primary)' }}>
+                          {evt.eventType.replace(/_/g, ' ')}
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                          {evt.latitude?.toFixed(4)}, {evt.longitude?.toFixed(4)}
-                          {evt.metadata?.speed ? ` • ${evt.metadata.speed} km/h` : ''}
-                        </div>
+                        {evt.latitude && evt.longitude && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                            Lat: {Number(evt.latitude).toFixed(4)}, Lng: {Number(evt.longitude).toFixed(4)}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        {new Date(evt.createdAt).toLocaleTimeString()}
                       </div>
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                      {new Date(evt.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </Modal>
-      )}
+        )}
+      </Drawer>
     </div>
   );
 }

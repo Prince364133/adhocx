@@ -84,11 +84,12 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final user = AuthService.instance.currentUser;
     final phone = user?.phone ?? '+91 98765 43210';
 
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -102,9 +103,11 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
                     vertical: AppSpacing.md,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
+                    color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                     border: Border(
-                      bottom: BorderSide(color: AppColors.borderLight),
+                      bottom: BorderSide(
+                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      ),
                     ),
                   ),
                   child: Row(
@@ -119,7 +122,7 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
                         },
                         icon: Icon(
                           Icons.arrow_back,
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -127,7 +130,7 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
                         child: Text(
                           'Edit Personal Info',
                           style: AppTypography.h3(
-                            color: AppColors.textPrimaryLight,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -137,7 +140,7 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
                         child: Text(
                           'Save',
                           style: AppTypography.body(
-                            color: AppColors.primary,
+                            color: isDark ? AppColors.primaryLight : AppColors.primary,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -155,6 +158,7 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
                         label: 'Full Name',
                         controller: _nameController,
                         icon: Icons.person_outline,
+                        isDark: isDark,
                       ),
                       const SizedBox(height: AppSpacing.lg),
 
@@ -163,6 +167,7 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
                         controller: _emailController,
                         icon: Icons.email_outlined,
                         keyboardType: TextInputType.emailAddress,
+                        isDark: isDark,
                       ),
                       const SizedBox(height: AppSpacing.lg),
 
@@ -170,7 +175,7 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
                       Text(
                         'Phone Number (Verified)',
                         style: AppTypography.caption(
-                          color: AppColors.textMutedLight,
+                          color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -178,21 +183,33 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
                       Container(
                         padding: const EdgeInsets.all(AppSpacing.md),
                         decoration: BoxDecoration(
-                          color: AppColors.bgLight,
+                          color: isDark ? AppColors.surfaceElevatedDark : AppColors.bgLight,
                           borderRadius: BorderRadius.circular(AppRadius.md),
-                          border: Border.all(color: AppColors.borderLight),
+                          border: Border.all(
+                            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                          ),
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.phone_outlined, size: 20, color: AppColors.textMutedLight),
+                            Icon(
+                              Icons.phone_outlined,
+                              size: 20,
+                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                            ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
                                 phone,
-                                style: AppTypography.body(color: AppColors.textMutedLight),
+                                style: AppTypography.body(
+                                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                ),
                               ),
                             ),
-                            Icon(Icons.lock_outline, size: 16, color: AppColors.textMutedLight),
+                            Icon(
+                              Icons.lock_outline,
+                              size: 16,
+                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                            ),
                           ],
                         ),
                       ),
@@ -205,6 +222,7 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
                               label: 'Date of Birth',
                               controller: _dobController,
                               icon: Icons.calendar_today_outlined,
+                              isDark: isDark,
                             ),
                           ),
                           const SizedBox(width: AppSpacing.md),
@@ -215,7 +233,7 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
                                 Text(
                                   'Gender',
                                   style: AppTypography.caption(
-                                    color: AppColors.textMutedLight,
+                                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -223,16 +241,27 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 12),
                                   decoration: BoxDecoration(
-                                    color: AppColors.surfaceLight,
+                                    color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                                     borderRadius: BorderRadius.circular(AppRadius.md),
-                                    border: Border.all(color: AppColors.borderLight),
+                                    border: Border.all(
+                                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                    ),
                                   ),
                                   child: DropdownButtonHideUnderline(
                                     child: DropdownButton<String>(
+                                      dropdownColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                                       value: _gender,
                                       isExpanded: true,
                                       items: ['Male', 'Female', 'Other']
-                                          .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                                          .map((g) => DropdownMenuItem(
+                                                value: g,
+                                                child: Text(
+                                                  g,
+                                                  style: TextStyle(
+                                                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                                  ),
+                                                ),
+                                              ))
                                           .toList(),
                                       onChanged: (val) {
                                         if (val != null) setState(() => _gender = val);
@@ -252,13 +281,14 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
                         controller: _addressController,
                         icon: Icons.home_outlined,
                         maxLines: 2,
+                        isDark: isDark,
                       ),
                       const SizedBox(height: AppSpacing.xl),
 
                       Text(
                         'Emergency Contact',
                         style: AppTypography.caption(
-                          color: AppColors.textMutedLight,
+                          color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -268,6 +298,7 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
                         label: 'Contact Name',
                         controller: _emergencyNameController,
                         icon: Icons.person_outline,
+                        isDark: isDark,
                       ),
                       const SizedBox(height: AppSpacing.md),
 
@@ -276,6 +307,7 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
                         controller: _emergencyPhoneController,
                         icon: Icons.phone_outlined,
                         keyboardType: TextInputType.phone,
+                        isDark: isDark,
                       ),
                       const SizedBox(height: AppSpacing.xxl),
 
@@ -298,6 +330,7 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
     required String label,
     required TextEditingController controller,
     required IconData icon,
+    required bool isDark,
     TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
   }) {
@@ -307,7 +340,7 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
         Text(
           label,
           style: AppTypography.caption(
-            color: AppColors.textMutedLight,
+            color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -316,23 +349,36 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
           controller: controller,
           keyboardType: keyboardType,
           maxLines: maxLines,
-          style: AppTypography.body(color: AppColors.textPrimaryLight),
+          style: AppTypography.body(
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+          ),
           decoration: InputDecoration(
-            prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
+            prefixIcon: Icon(
+              icon,
+              color: isDark ? AppColors.primaryLight : AppColors.primary,
+              size: 20,
+            ),
             filled: true,
-            fillColor: AppColors.surfaceLight,
+            fillColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              borderSide: BorderSide(color: AppColors.borderLight),
+              borderSide: BorderSide(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              ),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              borderSide: BorderSide(color: AppColors.borderLight),
+              borderSide: BorderSide(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              borderSide: BorderSide(color: AppColors.primary, width: 2),
+              borderSide: BorderSide(
+                color: isDark ? AppColors.primaryLight : AppColors.primary,
+                width: 2,
+              ),
             ),
           ),
         ),

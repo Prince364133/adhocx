@@ -3,11 +3,12 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
+import '../animations/app_bouncing_wrapper.dart';
 
 enum AppButtonVariant { primary, accentGreen, danger }
 
 /// Centralized primary action button for AdhocX Mobile.
-/// Implements 48px minimum touch target, loading spinner, and consistent tokens.
+/// Implements 48px minimum touch target, tactile spring bounce, and glowing variant shadow.
 class AppPrimaryButton extends StatelessWidget {
   final String text;
   final VoidCallback? onPressed;
@@ -49,10 +50,22 @@ class AppPrimaryButton extends StatelessWidget {
     }
   }
 
+  Color _getGlowColor() {
+    switch (variant) {
+      case AppButtonVariant.primary:
+        return AppColors.primary.withAlpha(85);
+      case AppButtonVariant.accentGreen:
+        return AppColors.accentGreen.withAlpha(85);
+      case AppButtonVariant.danger:
+        return AppColors.error.withAlpha(85);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bgColor = _getBackgroundColor();
     final textColor = _getTextColor();
+    final glowColor = _getGlowColor();
 
     Widget buttonChild = isLoading
         ? SizedBox(
@@ -78,8 +91,20 @@ class AppPrimaryButton extends StatelessWidget {
             ],
           );
 
-    final button = SizedBox(
+    final button = Container(
       height: height,
+      decoration: BoxDecoration(
+        borderRadius: AppRadius.borderMd,
+        boxShadow: onPressed != null && !isLoading
+            ? [
+                BoxShadow(
+                  color: glowColor,
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ]
+            : null,
+      ),
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
@@ -100,6 +125,12 @@ class AppPrimaryButton extends StatelessWidget {
       ),
     );
 
-    return isFullWidth ? SizedBox(width: double.infinity, child: button) : button;
+    final wrappedButton = AppBouncingWrapper(
+      onTap: isLoading ? null : onPressed,
+      child: isFullWidth ? SizedBox(width: double.infinity, child: button) : button,
+    );
+
+    return isFullWidth ? SizedBox(width: double.infinity, child: wrappedButton) : wrappedButton;
   }
 }
+

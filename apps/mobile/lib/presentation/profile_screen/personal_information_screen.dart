@@ -15,6 +15,7 @@ class PersonalInformationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final onboarding = context.watch<OnboardingProvider>();
     final authService = context.watch<AuthService>();
     final user = authService.currentUser;
@@ -34,7 +35,7 @@ class PersonalInformationScreen extends StatelessWidget {
     final gender = onboarding.gender.isNotEmpty ? onboarding.gender : 'Male';
 
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -48,9 +49,11 @@ class PersonalInformationScreen extends StatelessWidget {
                     vertical: AppSpacing.md,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
+                    color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                     border: Border(
-                      bottom: BorderSide(color: AppColors.borderLight),
+                      bottom: BorderSide(
+                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      ),
                     ),
                   ),
                   child: Row(
@@ -65,7 +68,7 @@ class PersonalInformationScreen extends StatelessWidget {
                         },
                         icon: Icon(
                           Icons.arrow_back,
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -73,7 +76,7 @@ class PersonalInformationScreen extends StatelessWidget {
                         child: Text(
                           'Personal Information',
                           style: AppTypography.h3(
-                            color: AppColors.textPrimaryLight,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -85,7 +88,7 @@ class PersonalInformationScreen extends StatelessWidget {
                         child: Text(
                           'Edit',
                           style: AppTypography.body(
-                            color: AppColors.primary,
+                            color: isDark ? AppColors.primaryLight : AppColors.primary,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -103,16 +106,11 @@ class PersonalInformationScreen extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(AppSpacing.xl),
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
+                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: AppColors.borderLight),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.03),
-                              blurRadius: 4,
-                              offset: Offset(0, 2),
-                            ),
-                          ],
+                          border: Border.all(
+                            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                          ),
                         ),
                         child: Row(
                           children: [
@@ -120,11 +118,11 @@ class PersonalInformationScreen extends StatelessWidget {
                               children: [
                                 CircleAvatar(
                                   radius: 36,
-                                  backgroundColor: AppColors.primaryLight.withValues(alpha: 0.2),
+                                  backgroundColor: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.2),
                                   child: Text(
                                     name.isNotEmpty ? name[0].toUpperCase() : 'R',
                                     style: AppTypography.h1(
-                                      color: AppColors.primary,
+                                      color: isDark ? AppColors.primaryLight : AppColors.primary,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -135,13 +133,13 @@ class PersonalInformationScreen extends StatelessWidget {
                                   child: Container(
                                     padding: const EdgeInsets.all(4),
                                     decoration: BoxDecoration(
-                                      color: AppColors.primary,
+                                      color: isDark ? AppColors.primaryLight : AppColors.primary,
                                       shape: BoxShape.circle,
                                     ),
-                                    child: const Icon(
+                                    child: Icon(
                                       Icons.camera_alt,
                                       size: 12,
-                                      color: Colors.white,
+                                      color: isDark ? AppColors.bgDark : Colors.white,
                                     ),
                                   ),
                                 ),
@@ -157,7 +155,7 @@ class PersonalInformationScreen extends StatelessWidget {
                                       Text(
                                         name,
                                         style: AppTypography.h3(
-                                          color: AppColors.textPrimaryLight,
+                                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
@@ -168,13 +166,13 @@ class PersonalInformationScreen extends StatelessWidget {
                                           vertical: 2,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: AppColors.accentGreenDark.withValues(alpha: 0.12),
+                                          color: AppColors.accentGreenDark.withValues(alpha: isDark ? 0.2 : 0.12),
                                           borderRadius: BorderRadius.circular(AppRadius.full),
                                         ),
                                         child: Text(
                                           'Verified',
                                           style: AppTypography.caption(
-                                            color: AppColors.accentGreenDark,
+                                            color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
@@ -185,28 +183,40 @@ class PersonalInformationScreen extends StatelessWidget {
                                   Text(
                                     'Driver ID: DRV123455',
                                     style: AppTypography.caption(
-                                      color: AppColors.textMutedLight,
+                                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                                     ),
                                   ),
                                   const SizedBox(height: 6),
                                   Row(
                                     children: [
-                                      Icon(Icons.phone_outlined, size: 14, color: AppColors.textSecondaryLight),
+                                      Icon(
+                                        Icons.phone_outlined,
+                                        size: 14,
+                                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                      ),
                                       const SizedBox(width: 6),
                                       Text(
                                         phone,
-                                        style: AppTypography.caption(color: AppColors.textSecondaryLight),
+                                        style: AppTypography.caption(
+                                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                        ),
                                       ),
                                     ],
                                   ),
                                   const SizedBox(height: 4),
                                   Row(
                                     children: [
-                                      Icon(Icons.email_outlined, size: 14, color: AppColors.textSecondaryLight),
+                                      Icon(
+                                        Icons.email_outlined,
+                                        size: 14,
+                                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                      ),
                                       const SizedBox(width: 6),
                                       Text(
                                         email,
-                                        style: AppTypography.caption(color: AppColors.textSecondaryLight),
+                                        style: AppTypography.caption(
+                                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -222,7 +232,7 @@ class PersonalInformationScreen extends StatelessWidget {
                       Text(
                         'Personal Details',
                         style: AppTypography.body(
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -231,9 +241,11 @@ class PersonalInformationScreen extends StatelessWidget {
                       // ── Details Container Card ─────────────────────────────
                       Container(
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
+                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: AppColors.borderLight),
+                          border: Border.all(
+                            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                          ),
                         ),
                         child: Column(
                           children: [
@@ -241,30 +253,35 @@ class PersonalInformationScreen extends StatelessWidget {
                               icon: Icons.person_outline,
                               label: 'Full Name',
                               value: name,
+                              isDark: isDark,
                             ),
-                            Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                             _buildDetailTile(
                               icon: Icons.cake_outlined,
                               label: 'Date of Birth',
                               value: dob,
+                              isDark: isDark,
                             ),
-                            Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                             _buildDetailTile(
                               icon: Icons.alternate_email,
                               label: 'Gender',
                               value: gender,
+                              isDark: isDark,
                             ),
-                            Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                             _buildDetailTile(
                               icon: Icons.location_on_outlined,
                               label: 'Address',
                               value: 'DLF Phase 2, Gurugram,\nHaryana 122002',
+                              isDark: isDark,
                             ),
-                            Divider(height: 1, color: AppColors.borderLight),
+                            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                             _buildDetailTile(
                               icon: Icons.emergency_outlined,
                               label: 'Emergency Contact',
                               value: 'Priya Sharma (Wife)\n+91 91234 56789',
+                              isDark: isDark,
                             ),
                           ],
                         ),
@@ -284,6 +301,7 @@ class PersonalInformationScreen extends StatelessWidget {
     required IconData icon,
     required String label,
     required String value,
+    required bool isDark,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -292,7 +310,11 @@ class PersonalInformationScreen extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: AppColors.primary),
+          Icon(
+            icon,
+            size: 20,
+            color: isDark ? AppColors.primaryLight : AppColors.primary,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -300,20 +322,26 @@ class PersonalInformationScreen extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: AppTypography.caption(color: AppColors.textMutedLight),
+                  style: AppTypography.caption(
+                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   value,
                   style: AppTypography.body(
-                    color: AppColors.textPrimaryLight,
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
-          Icon(Icons.chevron_right, size: 18, color: AppColors.textMutedLight),
+          Icon(
+            Icons.chevron_right,
+            size: 18,
+            color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+          ),
         ],
       ),
     );

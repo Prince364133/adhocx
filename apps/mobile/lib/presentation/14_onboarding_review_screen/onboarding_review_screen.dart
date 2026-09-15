@@ -80,24 +80,33 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
     }
   }
 
-  Widget _buildDocThumbnail(String label, IconData icon) {
+  Widget _buildDocThumbnail(String label, IconData icon, bool isDark) {
     return Container(
       width: 60,
       height: 70,
       margin: const EdgeInsets.only(right: AppSpacing.sm),
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevatedLight,
+        color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight,
         borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: AppColors.borderLight),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 24, color: AppColors.primary),
+          Icon(
+            icon,
+            size: 24,
+            color: isDark ? AppColors.primaryLight : AppColors.primary,
+          ),
           const SizedBox(height: 4),
           Text(
             label,
-            style: TextStyle(fontSize: 9, color: AppColors.textSecondaryLight),
+            style: TextStyle(
+              fontSize: 9,
+              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+            ),
             textAlign: TextAlign.center,
             maxLines: 1,
           ),
@@ -109,9 +118,10 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
   @override
   Widget build(BuildContext context) {
     final onboarding = context.watch<OnboardingProvider>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -135,7 +145,7 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                   Text(
                     'Review & Confirm',
                     style: AppTypography.h1(
-                      color: AppColors.textPrimaryLight,
+                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -143,7 +153,7 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                   Text(
                     'Please verify your details',
                     style: AppTypography.body(
-                      color: AppColors.textSecondaryLight,
+                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xxl),
@@ -151,15 +161,15 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                   // ── Section 1: Personal Details Card ─────────────────────
                   AppCard(
                     padding: const EdgeInsets.all(AppSpacing.lg),
-                    backgroundColor: AppColors.surfaceLight,
-                    borderColor: AppColors.borderLight,
+                    backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                    borderColor: isDark ? AppColors.borderDark : AppColors.borderLight,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'Personal Details',
                           style: AppTypography.caption(
-                            color: AppColors.textSecondaryLight,
+                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -169,7 +179,7 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                               ? onboarding.fullName
                               : 'Partner Account',
                           style: AppTypography.h3(
-                            color: AppColors.textPrimaryLight,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -178,7 +188,7 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                           Text(
                             onboarding.companyName,
                             style: AppTypography.caption(
-                              color: AppColors.primary,
+                              color: isDark ? AppColors.primaryLight : AppColors.primary,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -189,7 +199,7 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                               ? onboarding.phoneNumber
                               : '+91 98765 43210',
                           style: AppTypography.body(
-                            color: AppColors.textSecondaryLight,
+                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                           ),
                         ),
                       ],
@@ -200,15 +210,15 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                   // ── Section 2: Vehicle Details Card ──────────────────────
                   AppCard(
                     padding: const EdgeInsets.all(AppSpacing.lg),
-                    backgroundColor: AppColors.surfaceLight,
-                    borderColor: AppColors.borderLight,
+                    backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                    borderColor: isDark ? AppColors.borderDark : AppColors.borderLight,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'Vehicle Details',
                           style: AppTypography.caption(
-                            color: AppColors.textSecondaryLight,
+                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -216,7 +226,7 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                         Text(
                           '${onboarding.carModel.isNotEmpty ? onboarding.carModel : 'Honda City'} • ${onboarding.vehicleType} • ${onboarding.color.isNotEmpty ? onboarding.color : 'White'}',
                           style: AppTypography.body(
-                            color: AppColors.textPrimaryLight,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -226,7 +236,7 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                               ? onboarding.registrationNumber
                               : 'HR26 AB 1234',
                           style: AppTypography.caption(
-                            color: AppColors.primary,
+                            color: isDark ? AppColors.primaryLight : AppColors.primary,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -238,25 +248,25 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                   // ── Section 3: Documents Preview Card ────────────────────
                   AppCard(
                     padding: const EdgeInsets.all(AppSpacing.lg),
-                    backgroundColor: AppColors.surfaceLight,
-                    borderColor: AppColors.borderLight,
+                    backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                    borderColor: isDark ? AppColors.borderDark : AppColors.borderLight,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'Documents',
                           style: AppTypography.caption(
-                            color: AppColors.textSecondaryLight,
+                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                         const SizedBox(height: AppSpacing.sm),
                         Row(
                           children: [
-                            _buildDocThumbnail('DL', Icons.badge),
-                            _buildDocThumbnail('RC', Icons.description),
-                            _buildDocThumbnail('Insurance', Icons.verified_user),
-                            _buildDocThumbnail('Vehicle', Icons.camera_alt),
+                            _buildDocThumbnail('DL', Icons.badge, isDark),
+                            _buildDocThumbnail('RC', Icons.description, isDark),
+                            _buildDocThumbnail('Insurance', Icons.verified_user, isDark),
+                            _buildDocThumbnail('Vehicle', Icons.camera_alt, isDark),
                           ],
                         ),
                       ],
@@ -272,7 +282,8 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                         value: _isConfirmed,
                         onChanged: (val) =>
                             setState(() => _isConfirmed = val ?? false),
-                        activeColor: AppColors.primary,
+                        activeColor: isDark ? AppColors.primaryLight : AppColors.primary,
+                        checkColor: isDark ? AppColors.bgDark : Colors.white,
                       ),
                       Expanded(
                         child: Padding(
@@ -280,7 +291,7 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                           child: Text(
                             'I confirm that all the information is correct and documents are genuine.',
                             style: AppTypography.caption(
-                              color: AppColors.textSecondaryLight,
+                              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                             ),
                           ),
                         ),

@@ -112,8 +112,10 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -127,9 +129,11 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                     vertical: AppSpacing.md,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
+                    color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                     border: Border(
-                      bottom: BorderSide(color: AppColors.borderLight),
+                      bottom: BorderSide(
+                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      ),
                     ),
                   ),
                   child: Row(
@@ -144,7 +148,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                         },
                         icon: Icon(
                           Icons.arrow_back,
-                          color: AppColors.textPrimaryLight,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -152,7 +156,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                         child: Text(
                           'Withdraw',
                           style: AppTypography.h3(
-                            color: AppColors.textPrimaryLight,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -162,7 +166,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                         child: Text(
                           'History',
                           style: AppTypography.body(
-                            color: AppColors.primary,
+                            color: isDark ? AppColors.primaryLight : AppColors.primary,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -180,9 +184,11 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                       Container(
                         padding: const EdgeInsets.all(AppSpacing.lg),
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
+                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: AppColors.borderLight),
+                          border: Border.all(
+                            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                          ),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -190,7 +196,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                             Text(
                               'Available Balance',
                               style: AppTypography.caption(
-                                color: AppColors.textMutedLight,
+                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -200,7 +206,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                                 Text(
                                   '₹$_availableBalance',
                                   style: AppTypography.h1(
-                                    color: AppColors.textPrimaryLight,
+                                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -208,7 +214,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                                 Icon(
                                   Icons.account_balance_wallet_outlined,
                                   size: 18,
-                                  color: AppColors.primary,
+                                  color: isDark ? AppColors.primaryLight : AppColors.primary,
                                 ),
                               ],
                             ),
@@ -216,7 +222,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                             Text(
                               'Ready to withdraw to bank account',
                               style: AppTypography.caption(
-                                color: AppColors.textSecondaryLight,
+                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                               ),
                             ),
                           ],
@@ -228,7 +234,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                       Text(
                         'Withdrawal Amount',
                         style: AppTypography.caption(
-                          color: AppColors.textMutedLight,
+                          color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -240,7 +246,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                           Text(
                             '₹ ',
                             style: AppTypography.h1(
-                              color: AppColors.textPrimaryLight,
+                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                               fontWeight: FontWeight.bold,
                             ).copyWith(fontSize: 32),
                           ),
@@ -249,12 +255,15 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                               controller: _amountController,
                               keyboardType: TextInputType.number,
                               style: AppTypography.h1(
-                                color: AppColors.textPrimaryLight,
+                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                 fontWeight: FontWeight.bold,
                               ).copyWith(fontSize: 32),
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 border: InputBorder.none,
                                 hintText: '0',
+                                hintStyle: TextStyle(
+                                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                ),
                               ),
                             ),
                           ),
@@ -263,7 +272,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                       Text(
                         'Minimum ₹500',
                         style: AppTypography.caption(
-                          color: AppColors.textMutedLight,
+                          color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                         ),
                       ),
                       const SizedBox(height: AppSpacing.lg),
@@ -281,11 +290,11 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? AppColors.primaryLight.withValues(alpha: 0.15)
-                                      : AppColors.surfaceLight,
+                                      ? (isDark ? AppColors.primary.withValues(alpha: 0.25) : AppColors.primaryLight.withValues(alpha: 0.15))
+                                      : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
                                   borderRadius: BorderRadius.circular(AppRadius.md),
                                   border: Border.all(
-                                    color: isSelected ? AppColors.primary : AppColors.borderLight,
+                                    color: isSelected ? (isDark ? AppColors.primaryLight : AppColors.primary) : (isDark ? AppColors.borderDark : AppColors.borderLight),
                                     width: isSelected ? 1.5 : 1,
                                   ),
                                 ),
@@ -294,7 +303,9 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                                    color: isSelected ? AppColors.primary : AppColors.textPrimaryLight,
+                                    color: isSelected
+                                        ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                                        : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
                                   ),
                                 ),
                               ),
@@ -308,7 +319,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                       Text(
                         'Withdraw to',
                         style: AppTypography.caption(
-                          color: AppColors.textMutedLight,
+                          color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -317,21 +328,23 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                       Container(
                         padding: const EdgeInsets.all(AppSpacing.lg),
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
+                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: AppColors.borderLight),
+                          border: Border.all(
+                            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                          ),
                         ),
                         child: Row(
                           children: [
                             Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: AppColors.bgLight,
+                                color: isDark ? AppColors.surfaceElevatedDark : AppColors.bgLight,
                                 borderRadius: BorderRadius.circular(AppRadius.md),
                               ),
                               child: Icon(
                                 Icons.account_balance_outlined,
-                                color: AppColors.primary,
+                                color: isDark ? AppColors.primaryLight : AppColors.primary,
                               ),
                             ),
                             const SizedBox(width: 14),
@@ -342,7 +355,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                                   Text(
                                     'HDFC Bank',
                                     style: AppTypography.body(
-                                      color: AppColors.textPrimaryLight,
+                                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -350,7 +363,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                                   Text(
                                     '•••• 4321 • ${AuthService.instance.currentUser?.fullName ?? "Driver"}',
                                     style: AppTypography.caption(
-                                      color: AppColors.textSecondaryLight,
+                                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                                     ),
                                   ),
                                 ],
@@ -358,7 +371,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                             ),
                             Icon(
                               Icons.chevron_right,
-                              color: AppColors.textMutedLight,
+                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                             ),
                           ],
                         ),
@@ -369,8 +382,11 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                       Container(
                         padding: const EdgeInsets.all(AppSpacing.lg),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryLight.withValues(alpha: 0.1),
+                          color: isDark ? AppColors.primary.withValues(alpha: 0.15) : AppColors.primaryLight.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(AppRadius.lg),
+                          border: Border.all(
+                            color: isDark ? AppColors.primary.withValues(alpha: 0.3) : Colors.transparent,
+                          ),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -378,16 +394,16 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                             Text(
                               'Important Information',
                               style: AppTypography.body(
-                                color: AppColors.textPrimaryLight,
+                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             const SizedBox(height: 8),
-                            _buildInfoBullet('Withdrawals are processed within 24 hours'),
+                            _buildInfoBullet('Withdrawals are processed within 24 hours', isDark),
                             const SizedBox(height: 4),
-                            _buildInfoBullet('There is no fee for withdrawals'),
+                            _buildInfoBullet('There is no fee for withdrawals', isDark),
                             const SizedBox(height: 4),
-                            _buildInfoBullet('Minimum withdrawal amount is ₹500'),
+                            _buildInfoBullet('Minimum withdrawal amount is ₹500', isDark),
                           ],
                         ),
                       ),
@@ -410,7 +426,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
     );
   }
 
-  Widget _buildInfoBullet(String text) {
+  Widget _buildInfoBullet(String text, bool isDark) {
     return Row(
       children: [
         Icon(Icons.check_circle_rounded, size: 16, color: AppColors.accentGreenDark),
@@ -418,7 +434,9 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
         Expanded(
           child: Text(
             text,
-            style: AppTypography.caption(color: AppColors.textSecondaryLight),
+            style: AppTypography.caption(
+              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+            ),
           ),
         ),
       ],

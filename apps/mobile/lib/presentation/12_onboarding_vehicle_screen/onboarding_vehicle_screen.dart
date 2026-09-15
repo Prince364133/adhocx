@@ -75,8 +75,10 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -102,7 +104,7 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                     Text(
                       'Vehicle Information',
                       style: AppTypography.h1(
-                        color: AppColors.textPrimaryLight,
+                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -110,7 +112,7 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                     Text(
                       'Add your vehicle details',
                       style: AppTypography.body(
-                        color: AppColors.textSecondaryLight,
+                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xxl),
@@ -122,7 +124,7 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                         Text(
                           'Vehicle Type',
                           style: AppTypography.caption(
-                            color: AppColors.textSecondaryLight,
+                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -130,17 +132,20 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                           decoration: BoxDecoration(
-                            color: AppColors.surfaceLight,
+                            color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight,
                             borderRadius: BorderRadius.circular(AppRadius.md),
-                            border: Border.all(color: AppColors.borderLight),
+                            border: Border.all(
+                              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                            ),
                           ),
                           child: DropdownButtonHideUnderline(
                             child: DropdownButton<String>(
                               value: _selectedVehicleType,
+                              dropdownColor: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight,
                               isExpanded: true,
                               icon: Icon(
                                 Icons.keyboard_arrow_down_rounded,
-                                color: AppColors.textSecondaryLight,
+                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                               ),
                               items: _vehicleTypes.map((type) {
                                 return DropdownMenuItem<String>(
@@ -148,7 +153,7 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                                   child: Text(
                                     type,
                                     style: AppTypography.body(
-                                      color: AppColors.textPrimaryLight,
+                                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                     ),
                                   ),
                                 );

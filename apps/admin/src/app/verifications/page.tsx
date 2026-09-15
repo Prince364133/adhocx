@@ -1,7 +1,7 @@
-'use client';
+﻿'use client';
 
 import React from 'react';
-import { Header } from '../../components/Header';
+import { PageHeader } from '../../components/common';
 import { VerificationStatsHeader } from '../../components/verifications/VerificationStatsHeader';
 import { VerificationFilterBar } from '../../components/verifications/VerificationFilterBar';
 import { VerificationCard } from '../../components/verifications/VerificationCard';
@@ -44,13 +44,14 @@ export default function VerificationCenterPage() {
   } = useVerificationActions(updateItemStatus);
 
   return (
-    <div>
-      <Header
+    <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <PageHeader
         title="Verification Center"
         subtitle="Review, authenticate, and manage Driver KYC submissions and Vendor enterprise applications"
+        liveStatus="KYC Pipeline Active"
       />
 
-      <div style={{ padding: '2rem' }}>
+      <div>
         {/* Toast Feedback Notification */}
         {toastMessage && (
           <div
@@ -58,8 +59,8 @@ export default function VerificationCenterPage() {
               position: 'fixed',
               top: '20px',
               right: '20px',
-              background: '#1e293b',
-              border: '1px solid var(--accent-primary)',
+              background: 'var(--bg-card-elevated)',
+              border: '1px solid var(--brand-primary)',
               color: '#ffffff',
               padding: '0.875rem 1.5rem',
               borderRadius: '10px',
@@ -72,7 +73,7 @@ export default function VerificationCenterPage() {
               gap: '0.75rem',
             }}
           >
-            <span>🔔</span>
+            <span>ðŸ””</span>
             <span>{toastMessage}</span>
           </div>
         )}
@@ -122,7 +123,7 @@ export default function VerificationCenterPage() {
               color: 'var(--text-muted)',
             }}
           >
-            <div style={{ fontSize: '2rem' }}>⏳</div>
+            <div style={{ fontSize: '2rem' }}>â³</div>
             <div>Loading verification queue from secure storage...</div>
           </div>
         ) : items.length === 0 ? (
@@ -151,7 +152,7 @@ export default function VerificationCenterPage() {
                 fontSize: '1.75rem',
               }}
             >
-              🛡️
+              ðŸ›¡ï¸
             </div>
             <div>
               <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)' }}>
