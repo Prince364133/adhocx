@@ -11,10 +11,13 @@ const navItems = [
   { href: '/drivers', label: 'Driver Fleet', icon: '🪪' },
   { href: '/users', label: 'Users', icon: '🏢' },
   { href: '/requirements', label: 'Requirements', icon: '📋' },
+  { href: '/assignments', label: 'Assignments', icon: '🎯' },
   { href: '/trips', label: 'Trips & Telemetry', icon: '🚗' },
   { href: '/coupons', label: 'Coupons & Promos', icon: '🏷️' },
+  { href: '/blogs', label: 'Blog & Content', icon: '📝' },
   { href: '/settlements', label: 'Settlements', icon: '💰' },
   { href: '/disputes', label: 'Disputes & Support', icon: '⚖️' },
+  { href: '/reports', label: 'Reports & Analytics', icon: '📈' },
   { href: '/audit', label: 'Audit Logs', icon: '📜' },
 ];
 

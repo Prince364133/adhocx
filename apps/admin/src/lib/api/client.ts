@@ -15,6 +15,10 @@ import {
   CouponMetrics,
   CreateCouponPayload,
   UpdateCouponPayload,
+  BlogPostItem,
+  CreateBlogPostInput,
+  UpdateBlogPostInput,
+  BlogMetrics,
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7001/api/v1';
@@ -232,4 +236,39 @@ export const adminApi = {
 
   getCouponRedemptions: (id: string) =>
     apiClient<CouponRedemptionItem[]>(`/admin/coupons/${id}/redemptions`),
+
+  // Blog & SEO Content Hub Management
+  getBlogs: (params?: { status?: string; category?: string; search?: string; page?: number; limit?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.status && params.status !== 'ALL') searchParams.append('status', params.status);
+    if (params?.category && params.category !== 'ALL') searchParams.append('category', params.category);
+    if (params?.search) searchParams.append('search', params.search);
+    if (params?.page) searchParams.append('page', String(params.page));
+    if (params?.limit) searchParams.append('limit', String(params.limit));
+    const query = searchParams.toString() ? `?${searchParams.toString()}` : '';
+    return apiClient<{ items: BlogPostItem[]; meta: { total: number; page: number; limit: number; totalPages: number } }>(
+      `/admin/blogs${query}`,
+    );
+  },
+
+  getBlogMetrics: () => apiClient<BlogMetrics>('/admin/blogs/metrics'),
+
+  getBlog: (id: string) => apiClient<BlogPostItem>(`/admin/blogs/${id}`),
+
+  createBlog: (data: CreateBlogPostInput) =>
+    apiClient<BlogPostItem>('/admin/blogs', {
+      method: 'POST',
+      body: data,
+    }),
+
+  updateBlog: (id: string, data: UpdateBlogPostInput) =>
+    apiClient<BlogPostItem>(`/admin/blogs/${id}`, {
+      method: 'PATCH',
+      body: data,
+    }),
+
+  deleteBlog: (id: string) =>
+    apiClient<{ success: boolean; message: string }>(`/admin/blogs/${id}`, {
+      method: 'DELETE',
+    }),
 };

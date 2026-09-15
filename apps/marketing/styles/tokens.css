@@ -1,0 +1,99 @@
+/* ==========================================================================
+   AdhocX Design Tokens - Source of Truth (v1.0 - September 2026)
+   Derived strictly from 04_DESIGN_SYSTEM.md & apps/marketing/DESIGN_AND_UI.md
+   ========================================================================== */
+
+:root {
+  /* Primary Color Palette */
+  --color-primary-900: #0B1220; /* Deepest brand / Dark UI background */
+  --color-primary-800: #111827; /* Strong dark surface / Footer */
+  --color-primary-700: #1E293B; /* Dark UI elements / Card background */
+  --color-primary-600: #2563EB; /* Primary Action Blue */
+  --color-primary-500: #3B82F6; /* Interactive / Highlight Blue */
+  --color-primary-400: #60A5FA; /* Lighter interactive state */
+  --color-primary-100: #EFF6FF; /* Primary light tint */
+
+  /* Neutral Surface Palette */
+  --color-bg: #F8FAFC;          /* Application / Page background */
+  --color-surface: #FFFFFF;     /* Cards / Panels / Main surface */
+  --color-surface-muted: #F1F5F9; /* Secondary / Muted background */
+  --color-border: #E2E8F0;      /* Default borders */
+  --color-border-strong: #CBD5E1; /* Emphasized borders */
+
+  /* Neutral Text Palette (No pure black allowed) */
+  --color-text-primary: #0F172A;   /* Primary text */
+  --color-text-secondary: #475569; /* Supporting text */
+  --color-text-muted: #94A3B8;     /* Low-emphasis metadata text */
+  --color-text-inverse: #FFFFFF;   /* Inverse white text on dark */
+
+  /* Semantic Colors */
+  --color-success: #16A34A;     /* Completed / Verified / Active Success */
+  --color-success-bg: #DCFCE7;  /* Success pill background */
+  --color-warning: #D97706;     /* Pending / Attention Required */
+  --color-warning-bg: #FEF3C7;  /* Warning pill background */
+  --color-error: #DC2626;       /* Failures / Rejected / Cancelled / Destructive */
+  --color-error-bg: #FEE2E2;    /* Error pill background */
+  --color-info: #0284C7;        /* Informational updates */
+  --color-info-bg: #E0F2FE;     /* Info pill background */
+
+  /* Typography Scale */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-size-display: 40px;
+  --font-size-h1: 32px;
+  --font-size-h2: 24px;
+  --font-size-h3: 20px;
+  --font-size-h4: 18px;
+  --font-size-body-large: 16px;
+  --font-size-body: 14px;
+  --font-size-small: 13px;
+  --font-size-caption: 12px;
+
+  /* Font Weights */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Line Heights */
+  --line-height-tight: 1.15;
+  --line-height-heading: 1.25;
+  --line-height-body: 1.5;
+  --line-height-relaxed: 1.6;
+
+  /* 4px Base Spacing Grid */
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-40: 40px;
+  --space-48: 48px;
+  --space-64: 64px;
+
+  /* Border Radius */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-pill: 9999px;
+
+  /* Elevation & Shadows (Restrained) */
+  --shadow-level-0: none;
+  --shadow-level-1: 0 1px 3px 0 rgba(15, 23, 42, 0.05), 0 1px 2px 0 rgba(15, 23, 42, 0.03);
+  --shadow-level-2: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -2px rgba(15, 23, 42, 0.03);
+  --shadow-level-3: 0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 10px 10px -5px rgba(15, 23, 42, 0.04);
+  --shadow-focus: 0 0 0 3px rgba(37, 99, 235, 0.25);
+
+  /* Layout Widths */
+  --container-max-width: 1240px;
+  --container-legal-width: 880px;
+  --header-height: 72px;
+
+  /* Motion & Transitions */
+  --transition-fast: 150ms ease-in-out;
+  --transition-normal: 250ms ease-in-out;
+}

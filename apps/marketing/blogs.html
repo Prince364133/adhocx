@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AdhocX Blog & Insights — B2B Fleet Optimization, Driver Earnings & Logistics</title>
+  <meta name="description" content="Explore authoritative industry insights, case studies, and operational guides on corporate cab management, commercial driver earnings, reverse auction dispatch, and B2B fleet logistics in Hyderabad." />
+  <meta name="keywords" content="AdhocX blog, B2B cab booking hyderabad, corporate fleet optimization, commercial driver earnings, reverse bidding dispatch" />
+  <link rel="canonical" href="https://www.adhocx.com/blogs.html" />
+
+  <!-- OpenGraph & Social Metadata -->
+  <meta property="og:title" content="AdhocX Blog & Insights — Enterprise Mobility & Fleet Knowledge Hub" />
+  <meta property="og:description" content="Discover how modern enterprises optimize spot transport and how commercial drivers maximize daily earnings with 1-hour payouts." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.adhocx.com/blogs.html" />
+  <meta property="og:image" content="https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=1200&q=80" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="AdhocX Blog & Insights — Enterprise Mobility & Fleet Knowledge Hub" />
+  <meta name="twitter:description" content="Authoritative guides on B2B fleet management, automated spot dispatch, and commercial driver welfare." />
+
+  <!-- Design System CSS -->
+  <link rel="stylesheet" href="./styles/global.css" />
+
+  <!-- JSON-LD Structured Data for Blog Hub -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Blog",
+    "name": "AdhocX Fleet & Mobility Insights",
+    "url": "https://www.adhocx.com/blogs.html",
+    "description": "Authoritative research, operational guides, and market analysis on corporate employee transit and commercial driver economics.",
+    "publisher": {
+      "@type": "Organization",
+      "name": "AdhocX Technologies Private Limited",
+      "url": "https://www.adhocx.com",
+      "logo": "https://www.adhocx.com/assets/logo.png"
+    }
+  }
+  </script>
+</head>
+<body>
+
+  <!-- ==========================================================================
+       Sticky Header Navigation
+       ========================================================================== -->
+  <header class="header-sticky">
+    <div class="container header-inner">
+      <a href="./index.html" class="brand-logo" id="header-brand-logo">
+        <span class="logo-text">Adhoc<span class="logo-accent">X</span></span>
+        <span class="logo-tag">Insights</span>
+      </a>
+
+      <ul class="nav-links" id="primary-nav-links">
+        <li><a href="./index.html#enterprise" class="nav-link">For Enterprise</a></li>
+        <li><a href="./index.html#drivers" class="nav-link">For Drivers</a></li>
+        <li><a href="./blogs.html" class="nav-link active" style="color: var(--color-primary-green, #10b981);">Blog & Insights</a></li>
+        <li><a href="./index.html#bonus" class="nav-link">₹2,000 Bonus</a></li>
+        <li><a href="./terms.html" class="nav-link">Terms</a></li>
+        <li><a href="./privacy.html" class="nav-link">Privacy</a></li>
+        <li class="mobile-only-action">
+          <a href="./index.html#drivers" class="btn btn-secondary" style="width:100%; justify-content:center;">Drive with Us</a>
+        </li>
+        <li class="mobile-only-action">
+          <a href="./index.html#enterprise" class="btn btn-primary" style="width:100%; justify-content:center;">Corporate Portal</a>
+        </li>
+      </ul>
+
+      <div class="header-actions">
+        <a href="./index.html#drivers" class="btn btn-secondary nav-action-btn">Drive with Us</a>
+        <a href="./index.html#enterprise" class="btn btn-primary nav-action-btn">Corporate Portal</a>
+        <button class="menu-toggle" id="menu-toggle-btn" aria-label="Toggle Navigation Menu" aria-expanded="false">
+          <svg class="hamburger-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+          <svg class="close-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <!-- ==========================================================================
+         Hero Section
+         ========================================================================== -->
+    <section class="blog-hero-section">
+      <div class="container">
+        <div class="blog-hero-header">
+          <div class="hero-badge">
+            <span class="badge badge-success">✓ Authoritative Mobility Research</span>
+            <span class="badge badge-info">SEO & Industry Insights</span>
+          </div>
+          <h1 class="blog-main-title">AdhocX Fleet & Logistics Insights</h1>
+          <p class="blog-sub-title">
+            Actionable intelligence, technology benchmarks, and strategic playbooks on B2B transport optimization, automated reverse bidding, and commercial driver empowerment.
+          </p>
+
+          <!-- Search & Filter Controls -->
+          <div class="blog-search-bar-wrap">
+            <div class="blog-search-input-box">
+              <span class="search-icon">🔍</span>
+              <input
+                type="text"
+                id="blog-search-input"
+                placeholder="Search articles, topics, keywords (e.g. Reverse Bidding, ₹2000 Bonus, Spot Dispatch)..."
+                aria-label="Search blog articles"
+              />
+              <button id="blog-search-clear" style="display:none;" title="Clear search">✕</button>
+            </div>
+          </div>
+
+          <!-- Category Pill Filters -->
+          <div class="category-pills-wrap" id="category-pills-container">
+            <button class="cat-pill active" data-cat="ALL">All Topics</button>
+            <button class="cat-pill" data-cat="B2B Fleet Operations">B2B Fleet Operations</button>
+            <button class="cat-pill" data-cat="Driver Welfare & Earnings">Driver Welfare & Earnings</button>
+            <button class="cat-pill" data-cat="Enterprise Logistics">Enterprise Logistics</button>
+            <button class="cat-pill" data-cat="Technology & Dispatch">Technology & Dispatch</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         Featured Story Hero Block
+         ========================================================================== -->
+    <section class="featured-blog-section" id="featured-section">
+      <div class="container">
+        <div class="featured-blog-card" id="featured-blog-card">
+          <div class="featured-img-wrap">
+            <img
+              id="featured-img"
+              src="https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=1200&q=80"
+              alt="Featured Article Cover"
+            />
+            <span class="featured-ribbon">⭐ Featured Deep Dive</span>
+          </div>
+          <div class="featured-content">
+            <div class="featured-meta">
+              <span class="blog-card-cat" id="featured-cat">B2B Fleet Operations</span>
+              <span class="blog-meta-dot">•</span>
+              <span id="featured-readtime">4 min read</span>
+            </div>
+            <h2 class="featured-title" id="featured-title">
+              <a href="./blog-detail.html?slug=how-reverse-auction-cuts-enterprise-cab-costs">
+                How AdhocX Reverse Auction Bidding Cuts Enterprise Spot Cab Costs by 28%
+              </a>
+            </h2>
+            <p class="featured-excerpt" id="featured-excerpt">
+              Discover how live driver reverse bidding and instant automated fulfillment eliminate middlemen broker markups for corporate logistics and spot employee transit in Hyderabad.
+            </p>
+            <div class="featured-footer">
+              <div class="author-info">
+                <div class="author-avatar-circle">AX</div>
+                <div>
+                  <div class="author-name" id="featured-author">AdhocX Logistics Research</div>
+                  <div class="publish-date" id="featured-date">Sep 01, 2026</div>
+                </div>
+              </div>
+              <a href="./blog-detail.html?slug=how-reverse-auction-cuts-enterprise-cab-costs" class="btn btn-primary" id="featured-read-btn">
+                Read Article →
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         Blog Grid Section
+         ========================================================================== -->
+    <section class="blog-grid-section">
+      <div class="container">
+        <div class="section-header-row">
+          <div>
+            <h2 class="section-title">Latest Articles & Research</h2>
+            <p class="section-subtitle">Read in-depth analyses authored by mobility and operations experts.</p>
+          </div>
+          <div class="articles-count" id="articles-count-text">Showing 3 articles</div>
+        </div>
+
+        <div class="blog-grid" id="blog-grid-container">
+          <!-- Dynamic articles populated by JavaScript -->
+        </div>
+
+        <!-- No Results Fallback -->
+        <div class="no-results-box" id="no-results-box" style="display:none;">
+          <div class="no-results-icon">🔎</div>
+          <h3>No articles match your search criteria</h3>
+          <p>Try searching for different keywords or select "All Topics".</p>
+          <button class="btn btn-secondary" id="reset-filters-btn">Reset All Filters</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         Lead Conversion & Corporate Newsletter Block
+         ========================================================================== -->
+    <section class="blog-cta-section">
+      <div class="container">
+        <div class="blog-cta-box">
+          <div class="blog-cta-content">
+            <span class="badge badge-success">AdhocX Enterprise Fleet Advisory</span>
+            <h2>Optimize Your Corporate Transport Budget Today</h2>
+            <p>
+              Connect with our enterprise mobility architects to benchmark your company's monthly employee cab expenses, audit spot leakage, and test our reverse bidding dispatch network.
+            </p>
+            <div class="blog-cta-actions">
+              <a href="./index.html#enterprise" class="btn btn-primary btn-large">Schedule Corporate Audit</a>
+              <a href="./index.html#drivers" class="btn btn-secondary btn-large">Join Driver Partner Network</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ==========================================================================
+       Global Footer
+       ========================================================================== -->
+  <footer class="footer-global">
+    <div class="container footer-grid">
+      <div class="footer-brand-col">
+        <a href="./index.html" class="brand-logo">
+          <span class="logo-text">Adhoc<span class="logo-accent">X</span></span>
+        </a>
+        <p class="footer-tagline">
+          The high-performance B2B commercial transport & driver fulfillment marketplace in Hyderabad.
+        </p>
+        <div class="footer-support-box">
+          <div><strong>Support Desk:</strong> +91-9390366116</div>
+          <div><strong>Email:</strong> adhocx.ofc@gmail.com</div>
+        </div>
+      </div>
+
+      <div class="footer-nav-col">
+        <h4 class="footer-heading">Platform</h4>
+        <ul class="footer-links">
+          <li><a href="./index.html#enterprise">Corporate Portal</a></li>
+          <li><a href="./index.html#drivers">Driver Onboarding</a></li>
+          <li><a href="./index.html#bonus">₹2,000 Milestone Bonus</a></li>
+          <li><a href="./index.html#calculator">Earnings Calculator</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-nav-col">
+        <h4 class="footer-heading">Knowledge Hub</h4>
+        <ul class="footer-links">
+          <li><a href="./blogs.html">All Blog Articles</a></li>
+          <li><a href="./blogs.html?cat=B2B+Fleet+Operations">B2B Fleet Operations</a></li>
+          <li><a href="./blogs.html?cat=Driver+Welfare+%26+Earnings">Driver Welfare & Bonus</a></li>
+          <li><a href="./blogs.html?cat=Enterprise+Logistics">Enterprise Logistics</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-nav-col">
+        <h4 class="footer-heading">Legal & Compliance</h4>
+        <ul class="footer-links">
+          <li><a href="./terms.html">Terms & Conditions</a></li>
+          <li><a href="./privacy.html">Privacy Policy</a></li>
+          <li><a href="http://localhost:3000" target="_blank">Admin Control Room</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="container footer-bottom">
+      <p>© 2026 AdhocX Technologies Private Limited. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- ==========================================================================
+       Blog Data Hydration & Dynamic Interaction Script
+       ========================================================================== -->
+  <script>
+    const API_BASE = 'http://localhost:7001/api/v1';
+
+    // Seed data cache for instant zero-latency loading and offline fallback
+    const INITIAL_SEED_BLOGS = [
+      {
+        id: 'b1111111-1111-1111-1111-111111111111',
+        title: 'How AdhocX Reverse Auction Bidding Cuts Enterprise Spot Cab Costs by 28%',
+        slug: 'how-reverse-auction-cuts-enterprise-cab-costs',
+        excerpt: 'Discover how live driver reverse bidding and instant automated fulfillment eliminate middlemen broker markups for corporate logistics and spot employee transit in Hyderabad.',
+        category: 'B2B Fleet Operations',
+        tags: ['Reverse Bidding', 'Corporate Mobility', 'Hyderabad Tech Transit'],
+        coverImage: 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=1200&q=80',
+        authorName: 'AdhocX Logistics Research',
+        readTime: '4 min read',
+        views: 342,
+        publishedAt: '2026-09-01T10:00:00Z',
+      },
+      {
+        id: 'b2222222-2222-2222-2222-222222222222',
+        title: 'Driver Empowerment: Why 1-Hour Bank Payouts and the ₹2,000 Milestone Bonus Win in 2026',
+        slug: 'driver-empowerment-1-hour-payouts-milestone-bonus',
+        excerpt: 'Why weekly or monthly payment delays stifle driver retention, and how AdhocX instant settlement ledger and 100-ride ₹2,000 cash bonuses empower commercial drivers.',
+        category: 'Driver Welfare & Earnings',
+        tags: ['Driver Earnings', '1-Hour Payouts', '₹2000 Bonus'],
+        coverImage: 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=1200&q=80',
+        authorName: 'Varsha Adigoppula',
+        readTime: '5 min read',
+        views: 512,
+        publishedAt: '2026-09-05T14:30:00Z',
+      },
+      {
+        id: 'b3333333-3333-3333-3333-333333333333',
+        title: 'Bulk Fleet Outsourcing vs Spot Dispatch: A Strategic Guide for Corporate Logistics',
+        slug: 'bulk-fleet-outsourcing-vs-spot-dispatch-guide',
+        excerpt: 'Comparing dedicated monthly fleet retainers against dynamic on-demand spot dispatching to optimize corporate transport budgets and maintain 99.8% SLA punctuality.',
+        category: 'Enterprise Logistics',
+        tags: ['Fleet Optimization', 'B2B Logistics', 'Cost Reduction'],
+        coverImage: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80',
+        authorName: 'AdhocX Enterprise Solutions',
+        readTime: '6 min read',
+        views: 289,
+        publishedAt: '2026-09-08T08:15:00Z',
+      }
+    ];
+
+    let allBlogs = INITIAL_SEED_BLOGS;
+    let currentCategory = 'ALL';
+    let currentSearch = '';
+
+    // Mobile nav toggle
+    const menuToggle = document.getElementById('menu-toggle-btn');
+    const navLinks = document.getElementById('primary-nav-links');
+    if (menuToggle && navLinks) {
+      menuToggle.addEventListener('click', () => {
+        const isOpen = navLinks.classList.toggle('nav-open');
+        menuToggle.setAttribute('aria-expanded', isOpen);
+        menuToggle.querySelector('.hamburger-icon').style.display = isOpen ? 'none' : 'block';
+        menuToggle.querySelector('.close-icon').style.display = isOpen ? 'block' : 'none';
+      });
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return 'Recently';
+      const d = new Date(dateStr);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function renderBlogGrid() {
+      const container = document.getElementById('blog-grid-container');
+      const countText = document.getElementById('articles-count-text');
+      const noResults = document.getElementById('no-results-box');
+
+      const filtered = allBlogs.filter(b => {
+        const matchCat = currentCategory === 'ALL' || b.category.toLowerCase() === currentCategory.toLowerCase();
+        const s = currentSearch.toLowerCase().trim();
+        const matchSearch = !s ||
+          b.title.toLowerCase().includes(s) ||
+          b.excerpt.toLowerCase().includes(s) ||
+          (b.tags && b.tags.some(t => t.toLowerCase().includes(s))) ||
+          b.category.toLowerCase().includes(s);
+        return matchCat && matchSearch;
+      });
+
+      countText.textContent = `Showing ${filtered.length} article${filtered.length === 1 ? '' : 's'}`;
+
+      if (filtered.length === 0) {
+        container.innerHTML = '';
+        noResults.style.display = 'block';
+        return;
+      }
+
+      noResults.style.display = 'none';
+      container.innerHTML = filtered.map(b => `
+        <article class="blog-card">
+          <a href="./blog-detail.html?slug=${encodeURIComponent(b.slug)}" class="blog-card-img-link">
+            <img src="${b.coverImage || 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=1200&q=80'}" alt="${b.title}" loading="lazy" />
+          </a>
+          <div class="blog-card-body">
+            <div class="blog-card-meta">
+              <span class="blog-card-cat">${b.category}</span>
+              <span class="blog-meta-dot">•</span>
+              <span class="blog-card-readtime">${b.readTime || '5 min read'}</span>
+            </div>
+            <h3 class="blog-card-title">
+              <a href="./blog-detail.html?slug=${encodeURIComponent(b.slug)}">${b.title}</a>
+            </h3>
+            <p class="blog-card-excerpt">${b.excerpt}</p>
+            <div class="blog-card-footer">
+              <div class="blog-card-author">
+                <span class="author-icon">✍️</span>
+                <span>${b.authorName || 'AdhocX Team'}</span>
+              </div>
+              <span class="blog-card-date">${formatDate(b.publishedAt)}</span>
+            </div>
+          </div>
+        </article>
+      `).join('');
+    }
+
+    async function fetchLiveBlogs() {
+      try {
+        const res = await fetch(`${API_BASE}/blogs`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.items && data.items.length > 0) {
+            allBlogs = data.items;
+            renderBlogGrid();
+
+            // Also check for featured post
+            const featRes = await fetch(`${API_BASE}/blogs/featured`);
+            if (featRes.ok) {
+              const feat = await featRes.json();
+              if (feat) {
+                document.getElementById('featured-img').src = feat.coverImage || document.getElementById('featured-img').src;
+                document.getElementById('featured-cat').textContent = feat.category;
+                document.getElementById('featured-readtime').textContent = feat.readTime;
+                document.getElementById('featured-title').innerHTML = `<a href="./blog-detail.html?slug=${encodeURIComponent(feat.slug)}">${feat.title}</a>`;
+                document.getElementById('featured-excerpt').textContent = feat.excerpt;
+                document.getElementById('featured-author').textContent = feat.authorName;
+                document.getElementById('featured-date').textContent = formatDate(feat.publishedAt);
+                document.getElementById('featured-read-btn').href = `./blog-detail.html?slug=${encodeURIComponent(feat.slug)}`;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.log('Serving offline seed blog cache:', e);
+      }
+    }
+
+    // Setup Category filters
+    document.querySelectorAll('.cat-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        currentCategory = btn.getAttribute('data-cat');
+        renderBlogGrid();
+      });
+    });
+
+    // Setup Search input
+    const searchInput = document.getElementById('blog-search-input');
+    const searchClear = document.getElementById('blog-search-clear');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        currentSearch = e.target.value;
+        searchClear.style.display = currentSearch ? 'block' : 'none';
+        renderBlogGrid();
+      });
+      searchClear.addEventListener('click', () => {
+        searchInput.value = '';
+        currentSearch = '';
+        searchClear.style.display = 'none';
+        renderBlogGrid();
+      });
+    }
+
+    const resetBtn = document.getElementById('reset-filters-btn');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        currentCategory = 'ALL';
+        currentSearch = '';
+        if (searchInput) searchInput.value = '';
+        if (searchClear) searchClear.style.display = 'none';
+        document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
+        document.querySelector('.cat-pill[data-cat="ALL"]').classList.add('active');
+        renderBlogGrid();
+      });
+    }
+
+    // Initial render & sync
+    renderBlogGrid();
+    fetchLiveBlogs();
+  </script>
+</body>
+</html>
