@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
@@ -8,10 +9,11 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
+import '../opportunities_screen/driver_submit_bid_sheet.dart';
 
 enum DriverHomeState { offline, available, offerAttention, assignedTrip, activeTrip, completedTrip }
 
-/// Main Driver Home Screen supporting live driver operational states & backend sync.
+/// Main Driver Home Screen supporting live driver operational states & real-time backend sync.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -27,39 +29,58 @@ class _HomeScreenState extends State<HomeScreen> {
   int _todayTripsCount = 0;
   Map<String, dynamic>? _liveOffer;
   Map<String, dynamic>? _liveTrip;
+  Timer? _autoRefreshTimer;
+  final TextEditingController _otpController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadLiveDriverData();
+    _startAutoRefresh();
   }
 
-  Future<void> _loadLiveDriverData() async {
-    setState(() => _isLoading = true);
+  @override
+  void dispose() {
+    _autoRefreshTimer?.cancel();
+    _otpController.dispose();
+    super.dispose();
+  }
+
+  void _startAutoRefresh() {
+    _autoRefreshTimer?.cancel();
+    _autoRefreshTimer = Timer.periodic(const Duration(milliseconds: 3500), (_) {
+      if (mounted && (_currentState == DriverHomeState.available || _currentState == DriverHomeState.offerAttention)) {
+        _loadLiveDriverData(silent: true);
+      }
+    });
+  }
+
+  Future<void> _loadLiveDriverData({bool silent = false}) async {
+    if (!silent) setState(() => _isLoading = true);
     try {
       await AuthService.instance.ensureAuthenticatedSession(role: 'DRIVER');
       final results = await Future.wait([
         DriverService.instance.getProfile().catchError((_) => null),
         DriverService.instance.getWalletSummary().catchError((_) => null),
         DriverService.instance.getOffers().catchError((_) => []),
+        DriverService.instance.getBiddingOpportunities().catchError((_) => []),
         DriverService.instance.getTrips().catchError((_) => []),
       ]);
 
       final profile = results[0] as Map<String, dynamic>?;
       final wallet = results[1] as Map<String, dynamic>?;
       final offers = results[2] is List ? results[2] as List<dynamic> : [];
-      final trips = results[3] is List ? results[3] as List<dynamic> : [];
+      final biddingOps = results[3] is List ? results[3] as List<dynamic> : [];
+      final trips = results[4] is List ? results[4] as List<dynamic> : [];
 
       if (mounted) {
         setState(() {
           if (profile != null) {
             final user = profile['user'] as Map<String, dynamic>?;
-            _driverName = user?['name'] as String? ?? 'Driver Partner';
+            _driverName = profile['fullName'] as String? ?? user?['name'] as String? ?? 'Driver Partner';
             final avail = profile['availabilityStatus'] as String? ?? 'OFFLINE';
-            if (avail == 'AVAILABLE') {
+            if (avail == 'AVAILABLE' && _currentState == DriverHomeState.offline) {
               _currentState = DriverHomeState.available;
-            } else {
-              _currentState = DriverHomeState.offline;
             }
           }
 
@@ -68,7 +89,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _todayTripsCount = (wallet['completedTripsCount'] ?? 0).toInt();
           }
 
-          // Check if active trip exists
+          // 1. Check if an active / in-progress / arrived trip exists
           final inProgressTrip = trips.firstWhere(
             (t) => t['status'] == 'IN_PROGRESS' || t['status'] == 'ARRIVED',
             orElse: () => null,
@@ -76,24 +97,46 @@ class _HomeScreenState extends State<HomeScreen> {
           if (inProgressTrip != null) {
             _liveTrip = inProgressTrip as Map<String, dynamic>;
             _currentState = DriverHomeState.activeTrip;
-          } else {
-            final assignedTrip = trips.firstWhere(
-              (t) => t['status'] == 'ASSIGNED' || t['status'] == 'DRIVER_ASSIGNED',
-              orElse: () => null,
-            );
-            if (assignedTrip != null) {
-              _liveTrip = assignedTrip as Map<String, dynamic>;
-              _currentState = DriverHomeState.assignedTrip;
-            } else if (offers.isNotEmpty) {
-              _liveOffer = offers.first as Map<String, dynamic>;
-              _currentState = DriverHomeState.offerAttention;
-            }
+            return;
+          }
+
+          // 2. Check if assigned trip exists
+          final assignedTrip = trips.firstWhere(
+            (t) => t['status'] == 'ASSIGNED' || t['status'] == 'DRIVER_ASSIGNED',
+            orElse: () => null,
+          );
+          if (assignedTrip != null) {
+            _liveTrip = assignedTrip as Map<String, dynamic>;
+            _currentState = DriverHomeState.assignedTrip;
+            return;
+          }
+
+          // 3. Check for direct dispatch offers
+          final sentOffers = offers.where((o) => o['status'] == 'SENT' || o['status'] == null).toList();
+          if (sentOffers.isNotEmpty) {
+            _liveOffer = sentOffers.first as Map<String, dynamic>;
+            _currentState = DriverHomeState.offerAttention;
+            return;
+          }
+
+          // 4. Check for open bidding opportunities
+          if (biddingOps.isNotEmpty) {
+            _liveOffer = biddingOps.first as Map<String, dynamic>;
+            _currentState = DriverHomeState.offerAttention;
+            return;
+          }
+
+          // 5. If no active trip or offer, and status is not offline, keep available
+          if (_currentState == DriverHomeState.offerAttention) {
+            _liveOffer = null;
+            _currentState = DriverHomeState.available;
           }
         });
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Driver home sync notice: $e');
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (!silent && mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -101,15 +144,16 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       await AuthService.instance.ensureAuthenticatedSession(role: 'DRIVER');
       final newStatus = goOnline ? 'AVAILABLE' : 'OFFLINE';
-      await DriverService.instance.updateAvailability(newStatus);
+      await DriverService.instance.updateAvailability(newStatus, lat: 28.4950, lng: 77.0895);
       if (mounted) {
         setState(() {
           _currentState = goOnline ? DriverHomeState.available : DriverHomeState.offline;
         });
         Fluttertoast.showToast(
-          msg: goOnline ? 'You are now ONLINE' : 'You are now OFFLINE',
+          msg: goOnline ? '🟢 You are now ONLINE & Available for trips' : '⚪ You are now OFFLINE',
           backgroundColor: goOnline ? AppColors.accentGreenDark : AppColors.slate700,
         );
+        _loadLiveDriverData(silent: true);
       }
     } catch (e) {
       if (mounted) {
@@ -150,11 +194,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Row(
                     children: [
                       IconButton(
-                        onPressed: _loadLiveDriverData,
+                        onPressed: () => _loadLiveDriverData(silent: false),
                         icon: Icon(
                           Icons.refresh,
                           color: AppColors.textPrimaryLight,
                         ),
+                        tooltip: 'Sync Live Offers',
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -252,20 +297,25 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 // ── Dynamic State Body ───────────────────────────────────────
                 Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    children: [
-                      switch (_currentState) {
-                        DriverHomeState.offline => _buildOfflineState(),
-                        DriverHomeState.available => _buildAvailableState(),
-                        DriverHomeState.offerAttention => _buildOfferAttentionState(),
-                        DriverHomeState.assignedTrip => _buildAssignedState(),
-                        DriverHomeState.activeTrip => _buildActiveTripState(),
-                        DriverHomeState.completedTrip => _buildCompletedTripState(),
-                      },
-                      const SizedBox(height: 100),
-                    ],
-                  ),
+                  child: _isLoading && _liveOffer == null && _liveTrip == null
+                      ? const Center(child: CircularProgressIndicator())
+                      : RefreshIndicator(
+                          onRefresh: () => _loadLiveDriverData(silent: false),
+                          child: ListView(
+                            padding: const EdgeInsets.all(AppSpacing.lg),
+                            children: [
+                              switch (_currentState) {
+                                DriverHomeState.offline => _buildOfflineState(),
+                                DriverHomeState.available => _buildAvailableState(),
+                                DriverHomeState.offerAttention => _buildOfferAttentionState(),
+                                DriverHomeState.assignedTrip => _buildAssignedState(),
+                                DriverHomeState.activeTrip => _buildActiveTripState(),
+                                DriverHomeState.completedTrip => _buildCompletedTripState(),
+                              },
+                              const SizedBox(height: 100),
+                            ],
+                          ),
+                        ),
                 ),
               ],
             ),
@@ -282,7 +332,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Availability Dark Card
         Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
@@ -319,7 +368,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 2),
               Text(
-                'You are currently offline',
+                'You are currently offline. Go online to receive trip offers.',
                 style: AppTypography.caption(color: Colors.white70),
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -329,7 +378,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: ElevatedButton(
                   onPressed: () => _toggleOnline(true),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.borderDark,
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppRadius.md),
@@ -349,7 +399,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(height: AppSpacing.xl),
 
-        // Offline Guide Illustration & Text
         Center(
           child: Column(
             children: [
@@ -372,21 +421,19 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Go online to receive trip opportunities',
+                'Go online to receive trip opportunities in real-time',
                 style: AppTypography.caption(color: AppColors.textMutedLight),
               ),
               const SizedBox(height: AppSpacing.lg),
-              _buildBullet('Go online to get trip offers'),
+              _buildBullet('Go online to get live trip dispatches'),
               const SizedBox(height: 4),
-              _buildBullet("We'll notify you on new requests"),
+              _buildBullet("We'll notify you automatically on new requests"),
               const SizedBox(height: 4),
-              _buildBullet('You can go offline anytime'),
+              _buildBullet('You can go offline anytime with one tap'),
             ],
           ),
         ),
         const SizedBox(height: AppSpacing.xl),
-
-        // Today's Activity Card
         _buildActivityCard(trips: '$_todayTripsCount', earnings: '₹ ${_todayEarnings.toStringAsFixed(0)}'),
       ],
     );
@@ -399,7 +446,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Availability White Card
         Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
@@ -434,7 +480,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 2),
               Text(
-                'You are online and available for trips',
+                'You are online and listening for live nearby trips',
                 style: AppTypography.caption(color: AppColors.textSecondaryLight),
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -463,7 +509,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(height: AppSpacing.lg),
 
-        // Radar Scanning Card
+        // Live Radar Pulse Card
         Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
@@ -486,7 +532,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Looking for nearby trips...',
+                      'Auto-scanning for incoming booking requests...',
                       style: AppTypography.caption(color: AppColors.textSecondaryLight),
                     ),
                   ],
@@ -506,17 +552,15 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(height: AppSpacing.xl),
 
-        // Today's Activity Card
         _buildActivityCard(trips: '$_todayTripsCount', earnings: '₹ ${_todayEarnings.toStringAsFixed(0)}'),
         const SizedBox(height: AppSpacing.lg),
 
-        // Opportunities button
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
             onPressed: () => context.push(AppRoutes.opportunitiesScreen),
             icon: const Icon(Icons.near_me_outlined),
-            label: const Text('View Live Nearby Opportunities'),
+            label: const Text('View All Live Opportunities'),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
@@ -528,27 +572,37 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ───────────────────────────────────────────────────────────────────────────
-  // STATE 3: OFFER ATTENTION STATE
+  // STATE 3: LIVE OFFER / OPPORTUNITY ATTENTION STATE
   // ───────────────────────────────────────────────────────────────────────────
   Widget _buildOfferAttentionState() {
-    final req = _liveOffer?['requirement'] as Map<String, dynamic>?;
-    final title = req?['title'] as String? ?? 'Corporate Transfer';
-    final vehicle = req?['vehicleType'] as String? ?? 'Sedan';
-    final pickup = req?['pickupAddress'] as String? ?? _liveOffer?['pickup'] as String? ?? 'DLF Cyber City, Gurugram';
-    final drop = req?['dropAddress'] as String? ?? _liveOffer?['drop'] as String? ?? 'Indira Gandhi Airport, T3';
-    final earnings = '₹ ${(_liveOffer?['offeredPrice'] ?? req?['budgetPerVehicle'] ?? 850)}';
-    final offerId = _liveOffer?['id'] as String?;
+    final offer = _liveOffer;
+    final isDirectOffer = offer != null && offer['offeredRate'] != null;
+    final isBidding = offer != null && (offer['fulfillmentMode'] == 'BIDDING' || offer['suggestedBudget'] != null);
+
+    final offerId = offer?['id'] as String?;
+    final requirementId = (offer?['requirementId'] ?? offer?['id']) as String? ?? '';
+    final rawDisplayId = requirementId.length > 8 ? 'REQ-${requirementId.substring(0, 8).toUpperCase()}' : requirementId;
+
+    final reqObj = offer?['requirement'] as Map<String, dynamic>?;
+    final vehicle = (offer?['vehicleType'] ?? reqObj?['vehicleType'] ?? 'Sedan').toString();
+    final pickup = (offer?['pickupLocation']?['address'] ?? offer?['pickup'] ?? reqObj?['pickupAddress'] ?? 'Pickup Location').toString();
+    final drop = (offer?['dropLocation']?['address'] ?? offer?['drop'] ?? reqObj?['dropAddress'] ?? 'Drop Location').toString();
+    
+    final num rate = (offer?['offeredRate'] ?? offer?['suggestedBudget'] ?? offer?['offeredPrice'] ?? reqObj?['ratePerVehicle'] ?? 850) as num;
+    final rateStr = '₹ ${rate.toStringAsFixed(0)}';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Time-Sensitive Offer Card
         Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
-            color: AppColors.warningContainer,
+            color: isBidding ? AppColors.primary.withValues(alpha: 0.08) : AppColors.warningContainer,
             borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: AppColors.warningContainer, width: 1.5),
+            border: Border.all(
+              color: isBidding ? AppColors.primary : AppColors.warning,
+              width: 1.5,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -556,25 +610,37 @@ class _HomeScreenState extends State<HomeScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'New Trip Opportunity',
-                    style: AppTypography.caption(
-                      color: AppColors.warning,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Row(
+                    children: [
+                      Icon(
+                        isBidding ? Icons.gavel_rounded : Icons.flash_on_rounded,
+                        size: 16,
+                        color: isBidding ? AppColors.primary : AppColors.warning,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        isBidding ? 'New Outstation Bidding Trip' : 'Direct Dispatch Trip Offer',
+                        style: TextStyle(
+                          color: isBidding ? AppColors.primary : AppColors.warning,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: AppColors.warningContainer,
+                      color: isBidding ? AppColors.primary.withValues(alpha: 0.15) : AppColors.warning.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(AppRadius.xs),
                     ),
                     child: Text(
-                      'Expires soon',
-                      style: AppTypography.caption(
-                        color: AppColors.warning,
+                      rawDisplayId,
+                      style: TextStyle(
+                        color: isBidding ? AppColors.primary : AppColors.warning,
                         fontWeight: FontWeight.bold,
-                      ).copyWith(fontSize: 10),
+                        fontSize: 10,
+                      ),
                     ),
                   ),
                 ],
@@ -584,117 +650,199 @@ class _HomeScreenState extends State<HomeScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    title,
+                    isBidding ? 'Outstation Booking' : 'Corporate Transfer',
                     style: AppTypography.h3(
                       color: AppColors.textPrimaryLight,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Text(
-                    vehicle,
-                    style: AppTypography.caption(
-                      color: AppColors.textMutedLight,
-                      fontWeight: FontWeight.bold,
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.circle, size: 8, color: AppColors.accentGreenDark),
-                  const SizedBox(width: 8),
-                  Expanded(
                     child: Text(
-                      pickup,
-                      style: AppTypography.caption(color: AppColors.textSecondaryLight),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.circle, size: 8, color: AppColors.error),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      drop,
-                      style: AppTypography.caption(color: AppColors.textSecondaryLight),
+                      vehicle,
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: AppSpacing.md),
+
+              // Route details
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.navigation_outlined, size: 14, color: AppColors.textMutedLight),
-                  const SizedBox(width: 4),
-                  Text('12.4 km away', style: AppTypography.caption(color: AppColors.textMutedLight)),
-                  const SizedBox(width: 16),
-                  const Icon(Icons.currency_rupee, size: 14, color: AppColors.accentGreenDark),
-                  const SizedBox(width: 4),
-                  Text(earnings, style: AppTypography.caption(color: AppColors.accentGreenDark, fontWeight: FontWeight.bold)),
+                  const Icon(Icons.circle, size: 10, color: AppColors.accentGreenDark),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Pickup', style: TextStyle(fontSize: 10, color: AppColors.slate500, fontWeight: FontWeight.bold)),
+                        Text(pickup, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                      ],
+                    ),
+                  ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: 8),
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const Icon(Icons.circle, size: 10, color: AppColors.error),
+                  const SizedBox(width: 8),
                   Expanded(
-                    child: OutlinedButton(
-                      onPressed: () async {
-                        if (offerId != null) {
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Destination', style: TextStyle(fontSize: 10, color: AppColors.slate500, fontWeight: FontWeight.bold)),
+                        Text(drop, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+
+              // Rate Row
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceLight,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  border: Border.all(color: AppColors.borderLight),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      isBidding ? 'Suggested Budget / Guide Price:' : 'Offered Payout:',
+                      style: const TextStyle(fontSize: 12, color: AppColors.slate600),
+                    ),
+                    Text(
+                      rateStr,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.accentGreenDark),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: AppSpacing.lg),
+
+              // Action Buttons
+              if (isDirectOffer && offerId != null) ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () async {
                           try {
                             await DriverService.instance.declineOffer(offerId);
+                            Fluttertoast.showToast(msg: 'Offer declined');
                           } catch (_) {}
-                        }
-                        _setDriverState(DriverHomeState.available);
-                      },
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: AppColors.warning),
-                        foregroundColor: AppColors.warning,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          _loadLiveDriverData(silent: false);
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: AppColors.error),
+                          foregroundColor: AppColors.error,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                         ),
+                        child: const Text('DECLINE ✕', style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
-                      child: const Text('DECLINE'),
                     ),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        if (offerId != null) {
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton(
+                        onPressed: () async {
                           try {
                             await DriverService.instance.acceptOffer(offerId);
-                            Fluttertoast.showToast(msg: 'Offer accepted!', backgroundColor: AppColors.accentGreenDark);
-                            context.push(AppRoutes.tripsScreen);
-                            return;
+                            Fluttertoast.showToast(msg: 'Trip Accepted successfully! ✓', backgroundColor: AppColors.accentGreenDark);
+                            _loadLiveDriverData(silent: false);
                           } catch (e) {
-                            Fluttertoast.showToast(msg: 'Failed: $e', backgroundColor: AppColors.error);
+                            Fluttertoast.showToast(msg: 'Accept failed: $e', backgroundColor: AppColors.error);
                           }
-                        }
-                        _setDriverState(DriverHomeState.assignedTrip);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.warning,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.md),
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.accentGreenDark,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                         ),
+                        child: const Text('ACCEPT TRIP ✓', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                       ),
-                      child: const Text('ACCEPT', style: TextStyle(color: Colors.white)),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ] else if (isBidding) ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (ctx) => DriverSubmitBidSheet(
+                              opportunity: offer,
+                              onBidSubmitted: () {
+                                Fluttertoast.showToast(msg: 'Quote submitted successfully! ✓', backgroundColor: AppColors.primary);
+                                _loadLiveDriverData(silent: false);
+                              },
+                            ),
+                          );
+                        },
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                        ),
+                        child: const Text('Custom Quote', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          try {
+                            await DriverService.instance.submitBid(
+                              requirementId: requirementId,
+                              bidAmount: rate.toDouble(),
+                              etaMinutes: 15,
+                            );
+                            Fluttertoast.showToast(msg: 'Quick Quote $rateStr placed! ✓', backgroundColor: AppColors.primary);
+                            _loadLiveDriverData(silent: false);
+                          } catch (e) {
+                            Fluttertoast.showToast(msg: 'Bid submission failed: $e', backgroundColor: AppColors.error);
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                        ),
+                        child: Text('QUICK BID ($rateStr) →', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
         const SizedBox(height: AppSpacing.xl),
-
         _buildActivityCard(trips: '$_todayTripsCount', earnings: '₹ ${_todayEarnings.toStringAsFixed(0)}'),
       ],
     );
@@ -704,35 +852,35 @@ class _HomeScreenState extends State<HomeScreen> {
   // STATE 4: ASSIGNED STATE
   // ───────────────────────────────────────────────────────────────────────────
   Widget _buildAssignedState() {
+    final trip = _liveTrip;
+    final tripId = trip?['id'] as String? ?? 'LIVE';
+    final pickup = (trip?['pickupLocation']?['address'] ?? trip?['pickupAddress'] ?? 'Pickup Point').toString();
+    final drop = (trip?['dropLocation']?['address'] ?? trip?['dropAddress'] ?? 'Destination').toString();
+    final vehicle = (trip?['vehicleType'] ?? 'Sedan').toString();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Blue Banner
         Container(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 12),
           decoration: BoxDecoration(
             color: AppColors.primary,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Trip Assigned',
-                style: AppTypography.caption(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
+              const Text(
+                'Trip Assigned ✓',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
               ),
               Text(
-                'Starts in 15:42',
-                style: AppTypography.caption(color: Colors.white.withValues(alpha: 0.9)),
+                'Trip ID: ${tripId.length > 8 ? tripId.substring(0, 8).toUpperCase() : tripId}',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 12),
               ),
             ],
           ),
         ),
-
-        // Main Trip Card
         Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
@@ -746,118 +894,53 @@ class _HomeScreenState extends State<HomeScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Corporate Transfer',
-                    style: AppTypography.h3(
-                      color: AppColors.textPrimaryLight,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text('Sedan', style: AppTypography.caption(color: AppColors.textMutedLight)),
+                  Text('Assigned Booking', style: AppTypography.h3(color: AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
+                  Text(vehicle, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
                 ],
               ),
               const SizedBox(height: AppSpacing.md),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.circle, size: 8, color: AppColors.accentGreenDark),
+                  const Icon(Icons.circle, size: 8, color: AppColors.accentGreenDark),
                   const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'DLF Cyber City, Gurugram',
-                      style: AppTypography.caption(color: AppColors.textSecondaryLight),
-                    ),
-                  ),
+                  Expanded(child: Text(pickup, style: const TextStyle(fontWeight: FontWeight.w600))),
                 ],
               ),
               const SizedBox(height: 4),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.circle, size: 8, color: AppColors.error),
+                  const Icon(Icons.circle, size: 8, color: AppColors.error),
                   const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Indira Gandhi Airport, T3',
-                      style: AppTypography.caption(color: AppColors.textSecondaryLight),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Row(
-                children: [
-                  Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.textMutedLight),
-                  const SizedBox(width: 4),
-                  Text('Today, 6:30 PM', style: AppTypography.caption(color: AppColors.textMutedLight)),
-                  const SizedBox(width: 16),
-                  Icon(Icons.person_outline, size: 14, color: AppColors.textMutedLight),
-                  const SizedBox(width: 4),
-                  Text('1 Passenger', style: AppTypography.caption(color: AppColors.textMutedLight)),
+                  Expanded(child: Text(drop, style: const TextStyle(color: AppColors.slate600))),
                 ],
               ),
               const SizedBox(height: AppSpacing.lg),
               SizedBox(
                 width: double.infinity,
-                height: 44,
-                child: ElevatedButton(
-                  onPressed: () => _setDriverState(DriverHomeState.activeTrip),
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    try {
+                      await DriverService.instance.markArrived(tripId);
+                      Fluttertoast.showToast(msg: 'Marked arrived! Ask passenger for OTP.', backgroundColor: AppColors.primary);
+                      _loadLiveDriverData(silent: false);
+                    } catch (e) {
+                      Fluttertoast.showToast(msg: 'Error: $e', backgroundColor: AppColors.error);
+                    }
+                  },
+                  icon: const Icon(Icons.pin_drop_rounded, color: Colors.white),
+                  label: const Text('ARRIVED AT PICKUP LOCATION', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                  ),
-                  child: Text(
-                    'VIEW TRIP DETAILS',
-                    style: AppTypography.body(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                   ),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: AppSpacing.lg),
-
-        // "Be ready" info box
-        Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: AppColors.primaryLight.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(AppRadius.md),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.access_time_filled_rounded, color: AppColors.primary),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Be ready',
-                      style: AppTypography.body(
-                        color: AppColors.textPrimaryLight,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      'Please reach pickup location 5-10 minutes early',
-                      style: AppTypography.caption(color: AppColors.textSecondaryLight),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xl),
-
-        _buildActivityCard(trips: '2', earnings: '₹1,600'),
       ],
     );
   }
@@ -866,220 +949,35 @@ class _HomeScreenState extends State<HomeScreen> {
   // STATE 5: ACTIVE TRIP STATE
   // ───────────────────────────────────────────────────────────────────────────
   Widget _buildActiveTripState() {
+    final trip = _liveTrip;
+    final tripId = trip?['id'] as String? ?? '';
+    final status = (trip?['status'] as String? ?? 'IN_PROGRESS');
+    final pickup = (trip?['pickupLocation']?['address'] ?? trip?['pickupAddress'] ?? 'Pickup Point').toString();
+    final drop = (trip?['dropLocation']?['address'] ?? trip?['dropAddress'] ?? 'Destination').toString();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Purple Active Trip Banner
         Container(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 12),
           decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Active Trip',
-                style: AppTypography.caption(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                'Trip ID: AY10234',
-                style: AppTypography.caption(color: Colors.white.withValues(alpha: 0.9)),
-              ),
-            ],
-          ),
-        ),
-
-        // Route Card
-        Container(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceLight,
-            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(AppRadius.lg)),
-            border: Border.all(color: AppColors.borderLight),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.circle, size: 8, color: AppColors.accentGreenDark),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Pickup',
-                          style: AppTypography.caption(color: AppColors.textMutedLight),
-                        ),
-                        Text(
-                          'DLF Cyber City, Gurugram',
-                          style: AppTypography.body(
-                            color: AppColors.textPrimaryLight,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.circle, size: 8, color: AppColors.error),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Drop',
-                          style: AppTypography.caption(color: AppColors.textMutedLight),
-                        ),
-                        Text(
-                          'Indira Gandhi Airport, T3',
-                          style: AppTypography.body(
-                            color: AppColors.textPrimaryLight,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          'Est. 6:40 PM',
-                          style: AppTypography.caption(color: AppColors.textMutedLight),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.lg),
-
-              // Mock Live Map Preview
-              Container(
-                height: 140,
-                decoration: BoxDecoration(
-                  color: AppColors.borderLight,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: Stack(
-                  children: [
-                    Center(
-                      child: Icon(
-                        Icons.map_outlined,
-                        size: 64,
-                        color: AppColors.infoContainer,
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 8,
-                      right: 8,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Fluttertoast.showToast(msg: 'Opening GPS Navigation...');
-                        },
-                        icon: const Icon(Icons.navigation_outlined, size: 16),
-                        label: const Text('Navigate'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryHover,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-
-              // Trip Progress
-              Text(
-                'Trip progress',
-                style: AppTypography.caption(
-                  color: AppColors.textMutedLight,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildStepNode(title: 'Accepted', isDone: true),
-                  Expanded(child: _buildStepLine(isDone: true)),
-                  _buildStepNode(title: 'Pickup', isDone: true),
-                  Expanded(child: _buildStepLine(isDone: true)),
-                  _buildStepNode(title: 'In Progress', isDone: true, isActive: true),
-                  Expanded(child: _buildStepLine(isDone: false)),
-                  _buildStepNode(title: 'Completed', isDone: false),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              SizedBox(
-                width: double.infinity,
-                height: 44,
-                child: ElevatedButton(
-                  onPressed: () => _setDriverState(DriverHomeState.completedTrip),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accentGreenDark,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                  ),
-                  child: Text(
-                    'COMPLETE TRIP',
-                    style: AppTypography.body(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ───────────────────────────────────────────────────────────────────────────
-  // STATE 6: COMPLETED TRIP STATE (Home after trip)
-  // ───────────────────────────────────────────────────────────────────────────
-  Widget _buildCompletedTripState() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Green Banner
-        Container(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          decoration: BoxDecoration(
-            color: AppColors.accentGreenDark,
+            color: status == 'ARRIVED' ? AppColors.warning : AppColors.primary,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Trip Completed',
-                style: AppTypography.h3(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
+                status == 'ARRIVED' ? 'Arrived at Pickup (Enter OTP)' : 'Trip in Progress 🚗',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
               ),
-              const Icon(Icons.check_circle, color: Colors.white, size: 24),
+              Text(
+                'Trip: ${tripId.length > 8 ? tripId.substring(0, 8).toUpperCase() : tripId}',
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
             ],
           ),
         ),
-
-        // Summary Card
         Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
@@ -1090,126 +988,118 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Corporate Transfer',
-                    style: AppTypography.body(
-                      color: AppColors.textPrimaryLight,
-                      fontWeight: FontWeight.bold,
+              if (status == 'ARRIVED') ...[
+                const Text(
+                  'Enter Passenger Start OTP',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: _otpController,
+                  keyboardType: TextInputType.number,
+                  maxLength: 4,
+                  decoration: InputDecoration(
+                    hintText: 'Enter 4-digit OTP (e.g. 1234)',
+                    prefixIcon: const Icon(Icons.lock_clock_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final otp = _otpController.text.trim();
+                      if (otp.isEmpty) {
+                        Fluttertoast.showToast(msg: 'Please enter OTP');
+                        return;
+                      }
+                      try {
+                        await DriverService.instance.startTrip(tripId, otp);
+                        Fluttertoast.showToast(msg: 'Trip Started! Drive safely.', backgroundColor: AppColors.success);
+                        _loadLiveDriverData(silent: false);
+                      } catch (e) {
+                        Fluttertoast.showToast(msg: 'Invalid OTP: $e', backgroundColor: AppColors.error);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accentGreenDark,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                     ),
+                    child: const Text('START TRIP →', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
-                  Text('Sedan', style: AppTypography.caption(color: AppColors.textMutedLight)),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Earnings',
-                    style: AppTypography.caption(color: AppColors.textMutedLight),
-                  ),
-                  Text(
-                    '₹850',
-                    style: AppTypography.h2(
-                      color: AppColors.accentGreenDark,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Trip ID: AY10234',
-                    style: AppTypography.caption(color: AppColors.textMutedLight),
-                  ),
-                  Text(
-                    'Today, 6:12 PM',
-                    style: AppTypography.caption(color: AppColors.textMutedLight),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              SizedBox(
-                width: double.infinity,
-                height: 44,
-                child: OutlinedButton(
-                  onPressed: () => context.push(AppRoutes.tripDetailsScreen),
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: AppColors.accentGreenDark),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                  ),
-                  child: Text(
-                    'VIEW TRIP SUMMARY',
-                    style: AppTypography.body(
-                      color: AppColors.accentGreenDark,
-                      fontWeight: FontWeight.bold,
+                ),
+              ] else ...[
+                Text('Driving to Destination', style: AppTypography.h3(color: AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Text('Drop: $drop', style: const TextStyle(fontWeight: FontWeight.w600)),
+                const SizedBox(height: AppSpacing.lg),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      try {
+                        await DriverService.instance.completeTrip(tripId);
+                        Fluttertoast.showToast(msg: 'Trip Completed! Payout credited.', backgroundColor: AppColors.success);
+                        _setDriverState(DriverHomeState.completedTrip);
+                      } catch (e) {
+                        Fluttertoast.showToast(msg: 'Failed to complete trip: $e', backgroundColor: AppColors.error);
+                      }
+                    },
+                    icon: const Icon(Icons.check_circle_rounded, color: Colors.white),
+                    label: const Text('COMPLETE TRIP ✓', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accentGreenDark,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                     ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
-        const SizedBox(height: AppSpacing.lg),
-
-        // Online Switch Box
-        Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: AppColors.accentGreenDark.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: AppColors.accentGreenDark.withValues(alpha: 0.2)),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "You're still online",
-                      style: AppTypography.body(
-                        color: AppColors.textPrimaryLight,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      "You'll receive new trip opportunities.",
-                      style: AppTypography.caption(color: AppColors.textSecondaryLight),
-                    ),
-                  ],
-                ),
-              ),
-              Switch(
-                value: true,
-                onChanged: (val) => _setDriverState(DriverHomeState.offline),
-                activeColor: AppColors.accentGreenDark,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xl),
-
-        _buildActivityCard(trips: '4', earnings: '₹3,300'),
       ],
     );
   }
 
-  Widget _buildBullet(String text) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+  // ───────────────────────────────────────────────────────────────────────────
+  // STATE 6: COMPLETED TRIP STATE
+  // ───────────────────────────────────────────────────────────────────────────
+  Widget _buildCompletedTripState() {
+    return Column(
       children: [
-        Icon(Icons.check_circle_outline, size: 16, color: AppColors.accentGreenDark),
-        const SizedBox(width: 8),
-        Text(text, style: AppTypography.caption(color: AppColors.textSecondaryLight)),
+        Container(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceLight,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(color: AppColors.accentGreenDark.withValues(alpha: 0.3)),
+          ),
+          child: Column(
+            children: [
+              const Icon(Icons.check_circle_rounded, size: 64, color: AppColors.accentGreenDark),
+              const SizedBox(height: 12),
+              Text('Trip Successfully Completed!', style: AppTypography.h2(color: AppColors.accentGreenDark, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              const Text('Fare has been credited to your AdhocX Wallet.', style: TextStyle(fontSize: 12, color: AppColors.slate600)),
+              const SizedBox(height: AppSpacing.xl),
+              ElevatedButton(
+                onPressed: () {
+                  _setDriverState(DriverHomeState.available);
+                  _loadLiveDriverData(silent: false);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  minimumSize: const Size.fromHeight(48),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                ),
+                child: const Text('LOOK FOR NEXT TRIP →', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -1225,13 +1115,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            "Today's Activity",
-            style: AppTypography.caption(
-              color: AppColors.textMutedLight,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          Text("Today's Activity", style: AppTypography.caption(color: AppColors.textMutedLight)),
           const SizedBox(height: AppSpacing.md),
           Row(
             children: [
@@ -1240,13 +1124,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Trips', style: AppTypography.caption(color: AppColors.textMutedLight)),
-                    Text(
-                      trips,
-                      style: AppTypography.h1(
-                        color: AppColors.textPrimaryLight,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    Text(trips, style: AppTypography.h2(color: AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),
@@ -1255,13 +1133,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Earnings', style: AppTypography.caption(color: AppColors.textMutedLight)),
-                    Text(
-                      earnings,
-                      style: AppTypography.h1(
-                        color: AppColors.textPrimaryLight,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    Text(earnings, style: AppTypography.h2(color: AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),
@@ -1272,37 +1144,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildStepNode({required String title, required bool isDone, bool isActive = false}) {
-    return Column(
+  Widget _buildBullet(String text) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Container(
-          width: 18,
-          height: 18,
-          decoration: BoxDecoration(
-            color: isActive
-                ? AppColors.primary
-                : (isDone ? AppColors.accentGreenDark : AppColors.borderLight),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(Icons.check, size: 12, color: Colors.white),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 9,
-            fontWeight: isDone || isActive ? FontWeight.bold : FontWeight.w500,
-            color: isDone || isActive ? AppColors.textPrimaryLight : AppColors.textMutedLight,
-          ),
-        ),
+        Icon(Icons.check, size: 14, color: AppColors.accentGreenDark),
+        const SizedBox(width: 6),
+        Text(text, style: const TextStyle(fontSize: 12, color: AppColors.slate600)),
       ],
-    );
-  }
-
-  Widget _buildStepLine({required bool isDone}) {
-    return Container(
-      height: 2,
-      color: isDone ? AppColors.accentGreenDark : AppColors.borderLight,
     );
   }
 }

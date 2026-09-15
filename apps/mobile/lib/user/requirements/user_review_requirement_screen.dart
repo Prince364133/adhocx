@@ -19,6 +19,16 @@ class UserReviewRequirementScreen extends StatefulWidget {
 
 class _UserReviewRequirementScreenState extends State<UserReviewRequirementScreen> {
   bool _isSubmitting = false;
+  final TextEditingController _couponController = TextEditingController();
+  bool _isValidatingCoupon = false;
+  Map<String, dynamic>? _appliedCoupon;
+  String? _couponError;
+
+  @override
+  void dispose() {
+    _couponController.dispose();
+    super.dispose();
+  }
 
   String _normalizeVehicleType(String type) {
     switch (type.trim().toUpperCase()) {
@@ -78,11 +88,12 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
     }
 
     final combinedNotes = notesParts.join(' | ');
+    final couponCode = _appliedCoupon?['code'] as String?;
 
     setState(() => _isSubmitting = true);
 
     try {
-      await UserService.instance.createRequirement(
+      final created = await UserService.instance.createRequirement(
         vehicleType: _normalizeVehicleType(draft.vehicleType),
         quantity: draft.quantity,
         fulfillmentMode: draft.fulfillmentMode,
@@ -96,12 +107,14 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
         ratePerVehicle: draft.fulfillmentMode == 'DIRECT_DISPATCH' ? 850.0 : null,
         suggestedBudget: draft.fulfillmentMode == 'BIDDING' ? draft.suggestedBudget : null,
         notes: combinedNotes.isNotEmpty ? combinedNotes : 'Standard Booking Requirement',
+        couponCode: couponCode,
       );
 
       if (mounted) {
         setState(() => _isSubmitting = false);
+        final resultPayload = created is Map<String, dynamic> ? created : <String, dynamic>{};
         draft.reset();
-        context.push(AppRoutes.userRequirementPostedConfirmationScreen);
+        context.push(AppRoutes.userRequirementPostedConfirmationScreen, extra: resultPayload);
       }
     } catch (e) {
       if (mounted) {
@@ -213,8 +226,14 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                           ] else ...[
                             _buildReviewRow(context, Icons.currency_rupee, 'Rate per Vehicle', '₹850', isDark),
                             const Divider(),
-                            _buildReviewRow(context, Icons.payments_outlined, 'Est. Total Cost', '₹${(draft.quantity * 850).toStringAsFixed(0)}', isDark, valueColor: AppColors.success),
+                            _buildReviewRow(context, Icons.payments_outlined, 'Est. Total Cost', '₹${(draft.quantity * 850).toStringAsFixed(0)}', isDark, valueColor: _appliedCoupon != null ? AppColors.textMutedLight : AppColors.success),
                             const Divider(),
+                            if (_appliedCoupon != null) ...[
+                              _buildReviewRow(context, Icons.local_offer_outlined, 'Promo Discount (${_appliedCoupon!["code"]})', '- ₹${((_appliedCoupon!["discountAmount"] as num?)?.toDouble() ?? 0).toStringAsFixed(0)}', isDark, valueColor: AppColors.success),
+                              const Divider(),
+                              _buildReviewRow(context, Icons.account_balance_wallet_outlined, 'Net Est. Amount', '₹${((_appliedCoupon!["finalAmount"] as num?)?.toDouble() ?? (draft.quantity * 850)).toStringAsFixed(0)}', isDark, valueColor: AppColors.primary),
+                              const Divider(),
+                            ],
                           ],
                           _buildReviewRow(context, Icons.directions_car_outlined, 'Vehicle Type', draft.vehicleType, isDark),
                           const Divider(),
@@ -257,6 +276,145 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                             const Divider(),
                             _buildReviewRow(context, Icons.description_outlined, 'Additional Notes', draft.additionalInfo, isDark),
                           ],
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: AppSpacing.md),
+
+                    // Promo / Coupon Section Card
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.local_offer_outlined, size: 18, color: AppColors.primary),
+                              const SizedBox(width: 6),
+                              Text('Promo / Coupon Code', style: AppTypography.h4(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _couponController,
+                                  textCapitalization: TextCapitalization.characters,
+                                  decoration: InputDecoration(
+                                    hintText: 'Enter promo code (e.g. ADHOC100)',
+                                    hintStyle: const TextStyle(fontSize: 12),
+                                    isDense: true,
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              SizedBox(
+                                height: 44,
+                                child: OutlinedButton(
+                                  onPressed: _isValidatingCoupon || _couponController.text.trim().isEmpty
+                                      ? null
+                                      : () async {
+                                          final code = _couponController.text.trim().toUpperCase();
+                                          final baseCost = (draft.quantity * 850).toDouble();
+
+                                          setState(() {
+                                            _isValidatingCoupon = true;
+                                            _couponError = null;
+                                          });
+
+                                          try {
+                                            final res = await UserService.instance.validateCoupon(
+                                              code: code,
+                                              amount: baseCost,
+                                              context: 'REQUIREMENT_BOOKING',
+                                            );
+
+                                            if (res['valid'] == true) {
+                                              setState(() {
+                                                _appliedCoupon = res;
+                                                _couponError = null;
+                                                _isValidatingCoupon = false;
+                                              });
+                                            } else {
+                                              setState(() {
+                                                _appliedCoupon = null;
+                                                _couponError = res['message'] ?? 'Invalid coupon code';
+                                                _isValidatingCoupon = false;
+                                              });
+                                            }
+                                          } catch (err) {
+                                            setState(() {
+                                              _appliedCoupon = null;
+                                              _couponError = err.toString().replaceAll('Exception: ', '').replaceAll('ApiException(400): ', '');
+                                              _isValidatingCoupon = false;
+                                            });
+                                          }
+                                        },
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppColors.primary,
+                                    side: const BorderSide(color: AppColors.primary),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                                  ),
+                                  child: _isValidatingCoupon
+                                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                                      : const Text('APPLY', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          if (_couponError != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6, left: 4),
+                              child: Text(
+                                _couponError!,
+                                style: const TextStyle(fontSize: 11, color: AppColors.error, fontWeight: FontWeight.w500),
+                              ),
+                            ),
+
+                          if (_appliedCoupon != null)
+                            Container(
+                              margin: const EdgeInsets.only(top: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: AppColors.success.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(AppRadius.sm),
+                                border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.check_circle_outline, size: 16, color: AppColors.success),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        '${_appliedCoupon!['code']}: ₹${((_appliedCoupon!['discountAmount'] as num?)?.toDouble() ?? 0).toStringAsFixed(0)} discount applied!',
+                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.success),
+                                      ),
+                                    ],
+                                  ),
+                                  GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _appliedCoupon = null;
+                                        _couponController.clear();
+                                      });
+                                    },
+                                    child: const Icon(Icons.close, size: 16, color: AppColors.error),
+                                  ),
+                                ],
+                              ),
+                            ),
                         ],
                       ),
                     ),

@@ -52,6 +52,10 @@ export class WalletTopUpOrderDto {
   @IsNumber()
   @Min(100, { message: 'Minimum top-up amount is ₹100' })
   amount!: number;
+
+  @IsOptional()
+  @IsString()
+  couponCode?: string;
 }
 
 export class WalletTopUpOrderResponseDto {
@@ -59,6 +63,8 @@ export class WalletTopUpOrderResponseDto {
   amount!: number;
   currency!: string;
   keyId!: string;
+  discountAmount?: number;
+  finalPayableAmount?: number;
 }
 
 export class WalletTopUpVerifyDto {
@@ -78,6 +84,10 @@ export class WalletTopUpVerifyDto {
   @IsNumber()
   @Min(1)
   amount!: number;
+
+  @IsOptional()
+  @IsString()
+  couponCode?: string;
 }
 
 export class UserWalletSummaryDto {

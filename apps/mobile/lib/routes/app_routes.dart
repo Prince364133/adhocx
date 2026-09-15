@@ -143,8 +143,9 @@ class AppRoutes {
   static const String opportunityDetailsScreen = '/opportunities/details';
   static const String opportunityOfferScreen = '/opportunities/offer';
 
-  // Universal Location Picker Screen
+  // Universal Location Search & Picker Screen
   static const String universalLocationPickerScreen = '/universal-location-picker';
+  static const String universalLocationSearchScreen = '/universal-location-search';
 
   // 10 Global States Gallery
   static const String globalStateGalleryScreen = '/global-states-gallery';
@@ -525,13 +526,25 @@ final GoRouter appRouter = GoRouter(
       ],
     ),
 
-    // ── Universal Location Selection Route ─────────────────────────────────
+    // ── Universal Location Selection & Search Routes ─────────────────────────
     GoRoute(
       path: AppRoutes.universalLocationPickerScreen,
       builder: (context, state) {
         final extra = state.extra as Map<String, dynamic>? ?? {};
         return UniversalLocationPickerScreen(
           title: extra['title'] as String? ?? 'Select Location',
+          initialAddress: extra['initialAddress'] as String?,
+          initialLat: (extra['initialLat'] as num?)?.toDouble(),
+          initialLng: (extra['initialLng'] as num?)?.toDouble(),
+        );
+      },
+    ),
+    GoRoute(
+      path: AppRoutes.universalLocationSearchScreen,
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        return UniversalLocationPickerScreen(
+          title: extra['title'] as String? ?? 'Search Location',
           initialAddress: extra['initialAddress'] as String?,
           initialLat: (extra['initialLat'] as num?)?.toDouble(),
           initialLng: (extra['initialLng'] as num?)?.toDouble(),
@@ -562,7 +575,9 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.userRequirementPostedConfirmationScreen,
-      builder: (context, state) => const UserRequirementPostedConfirmationScreen(),
+      builder: (context, state) => UserRequirementPostedConfirmationScreen(
+        requirement: state.extra as Map<String, dynamic>?,
+      ),
     ),
     GoRoute(
       path: AppRoutes.userDraftRequirementsScreen,
@@ -582,7 +597,11 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.userRequirementDetailsScreen,
-      builder: (context, state) => const UserRequirementDetailsScreen(),
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        final reqId = extra?['requirementId'] as String? ?? extra?['id'] as String? ?? state.uri.queryParameters['id'];
+        return UserRequirementDetailsScreen(requirementId: reqId, initialData: extra);
+      },
     ),
     GoRoute(
       path: AppRoutes.userFulfillmentStatusScreen,
@@ -594,19 +613,19 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.userDriverMatchingScreen,
-      builder: (context, state) => const UserDriverMatchingScreen(),
+      builder: (context, state) => UserDriverMatchingScreen(requirement: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userRequirementStatusSearchingScreen,
-      builder: (context, state) => const UserRequirementStatusScreen(initialState: RequirementFulfillmentState.searching),
+      builder: (context, state) => UserRequirementStatusScreen(initialState: RequirementFulfillmentState.searching, requirement: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userRequirementStatusFulfilledScreen,
-      builder: (context, state) => const UserRequirementStatusScreen(initialState: RequirementFulfillmentState.fulfilled),
+      builder: (context, state) => UserRequirementStatusScreen(initialState: RequirementFulfillmentState.fulfilled, requirement: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userRequirementStatusFailedScreen,
-      builder: (context, state) => const UserRequirementStatusScreen(initialState: RequirementFulfillmentState.failed),
+      builder: (context, state) => UserRequirementStatusScreen(initialState: RequirementFulfillmentState.failed, requirement: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userDriverAssignmentsListScreen,
@@ -690,19 +709,19 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.userPaymentPendingScreen,
-      builder: (context, state) => const UserPaymentStatusScreen(initialState: PaymentResultState.pending),
+      builder: (context, state) => UserPaymentStatusScreen(initialState: PaymentResultState.pending, paymentData: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userPaymentProcessingScreen,
-      builder: (context, state) => const UserPaymentStatusScreen(initialState: PaymentResultState.processing),
+      builder: (context, state) => UserPaymentStatusScreen(initialState: PaymentResultState.processing, paymentData: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userPaymentSuccessfulScreen,
-      builder: (context, state) => const UserPaymentStatusScreen(initialState: PaymentResultState.successful),
+      builder: (context, state) => UserPaymentStatusScreen(initialState: PaymentResultState.successful, paymentData: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userPaymentFailedScreen,
-      builder: (context, state) => const UserPaymentStatusScreen(initialState: PaymentResultState.failed),
+      builder: (context, state) => UserPaymentStatusScreen(initialState: PaymentResultState.failed, paymentData: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userProfileExtendedScreen,

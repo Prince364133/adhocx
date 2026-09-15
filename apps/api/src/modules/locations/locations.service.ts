@@ -60,48 +60,18 @@ export class LocationsService {
   ): Promise<NearbyDriverResult[]> {
     this.logger.log(`Searching drivers near (${latitude}, ${longitude}) within ${radiusKm}km (vehicleType: ${vehicleType || 'ANY'})`);
 
-    try {
-      // Attempt PostGIS spatial query if raw query supported
-      const rawResults: any[] = await this.db.$queryRawUnsafe(`
-        SELECT id,
-          (ST_DistanceSphere(
-            ST_MakePoint(current_lng::float, current_lat::float),
-            ST_MakePoint(${longitude}::float, ${latitude}::float)
-          ) / 1000.0) AS distance_km
-        FROM drivers
-        WHERE availability_status = 'AVAILABLE'
-          AND verification_status = 'VERIFIED'
-          AND current_lat IS NOT NULL
-          AND current_lng IS NOT NULL
-          ${vehicleType ? `AND vehicle_type = '${vehicleType}'` : ''}
-          AND ST_DWithin(
-            ST_MakePoint(current_lng::float, current_lat::float)::geography,
-            ST_MakePoint(${longitude}::float, ${latitude}::float)::geography,
-            ${radiusKm * 1000}
-          )
-        ORDER BY distance_km ASC
-      `);
-
-      if (Array.isArray(rawResults)) {
-        return rawResults.map((r) => ({
-          driverId: r.id,
-          distanceKm: Number(Number(r.distance_km).toFixed(2)),
-        }));
-      }
-    } catch {
-      // Fallback to in-memory Haversine filtering (e.g. for mock test environments or SQLite)
-      this.logger.debug('PostGIS raw query fallback to programmatic Haversine calculation');
-    }
-
     const where: any = {
       availabilityStatus: DriverAvailability.AVAILABLE,
-      verificationStatus: VerificationStatus.VERIFIED,
+      verificationStatus: { in: [VerificationStatus.VERIFIED, VerificationStatus.PENDING, VerificationStatus.UNDER_REVIEW] },
       currentLat: { not: null },
       currentLng: { not: null },
     };
 
     if (vehicleType) {
-      where.vehicleType = vehicleType as any;
+      where.OR = [
+        { vehicleType: vehicleType as any },
+        { vehicleType: null },
+      ];
     }
 
     const drivers = await this.db.driver.findMany({ where });

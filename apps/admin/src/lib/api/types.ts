@@ -205,3 +205,77 @@ export interface AuditLogItem {
   ipAddress?: string;
   createdAt: string;
 }
+
+export interface CouponListItem {
+  id: string;
+  code: string;
+  title: string;
+  description?: string | null;
+  discountType: 'PERCENTAGE' | 'FLAT';
+  discountValue: number;
+  maxDiscountAmount?: number | null;
+  minOrderAmount: number;
+  applicableTo: 'WALLET_TOPUP' | 'REQUIREMENT_BOOKING' | 'ALL';
+  usageLimitTotal?: number | null;
+  usageLimitPerUser: number;
+  usedCount: number;
+  validFrom: string;
+  validUntil: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  redemptionsCount?: number;
+  totalDiscountDisbursed?: number;
+}
+
+export interface CouponRedemptionItem {
+  id: string;
+  couponId: string;
+  userId: string;
+  userName?: string;
+  userPhone?: string;
+  referenceType: string;
+  referenceId: string;
+  orderAmount: number;
+  discountAmount: number;
+  finalAmount: number;
+  redeemedAt: string;
+}
+
+export interface CouponMetrics {
+  totalCoupons: number;
+  activeCoupons: number;
+  totalRedemptions: number;
+  totalDiscountDisbursed: number;
+}
+
+export interface CreateCouponPayload {
+  code: string;
+  title: string;
+  description?: string;
+  discountType: 'PERCENTAGE' | 'FLAT';
+  discountValue: number;
+  maxDiscountAmount?: number;
+  minOrderAmount?: number;
+  applicableTo?: 'WALLET_TOPUP' | 'REQUIREMENT_BOOKING' | 'ALL';
+  usageLimitTotal?: number;
+  usageLimitPerUser?: number;
+  validFrom: string;
+  validUntil: string;
+  isActive?: boolean;
+}
+
+export interface UpdateCouponPayload {
+  title?: string;
+  description?: string;
+  discountType?: 'PERCENTAGE' | 'FLAT';
+  discountValue?: number;
+  maxDiscountAmount?: number;
+  minOrderAmount?: number;
+  applicableTo?: 'WALLET_TOPUP' | 'REQUIREMENT_BOOKING' | 'ALL';
+  usageLimitTotal?: number;
+  usageLimitPerUser?: number;
+  validFrom?: string;
+  validUntil?: string;
+  isActive?: boolean;
+}

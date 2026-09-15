@@ -51,6 +51,10 @@ export class CreateRequirementDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsString()
+  couponCode?: string;
 }
 
 export class RequirementResponseDto {

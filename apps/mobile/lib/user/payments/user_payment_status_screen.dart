@@ -16,10 +16,12 @@ enum PaymentResultState {
 
 class UserPaymentStatusScreen extends StatefulWidget {
   final PaymentResultState initialState;
+  final Map<String, dynamic>? paymentData;
 
   const UserPaymentStatusScreen({
     super.key,
     this.initialState = PaymentResultState.pending,
+    this.paymentData,
   });
 
   @override
@@ -39,6 +41,11 @@ class _UserPaymentStatusScreenState extends State<UserPaymentStatusScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final data = widget.paymentData ?? {};
+    final amount = data['amount'] != null ? '₹ ${(data['amount']).toString()}' : '₹ 850.00';
+    final txnId = data['transactionId'] ?? data['id'] ?? 'TXN-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
+    final tripTitle = data['title'] ?? data['tripName'] ?? 'Ride Payment';
+    final method = data['method'] ?? 'Online / Wallet';
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -123,18 +130,18 @@ class _UserPaymentStatusScreenState extends State<UserPaymentStatusScreen> {
                       ),
                       child: Column(
                         children: [
-                          _buildRow('Amount', '₹ 24,750.00', isDark, isBold: true),
+                          _buildRow('Amount', amount, isDark, isBold: true),
                           const Divider(),
-                          _buildRow('Trip', 'Airport Transfer\nREQ-250510-0001', isDark),
+                          _buildRow('Details', tripTitle, isDark),
                           const Divider(),
                           if (_currentState == PaymentResultState.failed) ...[
-                            _buildRow('Failed On', '10 May 2025, 07:18 PM', isDark),
+                            _buildRow('Failed On', 'Just Now', isDark),
                             const Divider(),
-                            _buildRow('Reason', 'Insufficient balance in account.', isDark, isErrorText: true),
+                            _buildRow('Reason', data['error'] ?? 'Transaction could not be completed.', isDark, isErrorText: true),
                           ] else ...[
-                            _buildRow('Payment Method', 'Net Banking', isDark),
+                            _buildRow('Payment Method', method, isDark),
                             const Divider(),
-                            _buildRow('Transaction ID', 'TXN-250510-7854', isDark),
+                            _buildRow('Transaction ID', txnId, isDark),
                           ],
                         ],
                       ),

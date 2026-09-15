@@ -248,17 +248,12 @@ class AuthService {
   }
 
   Future<UserModel> fetchCurrentUser() async {
-    try {
-      final response = await _api.get('/auth/me');
-      if (response is Map<String, dynamic>) {
-        _currentUser = UserModel.fromJson(response);
-      } else {
-        _currentUser = UserModel(id: 'mock_user', phone: '+919876543210', role: 'DRIVER');
-      }
-    } catch (_) {
-      _currentUser = UserModel(id: 'mock_user', phone: '+919876543210', role: 'DRIVER');
+    final response = await _api.get('/auth/me');
+    if (response is Map<String, dynamic>) {
+      _currentUser = UserModel.fromJson(response);
+      return _currentUser!;
     }
-    return _currentUser!;
+    throw Exception('Failed to load user profile: Invalid response');
   }
 
   Future<bool> checkAuthSession() async {

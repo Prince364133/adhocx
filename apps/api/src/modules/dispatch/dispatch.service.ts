@@ -4,8 +4,6 @@ import {
   OfferStatus,
   TripStatus,
   UserStatus,
-  VerificationStatus,
-  DriverAvailability,
   VehicleType,
 } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
@@ -92,56 +90,13 @@ export class DispatchService {
     const pickupLat = Number(requirement.pickupLat);
     const pickupLng = Number(requirement.pickupLng);
 
-    // Progressive radius search tiers: 15km -> 35km -> 60km -> 100km
-    const radiusTiers = [15, 35, 60, 100];
-    let nearbyCandidates: { driverId: string; distanceKm: number }[] = [];
-
-    for (const radiusKm of radiusTiers) {
-      nearbyCandidates = await this.locationsService.findNearbyDrivers(
-        pickupLat,
-        pickupLng,
-        radiusKm,
-        requirement.vehicleType as unknown as VehicleType,
-      );
-      if (nearbyCandidates.length >= remaining) {
-        break;
-      }
-    }
-
-    // Dev Fallback: If no candidate has geo coordinates yet, find all active idle drivers
-    if (nearbyCandidates.length === 0) {
-      const allActiveDrivers = await this.db.driver.findMany({
-        where: {
-          user: { status: UserStatus.ACTIVE },
-        },
-        include: {
-          user: true,
-          trips: {
-            where: {
-              status: { in: [TripStatus.ASSIGNED, TripStatus.ARRIVED, TripStatus.IN_PROGRESS] },
-            },
-          },
-        },
-      });
-
-      for (const d of allActiveDrivers) {
-        if (d.trips.length === 0) {
-          // Auto-verify and set available in dev
-          if (d.verificationStatus !== VerificationStatus.VERIFIED || d.availabilityStatus !== DriverAvailability.AVAILABLE) {
-            await this.db.driver.update({
-              where: { id: d.id },
-              data: {
-                verificationStatus: VerificationStatus.VERIFIED,
-                availabilityStatus: DriverAvailability.AVAILABLE,
-                currentLat: pickupLat,
-                currentLng: pickupLng,
-              },
-            });
-          }
-          nearbyCandidates.push({ driverId: d.id, distanceKm: 1.2 });
-        }
-      }
-    }
+    // Search nearby drivers within 100km radius sorted by proximity
+    let nearbyCandidates = await this.locationsService.findNearbyDrivers(
+      pickupLat,
+      pickupLng,
+      100,
+      requirement.vehicleType as unknown as VehicleType,
+    );
 
     // Collect already offered driver IDs for this requirement to prevent duplicates
     const alreadyOfferedDriverIds = new Set(
@@ -150,53 +105,49 @@ export class DispatchService {
         .map((o) => o.driverId),
     );
 
-    // Filter candidates with comprehensive eligibility checks per Section 7 & 8
-    const eligibleDriverIds: string[] = [];
+    let candidateIds = nearbyCandidates
+      .filter((c) => !alreadyOfferedDriverIds.has(c.driverId))
+      .map((c) => c.driverId);
 
-    for (const candidate of nearbyCandidates) {
-      if (alreadyOfferedDriverIds.has(candidate.driverId)) {
-        continue;
-      }
+    // Fallback: If no candidate drivers with matching radius found, grab all active drivers
+    if (candidateIds.length === 0) {
+      const activeDrivers = await this.db.driver.findMany({
+        where: {
+          user: { status: UserStatus.ACTIVE },
+          id: { notIn: Array.from(alreadyOfferedDriverIds) },
+        },
+        select: { id: true },
+        take: 10,
+      });
+      candidateIds = activeDrivers.map((d) => d.id);
+    }
 
-      const driver = await this.db.driver.findUnique({
-        where: { id: candidate.driverId },
-        include: {
-          user: true,
-          trips: {
-            where: {
-              status: {
-                in: [TripStatus.ASSIGNED, TripStatus.ARRIVED, TripStatus.IN_PROGRESS],
-              },
+    // Batch fetch candidate drivers with active trips
+    const candidateDrivers = await this.db.driver.findMany({
+      where: { id: { in: candidateIds } },
+      include: {
+        user: true,
+        trips: {
+          where: {
+            status: {
+              in: [TripStatus.ASSIGNED, TripStatus.ARRIVED, TripStatus.IN_PROGRESS],
             },
           },
         },
-      });
+      },
+    });
 
-      if (!driver) continue;
+    // Filter candidates with comprehensive eligibility checks
+    const eligibleDriverIds: string[] = [];
 
+    for (const driver of candidateDrivers) {
       // 1. Account status active
-      if (driver.user.status !== UserStatus.ACTIVE) continue;
+      if (driver.user?.status !== UserStatus.ACTIVE) continue;
 
-      // 2. Driver verified (or promote in dev)
-      if (driver.verificationStatus !== VerificationStatus.VERIFIED) {
-        await this.db.driver.update({
-          where: { id: driver.id },
-          data: { verificationStatus: VerificationStatus.VERIFIED },
-        });
-      }
+      // 2. No conflicting active trips
+      if (driver.trips && driver.trips.length > 0) continue;
 
-      // 3. Driver available
-      if (driver.availabilityStatus !== DriverAvailability.AVAILABLE) {
-        await this.db.driver.update({
-          where: { id: driver.id },
-          data: { availabilityStatus: DriverAvailability.AVAILABLE },
-        });
-      }
-
-      // 4. No conflicting active trips
-      if (driver.trips.length > 0) continue;
-
-      eligibleDriverIds.push(candidate.driverId);
+      eligibleDriverIds.push(driver.id);
     }
 
     if (eligibleDriverIds.length === 0) {

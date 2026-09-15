@@ -217,12 +217,39 @@ export class PaymentsService {
    * Create Razorpay Order for Wallet Top-Up.
    */
   async createWalletTopUpOrder(_vendorUserId: string, dto: WalletTopUpOrderDto): Promise<WalletTopUpOrderResponseDto> {
+    let discountAmount = 0;
+    let finalPayableAmount = dto.amount;
+
+    if (dto.couponCode) {
+      const code = dto.couponCode.trim().toUpperCase();
+      const coupon = await this.db.coupon.findUnique({ where: { code } });
+      const now = new Date();
+      if (coupon && coupon.isActive && now >= coupon.validFrom && now <= coupon.validUntil) {
+        if (coupon.applicableTo === 'ALL' || coupon.applicableTo === 'WALLET_TOPUP') {
+          if (dto.amount >= Number(coupon.minOrderAmount)) {
+            if (coupon.discountType === 'PERCENTAGE') {
+              discountAmount = (dto.amount * Number(coupon.discountValue)) / 100;
+              if (coupon.maxDiscountAmount) {
+                discountAmount = Math.min(discountAmount, Number(coupon.maxDiscountAmount));
+              }
+            } else {
+              discountAmount = Number(coupon.discountValue);
+            }
+            discountAmount = Math.min(discountAmount, dto.amount);
+            finalPayableAmount = Math.max(0, dto.amount - discountAmount);
+          }
+        }
+      }
+    }
+
     const orderId = `order_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     return {
       orderId,
       amount: dto.amount,
       currency: 'INR',
       keyId: 'rzp_test_AdhocXMockKey123',
+      discountAmount,
+      finalPayableAmount,
     };
   }
 
@@ -244,6 +271,33 @@ export class PaymentsService {
       });
     }
 
+    // Check if coupon is attached
+    let couponToRedeem: any = null;
+    let discountAmount = 0;
+    if (dto.couponCode) {
+      const code = dto.couponCode.trim().toUpperCase();
+      const coupon = await this.db.coupon.findUnique({ where: { code } });
+      const now = new Date();
+      if (coupon && coupon.isActive && now >= coupon.validFrom && now <= coupon.validUntil) {
+        if (coupon.applicableTo === 'ALL' || coupon.applicableTo === 'WALLET_TOPUP') {
+          if (dto.amount >= Number(coupon.minOrderAmount)) {
+            couponToRedeem = coupon;
+            if (coupon.discountType === 'PERCENTAGE') {
+              discountAmount = (dto.amount * Number(coupon.discountValue)) / 100;
+              if (coupon.maxDiscountAmount) {
+                discountAmount = Math.min(discountAmount, Number(coupon.maxDiscountAmount));
+              }
+            } else {
+              discountAmount = Number(coupon.discountValue);
+            }
+            discountAmount = Math.min(discountAmount, dto.amount);
+          }
+        }
+      }
+    }
+
+    const refId = dto.razorpayPaymentId || dto.razorpayOrderId || `topup_${Date.now()}`;
+
     const updated = await this.db.$transaction(async (tx) => {
       const v = await tx.vendor.update({
         where: { id: vendor.id },
@@ -260,12 +314,50 @@ export class PaymentsService {
           amount: dto.amount,
           balanceAfter: v.escrowBalance,
           referenceType: 'WALLET_TOPUP',
-          referenceId: dto.razorpayPaymentId || dto.razorpayOrderId,
-          description: `Wallet top-up via Razorpay (${dto.razorpayPaymentId || dto.razorpayOrderId})`,
+          referenceId: refId,
+          description: `Wallet top-up via Razorpay (${refId})${couponToRedeem ? ` [Promo: ${couponToRedeem.code}]` : ''}`,
         },
       });
 
+      if (couponToRedeem) {
+        await tx.couponRedemption.create({
+          data: {
+            couponId: couponToRedeem.id,
+            userId: vendorUserId,
+            referenceType: 'WALLET_TOPUP',
+            referenceId: refId,
+            orderAmount: dto.amount,
+            discountAmount: discountAmount,
+            finalAmount: dto.amount - discountAmount,
+          },
+        });
+
+        await tx.coupon.update({
+          where: { id: couponToRedeem.id },
+          data: { usedCount: { increment: 1 } },
+        });
+      }
+
       return v;
+    }, { timeout: 30000, maxWait: 10000 });
+
+    this.notifications.emitEvent(`vendor:${vendor.id}`, 'WALLET_TOPPED_UP', {
+      amount: dto.amount,
+      newBalance: Number(updated.escrowBalance),
+      referenceId: refId,
+    });
+
+    await this.audit.log({
+      userId: vendorUserId,
+      action: 'WALLET_TOPPED_UP',
+      entityType: 'VENDOR_WALLET',
+      entityId: vendor.id,
+      metadata: {
+        amount: dto.amount,
+        referenceId: refId,
+        couponCode: couponToRedeem?.code,
+        discountAmount,
+      },
     });
 
     return {

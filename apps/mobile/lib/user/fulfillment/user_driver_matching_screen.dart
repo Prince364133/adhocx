@@ -6,12 +6,27 @@ import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 
 class UserDriverMatchingScreen extends StatelessWidget {
-  const UserDriverMatchingScreen({super.key});
+  final Map<String, dynamic>? requirement;
+  final String? requirementId;
+
+  const UserDriverMatchingScreen({
+    super.key,
+    this.requirement,
+    this.requirementId,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+
+    final req = requirement ?? {};
+    final rawId = req['id'] as String? ?? requirementId ?? '';
+    final displayId = rawId.length > 8 ? 'REQ-${rawId.substring(0, 8).toUpperCase()}' : (rawId.isNotEmpty ? rawId : 'REQ-PENDING');
+    final title = (req['pickupAddress'] != null && req['dropoffAddress'] != null)
+        ? '${req['pickupAddress']} → ${req['dropoffAddress']}'
+        : (req['title'] ?? 'Requirement Request');
+    final quantity = req['quantity'] ?? req['requiredQuantity'] ?? 1;
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -45,17 +60,20 @@ class UserDriverMatchingScreen extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Airport Transfer', style: AppTypography.h3(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
-                      Text('REQ-250510-0001', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
-                    ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title.toString(), maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.h3(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
+                        Text(displayId, style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(AppRadius.sm)),
-                    child: Text('Dispatched', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 12)),
+                    child: Text(req['status']?.toString().toUpperCase() ?? 'MATCHING', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 12)),
                   ),
                 ],
               ),
@@ -73,7 +91,7 @@ class UserDriverMatchingScreen extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    Text('Finding drivers for 2 vehicles', style: AppTypography.h3(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
+                    Text('Finding drivers for $quantity vehicle${quantity > 1 ? "s" : ""}', style: AppTypography.h3(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
                     Text('Expanding search radius...', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
                     const SizedBox(height: AppSpacing.xl),

@@ -270,6 +270,26 @@ class _DevFloatingToolsState extends State<DevFloatingTools> {
           ),
           const SizedBox(height: 6),
 
+          // Quick Open Universal Location Search
+          OutlinedButton.icon(
+            onPressed: () {
+              context.push(AppRoutes.universalLocationSearchScreen, extra: {'title': 'Universal Location Search'});
+              setState(() => _isExpanded = false);
+            },
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.white,
+              side: const BorderSide(color: Colors.white24),
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            icon: Icon(Icons.location_searching_rounded, size: 16, color: AppColors.primaryLight),
+            label: const Text(
+              '📍 Test Location Search (OSM)',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(height: 6),
+
           // 4. Full Reset (Wipe All & Go to Sign In)
           TextButton.icon(
             onPressed: () => _handleHardRefresh(preserveAuth: false),

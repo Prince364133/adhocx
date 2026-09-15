@@ -15,10 +15,14 @@ enum RequirementFulfillmentState {
 
 class UserRequirementStatusScreen extends StatefulWidget {
   final RequirementFulfillmentState initialState;
+  final Map<String, dynamic>? requirement;
+  final String? requirementId;
 
   const UserRequirementStatusScreen({
     super.key,
     this.initialState = RequirementFulfillmentState.searching,
+    this.requirement,
+    this.requirementId,
   });
 
   @override
@@ -38,6 +42,15 @@ class _UserRequirementStatusScreenState extends State<UserRequirementStatusScree
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+
+    final req = widget.requirement ?? {};
+    final rawId = req['id'] as String? ?? widget.requirementId ?? '';
+    final displayId = rawId.length > 8 ? 'REQ-${rawId.substring(0, 8).toUpperCase()}' : (rawId.isNotEmpty ? rawId : 'REQ-PENDING');
+    final title = (req['pickupAddress'] != null && req['dropoffAddress'] != null)
+        ? '${req['pickupAddress']} → ${req['dropoffAddress']}'
+        : (req['title'] ?? 'Requirement Request');
+    final quantity = req['quantity'] ?? req['requiredQuantity'] ?? 1;
+    final fulfilledCount = req['fulfilledQuantity'] ?? (req['assignments'] as List?)?.length ?? 0;
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -92,13 +105,16 @@ class _UserRequirementStatusScreenState extends State<UserRequirementStatusScree
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Airport Transfer', style: AppTypography.h2(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
-                            Text('REQ-250510-0001', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
-                          ],
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(title.toString(), maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.h2(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
+                              Text(displayId, style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(color: _getColor(_currentState).withValues(alpha: 0.15), borderRadius: BorderRadius.circular(AppRadius.sm)),
@@ -172,7 +188,7 @@ class _UserRequirementStatusScreenState extends State<UserRequirementStatusScree
             const SizedBox(height: AppSpacing.md),
             Text('All Set!', style: AppTypography.h1(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
-            Text('All 10 vehicles have been assigned.', style: AppTypography.body(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
+            Text('All $quantity vehicle${quantity > 1 ? "s have" : " has"} been assigned.', style: AppTypography.body(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
           ],
         );
 
@@ -198,6 +214,8 @@ class _UserRequirementStatusScreenState extends State<UserRequirementStatusScree
         );
 
       case RequirementFulfillmentState.searching:
+        final remaining = (quantity - fulfilledCount).clamp(0, quantity);
+        final progress = quantity > 0 ? (fulfilledCount / quantity) : 0.0;
         return Column(
           children: [
             Stack(
@@ -207,7 +225,7 @@ class _UserRequirementStatusScreenState extends State<UserRequirementStatusScree
                   width: 130,
                   height: 130,
                   child: CircularProgressIndicator(
-                    value: 0.8,
+                    value: progress > 0 ? progress.toDouble() : 0.2,
                     strokeWidth: 10,
                     backgroundColor: isDark ? AppColors.slate800 : AppColors.slate200,
                     valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
@@ -216,16 +234,16 @@ class _UserRequirementStatusScreenState extends State<UserRequirementStatusScree
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('8 / 10', style: AppTypography.h2(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
+                    Text('$fulfilledCount / $quantity', style: AppTypography.h2(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
                     Text('Vehicles Fulfilled', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontSize: 10)),
                   ],
                 ),
               ],
             ),
             const SizedBox(height: AppSpacing.md),
-            Text('2 Vehicles Remaining', style: TextStyle(color: AppColors.warning, fontWeight: FontWeight.bold, fontSize: 15)),
+            Text('$remaining Vehicle${remaining != 1 ? "s" : ""} Remaining', style: TextStyle(color: AppColors.warning, fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: 4),
-            Text('We are still searching for available drivers.', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
+            Text('We are broadcasting to available drivers...', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
           ],
         );
     }
@@ -255,6 +273,11 @@ class _UserRequirementStatusScreenState extends State<UserRequirementStatusScree
       );
     }
 
+    final req = widget.requirement ?? {};
+    final quantity = req['quantity'] ?? req['requiredQuantity'] ?? 1;
+    final fulfilledCount = req['fulfilledQuantity'] ?? (req['assignments'] as List?)?.length ?? 0;
+    final remaining = (quantity - fulfilledCount).clamp(0, quantity);
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -264,11 +287,11 @@ class _UserRequirementStatusScreenState extends State<UserRequirementStatusScree
       ),
       child: Column(
         children: [
-          _buildRow('Assigned', _currentState == RequirementFulfillmentState.fulfilled ? '10 Vehicles' : '8 Vehicles', AppColors.success, isDark),
+          _buildRow('Assigned', '$fulfilledCount Vehicles', AppColors.success, isDark),
           const Divider(),
-          _buildRow('Searching', _currentState == RequirementFulfillmentState.fulfilled ? '0 Vehicles' : '2 Vehicles', AppColors.info, isDark),
+          _buildRow('Searching', '$remaining Vehicles', AppColors.info, isDark),
           const Divider(),
-          _buildRow('On Trip', '6 Vehicles', AppColors.primary, isDark),
+          _buildRow('Mode', req['fulfillmentMode']?.toString() ?? 'DIRECT_DISPATCH', AppColors.primary, isDark),
         ],
       ),
     );

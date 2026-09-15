@@ -111,6 +111,7 @@ export class TripDetailResponseDto extends TripResponseDto {
   driverPhone?: string;
   vehiclePlate?: string;
   vendorOrganizationName?: string;
+  startOtp?: string;
   events?: TripEventResponseDto[];
 }
 

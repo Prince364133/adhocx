@@ -66,14 +66,15 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final offer = _offer ?? {};
-    final vehicleType = offer['vehicleType'] ?? 'Sedan';
+    final vehicleType = (offer['vehicleType'] ?? 'Sedan').toString();
     final pickup = offer['pickupLocation'] as Map<String, dynamic>?;
     final drop = offer['dropLocation'] as Map<String, dynamic>?;
-    final pickupAddr = pickup?['address'] ?? 'DLF Cyber City, Gurugram';
-    final dropAddr = drop?['address'] ?? 'Indira Gandhi International Airport, Delhi';
-    final payout = offer['payoutAmount'] ?? offer['fare'] ?? 450;
+    final pickupAddr = (pickup?['address'] ?? offer['pickup'] ?? 'Pickup Location').toString();
+    final dropAddr = (drop?['address'] ?? offer['drop'] ?? 'Drop Location').toString();
+    final payout = offer['payoutAmount'] ?? offer['offeredRate'] ?? offer['suggestedBudget'] ?? offer['fare'] ?? 850;
     final requirement = offer['requirement'] as Map<String, dynamic>?;
-    final reqCode = requirement?['requirementCode'] ?? offer['id'] ?? 'REQ-LIVE';
+    final rawId = (requirement?['id'] ?? offer['id'] ?? offer['requirementId'] ?? '').toString();
+    final reqCode = rawId.length > 8 ? 'REQ-${rawId.substring(0, 8).toUpperCase()}' : rawId;
 
     return Scaffold(
       backgroundColor: AppColors.bgLight,

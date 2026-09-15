@@ -112,3 +112,14 @@ export enum LedgerEntryType {
   CREDIT = 'CREDIT',
   DEBIT = 'DEBIT',
 }
+
+export enum CouponDiscountType {
+  PERCENTAGE = 'PERCENTAGE',
+  FLAT = 'FLAT',
+}
+
+export enum CouponApplicableContext {
+  WALLET_TOPUP = 'WALLET_TOPUP',
+  REQUIREMENT_BOOKING = 'REQUIREMENT_BOOKING',
+  ALL = 'ALL',
+}

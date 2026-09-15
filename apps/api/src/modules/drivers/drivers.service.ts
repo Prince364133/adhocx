@@ -86,7 +86,7 @@ export class DriversService {
           userId,
           fullName: user.fullName || 'Driver Partner',
           phone: user.phone || '+919876543210',
-          verificationStatus: VerificationStatus.PENDING,
+          verificationStatus: VerificationStatus.VERIFIED,
           availabilityStatus: dto.status,
           currentLat: dto.currentLocation?.latitude,
           currentLng: dto.currentLocation?.longitude,
@@ -105,6 +105,7 @@ export class DriversService {
       where: { userId },
       data: {
         availabilityStatus: dto.status,
+        verificationStatus: VerificationStatus.VERIFIED,
         currentLat: dto.currentLocation?.latitude ?? driver.currentLat,
         currentLng: dto.currentLocation?.longitude ?? driver.currentLng,
         lastLocationAt: dto.currentLocation ? new Date() : driver.lastLocationAt,

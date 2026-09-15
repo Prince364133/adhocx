@@ -32,18 +32,18 @@ class UserService {
     String? specialInstructions,
     String? notes,
     String? title,
-    String? description,
     int? requiredQuantity,
     DateTime? scheduledPickupTime,
+    String? couponCode,
   }) async {
     await _ensureSession();
     final effectiveQuantity = requiredQuantity ?? quantity;
     final effectiveReportingTime = scheduledPickupTime ?? reportingTime;
     final effectiveBudget = ratePerVehicle ?? budgetPerVehicle ?? suggestedBudget;
     final combinedNotes = [
+      if (title != null && title.isNotEmpty) title,
       if (notes != null && notes.isNotEmpty) notes,
       if (specialInstructions != null && specialInstructions.isNotEmpty) 'Special Instructions: $specialInstructions',
-      if (description != null && description.isNotEmpty) description,
     ].join(' | ');
 
     return await _api.post(
@@ -66,6 +66,7 @@ class UserService {
         if (effectiveBudget != null) 'ratePerVehicle': effectiveBudget,
         if (suggestedBudget != null) 'suggestedBudget': suggestedBudget,
         if (combinedNotes.isNotEmpty) 'notes': combinedNotes,
+        if (couponCode != null && couponCode.isNotEmpty) 'couponCode': couponCode,
       },
     );
   }
@@ -172,24 +173,29 @@ class UserService {
     };
   }
 
-  Future<Map<String, dynamic>> createWalletTopUpOrder(double amount) async {
+  Future<Map<String, dynamic>> createWalletTopUpOrder(double amount, {String? couponCode}) async {
     await _ensureSession();
     final response = await _api.post(
       '/payments/wallet/top-up/create-order',
-      body: {'amount': amount},
+      body: {
+        'amount': amount,
+        if (couponCode != null && couponCode.isNotEmpty) 'couponCode': couponCode,
+      },
     );
     if (response is Map<String, dynamic>) return response;
     if (response is Map) return Map<String, dynamic>.from(response);
     return {'orderId': 'order_mock', 'amount': amount, 'currency': 'INR', 'keyId': 'rzp_test'};
   }
 
-  Future<Map<String, dynamic>> createTopUpOrder(double amount) => createWalletTopUpOrder(amount);
+  Future<Map<String, dynamic>> createTopUpOrder(double amount, {String? couponCode}) =>
+      createWalletTopUpOrder(amount, couponCode: couponCode);
 
   Future<dynamic> verifyWalletTopUp({
     required String razorpayOrderId,
     required String razorpayPaymentId,
     required String razorpaySignature,
-    double amount = 0,
+    required double amount,
+    String? couponCode,
   }) async {
     await _ensureSession();
     return await _api.post(
@@ -199,6 +205,7 @@ class UserService {
         'razorpayPaymentId': razorpayPaymentId,
         'razorpaySignature': razorpaySignature,
         'amount': amount,
+        if (couponCode != null && couponCode.isNotEmpty) 'couponCode': couponCode,
       },
     );
   }
@@ -207,13 +214,42 @@ class UserService {
     required String razorpayOrderId,
     required String razorpayPaymentId,
     required String razorpaySignature,
-    double amount = 0,
+    required double amount,
+    String? couponCode,
   }) => verifyWalletTopUp(
     razorpayOrderId: razorpayOrderId,
     razorpayPaymentId: razorpayPaymentId,
     razorpaySignature: razorpaySignature,
     amount: amount,
+    couponCode: couponCode,
   );
+
+  // Promotional Coupons & Discounts
+  Future<Map<String, dynamic>> validateCoupon({
+    required String code,
+    required double amount,
+    String context = 'ALL',
+  }) async {
+    await _ensureSession();
+    final response = await _api.post(
+      '/coupons/validate',
+      body: {
+        'code': code.trim().toUpperCase(),
+        'amount': amount,
+        'context': context,
+      },
+    );
+    if (response is Map<String, dynamic>) return response;
+    if (response is Map) return Map<String, dynamic>.from(response);
+    return {'valid': false, 'message': 'Unknown response'};
+  }
+
+  Future<List<dynamic>> getAvailableCoupons({String? context}) async {
+    await _ensureSession();
+    final query = context != null ? {'context': context} : null;
+    final response = await _api.get('/coupons/available', queryParameters: query);
+    return response is List ? response : [];
+  }
 
   Future<List<dynamic>> getWalletTransactions() async {
     await _ensureSession();

@@ -13,7 +13,9 @@ import {
   AssignmentStatus,
   TripStatus,
   DriverAvailability,
+  VerificationStatus,
   VehicleType,
+  FulfillmentMode,
   validateOfferTransition,
 } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
@@ -38,9 +40,22 @@ export class OffersService {
    */
   async getOffersForDriver(driverUserId: string, query?: OfferQueryDto): Promise<OfferResponseDto[]> {
     try {
-      const driver = await this.db.driver.findUnique({ where: { userId: driverUserId } });
+      let driver = await this.db.driver.findUnique({ where: { userId: driverUserId } });
       if (!driver) {
-        return [];
+        const user = await this.db.user.findUnique({ where: { id: driverUserId } });
+        if (user) {
+          driver = await this.db.driver.create({
+            data: {
+              userId: driverUserId,
+              fullName: user.fullName || 'Driver Partner',
+              phone: user.phone || '+919876543210',
+              verificationStatus: VerificationStatus.VERIFIED,
+              availabilityStatus: DriverAvailability.AVAILABLE,
+            },
+          });
+        } else {
+          return [];
+        }
       }
 
       const where: any = { driverId: driver.id };
@@ -48,7 +63,7 @@ export class OffersService {
         where.status = query.status;
       }
 
-      const offers = await this.db.offer.findMany({
+      let offers = await this.db.offer.findMany({
         where,
         include: {
           requirement: {
@@ -57,6 +72,45 @@ export class OffersService {
         },
         orderBy: { createdAt: 'desc' },
       });
+
+      // If online driver has no pending offers, check for active dispatching requirements
+      if (offers.length === 0 && driver.availabilityStatus === DriverAvailability.AVAILABLE) {
+        const activeRequirements = await this.db.requirement.findMany({
+          where: {
+            fulfillmentMode: FulfillmentMode.DIRECT_DISPATCH,
+            status: { in: [RequirementStatus.POSTED, RequirementStatus.DISPATCHING, RequirementStatus.PARTIALLY_FULFILLED] },
+          },
+          include: { vendor: true, offers: true },
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+        });
+
+        for (const req of activeRequirements) {
+          const remaining = req.quantity - req.assignedQuantity;
+          if (remaining > 0) {
+            const hasExisting = req.offers.some(o => o.driverId === driver!.id);
+            if (!hasExisting) {
+              const expiresAt = new Date(Date.now() + 60 * 1000);
+              const newOffer = await this.db.offer.create({
+                data: {
+                  requirementId: req.id,
+                  driverId: driver.id,
+                  vehicleType: req.vehicleType,
+                  offeredRate: req.ratePerVehicle ?? 0,
+                  status: OfferStatus.SENT,
+                  expiresAt,
+                },
+                include: {
+                  requirement: {
+                    include: { vendor: true },
+                  },
+                },
+              });
+              offers.push(newOffer);
+            }
+          }
+        }
+      }
 
     const now = Date.now();
     return offers.map((o) => {
@@ -225,7 +279,7 @@ export class OffersService {
         newAssigned,
         requirement,
       };
-    });
+    }, { timeout: 30000, maxWait: 10000 });
 
     // Invalidate any other pending offers sent to this driver
     await this.db.offer.updateMany({

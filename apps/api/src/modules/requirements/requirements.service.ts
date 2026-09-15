@@ -105,6 +105,32 @@ export class RequirementsService {
       totalAmount = (dto.quantity || 1) * ratePerVehicle;
     }
 
+    // Check if coupon promo is applied
+    let couponToRedeem: any = null;
+    let discountAmount = 0;
+    if (dto.couponCode) {
+      const code = dto.couponCode.trim().toUpperCase();
+      const coupon = await this.db.coupon.findUnique({ where: { code } });
+      const now = new Date();
+      if (coupon && coupon.isActive && now >= coupon.validFrom && now <= coupon.validUntil) {
+        if (coupon.applicableTo === 'ALL' || coupon.applicableTo === 'REQUIREMENT_BOOKING') {
+          if (totalAmount >= Number(coupon.minOrderAmount)) {
+            couponToRedeem = coupon;
+            if (coupon.discountType === 'PERCENTAGE') {
+              discountAmount = (totalAmount * Number(coupon.discountValue)) / 100;
+              if (coupon.maxDiscountAmount) {
+                discountAmount = Math.min(discountAmount, Number(coupon.maxDiscountAmount));
+              }
+            } else {
+              discountAmount = Number(coupon.discountValue);
+            }
+            discountAmount = Math.min(discountAmount, totalAmount);
+            totalAmount = Math.max(0, totalAmount - discountAmount);
+          }
+        }
+      }
+    }
+
     const requirement = await this.db.requirement.create({
       data: {
         vendorId,
@@ -127,6 +153,24 @@ export class RequirementsService {
       },
     });
 
+    if (couponToRedeem) {
+      await this.db.couponRedemption.create({
+        data: {
+          couponId: couponToRedeem.id,
+          userId: vendorUserId,
+          referenceType: 'REQUIREMENT_BOOKING',
+          referenceId: requirement.id,
+          orderAmount: totalAmount + discountAmount,
+          discountAmount,
+          finalAmount: totalAmount,
+        },
+      });
+      await this.db.coupon.update({
+        where: { id: couponToRedeem.id },
+        data: { usedCount: { increment: 1 } },
+      });
+    }
+
     if (mode === FulfillmentMode.BIDDING) {
       // Bidding Mode: Broadcast to nearby drivers
       this.notifications.emitEvent(`bidding:open`, 'NEW_BIDDING_OPPORTUNITY', {
@@ -141,9 +185,11 @@ export class RequirementsService {
       this.logger.log(`Requirement ${requirement.id} opened for bidding (Mode: BIDDING)`);
     } else {
       // Direct Dispatch Mode: Auto-trigger progressive dispatch waves
-      this.dispatchService.dispatchRequirement(requirement.id).catch((err) => {
+      try {
+        await this.dispatchService.dispatchRequirement(requirement.id);
+      } catch (err: any) {
         this.logger.error(`Auto-dispatch failed for requirement ${requirement.id}: ${err.message}`);
-      });
+      }
       this.logger.log(`Requirement ${requirement.id} submitted for progressive dispatch (Mode: DIRECT_DISPATCH)`);
     }
 

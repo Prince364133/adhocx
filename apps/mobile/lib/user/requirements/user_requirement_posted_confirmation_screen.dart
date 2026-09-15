@@ -8,12 +8,35 @@ import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
 
 class UserRequirementPostedConfirmationScreen extends StatelessWidget {
-  const UserRequirementPostedConfirmationScreen({super.key});
+  final Map<String, dynamic>? requirement;
+
+  const UserRequirementPostedConfirmationScreen({
+    super.key,
+    this.requirement,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+
+    final req = requirement;
+    final rawId = req?['id'] as String? ?? 'REQ-LIVE';
+    final displayId = rawId.length > 8 ? 'REQ-${rawId.substring(0, 8).toUpperCase()}' : rawId;
+    final qty = (req?['quantity'] ?? req?['requiredQuantity'] ?? 1).toString();
+    final vehicle = req?['vehicleType'] as String? ?? 'Sedan';
+    final mode = req?['fulfillmentMode'] == 'BIDDING' ? 'Reverse Auction' : 'Direct Dispatch';
+
+    final pickup = req?['pickupLocation']?['address'] as String? ?? req?['pickupAddress'] as String? ?? 'Pickup Location';
+    final drop = req?['dropLocation']?['address'] as String? ?? req?['dropAddress'] as String? ?? 'Destination';
+    final pickupShort = pickup.split(',').first.trim();
+    final dropShort = drop.split(',').first.trim();
+
+    final reportingTimeStr = req?['reportingTime'] as String?;
+    final DateTime? reportingTime = reportingTimeStr != null ? DateTime.tryParse(reportingTimeStr) : null;
+    final formattedTime = reportingTime != null
+        ? '${reportingTime.day} ${_getMonth(reportingTime.month)} ${reportingTime.year} • ${_formatTime(reportingTime)}'
+        : 'Immediate Dispatch';
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -59,7 +82,7 @@ class UserRequirementPostedConfirmationScreen extends StatelessWidget {
               const SizedBox(height: 6),
 
               Text(
-                'Your requirement has been posted successfully.',
+                'Your requirement has been saved and broadcasted to verified drivers.',
                 textAlign: TextAlign.center,
                 style: AppTypography.body(
                   color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
@@ -83,12 +106,12 @@ class UserRequirementPostedConfirmationScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text('Requirement ID', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
-                        const Text('REQ-250510-0001', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(displayId, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
                       ],
                     ),
                     const Divider(height: 16),
                     Text(
-                      '10 Vehicles • Sedan • One Way',
+                      '$qty Vehicles • $vehicle • $mode',
                       style: AppTypography.h4(
                         color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         fontWeight: FontWeight.bold,
@@ -97,21 +120,33 @@ class UserRequirementPostedConfirmationScreen extends StatelessWidget {
                     const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.location_on_outlined, size: 16, color: AppColors.primary),
-                        SizedBox(width: 4),
-                        Text('DLF Cyber City, Gurugram', style: TextStyle(fontSize: 12)),
-                        SizedBox(width: 6),
-                        Icon(Icons.arrow_forward, size: 14, color: AppColors.slate400),
-                        SizedBox(width: 6),
-                        Icon(Icons.pin_drop_outlined, size: 16, color: AppColors.primary),
-                        SizedBox(width: 4),
-                        Text('IGIA, Delhi', style: TextStyle(fontSize: 12)),
+                      children: [
+                        const Icon(Icons.location_on_outlined, size: 16, color: AppColors.primary),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            pickupShort,
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Icon(Icons.arrow_forward, size: 14, color: AppColors.slate400),
+                        const SizedBox(width: 6),
+                        const Icon(Icons.pin_drop_outlined, size: 16, color: AppColors.accentPurple),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            dropShort,
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '10 May 2025 • 06:30 PM',
+                      formattedTime,
                       style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
                     ),
                   ],
@@ -122,8 +157,13 @@ class UserRequirementPostedConfirmationScreen extends StatelessWidget {
 
               // Actions: View Requirement + Back to Home
               AppPrimaryButton(
-                text: 'View Requirement',
-                onPressed: () => context.push(AppRoutes.userRequirementDetailsScreen),
+                text: 'View Requirement Status →',
+                onPressed: () {
+                  context.push(
+                    AppRoutes.userRequirementDetailsScreen,
+                    extra: req ?? {'id': rawId},
+                  );
+                },
               ),
 
               const SizedBox(height: AppSpacing.md),
@@ -143,5 +183,17 @@ class UserRequirementPostedConfirmationScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  static String _getMonth(int month) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return (month >= 1 && month <= 12) ? months[month - 1] : 'May';
+  }
+
+  static String _formatTime(DateTime dt) {
+    final hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final ampm = dt.hour >= 12 ? 'PM' : 'AM';
+    return '$hour:$minute $ampm';
   }
 }

@@ -58,7 +58,7 @@ export class LedgerService {
           description: data.description,
         },
       });
-    });
+    }, { timeout: 30000, maxWait: 10000 });
 
     this.logger.log(`Credited ₹${data.amount} to driver ${data.driverId}: ${data.description}`);
   }
@@ -111,7 +111,7 @@ export class LedgerService {
           description: data.description,
         },
       });
-    });
+    }, { timeout: 30000, maxWait: 10000 });
 
     this.logger.log(`Debited ₹${data.amount} from driver ${data.driverId}: ${data.description}`);
   }
@@ -149,7 +149,7 @@ export class LedgerService {
           description: data.description || `Escrow hold for trip ${data.tripId.slice(-6)}`,
         },
       });
-    });
+    }, { timeout: 30000, maxWait: 10000 });
 
     this.logger.log(`Escrow locked ₹${data.amount} for vendor ${data.vendorId} on trip ${data.tripId}`);
   }
@@ -221,7 +221,7 @@ export class LedgerService {
           },
         });
       }
-    });
+    }, { timeout: 30000, maxWait: 10000 });
 
     this.logger.log(
       `Released escrow for trip ${data.tripId}: ₹${driverEarnings} to driver ${data.driverId}, ₹${commission} platform commission`,
@@ -262,7 +262,7 @@ export class LedgerService {
           description: `Escrow refund for trip ${data.tripId.slice(-6)}: ${data.reason}`,
         },
       });
-    });
+    }, { timeout: 30000, maxWait: 10000 });
 
     this.logger.log(`Refunded escrow ₹${data.amount} to vendor ${data.vendorId} for trip ${data.tripId}`);
   }

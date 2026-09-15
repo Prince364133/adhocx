@@ -114,7 +114,7 @@ export class ReviewsService {
       }
 
       return newReview;
-    });
+    }, { timeout: 30000, maxWait: 10000 });
 
     // Notify reviewee
     this.notifications.emitEvent(`user:${revieweeUserId}`, 'REVIEW_RECEIVED', {

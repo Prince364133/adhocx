@@ -10,6 +10,11 @@ import {
   AuditLogItem,
   BidListItem,
   DisputeListItem,
+  CouponListItem,
+  CouponRedemptionItem,
+  CouponMetrics,
+  CreateCouponPayload,
+  UpdateCouponPayload,
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7001/api/v1';
@@ -193,4 +198,38 @@ export const adminApi = {
 
   // Platform Audit Logs
   getAuditLogs: (limit = 50) => apiClient<AuditLogItem[]>(`/admin/audit-logs?limit=${limit}`),
+
+  // Promotional Coupons & Discounts
+  getCouponMetrics: () => apiClient<CouponMetrics>('/admin/coupons/metrics'),
+
+  getCoupons: (status?: string, search?: string, applicableTo?: string) => {
+    const params = new URLSearchParams();
+    if (status && status !== 'ALL') params.append('status', status);
+    if (search && search.trim().length > 0) params.append('search', search.trim());
+    if (applicableTo && applicableTo !== 'ALL') params.append('applicableTo', applicableTo);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return apiClient<CouponListItem[]>(`/admin/coupons${query}`);
+  },
+
+  getCouponById: (id: string) => apiClient<CouponListItem>(`/admin/coupons/${id}`),
+
+  createCoupon: (payload: CreateCouponPayload) =>
+    apiClient<CouponListItem>('/admin/coupons', {
+      method: 'POST',
+      body: payload,
+    }),
+
+  updateCoupon: (id: string, payload: UpdateCouponPayload) =>
+    apiClient<CouponListItem>(`/admin/coupons/${id}`, {
+      method: 'PATCH',
+      body: payload,
+    }),
+
+  deleteCoupon: (id: string) =>
+    apiClient<{ success: boolean; message: string }>(`/admin/coupons/${id}`, {
+      method: 'DELETE',
+    }),
+
+  getCouponRedemptions: (id: string) =>
+    apiClient<CouponRedemptionItem[]>(`/admin/coupons/${id}/redemptions`),
 };

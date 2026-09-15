@@ -34,9 +34,13 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
     if (!_initialized) {
       final draft = context.read<RequirementDraftProvider>();
       _tripType = draft.tripType;
-      _pickupController = TextEditingController(text: draft.pickupLocation);
+      _pickupController = TextEditingController(
+        text: draft.pickupLocation.isNotEmpty ? draft.pickupLocation : 'DLF Cyber City, Gurugram',
+      );
       _pickupInstructions = TextEditingController(text: draft.pickupInstructions);
-      _dropController = TextEditingController(text: draft.dropLocation);
+      _dropController = TextEditingController(
+        text: draft.dropLocation.isNotEmpty ? draft.dropLocation : 'Indira Gandhi International Airport, New Delhi',
+      );
       _dropInstructions = TextEditingController(text: draft.dropInstructions);
       _pickupLat = draft.pickupLat;
       _pickupLng = draft.pickupLng;
@@ -55,14 +59,14 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
     super.dispose();
   }
 
-  Future<void> _openLocationPicker({required bool isPickup}) async {
+  Future<void> _openLocationSearch({required bool isPickup}) async {
     final title = isPickup ? 'Select Pickup Location' : 'Select Destination';
     final initialAddress = isPickup ? _pickupController.text : _dropController.text;
     final initialLat = isPickup ? _pickupLat : _dropLat;
     final initialLng = isPickup ? _pickupLng : _dropLng;
 
     final result = await context.push<Map<String, dynamic>>(
-      AppRoutes.universalLocationPickerScreen,
+      AppRoutes.universalLocationSearchScreen,
       extra: {
         'title': title,
         'initialAddress': initialAddress,
@@ -88,6 +92,22 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
         }
       });
     }
+  }
+
+  void _swapLocations() {
+    setState(() {
+      final tempText = _pickupController.text;
+      final tempLat = _pickupLat;
+      final tempLng = _pickupLng;
+
+      _pickupController.text = _dropController.text;
+      _pickupLat = _dropLat;
+      _pickupLng = _dropLng;
+
+      _dropController.text = tempText;
+      _dropLat = tempLat;
+      _dropLng = tempLng;
+    });
   }
 
   @override
@@ -147,107 +167,92 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Pickup Location Section
+                    // Section Title with Swap action
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Pickup Location *',
+                          'Route & Locations *',
                           style: AppTypography.h4(
                             color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                         TextButton.icon(
-                          onPressed: () => _openLocationPicker(isPickup: true),
-                          icon: Icon(Icons.map_rounded, size: 16, color: AppColors.primary),
-                          label: Text(
-                            'Open Map Picker',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
-                          ),
+                          onPressed: _swapLocations,
+                          icon: const Icon(Icons.swap_vert_rounded, size: 16),
+                          label: const Text('Swap Pickup / Drop', style: TextStyle(fontSize: 12)),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    InkWell(
-                      onTap: () => _openLocationPicker(isPickup: true),
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                      child: IgnorePointer(
-                        child: TextField(
-                          controller: _pickupController,
-                          decoration: InputDecoration(
-                            hintText: 'Search or select pickup address',
-                            prefixIcon: Icon(Icons.location_on_rounded, color: AppColors.primary),
-                            suffixIcon: IconButton(
-                              icon: const Icon(Icons.tune_rounded, color: AppColors.primary),
-                              onPressed: () => _openLocationPicker(isPickup: true),
-                            ),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                          ),
-                        ),
-                      ),
+
+                    const SizedBox(height: 6),
+
+                    // Pickup Location Card
+                    _buildLocationCard(
+                      label: 'Pickup Location *',
+                      address: _pickupController.text.isNotEmpty ? _pickupController.text : 'Tap to search pickup address',
+                      icon: Icons.my_location_rounded,
+                      iconColor: AppColors.primary,
+                      onTap: () => _openLocationSearch(isPickup: true),
+                      isDark: isDark,
                     ),
+
                     const SizedBox(height: 4),
-                    TextField(
-                      controller: _pickupInstructions,
-                      style: const TextStyle(fontSize: 12),
-                      decoration: const InputDecoration(
-                        hintText: 'Add pickup notes (e.g. Gate 2, Near Tower B lobby)',
-                        border: InputBorder.none,
-                        isDense: true,
+
+                    // Pickup Notes Field
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.surfaceDark.withValues(alpha: 0.5) : AppColors.slate100,
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                      ),
+                      child: TextField(
+                        controller: _pickupInstructions,
+                        style: const TextStyle(fontSize: 12),
+                        decoration: InputDecoration(
+                          hintText: 'Add pickup notes (e.g. Tower B Gate 2, Near Reception)',
+                          hintStyle: TextStyle(fontSize: 11, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                          icon: Icon(Icons.edit_note_rounded, size: 16, color: AppColors.slate400),
+                          border: InputBorder.none,
+                          isDense: true,
+                        ),
                       ),
                     ),
 
                     const SizedBox(height: AppSpacing.md),
 
-                    // Destination Section
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Destination *',
-                          style: AppTypography.h4(
-                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        TextButton.icon(
-                          onPressed: () => _openLocationPicker(isPickup: false),
-                          icon: Icon(Icons.map_rounded, size: 16, color: AppColors.accentPurple),
-                          label: Text(
-                            'Open Map Picker',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.accentPurple),
-                          ),
-                        ),
-                      ],
+                    // Destination Location Card
+                    _buildLocationCard(
+                      label: 'Destination / Drop Location *',
+                      address: _dropController.text.isNotEmpty ? _dropController.text : 'Tap to search drop address',
+                      icon: Icons.pin_drop_rounded,
+                      iconColor: AppColors.accentPurple,
+                      onTap: () => _openLocationSearch(isPickup: false),
+                      isDark: isDark,
                     ),
+
                     const SizedBox(height: 4),
-                    InkWell(
-                      onTap: () => _openLocationPicker(isPickup: false),
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                      child: IgnorePointer(
-                        child: TextField(
-                          controller: _dropController,
-                          decoration: InputDecoration(
-                            hintText: 'Search or select drop location',
-                            prefixIcon: Icon(Icons.pin_drop_rounded, color: AppColors.accentPurple),
-                            suffixIcon: IconButton(
-                              icon: const Icon(Icons.tune_rounded, color: AppColors.accentPurple),
-                              onPressed: () => _openLocationPicker(isPickup: false),
-                            ),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                          ),
-                        ),
+
+                    // Destination Notes Field
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.surfaceDark.withValues(alpha: 0.5) : AppColors.slate100,
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    TextField(
-                      controller: _dropInstructions,
-                      style: const TextStyle(fontSize: 12),
-                      decoration: const InputDecoration(
-                        hintText: 'Add drop notes (e.g. Departures Gate 5, Parking slot 3)',
-                        border: InputBorder.none,
-                        isDense: true,
+                      child: TextField(
+                        controller: _dropInstructions,
+                        style: const TextStyle(fontSize: 12),
+                        decoration: InputDecoration(
+                          hintText: 'Add drop notes (e.g. Departures Gate 5, Parking slot 3)',
+                          hintStyle: TextStyle(fontSize: 11, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                          icon: Icon(Icons.edit_note_rounded, size: 16, color: AppColors.slate400),
+                          border: InputBorder.none,
+                          isDense: true,
+                        ),
                       ),
                     ),
 
@@ -293,7 +298,7 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                               ),
                             ),
                           );
-                        }).toList(),
+                        }).toList),
                       ),
                     ),
 
@@ -338,6 +343,114 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                     ),
                   ],
                 ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLocationCard({
+    required String label,
+    required String address,
+    required IconData icon,
+    required Color iconColor,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    final title = address.split(',').first.trim();
+    final subtitle = address.contains(',') ? address.substring(address.indexOf(',') + 1).trim() : 'OpenStreetMap Location';
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              child: Icon(icon, color: iconColor, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: iconColor,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+                border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.search_rounded, size: 14, color: AppColors.primary),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Search',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

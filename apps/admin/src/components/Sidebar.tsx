@@ -12,6 +12,7 @@ const navItems = [
   { href: '/users', label: 'Users', icon: '🏢' },
   { href: '/requirements', label: 'Requirements', icon: '📋' },
   { href: '/trips', label: 'Trips & Telemetry', icon: '🚗' },
+  { href: '/coupons', label: 'Coupons & Promos', icon: '🏷️' },
   { href: '/settlements', label: 'Settlements', icon: '💰' },
   { href: '/disputes', label: 'Disputes & Support', icon: '⚖️' },
   { href: '/audit', label: 'Audit Logs', icon: '📜' },

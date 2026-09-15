@@ -51,7 +51,8 @@ class _UserAssignmentTimelineScreenState extends State<UserAssignmentTimelineScr
     final isDark = theme.brightness == Brightness.dark;
 
     final req = _requirement ?? {};
-    final reqCode = req['requirementCode'] ?? req['id'] ?? 'REQ-LIVE';
+    final rawId = (req['requirementCode'] ?? req['id'] ?? widget.requirementId ?? '').toString();
+    final reqCode = rawId.length > 8 ? 'REQ-${rawId.substring(0, 8).toUpperCase()}' : (rawId.isNotEmpty ? rawId : 'REQ-LIVE');
     final vehicleType = req['vehicleType'] ?? 'Sedan';
     final quantity = (req['quantity'] ?? 1) as int;
     final status = (req['status'] ?? 'DISPATCHING').toString();

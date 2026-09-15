@@ -94,7 +94,7 @@ export class SettlementsService {
       });
 
       return s;
-    });
+    }, { timeout: 30000, maxWait: 10000 });
 
     this.notifications.emitEvent(`driver:${driver.id}`, 'WITHDRAWAL_REQUESTED', {
       settlementId: settlement.id,
@@ -201,7 +201,7 @@ export class SettlementsService {
             processedAt: now,
           },
         });
-      });
+      }, { timeout: 30000, maxWait: 10000 });
 
       this.notifications.emitEvent(`driver:${settlement.driverId}`, 'SETTLEMENT_FAILED', {
         settlementId: id,
