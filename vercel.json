@@ -1,5 +1,8 @@
 {
+  "version": 2,
+  "buildCommand": null,
   "outputDirectory": "apps/marketing",
+  "framework": null,
   "cleanUrls": true,
   "trailingSlash": false,
   "rewrites": [

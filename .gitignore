@@ -54,3 +54,7 @@ Thumbs.db
 # Testing / Coverage
 coverage/
 .nyc_output/
+
+# Local tools (not part of project)
+mingit/
+mingit.zip
