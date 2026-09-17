@@ -1,0 +1,13 @@
+{
+  "outputDirectory": "apps/marketing",
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "rewrites": [
+    { "source": "/drivers", "destination": "/apps/marketing/drivers.html" },
+    { "source": "/vendors", "destination": "/apps/marketing/vendors.html" },
+    { "source": "/blogs", "destination": "/apps/marketing/blogs.html" },
+    { "source": "/terms", "destination": "/apps/marketing/terms.html" },
+    { "source": "/privacy", "destination": "/apps/marketing/privacy.html" },
+    { "source": "/(.*)", "destination": "/apps/marketing/$1" }
+  ]
+}
