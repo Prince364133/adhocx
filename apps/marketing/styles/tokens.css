@@ -1,24 +1,34 @@
 /* ==========================================================================
-   AdhocX Design Tokens - Source of Truth (v1.0 - September 2026)
-   Derived strictly from 04_DESIGN_SYSTEM.md & apps/marketing/DESIGN_AND_UI.md
+   AdhocX Design Tokens - Source of Truth (Brand Refresh v2.0)
+   Primary Brand Purple: #5A30B0 | Gradient: #5A30B0 -> #6A3FE0
    ========================================================================== */
 
 :root {
-  /* Primary Color Palette */
-  --color-primary-900: #0B1220; /* Deepest brand / Dark UI background */
-  --color-primary-800: #111827; /* Strong dark surface / Footer */
-  --color-primary-700: #1E293B; /* Dark UI elements / Card background */
-  --color-primary-600: #2563EB; /* Primary Action Blue */
-  --color-primary-500: #3B82F6; /* Interactive / Highlight Blue */
-  --color-primary-400: #60A5FA; /* Lighter interactive state */
-  --color-primary-100: #EFF6FF; /* Primary light tint */
+  /* AdhocX Purple Brand Palette */
+  --color-primary-base: #5A30B0; /* Dominant AdhocX Purple */
+  --color-primary-gradient-start: #5A30B0;
+  --color-primary-gradient-end: #6A3FE0;
+  --color-primary-gradient: linear-gradient(135deg, #5A30B0 0%, #6A3FE0 100%);
+  --color-primary-gradient-hover: linear-gradient(135deg, #6A3FE0 0%, #7C4EE8 100%);
+  --color-primary-gradient-subtle: linear-gradient(135deg, rgba(90, 48, 176, 0.08) 0%, rgba(106, 63, 224, 0.12) 100%);
+  
+  --color-primary-900: #0E0720; /* Deepest brand / Dark UI background */
+  --color-primary-800: #170E2E; /* Strong dark surface / Footer */
+  --color-primary-700: #241445; /* Dark UI elements / Card background */
+  --color-primary-600: #5A30B0; /* Primary Action Purple */
+  --color-primary-500: #6A3FE0; /* Interactive / Highlight Purple */
+  --color-primary-400: #8B5CF6; /* Lighter interactive state */
+  --color-primary-300: #A78BFA; /* Soft purple border / accent */
+  --color-primary-100: #F3E8FF; /* Primary light purple tint */
+  --color-primary-50: #FAF5FF;  /* Subtle background tint */
 
   /* Neutral Surface Palette */
   --color-bg: #F8FAFC;          /* Application / Page background */
   --color-surface: #FFFFFF;     /* Cards / Panels / Main surface */
-  --color-surface-muted: #F1F5F9; /* Secondary / Muted background */
+  --color-surface-muted: #F5F3FF; /* Secondary / Soft purple-tinted surface */
   --color-border: #E2E8F0;      /* Default borders */
   --color-border-strong: #CBD5E1; /* Emphasized borders */
+  --color-border-purple: #E9D5FF; /* Subtle purple borders */
 
   /* Neutral Text Palette (No pure black allowed) */
   --color-text-primary: #0F172A;   /* Primary text */
@@ -33,8 +43,8 @@
   --color-warning-bg: #FEF3C7;  /* Warning pill background */
   --color-error: #DC2626;       /* Failures / Rejected / Cancelled / Destructive */
   --color-error-bg: #FEE2E2;    /* Error pill background */
-  --color-info: #0284C7;        /* Informational updates */
-  --color-info-bg: #E0F2FE;     /* Info pill background */
+  --color-info: #5A30B0;        /* Informational brand purple */
+  --color-info-bg: #F3E8FF;     /* Info purple pill background */
 
   /* Typography Scale */
   --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -81,12 +91,13 @@
   --radius-2xl: 16px;
   --radius-pill: 9999px;
 
-  /* Elevation & Shadows (Restrained) */
+  /* Elevation & Shadows */
   --shadow-level-0: none;
   --shadow-level-1: 0 1px 3px 0 rgba(15, 23, 42, 0.05), 0 1px 2px 0 rgba(15, 23, 42, 0.03);
   --shadow-level-2: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -2px rgba(15, 23, 42, 0.03);
-  --shadow-level-3: 0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 10px 10px -5px rgba(15, 23, 42, 0.04);
-  --shadow-focus: 0 0 0 3px rgba(37, 99, 235, 0.25);
+  --shadow-level-3: 0 20px 25px -5px rgba(90, 48, 176, 0.12), 0 10px 10px -5px rgba(90, 48, 176, 0.06);
+  --shadow-purple-glow: 0 8px 20px -4px rgba(90, 48, 176, 0.35);
+  --shadow-focus: 0 0 0 3px rgba(90, 48, 176, 0.3);
 
   /* Layout Widths */
   --container-max-width: 1240px;
@@ -94,6 +105,6 @@
   --header-height: 72px;
 
   /* Motion & Transitions */
-  --transition-fast: 150ms ease-in-out;
-  --transition-normal: 250ms ease-in-out;
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
 }
