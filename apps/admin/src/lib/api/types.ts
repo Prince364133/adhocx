@@ -373,19 +373,27 @@ export interface AdminPaymentMetrics {
 }
 
 export interface RateCard {
+  id?: string;
   vehicleType: string;
-  displayName: string;
+  categoryLabel?: string;
+  displayName?: string;
+  seatingCapacity?: string;
+  description?: string;
   baseFare: number;
   baseKm: number;
   perKmRate: number;
-  perMinuteRate: number;
-  minimumFare: number;
-  deadheadThresholdKm: number;
-  deadheadPerKmRate: number;
-  nightChargeMultiplier: number;
+  perMinuteRate?: number;
+  minimumFare?: number;
+  deadheadThresholdKm?: number;
+  deadheadPerKmRate?: number;
+  nightChargeMultiplier?: number;
   surgeMultiplier: number;
-  platformFeePercentage: number;
-  driverSharePercentage: number;
+  platformFeePercent?: number;
+  platformFeePercentage?: number;
+  driverSharePercent?: number;
+  driverSharePercentage?: number;
+  status?: string;
+  updatedAt?: string;
 }
 
 export interface CorridorAnalytics {

@@ -77,7 +77,12 @@ export async function apiClient<T = unknown>(
     return undefined as T;
   }
 
-  return response.json();
+  const json = await response.json();
+  if (json && typeof json === 'object' && 'data' in json && 'success' in json && (json as any).success === true) {
+    return (json as any).data as T;
+  }
+
+  return json as T;
 }
 
 export class ApiError extends Error {

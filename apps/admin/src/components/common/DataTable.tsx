@@ -23,8 +23,8 @@ export interface PaginationProps {
 
 export interface DataTableProps<T> {
   columns: Column<T>[];
-  data: T[];
-  keyExtractor: (row: T, index: number) => string | number;
+  data?: T[];
+  keyExtractor?: (row: T, index: number) => string | number;
   loading?: boolean;
   onRowClick?: (row: T) => void;
   emptyIcon?: React.ReactNode;
@@ -49,6 +49,15 @@ export function DataTable<T extends Record<string, any>>({
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
+  const safeData = React.useMemo(() => {
+    if (Array.isArray(data)) return data;
+    if (data && typeof data === 'object') {
+      if (Array.isArray((data as any).data)) return (data as any).data as T[];
+      if (Array.isArray((data as any).items)) return (data as any).items as T[];
+    }
+    return [] as T[];
+  }, [data]);
+
   const handleSort = (key: string) => {
     if (sortKey === key) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -59,8 +68,8 @@ export function DataTable<T extends Record<string, any>>({
   };
 
   const sortedData = React.useMemo(() => {
-    if (!sortKey) return data;
-    return [...data].sort((a, b) => {
+    if (!sortKey) return safeData;
+    return [...safeData].sort((a, b) => {
       const valA = a[sortKey];
       const valB = b[sortKey];
       if (valA === valB) return 0;
@@ -73,7 +82,21 @@ export function DataTable<T extends Record<string, any>>({
         ? String(valA).localeCompare(String(valB))
         : String(valB).localeCompare(String(valA));
     });
-  }, [data, sortKey, sortOrder]);
+  }, [safeData, sortKey, sortOrder]);
+
+  const getKey = React.useCallback(
+    (row: T, index: number): string | number => {
+      if (keyExtractor) {
+        try {
+          return keyExtractor(row, index);
+        } catch {
+          // fallback
+        }
+      }
+      return row?.id ?? row?._id ?? row?.key ?? row?.code ?? row?.vehicleType ?? index;
+    },
+    [keyExtractor]
+  );
 
   return (
     <div
@@ -193,7 +216,7 @@ export function DataTable<T extends Record<string, any>>({
             ) : (
               sortedData.map((row, rIdx) => (
                 <tr
-                  key={String(keyExtractor(row, rIdx))}
+                  key={String(getKey(row, rIdx))}
                   onClick={() => onRowClick && onRowClick(row)}
                   style={{
                     cursor: onRowClick ? 'pointer' : 'default',

@@ -41,20 +41,25 @@ export default function PricingPage() {
 
     setSaving(true);
     try {
+      const platformFee = Number(editingCard.platformFeePercent ?? editingCard.platformFeePercentage ?? 10);
+      const driverShare = Number(editingCard.driverSharePercent ?? editingCard.driverSharePercentage ?? 100 - platformFee);
+
       await adminApi.updatePricingTier(editingCard.vehicleType, {
         baseFare: Number(editingCard.baseFare),
         baseKm: Number(editingCard.baseKm),
         perKmRate: Number(editingCard.perKmRate),
-        perMinuteRate: Number(editingCard.perMinuteRate),
-        minimumFare: Number(editingCard.minimumFare),
-        platformFeePercentage: Number(editingCard.platformFeePercentage),
-        driverSharePercentage: Number(editingCard.driverSharePercentage),
-        surgeMultiplier: Number(editingCard.surgeMultiplier),
+        perMinuteRate: Number(editingCard.perMinuteRate || 0),
+        minimumFare: Number(editingCard.minimumFare || editingCard.baseFare),
+        platformFeePercent: platformFee,
+        platformFeePercentage: platformFee,
+        driverSharePercent: driverShare,
+        driverSharePercentage: driverShare,
+        surgeMultiplier: Number(editingCard.surgeMultiplier || 1.0),
       });
 
       setAlert({
         type: 'success',
-        message: `Tariff schedule for ${editingCard.displayName || editingCard.vehicleType} updated successfully!`,
+        message: `Tariff schedule for ${editingCard.displayName || editingCard.categoryLabel || editingCard.vehicleType} updated successfully!`,
       });
       setEditingCard(null);
       loadRateCards();
@@ -183,10 +188,10 @@ export default function PricingPage() {
                   </div>
                   <div>
                     <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.875rem' }}>
-                      {rc.displayName || rc.vehicleType}
+                      {rc.displayName || rc.categoryLabel || rc.vehicleType}
                     </div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>
-                      {rc.vehicleType}
+                      {rc.description || rc.vehicleType}
                     </div>
                   </div>
                 </div>
@@ -197,10 +202,10 @@ export default function PricingPage() {
               accessor: (rc: RateCard) => (
                 <div>
                   <span style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)' }}>
-                    ₹ {rc.baseFare.toLocaleString('en-IN')}
+                    ₹ {(rc.baseFare || 0).toLocaleString('en-IN')}
                   </span>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>
-                    First {rc.baseKm} km included
+                    First {rc.baseKm || 0} km included
                   </div>
                 </div>
               ),
@@ -209,7 +214,7 @@ export default function PricingPage() {
               header: 'PER KM TARIFF',
               accessor: (rc: RateCard) => (
                 <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--brand-primary)' }}>
-                  ₹ {rc.perKmRate.toFixed(2)} / km
+                  ₹ {typeof rc.perKmRate === 'number' ? rc.perKmRate.toFixed(2) : (rc.perKmRate || '0.00')} / km
                 </div>
               ),
             },
@@ -217,32 +222,36 @@ export default function PricingPage() {
               header: 'PER MINUTE RATE',
               accessor: (rc: RateCard) => (
                 <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                  ₹ {rc.perMinuteRate ? rc.perMinuteRate.toFixed(2) : '0.00'} / min
+                  ₹ {typeof rc.perMinuteRate === 'number' ? rc.perMinuteRate.toFixed(2) : '0.00'} / min
                 </div>
               ),
             },
             {
               header: 'PLATFORM TAKE-RATE',
-              accessor: (rc: RateCard) => (
-                <div>
-                  <span
-                    style={{
-                      padding: '0.2rem 0.5rem',
-                      borderRadius: 'var(--radius-sm)',
-                      backgroundColor: 'rgba(91, 66, 243, 0.12)',
-                      color: 'var(--brand-primary)',
-                      fontFamily: 'monospace',
-                      fontWeight: 700,
-                      fontSize: '0.8125rem',
-                    }}
-                  >
-                    {rc.platformFeePercentage}%
-                  </span>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                    Driver: {rc.driverSharePercentage}%
+              accessor: (rc: RateCard) => {
+                const platformFee = rc.platformFeePercent ?? rc.platformFeePercentage ?? 10;
+                const driverShare = rc.driverSharePercent ?? rc.driverSharePercentage ?? (100 - platformFee);
+                return (
+                  <div>
+                    <span
+                      style={{
+                        padding: '0.2rem 0.5rem',
+                        borderRadius: 'var(--radius-sm)',
+                        backgroundColor: 'rgba(91, 66, 243, 0.12)',
+                        color: 'var(--brand-primary)',
+                        fontFamily: 'monospace',
+                        fontWeight: 700,
+                        fontSize: '0.8125rem',
+                      }}
+                    >
+                      {platformFee}%
+                    </span>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                      Driver: {driverShare}%
+                    </div>
                   </div>
-                </div>
-              ),
+                );
+              },
             },
             {
               header: 'ACTIONS',
@@ -371,12 +380,14 @@ export default function PricingPage() {
                   type="number"
                   min="0"
                   max="50"
-                  value={editingCard.platformFeePercentage}
+                  value={editingCard.platformFeePercent ?? editingCard.platformFeePercentage ?? 10}
                   onChange={(e) => {
                     const fee = Number(e.target.value);
                     setEditingCard({
                       ...editingCard,
+                      platformFeePercent: fee,
                       platformFeePercentage: fee,
+                      driverSharePercent: 100 - fee,
                       driverSharePercentage: 100 - fee,
                     });
                   }}
@@ -399,7 +410,7 @@ export default function PricingPage() {
                 <input
                   type="number"
                   disabled
-                  value={editingCard.driverSharePercentage}
+                  value={editingCard.driverSharePercent ?? editingCard.driverSharePercentage ?? 90}
                   style={{
                     width: '100%',
                     padding: '0.625rem 0.875rem',
