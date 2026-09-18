@@ -4,66 +4,10 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-  initEarningsCalculator();
   initLeadForm();
   initDriverSignupForm();
   initMobileMenu();
 });
-
-/* ==========================================================================
-   1. Interactive Driver Earnings Calculator
-   ========================================================================== */
-function initEarningsCalculator() {
-  const vehicleSelect = document.getElementById('calc-vehicle');
-  const hoursSlider = document.getElementById('calc-hours');
-  const hoursDisplay = document.getElementById('calc-hours-val');
-  const daysSelect = document.getElementById('calc-days');
-
-  const weeklyBaseElem = document.getElementById('calc-weekly-base');
-  const monthlyBaseElem = document.getElementById('calc-monthly-base');
-  const bonusElem = document.getElementById('calc-bonus');
-  const grandTotalElem = document.getElementById('calc-grand-total');
-
-  if (!vehicleSelect || !hoursSlider || !grandTotalElem) return;
-
-  // Base hourly rates per vehicle category in INR
-  const rateCards = {
-    hatchback: 180,  // Mini Hatchback
-    sedan: 220,      // Prime Sedan
-    suv: 280,        // SUV (Ertiga / Innova)
-    traveller: 360   // Tempo Traveller / Large
-  };
-
-  function updateCalculator() {
-    const category = vehicleSelect.value;
-    const hours = parseInt(hoursSlider.value, 10);
-    const days = parseInt(daysSelect.value, 10);
-
-    if (hoursDisplay) {
-      hoursDisplay.textContent = `${hours} hrs`;
-    }
-
-    const hourlyRate = rateCards[category] || 220;
-    const dailyEarnings = hourlyRate * hours;
-    const weeklyEarnings = dailyEarnings * days;
-    const monthlyBaseEarnings = Math.round(weeklyEarnings * 4.33);
-    const centuryBonus = 2000; // Fixed ₹2,000 Century Milestone Bonus
-
-    const totalProjected = monthlyBaseEarnings + centuryBonus;
-
-    if (weeklyBaseElem) weeklyBaseElem.textContent = `₹${weeklyEarnings.toLocaleString('en-IN')}`;
-    if (monthlyBaseElem) monthlyBaseElem.textContent = `₹${monthlyBaseEarnings.toLocaleString('en-IN')}`;
-    if (bonusElem) bonusElem.textContent = `+ ₹${centuryBonus.toLocaleString('en-IN')}`;
-    if (grandTotalElem) grandTotalElem.textContent = `₹${totalProjected.toLocaleString('en-IN')} / mo`;
-  }
-
-  vehicleSelect.addEventListener('change', updateCalculator);
-  hoursSlider.addEventListener('input', updateCalculator);
-  daysSelect.addEventListener('change', updateCalculator);
-
-  // Initial calculation run
-  updateCalculator();
-}
 
 /* ==========================================================================
    2. Enterprise Lead Form Validation & Confirmation Modal

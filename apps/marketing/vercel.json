@@ -1,11 +1,4 @@
 {
   "cleanUrls": true,
-  "trailingSlash": false,
-  "rewrites": [
-    { "source": "/drivers", "destination": "/drivers.html" },
-    { "source": "/vendors", "destination": "/vendors.html" },
-    { "source": "/blogs", "destination": "/blogs.html" },
-    { "source": "/terms", "destination": "/terms.html" },
-    { "source": "/privacy", "destination": "/privacy.html" }
-  ]
+  "trailingSlash": false
 }
