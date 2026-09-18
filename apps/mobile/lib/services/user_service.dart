@@ -166,7 +166,7 @@ class UserService {
     if (response is Map<String, dynamic>) return response;
     if (response is Map) return Map<String, dynamic>.from(response);
     return {
-      'walletBalance': 25000.0,
+      'walletBalance': 0.0,
       'escrowBalance': 0.0,
       'totalSpent': 0.0,
       'currency': 'INR',
@@ -184,7 +184,7 @@ class UserService {
     );
     if (response is Map<String, dynamic>) return response;
     if (response is Map) return Map<String, dynamic>.from(response);
-    return {'orderId': 'order_mock', 'amount': amount, 'currency': 'INR', 'keyId': 'rzp_test'};
+    throw Exception('Failed to generate payment order from server');
   }
 
   Future<Map<String, dynamic>> createTopUpOrder(double amount, {String? couponCode}) =>

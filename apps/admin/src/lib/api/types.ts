@@ -328,3 +328,106 @@ export interface BlogMetrics {
   totalViews: number;
 }
 
+export interface AssignmentItem {
+  id: string;
+  requirementId: string;
+  driverId: string;
+  tripId?: string;
+  driverName?: string;
+  driverPhone?: string;
+  vehiclePlate?: string;
+  vehicleType?: string;
+  vehicleModel?: string;
+  status: 'OFFERED' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED' | 'CANCELLED' | 'ACTIVE' | 'COMPLETED' | string;
+  assignedRate?: number;
+  pickupAddress?: string;
+  dropAddress?: string;
+  reportingTime?: string;
+  assignedAt?: string;
+  offeredAt?: string;
+  respondedAt?: string;
+  createdAt: string;
+}
+
+export interface AdminPaymentItem {
+  id: string;
+  vendorId: string;
+  vendorName?: string;
+  requirementId?: string;
+  amount: number;
+  currency: string;
+  type: 'ESCROW_HOLD' | 'ESCROW_RELEASE' | 'DIRECT' | 'PENALTY' | 'REFUND' | 'TOP_UP' | string;
+  status: 'PENDING' | 'HELD_IN_ESCROW' | 'RELEASED' | 'REFUNDED' | 'FAILED' | string;
+  paymentGateway: string;
+  gatewayPaymentId?: string;
+  gatewayOrderId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminPaymentMetrics {
+  totalEscrowVolume: number;
+  activeEscrowHolds: number;
+  settledVolume: number;
+  pendingTransactions: number;
+}
+
+export interface RateCard {
+  vehicleType: string;
+  displayName: string;
+  baseFare: number;
+  baseKm: number;
+  perKmRate: number;
+  perMinuteRate: number;
+  minimumFare: number;
+  deadheadThresholdKm: number;
+  deadheadPerKmRate: number;
+  nightChargeMultiplier: number;
+  surgeMultiplier: number;
+  platformFeePercentage: number;
+  driverSharePercentage: number;
+}
+
+export interface CorridorAnalytics {
+  corridor: string;
+  pickupCity: string;
+  dropCity: string;
+  totalTrips: number;
+  totalRevenue: number;
+  avgDriverRate: number;
+  avgFulfillmentTimeMinutes: number;
+  topVehicleType: string;
+}
+
+export interface OperationalReportData {
+  period: string;
+  totalRequirements: number;
+  fulfilledRequirements: number;
+  fulfillmentRatePercent: number;
+  totalGrossBookingValue: number;
+  platformRevenue: number;
+  totalDriverPayouts: number;
+  activeDrivers: number;
+  activeVendors: number;
+  averageTripRating: number;
+  corridorAnalytics: CorridorAnalytics[];
+}
+
+export interface SupportTicketItem {
+  id: string;
+  ticketNumber?: string;
+  userId?: string;
+  reporterName: string;
+  reporterRole: 'DRIVER' | 'VENDOR' | 'USER' | string;
+  reporterPhone: string;
+  relatedTripId?: string;
+  issueType: string;
+  description: string;
+  status: 'PENDING' | 'UNDER_REVIEW' | 'RESOLVED' | string;
+  operatorNotes?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+
+

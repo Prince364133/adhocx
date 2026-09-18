@@ -325,7 +325,7 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
 
                                 if (mounted) {
                                   Navigator.pop(ctx);
-                                  ScaffoldMessenger.of(this.context).showSnackBar(
+                                  ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text('₹${amount.toStringAsFixed(0)} added to wallet successfully!${couponCode != null ? " ($couponCode applied)" : ""}'),
                                       backgroundColor: AppColors.success,
@@ -335,9 +335,11 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
                                 }
                               } catch (err) {
                                 setModalState(() => isProcessing = false);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Top-up failed: $err'), backgroundColor: AppColors.error),
-                                );
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Top-up failed: $err'), backgroundColor: AppColors.error),
+                                  );
+                                }
                               }
                             },
                       style: ElevatedButton.styleFrom(

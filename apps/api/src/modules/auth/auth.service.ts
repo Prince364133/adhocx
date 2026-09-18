@@ -549,6 +549,21 @@ export class AuthService {
       expiresIn: this.configService.get<string>('auth.jwtRefreshExpiresIn') || '30d',
     });
 
+    const hasPassword = Boolean(user.passwordHash);
+    let isOnboarded = false;
+    if (user.role === UserRole.DRIVER) {
+      isOnboarded = Boolean(
+        user.driver &&
+        (user.driver.vehicleType || user.driver.vehiclePlate || (user.driver.verificationStatus && user.driver.verificationStatus !== 'PENDING'))
+      );
+    } else if (user.role === UserRole.VENDOR) {
+      isOnboarded = Boolean(
+        user.fullName && user.fullName !== 'User' && user.fullName !== 'Vendor Partner'
+      );
+    } else if (user.role === UserRole.ADMIN) {
+      isOnboarded = true;
+    }
+
     return {
       accessToken,
       refreshToken,
@@ -560,6 +575,8 @@ export class AuthService {
         role: user.role as UserRole,
         fullName: user.fullName || undefined,
         isApproved: user.driver ? user.driver.verificationStatus === 'VERIFIED' : true,
+        hasPassword,
+        isOnboarded,
       },
     };
   }
@@ -608,6 +625,8 @@ export class AuthService {
         email: payload.email,
         role: payload.role as UserRole,
         isApproved: true,
+        hasPassword: true,
+        isOnboarded: true,
       },
     };
   }
@@ -620,6 +639,21 @@ export class AuthService {
       });
 
       if (user) {
+        const hasPassword = Boolean(user.passwordHash);
+        let isOnboarded = false;
+        if (user.role === UserRole.DRIVER) {
+          isOnboarded = Boolean(
+            user.driver &&
+            (user.driver.vehicleType || user.driver.vehiclePlate || (user.driver.verificationStatus && user.driver.verificationStatus !== 'PENDING'))
+          );
+        } else if (user.role === UserRole.VENDOR) {
+          isOnboarded = Boolean(
+            user.fullName && user.fullName !== 'User' && user.fullName !== 'Vendor Partner'
+          );
+        } else if (user.role === UserRole.ADMIN) {
+          isOnboarded = true;
+        }
+
         return {
           id: user.id,
           phone: user.phone,
@@ -627,6 +661,8 @@ export class AuthService {
           role: user.role as UserRole,
           fullName: user.fullName || undefined,
           status: user.status,
+          hasPassword,
+          isOnboarded,
           vendorProfile: user.vendor
             ? {
                 id: user.vendor.id,

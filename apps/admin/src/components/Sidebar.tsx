@@ -1,8 +1,26 @@
-﻿'use client';
+'use client';
 
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import {
+  LucideIcon,
+  LayoutDashboard,
+  ClipboardList,
+  Navigation,
+  Truck,
+  ShieldCheck,
+  Car,
+  Users,
+  CreditCard,
+  Wallet,
+  Tag,
+  Ticket,
+  Newspaper,
+  Scale,
+  BarChart3,
+  FileText,
+} from 'lucide-react';
 import { AdhocxBrandLogo } from './AdhocxBrandLogo';
 
 interface NavSection {
@@ -10,7 +28,7 @@ interface NavSection {
   items: {
     href: string;
     label: string;
-    icon: string;
+    icon: LucideIcon;
     badge?: string;
   }[];
 }
@@ -18,46 +36,46 @@ interface NavSection {
 const navSections: NavSection[] = [
   {
     items: [
-      { href: '/dashboard', label: 'Dashboard', icon: '📊' },
+      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     ],
   },
   {
     title: 'OPERATIONS',
     items: [
-      { href: '/requirements', label: 'Requirements', icon: '📋' },
-      { href: '/trips', label: 'Trips & Telemetry', icon: '🗺️' },
-      { href: '/assignments', label: 'Assignments', icon: '🚚' },
+      { href: '/requirements', label: 'Requirements', icon: ClipboardList },
+      { href: '/trips', label: 'Trips & Telemetry', icon: Navigation },
+      { href: '/assignments', label: 'Assignments', icon: Truck },
     ],
   },
   {
     title: 'MARKETPLACE',
     items: [
-      { href: '/verifications', label: 'Verification Center', icon: '🛡️' },
-      { href: '/drivers', label: 'Driver Fleet', icon: '🚘' },
-      { href: '/users', label: 'Users & Vendors', icon: '👥' },
+      { href: '/verifications', label: 'Verification Center', icon: ShieldCheck },
+      { href: '/drivers', label: 'Driver Fleet', icon: Car },
+      { href: '/users', label: 'Users & Vendors', icon: Users },
     ],
   },
   {
     title: 'FINANCE & BILLING',
     items: [
-      { href: '/settlements', label: 'Settlements', icon: '💳' },
-      { href: '/payments', label: 'Payments & Escrow', icon: '💰' },
-      { href: '/pricing', label: 'Pricing & Tariffs', icon: '🏷️' },
+      { href: '/settlements', label: 'Settlements', icon: CreditCard },
+      { href: '/payments', label: 'Payments & Escrow', icon: Wallet },
+      { href: '/pricing', label: 'Pricing & Tariffs', icon: Tag },
     ],
   },
   {
     title: 'GROWTH & CONTENT',
     items: [
-      { href: '/coupons', label: 'Coupons & Promos', icon: '🎟️' },
-      { href: '/blogs', label: 'Blog & Content', icon: '📰' },
-      { href: '/disputes', label: 'Disputes & Support', icon: '⚖️' },
+      { href: '/coupons', label: 'Coupons & Promos', icon: Ticket },
+      { href: '/blogs', label: 'Blog & Content', icon: Newspaper },
+      { href: '/disputes', label: 'Disputes & Support', icon: Scale },
     ],
   },
   {
     title: 'GOVERNANCE',
     items: [
-      { href: '/reports', label: 'Reports & Analytics', icon: '📈' },
-      { href: '/audit', label: 'Audit Logs', icon: '📜' },
+      { href: '/reports', label: 'Reports & Analytics', icon: BarChart3 },
+      { href: '/audit', label: 'Audit Logs', icon: FileText },
     ],
   },
 ];
@@ -142,7 +160,7 @@ export const Sidebar: React.FC = () => {
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                      <span style={{ fontSize: '1.05rem', lineHeight: 1 }}>{item.icon}</span>
+                      <item.icon size={17} />
                       <span>{item.label}</span>
                     </div>
                     {item.badge && (
@@ -166,43 +184,6 @@ export const Sidebar: React.FC = () => {
           </div>
         ))}
       </nav>
-
-      <div
-        style={{
-          padding: '0.875rem 1.25rem',
-          borderTop: '1px solid var(--border)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.75rem',
-          background: 'var(--bg-surface)',
-        }}
-      >
-        <div
-          style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '50%',
-            background: 'var(--brand-primary)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '0.75rem',
-            fontWeight: 800,
-            color: '#ffffff',
-          }}
-        >
-          AX
-        </div>
-        <div style={{ overflow: 'hidden', flex: 1 }}>
-          <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            Operations Lead
-          </div>
-          <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
-            ops@adhocx.com
-          </div>
-        </div>
-        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-success)', boxShadow: '0 0 6px var(--color-success)' }} />
-      </div>
     </aside>
   );
 };

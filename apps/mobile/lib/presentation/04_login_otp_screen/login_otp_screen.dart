@@ -105,10 +105,12 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
         final user = res.user;
         context.read<AuthProvider>().setUser(user);
 
-        // If user is registering or has not set a password / selected role, navigate to Set Password
-        if (widget.isRegister || user.isPending) {
+        // If user has not set a password, navigate to Set Password
+        if (!user.hasPassword) {
           context.push(AppRoutes.setPasswordScreen);
-        } else if (user.role == 'DRIVER') {
+        } else if (!user.isOnboarded) {
+          context.push(AppRoutes.onboardingPersonalScreen);
+        } else if (user.isDriver) {
           if (user.isUnderReview || user.isRejected) {
             context.go(AppRoutes.waitlistGateScreen);
           } else {

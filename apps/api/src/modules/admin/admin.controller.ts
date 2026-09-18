@@ -152,5 +152,44 @@ export class AdminController {
   async getAuditLogs(@Query('limit') limit?: number) {
     return this.adminService.getAuditLogs(limit ? Number(limit) : 50);
   }
+
+  // --- Reports & Operational SLA Telemetry ---
+
+  @Get('reports/corridors')
+  @Get('corridors')
+  @ApiOperation({ summary: 'Get corridor demand density and route fulfillment analytics' })
+  async getCorridors(@Query('range') range?: string) {
+    return this.adminService.getCorridorAnalytics(range);
+  }
+
+  @Get('reports/analytics')
+  @Get('reports')
+  @ApiOperation({ summary: 'Get operational SLA performance and platform GMV breakdown' })
+  async getOperationalReports() {
+    return this.adminService.getOperationalReports();
+  }
+
+  // --- Operational Helpdesk & Support Interventions ---
+
+  @Get('support/tickets')
+  @ApiOperation({ summary: 'List support helpdesk and conflict tickets' })
+  async getSupportTickets(
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.adminService.getSupportTickets(status, search);
+  }
+
+  @Post('support/tickets/:id/resolve')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Resolve support helpdesk ticket' })
+  async resolveSupportTicket(
+    @Param('id') id: string,
+    @CurrentUser() admin: AuthUserDto,
+    @Body() dto: { status: 'PENDING' | 'UNDER_REVIEW' | 'RESOLVED'; notes?: string },
+  ) {
+    return this.adminService.resolveSupportTicket(id, admin.id, dto);
+  }
 }
+
 

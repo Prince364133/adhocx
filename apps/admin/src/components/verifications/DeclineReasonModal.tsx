@@ -1,6 +1,7 @@
-﻿'use client';
+'use client';
 
 import React from 'react';
+import { AlertTriangle, X } from 'lucide-react';
 import { VerificationItem } from '../../lib/api/types';
 
 interface DeclineModalProps {
@@ -76,7 +77,7 @@ export const DeclineReasonModal: React.FC<DeclineModalProps> = ({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '1.25rem' }}>⚠️</span>
+              <AlertTriangle size={18} color="#f43f5e" />
               <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
                 Decline Application
               </h3>
@@ -91,22 +92,22 @@ export const DeclineReasonModal: React.FC<DeclineModalProps> = ({
               background: 'transparent',
               border: 'none',
               color: 'var(--text-muted)',
-              fontSize: '1.25rem',
               cursor: 'pointer',
               padding: '0.25rem',
               borderRadius: 'var(--radius-sm)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               transition: 'all 0.18s ease',
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.color = 'var(--text-primary)';
-              e.currentTarget.style.transform = 'rotate(90deg)';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.color = 'var(--text-muted)';
-              e.currentTarget.style.transform = 'rotate(0deg)';
             }}
           >
-            ✕
+            <X size={18} />
           </button>
         </div>
 

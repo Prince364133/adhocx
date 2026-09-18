@@ -540,9 +540,11 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                                                 await UserService.instance.acceptBid(b['id'] as String);
                                                 _loadRequirement(silent: false);
                                               } catch (e) {
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  SnackBar(content: Text('Failed to accept quote: $e'), backgroundColor: AppColors.error),
-                                                );
+                                                if (mounted) {
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    SnackBar(content: Text('Failed to accept quote: $e'), backgroundColor: AppColors.error),
+                                                  );
+                                                }
                                               }
                                             },
                                             style: ElevatedButton.styleFrom(

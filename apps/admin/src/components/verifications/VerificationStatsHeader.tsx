@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { Clock, BadgeCheck, Building2, CheckCircle2 } from 'lucide-react';
 
 interface StatsProps {
   stats: {
@@ -26,36 +27,35 @@ export const VerificationStatsHeader: React.FC<StatsProps> = ({ stats }) => {
       {/* 1. Active Review Queue */}
       <div
         style={{
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border)',
-          borderRadius: '12px',
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: 'var(--radius-lg)',
           padding: '1.25rem',
           display: 'flex',
           alignItems: 'center',
           gap: '1rem',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          boxShadow: 'var(--shadow-card)',
         }}
       >
         <div
           style={{
-            width: '48px',
-            height: '48px',
-            borderRadius: '10px',
-            background: 'rgba(245, 158, 11, 0.12)',
+            width: '44px',
+            height: '44px',
+            borderRadius: 'var(--radius-md)',
+            background: 'var(--color-warning-bg)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '1.5rem',
             color: 'var(--color-warning)',
           }}
         >
-          ⏳
+          <Clock size={22} />
         </div>
         <div>
           <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>
             Under Review Queue
           </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#f59e0b' }}>
+          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-warning)' }}>
             {stats.underReview}
           </div>
         </div>
@@ -64,36 +64,35 @@ export const VerificationStatsHeader: React.FC<StatsProps> = ({ stats }) => {
       {/* 2. Drivers Pending KYC */}
       <div
         style={{
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border)',
-          borderRadius: '12px',
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: 'var(--radius-lg)',
           padding: '1.25rem',
           display: 'flex',
           alignItems: 'center',
           gap: '1rem',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          boxShadow: 'var(--shadow-card)',
         }}
       >
         <div
           style={{
-            width: '48px',
-            height: '48px',
-            borderRadius: '10px',
-            background: 'rgba(99, 102, 241, 0.12)',
+            width: '44px',
+            height: '44px',
+            borderRadius: 'var(--radius-md)',
+            background: 'var(--brand-primary-subtle)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '1.5rem',
-            color: 'var(--accent-primary)',
+            color: 'var(--brand-primary)',
           }}
         >
-          🪪
+          <BadgeCheck size={22} />
         </div>
         <div>
           <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>
             Drivers Pending KYC
           </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--accent-primary)' }}>
+          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--brand-primary)' }}>
             {stats.driversPending}
           </div>
         </div>
@@ -102,36 +101,35 @@ export const VerificationStatsHeader: React.FC<StatsProps> = ({ stats }) => {
       {/* 3. Vendors Pending Verification */}
       <div
         style={{
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border)',
-          borderRadius: '12px',
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: 'var(--radius-lg)',
           padding: '1.25rem',
           display: 'flex',
           alignItems: 'center',
           gap: '1rem',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          boxShadow: 'var(--shadow-card)',
         }}
       >
         <div
           style={{
-            width: '48px',
-            height: '48px',
-            borderRadius: '10px',
+            width: '44px',
+            height: '44px',
+            borderRadius: 'var(--radius-md)',
             background: 'rgba(14, 165, 233, 0.12)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '1.5rem',
-            color: 'var(--accent-secondary)',
+            color: 'var(--color-info)',
           }}
         >
-          🏢
+          <Building2 size={22} />
         </div>
         <div>
           <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>
             Vendors Pending
           </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--accent-secondary)' }}>
+          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-info)' }}>
             {stats.vendorsPending}
           </div>
         </div>
@@ -140,30 +138,29 @@ export const VerificationStatsHeader: React.FC<StatsProps> = ({ stats }) => {
       {/* 4. Verified Total */}
       <div
         style={{
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border)',
-          borderRadius: '12px',
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: 'var(--radius-lg)',
           padding: '1.25rem',
           display: 'flex',
           alignItems: 'center',
           gap: '1rem',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          boxShadow: 'var(--shadow-card)',
         }}
       >
         <div
           style={{
-            width: '48px',
-            height: '48px',
-            borderRadius: '10px',
-            background: 'rgba(16, 185, 129, 0.12)',
+            width: '44px',
+            height: '44px',
+            borderRadius: 'var(--radius-md)',
+            background: 'var(--color-success-bg)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '1.5rem',
             color: 'var(--color-success)',
           }}
         >
-          ✅
+          <CheckCircle2 size={22} />
         </div>
         <div>
           <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>

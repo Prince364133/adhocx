@@ -33,7 +33,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _referralController = TextEditingController();
 
   SignUpInputMode _inputMode = SignUpInputMode.phone;
-  bool _obscurePassword = true;
   bool _agreeToTerms = true;
   bool _isLoading = false;
 

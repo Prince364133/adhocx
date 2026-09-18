@@ -1,6 +1,7 @@
-﻿'use client';
+'use client';
 
 import React, { useEffect } from 'react';
+import { X } from 'lucide-react';
 
 type ModalProps = {
   isOpen: boolean;
@@ -56,7 +57,6 @@ export const Modal: React.FC<ModalProps> = ({
               background: 'transparent',
               border: 'none',
               color: 'var(--text-secondary)',
-              fontSize: '1.25rem',
               cursor: 'pointer',
               lineHeight: 1,
               padding: '0.25rem',
@@ -68,17 +68,15 @@ export const Modal: React.FC<ModalProps> = ({
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.color = 'var(--text-primary)';
-              e.currentTarget.style.transform = 'rotate(90deg)';
               e.currentTarget.style.backgroundColor = 'var(--bg-surface-elevated)';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.color = 'var(--text-secondary)';
-              e.currentTarget.style.transform = 'rotate(0deg)';
               e.currentTarget.style.backgroundColor = 'transparent';
             }}
             title="Close Modal (Esc)"
           >
-            ✕
+            <X size={18} />
           </button>
         </div>
         <div className="modal-body">{children}</div>

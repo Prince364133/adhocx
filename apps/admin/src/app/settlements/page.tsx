@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
+import { Clock, CreditCard, RotateCcw, ShieldCheck, X } from 'lucide-react';
 import { adminApi } from '../../lib/api/client';
 import { SettlementListItem } from '../../lib/api/types';
 import {
@@ -39,32 +40,7 @@ export default function SettlementsPage() {
   async function loadSettlements(status: string) {
     setLoading(true);
     try {
-      const data = await adminApi.getSettlements(status).catch(() => [
-        {
-          id: 'set-1',
-          driverId: 'drv-1',
-          driverName: 'Rajesh Kumar',
-          amount: 2500,
-          status: 'PENDING',
-          bankAccountName: 'Rajesh Kumar',
-          bankAccountNumber: '••••4321',
-          bankIfsc: 'HDFC0001234',
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 'set-2',
-          driverId: 'drv-2',
-          driverName: 'Amit Singh',
-          amount: 4000,
-          status: 'SETTLED',
-          bankAccountName: 'Amit Singh',
-          bankAccountNumber: '••••9876',
-          bankIfsc: 'SBIN0005678',
-          transactionRef: 'UTR9876543210',
-          processedAt: new Date(Date.now() - 86400000).toISOString(),
-          createdAt: new Date(Date.now() - 90000000).toISOString(),
-        },
-      ]);
+      const data = await adminApi.getSettlements(status).catch(() => [] as SettlementListItem[]);
       setSettlements(data);
     } finally {
       setLoading(false);
@@ -169,9 +145,9 @@ export default function SettlementsPage() {
           <span>{alert.message}</span>
           <button
             onClick={() => setAlert(null)}
-            style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', fontWeight: 'bold' }}
+            style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
           >
-            ✕
+            <X size={16} />
           </button>
         </div>
       )}
@@ -195,21 +171,21 @@ export default function SettlementsPage() {
           label="Pending Payouts"
           value={metrics.pendingCount}
           subtext={`₹ ${metrics.pendingTotal.toLocaleString('en-IN')} awaiting authorization`}
-          icon="⏳"
+          icon={<Clock size={18} color="var(--color-warning)" />}
           accentColor="var(--color-warning)"
         />
         <MetricCard
           label="Settled Disbursals"
           value={metrics.settledCount}
           subtext={`₹ ${metrics.settledTotal.toLocaleString('en-IN')} successfully wired`}
-          icon="💳"
+          icon={<CreditCard size={18} color="var(--color-success)" />}
           accentColor="var(--color-success)"
         />
         <MetricCard
           label="Failed / Rollbacks"
           value={metrics.failedCount}
           subtext="Refunded to driver wallets"
-          icon="🔄"
+          icon={<RotateCcw size={18} color="var(--color-danger)" />}
           accentColor="var(--color-danger)"
         />
       </div>
@@ -232,7 +208,7 @@ export default function SettlementsPage() {
       />
 
       {/* Settlements DataTable */}
-      <DataTable<SettlementListItem>
+      <DataTable
         columns={[
           {
             header: 'SETTLEMENT ID',
@@ -338,8 +314,8 @@ export default function SettlementsPage() {
           setTransactionRef('');
           setFailureReason('');
         }}
-        emptyIcon="💳"
-        emptyMessage="No settlement records found matching your filters"
+        emptyTitle="No settlements found"
+        emptySubtitle={`No withdrawal settlements matching filter "${activeTab}".`}
       />
 
       {/* Slide-out Settlement Drawer */}
@@ -566,10 +542,16 @@ export default function SettlementsPage() {
                       fontSize: '0.75rem',
                       color: 'var(--color-warning)',
                       lineHeight: 1.4,
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '0.5rem',
                     }}
                   >
-                    🛡️ <strong>Automated Ledger Safeguard:</strong> Marking this payout as FAILED will automatically credit ₹
-                    {selectedSettlement.amount.toLocaleString('en-IN')} back into the driver's wallet with an audited <code>WITHDRAWAL_REFUND</code> ledger transaction.
+                    <ShieldCheck size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+                    <div>
+                      <strong>Automated Ledger Safeguard:</strong> Marking this payout as FAILED will automatically credit ₹
+                      {selectedSettlement.amount.toLocaleString('en-IN')} back into the driver's wallet with an audited <code>WITHDRAWAL_REFUND</code> ledger transaction.
+                    </div>
                   </div>
                 </div>
               </div>

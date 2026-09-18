@@ -5,6 +5,7 @@ import {
   Body,
   Param,
   Headers,
+  Query,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -71,7 +72,26 @@ export class PaymentsController {
     return this.paymentsService.verifyWalletTopUp(user.id, dto);
   }
 
+  @Get('admin/metrics')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get aggregate platform payment metrics for Admin' })
+  async getAdminMetrics() {
+    return this.paymentsService.getAdminPaymentMetrics();
+  }
+
+  @Get('admin/all')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'List all platform payments across all corporate vendors for Admin' })
+  async getAllPaymentsAdmin(@Query() query: any) {
+    return this.paymentsService.getAllAdminPayments(query);
+  }
+
   @Get('wallet/transactions')
+
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.VENDOR, UserRole.ADMIN)

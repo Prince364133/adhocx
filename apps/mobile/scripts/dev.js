@@ -37,26 +37,35 @@ const userProfile = process.env.USERPROFILE || 'C:\\Users\\saavi';
 const localAppData = process.env.LOCALAPPDATA || path.join(userProfile, 'AppData', 'Local');
 const pubCache = process.env.PUB_CACHE || path.join(localAppData, 'Pub', 'Cache');
 
+// Ensure Flutter SDK & Dart SDK directories are available in PATH
+const flutterBinDir = path.isAbsolute(flutterCmd) ? path.dirname(flutterCmd) : '';
+const dartSdkBinDir = flutterBinDir ? path.join(flutterBinDir, 'cache', 'dart-sdk', 'bin') : '';
+const pathSeparator = process.platform === 'win32' ? ';' : ':';
+const extraPaths = [flutterBinDir, dartSdkBinDir].filter(Boolean).join(pathSeparator);
+const childPath = extraPaths ? `${extraPaths}${pathSeparator}${process.env.PATH || ''}` : (process.env.PATH || '');
+
 const childEnv = {
   ...process.env,
   USERPROFILE: userProfile,
   LOCALAPPDATA: localAppData,
   APPDATA: process.env.APPDATA || path.join(userProfile, 'AppData', 'Roaming'),
   PUB_CACHE: pubCache,
-  PATH: process.env.PATH,
+  PATH: childPath,
 };
 
 try {
-  const child = spawn(
-    flutterCmd,
-    ['run', '-d', 'web-server', '--web-port', '7003', '--web-hostname', 'localhost'],
-    {
-      cwd: mobileDir,
-      stdio: 'inherit',
-      shell: process.platform === 'win32',
-      env: childEnv,
-    },
-  );
+  const isWindows = process.platform === 'win32';
+  const execFile = isWindows ? 'cmd.exe' : flutterCmd;
+  const execArgs = isWindows
+    ? ['/c', flutterCmd, 'run', '-d', 'web-server', '--web-port', '7003', '--web-hostname', 'localhost']
+    : ['run', '-d', 'web-server', '--web-port', '7003', '--web-hostname', 'localhost'];
+
+  const child = spawn(execFile, execArgs, {
+    cwd: mobileDir,
+    stdio: 'inherit',
+    shell: false,
+    env: childEnv,
+  });
 
   child.on('error', (err) => {
     console.log('\n📱 [AdhocX Mobile]');

@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { adminApi } from '../../lib/api/client';
+import { AssignmentItem } from '../../lib/api/types';
 import {
   PageHeader,
   FilterBar,
@@ -11,78 +13,53 @@ import {
   Drawer,
 } from '../../components/common';
 
-interface AssignmentItem {
-  id: string;
-  requirementId: string;
-  driverName: string;
-  driverPhone: string;
-  vehiclePlate: string;
-  vehicleType: string;
-  status: string;
-  assignedAt: string;
-}
-
 const STATUS_TABS = [
   { id: 'ALL', label: 'All Assignments' },
-  { id: 'CONFIRMED', label: 'Confirmed' },
-  { id: 'PENDING', label: 'Pending' },
+  { id: 'OFFERED', label: 'Offered' },
+  { id: 'ACCEPTED', label: 'Accepted' },
+  { id: 'ACTIVE', label: 'Active' },
   { id: 'COMPLETED', label: 'Completed' },
+  { id: 'REJECTED', label: 'Rejected' },
   { id: 'CANCELLED', label: 'Cancelled' },
 ];
 
 export default function AssignmentsPage() {
   const [activeTab, setActiveTab] = useState('ALL');
   const [search, setSearch] = useState('');
+  const [assignments, setAssignments] = useState<AssignmentItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedAsg, setSelectedAsg] = useState<AssignmentItem | null>(null);
 
-  const assignments: AssignmentItem[] = [
-    {
-      id: 'asg-701',
-      requirementId: 'req-201',
-      driverName: 'Rajesh Kumar',
-      driverPhone: '+919876543210',
-      vehiclePlate: 'DL-01-AB-1234',
-      vehicleType: 'SEDAN',
-      status: 'CONFIRMED',
-      assignedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-    },
-    {
-      id: 'asg-702',
-      requirementId: 'req-201',
-      driverName: 'Vikram Patel',
-      driverPhone: '+919723456789',
-      vehiclePlate: 'DL-04-DE-4433',
-      vehicleType: 'SEDAN',
-      status: 'CONFIRMED',
-      assignedAt: new Date(Date.now() - 3600000 * 1.5).toISOString(),
-    },
-    {
-      id: 'asg-703',
-      requirementId: 'req-202',
-      driverName: 'Amit Singh',
-      driverPhone: '+919811223344',
-      vehiclePlate: 'HR-26-BC-5678',
-      vehicleType: 'SUV',
-      status: 'COMPLETED',
-      assignedAt: new Date(Date.now() - 3600000 * 5).toISOString(),
-    },
-  ];
+  useEffect(() => {
+    loadAssignments(activeTab);
+  }, [activeTab]);
+
+  async function loadAssignments(status: string) {
+    setLoading(true);
+    try {
+      const res = await adminApi.getAssignments({
+        status: status !== 'ALL' ? status : undefined,
+        limit: 100,
+      }).catch(() => []);
+      setAssignments(Array.isArray(res) ? res : []);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const filtered = useMemo(() => {
+    if (!search.trim()) return assignments;
+    const q = search.toLowerCase().trim();
     return assignments.filter((asg) => {
-      if (activeTab !== 'ALL' && asg.status !== activeTab) return false;
-      if (search.trim()) {
-        const q = search.toLowerCase().trim();
-        return (
-          asg.id.toLowerCase().includes(q) ||
-          asg.requirementId.toLowerCase().includes(q) ||
-          asg.driverName.toLowerCase().includes(q) ||
-          asg.vehiclePlate.toLowerCase().includes(q)
-        );
-      }
-      return true;
+      return (
+        asg.id.toLowerCase().includes(q) ||
+        asg.requirementId.toLowerCase().includes(q) ||
+        (asg.driverName && asg.driverName.toLowerCase().includes(q)) ||
+        (asg.driverPhone && asg.driverPhone.toLowerCase().includes(q)) ||
+        (asg.vehiclePlate && asg.vehiclePlate.toLowerCase().includes(q))
+      );
     });
-  }, [assignments, activeTab, search]);
+  }, [assignments, search]);
 
   const columns: Column<AssignmentItem>[] = [
     {
@@ -133,7 +110,7 @@ export default function AssignmentsPage() {
       sortable: true,
       render: (asg) => (
         <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-          {new Date(asg.assignedAt).toLocaleString()}
+          {asg.assignedAt || asg.offeredAt || asg.createdAt ? new Date(asg.assignedAt || asg.offeredAt || asg.createdAt).toLocaleString() : '—'}
         </span>
       ),
     },
@@ -170,6 +147,7 @@ export default function AssignmentsPage() {
         columns={columns}
         data={filtered}
         keyExtractor={(a) => a.id}
+        loading={loading}
         emptyTitle="No assignments found"
         emptySubtitle={`No dispatch assignments match the filter: "${activeTab}".`}
       />
@@ -232,7 +210,7 @@ export default function AssignmentsPage() {
                 ASSIGNMENT TIMELINE
               </div>
               <div style={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>
-                Matched at: {new Date(selectedAsg.assignedAt).toLocaleString()}
+                Matched at: {selectedAsg.assignedAt || selectedAsg.offeredAt || selectedAsg.createdAt ? new Date(selectedAsg.assignedAt || selectedAsg.offeredAt || selectedAsg.createdAt).toLocaleString() : '—'}
               </div>
             </div>
           </div>

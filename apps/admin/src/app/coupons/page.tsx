@@ -1,6 +1,7 @@
-﻿'use client';
+'use client';
 
 import React, { useEffect, useState } from 'react';
+import { Tag, Ticket, CheckCircle2, Wallet, Plus, X, AlertTriangle, Check } from 'lucide-react';
 import { adminApi } from '../../lib/api/client';
 import {
   CouponListItem,
@@ -222,30 +223,31 @@ export default function CouponsPage() {
 
   return (
     <div style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
-      {/* Alert Notification */}
+      {/* Alert banner */}
       {alert && (
         <div
           style={{
+            padding: '0.75rem 1rem',
+            borderRadius: 'var(--radius-md)',
+            backgroundColor: alert.type === 'success' ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
+            border: `1px solid ${alert.type === 'success' ? 'var(--color-success-border)' : 'var(--color-danger-border)'}`,
+            color: alert.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)',
+            fontSize: '0.875rem',
             marginBottom: '1.5rem',
-            padding: '1rem 1.25rem',
-            borderRadius: '8px',
-            backgroundColor: alert.type === 'success' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-            border: `1px solid ${alert.type === 'success' ? 'var(--success)' : 'var(--danger)'}`,
-            color: alert.type === 'success' ? 'var(--success)' : 'var(--danger)',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontWeight: 500 }}>
-            <span>{alert.type === 'success' ? '✓' : '⚠️'}</span>
+            {alert.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
             <span>{alert.message}</span>
           </div>
           <button
             onClick={() => setAlert(null)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', fontWeight: 'bold' }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', display: 'flex', alignItems: 'center' }}
           >
-            âœ•
+            <X size={16} />
           </button>
         </div>
       )}
@@ -256,7 +258,7 @@ export default function CouponsPage() {
         subtitle="Configure promotional codes, percentage discounts, cashbacks, and AdhocX Wallet top-up bonus rules"
         liveStatus="Campaign Engine Active"
         actions={
-          <Button variant="primary" size="md" onClick={() => setIsCreateOpen(true)} leftIcon="ï¼‹">
+          <Button variant="primary" size="md" onClick={() => setIsCreateOpen(true)} leftIcon={<Plus size={16} />}>
             Create Promo Coupon
           </Button>
         }
@@ -275,28 +277,28 @@ export default function CouponsPage() {
           label="Total Coupons"
           value={metrics?.totalCoupons ?? 0}
           subtext="Configured promos"
-          icon="ðŸ·ï¸"
+          icon={<Ticket size={18} color="var(--brand-primary)" />}
           accentColor="var(--brand-primary)"
         />
         <MetricCard
           label="Active Promos"
           value={metrics?.activeCoupons ?? 0}
           subtext="Claimable by users"
-          icon="ðŸŸ¢"
+          icon={<CheckCircle2 size={18} color="var(--color-success)" />}
           accentColor="var(--color-success)"
         />
         <MetricCard
           label="Total Redemptions"
           value={metrics?.totalRedemptions ?? 0}
           subtext="Trips & wallet topups"
-          icon="ðŸŽŸï¸"
+          icon={<Tag size={18} color="#8B5CF6" />}
           accentColor="#8B5CF6"
         />
         <MetricCard
           label="Discount Disbursed"
-          value={`â‚¹ ${(metrics?.totalDiscountDisbursed ?? 0).toLocaleString('en-IN')}`}
+          value={`₹ ${(metrics?.totalDiscountDisbursed ?? 0).toLocaleString('en-IN')}`}
           subtext="Platform promo savings"
-          icon="ðŸ’°"
+          icon={<Wallet size={18} color="var(--color-warning)" />}
           accentColor="var(--color-warning)"
         />
       </div>
@@ -330,7 +332,7 @@ export default function CouponsPage() {
       />
 
       {/* Coupons Table */}
-      <DataTable<CouponListItem>
+      <DataTable
         columns={[
           {
             header: 'COUPON CODE',
@@ -366,11 +368,11 @@ export default function CouponsPage() {
             accessor: (c) => (
               <div>
                 <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.875rem' }}>
-                  {c.discountType === 'PERCENTAGE' ? `${c.discountValue}% OFF` : `â‚¹${c.discountValue} FLAT`}
+                  {c.discountType === 'PERCENTAGE' ? `${c.discountValue}% OFF` : `₹${c.discountValue} FLAT`}
                 </div>
                 {c.discountType === 'PERCENTAGE' && c.maxDiscountAmount && (
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>
-                    Max cap â‚¹{c.maxDiscountAmount}
+                    Max cap ₹{c.maxDiscountAmount}
                   </div>
                 )}
               </div>
@@ -380,7 +382,7 @@ export default function CouponsPage() {
             header: 'MIN SPEND',
             accessor: (c) => (
               <span style={{ fontWeight: 500, color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
-                {c.minOrderAmount > 0 ? `â‚¹${c.minOrderAmount}` : 'No Min.'}
+                {c.minOrderAmount > 0 ? `₹${c.minOrderAmount}` : 'No Min.'}
               </span>
             ),
           },
@@ -408,7 +410,7 @@ export default function CouponsPage() {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.8125rem' }}>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{c.usedCount}</span>
-                    <span style={{ color: 'var(--text-muted)' }}>/ {c.usageLimitTotal ? c.usageLimitTotal : 'âˆž'}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>/ {c.usageLimitTotal ? c.usageLimitTotal : '∞'}</span>
                   </div>
                   {c.usageLimitTotal && (
                     <div
@@ -509,8 +511,8 @@ export default function CouponsPage() {
         data={coupons}
         keyExtractor={(c) => c.id}
         loading={loading}
-        emptyIcon="ðŸ·ï¸"
-        emptyMessage="No promotional coupons found for this filter"
+        emptyTitle="No coupons found"
+        emptySubtitle="No promotional coupons match your selected filter."
       />
 
 
@@ -608,13 +610,13 @@ export default function CouponsPage() {
                 }}
               >
                 <option value="PERCENTAGE">Percentage (%)</option>
-                <option value="FLAT">Flat Amount (â‚¹)</option>
+                <option value="FLAT">Flat Amount (₹)</option>
               </select>
             </div>
 
             <div>
               <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
-                {createForm.discountType === 'PERCENTAGE' ? 'Discount Rate (%) *' : 'Flat Discount (â‚¹) *'}
+                {createForm.discountType === 'PERCENTAGE' ? 'Discount Rate (%) *' : 'Flat Discount (₹) *'}
               </label>
               <input
                 type="number"
@@ -637,7 +639,7 @@ export default function CouponsPage() {
 
             <div>
               <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
-                Max Cap (â‚¹)
+                Max Cap (₹)
               </label>
               <input
                 type="number"
@@ -665,7 +667,7 @@ export default function CouponsPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
-                Min Order Spend (â‚¹)
+                Min Order Spend (₹)
               </label>
               <input
                 type="number"
@@ -904,7 +906,7 @@ export default function CouponsPage() {
                 }}
               >
                 <option value="PERCENTAGE">Percentage (%)</option>
-                <option value="FLAT">Flat (â‚¹)</option>
+                <option value="FLAT">Flat (₹)</option>
               </select>
             </div>
 
@@ -931,7 +933,7 @@ export default function CouponsPage() {
 
             <div>
               <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
-                Max Cap (â‚¹)
+                Max Cap (₹)
               </label>
               <input
                 type="number"
@@ -958,7 +960,7 @@ export default function CouponsPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
-                Min Order Spend (â‚¹)
+                Min Order Spend (₹)
               </label>
               <input
                 type="number"
@@ -1132,11 +1134,11 @@ export default function CouponsPage() {
                         {r.referenceType}: {r.referenceId.slice(0, 14)}...
                       </span>
                     </td>
-                    <td style={{ padding: '0.75rem 1rem' }}>â‚¹{r.orderAmount.toFixed(2)}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: 'var(--success)', fontWeight: 700 }}>
-                      - â‚¹{r.discountAmount.toFixed(2)}
+                    <td style={{ padding: '0.75rem 1rem' }}>₹{r.orderAmount.toFixed(2)}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: 'var(--color-success)', fontWeight: 700 }}>
+                      - ₹{r.discountAmount.toFixed(2)}
                     </td>
-                    <td style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>â‚¹{r.finalAmount.toFixed(2)}</td>
+                    <td style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>₹{r.finalAmount.toFixed(2)}</td>
                     <td style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>
                       {new Date(r.redeemedAt).toLocaleString()}
                     </td>

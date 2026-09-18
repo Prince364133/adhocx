@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { BadgeCheck, Building2, Phone, MapPin, FileText } from 'lucide-react';
 import { VerificationItem } from '../../lib/api/types';
 
 interface CardProps {
@@ -8,6 +9,7 @@ interface CardProps {
   onSelect: (item: VerificationItem) => void;
   onApproveQuick: (item: VerificationItem) => void;
   onDeclineQuick: (item: VerificationItem) => void;
+  isProcessing?: boolean;
 }
 
 export const VerificationCard: React.FC<CardProps> = ({
@@ -15,78 +17,80 @@ export const VerificationCard: React.FC<CardProps> = ({
   onSelect,
   onApproveQuick,
   onDeclineQuick,
+  isProcessing = false,
 }) => {
   const isDriver = item.entityType === 'DRIVER';
-  const isUnderReview = item.verificationStatus === 'UNDER_REVIEW';
+  const isUnderReview = item.verificationStatus === 'UNDER_REVIEW' || item.verificationStatus === 'PENDING';
   const isVerified = item.verificationStatus === 'VERIFIED';
   const isRejected = item.verificationStatus === 'REJECTED';
 
-  const statusBg = isVerified
-    ? 'rgba(16, 185, 129, 0.15)'
+  const statusColor = isVerified
+    ? 'var(--color-success)'
     : isRejected
-    ? 'rgba(244, 63, 94, 0.15)'
-    : 'rgba(245, 158, 11, 0.15)';
+    ? 'var(--color-danger)'
+    : 'var(--color-warning)';
 
-  const statusColor = isVerified ? '#10b981' : isRejected ? '#f43f5e' : '#f59e0b';
-  const statusLabel = isVerified ? 'VERIFIED' : isRejected ? 'REJECTED' : 'UNDER REVIEW';
+  const statusBg = isVerified
+    ? 'var(--color-success-bg)'
+    : isRejected
+    ? 'var(--color-danger-bg)'
+    : 'var(--color-warning-bg)';
+
+  const statusLabel = isVerified
+    ? 'Approved'
+    : isRejected
+    ? 'Declined'
+    : 'Under Review';
 
   return (
     <div
       onClick={() => onSelect(item)}
       style={{
-        background: 'var(--bg-surface)',
-        border: `1px solid ${isUnderReview ? 'var(--border-light)' : 'var(--border)'}`,
-        borderRadius: '12px',
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--radius-lg)',
         padding: '1.25rem',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
         cursor: 'pointer',
-        transition: 'all 0.2s ease',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+        boxShadow: 'var(--shadow-card)',
+        transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
         position: 'relative',
         overflow: 'hidden',
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = 'var(--accent-primary)';
+        e.currentTarget.style.borderColor = 'var(--brand-primary)';
         e.currentTarget.style.transform = 'translateY(-2px)';
-        e.currentTarget.style.boxShadow = '0 8px 24px rgba(99, 102, 241, 0.15)';
+        e.currentTarget.style.boxShadow = 'var(--shadow-elevated)';
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = isUnderReview ? 'var(--border-light)' : 'var(--border)';
+        e.currentTarget.style.borderColor = 'var(--border-subtle)';
         e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.12)';
+        e.currentTarget.style.boxShadow = 'var(--shadow-card)';
       }}
     >
-      {/* Top Banner: Entity type & Status */}
       <div>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '0.875rem',
-          }}
-        >
+        {/* Card Header: Entity Type Tag & Status */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.875rem' }}>
           <span
             style={{
               fontSize: '0.6875rem',
               fontWeight: 700,
               letterSpacing: '0.06em',
               textTransform: 'uppercase',
-              color: isDriver ? 'var(--accent-primary)' : 'var(--accent-secondary)',
-              background: isDriver ? 'rgba(99, 102, 241, 0.12)' : 'rgba(14, 165, 233, 0.12)',
+              color: isDriver ? 'var(--brand-primary)' : 'var(--color-info)',
+              background: isDriver ? 'var(--brand-primary-subtle)' : 'rgba(14, 165, 233, 0.12)',
               padding: '0.25rem 0.5rem',
-              borderRadius: '6px',
+              borderRadius: 'var(--radius-xs)',
               display: 'flex',
               alignItems: 'center',
               gap: '0.375rem',
             }}
           >
-            <span>{isDriver ? '🪪' : '🏢'}</span>
-            <span>{isDriver ? 'DRIVER' : 'USER'} KYC</span>
+            {isDriver ? <BadgeCheck size={13} /> : <Building2 size={13} />}
+            <span>{isDriver ? 'DRIVER' : 'VENDOR'} KYC</span>
           </span>
-
 
           <span
             style={{
@@ -96,7 +100,7 @@ export const VerificationCard: React.FC<CardProps> = ({
               color: statusColor,
               background: statusBg,
               padding: '0.25rem 0.5rem',
-              borderRadius: '6px',
+              borderRadius: 'var(--radius-xs)',
             }}
           >
             {statusLabel}
@@ -111,7 +115,7 @@ export const VerificationCard: React.FC<CardProps> = ({
               height: '42px',
               borderRadius: '50%',
               background: isDriver
-                ? 'linear-gradient(135deg, #6366f1, #4f46e5)'
+                ? 'linear-gradient(135deg, #6347F9, #4328E0)'
                 : 'linear-gradient(135deg, #0ea5e9, #0284c7)',
               display: 'flex',
               alignItems: 'center',
@@ -141,7 +145,7 @@ export const VerificationCard: React.FC<CardProps> = ({
               <div
                 style={{
                   fontSize: '0.75rem',
-                  color: 'var(--accent-secondary)',
+                  color: 'var(--brand-secondary)',
                   fontWeight: 500,
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
@@ -151,8 +155,9 @@ export const VerificationCard: React.FC<CardProps> = ({
                 {item.organizationName}
               </div>
             )}
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              📱 {item.phone}
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.15rem' }}>
+              <Phone size={12} />
+              <span>{item.phone}</span>
             </div>
           </div>
         </div>
@@ -160,8 +165,8 @@ export const VerificationCard: React.FC<CardProps> = ({
         {/* Vehicle or Organization Specs */}
         <div
           style={{
-            background: 'var(--bg-base)',
-            borderRadius: '8px',
+            background: 'var(--bg-card-elevated)',
+            borderRadius: 'var(--radius-sm)',
             padding: '0.625rem 0.75rem',
             marginBottom: '0.75rem',
             display: 'flex',
@@ -216,7 +221,7 @@ export const VerificationCard: React.FC<CardProps> = ({
               textOverflow: 'ellipsis',
             }}
           >
-            <span>📍</span>
+            <MapPin size={12} />
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {item.location.address}
             </span>
@@ -227,12 +232,12 @@ export const VerificationCard: React.FC<CardProps> = ({
         {isRejected && item.rejectionReason && (
           <div
             style={{
-              background: 'rgba(244, 63, 94, 0.08)',
-              border: '1px solid rgba(244, 63, 94, 0.25)',
-              borderRadius: '6px',
+              background: 'var(--color-danger-bg)',
+              border: '1px solid var(--color-danger-border)',
+              borderRadius: 'var(--radius-xs)',
               padding: '0.5rem',
               fontSize: '0.6875rem',
-              color: '#f43f5e',
+              color: 'var(--color-danger)',
               marginBottom: '0.75rem',
             }}
           >
@@ -248,14 +253,14 @@ export const VerificationCard: React.FC<CardProps> = ({
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            borderTop: '1px solid var(--border)',
+            borderTop: '1px solid var(--border-subtle)',
             paddingTop: '0.75rem',
             marginBottom: '0.75rem',
             fontSize: '0.75rem',
           }}
         >
-          <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-            <span>📁</span>
+          <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <FileText size={13} />
             <span>{item.documents?.length || 4} Docs Uploaded</span>
           </span>
           <span style={{ color: 'var(--text-muted)', fontSize: '0.6875rem' }}>

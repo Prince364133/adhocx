@@ -1,4 +1,5 @@
-﻿import React from 'react';
+import React from 'react';
+import { Search, X } from 'lucide-react';
 
 export interface TabOption {
   id: string;
@@ -48,58 +49,45 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             gap: '0.25rem',
             background: 'var(--bg-surface-elevated)',
             padding: '0.25rem',
-            borderRadius: 'var(--radius-lg)',
+            borderRadius: 'var(--radius-md)',
             border: '1px solid var(--border)',
-            overflowX: 'auto',
           }}
         >
-          {tabs.map((t) => {
-            const isActive = activeTab === t.id;
+          {tabs.map((tab) => {
+            const isActive = tab.id === activeTab;
             return (
               <button
-                key={t.id}
-                onClick={() => onTabChange && onTabChange(t.id)}
+                key={tab.id}
+                onClick={() => onTabChange?.(tab.id)}
                 style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.375rem',
-                  padding: '0.45rem 0.85rem',
-                  borderRadius: 'var(--radius-md)',
-                  border: 'none',
+                  padding: '0.4rem 0.85rem',
+                  borderRadius: 'var(--radius-sm)',
                   fontSize: '0.8125rem',
-                  fontWeight: isActive ? 700 : 500,
-                  color: isActive ? '#ffffff' : 'var(--text-secondary)',
-                  backgroundColor: isActive ? 'var(--brand-primary)' : 'transparent',
-                  boxShadow: isActive ? 'var(--shadow-glow-purple)' : 'none',
+                  fontWeight: isActive ? 600 : 500,
+                  color: isActive ? 'var(--text-primary)' : 'var(--text-muted)',
+                  backgroundColor: isActive ? 'var(--bg-surface)' : 'transparent',
+                  boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
+                  border: 'none',
                   cursor: 'pointer',
                   transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
-                  whiteSpace: 'nowrap',
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.color = 'var(--text-primary)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.color = 'var(--text-secondary)';
-                  }
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
                 }}
               >
-                <span>{t.label}</span>
-                {t.count !== undefined && (
+                {tab.label}
+                {tab.count !== undefined && (
                   <span
                     style={{
-                      fontSize: '0.6875rem',
-                      fontWeight: 700,
                       padding: '0.1rem 0.4rem',
                       borderRadius: 'var(--radius-pill)',
-                      backgroundColor: isActive ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)',
-                      color: isActive ? '#ffffff' : 'var(--text-muted)',
-                      transition: 'all 0.15s ease',
+                      fontSize: '0.6875rem',
+                      fontWeight: 700,
+                      backgroundColor: isActive ? 'var(--brand-primary-subtle)' : 'var(--bg-base)',
+                      color: isActive ? 'var(--brand-primary)' : 'var(--text-muted)',
                     }}
                   >
-                    {t.count}
+                    {tab.count}
                   </span>
                 )}
               </button>
@@ -108,27 +96,37 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         </div>
       )}
 
-      {/* Right Side: Search & Extra Actions */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', flex: 1, justifyContent: 'flex-end' }}>
+      {/* Right controls: Search & Extra filters */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.75rem',
+          flex: tabs && tabs.length > 0 ? '0 1 auto' : '1 1 auto',
+          justifyContent: 'flex-end',
+        }}
+      >
         {onSearchChange && (
-          <div style={{ position: 'relative', minWidth: '240px', maxWidth: '340px', width: '100%' }}>
+          <div
+            style={{
+              position: 'relative',
+              width: '280px',
+              maxWidth: '100%',
+            }}
+          >
             <span
               style={{
                 position: 'absolute',
-                left: '0.875rem',
+                left: '0.75rem',
                 top: '50%',
                 transform: 'translateY(-50%)',
                 color: 'var(--text-muted)',
-                fontSize: '0.875rem',
-                pointerEvents: 'none',
                 display: 'flex',
                 alignItems: 'center',
+                pointerEvents: 'none',
               }}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
+              <Search size={15} />
             </span>
             <input
               type="text"
@@ -168,25 +166,22 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                   border: 'none',
                   color: 'var(--text-muted)',
                   cursor: 'pointer',
-                  fontSize: '0.875rem',
                   padding: '0.2rem',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   borderRadius: '50%',
-                  transition: 'transform 0.15s ease, color 0.15s ease',
+                  transition: 'color 0.15s ease',
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.color = 'var(--text-primary)';
-                  e.currentTarget.style.transform = 'translateY(-50%) rotate(90deg)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.color = 'var(--text-muted)';
-                  e.currentTarget.style.transform = 'translateY(-50%) rotate(0deg)';
                 }}
                 title="Clear search"
               >
-                ✕
+                <X size={14} />
               </button>
             )}
           </div>

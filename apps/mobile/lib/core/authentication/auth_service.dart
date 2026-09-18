@@ -7,6 +7,8 @@ class UserModel {
   final String role; // 'DRIVER', 'VENDOR', 'ADMIN'
   final String? fullName;
   final String? photoUrl;
+  final bool hasPassword;
+  final bool isOnboarded;
   final Map<String, dynamic>? driverProfile;
   final Map<String, dynamic>? vendorProfile;
 
@@ -17,11 +19,16 @@ class UserModel {
     required this.role,
     this.fullName,
     this.photoUrl,
+    this.hasPassword = true,
+    this.isOnboarded = true,
     this.driverProfile,
     this.vendorProfile,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
+    final bool hasPass = json['hasPassword'] == true || json['passwordSet'] == true;
+    final bool isOb = json['isOnboarded'] == true;
+
     return UserModel(
       id: json['id'] ?? '',
       phone: json['phone'],
@@ -29,6 +36,8 @@ class UserModel {
       role: (json['role'] ?? 'DRIVER').toString().toUpperCase(),
       fullName: json['fullName'] ?? json['name'],
       photoUrl: json['photoUrl'],
+      hasPassword: json.containsKey('hasPassword') ? hasPass : true,
+      isOnboarded: json.containsKey('isOnboarded') ? isOb : true,
       driverProfile: json['driverProfile'],
       vendorProfile: json['vendorProfile'],
     );

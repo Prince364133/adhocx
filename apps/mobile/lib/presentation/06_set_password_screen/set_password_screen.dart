@@ -52,7 +52,6 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
 
     try {
       final authService = context.read<AuthService>();
-      final onboarding = context.read<OnboardingProvider>();
       await authService.setPassword(password: _passwordController.text.trim());
 
       if (mounted) {
@@ -61,11 +60,7 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
           backgroundColor: AppColors.accentGreenDark,
         );
 
-        if (onboarding.isDriver) {
-          context.push(AppRoutes.onboardingPersonalScreen);
-        } else {
-          context.go(AppRoutes.userHomeScreen);
-        }
+        context.push(AppRoutes.onboardingPersonalScreen);
       }
     } catch (e) {
       if (mounted) {

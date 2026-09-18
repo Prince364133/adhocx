@@ -106,7 +106,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
       case 'purple':
         return {
           bg: 'var(--brand-primary-subtle)',
-          color: '#818cf8',
+          color: 'var(--brand-primary)',
           border: 'rgba(91, 66, 243, 0.28)',
           pulseColor: 'purple',
         };

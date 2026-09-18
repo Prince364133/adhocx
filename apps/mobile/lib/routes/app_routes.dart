@@ -283,32 +283,90 @@ final GoRouter appRouter = GoRouter(
       return currentPath.replaceFirst('/vendor/', '/user/');
     }
 
-    // Public onboarding & authentication routes accessible without a session
-    const publicRoutes = {
+    const publicAuthRoutes = {
       AppRoutes.splashScreen,
       AppRoutes.languageSelectionScreen,
       AppRoutes.signInScreen,
       AppRoutes.loginOtpScreen,
       AppRoutes.signUpScreen,
-      AppRoutes.setPasswordScreen,
       AppRoutes.forgotPasswordScreen,
       AppRoutes.forgotPasswordOtpScreen,
       AppRoutes.resetPasswordScreen,
+    };
+
+    // 1. Unauthenticated users can only access public auth screens
+    if (!isLoggedIn) {
+      if (publicAuthRoutes.contains(currentPath)) {
+        return null;
+      }
+      return AppRoutes.signInScreen;
+    }
+
+    // 2. Mandatory Password Setup Guard:
+    // If authenticated user does not have a password configured, force setPasswordScreen
+    if (!user.hasPassword) {
+      if (currentPath == AppRoutes.setPasswordScreen) {
+        return null;
+      }
+      return AppRoutes.setPasswordScreen;
+    }
+
+    // 3. Mandatory Onboarding Completion Guard:
+    // If authenticated user has not completed onboarding, force appropriate onboarding screen
+    if (!user.isOnboarded) {
+      const allowedOnboardingRoutes = {
+        AppRoutes.chooseRoleScreen,
+        AppRoutes.onboardingPersonalScreen,
+        AppRoutes.onboardingVehicleScreen,
+        AppRoutes.onboardingDocumentsScreen,
+        AppRoutes.onboardingReviewScreen,
+        AppRoutes.welcomeSuccessScreen,
+        AppRoutes.setPasswordScreen,
+      };
+
+      if (allowedOnboardingRoutes.contains(currentPath)) {
+        return null;
+      }
+
+      return AppRoutes.onboardingPersonalScreen;
+    }
+
+    // 4. Authenticated & Onboarded users should not linger on auth pages
+    const authAndOnboardingScreens = {
+      AppRoutes.signInScreen,
+      AppRoutes.signUpScreen,
+      AppRoutes.loginOtpScreen,
+      AppRoutes.setPasswordScreen,
       AppRoutes.chooseRoleScreen,
       AppRoutes.onboardingPersonalScreen,
       AppRoutes.onboardingVehicleScreen,
       AppRoutes.onboardingDocumentsScreen,
       AppRoutes.onboardingReviewScreen,
-      AppRoutes.welcomeSuccessScreen,
     };
-
-    if (publicRoutes.contains(currentPath)) {
-      return null;
+    if (authAndOnboardingScreens.contains(currentPath)) {
+      return user.isDriver ? AppRoutes.homeScreen : AppRoutes.userHomeScreen;
     }
 
-    // All other operational screens (User & Driver portals) require an authenticated session
-    if (!isLoggedIn) {
-      return AppRoutes.signInScreen;
+    // 5. Strict Role Separation:
+    // Drivers cannot access /user/* routes
+    if (user.isDriver && currentPath.startsWith('/user/')) {
+      return AppRoutes.homeScreen;
+    }
+
+    // Users / Corporate bookers cannot access driver dashboard & opportunities
+    const driverOnlyRoutes = {
+      AppRoutes.homeScreen,
+      AppRoutes.tripsScreen,
+      AppRoutes.opportunitiesScreen,
+      AppRoutes.opportunityDetailsScreen,
+      AppRoutes.opportunityOfferScreen,
+      AppRoutes.walletScreen,
+      AppRoutes.earningsTransactionsScreen,
+      AppRoutes.earningsWithdrawScreen,
+      AppRoutes.earningsWithdrawalDetailsScreen,
+    };
+    if (user.isUser && driverOnlyRoutes.contains(currentPath)) {
+      return AppRoutes.userHomeScreen;
     }
 
     return null;

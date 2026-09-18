@@ -1,6 +1,7 @@
-﻿'use client';
+'use client';
 
 import React from 'react';
+import { Bell, Clock, ShieldCheck } from 'lucide-react';
 import { PageHeader } from '../../components/common';
 import { VerificationStatsHeader } from '../../components/verifications/VerificationStatsHeader';
 import { VerificationFilterBar } from '../../components/verifications/VerificationFilterBar';
@@ -61,7 +62,7 @@ export default function VerificationCenterPage() {
               right: '20px',
               background: 'var(--bg-card-elevated)',
               border: '1px solid var(--brand-primary)',
-              color: '#ffffff',
+              color: 'var(--text-primary)',
               padding: '0.875rem 1.5rem',
               borderRadius: '10px',
               boxShadow: '0 10px 25px rgba(0,0,0,0.4)',
@@ -73,7 +74,7 @@ export default function VerificationCenterPage() {
               gap: '0.75rem',
             }}
           >
-            <span>ðŸ””</span>
+            <Bell size={18} color="var(--brand-primary)" />
             <span>{toastMessage}</span>
           </div>
         )}
@@ -123,7 +124,7 @@ export default function VerificationCenterPage() {
               color: 'var(--text-muted)',
             }}
           >
-            <div style={{ fontSize: '2rem' }}>â³</div>
+            <Clock size={32} color="var(--brand-primary)" />
             <div>Loading verification queue from secure storage...</div>
           </div>
         ) : items.length === 0 ? (
@@ -149,10 +150,10 @@ export default function VerificationCenterPage() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '1.75rem',
+                color: 'var(--brand-primary)',
               }}
             >
-              ðŸ›¡ï¸
+              <ShieldCheck size={32} />
             </div>
             <div>
               <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)' }}>

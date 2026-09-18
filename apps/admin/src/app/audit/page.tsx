@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
+import { FileText, ShieldCheck, Car, Wallet } from 'lucide-react';
 import { adminApi } from '../../lib/api/client';
 import { AuditLogItem } from '../../lib/api/types';
 import {
@@ -35,52 +36,7 @@ export default function AuditLogsPage() {
   async function loadAuditLogs() {
     setLoading(true);
     try {
-      const data = await adminApi.getAuditLogs(100).catch(() => [
-        {
-          id: 'log-1',
-          actorPhone: '+919999999999',
-          actorRole: 'ADMIN',
-          action: 'ADMIN_DRIVER_VERIFIED',
-          entityName: 'DRIVER',
-          entityId: 'drv-1',
-          payload: { notes: 'Approved after checking driving license & commercial permit' },
-          ipAddress: '127.0.0.1',
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 'log-2',
-          actorPhone: '+919988776655',
-          actorRole: 'VENDOR',
-          action: 'REQUIREMENT_POSTED',
-          entityName: 'REQUIREMENT',
-          entityId: 'req-1',
-          payload: { vehicleType: 'SEDAN', quantity: 2, pickupLocation: 'Indiranagar, Bangalore' },
-          ipAddress: '192.168.1.10',
-          createdAt: new Date(Date.now() - 3600000).toISOString(),
-        },
-        {
-          id: 'log-3',
-          actorPhone: '+919876543210',
-          actorRole: 'DRIVER',
-          action: 'WITHDRAWAL_REQUESTED',
-          entityName: 'SETTLEMENT',
-          entityId: 'set-1',
-          payload: { amount: 2500, bankIfsc: 'HDFC0001234', bankAccountNumber: '••••4321' },
-          ipAddress: '10.0.0.5',
-          createdAt: new Date(Date.now() - 7200000).toISOString(),
-        },
-        {
-          id: 'log-4',
-          actorPhone: 'System Daemon',
-          actorRole: 'SYSTEM',
-          action: 'SLA_BREACH_NOTIFIED',
-          entityName: 'ASSIGNMENT',
-          entityId: 'asg-902',
-          payload: { driverId: 'drv-4', elapsedSeconds: 95, reassigned: true },
-          ipAddress: '10.0.2.1',
-          createdAt: new Date(Date.now() - 10800000).toISOString(),
-        },
-      ]);
+      const data = await adminApi.getAuditLogs(100).catch(() => [] as AuditLogItem[]);
       setLogs(data);
     } finally {
       setLoading(false);
@@ -145,28 +101,28 @@ export default function AuditLogsPage() {
           label="Total Audit Events"
           value={metrics.total}
           subtext="Indexed server journal entries"
-          icon="📜"
+          icon={<FileText size={18} color="var(--brand-primary)" />}
           accentColor="var(--brand-primary)"
         />
         <MetricCard
           label="Admin Interventions"
           value={metrics.adminEvents}
           subtext="KYC, approvals, settlements"
-          icon="🛡️"
+          icon={<ShieldCheck size={18} color="var(--color-warning)" />}
           accentColor="var(--color-warning)"
         />
         <MetricCard
           label="Supply Transitions"
           value={metrics.supplyEvents}
           subtext="Driver requests & bids"
-          icon="🚗"
+          icon={<Car size={18} color="var(--color-success)" />}
           accentColor="var(--color-success)"
         />
         <MetricCard
           label="Financial Actions"
           value={metrics.financialEvents}
           subtext="Payouts & escrow transactions"
-          icon="💰"
+          icon={<Wallet size={18} color="#8B5CF6" />}
           accentColor="#8B5CF6"
         />
       </div>
@@ -189,7 +145,7 @@ export default function AuditLogsPage() {
       />
 
       {/* Audit Log DataTable */}
-      <DataTable<AuditLogItem>
+      <DataTable
         columns={[
           {
             header: 'TIMESTAMP',
@@ -261,8 +217,8 @@ export default function AuditLogsPage() {
         keyExtractor={(log) => log.id}
         loading={loading}
         onRowClick={(log) => setSelectedLog(log)}
-        emptyIcon="📜"
-        emptyMessage="No audit records match your query"
+        emptyTitle="No audit records found"
+        emptySubtitle="No audit events match your selected role filter or search term."
       />
 
       {/* Slide-out Audit Payload Drawer */}

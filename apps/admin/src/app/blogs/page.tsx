@@ -1,6 +1,19 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import {
+  FileText,
+  CheckCircle2,
+  Clock,
+  Eye,
+  RefreshCw,
+  Plus,
+  X,
+  ExternalLink,
+  Search,
+  Check,
+  AlertTriangle,
+} from 'lucide-react';
 import { adminApi } from '@/lib/api/client';
 import { BlogPostItem, CreateBlogPostInput, BlogMetrics } from '@/lib/api/types';
 import {
@@ -100,7 +113,7 @@ export default function BlogsPage() {
       title: '',
       slug: '',
       excerpt: '',
-      content: `## Introduction\n\nExplain the context, key industry challenge, and why commercial fleet operations in Hyderabad require modernization.\n\n---\n\n## Core Strategic Insights\n\n1. **First Advantage:** Direct reverse auction matching eliminates middleman broker markups.\n2. **Second Advantage:** Instant 1-hour driver bank payouts improve retention and route punctuality.\n\n\`\`\`\n[Enterprise Request] â”€â”€> [AdhocX Verified Pool] â”€â”€> [1-Hour Settlement]\n\`\`\`\n\n---\n\n## Conclusion & Action Items\n\nContact the AdhocX team to benchmark your corporate mobility fleet.`,
+      content: `## Introduction\n\nExplain the context, key industry challenge, and why commercial fleet operations in Hyderabad require modernization.\n\n---\n\n## Core Strategic Insights\n\n1. **First Advantage:** Direct reverse auction matching eliminates middleman broker markups.\n2. **Second Advantage:** Instant 1-hour driver bank payouts improve retention and route punctuality.\n\n\`\`\`\n[Enterprise Request] --> [AdhocX Verified Pool] --> [1-Hour Settlement]\n\`\`\`\n\n---\n\n## Conclusion & Action Items\n\nContact the AdhocX team to benchmark your corporate mobility fleet.`,
       category: CATEGORIES[0],
       tags: ['Corporate Mobility', 'Fleet Management', 'Hyderabad Transit'],
       coverImage: PRESET_COVERS[0].url,
@@ -277,14 +290,14 @@ export default function BlogsPage() {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span>{notification.type === 'success' ? '✓' : '⚠️'}</span>
+            {notification.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
             <span>{notification.message}</span>
           </div>
           <button
             onClick={() => setNotification(null)}
-            style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', fontWeight: 'bold' }}
+            style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
           >
-            âœ•
+            <X size={16} />
           </button>
         </div>
       )}
@@ -296,10 +309,10 @@ export default function BlogsPage() {
         liveStatus="Content Engine Active"
         actions={
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-            <Button variant="secondary" size="md" onClick={loadData} leftIcon="ðŸ”„">
+            <Button variant="secondary" size="md" onClick={loadData} leftIcon={<RefreshCw size={15} />}>
               Refresh
             </Button>
-            <Button variant="primary" size="md" onClick={handleOpenCreate} leftIcon="âœï¸">
+            <Button variant="primary" size="md" onClick={handleOpenCreate} leftIcon={<Plus size={15} />}>
               Create New Article
             </Button>
           </div>
@@ -318,29 +331,29 @@ export default function BlogsPage() {
           label="Total Articles"
           value={metrics.total}
           subtext="Indexed editorial records"
-          icon="ðŸ“°"
+          icon={<FileText size={18} color="var(--brand-primary)" />}
           accentColor="var(--brand-primary)"
         />
         <MetricCard
           label="Published & Indexed"
           value={metrics.published}
           subtext="Live on marketing web"
-          icon="ðŸŸ¢"
+          icon={<CheckCircle2 size={18} color="var(--color-success)" />}
           accentColor="var(--color-success)"
         />
         <MetricCard
           label="Drafts & Revisions"
           value={metrics.drafts}
           subtext="Pending publication"
-          icon="ðŸ“"
+          icon={<Clock size={18} color="var(--color-warning)" />}
           accentColor="var(--color-warning)"
         />
         <MetricCard
           label="Total Lifetime Reads"
           value={metrics.totalViews.toLocaleString()}
           subtext="Organic reader impressions"
-          icon="ðŸ‘ï¸"
-          accentColor="#38bdf8"
+          icon={<Eye size={18} color="#0ea5e9" />}
+          accentColor="#0ea5e9"
         />
       </div>
 
@@ -380,7 +393,7 @@ export default function BlogsPage() {
       />
 
       {/* Articles DataTable */}
-      <DataTable<BlogPostItem>
+      <DataTable
         columns={[
           {
             header: 'ARTICLE DETAILS',
@@ -433,6 +446,7 @@ export default function BlogsPage() {
             header: 'STATUS',
             accessor: (blog) => (
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleToggleStatus(blog);
@@ -446,18 +460,22 @@ export default function BlogsPage() {
                   borderRadius: 'var(--radius-sm)',
                   fontSize: '0.75rem',
                   fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
                   cursor: 'pointer',
                 }}
               >
-                {blog.status === 'PUBLISHED' ? 'â— Published' : 'â—‹ Draft'}
+                {blog.status === 'PUBLISHED' ? <CheckCircle2 size={12} /> : <Clock size={12} />}
+                {blog.status === 'PUBLISHED' ? 'Published' : 'Draft'}
               </button>
             ),
           },
           {
             header: 'READS',
             accessor: (blog) => (
-              <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                ðŸ‘ï¸ {blog.views}
+              <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                <Eye size={12} /> {blog.views}
               </span>
             ),
           },
@@ -500,10 +518,11 @@ export default function BlogsPage() {
                     textDecoration: 'none',
                     display: 'inline-flex',
                     alignItems: 'center',
+                    gap: '0.3rem',
                     fontWeight: 600,
                   }}
                 >
-                  ðŸ‘ï¸ Preview
+                  <ExternalLink size={12} /> Preview
                 </a>
                 <Button
                   variant="secondary"
@@ -532,8 +551,8 @@ export default function BlogsPage() {
         data={filteredBlogs}
         keyExtractor={(b) => b.id}
         loading={isLoading}
-        emptyIcon="ðŸ“„"
-        emptyMessage="No blog articles found matching your query"
+        emptyTitle="No blog articles found"
+        emptySubtitle="No blog articles match your current search query or filter."
       />
 
       {/* ============================================================ */}
@@ -592,12 +611,14 @@ export default function BlogsPage() {
                   background: 'transparent',
                   border: 'none',
                   color: '#94a3b8',
-                  fontSize: '20px',
                   cursor: 'pointer',
                   padding: '4px 8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
-                âœ•
+                <X size={20} />
               </button>
             </div>
 
@@ -857,9 +878,13 @@ export default function BlogsPage() {
                           fontWeight: '600',
                           fontSize: '13px',
                           cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.4rem',
                         }}
                       >
-                        ðŸš€ Published
+                        <CheckCircle2 size={14} /> Published
                       </button>
                       <button
                         type="button"
@@ -873,9 +898,13 @@ export default function BlogsPage() {
                           fontWeight: '600',
                           fontSize: '13px',
                           cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.4rem',
                         }}
                       >
-                        ðŸ“ Draft Only
+                        <Clock size={14} /> Draft Only
                       </button>
                     </div>
                   </div>
@@ -1031,7 +1060,7 @@ export default function BlogsPage() {
                             onClick={() => handleRemoveTag(tag)}
                             style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '12px', padding: 0 }}
                           >
-                            Ã—
+                            ×
                           </button>
                         </span>
                       ))}
@@ -1039,18 +1068,15 @@ export default function BlogsPage() {
                   </div>
 
                   {/* Google SERP Search Snippet Simulator */}
-                  <div style={{ background: '#090d16', border: '1px solid #1e293b', borderRadius: '10px', padding: '14px', marginTop: '8px' }}>
-                    <div style={{ color: '#94a3b8', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
-                      ðŸ” Google Search SERP Simulator
+                  <div style={{ background: 'var(--bg-surface-elevated)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', marginTop: '8px' }}>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <Search size={12} /> Google Search SERP Simulator
                     </div>
                     <div style={{ fontSize: '12px', color: '#10b981', fontFamily: 'sans-serif' }}>
-                      https://adhocx.com â€º blogs â€º {formData.slug || 'article-url'}
+                      https://adhocx.com › blogs › {formData.slug || 'article-url'}
                     </div>
                     <div style={{ fontSize: '15px', color: '#60a5fa', fontWeight: '600', marginTop: '2px', cursor: 'pointer' }}>
                       {formData.seoTitle || formData.title || 'Your Article Title'}
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px', lineHeight: '1.4' }}>
-                      {formData.seoDescription || formData.excerpt || 'Article summary description snippet will appear here...'}
                     </div>
                   </div>
                 </div>

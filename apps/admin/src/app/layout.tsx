@@ -1,4 +1,4 @@
-﻿import type { Metadata } from 'next';
+import type { Metadata } from 'next';
 import './globals.css';
 import { Sidebar } from '../components/Sidebar';
 import { Header } from '../components/Header';
@@ -28,7 +28,7 @@ export default function RootLayout({
             __html: `
               try {
                 var t = localStorage.getItem('adhocx_theme');
-                var isDark = t === 'dark' || ((!t || t === 'system') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                var isDark = t === 'dark';
                 if (isDark) {
                   document.documentElement.setAttribute('data-theme', 'dark');
                   document.documentElement.classList.add('dark');

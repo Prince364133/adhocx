@@ -39,43 +39,7 @@ export default function TripsPage() {
   async function loadTrips(status: string) {
     setLoading(true);
     try {
-      const data = await adminApi.getTrips(status).catch(() => [
-        {
-          id: 'trip-1',
-          requirementId: 'req-1',
-          driverName: 'Rajesh Kumar',
-          driverPhone: '+919876543210',
-          vehiclePlate: 'DL01AB1234',
-          pickupAddress: 'Terminal 3, IGI Airport, New Delhi',
-          dropAddress: 'Cyber Hub, DLF Phase 2, Gurugram',
-          status: 'IN_PROGRESS',
-          driverRate: 1500,
-          tollCharges: 100,
-          parkingCharges: 50,
-          totalDriverEarnings: 1650,
-          reportingTime: new Date(Date.now() - 3600000).toISOString(),
-          startedAt: new Date(Date.now() - 1800000).toISOString(),
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 'trip-2',
-          requirementId: 'req-1',
-          driverName: 'Amit Singh',
-          driverPhone: '+919811223344',
-          vehiclePlate: 'HR26BC5678',
-          pickupAddress: 'Terminal 3, IGI Airport, New Delhi',
-          dropAddress: 'Cyber Hub, DLF Phase 2, Gurugram',
-          status: 'COMPLETED',
-          driverRate: 1500,
-          tollCharges: 0,
-          parkingCharges: 0,
-          totalDriverEarnings: 1500,
-          reportingTime: new Date(Date.now() - 7200000).toISOString(),
-          startedAt: new Date(Date.now() - 6000000).toISOString(),
-          completedAt: new Date(Date.now() - 3600000).toISOString(),
-          createdAt: new Date().toISOString(),
-        },
-      ]);
+      const data = await adminApi.getTrips(status).catch(() => [] as TripListItem[]);
       setTrips(data);
     } finally {
       setLoading(false);
@@ -99,33 +63,7 @@ export default function TripsPage() {
     setSelectedTrip(trip);
     setEventsLoading(true);
     try {
-      const data = await adminApi.getTripEvents(trip.id).catch(() => [
-        {
-          id: 'evt-1',
-          tripId: trip.id,
-          eventType: 'DRIVER_ARRIVED',
-          latitude: 28.5562,
-          longitude: 77.1,
-          createdAt: new Date(Date.now() - 2400000).toISOString(),
-        },
-        {
-          id: 'evt-2',
-          tripId: trip.id,
-          eventType: 'TRIP_STARTED',
-          latitude: 28.5562,
-          longitude: 77.1,
-          createdAt: new Date(Date.now() - 1800000).toISOString(),
-        },
-        {
-          id: 'evt-3',
-          tripId: trip.id,
-          eventType: 'LOCATION_PING',
-          latitude: 28.51,
-          longitude: 77.085,
-          metadata: { speed: 48, heading: 195 },
-          createdAt: new Date(Date.now() - 900000).toISOString(),
-        },
-      ]);
+      const data = await adminApi.getTripEvents(trip.id).catch(() => [] as TripEvent[]);
       setEvents(data);
     } finally {
       setEventsLoading(false);

@@ -1,7 +1,8 @@
-﻿import React from 'react';
+import React from 'react';
+import { Inbox } from 'lucide-react';
 
 export interface EmptyStateProps {
-  icon?: string;
+  icon?: React.ReactNode;
   title: string;
   description: string;
   action?: {
@@ -11,15 +12,29 @@ export interface EmptyStateProps {
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
-  icon = '📭',
+  icon,
   title,
   description,
   action,
 }) => {
   return (
-    <div className="empty-state">
-      <div className="empty-state-icon" aria-hidden="true" style={{ fontSize: '2.5rem', marginBottom: '0.75rem', opacity: 0.85 }}>
-        {icon}
+    <div className="empty-state" style={{ padding: '3rem 1.5rem', textAlign: 'center' }}>
+      <div
+        className="empty-state-icon"
+        aria-hidden="true"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '56px',
+          height: '56px',
+          borderRadius: 'var(--radius-xl)',
+          backgroundColor: 'var(--bg-card-elevated)',
+          color: 'var(--text-muted)',
+          marginBottom: '1rem',
+        }}
+      >
+        {icon || <Inbox size={28} />}
       </div>
       <h3 className="empty-state-title" style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
         {title}

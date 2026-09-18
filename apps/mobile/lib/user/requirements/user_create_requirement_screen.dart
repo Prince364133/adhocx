@@ -294,12 +294,14 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                         child: DropdownButton<String>(
                           value: _selectedVehicleType,
                           isExpanded: true,
+                          itemHeight: 64.0,
                           icon: Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primary),
                           dropdownColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(AppRadius.md),
                           selectedItemBuilder: (BuildContext context) {
                             return _vehicleOptions.map((v) {
                               return Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.all(6),
@@ -307,13 +309,14 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                                       color: AppColors.primary.withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(AppRadius.sm),
                                     ),
-                                    child: Icon(v['icon'] as IconData, size: 20, color: AppColors.primary),
+                                    child: Icon(v['icon'] as IconData, size: 18, color: AppColors.primary),
                                   ),
-                                  const SizedBox(width: 12),
+                                  const SizedBox(width: 10),
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Text(
                                           v['label'] as String,
@@ -342,54 +345,53 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                             final isSelected = v['id'] == _selectedVehicleType;
                             return DropdownMenuItem<String>(
                               value: v['id'] as String,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 6.0),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: isSelected
-                                            ? AppColors.primary.withValues(alpha: 0.15)
-                                            : (isDark ? AppColors.slate800 : AppColors.slate100),
-                                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                                      ),
-                                      child: Icon(
-                                        v['icon'] as IconData,
-                                        size: 20,
-                                        color: isSelected ? AppColors.primary : (isDark ? AppColors.slate400 : AppColors.slate600),
-                                      ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? AppColors.primary.withValues(alpha: 0.15)
+                                          : (isDark ? AppColors.slate800 : AppColors.slate100),
+                                      borderRadius: BorderRadius.circular(AppRadius.sm),
                                     ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Text(
-                                            v['label'] as String,
-                                            style: TextStyle(
-                                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                              fontSize: 14,
-                                              color: isSelected
-                                                  ? AppColors.primary
-                                                  : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
-                                            ),
-                                          ),
-                                          Text(
-                                            v['subtitle'] as String,
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
+                                    child: Icon(
+                                      v['icon'] as IconData,
+                                      size: 18,
+                                      color: isSelected ? AppColors.primary : (isDark ? AppColors.slate400 : AppColors.slate600),
                                     ),
-                                    if (isSelected)
-                                      Icon(Icons.check_circle_rounded, size: 18, color: AppColors.primary),
-                                  ],
-                                ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          v['label'] as String,
+                                          style: TextStyle(
+                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                            fontSize: 13,
+                                            color: isSelected
+                                                ? AppColors.primary
+                                                : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                                          ),
+                                        ),
+                                        Text(
+                                          v['subtitle'] as String,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (isSelected)
+                                    Icon(Icons.check_circle_rounded, size: 18, color: AppColors.primary),
+                                ],
                               ),
                             );
                           }).toList(),

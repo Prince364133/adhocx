@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Inbox, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 
 export interface Column<T> {
   key?: string;
@@ -26,7 +27,7 @@ export interface DataTableProps<T> {
   keyExtractor: (row: T, index: number) => string | number;
   loading?: boolean;
   onRowClick?: (row: T) => void;
-  emptyIcon?: string;
+  emptyIcon?: React.ReactNode;
   emptyTitle?: string;
   emptySubtitle?: string;
   emptyMessage?: string;
@@ -39,7 +40,7 @@ export function DataTable<T extends Record<string, any>>({
   keyExtractor,
   loading = false,
   onRowClick,
-  emptyIcon = '📋',
+  emptyIcon,
   emptyTitle = 'No records found',
   emptySubtitle = 'There are no items matching the selected filters.',
   emptyMessage,
@@ -131,8 +132,12 @@ export function DataTable<T extends Record<string, any>>({
                     >
                       <span>{title}</span>
                       {isSortable && (
-                        <span style={{ fontSize: '0.75rem', opacity: sortKey === sortableKey ? 1 : 0.4, transition: 'transform 0.2s ease' }}>
-                          {sortKey === sortableKey ? (sortOrder === 'asc' ? '▲' : '▼') : '↕'}
+                        <span style={{ display: 'inline-flex', alignItems: 'center', opacity: sortKey === sortableKey ? 1 : 0.4 }}>
+                          {sortKey === sortableKey ? (
+                            sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                          ) : (
+                            <ChevronsUpDown size={14} />
+                          )}
                         </span>
                       )}
                     </div>
@@ -162,7 +167,21 @@ export function DataTable<T extends Record<string, any>>({
             ) : sortedData.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} style={{ padding: '3.5rem 1.5rem', textAlign: 'center' }}>
-                  <div style={{ fontSize: '2rem', marginBottom: '0.75rem', opacity: 0.8 }}>{emptyIcon}</div>
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: 'var(--radius-xl)',
+                      backgroundColor: 'var(--bg-card-elevated)',
+                      color: 'var(--text-muted)',
+                      marginBottom: '0.75rem',
+                    }}
+                  >
+                    {emptyIcon || <Inbox size={24} />}
+                  </div>
                   <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
                     {emptyMessage || emptyTitle}
                   </div>

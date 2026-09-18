@@ -37,34 +37,7 @@ export default function RequirementsPage() {
   async function loadRequirements(status: string) {
     setLoading(true);
     try {
-      const data = await adminApi.getRequirements(status).catch(() => [
-        {
-          id: 'req-1',
-          vendorName: 'Acme Corporate Logistics Ltd',
-          vehicleType: 'SEDAN',
-          quantity: 2,
-          assignedQuantity: 2,
-          pickupAddress: 'Terminal 3, IGI Airport, New Delhi',
-          dropAddress: 'Cyber Hub, DLF Phase 2, Gurugram',
-          reportingTime: new Date(Date.now() + 3600000).toISOString(),
-          status: 'FULFILLED',
-          vendorRate: 3200,
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 'req-2',
-          vendorName: 'Metro Fleet Cabs Pvt Ltd',
-          vehicleType: 'SUV',
-          quantity: 1,
-          assignedQuantity: 0,
-          pickupAddress: 'Connaught Place, Central Delhi',
-          dropAddress: 'Sector 62, Noida, Uttar Pradesh',
-          reportingTime: new Date(Date.now() + 7200000).toISOString(),
-          status: 'DISPATCHING',
-          vendorRate: 2100,
-          createdAt: new Date().toISOString(),
-        },
-      ]);
+      const data = await adminApi.getRequirements(status).catch(() => [] as RequirementListItem[]);
       setRequirements(data);
     } finally {
       setLoading(false);

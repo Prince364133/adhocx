@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { ZoomIn, ZoomOut, RotateCw, X, FileText, ExternalLink } from 'lucide-react';
 import { DriverKycDocument } from '../../lib/api/types';
 
 interface PreviewModalProps {
@@ -62,15 +63,19 @@ export const DocumentPreviewModal: React.FC<PreviewModalProps> = ({
           <button
             onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
             style={{
-              padding: '0.375rem 0.75rem',
+              padding: '0.375rem 0.6rem',
               borderRadius: '6px',
               background: 'var(--bg-surface)',
               border: '1px solid var(--border-light)',
               color: '#fff',
               cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem',
             }}
+            title="Zoom Out"
           >
-            🔍 -
+            <ZoomOut size={16} />
           </button>
           <span style={{ fontSize: '0.75rem', minWidth: '40px', textAlign: 'center' }}>
             {Math.round(zoom * 100)}%
@@ -78,15 +83,19 @@ export const DocumentPreviewModal: React.FC<PreviewModalProps> = ({
           <button
             onClick={() => setZoom((z) => Math.min(3, z + 0.25))}
             style={{
-              padding: '0.375rem 0.75rem',
+              padding: '0.375rem 0.6rem',
               borderRadius: '6px',
               background: 'var(--bg-surface)',
               border: '1px solid var(--border-light)',
               color: '#fff',
               cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem',
             }}
+            title="Zoom In"
           >
-            🔍 +
+            <ZoomIn size={16} />
           </button>
 
           <button
@@ -98,9 +107,13 @@ export const DocumentPreviewModal: React.FC<PreviewModalProps> = ({
               border: '1px solid var(--border-light)',
               color: '#fff',
               cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              fontSize: '0.8125rem',
             }}
           >
-            🔄 Rotate
+            <RotateCw size={14} /> Rotate
           </button>
 
           <button
@@ -113,9 +126,13 @@ export const DocumentPreviewModal: React.FC<PreviewModalProps> = ({
               color: '#f43f5e',
               cursor: 'pointer',
               fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              fontSize: '0.8125rem',
             }}
           >
-            Close ✕
+            <X size={14} /> Close
           </button>
         </div>
       </div>
@@ -151,7 +168,7 @@ export const DocumentPreviewModal: React.FC<PreviewModalProps> = ({
               style={{
                 width: '600px',
                 height: '400px',
-                background: '#1e293b',
+                background: 'var(--bg-surface-elevated)',
                 borderRadius: '8px',
                 display: 'flex',
                 flexDirection: 'column',
@@ -160,22 +177,25 @@ export const DocumentPreviewModal: React.FC<PreviewModalProps> = ({
                 gap: '1rem',
               }}
             >
-              <span style={{ fontSize: '3rem' }}>📄</span>
-              <span style={{ color: '#fff', fontWeight: 600 }}>PDF Document: {document.title}</span>
+              <FileText size={48} color="var(--brand-primary)" />
+              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>PDF Document: {document.title}</span>
               <a
                 href={document.fileUrl}
                 target="_blank"
                 rel="noreferrer"
                 style={{
                   padding: '0.5rem 1rem',
-                  background: 'var(--accent-primary)',
+                  background: 'var(--brand-primary)',
                   borderRadius: '6px',
                   color: '#fff',
                   fontWeight: 600,
                   fontSize: '0.875rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
                 }}
               >
-                Open in New Tab ↗
+                <ExternalLink size={14} /> Open in New Tab
               </a>
             </div>
           ) : (

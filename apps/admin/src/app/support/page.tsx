@@ -1,6 +1,9 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Headphones, Clock, Search, CheckCircle2, X } from 'lucide-react';
+import { adminApi } from '../../lib/api/client';
+import { SupportTicketItem } from '../../lib/api/types';
 import {
   PageHeader,
   MetricCard,
@@ -11,56 +14,6 @@ import {
   Drawer,
 } from '../../components/common';
 
-interface SupportTicket {
-  id: string;
-  reporterName: string;
-  reporterRole: 'DRIVER' | 'VENDOR' | 'USER';
-  reporterPhone: string;
-  relatedTripId?: string;
-  issueType: string;
-  description: string;
-  status: 'PENDING' | 'UNDER_REVIEW' | 'RESOLVED';
-  operatorNotes?: string;
-  createdAt: string;
-}
-
-const INITIAL_TICKETS: SupportTicket[] = [
-  {
-    id: 'sup-901',
-    reporterName: 'Vikram Malhotra',
-    reporterRole: 'VENDOR',
-    reporterPhone: '+91 99887 76655',
-    relatedTripId: 'trp-301',
-    issueType: 'ROUTE_DEVIATION',
-    description: 'Driver took alternative toll route due to traffic on NH-48. Clarification requested on toll adjustment receipt.',
-    status: 'UNDER_REVIEW',
-    operatorNotes: 'Verified GPS telemetry: driver avoided a 45-min bottleneck. Toll receipt ₹180 matches FASTag transaction.',
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-  },
-  {
-    id: 'sup-902',
-    reporterName: 'Suresh Verma',
-    reporterRole: 'DRIVER',
-    reporterPhone: '+91 98990 01122',
-    issueType: 'KYC_RESUBMISSION',
-    description: 'Driver renewed commercial driving license and uploaded new certificate for re-verification approval.',
-    status: 'PENDING',
-    createdAt: new Date(Date.now() - 7200000).toISOString(),
-  },
-  {
-    id: 'sup-903',
-    reporterName: 'Pooja Agarwal',
-    reporterRole: 'USER',
-    reporterPhone: '+91 98112 33445',
-    relatedTripId: 'trp-209',
-    issueType: 'INVOICE_QUERY',
-    description: 'Requested GST breakdown invoice copy for corporate reimbursement submission.',
-    status: 'RESOLVED',
-    operatorNotes: 'Auto-generated GST tax invoice sent to registered email.',
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-  },
-];
-
 const STATUS_TABS = [
   { id: 'ALL', label: 'All Tickets' },
   { id: 'PENDING', label: 'Pending' },
@@ -69,29 +22,44 @@ const STATUS_TABS = [
 ];
 
 export default function SupportPage() {
-  const [tickets, setTickets] = useState<SupportTicket[]>(INITIAL_TICKETS);
+  const [tickets, setTickets] = useState<SupportTicketItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+  const [selectedTicket, setSelectedTicket] = useState<SupportTicketItem | null>(null);
   const [resolutionNotes, setResolutionNotes] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  useEffect(() => {
+    loadTickets(activeTab);
+  }, [activeTab]);
+
+  async function loadTickets(status: string) {
+    setLoading(true);
+    try {
+      const data = await adminApi.getSupportTickets({
+        status: status !== 'ALL' ? status : undefined,
+      }).catch(() => [] as SupportTicketItem[]);
+      setTickets(Array.isArray(data) ? data : []);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const filtered = useMemo(() => {
+    if (!searchQuery.trim()) return tickets;
+    const q = searchQuery.toLowerCase().trim();
     return tickets.filter((t) => {
-      if (activeTab !== 'ALL' && t.status !== activeTab) return false;
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        return (
-          t.id.toLowerCase().includes(q) ||
-          t.reporterName.toLowerCase().includes(q) ||
-          t.description.toLowerCase().includes(q) ||
-          t.issueType.toLowerCase().includes(q) ||
-          t.reporterPhone.toLowerCase().includes(q)
-        );
-      }
-      return true;
+      return (
+        t.id.toLowerCase().includes(q) ||
+        (t.reporterName && t.reporterName.toLowerCase().includes(q)) ||
+        (t.issueType && t.issueType.toLowerCase().includes(q)) ||
+        (t.description && t.description.toLowerCase().includes(q)) ||
+        (t.reporterPhone && t.reporterPhone.toLowerCase().includes(q))
+      );
     });
-  }, [tickets, activeTab, searchQuery]);
+  }, [tickets, searchQuery]);
 
   // Aggregate metrics
   const metrics = useMemo(() => {
@@ -102,27 +70,28 @@ export default function SupportPage() {
     return { total: tickets.length, pending, review, resolved };
   }, [tickets]);
 
-  function handleResolve(status: 'UNDER_REVIEW' | 'RESOLVED') {
+  async function handleResolve(status: 'PENDING' | 'UNDER_REVIEW' | 'RESOLVED') {
     if (!selectedTicket) return;
 
-    setTickets((prev) =>
-      prev.map((t) =>
-        t.id === selectedTicket.id
-          ? {
-              ...t,
-              status,
-              operatorNotes: resolutionNotes || t.operatorNotes,
-            }
-          : t
-      )
-    );
+    setActionLoading(true);
+    try {
+      await adminApi.resolveSupportTicket(selectedTicket.id, {
+        status,
+        notes: resolutionNotes || selectedTicket.operatorNotes || 'Processed by Administrator',
+      });
 
-    setAlert({
-      type: 'success',
-      message: `Support ticket #${selectedTicket.id} updated to ${status}.`,
-    });
-    setSelectedTicket(null);
-    setResolutionNotes('');
+      setAlert({
+        type: 'success',
+        message: `Support ticket #${selectedTicket.id.slice(0, 8).toUpperCase()} updated to ${status}.`,
+      });
+      setSelectedTicket(null);
+      setResolutionNotes('');
+      loadTickets(activeTab);
+    } catch (err: any) {
+      setAlert({ type: 'error', message: err.message || 'Failed to update support ticket' });
+    } finally {
+      setActionLoading(false);
+    }
   }
 
   return (
@@ -146,9 +115,9 @@ export default function SupportPage() {
           <span>{alert.message}</span>
           <button
             onClick={() => setAlert(null)}
-            style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', fontWeight: 'bold' }}
+            style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
           >
-            ✕
+            <X size={16} />
           </button>
         </div>
       )}
@@ -172,28 +141,28 @@ export default function SupportPage() {
           label="Total Support Cases"
           value={metrics.total}
           subtext="Active ticket queue"
-          icon="🎧"
+          icon={<Headphones size={18} color="var(--brand-primary)" />}
           accentColor="var(--brand-primary)"
         />
         <MetricCard
           label="Pending Triage"
           value={metrics.pending}
           subtext="Unassigned tickets"
-          icon="⏳"
+          icon={<Clock size={18} color="var(--color-danger)" />}
           accentColor="var(--color-danger)"
         />
         <MetricCard
           label="Under Investigation"
           value={metrics.review}
           subtext="Operator active handling"
-          icon="🔍"
+          icon={<Search size={18} color="var(--color-warning)" />}
           accentColor="var(--color-warning)"
         />
         <MetricCard
           label="Resolved Cases"
           value={metrics.resolved}
           subtext="Completed interventions"
-          icon="✅"
+          icon={<CheckCircle2 size={18} color="var(--color-success)" />}
           accentColor="var(--color-success)"
         />
       </div>
@@ -203,27 +172,24 @@ export default function SupportPage() {
         tabs={STATUS_TABS.map((t) => ({
           id: t.id,
           label: t.label,
-          count:
-            t.id === 'ALL'
-              ? tickets.length
-              : tickets.filter((tk) => tk.status === t.id).length,
         }))}
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        searchQuery={searchQuery}
+        search={searchQuery}
         onSearchChange={setSearchQuery}
         searchPlaceholder="Search by user, phone, issue, description, ID..."
       />
 
       {/* Tickets DataTable */}
-      <DataTable<SupportTicket>
+      <DataTable
         columns={[
           {
-            header: 'TICKET ID',
-            accessor: (t) => (
+            key: 'id',
+            label: 'TICKET #',
+            render: (t: SupportTicketItem) => (
               <div>
                 <div style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--brand-primary)', fontSize: '0.8125rem' }}>
-                  #{t.id}
+                  #{t.id.slice(0, 8).toUpperCase()}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
                   {new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -232,21 +198,23 @@ export default function SupportPage() {
             ),
           },
           {
-            header: 'REPORTER & ROLE',
-            accessor: (t) => (
+            key: 'reporterName',
+            label: 'REPORTER & CONTACT',
+            render: (t: SupportTicketItem) => (
               <div>
                 <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.875rem' }}>
                   {t.reporterName}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>
-                  <span style={{ color: 'var(--brand-primary)', fontWeight: 500 }}>{t.reporterRole}</span> • {t.reporterPhone}
+                  <span style={{ color: 'var(--brand-primary)', fontWeight: 500 }}>{t.reporterRole}</span> • {t.reporterPhone || '—'}
                 </div>
               </div>
             ),
           },
           {
-            header: 'ISSUE CATEGORY',
-            accessor: (t) => (
+            key: 'issueType',
+            label: 'ISSUE CATEGORY',
+            render: (t: SupportTicketItem) => (
               <span
                 style={{
                   padding: '0.2rem 0.5rem',
@@ -263,34 +231,35 @@ export default function SupportPage() {
             ),
           },
           {
-            header: 'DESCRIPTION & CONTEXT',
-            accessor: (t) => (
-              <div style={{ maxWidth: '320px', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                {t.description}
+            key: 'description',
+            label: 'DESCRIPTION & CONTEXT',
+            render: (t: SupportTicketItem) => (
+              <div style={{ maxWidth: '320px' }}>
+                <div style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {t.description || 'No description provided'}
+                </div>
+                {t.relatedTripId && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+                    Trip: {t.relatedTripId.slice(0, 8).toUpperCase()}
+                  </div>
+                )}
               </div>
             ),
           },
           {
-            header: 'RELATED ENTITY',
-            accessor: (t) => (
-              <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: t.relatedTripId ? 'var(--brand-primary)' : 'var(--text-muted)' }}>
-                {t.relatedTripId ? `Trip #${t.relatedTripId}` : '—'}
-              </span>
-            ),
+            key: 'status',
+            label: 'STATUS',
+            render: (t: SupportTicketItem) => <StatusBadge status={t.status} />,
           },
           {
-            header: 'STATUS',
-            accessor: (t) => <StatusBadge status={t.status} />,
-          },
-          {
-            header: 'ACTIONS',
+            key: 'actions',
+            label: 'ACTIONS',
             align: 'right',
-            accessor: (t) => (
+            render: (t: SupportTicketItem) => (
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
+                onClick={() => {
                   setSelectedTicket(t);
                   setResolutionNotes(t.operatorNotes || '');
                 }}
@@ -302,20 +271,17 @@ export default function SupportPage() {
         ]}
         data={filtered}
         keyExtractor={(t) => t.id}
-        onRowClick={(t) => {
-          setSelectedTicket(t);
-          setResolutionNotes(t.operatorNotes || '');
-        }}
-        emptyIcon="🎧"
-        emptyMessage="No support cases found for this status"
+        loading={loading}
+        emptyTitle="No support tickets found"
+        emptySubtitle="No tickets matching this status filter."
       />
 
       {/* Slide-out Support Ticket Drawer */}
       <Drawer
         isOpen={!!selectedTicket}
         onClose={() => setSelectedTicket(null)}
-        title={selectedTicket ? `Support Ticket #${selectedTicket.id}` : 'Support Ticket'}
-        subtitle={selectedTicket ? `Category: ${selectedTicket.issueType}` : ''}
+        title={selectedTicket ? `Support Ticket #${selectedTicket.id.slice(0, 8).toUpperCase()}` : 'Support Ticket'}
+        subtitle={selectedTicket ? `Issue: ${selectedTicket.issueType}` : ''}
         footer={
           selectedTicket ? (
             <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end' }}>
@@ -323,12 +289,12 @@ export default function SupportPage() {
                 Close
               </Button>
               {selectedTicket.status !== 'UNDER_REVIEW' && selectedTicket.status !== 'RESOLVED' && (
-                <Button variant="outline" size="sm" onClick={() => handleResolve('UNDER_REVIEW')}>
-                  Mark Under Review
+                <Button variant="secondary" size="sm" onClick={() => handleResolve('UNDER_REVIEW')} disabled={actionLoading}>
+                  Mark In Review
                 </Button>
               )}
               {selectedTicket.status !== 'RESOLVED' && (
-                <Button variant="success" size="sm" onClick={() => handleResolve('RESOLVED')}>
+                <Button variant="primary" size="sm" onClick={() => handleResolve('RESOLVED')} disabled={actionLoading}>
                   Resolve Ticket
                 </Button>
               )}
@@ -343,7 +309,7 @@ export default function SupportPage() {
               style={{
                 padding: '1rem',
                 borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--bg-card-elevated)',
+                backgroundColor: 'var(--bg-surface-elevated)',
                 border: '1px solid var(--border-subtle)',
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -369,7 +335,7 @@ export default function SupportPage() {
               style={{
                 padding: '1.25rem',
                 borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--bg-card)',
+                backgroundColor: 'var(--bg-surface-elevated)',
                 border: '1px solid var(--border-subtle)',
                 display: 'flex',
                 flexDirection: 'column',
@@ -377,24 +343,24 @@ export default function SupportPage() {
               }}
             >
               <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.5rem' }}>
-                User & Incident Details
+                Reporter Details
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Reporter Name:</span>
+                <span style={{ color: 'var(--text-muted)' }}>Name:</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedTicket.reporterName}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Account Role:</span>
+                <span style={{ color: 'var(--text-muted)' }}>Role:</span>
                 <span style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>{selectedTicket.reporterRole}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Phone Number:</span>
-                <span style={{ fontFamily: 'monospace', color: 'var(--text-primary)' }}>{selectedTicket.reporterPhone}</span>
+                <span style={{ fontFamily: 'monospace', color: 'var(--text-primary)' }}>{selectedTicket.reporterPhone || '—'}</span>
               </div>
               {selectedTicket.relatedTripId && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Related Trip:</span>
-                  <span style={{ fontFamily: 'monospace', color: 'var(--brand-secondary)' }}>#{selectedTicket.relatedTripId}</span>
+                  <span style={{ fontFamily: 'monospace', color: 'var(--brand-primary)' }}>{selectedTicket.relatedTripId}</span>
                 </div>
               )}
             </div>
@@ -404,12 +370,12 @@ export default function SupportPage() {
               style={{
                 padding: '1.25rem',
                 borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--bg-card)',
+                backgroundColor: 'var(--bg-surface-elevated)',
                 border: '1px solid var(--border-subtle)',
               }}
             >
               <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-                Reported Incident Description
+                Issue Description ({selectedTicket.issueType})
               </div>
               <p
                 style={{
@@ -418,11 +384,11 @@ export default function SupportPage() {
                   color: 'var(--text-secondary)',
                   padding: '0.875rem',
                   borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'var(--bg-canvas)',
+                  backgroundColor: 'var(--bg-surface)',
                   border: '1px solid var(--border-subtle)',
                 }}
               >
-                {selectedTicket.description}
+                {selectedTicket.description || 'No description provided.'}
               </p>
             </div>
 
@@ -431,7 +397,7 @@ export default function SupportPage() {
               style={{
                 padding: '1.25rem',
                 borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--bg-card)',
+                backgroundColor: 'var(--bg-surface-elevated)',
                 border: '1px solid var(--border-subtle)',
                 display: 'flex',
                 flexDirection: 'column',
@@ -450,7 +416,7 @@ export default function SupportPage() {
                   width: '100%',
                   padding: '0.625rem 0.875rem',
                   borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--bg-canvas)',
+                  backgroundColor: 'var(--bg-surface)',
                   border: '1px solid var(--border-subtle)',
                   color: 'var(--text-primary)',
                   fontSize: '0.8125rem',

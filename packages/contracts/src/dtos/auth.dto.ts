@@ -144,6 +144,8 @@ export class AuthUserDto {
   fullName?: string;
   photoUrl?: string;
   isApproved!: boolean;
+  hasPassword?: boolean;
+  isOnboarded?: boolean;
 }
 
 export class AuthResponseDto {
@@ -183,6 +185,8 @@ export class UserMeResponseDto {
   fullName?: string;
   photoUrl?: string;
   status!: string;
+  hasPassword?: boolean;
+  isOnboarded?: boolean;
   vendorProfile?: {
     id: string;
     organizationName: string;

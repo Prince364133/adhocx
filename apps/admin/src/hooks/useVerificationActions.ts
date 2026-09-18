@@ -37,12 +37,12 @@ export function useVerificationActions(
         }
 
         onStatusUpdated?.(item.id, 'VERIFIED');
-        showToast(`✅ Successfully approved ${item.name} (${item.entityType})`);
+        showToast(`Successfully approved ${item.name} (${item.entityType})`);
         return true;
       } catch (err: any) {
         // Optimistically apply update in dev mode if mock server
         onStatusUpdated?.(item.id, 'VERIFIED');
-        showToast(`✅ Approved ${item.name} (${item.entityType})`);
+        showToast(`Approved ${item.name} (${item.entityType})`);
         return true;
       } finally {
         setIsProcessing(false);
@@ -83,13 +83,13 @@ export function useVerificationActions(
       }
 
       onStatusUpdated?.(declineTarget.id, 'REJECTED', fullReason);
-      showToast(`❌ Declined application for ${declineTarget.name}. Feedback sent to user.`);
+      showToast(`Declined application for ${declineTarget.name}. Feedback sent to user.`);
       closeDeclineDialog();
       return true;
     } catch (err: any) {
       // Optimistically apply update in dev mode
       onStatusUpdated?.(declineTarget.id, 'REJECTED', fullReason);
-      showToast(`❌ Declined application for ${declineTarget.name}. Feedback saved.`);
+      showToast(`Declined application for ${declineTarget.name}. Feedback saved.`);
       closeDeclineDialog();
       return true;
     } finally {

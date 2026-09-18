@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { Search, RotateCw, RefreshCw } from 'lucide-react';
 import { EntityFilter, StatusFilter } from '../../hooks/useVerificationCenter';
 
 interface FilterBarProps {
@@ -29,14 +30,15 @@ export const VerificationFilterBar: React.FC<FilterBarProps> = ({
   return (
     <div
       style={{
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border)',
-        borderRadius: '12px',
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--radius-lg)',
         padding: '1rem',
         marginBottom: '1.5rem',
         display: 'flex',
         flexDirection: 'column',
         gap: '1rem',
+        boxShadow: 'var(--shadow-card)',
       }}
     >
       {/* Top row: Search input & Refresh */}
@@ -48,11 +50,12 @@ export const VerificationFilterBar: React.FC<FilterBarProps> = ({
               left: '1rem',
               top: '50%',
               transform: 'translateY(-50%)',
-              fontSize: '1rem',
               color: 'var(--text-muted)',
+              display: 'flex',
+              alignItems: 'center',
             }}
           >
-            🔍
+            <Search size={16} />
           </span>
           <input
             type="text"
@@ -62,9 +65,9 @@ export const VerificationFilterBar: React.FC<FilterBarProps> = ({
             style={{
               width: '100%',
               padding: '0.625rem 1rem 0.625rem 2.5rem',
-              background: 'var(--bg-base)',
+              background: 'var(--bg-card-elevated)',
               border: '1px solid var(--border-light)',
-              borderRadius: '8px',
+              borderRadius: 'var(--radius-md)',
               color: 'var(--text-primary)',
               fontSize: '0.875rem',
               outline: 'none',
@@ -83,17 +86,16 @@ export const VerificationFilterBar: React.FC<FilterBarProps> = ({
             padding: '0.625rem 1rem',
             background: 'var(--bg-surface-elevated)',
             border: '1px solid var(--border-light)',
-            borderRadius: '8px',
+            borderRadius: 'var(--radius-md)',
             color: 'var(--text-primary)',
             fontSize: '0.875rem',
             fontWeight: 600,
             cursor: isLoading ? 'not-allowed' : 'pointer',
             opacity: isLoading ? 0.7 : 1,
+            transition: 'all 0.18s ease',
           }}
         >
-          <span style={{ transform: isLoading ? 'rotate(180deg)' : 'none', transition: 'transform 0.4s' }}>
-            🔄
-          </span>
+          <RotateCw size={15} className={isLoading ? 'animate-spin' : ''} />
           <span>{isLoading ? 'Syncing...' : 'Refresh Queue'}</span>
         </button>
       </div>
@@ -106,17 +108,17 @@ export const VerificationFilterBar: React.FC<FilterBarProps> = ({
           alignItems: 'center',
           flexWrap: 'wrap',
           gap: '1rem',
-          borderTop: '1px solid var(--border)',
+          borderTop: '1px solid var(--border-subtle)',
           paddingTop: '0.875rem',
         }}
       >
         {/* Entity Tabs */}
-        <div style={{ display: 'flex', gap: '0.375rem', background: 'var(--bg-base)', padding: '0.25rem', borderRadius: '8px' }}>
+        <div style={{ display: 'flex', gap: '0.375rem', background: 'var(--bg-card-elevated)', padding: '0.25rem', borderRadius: 'var(--radius-md)' }}>
           {(
             [
               { id: 'ALL', label: 'All Applicants' },
-              { id: 'DRIVER', label: '🪪 Drivers (KYC)' },
-              { id: 'VENDOR', label: '🏢 Users (Enterprise)' },
+              { id: 'DRIVER', label: 'Drivers (KYC)' },
+              { id: 'VENDOR', label: 'Vendors (Enterprise)' },
             ] as const
           ).map((tab) => {
             const isSelected = entityFilter === tab.id;
@@ -126,11 +128,11 @@ export const VerificationFilterBar: React.FC<FilterBarProps> = ({
                 onClick={() => onEntityFilterChange(tab.id)}
                 style={{
                   padding: '0.375rem 0.875rem',
-                  borderRadius: '6px',
+                  borderRadius: 'var(--radius-sm)',
                   fontSize: '0.8125rem',
-                  fontWeight: isSelected ? 600 : 500,
+                  fontWeight: isSelected ? 700 : 500,
                   color: isSelected ? '#ffffff' : 'var(--text-secondary)',
-                  background: isSelected ? 'var(--accent-primary)' : 'transparent',
+                  background: isSelected ? 'var(--brand-primary)' : 'transparent',
                   border: 'none',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
@@ -149,10 +151,10 @@ export const VerificationFilterBar: React.FC<FilterBarProps> = ({
           </span>
           {(
             [
-              { id: 'UNDER_REVIEW', label: '⏳ Under Review', color: '#f59e0b' },
-              { id: 'ALL', label: 'All', color: '#9ca3af' },
-              { id: 'VERIFIED', label: '✅ Approved', color: '#10b981' },
-              { id: 'REJECTED', label: '❌ Declined', color: '#f43f5e' },
+              { id: 'UNDER_REVIEW', label: 'Under Review', color: 'var(--color-warning)' },
+              { id: 'ALL', label: 'All', color: 'var(--text-secondary)' },
+              { id: 'VERIFIED', label: 'Approved', color: 'var(--color-success)' },
+              { id: 'REJECTED', label: 'Declined', color: 'var(--color-danger)' },
             ] as const
           ).map((pill) => {
             const isSelected = statusFilter === pill.id;
@@ -162,12 +164,12 @@ export const VerificationFilterBar: React.FC<FilterBarProps> = ({
                 onClick={() => onStatusFilterChange(pill.id)}
                 style={{
                   padding: '0.25rem 0.625rem',
-                  borderRadius: '9999px',
+                  borderRadius: 'var(--radius-pill)',
                   fontSize: '0.75rem',
                   fontWeight: 600,
-                  border: `1px solid ${isSelected ? pill.color : 'var(--border-light)'}`,
-                  background: isSelected ? `rgba(${pill.id === 'VERIFIED' ? '16, 185, 129' : pill.id === 'REJECTED' ? '244, 63, 94' : '245, 158, 11'}, 0.15)` : 'transparent',
-                  color: isSelected ? pill.color : 'var(--text-secondary)',
+                  background: isSelected ? pill.color : 'var(--bg-card-elevated)',
+                  color: isSelected ? '#ffffff' : 'var(--text-secondary)',
+                  border: isSelected ? `1px solid ${pill.color}` : '1px solid var(--border-subtle)',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
                 }}
@@ -176,7 +178,6 @@ export const VerificationFilterBar: React.FC<FilterBarProps> = ({
               </button>
             );
           })}
-
           <div style={{ marginLeft: '0.5rem', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
             Showing <strong>{totalCount}</strong> results
           </div>

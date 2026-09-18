@@ -27,189 +27,58 @@ export function useVerificationCenter() {
         adminApi.getVendors().catch(() => [] as VendorListItem[]),
       ]);
 
-      const normalizedDrivers: VerificationItem[] = (drivers || []).map((d: any) => ({
-        id: d.id,
-        entityType: 'DRIVER',
-        name: d.fullName || 'Driver Applicant',
-        phone: d.phone || '',
-        verificationStatus: d.verificationStatus || 'UNDER_REVIEW',
-        rejectionReason: d.rejectionReason,
-        vehiclePlate: d.vehiclePlate || d.rcNumber || 'TS09EA1234',
-        vehicleType: d.vehicleType || 'SEDAN',
-        vehicleModel: d.vehicleModel || 'Swift Dzire (White)',
-        location: {
-          latitude: d.currentLat || 17.4435,
-          longitude: d.currentLng || 78.3772,
-          address: d.currentLocationAddress || 'Gachibowli DLF Cybercity, Hyderabad, Telangana',
-        },
-        documents: [
-          {
-            id: 'doc_dl_front',
-            documentType: 'DL_FRONT',
-            title: 'Driving License (Front)',
-            fileUrl: d.dlFrontUrl || 'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/dl_front.png',
-            verified: d.verificationStatus === 'VERIFIED',
-            uploadedAt: d.createdAt || new Date().toISOString(),
-          },
-          {
-            id: 'doc_dl_back',
-            documentType: 'DL_BACK',
-            title: 'Driving License (Back)',
-            fileUrl: d.dlBackUrl || 'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/dl_back.png',
-            verified: d.verificationStatus === 'VERIFIED',
-            uploadedAt: d.createdAt || new Date().toISOString(),
-          },
-          {
-            id: 'doc_rc',
-            documentType: 'RC_BOOK',
-            title: 'Vehicle Registration Certificate (RC)',
-            fileUrl: d.rcDocUrl || 'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/rc_book.png',
-            verified: d.verificationStatus === 'VERIFIED',
-            uploadedAt: d.createdAt || new Date().toISOString(),
-          },
-          {
-            id: 'doc_ins',
-            documentType: 'INSURANCE',
-            title: 'Commercial Vehicle Insurance',
-            fileUrl: d.insuranceDocUrl || 'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/insurance.png',
-            verified: d.verificationStatus === 'VERIFIED',
-            uploadedAt: d.createdAt || new Date().toISOString(),
-          },
-        ],
-        submittedAt: d.createdAt || new Date().toISOString(),
-        updatedAt: d.updatedAt,
-      }));
+      const normalizedDrivers: VerificationItem[] = (drivers || []).map((d: any) => {
+        const docs = Array.isArray(d.documents) && d.documents.length > 0
+          ? d.documents
+          : [
+              ...(d.dlFrontUrl ? [{ id: `${d.id}_dl_front`, documentType: 'DL_FRONT', title: 'Driving License (Front)', fileUrl: d.dlFrontUrl, verified: d.verificationStatus === 'VERIFIED', uploadedAt: d.createdAt }] : []),
+              ...(d.dlBackUrl ? [{ id: `${d.id}_dl_back`, documentType: 'DL_BACK', title: 'Driving License (Back)', fileUrl: d.dlBackUrl, verified: d.verificationStatus === 'VERIFIED', uploadedAt: d.createdAt }] : []),
+              ...(d.rcDocUrl ? [{ id: `${d.id}_rc`, documentType: 'RC_BOOK', title: 'Vehicle RC Book', fileUrl: d.rcDocUrl, verified: d.verificationStatus === 'VERIFIED', uploadedAt: d.createdAt }] : []),
+              ...(d.insuranceDocUrl ? [{ id: `${d.id}_ins`, documentType: 'INSURANCE', title: 'Vehicle Insurance', fileUrl: d.insuranceDocUrl, verified: d.verificationStatus === 'VERIFIED', uploadedAt: d.createdAt }] : []),
+            ];
+
+        return {
+          id: d.id,
+          entityType: 'DRIVER',
+          name: d.fullName || 'Driver Applicant',
+          phone: d.phone || '',
+          verificationStatus: d.verificationStatus || 'UNDER_REVIEW',
+          rejectionReason: d.rejectionReason,
+          vehiclePlate: d.vehiclePlate || d.rcNumber || '',
+          vehicleType: d.vehicleType || '',
+          vehicleModel: d.vehicleModel || '',
+          location: d.currentLocationAddress ? {
+            latitude: d.currentLat || 0,
+            longitude: d.currentLng || 0,
+            address: d.currentLocationAddress,
+          } : undefined,
+          documents: docs,
+          submittedAt: d.createdAt || new Date().toISOString(),
+          updatedAt: d.updatedAt,
+        };
+      });
 
       const normalizedVendors: VerificationItem[] = (vendors || []).map((v: any) => ({
         id: v.id,
         entityType: 'VENDOR',
         name: v.fullName || v.contactPerson || 'Vendor Partner',
-        organizationName: v.organizationName || v.companyName || 'Fleet Logistics Enterprise',
+        organizationName: v.organizationName || v.companyName || '',
         phone: v.phone || '',
         verificationStatus: v.verificationStatus || 'UNDER_REVIEW',
         rejectionReason: v.rejectionReason,
-        gstNumber: v.gstNumber || '36AAAAA1234A1Z5',
-        address: v.address || 'HITEC City Phase 2, Hyderabad, Telangana',
-        location: {
-          latitude: 17.4483,
-          longitude: 78.3915,
-          address: v.address || 'HITEC City Phase 2, Hyderabad, Telangana',
-        },
-        documents: [
-          {
-            id: 'doc_gst',
-            documentType: 'AADHAAR',
-            title: 'GST Registration Certificate',
-            fileUrl: 'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/gst_cert.png',
-            verified: v.verificationStatus === 'VERIFIED',
-            uploadedAt: v.createdAt || new Date().toISOString(),
-          },
-        ],
+        gstNumber: v.gstNumber || '',
+        address: v.address || '',
+        location: v.address ? {
+          latitude: 0,
+          longitude: 0,
+          address: v.address,
+        } : undefined,
+        documents: Array.isArray(v.documents) ? v.documents : [],
         submittedAt: v.createdAt || new Date().toISOString(),
         updatedAt: v.updatedAt,
       }));
 
-      // In development fallback if queue is empty, populate demo verification items for seamless testing
-      let combined = [...normalizedDrivers, ...normalizedVendors];
-      if (combined.length === 0) {
-        combined = [
-          {
-            id: 'drv_demo_1',
-            entityType: 'DRIVER',
-            name: 'Rahul Sharma',
-            phone: '+91 98765 43210',
-            verificationStatus: 'UNDER_REVIEW',
-            vehiclePlate: 'TS09EA1234',
-            vehicleType: 'SEDAN',
-            vehicleModel: 'Maruti Suzuki Dzire (White)',
-            location: {
-              latitude: 17.4435,
-              longitude: 78.3772,
-              address: 'Gachibowli DLF Cybercity, Hyderabad, Telangana',
-            },
-            documents: [
-              {
-                id: 'doc_dl_1',
-                documentType: 'DL_FRONT',
-                title: 'Driving License (Front)',
-                fileUrl: 'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/dl_front.png',
-                verified: false,
-                uploadedAt: new Date(Date.now() - 3600000).toISOString(),
-              },
-              {
-                id: 'doc_rc_1',
-                documentType: 'RC_BOOK',
-                title: 'Vehicle RC Book',
-                fileUrl: 'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/rc_book.png',
-                verified: false,
-                uploadedAt: new Date(Date.now() - 3600000).toISOString(),
-              },
-              {
-                id: 'doc_ins_1',
-                documentType: 'INSURANCE',
-                title: 'Comprehensive Insurance Policy',
-                fileUrl: 'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/insurance.png',
-                verified: false,
-                uploadedAt: new Date(Date.now() - 3600000).toISOString(),
-              },
-            ],
-            submittedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-          },
-          {
-            id: 'vnd_demo_1',
-            entityType: 'VENDOR',
-            name: 'Priya Reddy',
-            organizationName: 'Hyderabad Express Fleet Logistics',
-            phone: '+91 98765 43211',
-            verificationStatus: 'UNDER_REVIEW',
-            gstNumber: '36AAAAA1234A1Z5',
-            address: 'Cyber Towers, HITEC City, Hyderabad, Telangana',
-            location: {
-              latitude: 17.4504,
-              longitude: 78.3808,
-              address: 'Cyber Towers, HITEC City, Hyderabad',
-            },
-            documents: [
-              {
-                id: 'doc_gst_1',
-                documentType: 'AADHAAR',
-                title: 'GST Certificate (Form REG-06)',
-                fileUrl: 'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/gst_cert.png',
-                verified: false,
-                uploadedAt: new Date(Date.now() - 7200000).toISOString(),
-              },
-            ],
-            submittedAt: new Date(Date.now() - 7200000).toISOString(),
-          },
-          {
-            id: 'drv_demo_2',
-            entityType: 'DRIVER',
-            name: 'Mohammed Rizwan',
-            phone: '+91 98765 43212',
-            verificationStatus: 'UNDER_REVIEW',
-            vehiclePlate: 'TS07EK8899',
-            vehicleType: 'SUV',
-            vehicleModel: 'Toyota Innova Crysta (Silver)',
-            location: {
-              latitude: 17.4375,
-              longitude: 78.4483,
-              address: 'Banjara Hills Road No. 12, Hyderabad',
-            },
-            documents: [
-              {
-                id: 'doc_dl_2',
-                documentType: 'DL_FRONT',
-                title: 'Driving License',
-                fileUrl: 'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/dl_front.png',
-                verified: false,
-                uploadedAt: new Date(Date.now() - 10800000).toISOString(),
-              },
-            ],
-            submittedAt: new Date(Date.now() - 10800000).toISOString(),
-          },
-        ];
-      }
-
+      const combined = [...normalizedDrivers, ...normalizedVendors];
       setItems(combined);
     } catch (e: any) {
       setError(e.message || 'Failed to load verification queue');

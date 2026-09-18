@@ -1,4 +1,5 @@
-﻿import React from 'react';
+import React from 'react';
+import { AlertCircle } from 'lucide-react';
 
 export interface ErrorStateProps {
   title?: string;
@@ -13,7 +14,7 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
 }) => {
   return (
     <div
-      className="card animate-shake"
+      className="card"
       style={{
         borderColor: 'var(--color-danger-border)',
         backgroundColor: 'var(--color-danger-bg)',
@@ -22,7 +23,9 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
         borderRadius: 'var(--radius-xl)',
       }}
     >
-      <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⚠️</div>
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.75rem' }}>
+        <AlertCircle size={32} color="var(--color-danger)" />
+      </div>
       <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-danger)', marginBottom: '0.25rem' }}>
         {title}
       </h3>

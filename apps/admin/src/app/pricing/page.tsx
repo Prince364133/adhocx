@@ -1,118 +1,68 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Car, Truck, Bus, Percent, Zap, Receipt, X } from 'lucide-react';
+import { adminApi } from '../../lib/api/client';
+import { RateCard } from '../../lib/api/types';
 import {
   PageHeader,
   MetricCard,
   Card,
   DataTable,
-  StatusBadge,
   Button,
   Drawer,
 } from '../../components/common';
 
-interface RateCard {
-  id: string;
-  vehicleType: string;
-  categoryLabel: string;
-  icon: string;
-  seatingCapacity: string;
-  description: string;
-  baseFare: number;
-  baseKm: number;
-  perKmRate: number;
-  driverSharePercent: number;
-  platformFeePercent: number;
-  surgeMultiplier: number;
-  status: 'ACTIVE' | 'INACTIVE';
-  updatedAt: string;
-}
-
-const INITIAL_RATE_CARDS: RateCard[] = [
-  {
-    id: 'rc-sedan',
-    vehicleType: 'SEDAN',
-    categoryLabel: 'Prime Sedan',
-    icon: '🚗',
-    seatingCapacity: '4 + 1 Passengers',
-    description: 'Compact & executive 4-seater sedans (Dzire, Aura, Etios, Tigor)',
-    baseFare: 800,
-    baseKm: 40,
-    perKmRate: 14.5,
-    driverSharePercent: 90,
-    platformFeePercent: 10,
-    surgeMultiplier: 1.0,
-    status: 'ACTIVE',
-    updatedAt: '2026-08-15',
-  },
-  {
-    id: 'rc-suv',
-    vehicleType: 'SUV',
-    categoryLabel: 'Fleet SUV & MUV',
-    icon: '🚙',
-    seatingCapacity: '6 + 1 Passengers',
-    description: '6-7 seater commercial SUVs (Innova Crysta, Ertiga, Carens, Marazzo)',
-    baseFare: 1400,
-    baseKm: 40,
-    perKmRate: 19.0,
-    driverSharePercent: 90,
-    platformFeePercent: 10,
-    surgeMultiplier: 1.0,
-    status: 'ACTIVE',
-    updatedAt: '2026-08-15',
-  },
-  {
-    id: 'rc-tempo',
-    vehicleType: 'TEMPO_TRAVELLER',
-    categoryLabel: 'Tempo Mini Coach',
-    icon: '🚐',
-    seatingCapacity: '12 - 16 Passengers',
-    description: '12-16 seater minibuses for corporate team transport & pilgrimages',
-    baseFare: 3200,
-    baseKm: 80,
-    perKmRate: 28.0,
-    driverSharePercent: 88,
-    platformFeePercent: 12,
-    surgeMultiplier: 1.0,
-    status: 'ACTIVE',
-    updatedAt: '2026-08-01',
-  },
-  {
-    id: 'rc-bus',
-    vehicleType: 'BUS',
-    categoryLabel: 'Commercial Coach Bus',
-    icon: '🚌',
-    seatingCapacity: '24 - 40 Passengers',
-    description: '24-40 seater commercial coaches with pushback seating & luggage hold',
-    baseFare: 6500,
-    baseKm: 100,
-    perKmRate: 45.0,
-    driverSharePercent: 88,
-    platformFeePercent: 12,
-    surgeMultiplier: 1.0,
-    status: 'ACTIVE',
-    updatedAt: '2026-07-20',
-  },
-];
-
 export default function PricingPage() {
-  const [rateCards, setRateCards] = useState<RateCard[]>(INITIAL_RATE_CARDS);
+  const [rateCards, setRateCards] = useState<RateCard[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedCard, setSelectedCard] = useState<RateCard | null>(null);
   const [editingCard, setEditingCard] = useState<RateCard | null>(null);
+  const [saving, setSaving] = useState(false);
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  function handleSaveRate(e: React.FormEvent) {
+  useEffect(() => {
+    loadRateCards();
+  }, []);
+
+  async function loadRateCards() {
+    setLoading(true);
+    try {
+      const data = await adminApi.getPricingTiers().catch(() => [] as RateCard[]);
+      setRateCards(data);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSaveRate(e: React.FormEvent) {
     e.preventDefault();
     if (!editingCard) return;
 
-    setRateCards((prev) =>
-      prev.map((rc) => (rc.id === editingCard.id ? editingCard : rc))
-    );
-    setAlert({
-      type: 'success',
-      message: `Tariff schedule for ${editingCard.categoryLabel} updated successfully!`,
-    });
-    setEditingCard(null);
+    setSaving(true);
+    try {
+      await adminApi.updatePricingTier(editingCard.vehicleType, {
+        baseFare: Number(editingCard.baseFare),
+        baseKm: Number(editingCard.baseKm),
+        perKmRate: Number(editingCard.perKmRate),
+        perMinuteRate: Number(editingCard.perMinuteRate),
+        minimumFare: Number(editingCard.minimumFare),
+        platformFeePercentage: Number(editingCard.platformFeePercentage),
+        driverSharePercentage: Number(editingCard.driverSharePercentage),
+        surgeMultiplier: Number(editingCard.surgeMultiplier),
+      });
+
+      setAlert({
+        type: 'success',
+        message: `Tariff schedule for ${editingCard.displayName || editingCard.vehicleType} updated successfully!`,
+      });
+      setEditingCard(null);
+      loadRateCards();
+    } catch (err: any) {
+      setAlert({ type: 'error', message: err.message || 'Failed to update pricing tier' });
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -136,9 +86,9 @@ export default function PricingPage() {
           <span>{alert.message}</span>
           <button
             onClick={() => setAlert(null)}
-            style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', fontWeight: 'bold' }}
+            style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
           >
-            ✕
+            <X size={16} />
           </button>
         </div>
       )}
@@ -162,28 +112,28 @@ export default function PricingPage() {
           label="Active Vehicle Tariffs"
           value={rateCards.length}
           subtext="Sedan, SUV, Tempo, Bus"
-          icon="🚗"
+          icon={<Car size={18} color="var(--brand-primary)" />}
           accentColor="var(--brand-primary)"
         />
         <MetricCard
           label="Avg Take Rate"
           value="10.5%"
           subtext="Retained by AdhocX Platform"
-          icon="💰"
+          icon={<Percent size={18} color="var(--color-success)" />}
           accentColor="var(--color-success)"
         />
         <MetricCard
           label="Dynamic Surge Multiplier"
           value="1.0x"
           subtext="Normal operational baseline"
-          icon="⚡"
+          icon={<Zap size={18} color="#8B5CF6" />}
           accentColor="#8B5CF6"
         />
         <MetricCard
           label="Tolls & Parking"
           value="100% Actuals"
           subtext="Pass-through with receipt upload"
-          icon="🧾"
+          icon={<Receipt size={18} color="var(--color-warning)" />}
           accentColor="var(--color-warning)"
         />
       </div>
@@ -204,7 +154,7 @@ export default function PricingPage() {
           </span>
         </div>
 
-        <DataTable<RateCard>
+        <DataTable
           columns={[
             {
               header: 'VEHICLE CLASS',
@@ -219,33 +169,32 @@ export default function PricingPage() {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: '1.25rem',
                     }}
                   >
-                    {rc.icon}
+                    {rc.vehicleType === 'BUS' ? (
+                      <Bus size={20} color="#10B981" />
+                    ) : rc.vehicleType === 'TEMPO_TRAVELLER' ? (
+                      <Truck size={20} color="#8B5CF6" />
+                    ) : rc.vehicleType === 'SUV' ? (
+                      <Car size={20} color="#2563EB" />
+                    ) : (
+                      <Car size={20} color="var(--brand-primary)" />
+                    )}
                   </div>
                   <div>
                     <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.875rem' }}>
-                      {rc.categoryLabel}
+                      {rc.displayName || rc.vehicleType}
                     </div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>
-                      {rc.seatingCapacity}
+                      {rc.vehicleType}
                     </div>
                   </div>
-                </div>
-              ),
-            },
-            {
-              header: 'SPECS & EXAMPLES',
-              accessor: (rc) => (
-                <div style={{ maxWidth: '280px', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                  {rc.description}
                 </div>
               ),
             },
             {
               header: 'BASE FARE (INCL. KM)',
-              accessor: (rc) => (
+              accessor: (rc: RateCard) => (
                 <div>
                   <span style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)' }}>
                     ₹ {rc.baseFare.toLocaleString('en-IN')}
@@ -258,15 +207,23 @@ export default function PricingPage() {
             },
             {
               header: 'PER KM TARIFF',
-              accessor: (rc) => (
+              accessor: (rc: RateCard) => (
                 <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--brand-primary)' }}>
                   ₹ {rc.perKmRate.toFixed(2)} / km
                 </div>
               ),
             },
             {
+              header: 'PER MINUTE RATE',
+              accessor: (rc: RateCard) => (
+                <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                  ₹ {rc.perMinuteRate ? rc.perMinuteRate.toFixed(2) : '0.00'} / min
+                </div>
+              ),
+            },
+            {
               header: 'PLATFORM TAKE-RATE',
-              accessor: (rc) => (
+              accessor: (rc: RateCard) => (
                 <div>
                   <span
                     style={{
@@ -279,22 +236,18 @@ export default function PricingPage() {
                       fontSize: '0.8125rem',
                     }}
                   >
-                    {rc.platformFeePercent}%
+                    {rc.platformFeePercentage}%
                   </span>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                    Driver: {rc.driverSharePercent}%
+                    Driver: {rc.driverSharePercentage}%
                   </div>
                 </div>
               ),
             },
             {
-              header: 'STATUS',
-              accessor: (rc) => <StatusBadge status={rc.status} />,
-            },
-            {
               header: 'ACTIONS',
               align: 'right',
-              accessor: (rc) => (
+              accessor: (rc: RateCard) => (
                 <Button
                   variant="outline"
                   size="sm"
@@ -309,8 +262,11 @@ export default function PricingPage() {
             },
           ]}
           data={rateCards}
-          keyExtractor={(rc) => rc.id}
+          keyExtractor={(rc) => rc.vehicleType}
+          loading={loading}
           onRowClick={(rc) => setSelectedCard(rc)}
+          emptyTitle="No pricing rate cards found"
+          emptySubtitle="System default rate cards will load here."
         />
       </Card>
 
@@ -318,7 +274,7 @@ export default function PricingPage() {
       <Drawer
         isOpen={!!editingCard}
         onClose={() => setEditingCard(null)}
-        title={editingCard ? `Edit Tariff: ${editingCard.categoryLabel}` : 'Edit Tariff'}
+        title={editingCard ? `Edit Tariff: ${editingCard.displayName || editingCard.vehicleType}` : 'Edit Tariff'}
         subtitle={editingCard ? `Category Code: ${editingCard.vehicleType}` : ''}
         footer={
           editingCard ? (
@@ -327,6 +283,7 @@ export default function PricingPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setEditingCard(null)}
+                disabled={saving}
               >
                 Cancel
               </Button>
@@ -334,6 +291,7 @@ export default function PricingPage() {
                 variant="primary"
                 size="sm"
                 onClick={handleSaveRate}
+                isLoading={saving}
               >
                 Save Rate Schedule
               </Button>
@@ -413,13 +371,13 @@ export default function PricingPage() {
                   type="number"
                   min="0"
                   max="50"
-                  value={editingCard.platformFeePercent}
+                  value={editingCard.platformFeePercentage}
                   onChange={(e) => {
                     const fee = Number(e.target.value);
                     setEditingCard({
                       ...editingCard,
-                      platformFeePercent: fee,
-                      driverSharePercent: 100 - fee,
+                      platformFeePercentage: fee,
+                      driverSharePercentage: 100 - fee,
                     });
                   }}
                   style={{
@@ -441,7 +399,7 @@ export default function PricingPage() {
                 <input
                   type="number"
                   disabled
-                  value={editingCard.driverSharePercent}
+                  value={editingCard.driverSharePercentage}
                   style={{
                     width: '100%',
                     padding: '0.625rem 0.875rem',

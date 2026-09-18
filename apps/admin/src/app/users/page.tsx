@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
+import { Building2, X } from 'lucide-react';
 import { adminApi } from '../../lib/api/client';
 import { UserListItem } from '../../lib/api/types';
 import {
@@ -39,28 +40,7 @@ export default function UsersPage() {
   async function loadUsers(status: string) {
     setLoading(true);
     try {
-      const data = await adminApi.getVendors(status).catch(() => [
-        {
-          id: 'usr-1',
-          companyName: 'Acme Corporate Logistics Ltd',
-          contactPerson: 'Vikram Malhotra',
-          phone: '+919988776655',
-          email: 'vikram@acmecorp.in',
-          verificationStatus: 'PENDING',
-          requirementsCount: 0,
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 'usr-2',
-          companyName: 'Metro Fleet Cabs Pvt Ltd',
-          contactPerson: 'Ananya Sharma',
-          phone: '+919123456789',
-          email: 'ananya@metrofleet.com',
-          verificationStatus: 'VERIFIED',
-          requirementsCount: 14,
-          createdAt: new Date().toISOString(),
-        },
-      ] as UserListItem[]);
+      const data = await adminApi.getVendors(status).catch(() => [] as UserListItem[]);
       setUsers(data);
     } finally {
       setLoading(false);
@@ -123,12 +103,10 @@ export default function UsersPage() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '0.875rem',
-              fontWeight: 800,
               color: 'var(--brand-primary)',
             }}
           >
-            🏢
+            <Building2 size={18} />
           </div>
           <div>
             <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{u.companyName}</div>
@@ -221,9 +199,9 @@ export default function UsersPage() {
           <span>{alert.message}</span>
           <button
             onClick={() => setAlert(null)}
-            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
+            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
           >
-            ✕
+            <X size={16} />
           </button>
         </div>
       )}

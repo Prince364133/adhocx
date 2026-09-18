@@ -1,6 +1,18 @@
 'use client';
 
 import React, { useState } from 'react';
+import {
+  X,
+  AlertTriangle,
+  User,
+  Car,
+  Building2,
+  MapPin,
+  Compass,
+  FileText,
+  CheckCircle2,
+  XCircle,
+} from 'lucide-react';
 import { VerificationItem, DriverKycDocument } from '../../lib/api/types';
 import { DocumentPreviewModal } from './DocumentPreviewModal';
 
@@ -126,10 +138,9 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                fontSize: '1rem',
               }}
             >
-              ✕
+              <X size={18} />
             </button>
           </div>
 
@@ -145,8 +156,8 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
                   padding: '1rem 1.25rem',
                 }}
               >
-                <div style={{ fontWeight: 700, color: '#f43f5e', fontSize: '0.875rem', marginBottom: '0.25rem' }}>
-                  ⚠️ Application Was Declined
+                <div style={{ fontWeight: 700, color: '#f43f5e', fontSize: '0.875rem', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <AlertTriangle size={16} /> Application Was Declined
                 </div>
                 <div style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
                   <strong>Reason Sent to Applicant:</strong> {item.rejectionReason}
@@ -178,7 +189,7 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
                     gap: '0.5rem',
                   }}
                 >
-                  <span>👤</span> Profile Information
+                  <User size={15} color="var(--brand-primary)" /> Profile Information
                 </h3>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.8125rem' }}>
@@ -225,7 +236,7 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
                     gap: '0.5rem',
                   }}
                 >
-                  <span>{isDriver ? '🚗' : '🏢'}</span> {isDriver ? 'Vehicle Specifications' : 'Business Details'}
+                  {isDriver ? <Car size={15} color="var(--brand-primary)" /> : <Building2 size={15} color="var(--color-info)" />} {isDriver ? 'Vehicle Specifications' : 'Business Details'}
                 </h3>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.8125rem' }}>
@@ -295,7 +306,7 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
                       gap: '0.5rem',
                     }}
                   >
-                    <span>📍</span> Registered Location & Telemetry
+                    <MapPin size={15} color="var(--color-success)" /> Registered Location & Telemetry
                   </h3>
                   <span
                     style={{
@@ -317,17 +328,17 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
                       width: '120px',
                       height: '80px',
                       borderRadius: '8px',
-                      background: 'linear-gradient(135deg, #1e293b, #0f172a)',
-                      border: '1px solid var(--border-light)',
+                      background: 'var(--bg-surface-elevated)',
+                      border: '1px solid var(--border)',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
                       gap: '0.25rem',
-                      color: '#6366f1',
+                      color: 'var(--brand-primary)',
                     }}
                   >
-                    <span style={{ fontSize: '1.5rem' }}>🗺️</span>
+                    <Compass size={24} color="var(--brand-primary)" />
                     <span style={{ fontSize: '0.6875rem', fontWeight: 600 }}>Map Radar</span>
                   </div>
 
@@ -362,7 +373,7 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
                     gap: '0.5rem',
                   }}
                 >
-                  <span>📁</span> KYC & Compliance Documents ({item.documents?.length || 4})
+                  <FileText size={15} color="var(--brand-primary)" /> KYC & Compliance Documents ({item.documents?.length || 4})
                 </h3>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                   Click document card to inspect & zoom
@@ -403,7 +414,7 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
                     <div
                       style={{
                         height: '110px',
-                        background: '#0f172a',
+                        background: 'var(--bg-surface-elevated)',
                         borderRadius: '6px',
                         display: 'flex',
                         alignItems: 'center',
@@ -421,7 +432,7 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
                           e.currentTarget.style.display = 'none';
                         }}
                       />
-                      <span style={{ position: 'absolute', fontSize: '1.75rem' }}>📄</span>
+                      <FileText size={28} color="var(--text-muted)" style={{ position: 'absolute' }} />
                     </div>
 
                     <div>
@@ -486,7 +497,7 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
                   gap: '0.5rem',
                 }}
               >
-                <span>❌</span> Decline Application...
+                <XCircle size={16} /> Decline Application...
               </button>
 
               <button
@@ -507,7 +518,7 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
                   boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
                 }}
               >
-                <span>✅</span> {isProcessing ? 'Activating...' : 'Approve & Activate'}
+                <CheckCircle2 size={16} /> {isProcessing ? 'Activating...' : 'Approve & Activate'}
               </button>
             </div>
           </div>

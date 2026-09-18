@@ -49,79 +49,89 @@ class _ChooseRoleScreenState extends State<ChooseRoleScreen> {
                 horizontal: AppSpacing.xxl,
                 vertical: AppSpacing.lg,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // ── Top Navigation Bar ─────────────────────────────────────
-                  Row(
-                    children: [
-                      IconButton(
-                        onPressed: () => context.pop(),
-                        icon: Icon(
-                          Icons.arrow_back,
-                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+              child: SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - MediaQuery.of(context).padding.bottom - 48,
+                  ),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // ── Top Navigation Bar ─────────────────────────────────────
+                        Row(
+                          children: [
+                            IconButton(
+                              onPressed: () => context.pop(),
+                              icon: Icon(
+                                Icons.arrow_back,
+                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                              ),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          ],
                         ),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
+                        const SizedBox(height: AppSpacing.xl),
 
-                  // ── Title & Subtitle ───────────────────────────────────────
-                  Text(
-                    'Choose your role',
-                    style: AppTypography.h1(
-                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                      fontWeight: FontWeight.bold,
+                        // ── Title & Subtitle ───────────────────────────────────────
+                        Text(
+                          'Choose your role',
+                          style: AppTypography.h1(
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          'Select how you want to join AdhocX',
+                          style: AppTypography.body(
+                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xxl),
+
+                        // ── Role 1: User / Booker ─────────────────────────────────
+                        AppRoleSelectCard(
+                          role: 'USER',
+                          title: 'Book Rides & Bulk Fleets',
+                          subtitle: 'For outstation trips, events & corporate travel',
+                          isSelected: _selectedRole == 'USER' || _selectedRole == 'VENDOR',
+                          onTap: () => setState(() => _selectedRole = 'USER'),
+                          iconWidget: Icon(
+                            Icons.person_pin_circle_rounded,
+                            size: 32,
+                            color: isDark ? AppColors.primaryLight : AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+
+                        // ── Role 2: Driver Partner ─────────────────────────────────
+                        AppRoleSelectCard(
+                          role: 'DRIVER',
+                          title: 'Driver Partner',
+                          subtitle: 'Drive your vehicle and earn with verified rides',
+                          isSelected: _selectedRole == 'DRIVER',
+                          onTap: () => setState(() => _selectedRole = 'DRIVER'),
+                          iconWidget: Icon(
+                            Icons.drive_eta_rounded,
+                            size: 32,
+                            color: isDark ? AppColors.primaryLight : AppColors.primary,
+                          ),
+                        ),
+                        const Spacer(),
+                        const SizedBox(height: AppSpacing.xl),
+
+                        // ── Bottom Action ──────────────────────────────────────────
+                        AppPrimaryButton(
+                          text: 'Continue',
+                          onPressed: _handleContinue,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    'Select how you want to join AdhocX',
-                    style: AppTypography.body(
-                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xxl),
-
-                  // ── Role 1: User / Booker ─────────────────────────────────
-                  AppRoleSelectCard(
-                    role: 'USER',
-                    title: 'Book Rides & Bulk Fleets',
-                    subtitle: 'For outstation trips, events & corporate travel',
-                    isSelected: _selectedRole == 'USER' || _selectedRole == 'VENDOR',
-                    onTap: () => setState(() => _selectedRole = 'USER'),
-                    iconWidget: Icon(
-                      Icons.person_pin_circle_rounded,
-                      size: 32,
-                      color: isDark ? AppColors.primaryLight : AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-
-                  // ── Role 2: Driver Partner ─────────────────────────────────
-                  AppRoleSelectCard(
-                    role: 'DRIVER',
-                    title: 'Driver Partner',
-                    subtitle: 'Drive your vehicle and earn with verified rides',
-                    isSelected: _selectedRole == 'DRIVER',
-                    onTap: () => setState(() => _selectedRole = 'DRIVER'),
-                    iconWidget: Icon(
-                      Icons.drive_eta_rounded,
-                      size: 32,
-                      color: isDark ? AppColors.primaryLight : AppColors.primary,
-                    ),
-                  ),
-                  const Spacer(),
-
-                  // ── Bottom Action ──────────────────────────────────────────
-                  AppPrimaryButton(
-                    text: 'Continue',
-                    onPressed: _handleContinue,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                ],
+                ),
               ),
             ),
           ),

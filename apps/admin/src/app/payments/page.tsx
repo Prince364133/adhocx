@@ -1,6 +1,9 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { CreditCard, CheckCircle2, Lock, RotateCcw } from 'lucide-react';
+import { adminApi } from '../../lib/api/client';
+import { AdminPaymentItem, AdminPaymentMetrics } from '../../lib/api/types';
 import {
   PageHeader,
   MetricCard,
@@ -11,74 +14,10 @@ import {
   Drawer,
 } from '../../components/common';
 
-interface PaymentItem {
-  id: string;
-  vendorName: string;
-  requirementId: string;
-  amount: number;
-  status: 'CAPTURED' | 'AUTHORIZED' | 'PENDING' | 'FAILED' | 'REFUNDED';
-  paymentMethod: string;
-  transactionRef: string;
-  gatewayFee: number;
-  netSettlement: number;
-  createdAt: string;
-}
-
-const INITIAL_PAYMENTS: PaymentItem[] = [
-  {
-    id: 'pay-801',
-    vendorName: 'Acme Corporate Logistics Ltd',
-    requirementId: 'req-201',
-    amount: 64000,
-    status: 'CAPTURED',
-    paymentMethod: 'CORPORATE_NETBANKING',
-    transactionRef: 'TXN_ACME_982341',
-    gatewayFee: 1280,
-    netSettlement: 62720,
-    createdAt: new Date(Date.now() - 3600000 * 6).toISOString(),
-  },
-  {
-    id: 'pay-802',
-    vendorName: 'Metro Fleet Cabs Pvt Ltd',
-    requirementId: 'req-202',
-    amount: 38400,
-    status: 'CAPTURED',
-    paymentMethod: 'UPI_COLLECT',
-    transactionRef: 'UPI2026090388912',
-    gatewayFee: 0,
-    netSettlement: 38400,
-    createdAt: new Date(Date.now() - 3600000 * 12).toISOString(),
-  },
-  {
-    id: 'pay-803',
-    vendorName: 'TechCorp Transport Services',
-    requirementId: 'req-204',
-    amount: 14000,
-    status: 'AUTHORIZED',
-    paymentMethod: 'CORPORATE_CARD',
-    transactionRef: 'AUTH_991823',
-    gatewayFee: 280,
-    netSettlement: 13720,
-    createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-  },
-  {
-    id: 'pay-804',
-    vendorName: 'Zenith Global Solutions',
-    requirementId: 'req-205',
-    amount: 22500,
-    status: 'REFUNDED',
-    paymentMethod: 'UPI_COLLECT',
-    transactionRef: 'UPI2026090199124',
-    gatewayFee: 0,
-    netSettlement: 22500,
-    createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-  },
-];
-
 const STATUS_TABS = [
   { id: 'ALL', label: 'All Payments' },
-  { id: 'CAPTURED', label: 'Captured' },
-  { id: 'AUTHORIZED', label: 'Escrow Held' },
+  { id: 'HELD_IN_ESCROW', label: 'Escrow Held' },
+  { id: 'RELEASED', label: 'Released / Settled' },
   { id: 'PENDING', label: 'Pending' },
   { id: 'REFUNDED', label: 'Refunded' },
   { id: 'FAILED', label: 'Failed' },
@@ -87,46 +26,55 @@ const STATUS_TABS = [
 export default function PaymentsPage() {
   const [activeTab, setActiveTab] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedPayment, setSelectedPayment] = useState<PaymentItem | null>(null);
+  const [payments, setPayments] = useState<AdminPaymentItem[]>([]);
+  const [metrics, setMetrics] = useState<AdminPaymentMetrics>({
+    totalEscrowVolume: 0,
+    activeEscrowHolds: 0,
+    settledVolume: 0,
+    pendingTransactions: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [selectedPayment, setSelectedPayment] = useState<AdminPaymentItem | null>(null);
+
+  useEffect(() => {
+    loadData(activeTab);
+  }, [activeTab]);
+
+  async function loadData(status: string) {
+    setLoading(true);
+    try {
+      const [paymentsRes, metricsRes] = await Promise.all([
+        adminApi.getAdminPayments({
+          status: status !== 'ALL' ? status : undefined,
+          limit: 100,
+        }).catch(() => ({ items: [], total: 0 })),
+        adminApi.getAdminPaymentMetrics().catch(() => ({
+          totalEscrowVolume: 0,
+          activeEscrowHolds: 0,
+          settledVolume: 0,
+          pendingTransactions: 0,
+        })),
+      ]);
+      setPayments(paymentsRes.items || []);
+      setMetrics(metricsRes);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const filtered = useMemo(() => {
-    return INITIAL_PAYMENTS.filter((p) => {
-      if (activeTab !== 'ALL' && p.status !== activeTab) return false;
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        return (
-          p.id.toLowerCase().includes(q) ||
-          p.vendorName.toLowerCase().includes(q) ||
-          p.requirementId.toLowerCase().includes(q) ||
-          p.transactionRef.toLowerCase().includes(q)
-        );
-      }
-      return true;
+    if (!searchQuery.trim()) return payments;
+    const q = searchQuery.toLowerCase().trim();
+    return payments.filter((p) => {
+      return (
+        p.id.toLowerCase().includes(q) ||
+        (p.vendorName && p.vendorName.toLowerCase().includes(q)) ||
+        (p.requirementId && p.requirementId.toLowerCase().includes(q)) ||
+        (p.gatewayPaymentId && p.gatewayPaymentId.toLowerCase().includes(q)) ||
+        (p.gatewayOrderId && p.gatewayOrderId.toLowerCase().includes(q))
+      );
     });
-  }, [activeTab, searchQuery]);
-
-  // Aggregate metrics
-  const metrics = useMemo(() => {
-    const totalCaptured = INITIAL_PAYMENTS.filter((p) => p.status === 'CAPTURED').reduce(
-      (sum, p) => sum + p.amount,
-      0
-    );
-    const totalEscrow = INITIAL_PAYMENTS.filter((p) => p.status === 'AUTHORIZED').reduce(
-      (sum, p) => sum + p.amount,
-      0
-    );
-    const totalRefunded = INITIAL_PAYMENTS.filter((p) => p.status === 'REFUNDED').reduce(
-      (sum, p) => sum + p.amount,
-      0
-    );
-
-    return {
-      totalVolume: totalCaptured + totalEscrow,
-      captured: totalCaptured,
-      escrow: totalEscrow,
-      refunded: totalRefunded,
-    };
-  }, []);
+  }, [payments, searchQuery]);
 
   return (
     <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -146,31 +94,31 @@ export default function PaymentsPage() {
         }}
       >
         <MetricCard
-          label="Total Payment Volume"
-          value={`₹ ${metrics.totalVolume.toLocaleString('en-IN')}`}
-          subtext="Gross payment throughput"
-          icon="💳"
+          label="Total Escrow Volume"
+          value={`₹ ${Number(metrics.totalEscrowVolume || 0).toLocaleString('en-IN')}`}
+          subtext="Total escrow deposits to date"
+          icon={<CreditCard size={18} color="var(--brand-primary)" />}
           accentColor="var(--brand-primary)"
         />
         <MetricCard
-          label="Captured & Settled"
-          value={`₹ ${metrics.captured.toLocaleString('en-IN')}`}
-          subtext="Available for driver disbursal"
-          icon="🟢"
+          label="Settled & Disbursed"
+          value={`₹ ${Number(metrics.settledVolume || 0).toLocaleString('en-IN')}`}
+          subtext="Released to drivers upon completion"
+          icon={<CheckCircle2 size={18} color="var(--color-success)" />}
           accentColor="var(--color-success)"
         />
         <MetricCard
-          label="Escrow Pre-Authorized"
-          value={`₹ ${metrics.escrow.toLocaleString('en-IN')}`}
-          subtext="Locked pending trip completion"
-          icon="🔒"
+          label="Active Escrow Holds"
+          value={`₹ ${Number(metrics.activeEscrowHolds || 0).toLocaleString('en-IN')}`}
+          subtext="Locked in escrow for active trips"
+          icon={<Lock size={18} color="#8B5CF6" />}
           accentColor="#8B5CF6"
         />
         <MetricCard
-          label="Processed Refunds"
-          value={`₹ ${metrics.refunded.toLocaleString('en-IN')}`}
-          subtext="Trip cancellations & rollbacks"
-          icon="↩️"
+          label="Pending Transactions"
+          value={metrics.pendingTransactions || 0}
+          subtext="Awaiting gateway clearance"
+          icon={<RotateCcw size={18} color="var(--color-warning)" />}
           accentColor="var(--color-warning)"
         />
       </div>
@@ -182,25 +130,25 @@ export default function PaymentsPage() {
           label: t.label,
           count:
             t.id === 'ALL'
-              ? INITIAL_PAYMENTS.length
-              : INITIAL_PAYMENTS.filter((p) => p.status === t.id).length,
+              ? payments.length
+              : payments.filter((p) => p.status === t.id).length,
         }))}
         activeTab={activeTab}
         onTabChange={setActiveTab}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        searchPlaceholder="Search by vendor, transaction reference, ID..."
+        searchPlaceholder="Search by vendor, gateway reference, transaction ID..."
       />
 
       {/* Payments DataTable */}
-      <DataTable<PaymentItem>
+      <DataTable
         columns={[
           {
             header: 'PAYMENT ID',
-            accessor: (p) => (
+            accessor: (p: AdminPaymentItem) => (
               <div>
                 <div style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--brand-primary)', fontSize: '0.8125rem' }}>
-                  #{p.id}
+                  #{p.id.slice(0, 10).toUpperCase()}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
                   {new Date(p.createdAt).toLocaleDateString()}
@@ -210,15 +158,15 @@ export default function PaymentsPage() {
           },
           {
             header: 'ENTERPRISE VENDOR',
-            accessor: (p) => (
+            accessor: (p: AdminPaymentItem) => (
               <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.875rem' }}>
-                {p.vendorName}
+                {p.vendorName || 'Corporate Client'}
               </div>
             ),
           },
           {
             header: 'REQUIREMENT REF',
-            accessor: (p) => (
+            accessor: (p: AdminPaymentItem) => (
               <span
                 style={{
                   fontFamily: 'monospace',
@@ -229,39 +177,39 @@ export default function PaymentsPage() {
                   border: '1px solid var(--border-subtle)',
                 }}
               >
-                #{p.requirementId}
+                {p.requirementId ? `#REQ-${p.requirementId.slice(0, 6).toUpperCase()}` : 'WALLET TOP-UP'}
               </span>
             ),
           },
           {
             header: 'TRANSACTION AMOUNT',
-            accessor: (p) => (
+            accessor: (p: AdminPaymentItem) => (
               <div style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)' }}>
-                ₹ {p.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                ₹ {Number(p.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </div>
             ),
           },
           {
-            header: 'METHOD & REFERENCE',
-            accessor: (p) => (
+            header: 'GATEWAY & REFERENCE',
+            accessor: (p: AdminPaymentItem) => (
               <div>
                 <div style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-primary)' }}>
-                  {p.paymentMethod.replace('_', ' ')}
+                  {p.paymentGateway || 'RAZORPAY'} ({p.type.replace(/_/g, ' ')})
                 </div>
                 <div style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--text-muted)', marginTop: '0.125rem' }}>
-                  {p.transactionRef}
+                  {p.gatewayPaymentId || p.gatewayOrderId || 'Direct Clearance'}
                 </div>
               </div>
             ),
           },
           {
             header: 'STATUS',
-            accessor: (p) => <StatusBadge status={p.status} />,
+            accessor: (p: AdminPaymentItem) => <StatusBadge status={p.status} />,
           },
           {
             header: 'ACTIONS',
             align: 'right',
-            accessor: (p) => (
+            accessor: (p: AdminPaymentItem) => (
               <Button
                 variant="outline"
                 size="sm"
@@ -277,8 +225,8 @@ export default function PaymentsPage() {
         ]}
         data={filtered}
         keyExtractor={(p) => p.id}
+        loading={loading}
         onRowClick={(p) => setSelectedPayment(p)}
-        emptyIcon="💳"
         emptyMessage="No payment transactions found matching your filters"
       />
 
@@ -286,8 +234,8 @@ export default function PaymentsPage() {
       <Drawer
         isOpen={!!selectedPayment}
         onClose={() => setSelectedPayment(null)}
-        title={selectedPayment ? `Payment Dossier #${selectedPayment.id}` : 'Payment Dossier'}
-        subtitle={selectedPayment ? `Transaction Ref: ${selectedPayment.transactionRef}` : ''}
+        title={selectedPayment ? `Payment Dossier #${selectedPayment.id.slice(0, 10).toUpperCase()}` : 'Payment Dossier'}
+        subtitle={selectedPayment ? `Gateway ID: ${selectedPayment.gatewayPaymentId || selectedPayment.gatewayOrderId || 'N/A'}` : ''}
         footer={
           <Button variant="secondary" size="sm" onClick={() => setSelectedPayment(null)}>
             Close Dossier
@@ -317,7 +265,7 @@ export default function PaymentsPage() {
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Gross Invoiced Amount</div>
                 <div style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.125rem' }}>
-                  ₹ {selectedPayment.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  ₹ {Number(selectedPayment.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </div>
               </div>
             </div>
@@ -335,28 +283,34 @@ export default function PaymentsPage() {
               }}
             >
               <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.5rem' }}>
-                Gateway Settlement Breakdown
+                Escrow & Gateway Details
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Enterprise Client:</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedPayment.vendorName}</span>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedPayment.vendorName || 'Corporate Client'}</span>
+              </div>
+              {selectedPayment.requirementId && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Requirement Ref:</span>
+                  <span style={{ fontFamily: 'monospace', color: 'var(--brand-primary)' }}>#{selectedPayment.requirementId.slice(0, 10).toUpperCase()}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Payment Gateway:</span>
+                <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{selectedPayment.paymentGateway}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Requirement Booking Ref:</span>
-                <span style={{ fontFamily: 'monospace', color: 'var(--brand-primary)' }}>#{selectedPayment.requirementId}</span>
+                <span style={{ color: 'var(--text-muted)' }}>Transaction Type:</span>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedPayment.type.replace(/_/g, ' ')}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Payment Channel:</span>
-                <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{selectedPayment.paymentMethod.replace('_', ' ')}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Payment Gateway Fee:</span>
-                <span style={{ color: 'var(--color-danger)' }}>- ₹ {selectedPayment.gatewayFee.toFixed(2)}</span>
+                <span style={{ color: 'var(--text-muted)' }}>Payment Order ID:</span>
+                <span style={{ fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{selectedPayment.gatewayOrderId || 'N/A'}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
-                <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Net Disbursable Value:</span>
-                <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--color-success)' }}>
-                  ₹ {selectedPayment.netSettlement.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Settled Timestamp:</span>
+                <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                  {new Date(selectedPayment.createdAt).toLocaleString()}
                 </span>
               </div>
             </div>

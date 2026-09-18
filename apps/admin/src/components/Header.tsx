@@ -52,12 +52,13 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
         {/* Theme Switcher */}
         <ThemeToggle />
 
+        {/* Live Cluster Status */}
         <div
           style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: '0.45rem',
-            padding: '0.3rem 0.65rem',
+            padding: '0.3rem 0.7rem',
             background: 'var(--color-success-bg)',
             border: '1px solid var(--color-success-border)',
             borderRadius: 'var(--radius-pill)',
@@ -66,26 +67,10 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
             color: 'var(--color-success)',
             letterSpacing: '0.02em',
           }}
+          title="All systems operational — PostgreSQL, Redis, and Dispatch Engine Connected"
         >
           <span className="pulse-dot success" style={{ width: '6px', height: '6px' }} />
-          <span>API 7001 Live</span>
-        </div>
-
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.35rem',
-            padding: '0.3rem 0.65rem',
-            background: 'var(--bg-card-elevated)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-pill)',
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            color: 'var(--text-secondary)',
-          }}
-        >
-          <span>Port 7002</span>
+          <span>Operational</span>
         </div>
       </div>
     </header>

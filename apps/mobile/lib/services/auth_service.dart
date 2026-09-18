@@ -9,6 +9,8 @@ class UserModel {
   final String role; // 'DRIVER', 'VENDOR', 'ADMIN', 'USER'
   final String? fullName;
   final String? photoUrl;
+  final bool hasPassword;
+  final bool isOnboarded;
   final Map<String, dynamic>? driverProfile;
   final Map<String, dynamic>? vendorProfile;
 
@@ -19,6 +21,8 @@ class UserModel {
     required this.role,
     this.fullName,
     this.photoUrl,
+    this.hasPassword = true,
+    this.isOnboarded = true,
     this.driverProfile,
     this.vendorProfile,
   });
@@ -27,13 +31,19 @@ class UserModel {
     // Handle wrapped payloads { success, data }
     final data = json['data'] is Map<String, dynamic> ? json['data'] as Map<String, dynamic> : json;
 
+    final roleStr = (data['role'] ?? 'DRIVER').toString().toUpperCase();
+    final bool hasPass = data['hasPassword'] == true || data['passwordSet'] == true;
+    final bool isOb = data['isOnboarded'] == true;
+
     return UserModel(
       id: (data['id'] ?? '').toString(),
       phone: data['phone']?.toString(),
       email: data['email']?.toString(),
-      role: (data['role'] ?? 'DRIVER').toString().toUpperCase(),
+      role: roleStr,
       fullName: (data['fullName'] ?? data['name'])?.toString(),
       photoUrl: data['photoUrl']?.toString(),
+      hasPassword: data.containsKey('hasPassword') ? hasPass : true,
+      isOnboarded: data.containsKey('isOnboarded') ? isOb : true,
       driverProfile: data['driverProfile'] is Map ? Map<String, dynamic>.from(data['driverProfile']) : null,
       vendorProfile: data['vendorProfile'] is Map ? Map<String, dynamic>.from(data['vendorProfile']) : null,
     );

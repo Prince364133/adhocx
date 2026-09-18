@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
+import { AlertCircle, Search, CheckCircle2, OctagonAlert, Check, X } from 'lucide-react';
 import { adminApi } from '../../lib/api/client';
 import { DisputeListItem } from '../../lib/api/types';
 import {
@@ -39,34 +40,7 @@ export default function DisputesPage() {
   async function loadDisputes(status: string) {
     setLoading(true);
     try {
-      const data = await adminApi.getDisputes(status).catch(() => [
-        {
-          id: 'dsp-101',
-          tripId: 'trp-901',
-          reporterId: 'usr-1',
-          reporterName: 'Priya Reddy (Requester)',
-          accusedId: 'usr-2',
-          accusedName: 'Rahul Sharma (Driver)',
-          reason: 'Route Deviation & Delay',
-          description: 'Driver took an alternate 40km detour without informing passengers, causing a 1-hour delay.',
-          status: 'OPEN' as const,
-          createdAt: new Date(Date.now() - 3600000).toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: 'dsp-102',
-          tripId: 'trp-802',
-          reporterId: 'usr-3',
-          reporterName: 'Amit Singh (Driver)',
-          accusedId: 'usr-4',
-          accusedName: 'Express Logistics (Vendor)',
-          reason: 'Unpaid Toll Disagreement',
-          description: 'Requester refused to verify ₹450 state entry toll charges recorded on receipt.',
-          status: 'UNDER_REVIEW' as const,
-          createdAt: new Date(Date.now() - 86400000).toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      ]);
+      const data = await adminApi.getDisputes(status).catch(() => [] as DisputeListItem[]);
       setDisputes(data);
     } finally {
       setLoading(false);
@@ -148,9 +122,9 @@ export default function DisputesPage() {
           <span>{alert.message}</span>
           <button
             onClick={() => setAlert(null)}
-            style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', fontWeight: 'bold' }}
+            style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
           >
-            ✕
+            <X size={16} />
           </button>
         </div>
       )}
@@ -174,28 +148,28 @@ export default function DisputesPage() {
           label="Open Tickets"
           value={metrics.open}
           subtext="Requires immediate investigation"
-          icon="🚨"
+          icon={<AlertCircle size={18} color="var(--color-danger)" />}
           accentColor="var(--color-danger)"
         />
         <MetricCard
           label="Under Review"
           value={metrics.review}
           subtext="Telemetry & receipt audit"
-          icon="🔍"
+          icon={<Search size={18} color="var(--color-warning)" />}
           accentColor="var(--color-warning)"
         />
         <MetricCard
           label="Resolved Cases"
           value={metrics.resolved}
           subtext="Settled or refunded"
-          icon="✅"
+          icon={<CheckCircle2 size={18} color="var(--color-success)" />}
           accentColor="var(--color-success)"
         />
         <MetricCard
           label="Dismissed / Rejected"
           value={metrics.rejected}
           subtext="Unsubstantiated claims"
-          icon="🛑"
+          icon={<OctagonAlert size={18} color="var(--text-muted)" />}
           accentColor="var(--text-muted)"
         />
       </div>
@@ -218,7 +192,7 @@ export default function DisputesPage() {
       />
 
       {/* Disputes DataTable */}
-      <DataTable<DisputeListItem>
+      <DataTable
         columns={[
           {
             header: 'TICKET & TRIP ID',
@@ -312,8 +286,8 @@ export default function DisputesPage() {
           setResolutionText(d.resolutionText || '');
           setResolutionStatus(d.status === 'REJECTED' ? 'REJECTED' : 'RESOLVED');
         }}
-        emptyIcon="⚖️"
-        emptyMessage="No dispute tickets found matching this filter"
+        emptyTitle="No dispute tickets found"
+        emptySubtitle="No dispute tickets found matching this filter criteria."
       />
 
       {/* Slide-out Arbitration Drawer */}
@@ -453,21 +427,18 @@ export default function DisputesPage() {
             {selectedDispute.status === 'OPEN' || selectedDispute.status === 'UNDER_REVIEW' ? (
               <div
                 style={{
-                  padding: '1.25rem',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--bg-card)',
+                  background: 'var(--bg-card)',
                   border: '1px solid var(--border-subtle)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '1rem',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: '1.25rem',
                 }}
               >
-                <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  Arbitration Decision
-                </div>
+                <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '1rem' }}>
+                  Execute Official Arbitration Decision
+                </h4>
 
-                {/* Decision Toggle */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                {/* Outcome Toggle */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
                   <button
                     type="button"
                     onClick={() => setResolutionStatus('RESOLVED')}
@@ -490,9 +461,13 @@ export default function DisputesPage() {
                           ? 'var(--color-success)'
                           : 'var(--text-secondary)',
                       transition: 'all 0.15s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.4rem',
                     }}
                   >
-                    ✓ Accept & Resolve
+                    <Check size={14} /> Accept & Resolve
                   </button>
                   <button
                     type="button"
@@ -516,9 +491,13 @@ export default function DisputesPage() {
                           ? 'var(--color-danger)'
                           : 'var(--text-secondary)',
                       transition: 'all 0.15s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.4rem',
                     }}
                   >
-                    ✕ Dismiss / Reject Claim
+                    <X size={14} /> Dismiss / Reject Claim
                   </button>
                 </div>
 

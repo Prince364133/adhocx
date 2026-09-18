@@ -83,7 +83,11 @@ class _SignInScreenState extends State<SignInScreen> {
           textColor: Colors.white,
         );
 
-        if (user.isDriver) {
+        if (!user.hasPassword) {
+          context.push(AppRoutes.setPasswordScreen);
+        } else if (!user.isOnboarded) {
+          context.push(AppRoutes.onboardingPersonalScreen);
+        } else if (user.isDriver) {
           if (user.isUnderReview || user.isRejected) {
             context.go(AppRoutes.waitlistGateScreen);
           } else {

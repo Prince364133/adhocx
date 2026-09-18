@@ -19,6 +19,13 @@ import {
   CreateBlogPostInput,
   UpdateBlogPostInput,
   BlogMetrics,
+  AssignmentItem,
+  AdminPaymentItem,
+  AdminPaymentMetrics,
+  RateCard,
+  CorridorAnalytics,
+  OperationalReportData,
+  SupportTicketItem,
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7001/api/v1';
@@ -164,6 +171,17 @@ export const adminApi = {
     return apiClient<RequirementListItem[]>(`/requirements${query}`);
   },
 
+  // Assignments & Match Orchestration
+  getAssignments: (params?: { status?: string; search?: string; limit?: number; page?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.status && params.status !== 'ALL') searchParams.append('status', params.status);
+    if (params?.search) searchParams.append('search', params.search);
+    if (params?.limit) searchParams.append('limit', String(params.limit));
+    if (params?.page) searchParams.append('page', String(params.page));
+    const query = searchParams.toString() ? `?${searchParams.toString()}` : '';
+    return apiClient<AssignmentItem[]>(`/assignments${query}`);
+  },
+
   // Trips & Live Telemetry
   getTrips: (status?: string) => {
     const query = status && status !== 'ALL' ? `?status=${status}` : '';
@@ -171,6 +189,49 @@ export const adminApi = {
   },
 
   getTripEvents: (tripId: string) => apiClient<TripEvent[]>(`/trips/${tripId}/events`),
+
+  // Payments, Escrow Ledger & Metrics
+  getAdminPayments: (params?: { status?: string; type?: string; vendorId?: string; limit?: number; offset?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.status && params.status !== 'ALL') searchParams.append('status', params.status);
+    if (params?.type && params.type !== 'ALL') searchParams.append('type', params.type);
+    if (params?.vendorId) searchParams.append('vendorId', params.vendorId);
+    if (params?.limit) searchParams.append('limit', String(params.limit));
+    if (params?.offset) searchParams.append('offset', String(params.offset));
+    const query = searchParams.toString() ? `?${searchParams.toString()}` : '';
+    return apiClient<{ items: AdminPaymentItem[]; total: number }>(`/payments/admin/all${query}`);
+  },
+
+  getAdminPaymentMetrics: () => apiClient<AdminPaymentMetrics>('/payments/admin/metrics'),
+
+  // Dynamic Pricing Engine
+  getPricingTiers: () => apiClient<RateCard[]>('/pricing/tiers'),
+
+  updatePricingTier: (vehicleType: string, data: Partial<RateCard>) =>
+    apiClient<RateCard>(`/pricing/admin/${vehicleType}`, {
+      method: 'PATCH',
+      body: data,
+    }),
+
+  // Operational Reports & Corridor Intelligence
+  getCorridorAnalytics: () => apiClient<CorridorAnalytics[]>('/admin/reports/corridors'),
+
+  getOperationalReports: () => apiClient<OperationalReportData>('/admin/reports/analytics'),
+
+  // Unified Helpdesk & Support Tickets
+  getSupportTickets: (params?: { status?: string; search?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.status && params.status !== 'ALL') searchParams.append('status', params.status);
+    if (params?.search) searchParams.append('search', params.search);
+    const query = searchParams.toString() ? `?${searchParams.toString()}` : '';
+    return apiClient<SupportTicketItem[]>(`/admin/support/tickets${query}`);
+  },
+
+  resolveSupportTicket: (id: string, data: { status: 'PENDING' | 'UNDER_REVIEW' | 'RESOLVED'; notes?: string }) =>
+    apiClient<SupportTicketItem>(`/admin/support/tickets/${id}/resolve`, {
+      method: 'POST',
+      body: data,
+    }),
 
   // Settlements & Payouts
   getSettlements: (status?: string) => {

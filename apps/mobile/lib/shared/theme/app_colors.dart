@@ -15,6 +15,7 @@ class AppColors {
 
   // ── Secondary & Enterprise Status Accents ─────────────────────────────────
   static const Color accentGreen = Color(0xFF22C55E); // Green 500
+  static const Color accentGreenLight = Color(0xFF4ADE80); // Green 400
   static const Color accentGreenDark = Color(0xFF16A34A); // Green 600
   static const Color accentBlue = Color(0xFF2563EB); // Blue 600
 
@@ -22,6 +23,7 @@ class AppColors {
   static const Color bgLight = Color(0xFFF8FAFC); // Application background
   static const Color surfaceLight = Color(0xFFFFFFFF); // Pure White Card
   static const Color surfaceElevatedLight = Color(0xFFF1F5F9); // Muted secondary
+  static const Color surfaceLightElevated = surfaceElevatedLight;
   static const Color borderLight = Color(0xFFE2E8F0); // Light border
   static const Color borderSubtleLight = Color(0xFFCBD5E1); // Emphasized border
 
@@ -29,6 +31,7 @@ class AppColors {
   static const Color bgDark = Color(0xFF0B1220); // Deepest operational dark
   static const Color surfaceDark = Color(0xFF111827); // Standard card surface
   static const Color surfaceElevatedDark = Color(0xFF1E293B); // Elevated panel / input
+  static const Color surfaceDarkElevated = surfaceElevatedDark;
   static const Color borderDark = Color(0xFF1F2937); // Standard dark border
   static const Color borderSubtleDark = Color(0xFF374151); // Subtle divider
 

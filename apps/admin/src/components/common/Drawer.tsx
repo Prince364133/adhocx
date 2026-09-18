@@ -1,4 +1,5 @@
-﻿import React, { useEffect } from 'react';
+import React, { useEffect } from 'react';
+import { X } from 'lucide-react';
 
 export interface DrawerProps {
   isOpen: boolean;
@@ -76,7 +77,6 @@ export const Drawer: React.FC<DrawerProps> = ({
               background: 'transparent',
               border: 'none',
               color: 'var(--text-secondary)',
-              fontSize: '1.25rem',
               cursor: 'pointer',
               padding: '0.35rem',
               borderRadius: 'var(--radius-sm)',
@@ -87,17 +87,15 @@ export const Drawer: React.FC<DrawerProps> = ({
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.color = 'var(--text-primary)';
-              e.currentTarget.style.transform = 'rotate(90deg)';
               e.currentTarget.style.backgroundColor = 'var(--bg-surface-elevated)';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.color = 'var(--text-secondary)';
-              e.currentTarget.style.transform = 'rotate(0deg)';
               e.currentTarget.style.backgroundColor = 'transparent';
             }}
             title="Close Drawer (Esc)"
           >
-            ✕
+            <X size={18} />
           </button>
         </div>
 

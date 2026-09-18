@@ -391,6 +391,88 @@ export class PaymentsService {
     }));
   }
 
+  /**
+   * Get all payments across the platform for administrative audit.
+   */
+  async getAllAdminPayments(query?: { status?: string; search?: string; limit?: number; page?: number }) {
+    const where: any = {};
+
+    if (query?.status && query.status !== 'ALL') {
+      where.status = query.status as PaymentStatus;
+    }
+
+    if (query?.search && query.search.trim().length > 0) {
+      const q = query.search.trim();
+      where.OR = [
+        { id: { contains: q, mode: 'insensitive' } },
+        { transactionRef: { contains: q, mode: 'insensitive' } },
+        { requirementId: { contains: q, mode: 'insensitive' } },
+        { vendor: { organizationName: { contains: q, mode: 'insensitive' } } },
+        { vendor: { fullName: { contains: q, mode: 'insensitive' } } },
+      ];
+    }
+
+    const payments = await this.db.payment.findMany({
+      where,
+      include: {
+        vendor: true,
+        requirement: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: query?.limit ? Number(query.limit) : 50,
+      skip: query?.page && query?.limit ? (Number(query.page) - 1) * Number(query.limit) : 0,
+    });
+
+    return payments.map((p) => {
+      const amount = Number(p.amount);
+      const gatewayFee = p.paymentMethod?.includes('CARD') ? Math.round(amount * 0.02 * 100) / 100 : 0;
+      const netSettlement = amount - gatewayFee;
+
+      return {
+        id: p.id,
+        vendorId: p.vendorId,
+        vendorName: p.vendor?.organizationName || p.vendor?.fullName || 'Enterprise Client',
+        requirementId: p.requirementId,
+        amount,
+        status: p.status,
+        paymentMethod: p.paymentMethod || 'CORPORATE_NETBANKING',
+        transactionRef: p.transactionRef || `TXN_${p.id.slice(0, 8).toUpperCase()}`,
+        gatewayFee,
+        netSettlement,
+        createdAt: p.createdAt.toISOString(),
+      };
+    });
+  }
+
+  /**
+   * Get aggregate payment metrics for admin overview.
+   */
+  async getAdminPaymentMetrics() {
+    const all = await this.db.payment.findMany();
+
+    let captured = 0;
+    let escrow = 0;
+    let refunded = 0;
+
+    for (const p of all) {
+      const amt = Number(p.amount);
+      if (p.status === 'CAPTURED') {
+        captured += amt;
+      } else if (p.status === 'AUTHORIZED' || p.status === 'PENDING') {
+        escrow += amt;
+      } else if (p.status === 'REFUNDED') {
+        refunded += amt;
+      }
+    }
+
+    return {
+      totalVolume: captured + escrow,
+      captured,
+      escrow,
+      refunded,
+    };
+  }
+
   private mapToDto(p: any): PaymentResponseDto {
     return {
       id: p.id,
@@ -405,4 +487,5 @@ export class PaymentsService {
     };
   }
 }
+
 

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../services/user_service.dart';
-import '../../shared/animations/app_animations.dart';
 import '../../shared/animations/app_bouncing_wrapper.dart';
 import '../../shared/animations/app_shimmer_box.dart';
 import '../../shared/theme/app_colors.dart';

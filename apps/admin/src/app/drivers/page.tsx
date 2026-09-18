@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
+import { Star, X } from 'lucide-react';
 import { adminApi } from '../../lib/api/client';
 import { DriverListItem, DriverDetail } from '../../lib/api/types';
 import {
@@ -40,53 +41,7 @@ export default function DriversPage() {
   async function loadDrivers(status: string) {
     setLoading(true);
     try {
-      const data = await adminApi.getDrivers(status).catch(() => [
-        {
-          id: 'drv-1',
-          fullName: 'Rajesh Kumar',
-          phone: '+919876543210',
-          vehiclePlate: 'DL01AB1234',
-          vehicleType: 'SEDAN',
-          verificationStatus: 'UNDER_REVIEW',
-          availabilityStatus: 'OFFLINE',
-          walletBalance: 2400,
-          trustScore: 94.5,
-          averageRating: 4.8,
-          ratingCount: 22,
-          totalTrips: 34,
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 'drv-2',
-          fullName: 'Amit Singh',
-          phone: '+919811223344',
-          vehiclePlate: 'HR26BC5678',
-          vehicleType: 'SUV',
-          verificationStatus: 'VERIFIED',
-          availabilityStatus: 'AVAILABLE',
-          walletBalance: 8600,
-          trustScore: 98.0,
-          averageRating: 4.9,
-          ratingCount: 85,
-          totalTrips: 120,
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 'drv-3',
-          fullName: 'Suresh Verma',
-          phone: '+919899001122',
-          vehiclePlate: 'UP16CD9988',
-          vehicleType: 'SEDAN',
-          verificationStatus: 'REJECTED',
-          availabilityStatus: 'OFFLINE',
-          walletBalance: 0,
-          trustScore: 65.0,
-          averageRating: 3.5,
-          ratingCount: 4,
-          totalTrips: 6,
-          createdAt: new Date().toISOString(),
-        },
-      ] as DriverListItem[]);
+      const data = await adminApi.getDrivers(status).catch(() => [] as DriverListItem[]);
       setDrivers(data);
     } finally {
       setLoading(false);
@@ -108,30 +63,7 @@ export default function DriversPage() {
     try {
       const detail = await adminApi.getDriverDetails(driver.id).catch(() => ({
         ...driver,
-        tripsCount: 14,
-        documents: [
-          {
-            id: 'doc-1',
-            documentType: 'DRIVING_LICENSE',
-            fileUrl: 'https://images.unsplash.com/photo-1584438784894-089d6a62b8fa?w=600',
-            verified: false,
-            createdAt: new Date().toISOString(),
-          },
-          {
-            id: 'doc-2',
-            documentType: 'VEHICLE_RC',
-            fileUrl: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600',
-            verified: false,
-            createdAt: new Date().toISOString(),
-          },
-          {
-            id: 'doc-3',
-            documentType: 'COMMERCIAL_PERMIT',
-            fileUrl: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?w=600',
-            verified: false,
-            createdAt: new Date().toISOString(),
-          },
-        ],
+        documents: [],
       } as unknown as DriverDetail));
       setSelectedDriver(detail);
       setReason('');
@@ -240,8 +172,9 @@ export default function DriversPage() {
         return (
           <div>
             <div style={{ fontWeight: 800, color, fontSize: '0.875rem' }}>{score.toFixed(1)}% Trust</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-              ★ {(drv.averageRating ?? 5.0).toFixed(1)} ({drv.ratingCount ?? 0}) • {drv.totalTrips ?? 0} trips
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.15rem' }}>
+              <Star size={12} fill="#F59E0B" color="#F59E0B" />
+              <span>{(drv.averageRating ?? 5.0).toFixed(1)} ({drv.ratingCount ?? 0}) • {drv.totalTrips ?? 0} trips</span>
             </div>
           </div>
         );
@@ -300,9 +233,9 @@ export default function DriversPage() {
           <span>{alert.message}</span>
           <button
             onClick={() => setAlert(null)}
-            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
+            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
           >
-            ✕
+            <X size={16} />
           </button>
         </div>
       )}
