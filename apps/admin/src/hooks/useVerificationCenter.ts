@@ -28,14 +28,30 @@ export function useVerificationCenter() {
       ]);
 
       const normalizedDrivers: VerificationItem[] = (drivers || []).map((d: any) => {
-        const docs = Array.isArray(d.documents) && d.documents.length > 0
-          ? d.documents
-          : [
-              ...(d.dlFrontUrl ? [{ id: `${d.id}_dl_front`, documentType: 'DL_FRONT', title: 'Driving License (Front)', fileUrl: d.dlFrontUrl, verified: d.verificationStatus === 'VERIFIED', uploadedAt: d.createdAt }] : []),
-              ...(d.dlBackUrl ? [{ id: `${d.id}_dl_back`, documentType: 'DL_BACK', title: 'Driving License (Back)', fileUrl: d.dlBackUrl, verified: d.verificationStatus === 'VERIFIED', uploadedAt: d.createdAt }] : []),
-              ...(d.rcDocUrl ? [{ id: `${d.id}_rc`, documentType: 'RC_BOOK', title: 'Vehicle RC Book', fileUrl: d.rcDocUrl, verified: d.verificationStatus === 'VERIFIED', uploadedAt: d.createdAt }] : []),
-              ...(d.insuranceDocUrl ? [{ id: `${d.id}_ins`, documentType: 'INSURANCE', title: 'Vehicle Insurance', fileUrl: d.insuranceDocUrl, verified: d.verificationStatus === 'VERIFIED', uploadedAt: d.createdAt }] : []),
-            ];
+        let docs: any[] = [];
+        if (Array.isArray(d.kycDocuments) && d.kycDocuments.length > 0) {
+          docs = d.kycDocuments.map((doc: any, idx: number) => ({
+            id: `${d.id}_doc_${idx}`,
+            documentType: doc.type || 'DOCUMENT',
+            title: doc.title || doc.type || `Document ${idx + 1}`,
+            fileUrl: doc.url || doc.fileUrl,
+            verified: d.verificationStatus === 'VERIFIED',
+            uploadedAt: d.updatedAt || d.createdAt,
+          }));
+        } else if (Array.isArray(d.documents) && d.documents.length > 0) {
+          docs = d.documents;
+        } else {
+          docs = [
+            ...(d.dlFrontUrl ? [{ id: `${d.id}_dl_front`, documentType: 'DRIVING_LICENSE_FRONT', title: 'Driving License (Front)', fileUrl: d.dlFrontUrl, verified: d.verificationStatus === 'VERIFIED', uploadedAt: d.createdAt }] : []),
+            ...(d.dlBackUrl ? [{ id: `${d.id}_dl_back`, documentType: 'DRIVING_LICENSE_BACK', title: 'Driving License (Back)', fileUrl: d.dlBackUrl, verified: d.verificationStatus === 'VERIFIED', uploadedAt: d.createdAt }] : []),
+            ...(d.rcDocUrl ? [{ id: `${d.id}_rc`, documentType: 'RC_BOOK', title: 'Vehicle RC Book', fileUrl: d.rcDocUrl, verified: d.verificationStatus === 'VERIFIED', uploadedAt: d.createdAt }] : []),
+            ...(d.insuranceDocUrl ? [{ id: `${d.id}_ins`, documentType: 'INSURANCE', title: 'Vehicle Insurance', fileUrl: d.insuranceDocUrl, verified: d.verificationStatus === 'VERIFIED', uploadedAt: d.createdAt }] : []),
+            ...(d.vehiclePhotoUrl ? [{ id: `${d.id}_veh`, documentType: 'VEHICLE_PHOTO', title: 'Vehicle Photo', fileUrl: d.vehiclePhotoUrl, verified: d.verificationStatus === 'VERIFIED', uploadedAt: d.createdAt }] : []),
+            ...(d.aadharFrontUrl ? [{ id: `${d.id}_aadhar_front`, documentType: 'AADHAR_FRONT', title: 'Aadhar Card (Front)', fileUrl: d.aadharFrontUrl, verified: d.verificationStatus === 'VERIFIED', uploadedAt: d.createdAt }] : []),
+            ...(d.aadharBackUrl ? [{ id: `${d.id}_aadhar_back`, documentType: 'AADHAR_BACK', title: 'Aadhar Card (Back)', fileUrl: d.aadharBackUrl, verified: d.verificationStatus === 'VERIFIED', uploadedAt: d.createdAt }] : []),
+            ...(d.panDocUrl ? [{ id: `${d.id}_pan`, documentType: 'PAN_CARD', title: 'PAN Card', fileUrl: d.panDocUrl, verified: d.verificationStatus === 'VERIFIED', uploadedAt: d.createdAt }] : []),
+          ];
+        }
 
         return {
           id: d.id,

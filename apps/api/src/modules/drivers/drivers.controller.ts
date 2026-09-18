@@ -1,4 +1,14 @@
-import { Controller, Get, Patch, Post, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Patch,
+  Post,
+  Body,
+  UseGuards,
+  UseInterceptors,
+  UploadedFile,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse as SwaggerResponse } from '@nestjs/swagger';
 import {
   UpdateAvailabilityDto,
@@ -46,13 +56,15 @@ export class DriversController {
   }
 
   @Post('documents/upload')
-  @Roles(UserRole.DRIVER)
-  @ApiOperation({ summary: 'Upload a driver KYC document (base64 encoded)' })
+  @Roles(UserRole.DRIVER, UserRole.ADMIN, UserRole.VENDOR)
+  @UseInterceptors(FileInterceptor('document'))
+  @ApiOperation({ summary: 'Upload a driver KYC document to Cloudflare R2 (supports multipart/form-data or base64 JSON)' })
   @SwaggerResponse({ status: 201, type: UploadDocumentResponseDto, description: 'Document uploaded successfully' })
   async uploadDocument(
     @CurrentUser() user: AuthUserDto,
     @Body() dto: UploadDocumentDto,
+    @UploadedFile() file?: any,
   ) {
-    return this.driversService.uploadDocument(user.id, dto);
+    return this.driversService.uploadDocument(user.id, dto, file);
   }
 }

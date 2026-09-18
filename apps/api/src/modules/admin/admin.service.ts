@@ -107,6 +107,7 @@ export class AdminService {
       where: { id },
       data: {
         verificationStatus: VerificationStatus.VERIFIED,
+        rejectionReason: null,
       },
     });
 
@@ -145,6 +146,7 @@ export class AdminService {
       where: { id },
       data: {
         verificationStatus: VerificationStatus.REJECTED,
+        rejectionReason: dto.reason,
       },
     });
 
@@ -339,6 +341,7 @@ export class AdminService {
       where: { id },
       data: {
         verificationStatus: VerificationStatus.VERIFIED,
+        rejectionReason: null,
         approvedAt: new Date(),
       },
     });
@@ -372,6 +375,7 @@ export class AdminService {
       where: { id },
       data: {
         verificationStatus: VerificationStatus.REJECTED,
+        rejectionReason: dto.reason,
       },
     });
 

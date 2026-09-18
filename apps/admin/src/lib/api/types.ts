@@ -37,6 +37,11 @@ export interface DriverListItem {
   dlBackUrl?: string;
   rcDocUrl?: string;
   insuranceDocUrl?: string;
+  vehiclePhotoUrl?: string;
+  aadharFrontUrl?: string;
+  aadharBackUrl?: string;
+  panDocUrl?: string;
+  kycDocuments?: any;
   createdAt: string;
   updatedAt?: string;
 }

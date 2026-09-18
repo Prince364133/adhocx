@@ -26,6 +26,9 @@ class OnboardingProvider extends ChangeNotifier {
   String? _rcBookUrl;
   String? _insuranceUrl;
   String? _vehiclePhotoUrl;
+  String? _aadharFrontUrl;
+  String? _aadharBackUrl;
+  String? _panCardUrl;
   String? _selfieUrl;
 
   // Getters
@@ -53,6 +56,9 @@ class OnboardingProvider extends ChangeNotifier {
   String? get rcBookUrl => _rcBookUrl;
   String? get insuranceUrl => _insuranceUrl;
   String? get vehiclePhotoUrl => _vehiclePhotoUrl;
+  String? get aadharFrontUrl => _aadharFrontUrl;
+  String? get aadharBackUrl => _aadharBackUrl;
+  String? get panCardUrl => _panCardUrl;
   String? get selfieUrl => _selfieUrl;
 
   int get uploadedDocumentsCount {
@@ -61,10 +67,15 @@ class OnboardingProvider extends ChangeNotifier {
     if (_rcBookUrl != null) count++;
     if (_insuranceUrl != null) count++;
     if (_vehiclePhotoUrl != null) count++;
+    if (_aadharFrontUrl != null) count++;
+    if (_aadharBackUrl != null) count++;
+    if (_panCardUrl != null) count++;
     return count;
   }
 
-  bool get areAllDocumentsUploaded => uploadedDocumentsCount >= 4;
+  int get uploadedCount => uploadedDocumentsCount;
+
+  bool get areAllDocumentsUploaded => uploadedDocumentsCount >= 7;
 
   // Setters
   void setRole(String role) {
@@ -150,6 +161,15 @@ class OnboardingProvider extends ChangeNotifier {
       case 'VEHICLE_PHOTO':
         _vehiclePhotoUrl = url;
         break;
+      case 'AADHAR_FRONT':
+        _aadharFrontUrl = url;
+        break;
+      case 'AADHAR_BACK':
+        _aadharBackUrl = url;
+        break;
+      case 'PAN_CARD':
+        _panCardUrl = url;
+        break;
       case 'SELFIE':
         _selfieUrl = url;
         break;
@@ -175,6 +195,9 @@ class OnboardingProvider extends ChangeNotifier {
     _rcBookUrl = null;
     _insuranceUrl = null;
     _vehiclePhotoUrl = null;
+    _aadharFrontUrl = null;
+    _aadharBackUrl = null;
+    _panCardUrl = null;
     _selfieUrl = null;
     notifyListeners();
   }

@@ -61,6 +61,14 @@ class DriverService {
     required DateTime licenseExpiry,
     required List<String> documentUrls,
     required Map<String, dynamic> vehicleDetails,
+    String? dlFrontUrl,
+    String? dlBackUrl,
+    String? rcDocUrl,
+    String? insuranceDocUrl,
+    String? vehiclePhotoUrl,
+    String? aadharFrontUrl,
+    String? aadharBackUrl,
+    String? panDocUrl,
   }) async {
     return await _api.post(
       '/drivers/kyc',
@@ -69,6 +77,14 @@ class DriverService {
         'licenseExpiry': licenseExpiry.toIso8601String(),
         'documentUrls': documentUrls,
         'vehicle': vehicleDetails,
+        if (dlFrontUrl != null) 'dlFrontUrl': dlFrontUrl,
+        if (dlBackUrl != null) 'dlBackUrl': dlBackUrl,
+        if (rcDocUrl != null) 'rcDocUrl': rcDocUrl,
+        if (insuranceDocUrl != null) 'insuranceDocUrl': insuranceDocUrl,
+        if (vehiclePhotoUrl != null) 'vehiclePhotoUrl': vehiclePhotoUrl,
+        if (aadharFrontUrl != null) 'aadharFrontUrl': aadharFrontUrl,
+        if (aadharBackUrl != null) 'aadharBackUrl': aadharBackUrl,
+        if (panDocUrl != null) 'panDocUrl': panDocUrl,
       },
     );
   }

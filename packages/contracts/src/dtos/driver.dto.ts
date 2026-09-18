@@ -1,4 +1,4 @@
-import { IsEnum, IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { IsEnum, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { DriverAvailability, VerificationStatus, VehicleType } from '../enums';
 import { GeoLocationDto } from './common.dto';
@@ -22,21 +22,29 @@ export class UpdateAvailabilityDto {
 }
 
 export class KycSubmissionDto {
-  @IsNotEmpty({ message: 'Aadhaar / National ID number is required' })
+  @IsOptional()
   @IsString()
-  idNumber!: string;
+  idNumber?: string;
 
-  @IsNotEmpty({ message: 'Driving license number is required' })
+  @IsOptional()
   @IsString()
-  dlNumber!: string;
+  dlNumber?: string;
 
-  @IsNotEmpty({ message: 'PAN number is required' })
+  @IsOptional()
   @IsString()
-  panNumber!: string;
+  licenseNumber?: string;
 
-  @IsNotEmpty({ message: 'Vehicle RC number is required' })
+  @IsOptional()
   @IsString()
-  rcNumber!: string;
+  licenseExpiry?: string;
+
+  @IsOptional()
+  @IsString()
+  panNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  rcNumber?: string;
 
   @IsOptional()
   @IsString()
@@ -57,6 +65,40 @@ export class KycSubmissionDto {
   @IsOptional()
   @IsString()
   insuranceDocUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  vehiclePhotoUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  aadharFrontUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  aadharBackUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  panDocUrl?: string;
+
+  @IsOptional()
+  documentUrls?: string[];
+
+  @IsOptional()
+  documents?: Array<{ documentType: string; url: string; title?: string }>;
+
+  @IsOptional()
+  vehicle?: Record<string, any>;
+}
+
+export class DriverKycDocumentDto {
+  id!: string;
+  documentType!: string;
+  title!: string;
+  fileUrl!: string;
+  verified!: boolean;
+  uploadedAt!: string;
 }
 
 export class DriverProfileDto {
@@ -74,23 +116,37 @@ export class DriverProfileDto {
   averageRating?: number;
   ratingCount?: number;
   totalTrips?: number;
+  rejectionReason?: string;
   currentLocation?: GeoLocationDto;
+  dlFrontUrl?: string;
+  dlBackUrl?: string;
+  rcDocUrl?: string;
+  insuranceDocUrl?: string;
+  vehiclePhotoUrl?: string;
+  aadharFrontUrl?: string;
+  aadharBackUrl?: string;
+  panDocUrl?: string;
+  documents?: DriverKycDocumentDto[];
   createdAt!: string;
   updatedAt!: string;
 }
 
 export class UploadDocumentDto {
-  @IsNotEmpty({ message: 'Original filename is required' })
+  @IsOptional()
   @IsString()
-  filename!: string;
+  filename?: string;
 
-  @IsNotEmpty({ message: 'MIME type is required' })
+  @IsOptional()
   @IsString()
-  mimeType!: string;
+  mimeType?: string;
 
-  @IsNotEmpty({ message: 'Base64 encoded file content is required' })
+  @IsOptional()
   @IsString()
-  contentBase64!: string;
+  contentBase64?: string;
+
+  @IsOptional()
+  @IsString()
+  documentType?: string;
 }
 
 export class UploadDocumentResponseDto {
@@ -98,5 +154,6 @@ export class UploadDocumentResponseDto {
   filename!: string;
   size!: number;
   checksum!: string;
+  documentType?: string;
 }
 

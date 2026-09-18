@@ -61,11 +61,40 @@ export default function DriversPage() {
 
   async function handleOpenDetails(driver: DriverListItem) {
     try {
-      const detail = await adminApi.getDriverDetails(driver.id).catch(() => ({
+      const detail: any = await adminApi.getDriverDetails(driver.id).catch(() => ({
         ...driver,
         documents: [],
       } as unknown as DriverDetail));
-      setSelectedDriver(detail);
+
+      let docs: any[] = [];
+      if (Array.isArray(detail.kycDocuments) && detail.kycDocuments.length > 0) {
+        docs = detail.kycDocuments.map((doc: any, idx: number) => ({
+          id: `${detail.id}_doc_${idx}`,
+          documentType: doc.type || 'DOCUMENT',
+          title: doc.title || doc.type?.replace(/_/g, ' ') || `Document ${idx + 1}`,
+          fileUrl: doc.url || doc.fileUrl,
+          verified: detail.verificationStatus === 'VERIFIED',
+          createdAt: detail.updatedAt || detail.createdAt,
+        }));
+      } else if (Array.isArray(detail.documents) && detail.documents.length > 0) {
+        docs = detail.documents;
+      } else {
+        docs = [
+          ...(detail.dlFrontUrl ? [{ id: `${detail.id}_dl_front`, documentType: 'DRIVING_LICENSE_FRONT', title: 'Driving License (Front)', fileUrl: detail.dlFrontUrl, verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
+          ...(detail.dlBackUrl ? [{ id: `${detail.id}_dl_back`, documentType: 'DRIVING_LICENSE_BACK', title: 'Driving License (Back)', fileUrl: detail.dlBackUrl, verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
+          ...(detail.rcDocUrl ? [{ id: `${detail.id}_rc`, documentType: 'RC_BOOK', title: 'Vehicle RC Book', fileUrl: detail.rcDocUrl, verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
+          ...(detail.insuranceDocUrl ? [{ id: `${detail.id}_ins`, documentType: 'INSURANCE', title: 'Vehicle Insurance', fileUrl: detail.insuranceDocUrl, verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
+          ...(detail.vehiclePhotoUrl ? [{ id: `${detail.id}_veh`, documentType: 'VEHICLE_PHOTO', title: 'Vehicle Photo', fileUrl: detail.vehiclePhotoUrl, verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
+          ...(detail.aadharFrontUrl ? [{ id: `${detail.id}_aadhar_front`, documentType: 'AADHAR_FRONT', title: 'Aadhar Card (Front)', fileUrl: detail.aadharFrontUrl, verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
+          ...(detail.aadharBackUrl ? [{ id: `${detail.id}_aadhar_back`, documentType: 'AADHAR_BACK', title: 'Aadhar Card (Back)', fileUrl: detail.aadharBackUrl, verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
+          ...(detail.panDocUrl ? [{ id: `${detail.id}_pan`, documentType: 'PAN_CARD', title: 'PAN Card', fileUrl: detail.panDocUrl, verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
+        ];
+      }
+
+      setSelectedDriver({
+        ...detail,
+        documents: docs,
+      });
       setReason('');
       setActionType(null);
     } catch {

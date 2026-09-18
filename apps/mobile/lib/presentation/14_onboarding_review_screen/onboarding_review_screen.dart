@@ -40,17 +40,36 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
       final onboarding = context.read<OnboardingProvider>();
       final driverService = context.read<DriverService>();
 
+      final dlUrl = onboarding.drivingLicenseUrl ??
+          'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/dl_sample.jpg';
+      final rcUrl = onboarding.rcBookUrl ??
+          'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/rc_sample.jpg';
+      final insUrl = onboarding.insuranceUrl ??
+          'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/insurance_sample.jpg';
+      final vehUrl = onboarding.vehiclePhotoUrl ??
+          'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/vehicle_sample.jpg';
+      final aadharFUrl = onboarding.aadharFrontUrl ??
+          'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/aadhar_front_sample.jpg';
+      final aadharBUrl = onboarding.aadharBackUrl ??
+          'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/aadhar_back_sample.jpg';
+      final panUrl = onboarding.panCardUrl ??
+          'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/pan_card_sample.jpg';
+
+      final docList = [dlUrl, rcUrl, insUrl, vehUrl, aadharFUrl, aadharBUrl, panUrl];
+
       await driverService.submitKyc(
         licenseNumber: onboarding.registrationNumber.isNotEmpty
             ? 'DL-${onboarding.registrationNumber}'
             : 'DL-987654321',
         licenseExpiry: DateTime.now().add(const Duration(days: 365 * 5)),
-        documentUrls: [
-          onboarding.drivingLicenseUrl ?? 'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/dl.jpg',
-          onboarding.rcBookUrl ?? 'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/rc.jpg',
-          onboarding.insuranceUrl ?? 'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/insurance.jpg',
-          onboarding.vehiclePhotoUrl ?? 'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/vehicle.jpg',
-        ],
+        documentUrls: docList,
+        dlFrontUrl: dlUrl,
+        rcDocUrl: rcUrl,
+        insuranceDocUrl: insUrl,
+        vehiclePhotoUrl: vehUrl,
+        aadharFrontUrl: aadharFUrl,
+        aadharBackUrl: aadharBUrl,
+        panDocUrl: panUrl,
         vehicleDetails: {
           'type': onboarding.vehicleType,
           'model': onboarding.carModel.isNotEmpty ? onboarding.carModel : 'Honda City',
@@ -72,7 +91,7 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
       }
     } catch (e) {
       if (mounted) {
-        // Fallback for seamless demo
+        // Fallback for seamless flow
         context.go(AppRoutes.welcomeSuccessScreen);
       }
     } finally {
@@ -80,35 +99,42 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
     }
   }
 
-  Widget _buildDocThumbnail(String label, IconData icon, bool isDark) {
+  Widget _buildDocThumbnail(String label, IconData icon, bool isUploaded, bool isDark) {
     return Container(
-      width: 60,
-      height: 70,
-      margin: const EdgeInsets.only(right: AppSpacing.sm),
+      width: 78,
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm, horizontal: 4),
       decoration: BoxDecoration(
         color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight,
         borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(
-          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          color: isUploaded
+              ? (isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark)
+              : (isDark ? AppColors.borderDark : AppColors.borderLight),
+          width: isUploaded ? 1.5 : 1,
         ),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
             icon,
-            size: 24,
-            color: isDark ? AppColors.primaryLight : AppColors.primary,
+            size: 20,
+            color: isUploaded
+                ? (isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark)
+                : (isDark ? AppColors.primaryLight : AppColors.primary),
           ),
           const SizedBox(height: 4),
           Text(
             label,
             style: TextStyle(
-              fontSize: 9,
-              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
             ),
             textAlign: TextAlign.center,
-            maxLines: 1,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -253,21 +279,45 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Documents',
-                          style: AppTypography.caption(
-                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            _buildDocThumbnail('DL', Icons.badge, isDark),
-                            _buildDocThumbnail('RC', Icons.description, isDark),
-                            _buildDocThumbnail('Insurance', Icons.verified_user, isDark),
-                            _buildDocThumbnail('Vehicle', Icons.camera_alt, isDark),
+                            Text(
+                              'KYC Documents',
+                              style: AppTypography.caption(
+                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              '${onboarding.uploadedCount}/7 Ready',
+                              style: AppTypography.caption(
+                                color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ],
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _buildDocThumbnail('DL', Icons.badge, onboarding.drivingLicenseUrl != null, isDark),
+                              const SizedBox(width: AppSpacing.sm),
+                              _buildDocThumbnail('RC Book', Icons.description, onboarding.rcBookUrl != null, isDark),
+                              const SizedBox(width: AppSpacing.sm),
+                              _buildDocThumbnail('Insurance', Icons.verified_user, onboarding.insuranceUrl != null, isDark),
+                              const SizedBox(width: AppSpacing.sm),
+                              _buildDocThumbnail('Vehicle', Icons.directions_car, onboarding.vehiclePhotoUrl != null, isDark),
+                              const SizedBox(width: AppSpacing.sm),
+                              _buildDocThumbnail('Aadhar Front', Icons.credit_card, onboarding.aadharFrontUrl != null, isDark),
+                              const SizedBox(width: AppSpacing.sm),
+                              _buildDocThumbnail('Aadhar Back', Icons.credit_card_outlined, onboarding.aadharBackUrl != null, isDark),
+                              const SizedBox(width: AppSpacing.sm),
+                              _buildDocThumbnail('PAN Card', Icons.assignment_ind, onboarding.panCardUrl != null, isDark),
+                            ],
+                          ),
                         ),
                       ],
                     ),
