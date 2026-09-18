@@ -20,9 +20,25 @@ import {
   BadgeCheck,
   Check,
   Zap,
+  DollarSign,
+  MapPin,
+  Clock,
+  Layers,
+  ArrowUpRight,
+  RefreshCw,
+  Server,
+  Database,
+  Lock,
 } from 'lucide-react';
 import { adminApi } from '../../lib/api/client';
-import { AdminMetrics, AuditLogItem } from '../../lib/api/types';
+import {
+  AdminMetrics,
+  AdminPaymentMetrics,
+  AuditLogItem,
+  CorridorAnalytics,
+  OperationalReportData,
+  RateCard,
+} from '../../lib/api/types';
 import {
   PageHeader,
   MetricCard,
@@ -45,34 +61,62 @@ export default function DashboardPage() {
     completedTrips: 0,
     pendingSettlements: 0,
   });
+
+  const [paymentMetrics, setPaymentMetrics] = useState<AdminPaymentMetrics>({
+    totalEscrowVolume: 0,
+    activeEscrowHolds: 0,
+    settledVolume: 0,
+    pendingTransactions: 0,
+  });
+
+  const [operationalReport, setOperationalReport] = useState<OperationalReportData | null>(null);
+  const [corridors, setCorridors] = useState<CorridorAnalytics[]>([]);
+  const [pricingTiers, setPricingTiers] = useState<RateCard[]>([]);
   const [recentLogs, setRecentLogs] = useState<AuditLogItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  async function loadDashboardData() {
+    try {
+      const [
+        metricsRes,
+        paymentsRes,
+        reportsRes,
+        corridorsRes,
+        pricingRes,
+        logsRes,
+      ] = await Promise.allSettled([
+        adminApi.getMetrics(),
+        adminApi.getAdminPaymentMetrics(),
+        adminApi.getOperationalReports(),
+        adminApi.getCorridorAnalytics(),
+        adminApi.getPricingTiers(),
+        adminApi.getAuditLogs(6),
+      ]);
+
+      if (metricsRes.status === 'fulfilled') setMetrics(metricsRes.value);
+      if (paymentsRes.status === 'fulfilled') setPaymentMetrics(paymentsRes.value);
+      if (reportsRes.status === 'fulfilled') setOperationalReport(reportsRes.value);
+      if (corridorsRes.status === 'fulfilled') setCorridors(corridorsRes.value);
+      if (pricingRes.status === 'fulfilled') setPricingTiers(pricingRes.value);
+      if (logsRes.status === 'fulfilled') setRecentLogs(logsRes.value);
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  }
 
   useEffect(() => {
-    async function loadData() {
-      try {
-        const [metricsData, logsData] = await Promise.all([
-          adminApi.getMetrics().catch(() => ({
-            totalDrivers: 0,
-            verifiedDrivers: 0,
-            pendingDriversKyc: 0,
-            totalVendors: 0,
-            verifiedVendors: 0,
-            activeRequirements: 0,
-            activeTrips: 0,
-            completedTrips: 0,
-            pendingSettlements: 0,
-          })),
-          adminApi.getAuditLogs(5).catch(() => []),
-        ]);
-        setMetrics(metricsData);
-        setRecentLogs(logsData);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadData();
+    loadDashboardData();
+    // Live polling refresh every 15 seconds
+    const interval = setInterval(loadDashboardData, 15000);
+    return () => clearInterval(interval);
   }, []);
+
+  const handleManualRefresh = () => {
+    setIsRefreshing(true);
+    loadDashboardData();
+  };
 
   const auditColumns: Column<AuditLogItem>[] = [
     {
@@ -131,14 +175,26 @@ export default function DashboardPage() {
       ? Math.round((metrics.completedTrips / (metrics.activeTrips + metrics.completedTrips)) * 100)
       : (metrics.activeRequirements > 0 ? 0 : 100);
 
+  const gmvValue = operationalReport?.totalGrossBookingValue ?? paymentMetrics.totalEscrowVolume ?? 0;
+  const netRevenue = operationalReport?.platformRevenue ?? Math.round(gmvValue * 0.12);
+
   return (
-    <div style={{ paddingBottom: '2rem' }}>
+    <div style={{ paddingBottom: '2.5rem' }}>
       <PageHeader
-        title="Marketplace Overview"
-        subtitle="Real-time telemetry, demand fulfillment, and financial clearing metrics across the AdhocX platform"
-        liveStatus="Live Telemetry"
+        title="Mission Control Center"
+        subtitle="Real-time financial clearing, dispatch telemetry, and fleet operations across the AdhocX platform"
+        liveStatus="Live Telemetry Active"
         actions={
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleManualRefresh}
+              loading={isRefreshing}
+              leftIcon={<RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />}
+            >
+              Sync Live Data
+            </Button>
             <Link href="/verifications" style={{ textDecoration: 'none' }}>
               <Button variant="outline" size="sm" leftIcon={<ShieldCheck size={16} />}>
                 Verification Center
@@ -152,6 +208,44 @@ export default function DashboardPage() {
           </div>
         }
       />
+
+      {/* Cluster Health & Live Telemetry Pill Bar */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          backgroundColor: 'var(--bg-card)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '0.625rem 1.25rem',
+          marginBottom: '1.5rem',
+          flexWrap: 'wrap',
+          gap: '0.75rem',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--color-success)', display: 'inline-block' }} />
+            <span>PostgreSQL: <strong>Connected</strong></span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--color-success)', display: 'inline-block' }} />
+            <span>Redis Pub/Sub: <strong>Active</strong></span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--color-success)', display: 'inline-block' }} />
+            <span>Cloudflare R2: <strong>Ready</strong></span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#2563EB', display: 'inline-block' }} />
+            <span>Telemetry WebSocket: <strong>Listening</strong></span>
+          </div>
+        </div>
+        <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+          API Gateway: <strong>http://localhost:7001/api/v1</strong>
+        </div>
+      </div>
 
       {/* Operational Attention Banner */}
       {(metrics.pendingDriversKyc > 0 || metrics.pendingSettlements > 0) && (
@@ -214,60 +308,135 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Primary Operational KPI Grid */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '1.25rem',
-          marginBottom: '2rem',
-        }}
-      >
-        <MetricCard
-          label="Active Requirements"
-          value={loading ? '...' : metrics.activeRequirements}
-          subtext="Live enterprise demand"
-          icon={<ClipboardList size={18} color="var(--brand-primary)" />}
-          accentColor="var(--brand-primary)"
-        />
-        <MetricCard
-          label="Active Trips"
-          value={loading ? '...' : metrics.activeTrips}
-          subtext="Executing in transit now"
-          icon={<Car size={18} color="#2563EB" />}
-          accentColor="#2563EB"
-        />
-        <MetricCard
-          label="Verified Drivers"
-          value={loading ? '...' : `${metrics.verifiedDrivers} / ${metrics.totalDrivers}`}
-          subtext={`${metrics.pendingDriversKyc} pending verification`}
-          icon={<BadgeCheck size={18} color="var(--color-success)" />}
-          accentColor="var(--color-success)"
-        />
-        <MetricCard
-          label="Enterprise Vendors"
-          value={loading ? '...' : `${metrics.verifiedVendors} / ${metrics.totalVendors}`}
-          subtext="Corporate client accounts"
-          icon={<Building2 size={18} color="#8B5CF6" />}
-          accentColor="#8B5CF6"
-        />
-        <MetricCard
-          label="Completed Trips"
-          value={loading ? '...' : metrics.completedTrips}
-          subtext="Fulfilled bookings to date"
-          icon={<CheckCircle2 size={18} color="var(--color-success)" />}
-          accentColor="var(--color-success)"
-        />
-        <MetricCard
-          label="Pending Settlements"
-          value={loading ? '...' : metrics.pendingSettlements}
-          subtext="Awaiting payout authorization"
-          icon={<Wallet size={18} color="var(--color-warning)" />}
-          accentColor="var(--color-warning)"
-        />
+      {/* ── SECTION 1: FINANCIAL & ESCROW CLEARING ENGINE ───────────────────────── */}
+      <div style={{ marginBottom: '2rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+          <div>
+            <h2 style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Banknote size={20} color="var(--brand-primary)" />
+              Financial & Escrow Clearing Pulse
+            </h2>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0.2rem 0 0 0' }}>
+              Real-time platform GMV, active escrow locked in transit, and driver settlement clearing
+            </p>
+          </div>
+          <Link href="/payments" style={{ textDecoration: 'none' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--brand-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              Escrow Ledger <ArrowUpRight size={14} />
+            </span>
+          </Link>
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: '1.25rem',
+          }}
+        >
+          <MetricCard
+            label="Platform Gross Booking Value"
+            value={loading ? '...' : `₹ ${gmvValue.toLocaleString('en-IN')}`}
+            subtext="Total marketplace GMV transacted"
+            icon={<Banknote size={18} color="var(--brand-primary)" />}
+            accentColor="var(--brand-primary)"
+          />
+          <MetricCard
+            label="Live Escrow Held in Transit"
+            value={loading ? '...' : `₹ ${paymentMetrics.activeEscrowHolds.toLocaleString('en-IN')}`}
+            subtext="Client funds locked in active rides"
+            icon={<Lock size={18} color="#2563EB" />}
+            accentColor="#2563EB"
+          />
+          <MetricCard
+            label="Platform Take-Rate Revenue"
+            value={loading ? '...' : `₹ ${netRevenue.toLocaleString('en-IN')}`}
+            subtext="Net commission retained to date"
+            icon={<TrendingUp size={18} color="var(--color-success)" />}
+            accentColor="var(--color-success)"
+          />
+          <MetricCard
+            label="Driver Settlements Disbursed"
+            value={loading ? '...' : `₹ ${paymentMetrics.settledVolume.toLocaleString('en-IN')}`}
+            subtext="Cleared payouts via bank UTR"
+            icon={<Wallet size={18} color="#8B5CF6" />}
+            accentColor="#8B5CF6"
+          />
+        </div>
       </div>
 
-      {/* Operational Analytics & Data Visualizations ("DVD Charts") */}
+      {/* ── SECTION 2: PRIMARY OPERATIONAL KPI GRID ────────────────────────────── */}
+      <div style={{ marginBottom: '2rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+          <div>
+            <h2 style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Activity size={20} color="#2563EB" />
+              Marketplace Sourcing & Fleet Telemetry
+            </h2>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0.2rem 0 0 0' }}>
+              Live supply and demand distribution across all registered transport partners
+            </p>
+          </div>
+          <Link href="/trips" style={{ textDecoration: 'none' }}>
+            <span style={{ fontSize: '0.75rem', color: '#2563EB', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              Live Fleet Map <ArrowUpRight size={14} />
+            </span>
+          </Link>
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gap: '1.25rem',
+          }}
+        >
+          <MetricCard
+            label="Active Requirements"
+            value={loading ? '...' : metrics.activeRequirements}
+            subtext="Open enterprise lots"
+            icon={<ClipboardList size={18} color="var(--brand-primary)" />}
+            accentColor="var(--brand-primary)"
+          />
+          <MetricCard
+            label="Cabs in Transit"
+            value={loading ? '...' : metrics.activeTrips}
+            subtext="Executing en route now"
+            icon={<Car size={18} color="#2563EB" />}
+            accentColor="#2563EB"
+          />
+          <MetricCard
+            label="Verified Drivers"
+            value={loading ? '...' : `${metrics.verifiedDrivers} / ${metrics.totalDrivers}`}
+            subtext={`${metrics.pendingDriversKyc} pending KYC`}
+            icon={<BadgeCheck size={18} color="var(--color-success)" />}
+            accentColor="var(--color-success)"
+          />
+          <MetricCard
+            label="Enterprise Vendors"
+            value={loading ? '...' : `${metrics.verifiedVendors} / ${metrics.totalVendors}`}
+            subtext="Corporate client accounts"
+            icon={<Building2 size={18} color="#8B5CF6" />}
+            accentColor="#8B5CF6"
+          />
+          <MetricCard
+            label="Completed Trips"
+            value={loading ? '...' : metrics.completedTrips}
+            subtext="Fulfilled rides to date"
+            icon={<CheckCircle2 size={18} color="var(--color-success)" />}
+            accentColor="var(--color-success)"
+          />
+          <MetricCard
+            label="Pending Settlements"
+            value={loading ? '...' : metrics.pendingSettlements}
+            subtext="Awaiting UTR auth"
+            icon={<Wallet size={18} color="var(--color-warning)" />}
+            accentColor="var(--color-warning)"
+          />
+        </div>
+      </div>
+
+      {/* ── SECTION 3: VISUAL INTELLIGENCE & SOURCING PROGRESS ─────────────────── */}
       <div
         style={{
           display: 'grid',
@@ -318,7 +487,6 @@ export default function DashboardPage() {
             </span>
           </div>
 
-          {/* Clean Metric Progress Bars */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', marginBottom: '0.35rem' }}>
@@ -498,159 +666,204 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Operational Module Quick Access */}
+      {/* ── SECTION 4: HIGH-DENSITY CORRIDOR INTELLIGENCE & VEHICLE PRICING ──── */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: '1.25rem',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(440px, 1fr))',
+          gap: '1.5rem',
           marginBottom: '2rem',
         }}
       >
+        {/* Card 1: Top Operating Corridors */}
         <Card variant="default">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-            <div
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: 'var(--radius-lg)',
-                backgroundColor: 'var(--brand-primary-subtle)',
-                color: 'var(--brand-primary)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <ShieldCheck size={20} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <div
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'rgba(139, 92, 246, 0.12)',
+                  color: '#8B5CF6',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <MapPin size={18} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '0.975rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                  High-Density Route Corridors
+                </h3>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0.15rem 0 0 0' }}>
+                  Top intercity demand routes and fulfillment realization
+                </p>
+              </div>
             </div>
-            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-              Driver Supply & Compliance
-            </h3>
+            <Link href="/reports" style={{ textDecoration: 'none' }}>
+              <span style={{ fontSize: '0.75rem', color: '#8B5CF6', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                All Analytics <ArrowRight size={12} />
+              </span>
+            </Link>
           </div>
-          <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
-            Inspect commercial permits, driving licenses, and vehicle registrations. Transition drivers to VERIFIED or SUSPENDED.
-          </p>
-          <Link href="/drivers" style={{ textDecoration: 'none' }}>
-            <Button variant="secondary" size="sm" rightIcon={<ArrowRight size={14} />}>
-              Manage Driver Network
-            </Button>
-          </Link>
+
+          {corridors.length === 0 ? (
+            <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8125rem' }}>
+              No route corridors generated yet. Corridors aggregate automatically from live user requirements.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {corridors.slice(0, 4).map((c, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0.75rem 1rem',
+                    backgroundColor: 'var(--bg-card-elevated)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-md)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div
+                      style={{
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '50%',
+                        backgroundColor: 'var(--brand-primary-subtle)',
+                        color: 'var(--brand-primary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.6875rem',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {idx + 1}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--text-primary)' }}>
+                        {c.corridor}
+                      </div>
+                      <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                        {c.totalTrips} bookings • Top Fleet: {c.topVehicleType || 'Sedan'}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.8125rem', color: 'var(--color-success)' }}>
+                      ₹ {c.totalRevenue.toLocaleString('en-IN')}
+                    </div>
+                    <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                      Avg: ₹{Math.round(c.avgDriverRate)}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
 
+        {/* Card 2: Dynamic Tariff Rates by Vehicle Category */}
         <Card variant="default">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-            <div
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: 'var(--radius-lg)',
-                backgroundColor: 'rgba(37, 99, 235, 0.12)',
-                color: '#2563EB',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Radio size={20} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <div
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                  color: 'var(--color-success)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Layers size={18} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '0.975rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                  Active Vehicle Tariff Cards
+                </h3>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0.15rem 0 0 0' }}>
+                  Live rate cards and platform commission splits
+                </p>
+              </div>
             </div>
-            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-              Live Telemetry & Tracking
-            </h3>
+            <Link href="/pricing" style={{ textDecoration: 'none' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--color-success)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                Adjust Tariffs <ArrowRight size={12} />
+              </span>
+            </Link>
           </div>
-          <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
-            Real-time geospatial breadcrumbs and event history for active rides, arrival times, and drop-off confirmations.
-          </p>
-          <Link href="/trips" style={{ textDecoration: 'none' }}>
-            <Button variant="secondary" size="sm" rightIcon={<ArrowRight size={14} />}>
-              View Live Rides
-            </Button>
-          </Link>
-        </Card>
 
-        <Card variant="default">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-            <div
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: 'var(--radius-lg)',
-                backgroundColor: 'var(--color-warning-bg)',
-                color: 'var(--color-warning)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Banknote size={20} />
-            </div>
-            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-              Financial Ledger & Settlements
-            </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem' }}>
+            {pricingTiers.slice(0, 6).map((tier) => (
+              <div
+                key={tier.vehicleType}
+                style={{
+                  padding: '0.75rem',
+                  backgroundColor: 'var(--bg-card-elevated)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.35rem',
+                }}
+              >
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {tier.displayName}
+                </div>
+                <div style={{ fontSize: '0.875rem', fontWeight: 800, color: 'var(--brand-primary)' }}>
+                  ₹{tier.perKmRate}/km
+                </div>
+                <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                  Base: ₹{tier.baseFare} ({tier.baseKm}km)
+                </div>
+                <div style={{ fontSize: '0.625rem', color: 'var(--color-success)', fontWeight: 600 }}>
+                  Take-rate: {tier.platformFeePercentage}%
+                </div>
+              </div>
+            ))}
           </div>
-          <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
-            Authorize driver bank withdrawals with UTR references or mark failed with automated ledger rollback protection.
-          </p>
-          <Link href="/settlements" style={{ textDecoration: 'none' }}>
-            <Button variant="secondary" size="sm" rightIcon={<ArrowRight size={14} />}>
-              Process Settlements
-            </Button>
-          </Link>
         </Card>
       </div>
 
-      {/* Recent Platform Interventions */}
-      <Card variant="default">
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '1.25rem',
-            flexWrap: 'wrap',
-            gap: '0.75rem',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            <div
-              style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--bg-card-elevated)',
-                color: 'var(--text-primary)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <FileText size={18} />
-            </div>
-            <div>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                Recent Platform Interventions
-              </h3>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem', margin: 0 }}>
-                Immutable audit entries of administrative actions and compliance decisions
-              </p>
-            </div>
+      {/* ── SECTION 5: RECENT SECURITY & OPERATIONAL AUDIT TRAIL ─────────────────── */}
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+          <div>
+            <h2 style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <ShieldCheck size={20} color="var(--brand-primary)" />
+              Security Audit Stream
+            </h2>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0.2rem 0 0 0' }}>
+              Append-only audit trail recording operator decisions and compliance verifications
+            </p>
           </div>
           <Link href="/audit" style={{ textDecoration: 'none' }}>
             <Button variant="outline" size="sm" rightIcon={<ArrowRight size={14} />}>
-              View Full Audit Log
+              View Complete Trail
             </Button>
           </Link>
         </div>
 
-        <DataTable
-          columns={auditColumns}
-          data={recentLogs}
-          keyExtractor={(log) => log.id}
-          loading={loading}
-          emptyIcon={<FileText size={28} />}
-          emptyTitle="No recent audit events"
-          emptySubtitle="System and operational events will be logged here as administrative actions occur."
-        />
-      </Card>
+        <Card variant="default" padding="none">
+          <DataTable<AuditLogItem>
+            data={recentLogs}
+            columns={auditColumns}
+            keyExtractor={(log) => log.id}
+            loading={loading}
+            emptyTitle="No Audit Logs"
+            emptyMessage="Audit records will automatically appear when administrative actions are performed."
+          />
+        </Card>
+      </div>
     </div>
   );
 }

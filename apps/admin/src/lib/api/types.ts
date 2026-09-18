@@ -193,7 +193,7 @@ export interface SettlementListItem {
   createdAt: string;
 }
 
-export interface AuditLogItem {
+export interface AuditLogItem extends Record<string, any> {
   id: string;
   actorId?: string;
   actorPhone?: string;
