@@ -1,10 +1,25 @@
 {
   "name": "@adhocx/marketing",
-  "version": "1.0.0",
+  "type": "module",
+  "version": "2.0.0",
   "private": true,
-  "description": "AdhocX Marketing & B2B Commercial Transport Portal",
+  "description": "AdhocX Marketing & B2B Commercial Transport Portal — Astro",
   "scripts": {
-    "dev": "npx serve . -l 3000",
-    "build": "echo 'Static marketing assets ready'"
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/react": "^3.6.0",
+    "@astrojs/vercel": "^7.8.0",
+    "astro": "^4.16.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.1",
+    "typescript": "^5.6.2"
   }
 }

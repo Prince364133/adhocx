@@ -1,0 +1,347 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": "AdhocX Driver Partner Portal — ₹2,000 Joining Bonus (T&C Apply)",
+  "description": "Join India's fastest-growing corporate commercial mobility network in Hyderabad. Get ₹2,000 bonus — join us today. Terms and conditions apply.",
+  "publisher": {
+    "@type": "Organization",
+    "name": "AdhocX Technologies Private Limited",
+    "url": "https://www.adhocx.com"
+  },
+  "mainEntity": {
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "How does the ₹2,000 joining bonus work?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Join AdhocX as a commercial 4 or 7 seater driver partner and complete your initial onboarding verification and trips. Terms and conditions apply for bonus disbursement directly to your bank."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What vehicle categories do you support?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "We exclusively support commercial yellow-plate 4-seater sedans (Dzire, Etios) and 6/7-seater MUVs and SUVs (Ertiga, XL6, Innova Crysta)."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How often do I get paid?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Driver partners receive direct payouts to their bank account every Monday, with on-demand instant withdrawal within 1 hour."
+        }
+      }
+    ]
+  }
+};
+---
+
+<BaseLayout
+  title="Drive with AdhocX — ₹2,000 Bonus Join Us (Terms & Conditions Apply)"
+  description="Join India's premier B2B commercial transport network in Hyderabad for 4 & 7 seater cabs. High-value pre-scheduled corporate routes, 0% promo commission, and ₹2,000 bonus join us (T&C apply)."
+  canonical="https://www.adhocx.com/drivers"
+  activeNav="drivers"
+  jsonLd={jsonLd}
+>
+  <!-- Driver Hero -->
+  <section class="hero-section" style="background: linear-gradient(180deg, #F6F3FF 0%, #ffffff 100%);">
+    <div class="container hero-grid">
+      <div class="hero-content">
+        <div class="hero-tag">
+          <span class="badge badge-primary">🎉 ₹2,000 Bonus Join Us • T&C Apply*</span>
+          <span class="badge badge-info">4 & 7 Seater Commercial Cabs</span>
+        </div>
+        <h1 class="display-title" style="color: #0f172a;">
+          Drive Smarter. <br />
+          <span style="color: var(--color-primary-600);">Earn Higher. Guaranteed.</span>
+        </h1>
+        <p class="body-large">
+          Join AdhocX and connect directly to high-tariff enterprise employee shifts, airport executive transfers, and corporate bookings for 4-seater sedans and 7-seater MUVs. No dry runs — get pre-scheduled corporate trips.
+        </p>
+        <div class="hero-actions">
+          <a href="#onboarding" class="btn btn-primary btn-large">
+            Document Checklist & Onboarding →
+          </a>
+          <a href="https://play.google.com/store" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-large">
+            Download Driver App
+          </a>
+        </div>
+        <div class="hero-metrics metrics-4" style="border-top: 1px solid var(--color-border);">
+          <div class="metric-item">
+            <div class="metric-val" style="color: var(--color-primary-600);">₹2,000*</div>
+            <div class="metric-lbl">Joining Bonus (T&C Apply)</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-val" style="color: var(--color-primary-600);">1 Hour</div>
+            <div class="metric-lbl">Instant Bank Payout</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-val" style="color: var(--color-success);">0%</div>
+            <div class="metric-lbl">Promo Commission</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-val" style="color: var(--color-primary-600);">4 & 7 Seater</div>
+            <div class="metric-lbl">Exclusive Fleets</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bonus Card Highlight -->
+      <div class="hero-card-wrapper" data-animate>
+        <div class="card" style="border: 2px solid var(--color-primary-500); padding: var(--space-8); box-shadow: var(--shadow-xl); background: #ffffff;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4);">
+            <span class="badge badge-primary">Launch Incentive</span>
+            <span style="font-weight: 800; color: var(--color-primary-600); font-size: 1.25rem;">+₹2,000 Bonus*</span>
+          </div>
+
+          <h3 class="h3-title" style="margin-bottom: var(--space-3); color: #0f172a;">Join Us & Get ₹2,000 Bonus*</h3>
+          <p class="body-text" style="margin-bottom: var(--space-6); color: var(--color-text-secondary);">
+            Special partner incentive for commercial yellow-plate 4-seater and 7-seater drivers in Hyderabad. Direct bank deposit upon onboarding. Terms and conditions apply.
+          </p>
+
+          <!-- Feature Highlights -->
+          <div style="display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-6);">
+            <div style="display: flex; align-items: center; gap: 12px; background: #F6F3FF; padding: 12px 14px; border-radius: 8px; border-left: 4px solid var(--color-primary-600);">
+              <div style="font-size: 1.25rem;">🚗</div>
+              <div>
+                <div style="font-weight: 700; font-size: 0.9rem; color: var(--color-primary-900);">4-Seater Sedans</div>
+                <div style="font-size: 0.8rem; color: var(--color-text-secondary);">Dzire, Etios, Aura — steady daily corporate shift trips</div>
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 12px; background: #F6F3FF; padding: 12px 14px; border-radius: 8px; border-left: 4px solid var(--color-primary-600);">
+              <div style="font-size: 1.25rem;">🚙</div>
+              <div>
+                <div style="font-weight: 700; font-size: 0.9rem; color: var(--color-primary-900);">6 & 7 Seater MUV / SUV</div>
+                <div style="font-size: 0.8rem; color: var(--color-text-secondary);">Ertiga, XL6, Innova Crysta — premium executive & airport tariffs</div>
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 12px; background: #dcfce7; padding: 12px 14px; border-radius: 8px; border-left: 4px solid #16a34a;">
+              <div style="font-size: 1.25rem;">💳</div>
+              <div>
+                <div style="font-weight: 700; font-size: 0.9rem; color: #166534;">₹2,000 Bonus Credited to Bank</div>
+                <div style="font-size: 0.75rem; color: #15803d;">Direct IMPS / UPI payout • Terms and conditions apply</div>
+              </div>
+            </div>
+          </div>
+
+          <a href="#onboarding" class="btn btn-primary" style="width: 100%; text-align: center; display: block;">
+            Join Us & Claim ₹2,000 Bonus* →
+          </a>
+          <div style="font-size: 0.7rem; color: var(--color-text-muted); text-align: center; margin-top: 8px;">
+            * Terms and conditions apply. Applicable for verified commercial drivers only.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Driver Benefits 4-Column Grid -->
+  <section class="section-padding">
+    <div class="container">
+      <div class="section-header">
+        <span class="badge badge-primary">Partner First</span>
+        <h2 class="h2-title">Why Hyderabad Commercial Drivers Choose AdhocX</h2>
+        <p class="body-large">Built with dignity, fair pricing, and full financial transparency for 4 & 7 seater drivers.</p>
+      </div>
+
+      <div class="portal-grid">
+        <div class="card" data-animate>
+          <div style="font-size: 2.25rem; margin-bottom: var(--space-3);">📅</div>
+          <h3 class="h4-title" style="margin-bottom: 8px;">Pre-Scheduled Corporate Shifts</h3>
+          <p class="body-text">
+            No unpredictable roaming or dry running. Get confirmed airport pickups, tech-park shift drops, and executive duties.
+          </p>
+        </div>
+
+        <div class="card" data-animate>
+          <div style="font-size: 2.25rem; margin-bottom: var(--space-3);">⚡</div>
+          <h3 class="h4-title" style="margin-bottom: 8px;">1-Hour Bank Payouts</h3>
+          <p class="body-text">
+            Automatic weekly settlement every Monday, or trigger instant on-demand cashouts directly to your bank account within 1 hour.
+          </p>
+        </div>
+
+        <div class="card" data-animate>
+          <div style="font-size: 2.25rem; margin-bottom: var(--space-3);">🛡️</div>
+          <h3 class="h4-title" style="margin-bottom: 8px;">₹5 Lakh Accidental Cover</h3>
+          <p class="body-text">
+            Every active AdhocX partner driver receives comprehensive group accidental insurance coverage of up to ₹5,00,000.
+          </p>
+        </div>
+
+        <div class="card" data-animate>
+          <div style="font-size: 2.25rem; margin-bottom: var(--space-3);">🤝</div>
+          <h3 class="h4-title" style="margin-bottom: 8px;">24/7 Dedicated Driver Helpline</h3>
+          <p class="body-text">
+            Real human support staff in Telugu, Hindi, and English ready to assist with route issues, toll disputes, or emergencies.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step-by-Step Onboarding Flow & Document Checklist -->
+  <section class="section-padding" id="onboarding" style="background: var(--color-surface-muted);">
+    <div class="container">
+      <div class="section-header">
+        <span class="badge badge-primary">Simple Onboarding</span>
+        <h2 class="h2-title">Get Verified in 4 Quick Steps (Under 24 Hours)</h2>
+        <p class="body-large">Our digital document verification gets you on the road and earning immediately.</p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-6); margin-bottom: var(--space-10);">
+        <div class="card" style="position: relative;" data-animate>
+          <div class="step-number">1</div>
+          <h3 class="h4-title" style="margin-bottom: 8px;">Register & Install App</h3>
+          <p class="body-text">
+            Download the AdhocX Driver Partner app or submit your mobile number on our portal.
+          </p>
+        </div>
+
+        <div class="card" style="position: relative;" data-animate>
+          <div class="step-number">2</div>
+          <h3 class="h4-title" style="margin-bottom: 8px;">Upload KYC & Vehicle Docs</h3>
+          <p class="body-text">
+            Upload photos of your Commercial DL, Yellow Plate RC (4 or 7 Seater), Insurance, and Fitness certificates.
+          </p>
+        </div>
+
+        <div class="card" style="position: relative;" data-animate>
+          <div class="step-number">3</div>
+          <h3 class="h4-title" style="margin-bottom: 8px;">24-Hr Verification</h3>
+          <p class="body-text">
+            Our ops team verifies commercial yellow board compliance and activates your driver account.
+          </p>
+        </div>
+
+        <div class="card" style="position: relative;" data-animate>
+          <div class="step-number" style="background: var(--color-primary-100); color: var(--color-primary-600);">4</div>
+          <h3 class="h4-title" style="margin-bottom: 8px;">Accept Trips & Earn Bonus*</h3>
+          <p class="body-text">
+            Start accepting corporate trips, fulfill requirements, and receive your ₹2,000 bonus (T&C apply).
+          </p>
+        </div>
+      </div>
+
+      <!-- Required Document Checklist Box -->
+      <div class="card" style="padding: var(--space-8); border: 1px solid var(--color-border); max-width: 800px; margin: 0 auto;" data-animate>
+        <h3 class="h3-title" style="margin-bottom: var(--space-4); text-align: center;">Required Document Checklist</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-4);">
+          <div style="display: flex; align-items: flex-start; gap: 10px;">
+            <span style="color: var(--color-primary-600); font-weight: 800; font-size: 1.1rem;">✓</span>
+            <div>
+              <strong>Commercial Driving License (TR Badge)</strong>
+              <div class="text-caption">Valid transport license issued by RTA</div>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: flex-start; gap: 10px;">
+            <span style="color: var(--color-primary-600); font-weight: 800; font-size: 1.1rem;">✓</span>
+            <div>
+              <strong>Yellow Board Vehicle RC (4 or 7 Seater)</strong>
+              <div class="text-caption">Commercial taxi registration document</div>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: flex-start; gap: 10px;">
+            <span style="color: var(--color-primary-600); font-weight: 800; font-size: 1.1rem;">✓</span>
+            <div>
+              <strong>Commercial Vehicle Insurance</strong>
+              <div class="text-caption">Valid commercial policy</div>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: flex-start; gap: 10px;">
+            <span style="color: var(--color-primary-600); font-weight: 800; font-size: 1.1rem;">✓</span>
+            <div>
+              <strong>Vehicle Fitness Certificate (FC)</strong>
+              <div class="text-caption">Mandatory valid commercial fitness certificate</div>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: flex-start; gap: 10px;">
+            <span style="color: var(--color-primary-600); font-weight: 800; font-size: 1.1rem;">✓</span>
+            <div>
+              <strong>Aadhaar Card & PAN Card</strong>
+              <div class="text-caption">For identity & tax verification</div>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: flex-start; gap: 10px;">
+            <span style="color: var(--color-primary-600); font-weight: 800; font-size: 1.1rem;">✓</span>
+            <div>
+              <strong>Bank Passbook / UPI ID</strong>
+              <div class="text-caption">For direct instant weekly earnings settlement</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Driver FAQ Section -->
+  <section class="section-padding">
+    <div class="container" style="max-width: 800px;">
+      <div class="section-header" style="text-align: center;">
+        <span class="badge badge-primary">Driver Questions</span>
+        <h2 class="h2-title">Frequently Asked Questions</h2>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: var(--space-4);">
+        <details class="card" style="padding: var(--space-4) var(--space-6); cursor: pointer;">
+          <summary style="font-weight: 700; font-size: 1.05rem; color: var(--color-text);">
+            How does the ₹2,000 bonus work?
+          </summary>
+          <p class="body-text" style="margin-top: var(--space-3); color: var(--color-text-muted);">
+            Join AdhocX as a commercial driver partner, complete your onboarding documentation, and start fulfilling corporate rides. The ₹2,000 bonus is credited directly into your verified bank account. Terms and conditions apply.
+          </p>
+        </details>
+
+        <details class="card" style="padding: var(--space-4) var(--space-6); cursor: pointer;">
+          <summary style="font-weight: 700; font-size: 1.05rem; color: var(--color-text);">
+            Which vehicles are eligible?
+          </summary>
+          <p class="body-text" style="margin-top: var(--space-3); color: var(--color-text-muted);">
+            We cater exclusively to commercial yellow-plate 4-seater sedans (Maruti Dzire, Toyota Etios, Hyundai Aura) and 6/7-seater MUVs and SUVs (Maruti Ertiga, XL6, Toyota Innova Crysta). Private white-plate cars and large buses/tempo travellers are not supported.
+          </p>
+        </details>
+
+        <details class="card" style="padding: var(--space-4) var(--space-6); cursor: pointer;">
+          <summary style="font-weight: 700; font-size: 1.05rem; color: var(--color-text);">
+            What is the 1-Hour Bank Payout guarantee?
+          </summary>
+          <p class="body-text" style="margin-top: var(--space-3); color: var(--color-text-muted);">
+            In addition to our regular scheduled Monday settlements, driver partners can request on-demand cashouts anytime via the app. Funds are transferred via IMPS/UPI rails directly into your bank account within 1 hour.
+          </p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Banner -->
+  <section class="cta-section">
+    <div class="container" style="position: relative; z-index: 1;">
+      <h2 class="h2-title" style="margin-bottom: var(--space-4);">Ready to Earn More with Every Kilometre?</h2>
+      <p class="body-large" style="max-width: 560px; margin: 0 auto var(--space-8);">
+        Download the AdhocX Driver App today, complete your verification, and join us to claim your ₹2,000 bonus (Terms & Conditions Apply*).
+      </p>
+      <div class="cta-actions" style="margin-top: 0;">
+        <a href="https://play.google.com/store" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-large">
+          Download Driver App (Google Play)
+        </a>
+        <a href="tel:+919390366116" class="btn btn-secondary btn-large">
+          Call Driver Ops (+91-9390366116)
+        </a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

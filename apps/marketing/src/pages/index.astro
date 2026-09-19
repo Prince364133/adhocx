@@ -1,0 +1,301 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "AdhocX Technologies Private Limited",
+  "url": "https://www.adhocx.com",
+  "logo": "https://www.adhocx.com/assets/logo.png",
+  "contactPoint": {
+    "@type": "ContactPoint",
+    "email": "adhocx.ofc@gmail.com",
+    "telephone": "+91-9390366116",
+    "contactType": "customer service",
+    "areaServed": "IN"
+  }
+};
+---
+
+<BaseLayout
+  title="AdhocX — B2B Commercial Transport & Driver Fulfillment Marketplace"
+  description="AdhocX connects enterprise transport vendors with verified commercial 4 & 7 seater driver partners in Hyderabad. Instant automatic assignment, transparent rate cards, 1-hour bank payouts, and guaranteed SLAs."
+  canonical="https://www.adhocx.com/"
+  jsonLd={jsonLd}
+>
+  <!-- Hero Section -->
+  <section class="hero-section" id="hero">
+    <div class="container hero-grid">
+      <div class="hero-content">
+        <div class="hero-tag">
+          <span class="badge badge-primary">✓ Enterprise B2B Transport Marketplace</span>
+          <span class="badge badge-info">Hyderabad 4 & 7 Seater Fleets</span>
+        </div>
+        <h1 class="display-title">Reliable, Fast & Operational Commercial Transport.</h1>
+        <p class="body-large">
+          AdhocX connects enterprise transport vendors with verified commercial 4-seater and 7-seater driver and vehicle partners. Built for operational clarity, instant driver assignment, guaranteed rates, and 1-hour bank payouts.
+        </p>
+        <div class="hero-actions">
+          <a href="/vendors" class="btn btn-primary btn-large" id="btn-hero-enterprise">
+            Source Corporate Fleet
+          </a>
+          <a href="/drivers" class="btn btn-secondary btn-large" id="btn-hero-driver">
+            Join as Driver Partner (₹2K Bonus*)
+          </a>
+        </div>
+        <div class="hero-metrics metrics-3">
+          <div class="metric-item">
+            <div class="metric-val">15 Min</div>
+            <div class="metric-lbl">Max Search Cutoff</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-val">1 Hour</div>
+            <div class="metric-lbl">Bank Refund & Withdrawal</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-val">100%</div>
+            <div class="metric-lbl">4 & 7 Seater Yellow-Plate</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-card-side">
+        <div class="card" style="border: 1px solid var(--color-primary-300); box-shadow: var(--shadow-xl); position: relative; overflow: hidden;">
+          <div style="position: absolute; top:0; left:0; right:0; height: 4px; background: var(--color-primary-gradient);"></div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <span class="badge badge-primary">Live Dispatch Engine</span>
+            <span style="font-size: 12px; color: var(--color-success); font-weight: 600;">● Active in Hyderabad</span>
+          </div>
+          <h3 class="h3-title" style="margin-bottom: 8px;">AdhocX Centralized Fulfillment</h3>
+          <p class="body-text" style="margin-bottom: 20px;">
+            Automated pairing of corporate vendor demand with commercial 4-seater and 7-seater taxi supply across IT and industrial corridors.
+          </p>
+          <div style="background: var(--color-surface-muted); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 20px; border: 1px solid var(--color-border);">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div>
+                <span class="text-caption">Avg Assignment Time</span>
+                <div style="font-size: 18px; font-weight: 700; color: var(--color-primary-600);">&lt; 90 Seconds</div>
+              </div>
+              <div>
+                <span class="text-caption">Commercial Compliance</span>
+                <div style="font-size: 18px; font-weight: 700; color: var(--color-primary-600);">4 & 7 Seater Only</div>
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; gap: 12px;">
+            <a href="/vendors" class="btn btn-primary" style="flex: 1; justify-content: center; font-size: 14px;">
+              Vendor Portal
+            </a>
+            <a href="/drivers" class="btn btn-secondary" style="flex: 1; justify-content: center; font-size: 14px;">
+              Driver Portal
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats Bar -->
+  <section style="padding: 0 0 var(--space-12);">
+    <div class="container">
+      <div class="stats-bar" data-animate>
+        <div class="stat-item">
+          <div class="stat-value">99.4%</div>
+          <div class="stat-label">On-Time SLA</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">&lt; 15 Min</div>
+          <div class="stat-label">Instant Allocation</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">100%</div>
+          <div class="stat-label">Yellow-Plate Verified</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">₹0</div>
+          <div class="stat-label">Surcharge Guarantee</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Dual Portal Gateway -->
+  <section class="section-padding" id="portals">
+    <div class="container">
+      <div class="section-header">
+        <span class="badge badge-primary">Role-Specific Portals</span>
+        <h2 class="h2-title">Choose Your Dedicated Workspace</h2>
+        <p class="body-large">
+          AdhocX provides tailor-made tools for commercial fleet buyers and commercial driver partners.
+        </p>
+      </div>
+
+      <div class="dual-portals-grid">
+        <!-- Vendor Portal Card -->
+        <div class="portal-card portal-vendor" data-animate>
+          <div>
+            <div class="portal-card-header">
+              <div class="portal-icon-box">🏢</div>
+              <div>
+                <span class="badge badge-primary" style="margin-bottom: 4px;">For Corporate Vendors</span>
+                <h3 class="h3-title">Fleet Sourcing & Spot Cabs</h3>
+              </div>
+            </div>
+            <p class="body-text">
+              Procure reliable 4-seater and 7-seater employee transit, emergency spot cabs, and corporate fleet solutions with strict service level guarantees.
+            </p>
+            <ul class="portal-feature-list">
+              <li class="portal-feature-item">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span><strong>15-Minute Cutoff:</strong> Search ends 15 min prior to pickup for zero last-minute uncertainty.</span>
+              </li>
+              <li class="portal-feature-item">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span><strong>1-Hour Refund:</strong> Direct bank credit within 60 minutes for unfulfilled bookings.</span>
+              </li>
+              <li class="portal-feature-item">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span><strong>Auto Assignment:</strong> Programmatic match with verified yellow plate cabs.</span>
+              </li>
+            </ul>
+          </div>
+          <div style="margin-top: 24px;">
+            <a href="/vendors" class="btn btn-primary" style="width: 100%; justify-content: center;">
+              Enter Vendor Portal →
+            </a>
+          </div>
+        </div>
+
+        <!-- Driver Portal Card -->
+        <div class="portal-card portal-driver" data-animate>
+          <div>
+            <div class="portal-card-header">
+              <div class="portal-icon-box" style="background: var(--color-primary-100); color: var(--color-primary-600);">🚗</div>
+              <div>
+                <span class="badge badge-primary" style="margin-bottom: 4px;">For Commercial Drivers</span>
+                <h3 class="h3-title">Commercial Driver Partner</h3>
+              </div>
+            </div>
+            <p class="body-text">
+              Accept scheduled corporate duties, airport executive runs, and employee shifts with guaranteed fixed tariffs.
+            </p>
+            <ul class="portal-feature-list">
+              <li class="portal-feature-item">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span><strong>₹2,000 Bonus Join Us:</strong> Special incentive for verified commercial drivers (T&C Apply*).</span>
+              </li>
+              <li class="portal-feature-item">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span><strong>1-Hour Bank Payout:</strong> Instant on-demand cashouts directly to your bank account.</span>
+              </li>
+              <li class="portal-feature-item">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span><strong>0% Commission Promo:</strong> Retain 100% of your earnings during launch window.</span>
+              </li>
+            </ul>
+          </div>
+          <div style="margin-top: 24px;">
+            <a href="/drivers" class="btn btn-primary" style="width: 100%; justify-content: center;">
+              Join as Driver Partner →
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works Section -->
+  <section class="section-padding" style="background: var(--color-surface-muted);">
+    <div class="container">
+      <div class="section-header">
+        <span class="badge badge-primary">Operational Workflow</span>
+        <h2 class="h2-title">How the AdhocX Marketplace Operates</h2>
+        <p class="body-large">Built from the ground up for predictable, automated B2B fleet logistics.</p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-6);">
+        <div class="card" data-animate>
+          <div class="step-number">01</div>
+          <h3 class="h4-title" style="margin-bottom: 8px;">Corporate Demand Raised</h3>
+          <p class="body-text">
+            Enterprise clients request single or bulk 4-seater and 7-seater vehicles with pickup schedules and transparent fixed contract pricing.
+          </p>
+        </div>
+
+        <div class="card" data-animate>
+          <div class="step-number">02</div>
+          <h3 class="h4-title" style="margin-bottom: 8px;">15-Min Cutoff Assignment</h3>
+          <p class="body-text">
+            Our dispatch engine algorithmically assigns verified local commercial drivers. If unfilled 15 mins prior, automatic safety triggers activate.
+          </p>
+        </div>
+
+        <div class="card" data-animate>
+          <div class="step-number">03</div>
+          <h3 class="h4-title" style="margin-bottom: 8px;">1-Hour Bank Refund SLA</h3>
+          <p class="body-text">
+            Eligible refunds reach the vendor's bank account within 1 hour of effective cancellation trigger via instant banking rails.
+          </p>
+        </div>
+      </div>
+
+      <div class="cta-actions">
+        <a href="/vendors#corporate-form" class="btn btn-primary btn-large">
+          Source Corporate Fleet Now
+        </a>
+        <a href="/drivers" class="btn btn-secondary btn-large">
+          Drive with Us (₹2K Bonus*)
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Driver Bonus Teaser -->
+  <section class="section-padding">
+    <div class="container" style="max-width: 800px;">
+      <div class="card" style="border: 2px solid var(--color-primary-500); padding: var(--space-8); text-align: center; box-shadow: var(--shadow-xl);" data-animate>
+        <span class="badge badge-primary" style="margin-bottom: var(--space-4);">🎉 Exclusive Driver Launch Offer</span>
+        <h2 class="h2-title" style="margin-bottom: var(--space-3); color: #0f172a;">Join Us & Get ₹2,000 Bonus*</h2>
+        <p class="body-large" style="max-width: 560px; margin: 0 auto var(--space-6);">
+          Special joining incentive for verified commercial 4-seater and 7-seater drivers. Get ₹2,000 bonus — join us today. Terms and conditions apply.
+        </p>
+        <div class="bonus-specs-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: var(--space-4); margin-bottom: var(--space-6);">
+          <div style="background: var(--color-surface-muted); padding: var(--space-4); border-radius: var(--radius-lg); border: 1px solid var(--color-border);">
+            <div class="text-caption">Bonus Amount</div>
+            <div style="font-size: 1.25rem; font-weight: 800; color: var(--color-primary-600); margin-top: 4px;">₹2,000*</div>
+          </div>
+          <div style="background: var(--color-surface-muted); padding: var(--space-4); border-radius: var(--radius-lg); border: 1px solid var(--color-border);">
+            <div class="text-caption">Payout</div>
+            <div style="font-size: 1.25rem; font-weight: 800; color: var(--color-primary-600); margin-top: 4px;">Direct Bank</div>
+          </div>
+          <div style="background: var(--color-surface-muted); padding: var(--space-4); border-radius: var(--radius-lg); border: 1px solid var(--color-border);">
+            <div class="text-caption">Commission</div>
+            <div style="font-size: 1.25rem; font-weight: 800; color: var(--color-success); margin-top: 4px;">0%</div>
+          </div>
+          <div style="background: var(--color-surface-muted); padding: var(--space-4); border-radius: var(--radius-lg); border: 1px solid var(--color-border);">
+            <div class="text-caption">Daily Payout</div>
+            <div style="font-size: 1.25rem; font-weight: 800; color: var(--color-primary-600); margin-top: 4px;">1 Hour</div>
+          </div>
+        </div>
+        <a href="/drivers" class="btn btn-primary btn-large">Claim Your ₹2,000 Bonus* →</a>
+        <div style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: 10px;">
+          * ₹2,000 bonus join us — terms and conditions apply.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="cta-section">
+    <div class="container" style="position: relative; z-index: 1;">
+      <h2 class="h2-title" style="margin-bottom: var(--space-4);">Ready to Transform Your Transport Operations?</h2>
+      <p class="body-large" style="max-width: 560px; margin: 0 auto var(--space-8);">
+        Whether you're sourcing corporate fleets or looking to drive commercially — AdhocX has you covered.
+      </p>
+      <div class="cta-actions" style="margin-top: 0;">
+        <a href="/vendors" class="btn btn-primary btn-large">Source Corporate Fleet</a>
+        <a href="/drivers" class="btn btn-secondary btn-large">Join as Driver Partner</a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
