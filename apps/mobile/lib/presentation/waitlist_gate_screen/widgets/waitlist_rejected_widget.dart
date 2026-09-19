@@ -17,6 +17,8 @@ class WaitlistRejectedWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.xxl),
       child: Column(
@@ -30,7 +32,7 @@ class WaitlistRejectedWidget extends StatelessWidget {
               shape: BoxShape.circle,
               border: Border.all(color: AppColors.error, width: 2),
             ),
-            child: Icon(
+            child: const Icon(
               Icons.cancel_rounded,
               color: AppColors.error,
               size: 48,
@@ -40,7 +42,7 @@ class WaitlistRejectedWidget extends StatelessWidget {
           Text(
             'Application Requires Updates',
             style: AppTypography.display(
-              color: Colors.white,
+              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
               fontWeight: FontWeight.w800,
             ),
             textAlign: TextAlign.center,
@@ -59,7 +61,7 @@ class WaitlistRejectedWidget extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.info_outline_rounded, color: AppColors.error, size: 16),
+                    const Icon(Icons.info_outline_rounded, color: AppColors.error, size: 16),
                     const SizedBox(width: AppSpacing.xs),
                     Text(
                       'Verification Officer Feedback',
@@ -74,7 +76,7 @@ class WaitlistRejectedWidget extends StatelessWidget {
                 Text(
                   reason,
                   style: AppTypography.body(
-                    color: AppColors.errorContainer,
+                    color: isDark ? AppColors.errorContainer : AppColors.error,
                     fontWeight: FontWeight.w500,
                   ),
                 ),

@@ -1,15 +1,18 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, Optional, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import {
   RequirementStatus,
   OfferStatus,
   TripStatus,
   UserStatus,
   VehicleType,
+  VerificationStatus,
+  DriverAvailability,
 } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
 import { LocationsService } from '../locations/locations.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
+import { RedisService } from '../../redis/redis.service';
 
 export interface DispatchResult {
   requirementId: string;
@@ -19,15 +22,109 @@ export interface DispatchResult {
 }
 
 @Injectable()
-export class DispatchService {
+export class DispatchService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DispatchService.name);
+  private reaperInterval?: NodeJS.Timeout;
 
   constructor(
     protected readonly db: DatabaseService,
     private readonly locationsService: LocationsService,
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
+    @Optional() private readonly redis?: RedisService,
   ) {}
+
+  onModuleInit() {
+    // Background automatic wave reaper for timed-out offers (every 15s)
+    this.reaperInterval = setInterval(() => {
+      this.reapExpiredOffersAndRedispatch().catch((err) => {
+        this.logger.warn(`Wave reaper tick notice: ${err.message}`);
+      });
+    }, 15000);
+    this.reaperInterval.unref(); // Prevents hanging process or test teardown
+  }
+
+  onModuleDestroy() {
+    if (this.reaperInterval) {
+      clearInterval(this.reaperInterval);
+    }
+  }
+
+  /**
+   * Automatically reaps timed-out dispatch offers and cascades to Wave 2 for unfulfilled requirements.
+   * Multi-instance safe via distributed locking.
+   */
+  async reapExpiredOffersAndRedispatch(): Promise<{ expiredCount: number; requirementsRedispatched: string[] }> {
+    if (this.redis) {
+      const lockAcquired = await this.redis.acquireLock('wave_reaper', 12);
+      if (!lockAcquired) {
+        return { expiredCount: 0, requirementsRedispatched: [] };
+      }
+    }
+
+    try {
+      const now = new Date();
+      const expiredOffers = await this.db.offer.findMany({
+        where: {
+          status: OfferStatus.SENT,
+          expiresAt: { lt: now },
+        },
+        include: { requirement: true },
+      });
+
+      if (expiredOffers.length === 0) {
+        return { expiredCount: 0, requirementsRedispatched: [] };
+      }
+
+      this.logger.log(`Reaping ${expiredOffers.length} expired dispatch offers`);
+
+      // 1. Mark expired in database
+      await this.db.offer.updateMany({
+        where: { id: { in: expiredOffers.map((o) => o.id) } },
+        data: { status: OfferStatus.EXPIRED },
+      });
+
+      // 2. Notify drivers via SSE
+      for (const offer of expiredOffers) {
+        this.notifications.emitEvent(`driver:${offer.driverId}`, 'OFFER_EXPIRED', {
+          offerId: offer.id,
+          requirementId: offer.requirementId,
+          reason: 'Offer timed out',
+        });
+      }
+
+      // 3. Trigger next wave dispatch for unfulfilled requirements
+      const requirementIds = Array.from(new Set(expiredOffers.map((o) => o.requirementId)));
+      const redispatchedReqIds: string[] = [];
+
+      for (const reqId of requirementIds) {
+        try {
+          const req = await this.db.requirement.findUnique({ where: { id: reqId } });
+          if (
+            req &&
+            req.quantity > req.assignedQuantity &&
+            req.status !== RequirementStatus.COMPLETED &&
+            req.status !== RequirementStatus.CANCELLED
+          ) {
+            this.logger.log(`Cascading wave dispatch for unfulfilled requirement ${reqId}`);
+            await this.dispatchRequirement(reqId);
+            redispatchedReqIds.push(reqId);
+          }
+        } catch (err: any) {
+          this.logger.warn(`Failed cascading wave for requirement ${reqId}: ${err.message}`);
+        }
+      }
+
+      return {
+        expiredCount: expiredOffers.length,
+        requirementsRedispatched: redispatchedReqIds,
+      };
+    } finally {
+      if (this.redis) {
+        await this.redis.releaseLock('wave_reaper');
+      }
+    }
+  }
 
   /**
    * Dispatch available drivers for a requirement following docs/11_DISPATCH_ENGINE.md.
@@ -98,10 +195,15 @@ export class DispatchService {
       requirement.vehicleType as unknown as VehicleType,
     );
 
-    // Collect already offered driver IDs for this requirement to prevent duplicates
+    // Collect already offered driver IDs (SENT, ACCEPTED, DECLINED, EXPIRED) to prevent harassment / duplicates
     const alreadyOfferedDriverIds = new Set(
       requirement.offers
-        .filter((o) => o.status === OfferStatus.SENT || o.status === OfferStatus.ACCEPTED)
+        .filter((o) =>
+          o.status === OfferStatus.SENT ||
+          o.status === OfferStatus.ACCEPTED ||
+          o.status === OfferStatus.DECLINED ||
+          o.status === OfferStatus.EXPIRED,
+        )
         .map((o) => o.driverId),
     );
 
@@ -109,11 +211,12 @@ export class DispatchService {
       .filter((c) => !alreadyOfferedDriverIds.has(c.driverId))
       .map((c) => c.driverId);
 
-    // Fallback: If no candidate drivers with matching radius found, grab all active drivers
+    // Fallback: If no candidate drivers with matching radius found, grab available active drivers
     if (candidateIds.length === 0) {
       const activeDrivers = await this.db.driver.findMany({
         where: {
           user: { status: UserStatus.ACTIVE },
+          availabilityStatus: DriverAvailability.AVAILABLE,
           id: { notIn: Array.from(alreadyOfferedDriverIds) },
         },
         select: { id: true },
@@ -137,20 +240,80 @@ export class DispatchService {
       },
     });
 
-    // Filter candidates with comprehensive eligibility checks
-    const eligibleDriverIds: string[] = [];
+    // Filter candidates with comprehensive eligibility checks and compute composite scores
+    interface ScoredCandidate {
+      driverId: string;
+      driver: (typeof candidateDrivers)[0];
+      distanceKm: number;
+      trustScore: number;
+      rating: number;
+      compositeScore: number;
+      isRookie: boolean;
+    }
+
+    const eligibleCandidates: ScoredCandidate[] = [];
 
     for (const driver of candidateDrivers) {
       // 1. Account status active
       if (driver.user?.status !== UserStatus.ACTIVE) continue;
 
-      // 2. No conflicting active trips
+      // 2. Driver verification check
+      if (driver.verificationStatus && driver.verificationStatus !== VerificationStatus.VERIFIED) continue;
+
+      // 3. Driver availability status check
+      if (driver.availabilityStatus !== DriverAvailability.AVAILABLE) continue;
+
+      // 4. Vehicle capability check (reject incompatible vehicles, e.g. bike for sedan)
+      if (requirement.vehicleType && driver.vehicleType && driver.vehicleType !== requirement.vehicleType) {
+        continue;
+      }
+
+      // 5. No conflicting active trips
       if (driver.trips && driver.trips.length > 0) continue;
 
-      eligibleDriverIds.push(driver.id);
+      const driverLat = Number(driver.currentLat ?? pickupLat);
+      const driverLng = Number(driver.currentLng ?? pickupLng);
+      const distanceKm = Math.sqrt(
+        Math.pow((driverLat - pickupLat) * 111, 2) +
+        Math.pow((driverLng - pickupLng) * 111 * Math.cos(pickupLat * (Math.PI / 180)), 2),
+      );
+
+      const rawTrust = Number(driver.trustScore ?? 94.0);
+      const avgRating = Number(driver.averageRating ?? 4.85);
+      const totalTrips = driver.totalTrips || 0;
+      const isRookie = totalTrips < 25;
+
+      // Multi-factor Scoring: Proximity (35 pts) + Trust (35 pts) + Rating (20 pts) + Rookie (10 pts) + Idle Fairness (5 pts)
+      const proximityScore = Math.max(0, 35 * (1 - distanceKm / 100));
+      const trustScorePart = 35 * (Math.min(100, Math.max(0, rawTrust)) / 100);
+      const ratingScorePart = 20 * Math.max(0, (avgRating - 3.0) / 2.0);
+      const rookieBoost = isRookie ? 10.0 : rawTrust < 75 ? 5.0 : 0.0;
+
+      // Earning fairness & idle time weighting (up to 5 pts for drivers waiting online)
+      const lastActiveTime = driver.lastLocationAt
+        ? new Date(driver.lastLocationAt).getTime()
+        : driver.updatedAt
+          ? new Date(driver.updatedAt).getTime()
+          : Date.now();
+      const idleMinutes = Math.max(0, (Date.now() - lastActiveTime) / (60 * 1000));
+      const idleFairnessBoost = Math.min(5.0, Number((idleMinutes / 10).toFixed(2)));
+
+      const compositeScore = Number(
+        (proximityScore + trustScorePart + ratingScorePart + rookieBoost + idleFairnessBoost).toFixed(2),
+      );
+
+      eligibleCandidates.push({
+        driverId: driver.id,
+        driver,
+        distanceKm,
+        trustScore: rawTrust,
+        rating: avgRating,
+        compositeScore,
+        isRookie,
+      });
     }
 
-    if (eligibleDriverIds.length === 0) {
+    if (eligibleCandidates.length === 0) {
       this.logger.warn(`No eligible drivers found for requirement ${requirementId}`);
 
       // If requirement has 0 assignments and no drivers found
@@ -163,6 +326,15 @@ export class DispatchService {
         this.notifications.emitEvent(`vendor:${requirement.vendorId}`, 'REQUIREMENT_NO_DRIVERS', {
           requirementId,
           message: 'No eligible drivers currently available in the area.',
+        });
+      } else {
+        // Requirement is partially fulfilled (e.g. 3 of 5 filled), but no more drivers available for remaining slots
+        this.notifications.emitEvent(`vendor:${requirement.vendorId}`, 'REQUIREMENT_PARTIAL_EXHAUSTION', {
+          requirementId,
+          assignedQuantity: requirement.assignedQuantity,
+          totalQuantity: requirement.quantity,
+          remainingQuantity: remaining,
+          message: `Supply currently exhausted for remaining ${remaining} vehicle(s). System will keep monitoring for newly available drivers.`,
         });
       }
 
@@ -177,8 +349,30 @@ export class DispatchService {
     }
 
     // Controlled wave oversubscription: up to remaining * 2 candidates
-    const waveLimit = Math.max(remaining, Math.min(eligibleDriverIds.length, remaining * 2));
-    const selectedDriverIds = eligibleDriverIds.slice(0, waveLimit);
+    const waveLimit = Math.max(remaining, Math.min(eligibleCandidates.length, remaining * 2));
+
+    // Separate rookies and veterans, sort both by compositeScore descending
+    const rookies = eligibleCandidates.filter((c) => c.isRookie).sort((a, b) => b.compositeScore - a.compositeScore);
+    const veterans = eligibleCandidates.filter((c) => !c.isRookie).sort((a, b) => b.compositeScore - a.compositeScore);
+
+    // Reserve 15% exploration slots for rookie / recovering drivers
+    const rookieQuota = Math.min(rookies.length, Math.max(rookies.length > 0 ? 1 : 0, Math.floor(waveLimit * 0.15)));
+    const veteranQuota = waveLimit - rookieQuota;
+
+    const selectedCandidates = [
+      ...rookies.slice(0, rookieQuota),
+      ...veterans.slice(0, veteranQuota),
+    ];
+
+    // If quotas didn't fill waveLimit, backfill from remaining
+    if (selectedCandidates.length < waveLimit) {
+      const remainingCandidates = eligibleCandidates
+        .filter((c) => !selectedCandidates.some((s) => s.driverId === c.driverId))
+        .sort((a, b) => b.compositeScore - a.compositeScore);
+      selectedCandidates.push(...remainingCandidates.slice(0, waveLimit - selectedCandidates.length));
+    }
+
+    const selectedDriverIds = selectedCandidates.map((c) => c.driverId);
 
     // 60-second offer countdown window
     const expiresAt = new Date(Date.now() + 60 * 1000);

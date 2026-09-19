@@ -107,22 +107,24 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.bgDark,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: switch (_approvalState) {
-          _ApprovalState.approved => _buildApprovedState(),
+          _ApprovalState.approved => _buildApprovedState(isDark),
           _ApprovalState.rejected => WaitlistRejectedWidget(
             reason: _rejectionReason ?? 'Your application requires updates.',
             onReApply: _reApply,
           ),
-          _ApprovalState.waiting => _buildWaitingState(),
+          _ApprovalState.waiting => _buildWaitingState(isDark),
         },
       ),
     );
   }
 
-  Widget _buildWaitingState() {
+  Widget _buildWaitingState(bool isDark) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.xxl),
       child: Column(
@@ -172,7 +174,7 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
                   children: [
                     Icon(
                       Icons.access_time_rounded,
-                      color: AppColors.primaryLight,
+                      color: isDark ? AppColors.primaryLight : AppColors.primary,
                       size: 40,
                     ),
                     Positioned(
@@ -203,7 +205,7 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
           Text(
             "You're on the Waitlist!",
             style: AppTypography.display(
-              color: Colors.white,
+              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
               fontWeight: FontWeight.w800,
             ),
             textAlign: TextAlign.center,
@@ -211,7 +213,9 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
           const SizedBox(height: AppSpacing.sm),
           Text(
             'Your profile and KYC documents are currently under review by the AdhocX Verification Center.',
-            style: AppTypography.body(color: AppColors.textSecondaryDark),
+            style: AppTypography.body(
+              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpacing.xxl),
@@ -220,7 +224,7 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
           Container(
             padding: const EdgeInsets.all(AppSpacing.lg),
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.08),
+              color: AppColors.primary.withValues(alpha: isDark ? 0.08 : 0.05),
               borderRadius: BorderRadius.circular(AppRadius.lg),
               border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
             ),
@@ -228,16 +232,19 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _infoRow(
+                  isDark,
                   Icons.admin_panel_settings_outlined,
                   'Under Review by Verification Officer',
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 _infoRow(
+                  isDark,
                   Icons.schedule_outlined,
                   'Typical review time: 15 minutes – 2 hours',
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 _infoRow(
+                  isDark,
                   Icons.autorenew_rounded,
                   'You will be automatically redirected upon approval — no refresh needed',
                 ),
@@ -251,7 +258,7 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
     );
   }
 
-  Widget _buildApprovedState() {
+  Widget _buildApprovedState(bool isDark) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.xxl),
@@ -266,7 +273,7 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
                 shape: BoxShape.circle,
                 border: Border.all(color: AppColors.success, width: 2),
               ),
-              child: Icon(
+              child: const Icon(
                 Icons.check_circle_rounded,
                 color: AppColors.success,
                 size: 54,
@@ -276,17 +283,19 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
             Text(
               "You're Approved!",
               style: AppTypography.display(
-                color: Colors.white,
+                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                 fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
               'Your profile is verified. Redirecting to your console...',
-              style: AppTypography.body(color: AppColors.textSecondaryDark),
+              style: AppTypography.body(
+                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+              ),
             ),
             const SizedBox(height: AppSpacing.xxl),
-            CircularProgressIndicator(
+            const CircularProgressIndicator(
               color: AppColors.primary,
               strokeWidth: 2.5,
             ),
@@ -296,17 +305,17 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
     );
   }
 
-  Widget _infoRow(IconData icon, String text) {
+  Widget _infoRow(bool isDark, IconData icon, String text) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: AppColors.primaryLight, size: 18),
+        Icon(icon, color: isDark ? AppColors.primaryLight : AppColors.primary, size: 18),
         const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Text(
             text,
             style: AppTypography.caption(
-              color: AppColors.textPrimaryDark,
+              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
               fontWeight: FontWeight.w500,
             ),
           ),

@@ -4,7 +4,7 @@ import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 
-/// Centralized Modal Bottom Sheet for AdhocX Mobile.
+/// Centralized Modal Bottom Sheet for AdhocX Mobile adhering to docs/04_DESIGN_SYSTEM.md.
 class AppBottomSheet extends StatelessWidget {
   final String title;
   final String? subtitle;
@@ -43,21 +43,39 @@ class AppBottomSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
       decoration: BoxDecoration(
-        color: AppColors.surfaceDark,
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(AppRadius.xl),
           topRight: Radius.circular(AppRadius.xl),
         ),
         border: Border(
-          top: BorderSide(color: AppColors.borderDark, width: 1.2),
-          left: BorderSide(color: AppColors.borderDark, width: 1.2),
-          right: BorderSide(color: AppColors.borderDark, width: 1.2),
+          top: BorderSide(
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+            width: 1.2,
+          ),
+          left: BorderSide(
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+            width: 1.2,
+          ),
+          right: BorderSide(
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+            width: 1.2,
+          ),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
       ),
       child: SafeArea(
         child: Padding(
@@ -72,11 +90,11 @@ class AppBottomSheet extends StatelessWidget {
               // Grabber Handle
               Center(
                 child: Container(
-                  width: 36,
+                  width: 38,
                   height: 4,
                   margin: const EdgeInsets.only(bottom: AppSpacing.md),
                   decoration: BoxDecoration(
-                    color: AppColors.borderSubtleDark,
+                    color: isDark ? AppColors.borderSubtleDark : AppColors.borderSubtleLight,
                     borderRadius: AppRadius.borderPill,
                   ),
                 ),
@@ -92,7 +110,7 @@ class AppBottomSheet extends StatelessWidget {
                         Text(
                           title,
                           style: AppTypography.h3(
-                            color: AppColors.textPrimaryDark,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                           ),
                         ),
                         if (subtitle != null) ...[
@@ -100,7 +118,7 @@ class AppBottomSheet extends StatelessWidget {
                           Text(
                             subtitle!,
                             style: AppTypography.small(
-                              color: AppColors.textSecondaryDark,
+                              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                             ),
                           ),
                         ],
@@ -110,7 +128,7 @@ class AppBottomSheet extends StatelessWidget {
                   IconButton(
                     icon: Icon(
                       Icons.close,
-                      color: AppColors.textSecondaryDark,
+                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                       size: 20,
                     ),
                     onPressed: () => Navigator.of(context).pop(),
@@ -118,7 +136,7 @@ class AppBottomSheet extends StatelessWidget {
                 ],
               ),
               Divider(
-                color: AppColors.borderDark,
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
                 height: AppSpacing.xl,
               ),
               // Body

@@ -126,9 +126,51 @@ export class DriverProfileDto {
   aadharFrontUrl?: string;
   aadharBackUrl?: string;
   panDocUrl?: string;
-  documents?: DriverKycDocumentDto[];
+  driverId?: string;
+  email?: string;
+  profilePhotoUrl?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  address?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  documents?: any;
   createdAt!: string;
   updatedAt!: string;
+}
+
+export class UpdateDriverProfileDto {
+  @IsOptional()
+  @IsString()
+  fullName?: string;
+
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  dateOfBirth?: string;
+
+  @IsOptional()
+  @IsString()
+  gender?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @IsOptional()
+  @IsString()
+  emergencyContactName?: string;
+
+  @IsOptional()
+  @IsString()
+  emergencyContactPhone?: string;
+
+  @IsOptional()
+  @IsString()
+  profilePhotoUrl?: string;
 }
 
 export class UploadDocumentDto {
@@ -156,4 +198,41 @@ export class UploadDocumentResponseDto {
   checksum!: string;
   documentType?: string;
 }
+
+export class TrustScoreMetricItemDto {
+  score!: number;
+  max!: number;
+  percentage!: number;
+  title!: string;
+  description!: string;
+  status!: 'EXCELLENT' | 'GOOD' | 'FAIR' | 'NEEDS_IMPROVEMENT';
+}
+
+export class TrustScoreHistoryItemDto {
+  id!: string;
+  delta!: string;
+  type!: 'BONUS' | 'PENALTY' | 'MILESTONE' | 'TRIP_COMPLETE';
+  title!: string;
+  date!: string;
+  tripId?: string;
+}
+
+export class DriverTrustScoreBreakdownDto {
+  currentScore!: number;
+  maxScore!: number;
+  tier!: 'PLATINUM' | 'GOLD' | 'SILVER' | 'BRONZE';
+  tierBenefits!: string[];
+  isRookieProtected!: boolean;
+  rookieTripsRemaining!: number;
+  metrics!: {
+    completionRate: TrustScoreMetricItemDto;
+    customerRating: TrustScoreMetricItemDto;
+    acceptanceRate: TrustScoreMetricItemDto;
+    punctuality: TrustScoreMetricItemDto;
+    loyaltyStreak: TrustScoreMetricItemDto;
+  };
+  scoreHistory!: TrustScoreHistoryItemDto[];
+  improvementTips!: string[];
+}
+
 

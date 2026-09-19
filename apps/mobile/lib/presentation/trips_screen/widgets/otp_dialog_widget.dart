@@ -44,17 +44,21 @@ class _OtpDialogWidgetState extends State<OtpDialogWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Dialog(
       backgroundColor: Colors.transparent,
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: AppColors.surfaceElevatedDark,
+          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.borderDark),
+          border: Border.all(
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withAlpha(102),
+              color: Colors.black.withAlpha(isDark ? 102 : 25),
               blurRadius: 32,
               offset: const Offset(0, 8),
             ),
@@ -68,8 +72,10 @@ class _OtpDialogWidgetState extends State<OtpDialogWidget> {
               children: [
                 Text(
                   widget.isStart ? 'Enter Start OTP' : 'Enter End OTP',
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight,
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                   ),
@@ -78,7 +84,9 @@ class _OtpDialogWidgetState extends State<OtpDialogWidget> {
                   onTap: () => Navigator.of(context).pop(),
                   child: Icon(
                     Icons.close_rounded,
-                    color: AppColors.textMutedDark,
+                    color: isDark
+                        ? AppColors.textMutedDark
+                        : AppColors.textMutedLight,
                     size: 20,
                   ),
                 ),
@@ -89,7 +97,12 @@ class _OtpDialogWidgetState extends State<OtpDialogWidget> {
               widget.isStart
                   ? 'Ask the passenger for their 4-digit start OTP'
                   : 'Ask the passenger for their 4-digit end OTP',
-              style: TextStyle(color: AppColors.textMutedDark, fontSize: 13),
+              style: TextStyle(
+                color: isDark
+                    ? AppColors.textMutedDark
+                    : AppColors.textMutedLight,
+                fontSize: 13,
+              ),
             ),
             const SizedBox(height: 28),
             // OTP input boxes
@@ -101,12 +114,16 @@ class _OtpDialogWidgetState extends State<OtpDialogWidget> {
                   height: 64,
                   margin: const EdgeInsets.symmetric(horizontal: 6),
                   decoration: BoxDecoration(
-                    color: AppColors.textPrimaryLight,
+                    color: isDark
+                        ? AppColors.surfaceElevatedDark
+                        : AppColors.surfaceElevatedLight,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: _controllers[i].text.isNotEmpty
                           ? AppColors.warning
-                          : AppColors.borderDark,
+                          : (isDark
+                              ? AppColors.borderDark
+                              : AppColors.borderLight),
                       width: _controllers[i].text.isNotEmpty ? 1.5 : 1,
                     ),
                   ),
@@ -119,7 +136,7 @@ class _OtpDialogWidgetState extends State<OtpDialogWidget> {
                       FilteringTextInputFormatter.digitsOnly,
                       LengthLimitingTextInputFormatter(1),
                     ],
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: AppColors.warning,
                       fontSize: 28,
                       fontWeight: FontWeight.w700,
@@ -145,8 +162,11 @@ class _OtpDialogWidgetState extends State<OtpDialogWidget> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.warning,
                   foregroundColor: AppColors.bgDark,
-                  disabledBackgroundColor: AppColors.borderDark,
-                  disabledForegroundColor: AppColors.textSecondaryLight,
+                  disabledBackgroundColor:
+                      isDark ? AppColors.borderDark : AppColors.borderLight,
+                  disabledForegroundColor: isDark
+                      ? AppColors.textMutedDark
+                      : AppColors.textMutedLight,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),

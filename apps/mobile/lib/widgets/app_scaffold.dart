@@ -7,7 +7,6 @@ import '../presentation/edge_cases/network_offline_widget.dart';
 import '../presentation/edge_cases/session_expired_dialog.dart';
 import '../services/edge_case_manager.dart';
 import './app_navigation.dart';
-import './edge_case_inspector_widget.dart';
 
 class AppScaffold extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
@@ -28,9 +27,6 @@ class AppScaffold extends StatelessWidget {
               children: [
                 Column(
                   children: [
-                    // Debug Edge Case Inspector Bar
-                    const EdgeCaseInspectorWidget(),
-
                     // Network Offline Persistent Banner
                     if (!mgr.isNetworkOnline)
                       const NetworkOfflineWidget(isBannerOnly: true),

@@ -49,15 +49,20 @@ class _TripsHeaderWidgetState extends State<TripsHeaderWidget>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: AppColors.bgDark.withAlpha(230),
-            border: const Border(
-              bottom: BorderSide(color: AppColors.borderDark, width: 1),
+            color: (isDark ? AppColors.bgDark : AppColors.bgLight).withAlpha(230),
+            border: Border(
+              bottom: BorderSide(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                width: 1,
+              ),
             ),
           ),
           child: Row(
@@ -67,7 +72,7 @@ class _TripsHeaderWidgetState extends State<TripsHeaderWidget>
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: AppColors.bgDark,
+                  color: isDark ? AppColors.bgDark : AppColors.bgLight,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                     color: AppColors.success.withAlpha(77),
@@ -93,8 +98,10 @@ class _TripsHeaderWidgetState extends State<TripsHeaderWidget>
                       children: [
                         Text(
                           widget.driverName,
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: isDark
+                                ? AppColors.textPrimaryDark
+                                : AppColors.textPrimaryLight,
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
@@ -112,7 +119,7 @@ class _TripsHeaderWidgetState extends State<TripsHeaderWidget>
                               color: AppColors.success.withAlpha(102),
                             ),
                           ),
-                          child: Text(
+                          child: const Text(
                             'Verified',
                             style: TextStyle(
                               color: AppColors.success,
@@ -126,7 +133,9 @@ class _TripsHeaderWidgetState extends State<TripsHeaderWidget>
                     Text(
                       '${widget.vehicleNumber} · ${widget.vehicleType}',
                       style: TextStyle(
-                        color: AppColors.textMutedDark,
+                        color: isDark
+                            ? AppColors.textMutedDark
+                            : AppColors.textMutedLight,
                         fontSize: 11,
                       ),
                     ),
@@ -145,12 +154,16 @@ class _TripsHeaderWidgetState extends State<TripsHeaderWidget>
                   decoration: BoxDecoration(
                     color: widget.isOnline
                         ? AppColors.success.withAlpha(38)
-                        : AppColors.borderDark,
+                        : (isDark
+                            ? AppColors.surfaceElevatedDark
+                            : AppColors.surfaceElevatedLight),
                     borderRadius: BorderRadius.circular(999),
                     border: Border.all(
                       color: widget.isOnline
                           ? AppColors.success
-                          : AppColors.textSecondaryLight,
+                          : (isDark
+                              ? AppColors.borderDark
+                              : AppColors.borderLight),
                     ),
                   ),
                   child: Row(
@@ -185,7 +198,9 @@ class _TripsHeaderWidgetState extends State<TripsHeaderWidget>
                           width: 8,
                           height: 8,
                           decoration: BoxDecoration(
-                            color: AppColors.textSecondaryLight,
+                            color: isDark
+                                ? AppColors.textMutedDark
+                                : AppColors.textMutedLight,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -195,7 +210,9 @@ class _TripsHeaderWidgetState extends State<TripsHeaderWidget>
                         style: TextStyle(
                           color: widget.isOnline
                               ? AppColors.success
-                              : AppColors.textMutedDark,
+                              : (isDark
+                                  ? AppColors.textMutedDark
+                                  : AppColors.textMutedLight),
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),

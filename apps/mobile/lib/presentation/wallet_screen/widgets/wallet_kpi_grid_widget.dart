@@ -13,6 +13,8 @@ class WalletKpiGridWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Row(
       children: [
         Expanded(
@@ -30,7 +32,7 @@ class WalletKpiGridWidget extends StatelessWidget {
             label: 'Available Balance',
             value: '₹${availableBalance.toStringAsFixed(0)}',
             icon: Icons.account_balance_wallet_rounded,
-            valueColor: Colors.white,
+            valueColor: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
             iconBg: AppColors.warning,
           ),
         ),
@@ -56,12 +58,23 @@ class _KpiCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevatedDark,
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderDark),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -70,7 +83,7 @@ class _KpiCard extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: iconBg.withAlpha(38),
+              color: iconBg.withValues(alpha: isDark ? 0.2 : 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: iconBg, size: 18),
@@ -78,7 +91,11 @@ class _KpiCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             label,
-            style: TextStyle(color: AppColors.textMutedDark, fontSize: 11),
+            style: TextStyle(
+              color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           const SizedBox(height: 4),
           Text(

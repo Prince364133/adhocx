@@ -211,6 +211,27 @@ export class OffersService {
         throw new ConflictException('Requirement capacity is already fully fulfilled');
       }
 
+      // Atomic capacity reservation: prevents race conditions during concurrent acceptance
+      if (tx.requirement.updateMany) {
+        const capacityReserved = await tx.requirement.updateMany({
+          where: {
+            id: requirement.id,
+            assignedQuantity: { lt: requirement.quantity },
+          },
+          data: {
+            assignedQuantity: { increment: 1 },
+          },
+        });
+
+        if (capacityReserved.count === 0) {
+          await tx.offer.update({
+            where: { id: offerId },
+            data: { status: OfferStatus.EXPIRED },
+          });
+          throw new ConflictException('Requirement capacity is already fully fulfilled');
+        }
+      }
+
       // Mark offer ACCEPTED
       const updatedOffer = await tx.offer.update({
         where: { id: offerId },
@@ -290,6 +311,37 @@ export class OffersService {
       },
       data: { status: OfferStatus.CANCELLED },
     });
+
+    // If requirement capacity is now 100% fulfilled, expire all other pending wave offers for this requirement
+    if (txResult.newStatus === RequirementStatus.FULFILLED) {
+      const otherPendingOffers = (await this.db.offer.findMany({
+        where: {
+          requirementId: txResult.requirement.id,
+          status: OfferStatus.SENT,
+          id: { not: offerId },
+        },
+        select: { id: true, driverId: true },
+      })) || [];
+
+      if (otherPendingOffers.length > 0) {
+        await this.db.offer.updateMany({
+          where: {
+            requirementId: txResult.requirement.id,
+            status: OfferStatus.SENT,
+            id: { not: offerId },
+          },
+          data: { status: OfferStatus.EXPIRED },
+        });
+
+        for (const po of otherPendingOffers) {
+          this.notifications.emitEvent(`driver:${po.driverId}`, 'OFFER_EXPIRED', {
+            offerId: po.id,
+            requirementId: txResult.requirement.id,
+            reason: 'Requirement fully fulfilled by other partners',
+          });
+        }
+      }
+    }
 
     // Real-time events
     this.notifications.emitEvent(`vendor:${txResult.requirement.vendorId}`, 'REQUIREMENT_FULFILLMENT_UPDATED', {

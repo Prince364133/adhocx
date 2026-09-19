@@ -16,7 +16,6 @@ class TripsScreen extends StatefulWidget {
 
 class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  String _timeFilter = 'Today';
   bool _isLoading = true;
   List<dynamic> _allTrips = [];
 

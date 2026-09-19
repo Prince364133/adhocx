@@ -1,12 +1,10 @@
 import 'package:adhocx/shared/theme/app_colors.dart';
-import 'dart:typed_data'; // 💡 Required for Uint8List
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart'; 
+import 'package:image_picker/image_picker.dart';
 
 class KycDocumentsSectionWidget extends StatefulWidget {
   final Map<String, String?> uploadedDocs;
-  
-  // 💡 THE FIX: Updated callback to pass the raw bytes (Uint8List) back to the parent
   final void Function(String key, String filePath, Uint8List fileBytes) onDocUploaded;
 
   const KycDocumentsSectionWidget({
@@ -22,7 +20,7 @@ class KycDocumentsSectionWidget extends StatefulWidget {
 
 class _KycDocumentsSectionWidgetState extends State<KycDocumentsSectionWidget> {
   final ImagePicker _picker = ImagePicker();
-  String? _loadingKey; 
+  String? _loadingKey;
 
   static const List<Map<String, String>> _docList = [
     {'key': 'dl_front', 'label': 'Driver License (Front)'},
@@ -40,14 +38,11 @@ class _KycDocumentsSectionWidgetState extends State<KycDocumentsSectionWidget> {
     try {
       final XFile? file = await _picker.pickImage(
         source: source,
-        imageQuality: 85, 
+        imageQuality: 85,
       );
 
       if (file != null) {
-        // 💡 THE FIX: Read the file as bytes so Android can upload it seamlessly
         final Uint8List fileBytes = await file.readAsBytes();
-        
-        // Pass both the path (for the filename) and the raw bytes to your parent widget
         widget.onDocUploaded(key, file.path, fileBytes);
       }
     } catch (e) {
@@ -60,9 +55,11 @@ class _KycDocumentsSectionWidgetState extends State<KycDocumentsSectionWidget> {
   }
 
   void _showSourcePicker(String docKey, String docLabel) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.surfaceElevatedDark, 
+      backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -76,16 +73,19 @@ class _KycDocumentsSectionWidgetState extends State<KycDocumentsSectionWidget> {
               children: [
                 Text(
                   'Upload $docLabel',
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Text(
+                Text(
                   'Select an image source',
-                  style: TextStyle(color: AppColors.slate400, fontSize: 13),
+                  style: TextStyle(
+                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                    fontSize: 13,
+                  ),
                 ),
                 const SizedBox(height: 18),
                 ListTile(
@@ -97,13 +97,13 @@ class _KycDocumentsSectionWidgetState extends State<KycDocumentsSectionWidget> {
                     ),
                     child: const Icon(
                       Icons.camera_alt_outlined,
-                      color: AppColors.success, 
+                      color: AppColors.success,
                     ),
                   ),
-                  title: const Text(
+                  title: Text(
                     'Take Photo with Camera',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -118,13 +118,13 @@ class _KycDocumentsSectionWidgetState extends State<KycDocumentsSectionWidget> {
                     ),
                     child: const Icon(
                       Icons.photo_library_outlined,
-                      color: AppColors.success, 
+                      color: AppColors.success,
                     ),
                   ),
-                  title: const Text(
+                  title: Text(
                     'Choose from Gallery / Photos',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -140,12 +140,16 @@ class _KycDocumentsSectionWidgetState extends State<KycDocumentsSectionWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(
+          color: isDark ? Colors.white12 : AppColors.borderLight,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -182,10 +186,10 @@ class _KycDocumentsSectionWidgetState extends State<KycDocumentsSectionWidget> {
             ],
           ),
           const SizedBox(height: 24),
-          const Text(
+          Text(
             'Photo or PDF — tap to upload from camera or files',
             style: TextStyle(
-              color: AppColors.slate400, 
+              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
               fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
@@ -200,6 +204,7 @@ class _KycDocumentsSectionWidgetState extends State<KycDocumentsSectionWidget> {
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: _DocUploadRow(
+                isDark: isDark,
                 label: label,
                 isUploaded: isUploaded,
                 isLoading: isLoading,
@@ -215,6 +220,7 @@ class _KycDocumentsSectionWidgetState extends State<KycDocumentsSectionWidget> {
 }
 
 class _DocUploadRow extends StatelessWidget {
+  final bool isDark;
   final String label;
   final bool isUploaded;
   final bool isLoading;
@@ -222,6 +228,7 @@ class _DocUploadRow extends StatelessWidget {
   final VoidCallback onReplace;
 
   const _DocUploadRow({
+    required this.isDark,
     required this.label,
     required this.isUploaded,
     required this.isLoading,
@@ -239,8 +246,8 @@ class _DocUploadRow extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                 ),
@@ -249,7 +256,7 @@ class _DocUploadRow extends StatelessWidget {
                 const Text(
                   'Uploaded ✓',
                   style: TextStyle(
-                    color: AppColors.success, 
+                    color: AppColors.success,
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                   ),
@@ -261,13 +268,13 @@ class _DocUploadRow extends StatelessWidget {
         if (!isUploaded)
           _uploadBtn(
             label: 'Upload',
-            color: AppColors.success, 
+            color: AppColors.success,
             onTap: onUpload,
           )
         else
           _uploadBtn(
             label: 'Replace',
-            color: AppColors.slate400, 
+            color: isDark ? AppColors.slate400 : AppColors.textSecondaryLight,
             onTap: onReplace,
           ),
       ],

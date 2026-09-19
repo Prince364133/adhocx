@@ -38,11 +38,30 @@ async function bootstrap() {
   // Global response transform
   app.useGlobalInterceptors(new TransformInterceptor());
 
-  // CORS
+  // CORS (with origin reflection and 24h preflight caching to prevent browser OPTIONS request flooding)
+  const allowedOrigins = [
+    'http://localhost:7002',
+    'http://localhost:7003',
+    'http://localhost:3000',
+    'http://localhost:3001',
+    ...(configService.get<string[]>('app.corsOrigins') || []),
+  ];
+
   app.enableCors({
-    origin: configService.get<string>('app.corsOrigin') || '*',
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (
+        allowedOrigins.includes(origin) ||
+        origin.startsWith('http://localhost:') ||
+        origin.startsWith('http://127.0.0.1:')
+      ) {
+        return callback(null, true);
+      }
+      return callback(null, true);
+    },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
+    maxAge: 86400,
   });
 
   // Swagger API documentation

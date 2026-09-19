@@ -45,12 +45,16 @@ class _KycBankingSectionWidgetState extends State<KycBankingSectionWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return _KycSection(
+      isDark: isDark,
       title: 'Banking Details',
       sectionNumber: '4',
       child: Column(
         children: [
           _KycField(
+            isDark: isDark,
             label: 'Account Holder Name',
             hint: 'Name as per bank records',
             icon: Icons.account_balance_wallet_outlined,
@@ -62,10 +66,10 @@ class _KycBankingSectionWidgetState extends State<KycBankingSectionWidget> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Bank Name',
                 style: TextStyle(
-                  color: Colors.white70,
+                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                 ),
@@ -73,17 +77,28 @@ class _KycBankingSectionWidgetState extends State<KycBankingSectionWidget> {
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
                 initialValue: _selectedBank,
-                dropdownColor: AppColors.surfaceDark,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
+                dropdownColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                style: TextStyle(
+                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                  fontSize: 14,
+                ),
                 decoration: InputDecoration(
                   hintText: 'Select or search your bank',
-                  hintStyle: const TextStyle(color: Colors.white38),
-                  prefixIcon: const Icon(Icons.account_balance_outlined, color: Colors.white70, size: 18),
+                  hintStyle: TextStyle(
+                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                  ),
+                  prefixIcon: Icon(
+                    Icons.account_balance_outlined,
+                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                    size: 18,
+                  ),
                   filled: true,
-                  fillColor: AppColors.surfaceDark,
+                  fillColor: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight,
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Colors.white24),
+                    borderSide: BorderSide(
+                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                    ),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -102,7 +117,12 @@ class _KycBankingSectionWidgetState extends State<KycBankingSectionWidget> {
                 items: _indianBanks.map((String bank) {
                   return DropdownMenuItem<String>(
                     value: bank,
-                    child: Text(bank, style: const TextStyle(color: Colors.white)),
+                    child: Text(
+                      bank,
+                      style: TextStyle(
+                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                      ),
+                    ),
                   );
                 }).toList(),
                 onChanged: (String? newValue) {
@@ -117,6 +137,7 @@ class _KycBankingSectionWidgetState extends State<KycBankingSectionWidget> {
           ),
           const SizedBox(height: 14),
           _KycField(
+            isDark: isDark,
             label: 'Account Number',
             hint: 'Enter account number',
             icon: Icons.numbers_outlined,
@@ -129,6 +150,7 @@ class _KycBankingSectionWidgetState extends State<KycBankingSectionWidget> {
           ),
           const SizedBox(height: 14),
           _KycField(
+            isDark: isDark,
             label: 'IFSC Code',
             hint: 'e.g., HDFC0001234',
             icon: Icons.pin_drop_outlined,
@@ -152,11 +174,13 @@ class _KycBankingSectionWidgetState extends State<KycBankingSectionWidget> {
 }
 
 class _KycSection extends StatelessWidget {
+  final bool isDark;
   final String title;
   final String sectionNumber;
   final Widget child;
 
   const _KycSection({
+    required this.isDark,
     required this.title,
     required this.sectionNumber,
     required this.child,
@@ -167,9 +191,11 @@ class _KycSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.black,
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white24),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -214,6 +240,7 @@ class _KycSection extends StatelessWidget {
 }
 
 class _KycField extends StatelessWidget {
+  final bool isDark;
   final String label;
   final String hint;
   final IconData icon;
@@ -224,6 +251,7 @@ class _KycField extends StatelessWidget {
   final FormFieldValidator<String>? validator;
 
   const _KycField({
+    required this.isDark,
     required this.label,
     required this.hint,
     required this.icon,
@@ -241,8 +269,8 @@ class _KycField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: Colors.white70,
+          style: TextStyle(
+            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
             fontSize: 13,
             fontWeight: FontWeight.w500,
           ),
@@ -252,16 +280,27 @@ class _KycField extends StatelessWidget {
           keyboardType: keyboardType,
           textCapitalization: textCapitalization,
           inputFormatters: inputFormatters,
-          style: const TextStyle(color: Colors.white, fontSize: 14),
+          style: TextStyle(
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+            fontSize: 14,
+          ),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(color: Colors.white38),
-            prefixIcon: Icon(icon, color: Colors.white70, size: 18),
+            hintStyle: TextStyle(
+              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+            ),
+            prefixIcon: Icon(
+              icon,
+              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+              size: 18,
+            ),
             filled: true,
-            fillColor: AppColors.surfaceDark,
+            fillColor: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight,
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Colors.white24),
+              borderSide: BorderSide(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),

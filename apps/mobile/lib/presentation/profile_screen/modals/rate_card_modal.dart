@@ -16,31 +16,58 @@ class _ModalShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevatedDark,
-        borderRadius: BorderRadius.circular(20),
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border(
+          top: BorderSide(
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+            width: 1.2,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Top drag handle
+          Center(
+            child: Container(
+              width: 38,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
           Row(
             children: [
               Icon(icon, color: iconColor, size: 20),
               const SizedBox(width: 10),
               Text(
                 title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
+                style: TextStyle(
+                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                  fontSize: 17,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           child,
         ],
       ),
@@ -53,6 +80,8 @@ class RateCardModal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return _ModalShell(
       title: 'Driver Rate Card',
       icon: Icons.speed_rounded,
@@ -61,6 +90,7 @@ class RateCardModal extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _slabTable(
+            context: context,
             title: '🚗 Sedan Slab Rates',
             rows: const [
               ['0–15 km', '₹350'],
@@ -69,8 +99,9 @@ class RateCardModal extends StatelessWidget {
               ['41–60 km', '₹1,050'],
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
           _slabTable(
+            context: context,
             title: '🚙 SUV Slab Rates',
             rows: const [
               ['0–15 km', '₹500'],
@@ -79,27 +110,29 @@ class RateCardModal extends StatelessWidget {
               ['41–60 km', '₹1,400'],
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: AppColors.warning.withAlpha(20),
+              color: AppColors.warning.withValues(alpha: isDark ? 0.15 : 0.08),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.warning.withAlpha(77)),
+              border: Border.all(
+                color: AppColors.warning.withValues(alpha: isDark ? 0.35 : 0.25),
+              ),
             ),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.security_rounded,
                   color: AppColors.warning,
-                  size: 16,
+                  size: 18,
                 ),
-                SizedBox(width: 10),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     'Security Escort Addon: +₹150 per trip',
                     style: TextStyle(
-                      color: AppColors.warning,
+                      color: isDark ? AppColors.warning : AppColors.warningText,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
@@ -113,24 +146,32 @@ class RateCardModal extends StatelessWidget {
     );
   }
 
-  Widget _slabTable({required String title, required List<List<String>> rows}) {
+  Widget _slabTable({
+    required BuildContext context,
+    required String title,
+    required List<List<String>> rows,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           title,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
             fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
-            color: AppColors.textPrimaryLight,
+            color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.borderDark),
+            border: Border.all(
+              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+            ),
           ),
           child: Column(
             children: rows.asMap().entries.map((entry) {
@@ -149,24 +190,28 @@ class RateCardModal extends StatelessWidget {
                         Text(
                           row[0],
                           style: TextStyle(
-                            color: AppColors.textMutedDark,
+                            color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
                             fontSize: 13,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                         Text(
                           row[1],
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
-                            fontFeatures: [FontFeature.tabularFigures()],
+                            fontFeatures: const [FontFeature.tabularFigures()],
                           ),
                         ),
                       ],
                     ),
                   ),
                   if (i < rows.length - 1)
-                    Divider(color: AppColors.borderDark, height: 1),
+                    Divider(
+                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      height: 1,
+                    ),
                 ],
               );
             }).toList(),

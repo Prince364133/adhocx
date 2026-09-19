@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   S3Client,
@@ -7,7 +7,11 @@ import {
 } from '@aws-sdk/client-s3';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as crypto from 'crypto';
+import {
+  FileSanitizerService,
+  FileSanitizerOptions,
+  SanitizedFileResult,
+} from './file-sanitizer.service';
 
 export interface StoredFileResult {
   url: string;
@@ -17,26 +21,23 @@ export interface StoredFileResult {
   size: number;
   checksum: string;
   storageProvider: 'r2' | 'local';
+  detectedType: string;
+  sanitizationApplied: string[];
 }
 
 @Injectable()
 export class StorageService {
   private readonly logger = new Logger(StorageService.name);
   private readonly uploadDir = path.resolve(process.cwd(), 'uploads');
-  private readonly allowedMimeTypes = new Set([
-    'image/jpeg',
-    'image/png',
-    'image/webp',
-    'application/pdf',
-  ]);
-  private readonly maxSizeBytes = 5 * 1024 * 1024; // 5 MB
-
 
   private s3Client: S3Client | null = null;
   private bucketName: string = '';
   private publicUrl: string = '';
 
-  constructor(private readonly configService?: ConfigService) {
+  constructor(
+    private readonly configService?: ConfigService,
+    private readonly sanitizer: FileSanitizerService = new FileSanitizerService(),
+  ) {
     if (!fs.existsSync(this.uploadDir)) {
       fs.mkdirSync(this.uploadDir, { recursive: true });
     }
@@ -90,69 +91,58 @@ export class StorageService {
   }
 
   /**
-   * Validate and save an uploaded file buffer to Cloudflare R2 or local disk.
+   * Validate, sanitize, and save an uploaded file buffer to Cloudflare R2 or local disk.
    */
-  async saveFile(file: {
-    buffer: Buffer;
-    originalname: string;
-    mimetype: string;
-    size: number;
-  }): Promise<StoredFileResult> {
-    // 1. Validate MIME type
-    if (!this.allowedMimeTypes.has(file.mimetype.toLowerCase())) {
-      throw new BadRequestException(
-        `Invalid file type '${file.mimetype}'. Allowed types: JPEG, PNG, WEBP, PDF.`,
-      );
-    }
+  async saveFile(
+    file: {
+      buffer: Buffer;
+      originalname?: string;
+      mimetype?: string;
+      size?: number;
+    },
+    options?: FileSanitizerOptions,
+  ): Promise<StoredFileResult> {
+    // 1. Sanitize, scan magic bytes, detect true mime type, strip EXIF metadata
+    const sanitized: SanitizedFileResult = await this.sanitizer.sanitizeAndValidate(
+      file,
+      options,
+    );
 
-    // 2. Validate file size
-    if (file.size > this.maxSizeBytes || file.buffer.length > this.maxSizeBytes) {
-      throw new BadRequestException('File size exceeds the 10MB limit.');
-    }
+    const safeFilename = sanitized.filename;
+    const key = `documents/${safeFilename}`;
 
-    // 3. Prevent directory traversal and generate safe random filename
-    const ext =
-      path.extname(file.originalname).toLowerCase() ||
-      this.mimeToExt(file.mimetype);
-    const randomId = crypto.randomUUID();
-    const safeFilename = `${randomId}${ext}`;
-
-    // 4. Compute SHA256 checksum
-    const checksum = crypto
-      .createHash('sha256')
-      .update(file.buffer)
-      .digest('hex');
-
-    // 5. Upload to Cloudflare R2 if client is configured
+    // 2. Upload to Cloudflare R2 if client is configured
     if (this.s3Client) {
       try {
-        const key = `documents/${safeFilename}`;
         await this.s3Client.send(
           new PutObjectCommand({
             Bucket: this.bucketName,
             Key: key,
-            Body: file.buffer,
-            ContentType: file.mimetype,
+            Body: sanitized.buffer,
+            ContentType: sanitized.mimeType,
             Metadata: {
-              originalName: encodeURIComponent(file.originalname),
-              checksum,
+              originalName: encodeURIComponent(sanitized.originalName),
+              checksum: sanitized.checksum,
+              detectedType: sanitized.detectedType,
             },
           }),
         );
 
         const r2Url = `${this.publicUrl}/${key}`;
         this.logger.log(
-          `File uploaded to Cloudflare R2: ${r2Url} (${file.size} bytes, sha256: ${checksum.slice(0, 8)})`,
+          `File sanitized & uploaded to Cloudflare R2: ${r2Url} (${sanitized.size} bytes, sha256: ${sanitized.checksum.slice(0, 8)})`,
         );
 
         return {
           url: r2Url,
           filename: safeFilename,
-          originalName: path.basename(file.originalname),
-          mimeType: file.mimetype,
-          size: file.size,
-          checksum,
+          originalName: sanitized.originalName,
+          mimeType: sanitized.mimeType,
+          size: sanitized.size,
+          checksum: sanitized.checksum,
           storageProvider: 'r2',
+          detectedType: sanitized.detectedType,
+          sanitizationApplied: sanitized.sanitizationApplied,
         };
       } catch (r2Error: unknown) {
         const msg = r2Error instanceof Error ? r2Error.message : String(r2Error);
@@ -160,21 +150,23 @@ export class StorageService {
       }
     }
 
-    // Local Disk Fallback
+    // 3. Local Disk Fallback
     const destinationPath = path.join(this.uploadDir, safeFilename);
-    await fs.promises.writeFile(destinationPath, file.buffer);
+    await fs.promises.writeFile(destinationPath, sanitized.buffer);
     this.logger.log(
-      `File saved locally: ${safeFilename} (${file.size} bytes, sha256: ${checksum.slice(0, 8)})`,
+      `File sanitized & saved locally: ${safeFilename} (${sanitized.size} bytes, sha256: ${sanitized.checksum.slice(0, 8)})`,
     );
 
     return {
       url: `/uploads/${safeFilename}`,
       filename: safeFilename,
-      originalName: path.basename(file.originalname),
-      mimeType: file.mimetype,
-      size: file.size,
-      checksum,
+      originalName: sanitized.originalName,
+      mimeType: sanitized.mimeType,
+      size: sanitized.size,
+      checksum: sanitized.checksum,
       storageProvider: 'local',
+      detectedType: sanitized.detectedType,
+      sanitizationApplied: sanitized.sanitizationApplied,
     };
   }
 
@@ -201,21 +193,6 @@ export class StorageService {
     if (fs.existsSync(filePath)) {
       await fs.promises.unlink(filePath);
       this.logger.log(`File deleted locally: ${safeFilename}`);
-    }
-  }
-
-  private mimeToExt(mime: string): string {
-    switch (mime.toLowerCase()) {
-      case 'image/jpeg':
-        return '.jpg';
-      case 'image/png':
-        return '.png';
-      case 'image/webp':
-        return '.webp';
-      case 'application/pdf':
-        return '.pdf';
-      default:
-        return '.bin';
     }
   }
 }

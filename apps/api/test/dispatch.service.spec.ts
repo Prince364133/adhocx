@@ -12,7 +12,6 @@ import {
   VehicleType,
 } from '@adhocx/contracts';
 
-
 describe('DispatchService Unit Tests', () => {
   let service: DispatchService;
   let db: any;
@@ -24,18 +23,21 @@ describe('DispatchService Unit Tests', () => {
     db = {
       requirement: {
         findUnique: jest.fn(),
-        update: jest.fn(),
+        update: jest.fn().mockResolvedValue({ id: 'req-1', status: RequirementStatus.DISPATCHING }),
       },
       driver: {
         findUnique: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([]),
       },
       offer: {
-        create: jest.fn(),
+        create: jest.fn().mockImplementation(({ data }) =>
+          Promise.resolve({ id: `off-${data?.driverId || '1'}`, ...data }),
+        ),
       },
     };
 
     locationsService = {
-      findNearbyDrivers: jest.fn(),
+      findNearbyDrivers: jest.fn().mockResolvedValue([]),
     };
 
     notifications = {
@@ -84,21 +86,22 @@ describe('DispatchService Unit Tests', () => {
       { driverId: 'drv-2', distanceKm: 5.8 },
     ]);
 
-    db.driver.findUnique
-      .mockResolvedValueOnce({
+    db.driver.findMany.mockResolvedValue([
+      {
         id: 'drv-1',
         verificationStatus: VerificationStatus.VERIFIED,
         availabilityStatus: DriverAvailability.AVAILABLE,
         user: { status: UserStatus.ACTIVE },
         trips: [],
-      })
-      .mockResolvedValueOnce({
+      },
+      {
         id: 'drv-2',
         verificationStatus: VerificationStatus.VERIFIED,
         availabilityStatus: DriverAvailability.AVAILABLE,
         user: { status: UserStatus.ACTIVE },
         trips: [],
-      });
+      },
+    ]);
 
     db.offer.create
       .mockResolvedValueOnce({ id: 'off-1', driverId: 'drv-1' })
@@ -151,33 +154,34 @@ describe('DispatchService Unit Tests', () => {
       { driverId: 'drv-eligible', distanceKm: 4.0 },
     ]);
 
-    // Driver 1 has an active trip
-    db.driver.findUnique
-      .mockResolvedValueOnce({
+    db.driver.findMany.mockResolvedValueOnce([
+      // Driver 1 has an active trip
+      {
         id: 'drv-busy',
         verificationStatus: VerificationStatus.VERIFIED,
         availabilityStatus: DriverAvailability.AVAILABLE,
         user: { status: UserStatus.ACTIVE },
         trips: [{ id: 'trip-active' }],
-      })
+      },
       // Driver 2 is under review / unverified
-      .mockResolvedValueOnce({
+      {
         id: 'drv-unverified',
         verificationStatus: VerificationStatus.UNDER_REVIEW,
         availabilityStatus: DriverAvailability.AVAILABLE,
         user: { status: UserStatus.ACTIVE },
         trips: [],
-      })
+      },
       // Driver 3 is verified, available, no active trips
-      .mockResolvedValueOnce({
+      {
         id: 'drv-eligible',
         verificationStatus: VerificationStatus.VERIFIED,
         availabilityStatus: DriverAvailability.AVAILABLE,
         user: { status: UserStatus.ACTIVE },
         trips: [],
-      });
+      },
+    ]);
 
-    db.offer.create.mockResolvedValueOnce({ id: 'off-eligible', driverId: 'drv-eligible' });
+    db.offer.create.mockResolvedValue({ id: 'off-eligible', driverId: 'drv-eligible' });
     db.requirement.update.mockResolvedValue({ id: 'req-1', status: RequirementStatus.DISPATCHING });
 
     const result = await service.dispatchRequirement('req-1');
@@ -200,6 +204,7 @@ describe('DispatchService Unit Tests', () => {
     });
 
     locationsService.findNearbyDrivers.mockResolvedValue([]);
+    db.driver.findMany.mockResolvedValue([]);
     db.requirement.update.mockResolvedValue({ id: 'req-1', status: RequirementStatus.NO_DRIVER_AVAILABLE });
 
     const result = await service.dispatchRequirement('req-1');

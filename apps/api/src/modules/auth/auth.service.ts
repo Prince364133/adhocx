@@ -150,7 +150,11 @@ export class AuthService {
       if (!rateLimit.allowed) {
         throw new BadRequestException('Too many OTP requests. Please try again in a few minutes.');
       }
-    } catch (_) {}
+    } catch (err) {
+      if (err instanceof BadRequestException) {
+        throw err;
+      }
+    }
 
     const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
     const isDev = this.configService.get<string>('app.nodeEnv') === 'development';

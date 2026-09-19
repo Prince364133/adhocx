@@ -21,7 +21,6 @@ class TripDetailsScreen extends StatefulWidget {
 
 class _TripDetailsScreenState extends State<TripDetailsScreen> {
   dynamic _trip;
-  bool _isLoading = false;
   bool _isActionInProgress = false;
 
   @override

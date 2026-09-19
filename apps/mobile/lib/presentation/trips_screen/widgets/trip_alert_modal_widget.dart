@@ -58,6 +58,7 @@ class _TripAlertModalWidgetState extends State<TripAlertModalWidget>
   @override
   Widget build(BuildContext context) {
     final progress = _secondsLeft / 30.0;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Positioned(
       left: 0,
@@ -67,7 +68,7 @@ class _TripAlertModalWidgetState extends State<TripAlertModalWidget>
         position: _slideAnim,
         child: Container(
           decoration: BoxDecoration(
-            color: AppColors.bgDark.withAlpha(250),
+            color: (isDark ? AppColors.bgDark : AppColors.bgLight).withAlpha(250),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -75,7 +76,7 @@ class _TripAlertModalWidgetState extends State<TripAlertModalWidget>
               // Progress bar
               LinearProgressIndicator(
                 value: progress,
-                backgroundColor: AppColors.borderDark,
+                backgroundColor: isDark ? AppColors.borderDark : AppColors.borderLight,
                 valueColor: const AlwaysStoppedAnimation<Color>(
                   AppColors.warning,
                 ),
@@ -86,7 +87,7 @@ class _TripAlertModalWidgetState extends State<TripAlertModalWidget>
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceElevatedDark,
+                    color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                       color: AppColors.warning.withAlpha(128),
@@ -110,10 +111,10 @@ class _TripAlertModalWidgetState extends State<TripAlertModalWidget>
                             children: [
                               _pulsingDot(),
                               const SizedBox(width: 8),
-                              const Text(
+                              Text(
                                 'New Trip Alert!',
                                 style: TextStyle(
-                                  color: Colors.white,
+                                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                   fontSize: 16,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -134,7 +135,7 @@ class _TripAlertModalWidgetState extends State<TripAlertModalWidget>
                             ),
                             child: Text(
                               '${_secondsLeft}s',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: AppColors.warning,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
@@ -147,6 +148,7 @@ class _TripAlertModalWidgetState extends State<TripAlertModalWidget>
                       const SizedBox(height: 16),
                       // Pickup
                       _addressRow(
+                        isDark: isDark,
                         icon: Icons.navigation_rounded,
                         iconColor: AppColors.success,
                         label: 'Pickup',
@@ -155,6 +157,7 @@ class _TripAlertModalWidgetState extends State<TripAlertModalWidget>
                       const SizedBox(height: 10),
                       // Drop
                       _addressRow(
+                        isDark: isDark,
                         icon: Icons.location_pin,
                         iconColor: AppColors.error,
                         label: 'Drop',
@@ -165,18 +168,21 @@ class _TripAlertModalWidgetState extends State<TripAlertModalWidget>
                       Row(
                         children: [
                           _infoBox(
+                            isDark: isDark,
                             label: 'Distance',
                             value: widget.trip['distance'] as String,
                             icon: Icons.straighten_rounded,
                           ),
                           const SizedBox(width: 8),
                           _infoBox(
+                            isDark: isDark,
                             label: 'Vehicle',
                             value: widget.trip['vehicle_type'] as String,
                             icon: Icons.directions_car_rounded,
                           ),
                           const SizedBox(width: 8),
                           _infoBox(
+                            isDark: isDark,
                             label: 'Payout',
                             value: '₹${widget.trip['payout']}',
                             icon: Icons.currency_rupee_rounded,
@@ -199,14 +205,14 @@ class _TripAlertModalWidgetState extends State<TripAlertModalWidget>
                                   color: Colors.transparent,
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: AppColors.borderDark,
+                                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
                                   ),
                                 ),
                                 child: Text(
                                   'Decline',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
-                                    color: AppColors.textMutedDark,
+                                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                                     fontWeight: FontWeight.w600,
                                     fontSize: 14,
                                   ),
@@ -270,6 +276,7 @@ class _TripAlertModalWidgetState extends State<TripAlertModalWidget>
   }
 
   Widget _addressRow({
+    required bool isDark,
     required IconData icon,
     required Color iconColor,
     required String label,
@@ -286,12 +293,15 @@ class _TripAlertModalWidgetState extends State<TripAlertModalWidget>
             children: [
               Text(
                 label,
-                style: TextStyle(color: AppColors.textMutedDark, fontSize: 10),
+                style: TextStyle(
+                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                  fontSize: 10,
+                ),
               ),
               Text(
                 address,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                 ),
@@ -304,6 +314,7 @@ class _TripAlertModalWidgetState extends State<TripAlertModalWidget>
   }
 
   Widget _infoBox({
+    required bool isDark,
     required String label,
     required String value,
     required IconData icon,
@@ -313,18 +324,22 @@ class _TripAlertModalWidgetState extends State<TripAlertModalWidget>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
         decoration: BoxDecoration(
-          color: AppColors.textPrimaryLight,
+          color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.borderDark),
+          border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
         ),
         child: Column(
           children: [
-            Icon(icon, color: AppColors.textMutedDark, size: 14),
+            Icon(
+              icon,
+              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+              size: 14,
+            ),
             const SizedBox(height: 4),
             Text(
               value,
               style: TextStyle(
-                color: valueColor ?? Colors.white,
+                color: valueColor ?? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
               ),
@@ -332,7 +347,10 @@ class _TripAlertModalWidgetState extends State<TripAlertModalWidget>
             ),
             Text(
               label,
-              style: TextStyle(color: AppColors.textSecondaryLight, fontSize: 10),
+              style: TextStyle(
+                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                fontSize: 10,
+              ),
             ),
           ],
         ),

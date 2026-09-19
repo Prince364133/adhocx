@@ -15,7 +15,6 @@ import './theme/app_theme.dart';
 import './theme/theme_provider.dart';
 import './user/requirements/requirement_draft_provider.dart';
 import './widgets/custom_error_widget.dart';
-import './widgets/dev_floating_tools.dart';
 import './presentation/language_selection_widget.dart';
 
 void main() async {
@@ -110,16 +109,11 @@ class MyApp extends StatelessWidget {
           darkTheme: AppTheme.darkTheme,
           themeMode: themeProvider.themeMode,
           builder: (context, child) {
-            return Stack(
-              children: [
-                MediaQuery(
-                  data: MediaQuery.of(
-                    context,
-                  ).copyWith(textScaler: const TextScaler.linear(1.0)),
-                  child: child ?? const SizedBox.shrink(),
-                ),
-                const DevFloatingTools(),
-              ],
+            return MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: const TextScaler.linear(1.0)),
+              child: child ?? const SizedBox.shrink(),
             );
           },
           debugShowCheckedModeBanner: false,

@@ -47,9 +47,11 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
     super.dispose();
   }
 
+  bool _isSyncing = false;
+
   void _startAutoRefresh() {
     _refreshTimer?.cancel();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+    _refreshTimer = Timer.periodic(const Duration(seconds: 12), (_) {
       final status = _requirement?['status'] as String?;
       if (status == 'POSTED' || status == 'DISPATCHING' || status == 'PARTIALLY_FULFILLED' || status == 'OPEN') {
         _loadRequirement(silent: true);
@@ -58,6 +60,8 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
   }
 
   Future<void> _loadRequirement({bool silent = false}) async {
+    if (_isSyncing) return;
+    _isSyncing = true;
     if (!silent) {
       setState(() {
         _isLoading = _requirement == null;
@@ -82,6 +86,7 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
     } catch (e) {
       if (!silent && mounted) setState(() => _errorMessage = e.toString().replaceAll("Exception: ", ""));
     } finally {
+      _isSyncing = false;
       if (!silent && mounted) setState(() => _isLoading = false);
     }
   }

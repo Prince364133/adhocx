@@ -3,7 +3,7 @@
  * Executes live HTTP requests against NestJS API at http://localhost:7001/api/v1
  */
 
-const BASE_URL = 'http://localhost:7001/api/v1';
+const BASE_URL = 'http://127.0.0.1:7001/api/v1';
 
 async function runTests() {
   console.log('====================================================');
@@ -121,9 +121,9 @@ async function runTests() {
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
   });
 
-  // 7. Driver Cloudflare R2 Document Upload
+  // 7. Driver Cloudflare R2 Document Upload (with Security Sanitizer & Magic Byte Inspection)
   await test('POST /drivers/documents/upload - Cloudflare R2 KYC Document Stream', async () => {
-    const fakeDoc = Buffer.from('PDF_SAMPLE_DRIVING_LICENSE_DATA_2026').toString('base64');
+    const validPdfDoc = Buffer.from('%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF\n').toString('base64');
     const res = await fetch(`${BASE_URL}/drivers/documents/upload`, {
       method: 'POST',
       headers: {
@@ -133,7 +133,7 @@ async function runTests() {
       body: JSON.stringify({
         filename: 'driving_license_front.pdf',
         mimeType: 'application/pdf',
-        contentBase64: fakeDoc,
+        contentBase64: validPdfDoc,
       }),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);

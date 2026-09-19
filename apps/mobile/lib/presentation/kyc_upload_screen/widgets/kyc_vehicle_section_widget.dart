@@ -29,13 +29,14 @@ class _KycVehicleSectionWidgetState extends State<KycVehicleSectionWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(20),
-      // 1. MATCHING CONTAINER: Transparent background with subtle white border
       decoration: BoxDecoration(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(color: isDark ? Colors.white12 : AppColors.borderLight),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -44,10 +45,10 @@ class _KycVehicleSectionWidgetState extends State<KycVehicleSectionWidget> {
           const SizedBox(height: 24),
           
           // Vehicle type toggle
-          const Text(
+          Text(
             'Vehicle Category',
             style: TextStyle(
-              color: AppColors.slate400, // Matching grey label
+              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
               fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
@@ -55,14 +56,15 @@ class _KycVehicleSectionWidgetState extends State<KycVehicleSectionWidget> {
           const SizedBox(height: 8),
           Row(
             children: [
-              _typeButton('sedan', '🚗 Sedan'),
+              _typeButton(isDark, 'sedan', '🚗 Sedan'),
               const SizedBox(width: 12),
-              _typeButton('suv', '🚙 SUV'),
+              _typeButton(isDark, 'suv', '🚙 SUV'),
             ],
           ),
           const SizedBox(height: 24),
           
           _field(
+            isDark: isDark,
             label: 'Vehicle Number',
             hint: 'TS09EF1234',
             icon: Icons.directions_car_outlined,
@@ -74,6 +76,7 @@ class _KycVehicleSectionWidgetState extends State<KycVehicleSectionWidget> {
           ),
           const SizedBox(height: 16),
           _field(
+            isDark: isDark,
             label: 'Vehicle RC Number',
             hint: 'TS09EF1234RC',
             icon: Icons.article_outlined,
@@ -88,8 +91,9 @@ class _KycVehicleSectionWidgetState extends State<KycVehicleSectionWidget> {
     );
   }
 
-  Widget _typeButton(String type, String label) {
+  Widget _typeButton(bool isDark, String type, String label) {
     final isSelected = _vehicleType == type;
+
     return Expanded(
       child: GestureDetector(
         onTap: () {
@@ -99,16 +103,15 @@ class _KycVehicleSectionWidgetState extends State<KycVehicleSectionWidget> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 16),
-          // 2. MATCHING TOGGLE BUTTONS: Green highlight when selected, dark grey when not
           decoration: BoxDecoration(
             color: isSelected
                 ? AppColors.successContainer
-                : AppColors.surfaceElevatedDark, // Dark grey input background
+                : (isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: isSelected
                   ? AppColors.success
-                  : Colors.white10,
+                  : (isDark ? AppColors.borderDark : AppColors.borderLight),
               width: isSelected ? 1.5 : 1,
             ),
           ),
@@ -118,7 +121,7 @@ class _KycVehicleSectionWidgetState extends State<KycVehicleSectionWidget> {
             style: TextStyle(
               color: isSelected
                   ? AppColors.success
-                  : AppColors.slate400,
+                  : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
               fontSize: 14,
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
             ),
@@ -129,6 +132,7 @@ class _KycVehicleSectionWidgetState extends State<KycVehicleSectionWidget> {
   }
 
   Widget _field({
+    required bool isDark,
     required String label,
     required String hint,
     required IconData icon,
@@ -141,31 +145,37 @@ class _KycVehicleSectionWidgetState extends State<KycVehicleSectionWidget> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: AppColors.slate400, // Soft grey for labels
+          style: TextStyle(
+            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
             fontSize: 13,
             fontWeight: FontWeight.w500,
           ),
         ),
         const SizedBox(height: 8),
-        // 3. MATCHING INPUT: Dark grey fill, white outline border
         TextFormField(
           textCapitalization: textCapitalization,
-          style: const TextStyle(color: Colors.white, fontSize: 14),
+          style: TextStyle(
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+            fontSize: 14,
+          ),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.2)),
+            hintStyle: TextStyle(
+              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+            ),
             prefixIcon: Icon(
               icon, 
-              color: Colors.white.withValues(alpha: 0.5), 
+              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, 
               size: 20,
             ),
             filled: true,
-            fillColor: AppColors.surfaceElevatedDark, // Dark grey input background
+            fillColor: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight,
             contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Colors.white10),
+              borderSide: BorderSide(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
@@ -190,7 +200,6 @@ class _KycVehicleSectionWidgetState extends State<KycVehicleSectionWidget> {
   Widget _sectionHeader(String num, String title) {
     return Row(
       children: [
-        // 4. MATCHING HEADER: Faded green box, bright green text
         Container(
           width: 28,
           height: 28,

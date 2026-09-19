@@ -17,6 +17,7 @@ import '../presentation/14_onboarding_review_screen/onboarding_review_screen.dar
 import '../presentation/15_welcome_success_screen/welcome_success_screen.dart';
 import '../presentation/edge_cases/global_state_gallery_screen.dart';
 import '../presentation/home_screen/home_screen.dart';
+import '../presentation/driver_score_screen/driver_score_screen.dart';
 import '../presentation/kyc_upload_screen/kyc_upload_screen.dart';
 import '../presentation/notifications_screen/notifications_feed_screen.dart';
 import '../presentation/opportunities_screen/opportunities_screen.dart';
@@ -125,6 +126,7 @@ class AppRoutes {
   static const String myVehicleScreen = '/profile/vehicle';
   static const String addVehicleScreen = '/profile/vehicle/add';
   static const String kycVerificationScreen = '/profile/kyc';
+  static const String driverScoreScreen = '/driver/score';
   static const String documentDetailsScreen = '/profile/documents/details';
   static const String accountStatusScreen = '/profile/account-status';
   static const String notificationsSettingsScreen = '/profile/notifications';
@@ -484,6 +486,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.kycVerificationScreen,
       builder: (context, state) => const KycVerificationScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.driverScoreScreen,
+      builder: (context, state) => const DriverScoreScreen(),
     ),
     GoRoute(
       path: AppRoutes.documentDetailsScreen,

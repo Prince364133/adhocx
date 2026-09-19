@@ -9,12 +9,16 @@ class KycIdentitySectionWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return _KycSection(
+      isDark: isDark,
       title: 'Identity & Contact',
       sectionNumber: '1',
       child: Column(
         children: [
           _KycField(
+            isDark: isDark,
             label: 'Full Legal Name',
             hint: 'As on Aadhaar card',
             icon: Icons.person_outline_rounded,
@@ -24,6 +28,7 @@ class KycIdentitySectionWidget extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           _KycField(
+            isDark: isDark,
             label: 'Phone Number',
             hint: '9876543210',
             icon: Icons.phone_outlined,
@@ -38,6 +43,7 @@ class KycIdentitySectionWidget extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           _KycField(
+            isDark: isDark,
             label: 'Aadhaar Card Number',
             hint: 'XXXX XXXX XXXX',
             icon: Icons.badge_outlined,
@@ -52,6 +58,7 @@ class KycIdentitySectionWidget extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           _KycField(
+            isDark: isDark,
             label: 'PAN Card Number',
             hint: 'ABCDE1234F',
             icon: Icons.credit_card_outlined,
@@ -81,11 +88,13 @@ class KycIdentitySectionWidget extends StatelessWidget {
 
 // Shared section wrapper
 class _KycSection extends StatelessWidget {
+  final bool isDark;
   final String title;
   final String sectionNumber;
   final Widget child;
 
   const _KycSection({
+    required this.isDark,
     required this.title,
     required this.sectionNumber,
     required this.child,
@@ -96,9 +105,11 @@ class _KycSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.black, // Changed from slate to pure black
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white24), // Subtle white border
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -109,14 +120,14 @@ class _KycSection extends StatelessWidget {
                 width: 24,
                 height: 24,
                 decoration: BoxDecoration(
-                  color: AppColors.success, // Changed to brand green
+                  color: AppColors.success,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Center(
                   child: Text(
                     sectionNumber,
                     style: const TextStyle(
-                      color: Colors.white, // Changed to white for contrast
+                      color: Colors.white,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
@@ -127,7 +138,7 @@ class _KycSection extends StatelessWidget {
               Text(
                 title,
                 style: const TextStyle(
-                  color: AppColors.success, // Changed to brand green
+                  color: AppColors.success,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
@@ -144,6 +155,7 @@ class _KycSection extends StatelessWidget {
 
 // Shared field widget
 class _KycField extends StatelessWidget {
+  final bool isDark;
   final String label;
   final String hint;
   final IconData icon;
@@ -154,6 +166,7 @@ class _KycField extends StatelessWidget {
   final FormFieldValidator<String>? validator;
 
   const _KycField({
+    required this.isDark,
     required this.label,
     required this.hint,
     required this.icon,
@@ -171,8 +184,8 @@ class _KycField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: Colors.white70, // Slightly dimmed white for label
+          style: TextStyle(
+            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
             fontSize: 13,
             fontWeight: FontWeight.w500,
           ),
@@ -182,20 +195,31 @@ class _KycField extends StatelessWidget {
           keyboardType: keyboardType,
           textCapitalization: textCapitalization,
           inputFormatters: inputFormatters,
-          style: const TextStyle(color: Colors.white, fontSize: 14),
+          style: TextStyle(
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+            fontSize: 14,
+          ),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(color: Colors.white38),
-            prefixIcon: Icon(icon, color: Colors.white70, size: 18),
+            hintStyle: TextStyle(
+              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+            ),
+            prefixIcon: Icon(
+              icon,
+              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+              size: 18,
+            ),
             filled: true,
-            fillColor: AppColors.surfaceDark, // Very dark grey inner box
+            fillColor: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight,
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Colors.white24),
+              borderSide: BorderSide(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.success), // Green outline when typing
+              borderSide: const BorderSide(color: AppColors.success),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),

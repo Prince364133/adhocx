@@ -62,7 +62,7 @@ export class LocationsService {
 
     const where: any = {
       availabilityStatus: DriverAvailability.AVAILABLE,
-      verificationStatus: { in: [VerificationStatus.VERIFIED, VerificationStatus.PENDING, VerificationStatus.UNDER_REVIEW] },
+      verificationStatus: VerificationStatus.VERIFIED,
       currentLat: { not: null },
       currentLng: { not: null },
     };

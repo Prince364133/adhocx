@@ -6,7 +6,7 @@ class WalletWithdrawalWidget extends StatefulWidget {
   final double availableBalance;
   final bool hasPendingWithdrawal;
   final Map<String, dynamic> bankDetails;
-  final ValueChanged<double> onWithdraw;
+  final Future<void> Function(double amount) onWithdraw;
 
   const WalletWithdrawalWidget({
     super.key,
@@ -31,19 +31,25 @@ class _WalletWithdrawalWidgetState extends State<WalletWithdrawalWidget> {
   }
 
   void _fillFull() {
-    _amountController.text = widget.availableBalance.toStringAsFixed(0);
-    setState(() => _error = null);
+    setState(() {
+      _amountController.text = widget.availableBalance.toStringAsFixed(0);
+      _error = null;
+    });
   }
 
   void _withdraw() {
-    final raw = _amountController.text.trim();
-    if (raw.isEmpty) {
-      setState(() => _error = 'Enter withdrawal amount');
+    final text = _amountController.text.trim();
+    if (text.isEmpty) {
+      setState(() => _error = 'Enter an amount');
       return;
     }
-    final amount = double.tryParse(raw);
+    final amount = double.tryParse(text);
     if (amount == null || amount <= 0) {
       setState(() => _error = 'Enter a valid amount');
+      return;
+    }
+    if (amount < 100) {
+      setState(() => _error = 'Minimum withdrawal is ₹100');
       return;
     }
     if (amount > widget.availableBalance) {
@@ -56,20 +62,31 @@ class _WalletWithdrawalWidgetState extends State<WalletWithdrawalWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevatedDark,
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderDark),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Request Settlement',
             style: TextStyle(
-              color: Colors.white,
+              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
@@ -78,18 +95,20 @@ class _WalletWithdrawalWidgetState extends State<WalletWithdrawalWidget> {
           // Amount input
           Container(
             decoration: BoxDecoration(
-              color: AppColors.textPrimaryLight,
+              color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.borderDark),
+              border: Border.all(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              ),
             ),
             child: Row(
               children: [
-                const Padding(
-                  padding: EdgeInsets.only(left: 14),
+                Padding(
+                  padding: const EdgeInsets.only(left: 14),
                   child: Text(
                     '₹',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                     ),
@@ -100,20 +119,20 @@ class _WalletWithdrawalWidgetState extends State<WalletWithdrawalWidget> {
                     controller: _amountController,
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
-                      fontFeatures: [FontFeature.tabularFigures()],
+                      fontFeatures: const [FontFeature.tabularFigures()],
                     ),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       hintText: '0',
                       hintStyle: TextStyle(
-                        color: AppColors.textSecondaryLight,
+                        color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
                         fontSize: 18,
                       ),
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(
+                      contentPadding: const EdgeInsets.symmetric(
                         horizontal: 10,
                         vertical: 14,
                       ),
@@ -129,9 +148,10 @@ class _WalletWithdrawalWidgetState extends State<WalletWithdrawalWidget> {
             onTap: _fillFull,
             child: Text(
               'Withdraw full balance (₹${widget.availableBalance.toStringAsFixed(0)})',
-              style: TextStyle(
+              style: const TextStyle(
                 color: AppColors.warning,
                 fontSize: 12,
+                fontWeight: FontWeight.w600,
                 decoration: TextDecoration.underline,
                 decorationColor: AppColors.warning,
               ),
@@ -141,7 +161,7 @@ class _WalletWithdrawalWidgetState extends State<WalletWithdrawalWidget> {
             const SizedBox(height: 8),
             Text(
               _error!,
-              style: TextStyle(color: AppColors.error, fontSize: 12),
+              style: const TextStyle(color: AppColors.error, fontSize: 12),
             ),
           ],
           if (widget.hasPendingWithdrawal) ...[
@@ -149,10 +169,10 @@ class _WalletWithdrawalWidgetState extends State<WalletWithdrawalWidget> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.warning.withAlpha(20),
+                color: AppColors.warning.withValues(alpha: isDark ? 0.15 : 0.08),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: AppColors.warning.withAlpha(77),
+                  color: AppColors.warning.withValues(alpha: isDark ? 0.35 : 0.25),
                 ),
               ),
               child: const Row(
@@ -199,13 +219,14 @@ class _WalletWithdrawalWidgetState extends State<WalletWithdrawalWidget> {
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: widget.hasPendingWithdrawal
-                    ? AppColors.successDarkContainer
+                    ? (isDark ? AppColors.successDarkContainer : AppColors.successContainer)
                     : AppColors.success,
                 foregroundColor: widget.hasPendingWithdrawal
-                    ? AppColors.accentGreen
+                    ? (isDark ? AppColors.accentGreen : AppColors.successText)
                     : Colors.white,
-                disabledBackgroundColor: AppColors.borderDark,
-                disabledForegroundColor: AppColors.textSecondaryLight,
+                disabledBackgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.borderLight,
+                disabledForegroundColor: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
+                elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),

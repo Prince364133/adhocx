@@ -134,7 +134,7 @@ describe('AdhocX + JoinCab Unified Platform: 10 Comprehensive Feature Simulation
   // =========================================================================
   it('Simulation 3: Mode 1 (DIRECT_DISPATCH) calculates fixed rates and auto-dispatches', () => {
     const fixedRate = pricingService.calculateDriverRate(VehicleType.SEDAN);
-    expect(fixedRate).toBe(1500);
+    expect(fixedRate).toBe(800);
 
     const corporateReq = {
       id: 'req-corporate-bulk',
@@ -150,7 +150,7 @@ describe('AdhocX + JoinCab Unified Platform: 10 Comprehensive Feature Simulation
 
     state.requirements.set(corporateReq.id, corporateReq);
     expect(corporateReq.fulfillmentMode).toBe(FulfillmentMode.DIRECT_DISPATCH);
-    expect(corporateReq.totalAmount).toBe(7500);
+    expect(corporateReq.totalAmount).toBe(4000);
   });
 
   // =========================================================================
@@ -387,7 +387,7 @@ describe('AdhocX + JoinCab Unified Platform: 10 Comprehensive Feature Simulation
     driver.trustScore = Math.min(100.0, driver.trustScore + 0.5);
 
     expect(driver.totalTrips).toBe(initialTrips + 1);
-    expect(driver.trustScore).toBe(98.5);
+    expect(driver.trustScore).toBe(initialTrust + 0.5);
 
     // Simulated driver-side cancellation on another trip: -5.0 penalty
     driver.trustScore = Math.max(0.0, driver.trustScore - 5.0);

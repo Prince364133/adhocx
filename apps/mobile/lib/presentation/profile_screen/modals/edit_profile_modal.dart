@@ -31,7 +31,6 @@ class _EditProfileModalState extends State<EditProfileModal> {
   @override
   void initState() {
     super.initState();
-    // Pre-filling the text controllers with the passed profile data
     _nameCtrl = TextEditingController(
       text: widget.profile['full_name'] as String? ?? widget.profile['name'] as String? ?? '',
     );
@@ -97,7 +96,6 @@ class _EditProfileModalState extends State<EditProfileModal> {
       final currentUser = supabase.auth.currentUser;
 
       if (currentUser != null) {
-        // Execute the real Supabase UPDATE query
         await supabase.from('driver_profiles').update({
           'full_name': _nameCtrl.text.trim(),
           'phone': _phoneCtrl.text.trim(),
@@ -111,10 +109,10 @@ class _EditProfileModalState extends State<EditProfileModal> {
           'bank_ifsc': _ifscCtrl.text.trim(),
           'upi_id': _upiCtrl.text.trim(),
           'vehicle_type': _vehicleType,
-        }).eq('user_id', currentUser.id); // Securely targets the logged-in user
+        }).eq('user_id', currentUser.id);
 
         Fluttertoast.showToast(msg: 'Profile updated successfully');
-        
+
         if (mounted) {
           Navigator.of(context).pop();
         }
@@ -132,6 +130,8 @@ class _EditProfileModalState extends State<EditProfileModal> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return DraggableScrollableSheet(
       initialChildSize: 0.92,
       maxChildSize: 0.97,
@@ -139,9 +139,14 @@ class _EditProfileModalState extends State<EditProfileModal> {
       builder: (context, scrollController) {
         return Container(
           decoration: BoxDecoration(
-            color: AppColors.bgDark,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            border: Border(top: BorderSide(color: AppColors.borderDark)),
+            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border(
+              top: BorderSide(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                width: 1.2,
+              ),
+            ),
           ),
           child: Column(
             children: [
@@ -151,7 +156,7 @@ class _EditProfileModalState extends State<EditProfileModal> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.borderDark,
+                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -163,10 +168,10 @@ class _EditProfileModalState extends State<EditProfileModal> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Edit Profile',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
                       ),
@@ -175,14 +180,17 @@ class _EditProfileModalState extends State<EditProfileModal> {
                       onTap: () => Navigator.of(context).pop(),
                       child: Icon(
                         Icons.close_rounded,
-                        color: AppColors.textMutedDark,
+                        color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
                         size: 22,
                       ),
                     ),
                   ],
                 ),
               ),
-              Divider(color: AppColors.borderDark, height: 1),
+              Divider(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                height: 1,
+              ),
               Expanded(
                 child: Form(
                   key: _formKey,
@@ -195,69 +203,85 @@ class _EditProfileModalState extends State<EditProfileModal> {
                           'Full Legal Name',
                           _nameCtrl,
                           Icons.person_outline_rounded,
+                          isDark: isDark,
                         ),
                         _field(
                           'Phone Number',
                           _phoneCtrl,
                           Icons.phone_outlined,
+                          isDark: isDark,
                           keyboardType: TextInputType.phone,
                         ),
                         _field(
                           'Driver License Number',
                           _dlCtrl,
                           Icons.drive_eta_outlined,
+                          isDark: isDark,
                           caps: TextCapitalization.characters,
                         ),
                         _field(
                           'PAN Card Number',
                           _panCtrl,
                           Icons.credit_card_outlined,
+                          isDark: isDark,
                           caps: TextCapitalization.characters,
                         ),
                         _field(
                           'Aadhaar Number',
                           _aadhaarCtrl,
                           Icons.badge_outlined,
+                          isDark: isDark,
                           keyboardType: TextInputType.number,
                         ),
-                      ]),
+                      ], isDark),
                       const SizedBox(height: 20),
                       _section('2', 'Vehicle Details', [
-                        _vehicleToggle(),
+                        _vehicleToggle(isDark),
                         _field(
                           'Vehicle Number',
                           _vehicleNumCtrl,
                           Icons.directions_car_outlined,
+                          isDark: isDark,
                           caps: TextCapitalization.characters,
                         ),
                         _field(
                           'RC Number',
                           _rcCtrl,
-                          Icons.article_outlined,
+                          Icons.description_outlined,
+                          isDark: isDark,
                           caps: TextCapitalization.characters,
                         ),
-                      ]),
+                      ], isDark),
                       const SizedBox(height: 20),
-                      _section('3', 'Banking Details', [
+                      _section('3', 'Payout & Settlement Details', [
                         _field(
                           'Bank Name',
                           _bankNameCtrl,
                           Icons.account_balance_outlined,
+                          isDark: isDark,
                         ),
                         _field(
-                          'Account Number',
+                          'Bank Account Number',
                           _accountCtrl,
-                          Icons.credit_card_outlined,
+                          Icons.numbers_rounded,
+                          isDark: isDark,
                           keyboardType: TextInputType.number,
                         ),
                         _field(
                           'IFSC Code',
                           _ifscCtrl,
-                          Icons.code_rounded,
+                          Icons.domain_outlined,
+                          isDark: isDark,
                           caps: TextCapitalization.characters,
                         ),
-                        _field('UPI ID', _upiCtrl, Icons.payment_rounded),
-                      ]),
+                        _field(
+                          'UPI ID (e.g. 9876543210@paytm)',
+                          _upiCtrl,
+                          Icons.qr_code_2_rounded,
+                          isDark: isDark,
+                          keyboardType: TextInputType.emailAddress,
+                        ),
+                      ], isDark),
                       const SizedBox(height: 28),
                       Row(
                         children: [
@@ -265,10 +289,10 @@ class _EditProfileModalState extends State<EditProfileModal> {
                             child: OutlinedButton(
                               onPressed: () => Navigator.of(context).pop(),
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: AppColors.textMutedDark,
                                 side: BorderSide(
-                                  color: AppColors.borderDark,
+                                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
                                 ),
+                                foregroundColor: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -286,7 +310,7 @@ class _EditProfileModalState extends State<EditProfileModal> {
                               onPressed: _isSaving ? null : _save,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.warning,
-                                foregroundColor: AppColors.bgDark,
+                                foregroundColor: Colors.black,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -304,7 +328,7 @@ class _EditProfileModalState extends State<EditProfileModal> {
                                       height: 18,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        color: AppColors.bgDark,
+                                        color: Colors.black,
                                       ),
                                     )
                                   : const Text('Save & Update'),
@@ -324,13 +348,15 @@ class _EditProfileModalState extends State<EditProfileModal> {
     );
   }
 
-  Widget _section(String num, String title, List<Widget> fields) {
+  Widget _section(String num, String title, List<Widget> fields, bool isDark) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevatedDark,
+        color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderDark),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -348,7 +374,7 @@ class _EditProfileModalState extends State<EditProfileModal> {
                   child: Text(
                     num,
                     style: const TextStyle(
-                      color: AppColors.bgDark,
+                      color: Colors.black,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
@@ -358,7 +384,7 @@ class _EditProfileModalState extends State<EditProfileModal> {
               const SizedBox(width: 8),
               Text(
                 title,
-                style: TextStyle(
+                style: const TextStyle(
                   color: AppColors.warning,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -380,6 +406,7 @@ class _EditProfileModalState extends State<EditProfileModal> {
     String label,
     TextEditingController ctrl,
     IconData icon, {
+    required bool isDark,
     TextInputType? keyboardType,
     TextCapitalization caps = TextCapitalization.none,
   }) {
@@ -389,7 +416,7 @@ class _EditProfileModalState extends State<EditProfileModal> {
         Text(
           label,
           style: TextStyle(
-            color: AppColors.textMutedDark,
+            color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
@@ -399,23 +426,49 @@ class _EditProfileModalState extends State<EditProfileModal> {
           controller: ctrl,
           keyboardType: keyboardType,
           textCapitalization: caps,
-          style: const TextStyle(color: Colors.white, fontSize: 14),
+          style: TextStyle(
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+            fontSize: 14,
+          ),
           decoration: InputDecoration(
-            prefixIcon: Icon(icon, color: AppColors.textMutedDark, size: 17),
+            filled: true,
+            fillColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+            prefixIcon: Icon(
+              icon,
+              color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
+              size: 17,
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppColors.warning, width: 1.5),
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _vehicleToggle() {
+  Widget _vehicleToggle(bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Vehicle Category',
           style: TextStyle(
-            color: AppColors.textMutedDark,
+            color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
@@ -423,16 +476,16 @@ class _EditProfileModalState extends State<EditProfileModal> {
         const SizedBox(height: 6),
         Row(
           children: [
-            _typeBtn('sedan', '🚗 Sedan'),
+            _typeBtn('sedan', '🚗 Sedan', isDark),
             const SizedBox(width: 10),
-            _typeBtn('suv', '🚙 SUV'),
+            _typeBtn('suv', '🚙 SUV', isDark),
           ],
         ),
       ],
     );
   }
 
-  Widget _typeBtn(String type, String label) {
+  Widget _typeBtn(String type, String label, bool isDark) {
     final isSelected = _vehicleType == type;
     return Expanded(
       child: GestureDetector(
@@ -442,13 +495,13 @@ class _EditProfileModalState extends State<EditProfileModal> {
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: isSelected
-                ? AppColors.warning.withAlpha(31)
-                : AppColors.textPrimaryLight,
+                ? AppColors.warning.withValues(alpha: isDark ? 0.2 : 0.12)
+                : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: isSelected
                   ? AppColors.warning
-                  : AppColors.borderDark,
+                  : (isDark ? AppColors.borderDark : AppColors.borderLight),
               width: isSelected ? 1.5 : 1,
             ),
           ),
@@ -458,7 +511,7 @@ class _EditProfileModalState extends State<EditProfileModal> {
             style: TextStyle(
               color: isSelected
                   ? AppColors.warning
-                  : AppColors.textMutedDark,
+                  : (isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight),
               fontSize: 13,
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
             ),

@@ -35,13 +35,15 @@ class _TripsWaitingStateWidgetState extends State<TripsWaitingStateWidget>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Container(
           padding: const EdgeInsets.all(32),
           decoration: BoxDecoration(
-            color: AppColors.surfaceElevatedDark,
+            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: AppColors.success.withAlpha(77)),
           ),
@@ -75,10 +77,12 @@ class _TripsWaitingStateWidgetState extends State<TripsWaitingStateWidget>
                 },
               ),
               const SizedBox(height: 20),
-              const Text(
+              Text(
                 'Waiting for trips…',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: isDark
+                      ? AppColors.textPrimaryDark
+                      : AppColors.textPrimaryLight,
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
                 ),
@@ -86,7 +90,12 @@ class _TripsWaitingStateWidgetState extends State<TripsWaitingStateWidget>
               const SizedBox(height: 8),
               Text(
                 'Trip alerts will appear here when available',
-                style: TextStyle(color: AppColors.textMutedDark, fontSize: 13),
+                style: TextStyle(
+                  color: isDark
+                      ? AppColors.textMutedDark
+                      : AppColors.textMutedLight,
+                  fontSize: 13,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),

@@ -18,14 +18,14 @@ describe('PricingService', () => {
   });
 
   it('should calculate correct base rates per vehicle type', () => {
-    expect(service.calculateDriverRate(VehicleType.HATCHBACK)).toBe(1200);
-    expect(service.calculateDriverRate(VehicleType.SEDAN)).toBe(1500);
-    expect(service.calculateDriverRate(VehicleType.SUV)).toBe(2000);
-    expect(service.calculateDriverRate(VehicleType.TEMPO_TRAVELLER)).toBe(3500);
-    expect(service.calculateDriverRate(VehicleType.BUS)).toBe(5000);
+    expect(service.calculateDriverRate(VehicleType.HATCHBACK)).toBe(500);
+    expect(service.calculateDriverRate(VehicleType.SEDAN)).toBe(800);
+    expect(service.calculateDriverRate(VehicleType.SUV)).toBe(1400);
+    expect(service.calculateDriverRate(VehicleType.TEMPO_TRAVELLER)).toBe(3200);
+    expect(service.calculateDriverRate(VehicleType.BUS)).toBe(6500);
   });
 
-  it('should fallback to 1500 for unknown vehicle type', () => {
-    expect(service.calculateDriverRate('UNKNOWN' as any)).toBe(1500);
+  it('should fallback to 800 (Sedan base) for unknown vehicle type', () => {
+    expect(service.calculateDriverRate('UNKNOWN' as any)).toBe(800);
   });
 });

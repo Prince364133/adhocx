@@ -27,6 +27,8 @@ class _HomeScreenState extends State<HomeScreen> {
   String _driverName = 'Driver Partner';
   double _todayEarnings = 0.0;
   int _todayTripsCount = 0;
+  double _trustScore = 100.0;
+  String _trustTier = 'Platinum';
   Map<String, dynamic>? _liveOffer;
   Map<String, dynamic>? _liveTrip;
   Timer? _autoRefreshTimer;
@@ -46,38 +48,72 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  bool _isSyncing = false;
+
   void _startAutoRefresh() {
     _autoRefreshTimer?.cancel();
-    _autoRefreshTimer = Timer.periodic(const Duration(milliseconds: 3500), (_) {
+    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 25), (_) {
       if (mounted && (_currentState == DriverHomeState.available || _currentState == DriverHomeState.offerAttention)) {
-        _loadLiveDriverData(silent: true);
+        _loadLiveDriverData(silent: true, force: false);
       }
     });
   }
 
-  Future<void> _loadLiveDriverData({bool silent = false}) async {
+  Future<void> _loadLiveDriverData({bool silent = false, bool? force}) async {
+    if (_isSyncing) return;
+    _isSyncing = true;
+    final forceFetch = force ?? !silent;
+
     if (!silent) setState(() => _isLoading = true);
     try {
-      await AuthService.instance.ensureAuthenticatedSession(role: 'DRIVER');
       final results = await Future.wait([
-        DriverService.instance.getProfile().catchError((_) => null),
-        DriverService.instance.getWalletSummary().catchError((_) => null),
-        DriverService.instance.getOffers().catchError((_) => []),
-        DriverService.instance.getBiddingOpportunities().catchError((_) => []),
-        DriverService.instance.getTrips().catchError((_) => []),
+        silent ? Future.value(null) : DriverService.instance.getProfile(forceRefresh: forceFetch).catchError((_) => null),
+        silent ? Future.value(null) : DriverService.instance.getWalletSummary(forceRefresh: forceFetch).catchError((_) => null),
+        DriverService.instance.getOffers(forceRefresh: forceFetch).catchError((_) => []),
+        DriverService.instance.getBiddingOpportunities(forceRefresh: forceFetch).catchError((_) => []),
+        DriverService.instance.getTrips(forceRefresh: forceFetch).catchError((_) => []),
       ]);
 
-      final profile = results[0] as Map<String, dynamic>?;
-      final wallet = results[1] as Map<String, dynamic>?;
-      final offers = results[2] is List ? results[2] as List<dynamic> : [];
-      final biddingOps = results[3] is List ? results[3] as List<dynamic> : [];
-      final trips = results[4] is List ? results[4] as List<dynamic> : [];
+      final pRaw = results[0];
+      final profile = pRaw is Map<String, dynamic>
+          ? (pRaw['data'] is Map<String, dynamic> ? pRaw['data'] as Map<String, dynamic> : pRaw)
+          : null;
+
+      final wRaw = results[1];
+      final wallet = wRaw is Map<String, dynamic>
+          ? (wRaw['data'] is Map<String, dynamic> ? wRaw['data'] as Map<String, dynamic> : wRaw)
+          : null;
+
+      final oRaw = results[2];
+      final offers = oRaw is List
+          ? oRaw
+          : (oRaw is Map && oRaw['data'] is List ? oRaw['data'] as List<dynamic> : []);
+
+      final bRaw = results[3];
+      final biddingOps = bRaw is List
+          ? bRaw
+          : (bRaw is Map && bRaw['data'] is List ? bRaw['data'] as List<dynamic> : []);
+
+      final tRaw = results[4];
+      final trips = tRaw is List
+          ? tRaw
+          : (tRaw is Map && tRaw['data'] is List ? tRaw['data'] as List<dynamic> : []);
 
       if (mounted) {
         setState(() {
           if (profile != null) {
             final user = profile['user'] as Map<String, dynamic>?;
-            _driverName = profile['fullName'] as String? ?? user?['name'] as String? ?? 'Driver Partner';
+            _driverName = profile['fullName'] as String? ??
+                user?['name'] as String? ??
+                user?['fullName'] as String? ??
+                'Driver Partner';
+            final num? scoreNum = profile['trustScore'] as num? ??
+                profile['trust_score'] as num? ??
+                profile['currentScore'] as num?;
+            final rawScore = scoreNum?.toDouble() ?? 100.0;
+            _trustScore = rawScore;
+            _trustTier = rawScore >= 90 ? 'Platinum' : rawScore >= 80 ? 'Gold' : rawScore >= 70 ? 'Silver' : 'Bronze';
+
             final avail = profile['availabilityStatus'] as String? ?? 'OFFLINE';
             if (avail == 'AVAILABLE' && _currentState == DriverHomeState.offline) {
               _currentState = DriverHomeState.available;
@@ -85,8 +121,10 @@ class _HomeScreenState extends State<HomeScreen> {
           }
 
           if (wallet != null) {
-            _todayEarnings = (wallet['todayEarnings'] ?? wallet['availableBalance'] ?? 0.0).toDouble();
-            _todayTripsCount = (wallet['completedTripsCount'] ?? 0).toInt();
+            final num earn = wallet['todayEarnings'] as num? ?? wallet['availableBalance'] as num? ?? 0.0;
+            final num count = wallet['completedTripsCount'] as num? ?? wallet['totalTrips'] as num? ?? 0;
+            _todayEarnings = earn.toDouble();
+            _todayTripsCount = count.toInt();
           }
 
           // 1. Check if an active / in-progress / arrived trip exists
@@ -136,6 +174,7 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       debugPrint('Driver home sync notice: $e');
     } finally {
+      _isSyncing = false;
       if (!silent && mounted) setState(() => _isLoading = false);
     }
   }
@@ -221,6 +260,43 @@ class _HomeScreenState extends State<HomeScreen> {
                               style: AppTypography.body(
                                 color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                 fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            GestureDetector(
+                              onTap: () => context.push(AppRoutes.driverScoreScreen),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
+                                  ),
+                                  borderRadius: BorderRadius.circular(AppRadius.full),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF6366F1).withValues(alpha: 0.35),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 1),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.shield, size: 11, color: Colors.white),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Trust Score: ${_trustScore.toStringAsFixed(0)}/100 • $_trustTier',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 2),
+                                    const Icon(Icons.chevron_right, size: 12, color: Colors.white70),
+                                  ],
+                                ),
                               ),
                             ),
                           ],
@@ -1078,7 +1154,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final trip = _liveTrip;
     final tripId = trip?['id'] as String? ?? '';
     final status = (trip?['status'] as String? ?? 'IN_PROGRESS');
-    final pickup = (trip?['pickupLocation']?['address'] ?? trip?['pickupAddress'] ?? 'Pickup Point').toString();
     final drop = (trip?['dropLocation']?['address'] ?? trip?['dropAddress'] ?? 'Destination').toString();
 
     return Column(

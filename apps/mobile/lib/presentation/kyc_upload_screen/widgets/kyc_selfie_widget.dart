@@ -112,7 +112,10 @@ class _KycSelfieWidgetState extends State<KycSelfieWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return _buildSection(
+      isDark: isDark,
       title: 'Driver Selfie',
       sectionNumber: '0',
       child: Row(
@@ -121,10 +124,10 @@ class _KycSelfieWidgetState extends State<KycSelfieWidget> {
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: AppColors.surfaceDark,
+              color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: _hasCaptured ? AppColors.success : Colors.white24,
+                color: _hasCaptured ? AppColors.success : (isDark ? AppColors.borderDark : AppColors.borderLight),
                 width: _hasCaptured ? 2 : 1,
               ),
               image: _capturedImage != null
@@ -142,9 +145,9 @@ class _KycSelfieWidgetState extends State<KycSelfieWidget> {
                         color: AppColors.success,
                         size: 36,
                       )
-                    : const Icon(
+                    : Icon(
                         Icons.person_outline_rounded,
-                        color: Colors.white54,
+                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                         size: 36,
                       )),
           ),
@@ -168,7 +171,7 @@ class _KycSelfieWidgetState extends State<KycSelfieWidget> {
                         child: _actionButton(
                           label: 'Retake',
                           icon: Icons.refresh_rounded,
-                          color: Colors.white70,
+                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                           isLoading: false,
                           onTap: _retake,
                         ),
@@ -187,9 +190,12 @@ class _KycSelfieWidgetState extends State<KycSelfieWidget> {
                   ),
                 ],
                 const SizedBox(height: 6),
-                const Text(
+                Text(
                   'Face clearly visible, good lighting',
-                  style: TextStyle(color: Colors.white54, fontSize: 11),
+                  style: TextStyle(
+                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                    fontSize: 11,
+                  ),
                 ),
               ],
             ),
@@ -245,6 +251,7 @@ class _KycSelfieWidgetState extends State<KycSelfieWidget> {
 }
 
 Widget _buildSection({
+  required bool isDark,
   required String title,
   required String sectionNumber,
   required Widget child,
@@ -252,9 +259,11 @@ Widget _buildSection({
   return Container(
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: Colors.black,
+      color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: Colors.white24),
+      border: Border.all(
+        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+      ),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,

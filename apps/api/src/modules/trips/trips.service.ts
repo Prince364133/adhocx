@@ -520,13 +520,19 @@ export class TripsService {
         data: { status: AssignmentStatus.CANCELLED },
       });
 
-      // 3. Free driver back to AVAILABLE (penalize trust score if driver cancelled)
+      // 3. Free driver back to AVAILABLE (penalize trust score if driver cancelled, clamped at 0.0 minimum)
       const isDriverCancel = role === UserRole.DRIVER;
+      const driverRecord = tx.driver.findUnique
+        ? await tx.driver.findUnique({ where: { id: trip.driverId } })
+        : null;
+      const currentScore = Number(driverRecord?.trustScore ?? 100);
+      const newScore = isDriverCancel ? Math.max(0.0, currentScore - 5.0) : currentScore;
+
       await tx.driver.update({
         where: { id: trip.driverId },
         data: {
           availabilityStatus: DriverAvailability.AVAILABLE,
-          trustScore: isDriverCancel ? { decrement: 5.0 } : undefined,
+          trustScore: newScore,
         },
       });
 

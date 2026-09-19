@@ -6,7 +6,7 @@ class WaitlistStepsWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return const Row(
       children: [
         _Step(number: '1', label: 'KYC\nSubmitted', state: _StepState.done),
         _StepConnector(isActive: true),
@@ -57,16 +57,18 @@ class _StepState2 extends State<_Step> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Expanded(
       child: Column(
         children: [
-          _buildCircle(),
+          _buildCircle(isDark),
           const SizedBox(height: 8),
           Text(
             widget.label,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: _labelColor,
+              color: _labelColor(isDark),
               fontSize: 11,
               fontWeight: FontWeight.w500,
             ),
@@ -76,14 +78,14 @@ class _StepState2 extends State<_Step> with SingleTickerProviderStateMixin {
     );
   }
 
-  Widget _buildCircle() {
+  Widget _buildCircle(bool isDark) {
     final circle = Container(
       width: 40,
       height: 40,
       decoration: BoxDecoration(
-        color: _bgColor,
+        color: _bgColor(isDark),
         shape: BoxShape.circle,
-        border: Border.all(color: _borderColor, width: 2),
+        border: Border.all(color: _borderColor(isDark), width: 2),
       ),
       child: Center(
         child: widget.state == _StepState.done
@@ -91,7 +93,7 @@ class _StepState2 extends State<_Step> with SingleTickerProviderStateMixin {
             : Text(
                 widget.number,
                 style: TextStyle(
-                  color: _textColor,
+                  color: _textColor(isDark),
                   fontWeight: FontWeight.w700,
                   fontSize: 14,
                 ),
@@ -120,28 +122,28 @@ class _StepState2 extends State<_Step> with SingleTickerProviderStateMixin {
     return circle;
   }
 
-  Color get _bgColor => switch (widget.state) {
+  Color _bgColor(bool isDark) => switch (widget.state) {
     _StepState.done => AppColors.success,
     _StepState.active => AppColors.warning,
-    _StepState.pending => AppColors.surfaceElevatedDark,
+    _StepState.pending => isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight,
   };
 
-  Color get _borderColor => switch (widget.state) {
+  Color _borderColor(bool isDark) => switch (widget.state) {
     _StepState.done => AppColors.success,
     _StepState.active => AppColors.warning,
-    _StepState.pending => AppColors.borderDark,
+    _StepState.pending => isDark ? AppColors.borderDark : AppColors.borderLight,
   };
 
-  Color get _textColor => switch (widget.state) {
+  Color _textColor(bool isDark) => switch (widget.state) {
     _StepState.done => Colors.white,
     _StepState.active => AppColors.bgDark,
-    _StepState.pending => AppColors.textMutedDark,
+    _StepState.pending => isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
   };
 
-  Color get _labelColor => switch (widget.state) {
+  Color _labelColor(bool isDark) => switch (widget.state) {
     _StepState.done => AppColors.success,
     _StepState.active => AppColors.warning,
-    _StepState.pending => AppColors.textSecondaryLight,
+    _StepState.pending => isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
   };
 }
 
@@ -151,6 +153,8 @@ class _StepConnector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       height: 2,
       width: 32,
@@ -158,7 +162,7 @@ class _StepConnector extends StatelessWidget {
       decoration: BoxDecoration(
         color: isActive
             ? AppColors.warning.withAlpha(128)
-            : AppColors.borderDark,
+            : (isDark ? AppColors.borderDark : AppColors.borderLight),
         borderRadius: BorderRadius.circular(1),
       ),
     );

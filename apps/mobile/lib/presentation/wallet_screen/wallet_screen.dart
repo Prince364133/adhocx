@@ -73,59 +73,58 @@ class _WalletScreenState extends State<WalletScreen> {
         bool hasPending = false;
         double totalWithdrawnOrPending = 0.0;
 
-          for (final item in withdrawalsRes) {
-            final status = item['status'] ?? 'pending';
-            final amount = (item['amount'] as num?)?.toDouble() ?? 0.0;
-            
-            if (status == 'pending') {
-              hasPending = true;
-            }
-            if (status == 'processed' || status == 'approved' || status == 'pending') {
-              totalWithdrawnOrPending += amount;
-            }
+        for (final item in withdrawalsRes) {
+          final status = item['status'] ?? 'pending';
+          final amount = (item['amount'] as num?)?.toDouble() ?? 0.0;
 
-            final createdAt = DateTime.tryParse(item['created_at'] ?? '') ?? DateTime.now();
-            final formattedDate = '${_monthName(createdAt.month)} ${createdAt.day}, ${createdAt.year}';
-            
-            final payoutMethod = item['payout_method'] == 'UPI'
-                ? 'UPI: ${item['upi_id'] ?? 'N/A'}'
-                : 'A/C •••• ${_getLast4(item['bank_account_number'])}';
-
-            fetchedHistory.add({
-              'payout_method': payoutMethod,
-              'date': formattedDate,
-              'amount': amount,
-              'status': status,
-            });
+          if (status == 'pending') {
+            hasPending = true;
+          }
+          if (status == 'processed' || status == 'approved' || status == 'pending') {
+            totalWithdrawnOrPending += amount;
           }
 
-          // 3. Fetch completed trips to calculate earnings
-          final tripsRes = await supabase
-              .from('trips')
-              .select('driver_payout, created_at, status')
-              .eq('driver_id', user.id)
-              .eq('status', 'completed');
+          final createdAt = DateTime.tryParse(item['created_at'] ?? '') ?? DateTime.now();
+          final formattedDate = '${_monthName(createdAt.month)} ${createdAt.day}, ${createdAt.year}';
 
-          double totalEarnings = 0.0;
-          double todayEarningsCalc = 0.0;
-          final todayString = DateTime.now().toIso8601String().substring(0, 10);
+          final payoutMethod = item['payout_method'] == 'UPI'
+              ? 'UPI: ${item['upi_id'] ?? 'N/A'}'
+              : 'A/C •••• ${_getLast4(item['bank_account_number'])}';
 
-          for (final trip in tripsRes) {
-            final payout = (trip['driver_payout'] as num?)?.toDouble() ?? 0.0;
-            totalEarnings += payout;
+          fetchedHistory.add({
+            'payout_method': payoutMethod,
+            'date': formattedDate,
+            'amount': amount,
+            'status': status,
+          });
+        }
 
-            final tripDate = trip['created_at']?.toString() ?? '';
-            if (tripDate.startsWith(todayString)) {
-              todayEarningsCalc += payout;
-            }
+        // 3. Fetch completed trips to calculate earnings
+        final tripsRes = await supabase
+            .from('trips')
+            .select('driver_payout, created_at, status')
+            .eq('driver_id', user.id)
+            .eq('status', 'completed');
+
+        double totalEarnings = 0.0;
+        double todayEarningsCalc = 0.0;
+        final todayString = DateTime.now().toIso8601String().substring(0, 10);
+
+        for (final trip in tripsRes) {
+          final payout = (trip['driver_payout'] as num?)?.toDouble() ?? 0.0;
+          totalEarnings += payout;
+
+          final tripDate = trip['created_at']?.toString() ?? '';
+          if (tripDate.startsWith(todayString)) {
+            todayEarningsCalc += payout;
           }
+        }
 
-          setState(() {
-            _todayEarnings = todayEarningsCalc;
-            // Available balance = Total earned minus what's already paid out or pending withdrawal
-            _availableBalance = (totalEarnings - totalWithdrawnOrPending).clamp(0.0, double.infinity);
-            _hasPendingWithdrawal = hasPending;
-            _withdrawalHistory = fetchedHistory;
+        setState(() {
+          _todayEarnings = todayEarningsCalc;
+          _availableBalance = (totalEarnings - totalWithdrawnOrPending).clamp(0.0, double.infinity);
+          _hasPendingWithdrawal = hasPending;
+          _withdrawalHistory = fetchedHistory;
         });
       }
     } catch (e) {
@@ -155,7 +154,6 @@ class _WalletScreenState extends State<WalletScreen> {
 
       if (user == null) return;
 
-      // Insert real withdrawal request into Supabase
       await supabase.from('driver_withdrawals').insert({
         'user_id': user.id,
         'driver_name': _bankDetails['account_holder'],
@@ -172,8 +170,7 @@ class _WalletScreenState extends State<WalletScreen> {
       Fluttertoast.showToast(
         msg: 'Withdrawal of ₹${amount.toStringAsFixed(0)} requested successfully!',
       );
-      
-      // Refresh list to show the new pending item
+
       _fetchWalletData();
     } catch (e) {
       debugPrint('Withdrawal error: $e');
@@ -183,12 +180,14 @@ class _WalletScreenState extends State<WalletScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.bgDark,
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(),
+            _buildHeader(isDark),
             Expanded(
               child: _isLoading
                   ? const Center(
@@ -221,12 +220,17 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(bool isDark) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevatedDark,
-        border: Border(bottom: BorderSide(color: AppColors.borderDark, width: 1)),
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+            width: 1,
+          ),
+        ),
       ),
       child: Row(
         children: [
@@ -241,7 +245,7 @@ class _WalletScreenState extends State<WalletScreen> {
               child: Text(
                 'A',
                 style: TextStyle(
-                  color: AppColors.bgDark,
+                  color: Colors.black,
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                 ),
@@ -249,10 +253,10 @@ class _WalletScreenState extends State<WalletScreen> {
             ),
           ),
           const SizedBox(width: 12),
-          const Text(
+          Text(
             'Wallet & Settlements',
             style: TextStyle(
-              color: Colors.white,
+              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
               fontSize: 17,
               fontWeight: FontWeight.w600,
             ),

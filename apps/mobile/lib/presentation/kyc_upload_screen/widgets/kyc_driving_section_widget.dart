@@ -8,39 +8,46 @@ class KycDrivingSectionWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(20),
-      // 1. MATCHING CONTAINER: Transparent background with subtle white border
       decoration: BoxDecoration(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(color: isDark ? Colors.white12 : AppColors.borderLight),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionHeader('2', 'Driving Credentials'),
           const SizedBox(height: 24),
-          _label('Driver License Number'),
+          _label(isDark, 'Driver License Number'),
           const SizedBox(height: 8),
-          // 2. MATCHING INPUT: Dark grey fill, white outline border
           TextFormField(
             textCapitalization: TextCapitalization.characters,
-            style: const TextStyle(color: Colors.white, fontSize: 14),
+            style: TextStyle(
+              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+              fontSize: 14,
+            ),
             decoration: InputDecoration(
               hintText: 'TS09 20220012345',
-              hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.2)),
+              hintStyle: TextStyle(
+                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+              ),
               prefixIcon: Icon(
                 Icons.drive_eta_outlined,
-                color: Colors.white.withValues(alpha: 0.5),
+                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                 size: 20,
               ),
               filled: true,
-              fillColor: AppColors.surfaceElevatedDark, // Dark grey input background
+              fillColor: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight,
               contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Colors.white10),
+                borderSide: BorderSide(
+                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -64,10 +71,10 @@ class KycDrivingSectionWidget extends StatelessWidget {
     );
   }
 
-  Widget _label(String text) => Text(
+  Widget _label(bool isDark, String text) => Text(
     text,
-    style: const TextStyle(
-      color: AppColors.slate400, // Soft grey for labels
+    style: TextStyle(
+      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
       fontSize: 13,
       fontWeight: FontWeight.w500,
     ),
@@ -76,7 +83,6 @@ class KycDrivingSectionWidget extends StatelessWidget {
   Widget _sectionHeader(String num, String title) {
     return Row(
       children: [
-        // 3. MATCHING HEADER: Faded green box, bright green text
         Container(
           width: 28,
           height: 28,

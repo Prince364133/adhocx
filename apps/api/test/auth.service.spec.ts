@@ -7,16 +7,20 @@ import { DatabaseService } from '../src/database/database.service';
 import { RedisService } from '../src/redis/redis.service';
 import { UserRole } from '@adhocx/contracts';
 
+import { NotificationsService } from '../src/modules/notifications/notifications.service';
+
 describe('AuthService Unit Tests', () => {
   let service: AuthService;
   let db: any;
   let jwt: any;
   let redis: any;
+  let notifications: any;
 
   beforeEach(async () => {
     db = {
       user: {
         findUnique: jest.fn(),
+        findFirst: jest.fn(),
         create: jest.fn(),
       },
     };
@@ -35,12 +39,20 @@ describe('AuthService Unit Tests', () => {
       isTokenBlacklisted: jest.fn().mockResolvedValue(false),
     };
 
+    notifications = {
+      sendOtp: jest.fn().mockResolvedValue({ success: true, channel: 'SMS', messageId: 'msg_1' }),
+      sendSms: jest.fn().mockResolvedValue({ success: true }),
+      sendEmail: jest.fn().mockResolvedValue({ success: true }),
+      sendPush: jest.fn().mockResolvedValue({ success: true }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: DatabaseService, useValue: db },
         { provide: JwtService, useValue: jwt },
         { provide: RedisService, useValue: redis },
+        { provide: NotificationsService, useValue: notifications },
         {
           provide: ConfigService,
           useValue: {
@@ -80,6 +92,7 @@ describe('AuthService Unit Tests', () => {
   it('should verify OTP and create new user if not exists', async () => {
     const otpRes = await service.requestOtp({ phone: '+919876543210' });
 
+    db.user.findFirst.mockResolvedValue(null);
     db.user.findUnique.mockResolvedValue(null);
     db.user.create.mockResolvedValue({
       id: 'usr-1',

@@ -192,4 +192,37 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     const val = await this.get(`blacklist:${token}`);
     return val !== null;
   }
+
+  /**
+   * Distributed Lock Acquisition (Redlock style SET NX EX).
+   * Safe for multi-instance API deployments with fallback support.
+   */
+  async acquireLock(key: string, ttlSeconds: number = 10): Promise<boolean> {
+    const lockKey = `lock:${key}`;
+    if (this.isConnected && this.client) {
+      try {
+        const res = await this.client.set(lockKey, '1', 'EX', ttlSeconds, 'NX');
+        return res === 'OK';
+      } catch {
+        // fallback
+      }
+    }
+
+    const item = this.fallbackStore.get(lockKey);
+    const now = Date.now();
+    if (item && (!item.expiresAt || item.expiresAt > now)) {
+      return false; // Lock already held
+    }
+
+    this.fallbackStore.set(lockKey, { value: '1', expiresAt: now + ttlSeconds * 1000 });
+    return true;
+  }
+
+  /**
+   * Release a previously acquired distributed lock.
+   */
+  async releaseLock(key: string): Promise<void> {
+    const lockKey = `lock:${key}`;
+    await this.del(lockKey);
+  }
 }

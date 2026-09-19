@@ -16,30 +16,56 @@ class _ModalShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevatedDark,
-        borderRadius: BorderRadius.circular(16),
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border(
+          top: BorderSide(
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+            width: 1.2,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          Center(
+            child: Container(
+              width: 38,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
           Row(
             children: [
               Icon(icon, color: iconColor, size: 22),
               const SizedBox(width: 10),
               Text(
                 title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                style: TextStyle(
+                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           child,
         ],
       ),
@@ -52,6 +78,8 @@ class HelpModal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return _ModalShell(
       title: 'Help & Operations Support',
       icon: Icons.headset_mic_rounded,
@@ -59,31 +87,43 @@ class HelpModal extends StatelessWidget {
       child: Column(
         children: [
           Container(
+            width: double.infinity,
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: AppColors.textPrimaryLight,
+              color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.borderDark),
+              border: Border.all(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              ),
             ),
-            child: const Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Operations Hours',
                   style: TextStyle(
-                    color: AppColors.textMutedDark,
+                    color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
                     fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Monday – Saturday: 6:00 AM – 10:00 PM',
+                  style: TextStyle(
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                    fontSize: 13,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                SizedBox(height: 4),
-                Text(
-                  'Monday – Saturday: 6:00 AM – 10:00 PM',
-                  style: TextStyle(color: Colors.white, fontSize: 13),
-                ),
+                const SizedBox(height: 2),
                 Text(
                   'Sunday: 8:00 AM – 6:00 PM',
-                  style: TextStyle(color: Colors.white, fontSize: 13),
+                  style: TextStyle(
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ],
             ),
@@ -93,23 +133,25 @@ class HelpModal extends StatelessWidget {
             icon: Icons.call_rounded,
             label: 'Call Dispatch (+91 40 4987 6543)',
             color: AppColors.success,
-            onTap: () {
-              // TODO: url_launcher: launch('tel:+914049876543') for production
-            },
+            onTap: () {},
           ),
           const SizedBox(height: 12),
           _contactBtn(
             icon: Icons.chat_rounded,
             label: 'WhatsApp Support Desk',
-            color: AppColors.textSecondaryLight,
-            onTap: () {
-              // TODO: url_launcher: launch('https://wa.me/914049876543') for production
-            },
+            color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight,
+            textColor: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+            borderColor: isDark ? AppColors.borderDark : AppColors.borderLight,
+            onTap: () {},
           ),
           const SizedBox(height: 16),
           Text(
             'For trip disputes, wallet issues, or document re-verification — contact the operations team during working hours.',
-            style: TextStyle(color: AppColors.textSecondaryLight, fontSize: 12),
+            style: TextStyle(
+              color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
+              fontSize: 12,
+              height: 1.4,
+            ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -121,6 +163,8 @@ class HelpModal extends StatelessWidget {
     required IconData icon,
     required String label,
     required Color color,
+    Color? textColor,
+    Color? borderColor,
     required VoidCallback onTap,
   }) {
     return SizedBox(
@@ -131,7 +175,9 @@ class HelpModal extends StatelessWidget {
         label: Text(label),
         style: ElevatedButton.styleFrom(
           backgroundColor: color,
-          foregroundColor: Colors.white,
+          foregroundColor: textColor ?? Colors.white,
+          elevation: 0,
+          side: borderColor != null ? BorderSide(color: borderColor) : null,
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),

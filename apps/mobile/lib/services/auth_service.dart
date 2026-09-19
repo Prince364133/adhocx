@@ -309,12 +309,24 @@ class AuthService {
     return response;
   }
 
-  /// Ensures that there is an active, valid backend JWT session for the requested role.
-  /// If the current session has a different role, it seamlessly switches to the requested role.
-  Future<UserModel> ensureAuthenticatedSession({String role = 'DRIVER'}) async {
+  Future<UserModel?>? _inFlightUserFetch;
+  DateTime? _lastUserFetchTime;
+
+  Future<UserModel> ensureAuthenticatedSession({String role = 'DRIVER', bool force = false}) async {
     final targetRole = role.toUpperCase();
     final isDriverTarget = targetRole == 'DRIVER';
     final isVendorTarget = targetRole == 'VENDOR' || targetRole == 'USER';
+
+    // 1. Fast path: If current cached user matches required role, return immediately without network call
+    if (!force && _currentUser != null) {
+      final userRole = _currentUser!.role.toUpperCase();
+      final isDriverUser = userRole == 'DRIVER';
+      final isVendorUser = userRole == 'VENDOR' || userRole == 'USER' || userRole == 'ADMIN';
+
+      if ((isDriverTarget && isDriverUser) || (isVendorTarget && isVendorUser)) {
+        return _currentUser!;
+      }
+    }
 
     final token = await _api.getToken();
     if (token != null && token.isNotEmpty) {
@@ -351,7 +363,7 @@ class AuthService {
       if (newToken != null) {
         await _api.setToken(newToken);
       }
-      final user = await fetchCurrentUser();
+      final user = await fetchCurrentUser(forceRefresh: true);
       if (user != null) return user;
     } catch (e) {
       debugPrint('ensureAuthenticatedSession failed: $e');
@@ -364,18 +376,41 @@ class AuthService {
   Future<UserModel> ensureDriverSession() => ensureAuthenticatedSession(role: 'DRIVER');
   Future<UserModel> ensureVendorSession() => ensureAuthenticatedSession(role: 'VENDOR');
 
+  Future<UserModel?> fetchCurrentUser({bool forceRefresh = false}) async {
+    // 1. Cache hit check (30s TTL)
+    if (!forceRefresh &&
+        _currentUser != null &&
+        _lastUserFetchTime != null &&
+        DateTime.now().difference(_lastUserFetchTime!) < const Duration(seconds: 30)) {
+      return _currentUser;
+    }
 
-  Future<UserModel?> fetchCurrentUser() async {
+    // 2. In-flight promise deduplication
+    if (_inFlightUserFetch != null) {
+      return await _inFlightUserFetch!;
+    }
+
     final token = await _api.getToken();
     if (token == null || token.isEmpty) {
       return null;
     }
 
+    _inFlightUserFetch = _executeFetchCurrentUser();
+    try {
+      final result = await _inFlightUserFetch;
+      return result;
+    } finally {
+      _inFlightUserFetch = null;
+    }
+  }
+
+  Future<UserModel?> _executeFetchCurrentUser() async {
     try {
       final response = await _api.get('/auth/me');
       if (response is Map<String, dynamic>) {
         final data = response['data'] is Map<String, dynamic> ? response['data'] as Map<String, dynamic> : response;
         _currentUser = UserModel.fromJson(data);
+        _lastUserFetchTime = DateTime.now();
         return _currentUser;
       }
     } catch (e) {
@@ -383,6 +418,7 @@ class AuthService {
       if (e is ApiException && e.statusCode == 401) {
         await _api.clearToken();
         _currentUser = null;
+        _lastUserFetchTime = null;
         return null;
       }
     }

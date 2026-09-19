@@ -16,30 +16,56 @@ class _ModalShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevatedDark,
-        borderRadius: BorderRadius.circular(20),
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border(
+          top: BorderSide(
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+            width: 1.2,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          Center(
+            child: Container(
+              width: 38,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
           Row(
             children: [
               Icon(icon, color: iconColor, size: 24),
               const SizedBox(width: 10),
               Text(
                 title,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           child,
         ],
       ),
@@ -52,27 +78,29 @@ class IncentivesModal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return _ModalShell(
       title: 'Daily Target Incentives',
       icon: Icons.emoji_events_rounded,
       iconColor: AppColors.warning,
       child: Column(
         children: [
-          _IncentiveTile(
+          const _IncentiveTile(
             trips: 5,
             bonus: '₹200',
             color: AppColors.success,
             icon: Icons.directions_car_rounded,
           ),
           const SizedBox(height: 12),
-          _IncentiveTile(
+          const _IncentiveTile(
             trips: 8,
             bonus: '₹450',
             color: AppColors.info,
             icon: Icons.local_fire_department_rounded,
           ),
           const SizedBox(height: 12),
-          _IncentiveTile(
+          const _IncentiveTile(
             trips: 12,
             bonus: '₹800',
             color: AppColors.warning,
@@ -82,13 +110,19 @@ class IncentivesModal extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.textPrimaryLight,
+              color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.borderDark),
+              border: Border.all(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              ),
             ),
             child: Text(
               'Incentives are credited automatically to your wallet at the end of each day after completing the required number of trips.',
-              style: TextStyle(color: AppColors.textMutedDark, fontSize: 12),
+              style: TextStyle(
+                color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
+                fontSize: 12,
+                height: 1.4,
+              ),
               textAlign: TextAlign.center,
             ),
           ),
@@ -113,12 +147,16 @@ class _IncentiveTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withAlpha(15),
+        color: color.withValues(alpha: isDark ? 0.08 : 0.05),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withAlpha(64)),
+        border: Border.all(
+          color: color.withValues(alpha: isDark ? 0.35 : 0.25),
+        ),
       ),
       child: Row(
         children: [
@@ -126,7 +164,7 @@ class _IncentiveTile extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: color.withAlpha(38),
+              color: color.withValues(alpha: isDark ? 0.2 : 0.12),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 22),
@@ -138,15 +176,18 @@ class _IncentiveTile extends StatelessWidget {
               children: [
                 Text(
                   '$trips trips/day',
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
                   'Complete daily target',
-                  style: TextStyle(color: AppColors.textMutedDark, fontSize: 11),
+                  style: TextStyle(
+                    color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
