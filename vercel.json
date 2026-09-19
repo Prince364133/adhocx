@@ -1,6 +1,7 @@
 {
   "version": 2,
-  "outputDirectory": "apps/marketing",
+  "buildCommand": "cd apps/marketing && npm install && npm run build",
+  "outputDirectory": "apps/marketing/.vercel/output/static",
   "cleanUrls": true,
   "trailingSlash": false
 }
