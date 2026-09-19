@@ -479,18 +479,36 @@ input, select, textarea {
   max-width: 540px;
 }
 
-.hero-actions {
+.hero-actions,
+.cta-actions,
+.dual-action-buttons {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: var(--space-3);
-  margin-bottom: var(--space-10);
+  margin-bottom: var(--space-8);
+  flex-wrap: wrap;
+}
+
+.cta-actions {
+  justify-content: center;
+  margin-top: var(--space-8);
 }
 
 .hero-metrics {
-  display: flex;
-  gap: var(--space-8);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: var(--space-6);
   padding-top: var(--space-6);
   border-top: 1px solid var(--color-border);
+  width: 100%;
+}
+
+.hero-metrics.metrics-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.hero-metrics.metrics-4 {
+  grid-template-columns: repeat(4, 1fr);
 }
 
 .metric-item {
@@ -1345,9 +1363,37 @@ input, select, textarea {
     margin-top: var(--space-2);
   }
 
-  .hero-metrics {
-    flex-direction: column;
-    gap: var(--space-4);
+  .hero-metrics,
+  .hero-metrics.metrics-4 {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+    padding-top: var(--space-4);
+  }
+
+  .hero-metrics.metrics-3 {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
+    padding-top: var(--space-4);
+  }
+
+  .metric-item {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+
+  .metric-val {
+    font-size: 1.25rem !important;
+    line-height: 1.2;
+  }
+
+  .metric-lbl {
+    font-size: 0.75rem !important;
+    margin-top: 2px;
   }
 
   .footer-grid {
@@ -1380,14 +1426,80 @@ input, select, textarea {
   }
 }
 
-@media (max-width: 480px) {
-  .hero-actions {
-    flex-direction: column;
+@media (max-width: 640px) {
+  .hero-actions,
+  .cta-actions,
+  .dual-action-buttons {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+    width: 100% !important;
+    margin-bottom: var(--space-6);
   }
 
-  .hero-actions .btn {
-    width: 100%;
-    justify-content: center;
+  .hero-actions .btn,
+  .cta-actions .btn,
+  .dual-action-buttons .btn {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 10px 8px !important;
+    font-size: 0.8125rem !important;
+    font-weight: 600 !important;
+    line-height: 1.25 !important;
+    text-align: center !important;
+    justify-content: center !important;
+    white-space: normal !important;
+    min-height: 48px;
+    display: inline-flex !important;
+  }
+
+  .hero-actions .btn.btn-large,
+  .cta-actions .btn.btn-large,
+  .dual-action-buttons .btn.btn-large {
+    padding: 10px 8px !important;
+    font-size: 0.8125rem !important;
+  }
+
+  .bonus-specs-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-actions,
+  .cta-actions,
+  .dual-action-buttons {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .hero-actions .btn,
+  .cta-actions .btn,
+  .dual-action-buttons .btn {
+    padding: 8px 6px !important;
+    font-size: 0.75rem !important;
+    min-height: 44px;
+    border-radius: var(--radius-sm);
+  }
+
+  .hero-metrics.metrics-3 {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px !important;
+  }
+
+  .hero-metrics.metrics-3 .metric-item {
+    padding: 8px 4px;
+    text-align: center;
+  }
+
+  .hero-metrics.metrics-3 .metric-val {
+    font-size: 1.05rem !important;
+  }
+
+  .hero-metrics.metrics-3 .metric-lbl {
+    font-size: 0.6875rem !important;
   }
 
   .stats-bar {
@@ -1396,5 +1508,14 @@ input, select, textarea {
 
   .blog-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 360px) {
+  .hero-actions .btn,
+  .cta-actions .btn,
+  .dual-action-buttons .btn {
+    font-size: 0.7rem !important;
+    padding: 8px 3px !important;
   }
 }
