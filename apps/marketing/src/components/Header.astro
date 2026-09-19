@@ -1,0 +1,82 @@
+---
+interface Props {
+  activeNav?: string;
+  logoTag?: string;
+}
+
+const { activeNav = '', logoTag = 'B2B Platform' } = Astro.props;
+---
+
+<header class="header-sticky" id="site-header">
+  <div class="container header-inner">
+    <a href="/" class="brand-logo" id="header-brand-logo">
+      <span class="logo-text">Adhoc<span class="logo-accent">X</span></span>
+      <span class="logo-tag">{logoTag}</span>
+    </a>
+
+    <ul class="nav-links" id="primary-nav-links">
+      <li><a href="/vendors" class:list={["nav-link", { active: activeNav === 'vendors' }]} id="nav-vendors">For Vendors</a></li>
+      <li><a href="/drivers" class:list={["nav-link", { active: activeNav === 'drivers' }]} id="nav-drivers">For Drivers</a></li>
+      <li><a href="/#marketplace" class:list={["nav-link", { active: activeNav === 'how-it-works' }]} id="nav-marketplace">How It Works</a></li>
+      <li><a href="/blogs" class:list={["nav-link", { active: activeNav === 'blogs' }]} id="nav-blogs">Blog & Insights</a></li>
+      <li><a href="/terms" class:list={["nav-link", { active: activeNav === 'terms' }]} id="nav-terms">Terms</a></li>
+      <li><a href="/privacy" class:list={["nav-link", { active: activeNav === 'privacy' }]} id="nav-privacy">Privacy</a></li>
+      <li class="mobile-only-action">
+        <a href="/drivers" class="btn btn-secondary" style="width:100%;justify-content:center;">Driver Portal</a>
+      </li>
+      <li class="mobile-only-action">
+        <a href="/vendors" class="btn btn-primary" style="width:100%;justify-content:center;">Vendor Portal</a>
+      </li>
+    </ul>
+
+    <div class="header-actions">
+      <a href="/drivers" class="btn btn-secondary nav-action-btn" id="btn-header-driver">Driver Portal</a>
+      <a href="/vendors" class="btn btn-primary nav-action-btn" id="btn-header-vendor">Vendor Portal</a>
+      <button class="menu-toggle" id="menu-toggle-btn" aria-label="Toggle Navigation Menu" aria-expanded="false">
+        <svg class="hamburger-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+        <svg class="close-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<script>
+  const toggle = document.getElementById('menu-toggle-btn');
+  const nav = document.getElementById('primary-nav-links');
+  const hamburger = toggle?.querySelector('.hamburger-icon') as HTMLElement | null;
+  const close = toggle?.querySelector('.close-icon') as HTMLElement | null;
+  const header = document.getElementById('site-header');
+
+  toggle?.addEventListener('click', () => {
+    const isOpen = nav?.classList.toggle('open');
+    if (hamburger) hamburger.style.display = isOpen ? 'none' : 'block';
+    if (close) close.style.display = isOpen ? 'block' : 'none';
+    toggle.setAttribute('aria-expanded', String(isOpen));
+  });
+
+  // Close menu on link click
+  nav?.querySelectorAll('.nav-link').forEach(link => {
+    link.addEventListener('click', () => {
+      nav.classList.remove('open');
+      if (hamburger) hamburger.style.display = 'block';
+      if (close) close.style.display = 'none';
+      toggle?.setAttribute('aria-expanded', 'false');
+    });
+  });
+
+  // Sticky shadow on scroll
+  window.addEventListener('scroll', () => {
+    if (window.scrollY > 10) {
+      header?.classList.add('scrolled');
+    } else {
+      header?.classList.remove('scrolled');
+    }
+  });
+</script>

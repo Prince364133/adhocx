@@ -1,0 +1,149 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const posts = [
+  {
+    slug: 'eliminating-corporate-fleet-chaos-in-hyderabad',
+    title: 'Solving Last-Minute Corporate Fleet Drops in Hyderabad Tech Parks',
+    category: 'Enterprise Mobility',
+    readTime: '5 min read',
+    date: 'Sep 15, 2026',
+    author: 'AdhocX Logistics Team',
+    summary: 'Why traditional WhatsApp dispatch groups fail high-growth tech companies and how algorithmic 15-minute search cutoff SLAs restore corporate trust.'
+  },
+  {
+    slug: 'driver-economics-century-milestone-bonus',
+    title: 'Driver Economics: Why Yellow-Plate Commercial Drivers Earn More with AdhocX',
+    category: 'Driver Welfare',
+    readTime: '4 min read',
+    date: 'Sep 10, 2026',
+    author: 'Partner Relations',
+    summary: 'A deep dive into our ₹2,000 Milestone Bonus program on 100 rides, 0% promotional commission, and 1-hour instant bank withdrawals.'
+  },
+  {
+    slug: 'how-automated-bank-refunds-work-in-corporate-transport',
+    title: 'How AdhocX Automates 1-Hour Bank Refunds & SLA Guarantees',
+    category: 'Engineering & Ops',
+    readTime: '6 min read',
+    date: 'Aug 28, 2026',
+    author: 'AdhocX Engineering',
+    summary: 'Under the hood of our automated banking integrations that eliminate weeks of accounting reconciliation and return unfulfilled funds in 60 minutes.'
+  },
+  {
+    slug: 'commercial-vehicle-safety-and-statutory-compliance-guide',
+    title: 'Commercial Fleet Compliance: Yellow Plate vs White Plate Risks for Corporates',
+    category: 'Compliance & Safety',
+    readTime: '7 min read',
+    date: 'Aug 14, 2026',
+    author: 'Legal & Compliance Desk',
+    summary: 'The legal liabilities corporate travel desks face when using unverified private cars and how 100% yellow-board verification protects your enterprise.'
+  }
+];
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Blog",
+  "name": "AdhocX Commercial Transport Insights & Tech Blog",
+  "url": "https://www.adhocx.com/blogs",
+  "description": "Insights, engineering deep dives, and operational strategies for B2B fleet logistics, commercial drivers, and corporate mobility."
+};
+---
+
+<BaseLayout
+  title="AdhocX Insights — Corporate Fleet Mobility, Driver Welfare & Logistics Tech"
+  description="Explore articles and operational analyses on corporate transport management, driver partner economics, milestone bonuses, and transport compliance in India."
+  canonical="https://www.adhocx.com/blogs"
+  activeNav="blogs"
+  jsonLd={jsonLd}
+>
+  <!-- Blog Hero -->
+  <section class="hero-section" style="background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);">
+    <div class="container" style="text-align: center; max-width: 800px;">
+      <span class="badge badge-info" style="margin-bottom: var(--space-3);">AdhocX Editorial & Insights</span>
+      <h1 class="display-title" style="margin-bottom: var(--space-4);">Commercial Transport, Digitized & Demystified.</h1>
+      <p class="body-large" style="margin: 0 auto;">
+        Perspectives on corporate mobility operations, driver partner economics, SLA architectures, and enterprise logistics compliance.
+      </p>
+    </div>
+  </section>
+
+  <!-- Featured Blog Post Banner -->
+  <section class="section-padding" style="padding-top: 0;">
+    <div class="container">
+      <div class="card" style="padding: var(--space-8); border: 2px solid var(--color-primary-500); background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);" data-animate>
+        <div style="display: flex; gap: var(--space-4); align-items: center; margin-bottom: var(--space-3); flex-wrap: wrap;">
+          <span class="badge badge-primary">Featured Article</span>
+          <span style="font-size: 0.85rem; color: var(--color-text-muted);">Enterprise Mobility • 5 min read • Sep 15, 2026</span>
+        </div>
+        <h2 class="h2-title" style="margin-bottom: var(--space-3); color: var(--color-primary-600);">
+          Solving Last-Minute Corporate Fleet Drops in Hyderabad Tech Parks
+        </h2>
+        <p class="body-large" style="margin-bottom: var(--space-6); color: var(--color-text);">
+          Corporate transport desks in HITEC City and Gachibowli spend an average of 42 hours per month frantically following up on unconfirmed cabs in informal WhatsApp groups. Learn how AdhocX's reverse-auction dispatching and 15-minute search cutoff SLA eliminate last-minute cancellations entirely.
+        </p>
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-4);">
+          <div style="font-size: 0.875rem; color: var(--color-text-muted);">
+            By <strong>AdhocX Logistics Operations Desk</strong>
+          </div>
+          <a href="#featured" class="btn btn-primary">Read Full Case Study →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Blog Post Grid -->
+  <section class="section-padding" style="background: var(--color-surface-muted);">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="h2-title">Latest Articles & Research</h2>
+        <p class="body-large">Curated insights for facilities directors, corporate travel leads, and commercial driver partners.</p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-6);">
+        {posts.map((post) => (
+          <article class="card" style="display: flex; flex-direction: column; justify-content: space-between;" data-animate>
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3);">
+                <span class="badge badge-info">{post.category}</span>
+                <span style="font-size: 0.8rem; color: var(--color-text-muted);">{post.readTime}</span>
+              </div>
+              <h3 class="h4-title" style="margin-bottom: var(--space-3); font-size: 1.15rem; line-height: 1.4;">
+                {post.title}
+              </h3>
+              <p class="body-text" style="color: var(--color-text-muted); margin-bottom: var(--space-6);">
+                {post.summary}
+              </p>
+            </div>
+            <div style="border-top: 1px solid var(--color-border); padding-top: var(--space-4); display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 0.8rem; color: var(--color-text-muted);">{post.date}</span>
+              <a href={`#${post.slug}`} style="font-weight: 700; color: var(--color-primary-600); text-decoration: none; font-size: 0.875rem;">
+                Read Article →
+              </a>
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Newsletter & Updates Section -->
+  <section class="section-padding">
+    <div class="container" style="max-width: 700px; text-align: center;">
+      <span class="badge badge-success">Stay Informed</span>
+      <h2 class="h2-title" style="margin-top: var(--space-2); margin-bottom: var(--space-3);">Subscribe to AdhocX Fleet Dispatch</h2>
+      <p class="body-large" style="margin-bottom: var(--space-6);">
+        Receive monthly insights on corporate transport policy, GST tax updates for transport, and mobility tech developments directly in your inbox.
+      </p>
+
+      <form style="display: flex; gap: var(--space-3); max-width: 500px; margin: 0 auto; flex-wrap: wrap;" onsubmit="event.preventDefault(); alert('Thank you for subscribing to AdhocX Fleet Dispatch!');">
+        <input
+          type="email"
+          required
+          placeholder="Enter your official work email"
+          style="flex: 1; min-width: 240px; padding: 12px 16px; border-radius: var(--radius-md); border: 1px solid var(--color-border); font-size: 0.95rem; outline: none;"
+        />
+        <button type="submit" class="btn btn-primary">Subscribe</button>
+      </form>
+    </div>
+  </section>
+</BaseLayout>

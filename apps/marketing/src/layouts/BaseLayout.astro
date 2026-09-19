@@ -1,0 +1,70 @@
+---
+import SeoHead from '../components/SeoHead.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description: string;
+  canonical?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  activeNav?: string;
+  logoTag?: string;
+  jsonLd?: object;
+}
+
+const {
+  title,
+  description,
+  canonical,
+  ogTitle,
+  ogDescription,
+  activeNav,
+  logoTag,
+  jsonLd,
+} = Astro.props;
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <SeoHead
+    title={title}
+    description={description}
+    canonical={canonical}
+    ogTitle={ogTitle}
+    ogDescription={ogDescription}
+  />
+  {jsonLd && (
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  )}
+</head>
+<body>
+  <Header activeNav={activeNav} logoTag={logoTag} />
+  <main id="main-content">
+    <slot />
+  </main>
+  <Footer />
+
+  <script>
+    // Intersection Observer for scroll animations
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('animate-in');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+    );
+
+    document.querySelectorAll('[data-animate]').forEach((el) => {
+      observer.observe(el);
+    });
+  </script>
+</body>
+</html>

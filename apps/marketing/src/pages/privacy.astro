@@ -1,0 +1,74 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": "Privacy Policy — AdhocX Technologies",
+  "url": "https://www.adhocx.com/privacy",
+  "description": "AdhocX Privacy Policy detailing our data collection, GPS telemetry, passenger safety, and commercial driver partner information security protocols."
+};
+---
+
+<BaseLayout
+  title="Privacy Policy — AdhocX Technologies Private Limited"
+  description="Read the official Privacy Policy of AdhocX Technologies Private Limited regarding data protection, telemetry, and platform security."
+  canonical="https://www.adhocx.com/privacy"
+  activeNav=""
+  jsonLd={jsonLd}
+>
+  <section class="section-padding" style="background: var(--color-surface-muted);">
+    <div class="container" style="max-width: 800px;">
+      <div style="margin-bottom: var(--space-6);">
+        <span class="badge badge-info">Legal & Compliance</span>
+        <h1 class="h2-title" style="margin-top: var(--space-2); margin-bottom: var(--space-2);">Privacy Policy</h1>
+        <p class="text-caption">Effective Date: January 1, 2026 | Last Updated: September 1, 2026</p>
+      </div>
+
+      <div class="card" style="padding: var(--space-8); line-height: 1.7; color: var(--color-text);">
+        <h2 class="h4-title" style="margin-bottom: 8px; color: var(--color-primary-600);">1. Introduction</h2>
+        <p class="body-text" style="margin-bottom: var(--space-6);">
+          AdhocX Technologies Private Limited ("AdhocX", "we", "our", or "us") operates the B2B commercial transport marketplace platform connecting corporate enterprise clients ("Vendors" or "Clients") with verified commercial transport service providers and chauffeurs ("Driver Partners"). This Privacy Policy explains how we collect, use, process, and protect your information across our web applications, APIs, and mobile apps.
+        </p>
+
+        <h2 class="h4-title" style="margin-bottom: 8px; color: var(--color-primary-600);">2. Information We Collect</h2>
+        <p class="body-text" style="margin-bottom: var(--space-4);">
+          Depending on your relationship with AdhocX (Corporate Client, Passenger, or Driver Partner), we collect:
+        </p>
+        <ul style="margin-bottom: var(--space-6); padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 0.95rem;">
+          <li><strong>Corporate Account Data:</strong> Company name, GSTIN, registered address, billing contacts, designated travel managers, and authorized bookers.</li>
+          <li><strong>Driver Partner KYC Data:</strong> Commercial Driving License, Yellow Board Registration Certificate (RC), commercial vehicle insurance, vehicle fitness certificate, Aadhaar number, PAN, and bank account / UPI details for payouts.</li>
+          <li><strong>Location & Telemetry Data:</strong> Precise GPS location of driver partners during active duties, route telemetry, trip start/end timestamps, and boarding OTP verifications.</li>
+          <li><strong>Communication Data:</strong> In-app messaging, automated trip dispatch SMS, emergency helpline logs, and customer support audio recordings.</li>
+        </ul>
+
+        <h2 class="h4-title" style="margin-bottom: 8px; color: var(--color-primary-600);">3. How We Use Collected Data</h2>
+        <p class="body-text" style="margin-bottom: var(--space-4);">
+          We process data strictly for operational, safety, and regulatory fulfillment:
+        </p>
+        <ul style="margin-bottom: var(--space-6); padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 0.95rem;">
+          <li>Automating reverse-auction dispatching and vehicle allocation within 15-minute SLA windows.</li>
+          <li>Facilitating 1-hour automated bank refunds for canceled or unfulfilled bookings.</li>
+          <li>Calculating and disbursing driver earnings, weekly payouts, and ₹2,000 Century Milestone bonuses.</li>
+          <li>Providing live GPS tracking links to corporate control rooms and designated employee safety emergency desks.</li>
+          <li>Complying with statutory Motor Vehicles Act (MVA) reporting requirements and tax accounting.</li>
+        </ul>
+
+        <h2 class="h4-title" style="margin-bottom: 8px; color: var(--color-primary-600);">4. Data Protection & Security</h2>
+        <p class="body-text" style="margin-bottom: var(--space-6);">
+          All data in transit is encrypted using TLS 1.3 protocol. Sensitive financial data, bank account numbers, and personal identifiers are stored with AES-256 encryption at rest. Access to operational databases is restricted to authorized operations personnel under strict multi-factor authentication and role-based access control (RBAC).
+        </p>
+
+        <h2 class="h4-title" style="margin-bottom: 8px; color: var(--color-primary-600);">5. Contact Our Privacy Officer</h2>
+        <p class="body-text">
+          If you have questions regarding this Privacy Policy or wish to exercise your data rights, contact our Data Protection Officer at:
+          <br /><br />
+          <strong>AdhocX Technologies Private Limited</strong><br />
+          Email: <a href="mailto:adhocx.ofc@gmail.com" style="color: var(--color-primary-600); font-weight: 600;">adhocx.ofc@gmail.com</a><br />
+          Helpline: +91-9390366116<br />
+          Hyderabad, Telangana, India
+        </p>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
