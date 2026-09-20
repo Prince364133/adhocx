@@ -56,10 +56,11 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      DATABASE_URL: postgresql://${POSTGRES_USER:-adhocx_user}:${POSTGRES_PASSWORD:-adhocx_password}@postgres:5432/${POSTGRES_DB:-adhocx}?schema=public
-      REDIS_URL: redis://redis:6379
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-adhocx_user}:${POSTGRES_PASSWORD:-adhocx_password}@postgres:5432/${POSTGRES_DB:-adhocx}?schema=public}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_TLS: ${REDIS_TLS:-false}
     expose:
       - "3000"
     healthcheck:
@@ -106,7 +107,7 @@ services:
     expose:
       - "80"
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost/healthz"]
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/healthz"]
       interval: 20s
       timeout: 3s
       retries: 3
@@ -123,7 +124,7 @@ services:
     expose:
       - "80"
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost/healthz"]
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/healthz"]
       interval: 20s
       timeout: 3s
       retries: 3

@@ -45,18 +45,15 @@ class ApiClient {
     }
   }
 
-  // Base URL configuration (Android emulator uses 10.0.2.2; iOS/Web uses localhost)
+  // Base URL configuration (Default to live AWS production server)
   String get baseUrl {
     const fromEnv = String.fromEnvironment('API_URL', defaultValue: '');
     if (fromEnv.isNotEmpty) return fromEnv;
 
-    if (kIsWeb) {
-      return 'http://localhost:7001/api/v1';
-    } else if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:7001/api/v1';
-    } else {
-      return 'http://localhost:7001/api/v1';
-    }
+    const fromBaseEnv = String.fromEnvironment('API_BASE_URL', defaultValue: '');
+    if (fromBaseEnv.isNotEmpty) return fromBaseEnv;
+
+    return 'http://3.110.42.191/api/v1';
   }
 
   Future<String?> getToken() async {

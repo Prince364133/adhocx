@@ -55,10 +55,11 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      DATABASE_URL: postgresql://${POSTGRES_USER:-adhocx_user}:${POSTGRES_PASSWORD:-adhocx_password}@postgres:5432/${POSTGRES_DB:-adhocx}?schema=public
-      REDIS_URL: redis://redis:6379
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-adhocx_user}:${POSTGRES_PASSWORD:-adhocx_password}@postgres:5432/${POSTGRES_DB:-adhocx}?schema=public}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_TLS: ${REDIS_TLS:-false}
       JWT_SECRET: ${JWT_SECRET:-adhocx_super_production_secret_key_32_chars!}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-adhocx_super_refresh_secret_key_32_chars!}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:3001,http://localhost:80,http://localhost:7003}

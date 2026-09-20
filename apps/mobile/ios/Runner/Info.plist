@@ -45,5 +45,14 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>AdhocX needs camera access for driver KYC verification and vehicle photo capture.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>AdhocX needs photo library access to upload KYC documents and vehicle photos.</string>
 </dict>
 </plist>

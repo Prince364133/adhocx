@@ -64,9 +64,12 @@ Write-Host "Setting Database and Application Secrets..."
 gh secret set POSTGRES_USER --body "adhocx_user" --repo $Repo
 gh secret set POSTGRES_PASSWORD --body "adhocx_prod_db_sec_pass_2026!" --repo $Repo
 gh secret set POSTGRES_DB --body "adhocx" --repo $Repo
-gh secret set DATABASE_URL --body "postgresql://adhocx_user:adhocx_prod_db_sec_pass_2026!@postgres:5432/adhocx?schema=public" --repo $Repo
+$dbUrl = if ($envMap.DATABASE_URL) { $envMap.DATABASE_URL } else { "postgresql://adhocx_user:637NF4n6H0FEr4o5IPvmss4KsFf6SGhs@dpg-dafhurlg1s2s73el0mv0-a.virginia-postgres.render.com/adhocx?sslmode=require&connect_timeout=30&pool_timeout=60&connection_limit=30" }
+gh secret set DATABASE_URL --body "$dbUrl" --repo $Repo
 
-gh secret set REDIS_URL --body "redis://redis:6379" --repo $Repo
+$redisUrl = if ($envMap.REDIS_URL) { $envMap.REDIS_URL } else { "rediss://red-dafi1ftbedkc739bbovg:YP3C2SCtDTlvZL2un0PgQ12OUAiSlcud@virginia-keyvalue.render.com:6379" }
+gh secret set REDIS_URL --body "$redisUrl" --repo $Repo
+gh secret set REDIS_TLS --body "true" --repo $Repo
 $jwtAccess = if ($envMap.JWT_ACCESS_SECRET) { $envMap.JWT_ACCESS_SECRET } else { "adhocx_prod_jwt_access_secret_token_key_64_characters_2026" }
 $jwtRefresh = if ($envMap.JWT_REFRESH_SECRET) { $envMap.JWT_REFRESH_SECRET } else { "adhocx_prod_jwt_refresh_secret_token_key_64_characters_2026" }
 gh secret set JWT_ACCESS_SECRET --body "$jwtAccess" --repo $Repo

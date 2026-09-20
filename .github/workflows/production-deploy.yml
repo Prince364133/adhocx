@@ -78,6 +78,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.service.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service.name }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=/api/v1
 
   # ============================================================================
   # 2. Deploy Container Fleet to AWS EC2 Instance
@@ -123,8 +125,9 @@ jobs:
           POSTGRES_USER=${{ secrets.POSTGRES_USER || 'adhocx_user' }}
           POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD || 'adhocx_prod_db_sec_pass_2026!' }}
           POSTGRES_DB=${{ secrets.POSTGRES_DB || 'adhocx' }}
-          DATABASE_URL=postgresql://${{ secrets.POSTGRES_USER || 'adhocx_user' }}:${{ secrets.POSTGRES_PASSWORD || 'adhocx_prod_db_sec_pass_2026!' }}@postgres:5432/${{ secrets.POSTGRES_DB || 'adhocx' }}?schema=public
-          REDIS_URL=redis://redis:6379
+          DATABASE_URL=${{ secrets.DATABASE_URL || 'postgresql://adhocx_user:637NF4n6H0FEr4o5IPvmss4KsFf6SGhs@dpg-dafhurlg1s2s73el0mv0-a.virginia-postgres.render.com/adhocx?sslmode=require&connect_timeout=30&pool_timeout=60&connection_limit=30' }}
+          REDIS_URL=${{ secrets.REDIS_URL || 'rediss://red-dafi1ftbedkc739bbovg:YP3C2SCtDTlvZL2un0PgQ12OUAiSlcud@virginia-keyvalue.render.com:6379' }}
+          REDIS_TLS=true
           JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}
           JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
           GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
