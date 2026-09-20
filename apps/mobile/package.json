@@ -9,7 +9,9 @@
     "dev:android": "flutter run -d android",
     "dev:ios": "flutter run -d ios",
     "build:web": "flutter build web",
-    "build:apk": "flutter build apk",
+    "build:apk": "flutter build apk --release",
+    "build:appbundle": "flutter build appbundle --release",
+    "build:ios": "flutter build ios --release --no-codesign",
     "test": "node -e \"console.log('Mobile test ready (run flutter test with Flutter installed)');\""
   }
 }
