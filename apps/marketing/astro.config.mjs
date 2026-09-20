@@ -4,7 +4,8 @@ import vercel from '@astrojs/vercel/static';
 
 export default defineConfig({
   integrations: [react()],
-  adapter: vercel(),
   output: 'static',
+  outDir: './dist',
   site: 'https://www.adhocx.com',
+  ...(process.env.VERCEL ? { adapter: vercel() } : {}),
 });

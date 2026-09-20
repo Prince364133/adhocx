@@ -5,7 +5,7 @@
 # Stage 1: Base image
 FROM node:20-alpine AS base
 RUN apk add --no-cache libc6-compat
-RUN npm install -g pnpm@9 turbo
+RUN npm install -g pnpm@10.17.1 turbo
 WORKDIR /app
 
 # Stage 2: Install dependencies
