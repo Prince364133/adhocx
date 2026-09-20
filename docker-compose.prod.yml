@@ -78,8 +78,7 @@ services:
     container_name: adhocx_prod_admin
     restart: always
     depends_on:
-      api:
-        condition: service_healthy
+      - api
     env_file:
       - path: .env.production
         required: false

@@ -35,16 +35,14 @@ ENV PORT=3000
 # Create application user & group
 USER node
 
-# Copy compiled artifacts and production dependencies
+# Copy compiled artifacts and workspace dependencies
 COPY --chown=node:node --from=builder /app/package.json /app/pnpm-workspace.yaml ./
 COPY --chown=node:node --from=builder /app/node_modules ./node_modules
-COPY --chown=node:node --from=builder /app/packages/contracts/dist ./packages/contracts/dist
-COPY --chown=node:node --from=builder /app/packages/contracts/package.json ./packages/contracts/package.json
-COPY --chown=node:node --from=builder /app/apps/api/dist ./apps/api/dist
-COPY --chown=node:node --from=builder /app/apps/api/prisma ./apps/api/prisma
-COPY --chown=node:node --from=builder /app/apps/api/package.json ./apps/api/package.json
+COPY --chown=node:node --from=builder /app/packages ./packages
+COPY --chown=node:node --from=builder /app/apps/api ./apps/api
 
 WORKDIR /app/apps/api
+ENV NODE_PATH=/app/apps/api/node_modules:/app/node_modules
 
 EXPOSE 3000
 
