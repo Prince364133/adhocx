@@ -20,6 +20,7 @@ uploads/
 *.apk
 *.aab
 *.ipa
+releases/
 debug_info/
 debug-info/
 
