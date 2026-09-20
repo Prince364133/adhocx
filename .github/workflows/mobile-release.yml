@@ -92,12 +92,11 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Install Dependencies & CocoaPods
+      - name: Install Dependencies
         working-directory: apps/mobile
         run: |
+          flutter precache --ios
           flutter pub get
-          cd ios
-          pod install
 
       - name: Build iOS App (Release Unsigned)
         working-directory: apps/mobile
