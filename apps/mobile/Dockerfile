@@ -3,7 +3,7 @@
 # ==============================================================================
 
 # Stage 1: Build Flutter Web release assets
-FROM ghcr.io/cirruslabs/flutter:3.29.0 AS builder
+FROM ghcr.io/cirruslabs/flutter:stable AS builder
 WORKDIR /app
 
 # Accept API URL build argument
