@@ -226,9 +226,8 @@ export class TripsService {
 
     validateTripTransition(trip.status as TripStatus, TripStatus.IN_PROGRESS);
 
-    // Strict OTP verification against stored trip OTP (supports dev master OTP)
-    const isMasterOtp = dto.otp === '1234' || dto.otp === '123456' || dto.otp === '0000';
-    if (!isMasterOtp && trip.otp && trip.otp !== dto.otp) {
+    // Strict OTP verification against stored trip OTP
+    if (trip.otp && trip.otp !== dto.otp) {
       throw new BadRequestException('Invalid OTP. Trip start requires valid OTP from the vendor.');
     }
 

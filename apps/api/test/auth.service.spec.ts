@@ -91,6 +91,8 @@ describe('AuthService Unit Tests', () => {
 
   it('should verify OTP and create new user if not exists', async () => {
     const otpRes = await service.requestOtp({ phone: '+919876543210' });
+    const sentOtp = (notifications.sendOtp as jest.Mock).mock.calls[0][0].otp;
+    redis.get.mockResolvedValue(sentOtp);
 
     db.user.findFirst.mockResolvedValue(null);
     db.user.findUnique.mockResolvedValue(null);
@@ -106,7 +108,7 @@ describe('AuthService Unit Tests', () => {
     const result = await service.verifyOtp({
       requestId: otpRes.requestId,
       phone: '+919876543210',
-      otp: '123456',
+      otp: sentOtp,
     });
 
     expect(result.accessToken).toBe('test_token');

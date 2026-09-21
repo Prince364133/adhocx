@@ -1,3 +1,4 @@
+import * as crypto from 'crypto';
 import {
   Injectable,
   NotFoundException,
@@ -267,8 +268,8 @@ export class OffersService {
         },
       });
 
-      // Generate 4-digit start OTP
-      const startOtp = Math.floor(1000 + Math.random() * 9000).toString();
+      // Generate cryptographically secure 4-digit start OTP (CSPRNG)
+      const startOtp = crypto.randomInt(1000, 10000).toString();
 
       // Create Trip record
       const trip = await tx.trip.create({

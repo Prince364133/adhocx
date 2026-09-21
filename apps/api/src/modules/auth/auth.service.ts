@@ -170,9 +170,9 @@ export class AuthService {
       }
     }
 
-    const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-    const isDev = this.configService.get<string>('app.nodeEnv') === 'development';
-    const otp = isDev ? '123456' : Math.floor(100000 + Math.random() * 900000).toString();
+    const requestId = `req_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+    // Cryptographically secure production-grade 6-digit OTP (100000 - 999999)
+    const otp = crypto.randomInt(100000, 1000000).toString();
     const expirySeconds = this.configService.get<number>('auth.otpExpirySeconds') || 300;
     const expiresAt = Date.now() + expirySeconds * 1000;
 
@@ -221,10 +221,7 @@ export class AuthService {
       }
     } catch (_) {}
 
-    const isDev = this.configService.get<string>('app.nodeEnv') === 'development';
-    const isMasterOtp = isDev && (otp === '123456' || otp === '000000');
-
-    if (!isMasterOtp && (!cachedOtp || cachedOtp !== otp)) {
+    if (!cachedOtp || cachedOtp !== otp) {
       throw new UnauthorizedException('Invalid or expired OTP code');
     }
 
@@ -512,12 +509,13 @@ export class AuthService {
   async resetPassword(dto: ResetPasswordDto) {
     const { isEmail, value, phoneVariants } = this.normalizeIdentifier(dto.identifier);
 
-    // Verify OTP
-    const isDev = this.configService.get<string>('app.nodeEnv') === 'development';
-    const isMasterOtp = isDev && (dto.otp === '123456' || dto.otp === '000000');
-    const cachedOtp = await this.redis.get(`otp_direct:${value}`);
+    // Verify OTP against Redis cache
+    let cachedOtp: string | null = null;
+    try {
+      cachedOtp = await this.redis.get(`otp_direct:${value}`);
+    } catch (_) {}
 
-    if (!isMasterOtp && (!cachedOtp || cachedOtp !== dto.otp)) {
+    if (!cachedOtp || cachedOtp !== dto.otp) {
       throw new UnauthorizedException('Invalid or expired OTP code');
     }
 

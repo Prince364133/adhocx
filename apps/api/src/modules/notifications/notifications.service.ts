@@ -64,38 +64,100 @@ export interface PushSendResult {
   failedTokens?: string[];
 }
 
-// ── HTML Email Templates ──────────────────────────────────────────────────────
+function otpEmailTemplate(otp: string, fullName?: string): string {
+  const digits = otp.split('');
+  const recipient = fullName ? fullName.trim() : 'Partner';
 
-function otpEmailTemplate(otp: string): string {
-  return `
-<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin: 0; padding: 0; background-color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="min-height: 100vh;">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AdhocX Verification Code</title>
+  <style>
+    body, table, td, p, a, li, blockquote { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+    table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+    img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; }
+    body { margin: 0; padding: 0; width: 100% !important; background-color: #F8FAFC; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+  </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #F8FAFC; color: #0F172A;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #F8FAFC; min-height: 100vh;">
     <tr>
       <td align="center" style="padding: 40px 16px;">
-        <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width: 560px; width: 100%;">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width: 560px; width: 100%; border-collapse: separate;">
+          <!-- Brand Header -->
           <tr>
-            <td align="center" style="padding-bottom: 32px;">
-              <h1 style="margin: 0; font-size: 32px; font-weight: 900; color: #6366f1; letter-spacing: -0.5px;">AdhocX</h1>
-              <p style="margin: 4px 0 0; font-size: 13px; color: #64748b;">Smart Logistics & On-Demand Cab Dispatch</p>
+            <td style="background-color: #0B1220; border-radius: 12px 12px 0 0; padding: 24px 32px; border-bottom: 3px solid #2563EB;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td>
+                    <span style="font-size: 26px; font-weight: 900; color: #FFFFFF; letter-spacing: -0.5px;">Adhoc<span style="color: #3B82F6;">X</span></span>
+                    <div style="font-size: 11px; font-weight: 600; color: #94A3B8; text-transform: uppercase; letter-spacing: 1.2px; margin-top: 3px;">Corporate Mobility & On-Demand Dispatch</div>
+                  </td>
+                  <td align="right" valign="middle">
+                    <span style="display: inline-block; background-color: rgba(37, 99, 235, 0.18); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 16px; padding: 5px 14px; font-size: 11px; font-weight: 700; color: #60A5FA; letter-spacing: 0.5px;">SECURE OTP</span>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
+
+          <!-- Main Content Card -->
           <tr>
-            <td style="background: #1e293b; border-radius: 16px; border: 1px solid #334155; padding: 40px 32px; text-align: center;">
-              <p style="margin: 0 0 8px; font-size: 18px; font-weight: 600; color: #f1f5f9;">Verification Code</p>
-              <p style="margin: 0 0 24px; font-size: 14px; color: #94a3b8;">Enter this code to verify your identity</p>
-              <div style="display: inline-block; background: #0f172a; border: 2px solid #334155; border-radius: 12px; padding: 16px 36px;">
-                <span style="font-size: 40px; font-weight: 900; letter-spacing: 10px; color: #10b981; font-family: 'Courier New', monospace;">${otp}</span>
+            <td style="background-color: #FFFFFF; border: 1px solid #E2E8F0; border-top: none; border-radius: 0 0 12px 12px; padding: 36px 32px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+              <h2 style="margin: 0 0 10px 0; font-size: 20px; font-weight: 700; color: #0F172A; letter-spacing: -0.2px;">Account Verification Code</h2>
+              <p style="margin: 0 0 24px 0; font-size: 14px; line-height: 1.6; color: #475569;">
+                Hello <strong>${recipient}</strong>,<br>
+                Please use the 6-digit one-time password below to authenticate your AdhocX session.
+              </p>
+
+              <!-- Discrete OTP Digit Blocks -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 28px auto;">
+                <tr>
+                  ${digits.map(d => `
+                    <td style="padding: 0 5px;">
+                      <div style="width: 46px; height: 56px; line-height: 56px; background-color: #F8FAFC; border: 2px solid #2563EB; border-radius: 8px; font-size: 32px; font-weight: 800; color: #0F172A; text-align: center; font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.08);">${d}</div>
+                    </td>
+                  `).join('')}
+                </tr>
+              </table>
+
+              <!-- Security Notice Callout (Amber Box) -->
+              <div style="background-color: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px; padding: 14px 16px; margin: 28px 0 0 0;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td width="22" valign="top" style="font-size: 16px; line-height: 1.2;">🔒</td>
+                    <td style="padding-left: 10px; font-size: 13px; line-height: 1.5; color: #92400E;">
+                      <strong>Security Advisory:</strong> This code is strictly confidential and expires in <strong>5 minutes</strong>. Never share this code with anyone. AdhocX representatives will never ask for your verification code.
+                    </td>
+                  </tr>
+                </table>
               </div>
-              <p style="margin: 24px 0 0; font-size: 13px; color: #64748b;">This code expires in <strong style="color: #f59e0b;">5 minutes</strong>. Do not share it with anyone.</p>
+
+              <!-- Transactional Details Meta -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #F1F5F9; font-size: 12px; color: #64748B;">
+                <tr>
+                  <td style="padding: 3px 0;">Request Type:</td>
+                  <td align="right" style="font-weight: 600; color: #0F172A;">Multi-Factor Authentication (MFA)</td>
+                </tr>
+                <tr>
+                  <td style="padding: 3px 0;">Validity Window:</td>
+                  <td align="right" style="font-weight: 600; color: #0F172A;">5 Minutes</td>
+                </tr>
+                <tr>
+                  <td style="padding: 3px 0;">Channel:</td>
+                  <td align="right" style="font-weight: 600; color: #2563EB;">Encrypted SMTP Delivery</td>
+                </tr>
+              </table>
             </td>
           </tr>
+
+          <!-- Corporate Legal Footer -->
           <tr>
-            <td align="center" style="padding-top: 28px;">
-              <p style="margin: 0; font-size: 12px; color: #475569;">If you didn't request this code, please ignore this email.</p>
-              <p style="margin: 8px 0 0; font-size: 11px; color: #334155;">© 2026 AdhocX Enterprise Mobility. All rights reserved.</p>
+            <td align="center" style="padding-top: 24px; font-size: 12px; line-height: 1.6; color: #94A3B8;">
+              <p style="margin: 0 0 6px 0;">If you did not request this verification code, please ignore this email or notify <a href="mailto:support@adhocx.com" style="color: #2563EB; text-decoration: none; font-weight: 600;">support@adhocx.com</a> immediately.</p>
+              <p style="margin: 0; font-size: 11px; color: #CBD5E1;">© 2026 AdhocX Technologies Inc. • DLF Cyber City, Phase 2, Gurugram, Haryana 122002 • All rights reserved.</p>
             </td>
           </tr>
         </table>
@@ -107,34 +169,63 @@ function otpEmailTemplate(otp: string): string {
 }
 
 function kycApprovedEmailTemplate(fullName: string): string {
-  return `
-<!DOCTYPE html>
+  const recipient = fullName ? fullName.trim() : 'Partner';
+
+  return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin: 0; padding: 0; background-color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AdhocX Verification Approved</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #F8FAFC; color: #0F172A; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #F8FAFC; min-height: 100vh;">
     <tr>
       <td align="center" style="padding: 40px 16px;">
-        <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width: 560px; width: 100%;">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width: 560px; width: 100%; border-collapse: separate;">
           <tr>
-            <td align="center" style="padding-bottom: 32px;">
-              <h1 style="margin: 0; font-size: 32px; font-weight: 900; color: #6366f1;">AdhocX</h1>
+            <td style="background-color: #0B1220; border-radius: 12px 12px 0 0; padding: 24px 32px; border-bottom: 3px solid #16A34A;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td>
+                    <span style="font-size: 26px; font-weight: 900; color: #FFFFFF; letter-spacing: -0.5px;">Adhoc<span style="color: #3B82F6;">X</span></span>
+                    <div style="font-size: 11px; font-weight: 600; color: #94A3B8; text-transform: uppercase; letter-spacing: 1.2px; margin-top: 3px;">Corporate Mobility & On-Demand Dispatch</div>
+                  </td>
+                  <td align="right" valign="middle">
+                    <span style="display: inline-block; background-color: rgba(22, 163, 74, 0.18); border: 1px solid rgba(22, 163, 74, 0.4); border-radius: 16px; padding: 5px 14px; font-size: 11px; font-weight: 700; color: #4ADE80; letter-spacing: 0.5px;">VERIFIED</span>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
+
           <tr>
-            <td style="background: #1e293b; border-radius: 16px; border: 1px solid #334155; padding: 40px 32px; text-align: center;">
-              <div style="font-size: 48px; margin-bottom: 16px;">🎉</div>
-              <p style="margin: 0 0 8px; font-size: 20px; font-weight: 700; color: #10b981;">Verification Approved!</p>
-              <p style="margin: 0 0 16px; font-size: 15px; color: #cbd5e1;">Congratulations ${fullName},</p>
-              <p style="margin: 0; font-size: 14px; color: #94a3b8; line-height: 1.6;">
-                Your KYC verification has been approved. You now have full access to the AdhocX platform.
-                Log in to start accepting trips and earning.
+            <td style="background-color: #FFFFFF; border: 1px solid #E2E8F0; border-top: none; border-radius: 0 0 12px 12px; padding: 36px 32px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); text-align: center;">
+              <div style="display: inline-block; width: 64px; height: 64px; line-height: 64px; background-color: #DCFCE7; border: 1px solid #86EFAC; border-radius: 50%; font-size: 32px; margin-bottom: 20px;">✓</div>
+              <h2 style="margin: 0 0 10px 0; font-size: 22px; font-weight: 700; color: #15803D;">Account Verification Approved</h2>
+              <p style="margin: 0 0 20px 0; font-size: 15px; color: #334155;">Congratulations <strong>${recipient}</strong>,</p>
+              <p style="margin: 0 0 28px 0; font-size: 14px; line-height: 1.6; color: #475569; text-align: left;">
+                Your submitted KYC documentation and credentials have been officially verified and approved. Your AdhocX account is now active with full platform access.
               </p>
+
+              <div style="text-align: center; margin-bottom: 28px;">
+                <a href="https://app.adhocx.com" style="display: inline-block; background-color: #2563EB; color: #FFFFFF; font-size: 14px; font-weight: 700; text-decoration: none; padding: 14px 32px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);">Access Your Portal</a>
+              </div>
+
+              <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; text-align: left;">
+                <p style="margin: 0 0 6px 0; font-size: 13px; font-weight: 600; color: #0F172A;">What's next?</p>
+                <ul style="margin: 0; padding-left: 18px; font-size: 13px; color: #475569; line-height: 1.6;">
+                  <li>Book and schedule rides or post corporate dispatch requirements</li>
+                  <li>Accept verified on-demand trips and manage fleet vehicles</li>
+                  <li>Access real-time trip telematics and automated invoice settlements</li>
+                </ul>
+              </div>
             </td>
           </tr>
+
           <tr>
-            <td align="center" style="padding-top: 28px;">
-              <p style="margin: 0; font-size: 11px; color: #334155;">© 2026 AdhocX Enterprise Mobility</p>
+            <td align="center" style="padding-top: 24px; font-size: 12px; line-height: 1.6; color: #94A3B8;">
+              <p style="margin: 0; font-size: 11px; color: #CBD5E1;">© 2026 AdhocX Technologies Inc. • DLF Cyber City, Phase 2, Gurugram, Haryana 122002</p>
             </td>
           </tr>
         </table>
@@ -146,38 +237,63 @@ function kycApprovedEmailTemplate(fullName: string): string {
 }
 
 function kycDeclinedEmailTemplate(fullName: string, reason: string): string {
-  return `
-<!DOCTYPE html>
+  const recipient = fullName ? fullName.trim() : 'Partner';
+
+  return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin: 0; padding: 0; background-color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AdhocX Verification Update</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #F8FAFC; color: #0F172A; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #F8FAFC; min-height: 100vh;">
     <tr>
       <td align="center" style="padding: 40px 16px;">
-        <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width: 560px; width: 100%;">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width: 560px; width: 100%; border-collapse: separate;">
           <tr>
-            <td align="center" style="padding-bottom: 32px;">
-              <h1 style="margin: 0; font-size: 32px; font-weight: 900; color: #6366f1;">AdhocX</h1>
+            <td style="background-color: #0B1220; border-radius: 12px 12px 0 0; padding: 24px 32px; border-bottom: 3px solid #D97706;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td>
+                    <span style="font-size: 26px; font-weight: 900; color: #FFFFFF; letter-spacing: -0.5px;">Adhoc<span style="color: #3B82F6;">X</span></span>
+                    <div style="font-size: 11px; font-weight: 600; color: #94A3B8; text-transform: uppercase; letter-spacing: 1.2px; margin-top: 3px;">Corporate Mobility & On-Demand Dispatch</div>
+                  </td>
+                  <td align="right" valign="middle">
+                    <span style="display: inline-block; background-color: rgba(217, 119, 6, 0.18); border: 1px solid rgba(217, 119, 6, 0.4); border-radius: 16px; padding: 5px 14px; font-size: 11px; font-weight: 700; color: #FBBF24; letter-spacing: 0.5px;">ACTION REQUIRED</span>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
+
           <tr>
-            <td style="background: #1e293b; border-radius: 16px; border: 1px solid #334155; padding: 40px 32px; text-align: center;">
-              <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
-              <p style="margin: 0 0 8px; font-size: 20px; font-weight: 700; color: #f59e0b;">Verification Declined</p>
-              <p style="margin: 0 0 16px; font-size: 15px; color: #cbd5e1;">Hello ${fullName},</p>
-              <p style="margin: 0 0 16px; font-size: 14px; color: #94a3b8; line-height: 1.6;">
-                Unfortunately, your verification could not be approved at this time.
+            <td style="background-color: #FFFFFF; border: 1px solid #E2E8F0; border-top: none; border-radius: 0 0 12px 12px; padding: 36px 32px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+              <h2 style="margin: 0 0 10px 0; font-size: 20px; font-weight: 700; color: #B45309;">Verification Documentation Update</h2>
+              <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.6; color: #475569;">
+                Hello <strong>${recipient}</strong>,<br>
+                During our compliance verification review, some of your submitted documentation requires your attention before approval can be completed.
               </p>
-              <div style="background: #0f172a; border-radius: 8px; padding: 16px; border-left: 4px solid #f59e0b;">
-                <p style="margin: 0; font-size: 13px; color: #fbbf24; font-weight: 600;">Reason:</p>
-                <p style="margin: 4px 0 0; font-size: 14px; color: #e2e8f0;">${reason}</p>
+
+              <!-- Reason Box -->
+              <div style="background-color: #FFFBEB; border: 1px solid #FDE68A; border-left: 4px solid #D97706; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                <p style="margin: 0 0 4px 0; font-size: 12px; font-weight: 700; color: #92400E; text-transform: uppercase; letter-spacing: 0.5px;">Review Feedback:</p>
+                <p style="margin: 0; font-size: 14px; color: #78350F; line-height: 1.5;">${reason}</p>
               </div>
-              <p style="margin: 20px 0 0; font-size: 13px; color: #64748b;">Please re-submit your documents in the app to try again.</p>
+
+              <p style="margin: 0 0 24px 0; font-size: 13px; line-height: 1.6; color: #64748B;">
+                Please re-submit clear, high-resolution photos or scans of the required documents directly within the AdhocX application.
+              </p>
+
+              <div style="text-align: center; margin: 28px 0 12px 0;">
+                <a href="https://app.adhocx.com" style="display: inline-block; background-color: #2563EB; color: #FFFFFF; font-size: 14px; font-weight: 700; text-decoration: none; padding: 14px 32px; border-radius: 8px;">Re-Submit Documents</a>
+              </div>
             </td>
           </tr>
+
           <tr>
-            <td align="center" style="padding-top: 28px;">
-              <p style="margin: 0; font-size: 11px; color: #334155;">© 2026 AdhocX Enterprise Mobility</p>
+            <td align="center" style="padding-top: 24px; font-size: 12px; line-height: 1.6; color: #94A3B8;">
+              <p style="margin: 0; font-size: 11px; color: #CBD5E1;">© 2026 AdhocX Technologies Inc. • DLF Cyber City, Phase 2, Gurugram, Haryana 122002</p>
             </td>
           </tr>
         </table>
@@ -189,34 +305,53 @@ function kycDeclinedEmailTemplate(fullName: string, reason: string): string {
 }
 
 function welcomeEmailTemplate(fullName: string, role: string): string {
-  return `
-<!DOCTYPE html>
+  const recipient = fullName ? fullName.trim() : 'Partner';
+
+  return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin: 0; padding: 0; background-color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to AdhocX</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #F8FAFC; color: #0F172A; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #F8FAFC; min-height: 100vh;">
     <tr>
       <td align="center" style="padding: 40px 16px;">
-        <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width: 560px; width: 100%;">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width: 560px; width: 100%; border-collapse: separate;">
           <tr>
-            <td align="center" style="padding-bottom: 32px;">
-              <h1 style="margin: 0; font-size: 32px; font-weight: 900; color: #6366f1;">AdhocX</h1>
+            <td style="background-color: #0B1220; border-radius: 12px 12px 0 0; padding: 24px 32px; border-bottom: 3px solid #2563EB;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td>
+                    <span style="font-size: 26px; font-weight: 900; color: #FFFFFF; letter-spacing: -0.5px;">Adhoc<span style="color: #3B82F6;">X</span></span>
+                    <div style="font-size: 11px; font-weight: 600; color: #94A3B8; text-transform: uppercase; letter-spacing: 1.2px; margin-top: 3px;">Corporate Mobility & On-Demand Dispatch</div>
+                  </td>
+                  <td align="right" valign="middle">
+                    <span style="display: inline-block; background-color: rgba(37, 99, 235, 0.18); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 16px; padding: 5px 14px; font-size: 11px; font-weight: 700; color: #60A5FA; letter-spacing: 0.5px;">WELCOME</span>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
+
           <tr>
-            <td style="background: #1e293b; border-radius: 16px; border: 1px solid #334155; padding: 40px 32px; text-align: center;">
-              <div style="font-size: 48px; margin-bottom: 16px;">🌟</div>
-              <p style="margin: 0 0 8px; font-size: 20px; font-weight: 700; color: #f1f5f9;">Welcome to AdhocX!</p>
-              <p style="margin: 0 0 16px; font-size: 15px; color: #cbd5e1;">Hello ${fullName},</p>
-              <p style="margin: 0; font-size: 14px; color: #94a3b8; line-height: 1.6;">
-                You've successfully registered as <strong style="color: #6366f1;">${role}</strong> on AdhocX.
-                Complete your profile setup and start your journey with smart logistics.
+            <td style="background-color: #FFFFFF; border: 1px solid #E2E8F0; border-top: none; border-radius: 0 0 12px 12px; padding: 36px 32px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+              <h2 style="margin: 0 0 10px 0; font-size: 22px; font-weight: 700; color: #0F172A;">Welcome to AdhocX Enterprise Mobility</h2>
+              <p style="margin: 0 0 16px 0; font-size: 15px; color: #334155;">Hello <strong>${recipient}</strong>,</p>
+              <p style="margin: 0 0 20px 0; font-size: 14px; line-height: 1.6; color: #475569;">
+                Thank you for registering on AdhocX as an authorized <strong style="color: #2563EB;">${role}</strong>. You now have access to our high-performance dispatch network, guaranteed rate cards, and real-time operations engine.
               </p>
+
+              <div style="text-align: center; margin: 28px 0;">
+                <a href="https://app.adhocx.com" style="display: inline-block; background-color: #2563EB; color: #FFFFFF; font-size: 14px; font-weight: 700; text-decoration: none; padding: 14px 32px; border-radius: 8px;">Open AdhocX Portal</a>
+              </div>
             </td>
           </tr>
+
           <tr>
-            <td align="center" style="padding-top: 28px;">
-              <p style="margin: 0; font-size: 11px; color: #334155;">© 2026 AdhocX Enterprise Mobility</p>
+            <td align="center" style="padding-top: 24px; font-size: 12px; line-height: 1.6; color: #94A3B8;">
+              <p style="margin: 0; font-size: 11px; color: #CBD5E1;">© 2026 AdhocX Technologies Inc. • DLF Cyber City, Phase 2, Gurugram, Haryana 122002</p>
             </td>
           </tr>
         </table>
@@ -339,13 +474,32 @@ export class NotificationsService implements OnModuleInit {
 
   // ─── Private Email Sender ────────────────────────────────────────────────────
 
-  private async sendEmail(to: string, subject: string, html: string): Promise<string | null> {
+  private async sendEmail(
+    to: string,
+    subject: string,
+    html: string,
+    text?: string,
+  ): Promise<string | null> {
     try {
+      const plainText =
+        text ||
+        html
+          .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+          .replace(/<[^>]*>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+
       const info = await this.transporter.sendMail({
         from: this.fromAddress,
         to,
         subject,
+        text: plainText,
         html,
+        headers: {
+          'X-Entity-Ref-ID': `adhocx-${Date.now()}`,
+          'X-Auto-Response-Suppress': 'OOF, AutoReply',
+          'Auto-Submitted': 'auto-generated',
+        },
       });
       this.logger.log(`📧 [EMAIL SENT] To: ${to} | Subject: "${subject}" | MessageId: ${info.messageId}`);
       return info.messageId;
@@ -1273,8 +1427,9 @@ export class NotificationsService implements OnModuleInit {
     if (targetChannel === 'EMAIL' && email) {
       const emailMessageId = await this.sendEmail(
         email,
-        'Your AdhocX Verification Code',
-        otpEmailTemplate(otp),
+        `Your AdhocX Verification Code: ${otp}`,
+        otpEmailTemplate(otp, payload.fullName),
+        `Your AdhocX verification code is: ${otp}\n\nEnter this 6-digit code to verify your identity. This code expires in 5 minutes.\n\nSecurity Notice: Never share this code with anyone. AdhocX representatives will never ask for your verification code.\n\n© 2026 AdhocX Technologies Inc. • DLF Cyber City, Phase 2, Gurugram, Haryana 122002`,
       );
 
       return {

@@ -1,3 +1,4 @@
+import * as crypto from 'crypto';
 import {
   Injectable,
   NotFoundException,
@@ -470,8 +471,8 @@ export class BidsService {
         },
       });
 
-      // 5. Generate 4-digit pickup OTP
-      const startOtp = Math.floor(1000 + Math.random() * 9000).toString();
+      // 5. Generate cryptographically secure 4-digit pickup OTP (CSPRNG)
+      const startOtp = crypto.randomInt(1000, 10000).toString();
 
       // 6. Create Trip record
       const trip = await tx.trip.create({
