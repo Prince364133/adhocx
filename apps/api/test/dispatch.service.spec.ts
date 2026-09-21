@@ -43,6 +43,7 @@ describe('DispatchService Unit Tests', () => {
     notifications = {
       emitEvent: jest.fn(),
       sendPush: jest.fn().mockResolvedValue(undefined),
+      sendPushToUser: jest.fn().mockResolvedValue({ success: true }),
     };
 
     audit = {

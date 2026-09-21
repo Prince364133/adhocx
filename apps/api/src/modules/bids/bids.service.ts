@@ -20,6 +20,7 @@ import {
   UserStatus,
   VerificationStatus,
   DriverAvailability,
+  NotificationType,
   validateBidTransition,
 } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
@@ -179,6 +180,18 @@ export class BidsService {
         etaMinutes: dto.etaMinutes,
       },
     });
+
+    // FCM Push to Vendor: New Bid Received
+    if (requirement.vendor?.userId) {
+      this.notifications.sendPushToUser(requirement.vendor.userId, {
+        title: '🏷️ New Bid Received!',
+        body: `Driver ${driver.fullName} placed a quote of ₹${dto.bidAmount} on requirement #${requirement.id.substring(0, 8)}.`,
+        type: NotificationType.BID_UPDATE,
+        data: { requirementId: requirement.id, bidId: bid.id, route: `/requirements/${requirement.id}` },
+        actionUrl: `/requirements/${requirement.id}`,
+        saveInApp: true,
+      }).catch((err) => this.logger.warn(`Push to vendor on bid placed failed: ${err.message}`));
+    }
 
     this.logger.log(`Driver ${driver.id} placed bid ₹${dto.bidAmount} on requirement ${requirement.id}`);
     return bidResponse;
@@ -532,6 +545,23 @@ export class BidsService {
       requirementId: txResult.requirement.id,
       winningBidId: bid.id,
     });
+
+    // FCM Push to Driver: Winning Bid Confirmed
+    if (bid.driver?.userId) {
+      this.notifications.sendPushToUser(bid.driver.userId, {
+        title: '🎉 Your Bid Was Accepted!',
+        body: `Winning bid of ₹${bid.bidAmount} confirmed for pickup at ${txResult.requirement.pickupAddress}. Tap to view trip.`,
+        type: NotificationType.TRIP_ASSIGNED,
+        data: {
+          tripId: txResult.trip.id,
+          assignmentId: txResult.assignment.id,
+          requirementId: txResult.requirement.id,
+          route: `/trips/${txResult.trip.id}`,
+        },
+        actionUrl: `/trips/${txResult.trip.id}`,
+        saveInApp: true,
+      }).catch((err) => this.logger.warn(`Push to driver on bid accepted failed: ${err.message}`));
+    }
 
     await this.audit.log({
       userId: requesterUserId,

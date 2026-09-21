@@ -21,6 +21,7 @@ import {
   VehicleType,
   UserRole,
   FulfillmentMode,
+  NotificationType,
   validateTripTransition,
 } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
@@ -193,6 +194,18 @@ export class TripsService {
       reportingTime: updated.reportingTime.toISOString(),
     });
 
+    // FCM Push to Vendor: Driver Arrived with OTP
+    if (updated.requirement?.vendor?.userId) {
+      this.notifications.sendPushToUser(updated.requirement.vendor.userId, {
+        title: '📍 Driver Has Arrived!',
+        body: `Driver ${updated.driver.fullName} has arrived at pickup. Verification OTP is ${updated.otp}.`,
+        type: NotificationType.TRIP_STATUS,
+        data: { tripId: id, otp: updated.otp, route: `/trips/${id}` },
+        actionUrl: `/trips/${id}`,
+        saveInApp: true,
+      }).catch((err) => this.logger.warn(`Push to vendor on arrival failed: ${err.message}`));
+    }
+
     await this.audit.log({
       userId: driverUserId,
       action: 'TRIP_DRIVER_ARRIVED',
@@ -264,6 +277,22 @@ export class TripsService {
       startedAt: now.toISOString(),
       pickupLocation: dto.currentLocation,
     });
+
+    // FCM Push to Vendor: Trip Started
+    const vendorRecord = await this.db.vendor.findUnique({
+      where: { id: updated.vendorId },
+      select: { userId: true },
+    });
+    if (vendorRecord?.userId) {
+      this.notifications.sendPushToUser(vendorRecord.userId, {
+        title: '🚀 Trip in Progress',
+        body: `Trip #${id.substring(0, 8)} with ${trip.driver.fullName} is now in progress.`,
+        type: NotificationType.TRIP_STATUS,
+        data: { tripId: id, route: `/trips/${id}` },
+        actionUrl: `/trips/${id}`,
+        saveInApp: true,
+      }).catch((err) => this.logger.warn(`Push to vendor on start failed: ${err.message}`));
+    }
 
     await this.audit.log({
       userId: driverUserId,
@@ -467,6 +496,32 @@ export class TripsService {
       tripId: id,
       totalEarnings: totalDriverEarnings,
     });
+
+    // FCM Push to Driver: Trip Completed with earnings
+    this.notifications.sendPushToUser(driverUserId, {
+      title: '🎉 Trip Completed!',
+      body: `Trip finished! ₹${totalDriverEarnings} has been credited to your wallet.`,
+      type: NotificationType.WALLET_UPDATE,
+      data: { tripId: id, totalEarnings: String(totalDriverEarnings), route: '/wallet' },
+      actionUrl: '/wallet',
+      saveInApp: true,
+    }).catch((err) => this.logger.warn(`Driver trip completed push failed: ${err.message}`));
+
+    // FCM Push to Vendor: Trip Completed
+    const vendorUser = await this.db.vendor.findUnique({
+      where: { id: updated.vendorId },
+      select: { userId: true },
+    });
+    if (vendorUser?.userId) {
+      this.notifications.sendPushToUser(vendorUser.userId, {
+        title: '✅ Trip Delivered!',
+        body: `Trip #${id.substring(0, 8)} completed successfully. You can now submit your driver rating.`,
+        type: NotificationType.TRIP_STATUS,
+        data: { tripId: id, route: `/trips/${id}` },
+        actionUrl: `/trips/${id}`,
+        saveInApp: true,
+      }).catch((err) => this.logger.warn(`Vendor trip completed push failed: ${err.message}`));
+    }
 
     await this.audit.log({
       userId: driverUserId,

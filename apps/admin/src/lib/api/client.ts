@@ -26,6 +26,13 @@ import {
   CorridorAnalytics,
   OperationalReportData,
   SupportTicketItem,
+  NotificationCampaignItem,
+  NotificationMetrics,
+  AudienceFilter,
+  BroadcastPushPayload,
+  TestPushPayload,
+  InAppNotificationItem,
+  AudienceEstimateResult,
 } from './types';
 
 function getApiBaseUrl(): string {
@@ -349,4 +356,59 @@ export const adminApi = {
     apiClient<{ success: boolean; message: string }>(`/admin/blogs/${id}`, {
       method: 'DELETE',
     }),
+
+  // ── Push Notifications & Campaign Operations ──
+  getNotificationMetrics: () =>
+    apiClient<NotificationMetrics>('/notifications/admin/metrics'),
+
+  getNotificationCampaigns: (page = 1, limit = 20) =>
+    apiClient<{ campaigns: NotificationCampaignItem[]; total: number }>(
+      `/notifications/admin/campaigns?page=${page}&limit=${limit}`,
+    ),
+
+  broadcastPushNotification: (data: BroadcastPushPayload) =>
+    apiClient<{ campaignId: string; totalTargetedUsers: number; totalTargetedDevices: number; successCount: number; failureCount: number; status: string }>(
+      '/notifications/admin/broadcast',
+      {
+        method: 'POST',
+        body: data,
+      },
+    ),
+
+  estimateNotificationAudience: (filter: AudienceFilter) =>
+    apiClient<AudienceEstimateResult>('/notifications/admin/audience-estimate', {
+      method: 'POST',
+      body: filter,
+    }),
+
+  sendTestPushNotification: (data: TestPushPayload) =>
+    apiClient<{ success: boolean; totalTokens: number; successCount: number; failureCount: number }>(
+      '/notifications/admin/test-push',
+      {
+        method: 'POST',
+        body: data,
+      },
+    ),
+
+  getInAppNotifications: (query?: { page?: number; limit?: number; unreadOnly?: boolean }) => {
+    const params = new URLSearchParams();
+    if (query?.page) params.append('page', String(query.page));
+    if (query?.limit) params.append('limit', String(query.limit));
+    if (query?.unreadOnly) params.append('unreadOnly', String(query.unreadOnly));
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return apiClient<{ notifications: InAppNotificationItem[]; unreadCount: number; total: number }>(
+      `/notifications/in-app${qs}`,
+    );
+  },
+
+  markInAppNotificationRead: (id: string) =>
+    apiClient<{ success: boolean }>(`/notifications/in-app/${id}/read`, {
+      method: 'PATCH',
+    }),
+
+  markAllInAppNotificationsRead: () =>
+    apiClient<{ success: boolean }>('/notifications/in-app/read-all', {
+      method: 'PATCH',
+    }),
 };
+

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger, Optional } from '@nestjs/common';
 import {
   AdminDriverQueryDto,
   AdminVendorQueryDto,
@@ -13,6 +13,7 @@ import {
 } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class AdminService {
@@ -21,6 +22,7 @@ export class AdminService {
   constructor(
     private readonly db: DatabaseService,
     private readonly audit: AuditService,
+    @Optional() private readonly notifications?: NotificationsService,
   ) {}
 
   /**
@@ -123,6 +125,17 @@ export class AdminService {
       },
     });
 
+    if (this.notifications) {
+      this.notifications
+        .sendKycStatusNotification({
+          userId: driver.userId,
+          phone: driver.phone,
+          fullName: driver.fullName,
+          status: 'VERIFIED',
+        })
+        .catch((err) => this.logger.warn(`Driver KYC approval notification notice: ${err.message}`));
+    }
+
     this.logger.log(`Driver ${id} verified by admin ${adminId}`);
     return updated;
   }
@@ -161,6 +174,18 @@ export class AdminService {
         reason: dto.reason,
       },
     });
+
+    if (this.notifications) {
+      this.notifications
+        .sendKycStatusNotification({
+          userId: driver.userId,
+          phone: driver.phone,
+          fullName: driver.fullName,
+          status: 'REJECTED',
+          reason: dto.reason,
+        })
+        .catch((err) => this.logger.warn(`Driver KYC rejection notification notice: ${err.message}`));
+    }
 
     this.logger.log(`Driver ${id} rejected by admin ${adminId}: ${dto.reason}`);
     return updated;
@@ -358,6 +383,17 @@ export class AdminService {
       },
     });
 
+    if (this.notifications) {
+      this.notifications
+        .sendKycStatusNotification({
+          userId: vendor.userId,
+          phone: vendor.phone,
+          fullName: vendor.organizationName || vendor.fullName,
+          status: 'VERIFIED',
+        })
+        .catch((err) => this.logger.warn(`Vendor KYC approval notification notice: ${err.message}`));
+    }
+
     this.logger.log(`Vendor ${id} verified by admin ${adminId}`);
     return updated;
   }
@@ -390,6 +426,18 @@ export class AdminService {
         reason: dto.reason,
       },
     });
+
+    if (this.notifications) {
+      this.notifications
+        .sendKycStatusNotification({
+          userId: vendor.userId,
+          phone: vendor.phone,
+          fullName: vendor.organizationName || vendor.fullName,
+          status: 'REJECTED',
+          reason: dto.reason,
+        })
+        .catch((err) => this.logger.warn(`Vendor KYC rejection notification notice: ${err.message}`));
+    }
 
     this.logger.log(`Vendor ${id} rejected by admin ${adminId}: ${dto.reason}`);
     return updated;

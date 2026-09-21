@@ -40,6 +40,9 @@ describe('TripsService Unit Tests', () => {
       assignment: {
         update: jest.fn(),
       },
+      vendor: {
+        findUnique: jest.fn().mockResolvedValue({ userId: 'vnd-user-1' }),
+      },
       tripEvent: {
         create: jest.fn().mockResolvedValue({ id: 'evt-1' }),
       },
@@ -53,6 +56,7 @@ describe('TripsService Unit Tests', () => {
     notifications = {
       emitEvent: jest.fn(),
       sendTripOtp: jest.fn().mockResolvedValue(undefined),
+      sendPushToUser: jest.fn().mockResolvedValue({ success: true }),
     };
 
     audit = {

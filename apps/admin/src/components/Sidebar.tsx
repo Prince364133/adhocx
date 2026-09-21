@@ -20,6 +20,7 @@ import {
   Scale,
   BarChart3,
   FileText,
+  BellRing,
 } from 'lucide-react';
 import { AdhocxBrandLogo } from './AdhocxBrandLogo';
 
@@ -66,6 +67,7 @@ const navSections: NavSection[] = [
   {
     title: 'GROWTH & CONTENT',
     items: [
+      { href: '/notifications', label: 'Push Notifications', icon: BellRing, badge: 'FCM' },
       { href: '/coupons', label: 'Coupons & Promos', icon: Ticket },
       { href: '/blogs', label: 'Blog & Content', icon: Newspaper },
       { href: '/disputes', label: 'Disputes & Support', icon: Scale },

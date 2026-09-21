@@ -442,5 +442,99 @@ export interface SupportTicketItem {
   updatedAt?: string;
 }
 
+export interface NotificationCampaignItem {
+  id: string;
+  title: string;
+  body: string;
+  imageUrl?: string;
+  actionUrl?: string;
+  targetRole?: string;
+  targetFilter?: {
+    role?: string;
+    availability?: string;
+    verificationStatus?: string;
+    vehicleTypes?: string[];
+    city?: string;
+    userIds?: string[];
+    phones?: string[];
+  };
+  totalTargeted: number;
+  successCount: number;
+  failureCount: number;
+  status: 'SENT' | 'FAILED' | 'SCHEDULED' | string;
+  sentBy?: string;
+  createdAt: string;
+}
+
+export interface NotificationMetrics {
+  totalDelivered: number;
+  totalCampaigns: number;
+  activeDevicesCount: number;
+  devicesByPlatform: {
+    android: number;
+    ios: number;
+    web: number;
+  };
+  deliverySuccessRate: number;
+  inAppNotificationsCount: number;
+}
+
+export interface AudienceFilter {
+  role?: string;
+  availability?: string;
+  verificationStatus?: string;
+  vehicleTypes?: string[];
+  city?: string;
+  userIds?: string[];
+  phones?: string[];
+  topic?: string;
+}
+
+export interface BroadcastPushPayload {
+  title: string;
+  body: string;
+  imageUrl?: string;
+  actionUrl?: string;
+  priority?: 'normal' | 'high';
+  filter?: AudienceFilter;
+  data?: Record<string, string>;
+  dryRun?: boolean;
+}
+
+export interface TestPushPayload {
+  title: string;
+  body: string;
+  imageUrl?: string;
+  actionUrl?: string;
+  targetToken?: string;
+  targetUserId?: string;
+  targetPhone?: string;
+  data?: Record<string, string>;
+}
+
+export interface InAppNotificationItem {
+  id: string;
+  userId: string;
+  title: string;
+  body: string;
+  type: string;
+  data?: Record<string, any>;
+  imageUrl?: string;
+  isRead: boolean;
+  readAt?: string;
+  createdAt: string;
+}
+
+export interface AudienceEstimateResult {
+  matchingUsers: number;
+  matchingDevices: number;
+  platformBreakdown: {
+    android: number;
+    ios: number;
+    web: number;
+  };
+}
+
+
 
 

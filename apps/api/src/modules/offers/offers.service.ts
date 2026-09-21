@@ -16,6 +16,7 @@ import {
   VerificationStatus,
   VehicleType,
   FulfillmentMode,
+  NotificationType,
   validateOfferTransition,
 } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
@@ -361,6 +362,42 @@ export class OffersService {
       dropAddress: txResult.requirement.dropAddress,
       reportingTime: txResult.requirement.reportingTime.toISOString(),
       startOtp: txResult.trip.otp,
+    });
+
+    // FCM Push to Driver: Assignment Confirmed
+    this.notifications.sendPushToUser(driverUserId, {
+      title: '✅ Ride Assignment Confirmed!',
+      body: `Task confirmed for pickup at ${txResult.requirement.pickupAddress}. Tap to view route and start trip.`,
+      type: NotificationType.TRIP_ASSIGNED,
+      data: {
+        tripId: txResult.trip.id,
+        assignmentId: txResult.assignment.id,
+        requirementId: txResult.requirement.id,
+        route: `/trips/${txResult.trip.id}`,
+      },
+      actionUrl: `/trips/${txResult.trip.id}`,
+      saveInApp: true,
+    }).catch((err) => this.logger.warn(`Driver push failed: ${err.message}`));
+
+    // FCM Push to Vendor: Driver Assigned
+    this.db.vendor.findUnique({
+      where: { id: txResult.requirement.vendorId },
+      select: { userId: true },
+    }).then((vendorRecord) => {
+      if (vendorRecord?.userId) {
+        this.notifications.sendPushToUser(vendorRecord.userId, {
+          title: '🚗 Driver Assigned!',
+          body: `${driver.fullName} has accepted and is assigned to requirement #${txResult.requirement.id.substring(0, 8)}.`,
+          type: NotificationType.TRIP_ASSIGNED,
+          data: {
+            tripId: txResult.trip.id,
+            requirementId: txResult.requirement.id,
+            route: `/requirements/${txResult.requirement.id}`,
+          },
+          actionUrl: `/requirements/${txResult.requirement.id}`,
+          saveInApp: true,
+        }).catch((err) => this.logger.warn(`Vendor push failed: ${err.message}`));
+      }
     });
 
     await this.audit.log({

@@ -151,7 +151,10 @@ model User {
   reviewsReceived Review[]   @relation("ReviewsReceived")
   filedDisputes   Dispute[]  @relation("ReporterDisputes")
   accusedDisputes Dispute[]  @relation("AccusedDisputes")
-  couponRedemptions CouponRedemption[]
+  couponRedemptions      CouponRedemption[]
+  deviceTokens           DeviceToken[]
+  notifications          Notification[]
+  notificationPreference NotificationPreference?
 
   @@map("users")
 }
@@ -568,5 +571,105 @@ model BlogPost {
   @@index([category])
   @@map("blog_posts")
 }
+
+enum DevicePlatform {
+  ANDROID
+  IOS
+  WEB
+}
+
+enum NotificationType {
+  SYSTEM
+  TRIP_OFFER
+  TRIP_ASSIGNED
+  TRIP_STATUS
+  REQUIREMENT_UPDATE
+  BID_UPDATE
+  KYC_UPDATE
+  WALLET_UPDATE
+  MARKETING_PROMO
+  BROADCAST
+}
+
+model DeviceToken {
+  id          String         @id @default(uuid()) @db.Uuid
+  userId      String         @map("user_id") @db.Uuid
+  token       String         @unique
+  platform    DevicePlatform @default(ANDROID)
+  deviceModel String?        @map("device_model")
+  appVersion  String?        @map("app_version")
+  isActive    Boolean        @default(true) @map("is_active")
+  lastActiveAt DateTime      @default(now()) @map("last_active_at")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isActive])
+  @@map("device_tokens")
+}
+
+model Notification {
+  id             String           @id @default(uuid()) @db.Uuid
+  userId         String           @map("user_id") @db.Uuid
+  title          String
+  body           String
+  type           NotificationType @default(SYSTEM)
+  data           Json?
+  imageUrl       String?          @map("image_url")
+  isRead         Boolean          @default(false) @map("is_read")
+  readAt         DateTime?        @map("read_at")
+  isClicked      Boolean          @default(false) @map("is_clicked")
+  clickedAt      DateTime?        @map("clicked_at")
+  idempotencyKey String?          @map("idempotency_key")
+  priority       String           @default("high")
+  channel        String           @default("PUSH")
+  createdAt      DateTime         @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([idempotencyKey])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @unique @map("user_id") @db.Uuid
+  pushEnabled     Boolean  @default(true) @map("push_enabled")
+  emailEnabled    Boolean  @default(true) @map("email_enabled")
+  smsEnabled      Boolean  @default(true) @map("sms_enabled")
+  tripAlerts      Boolean  @default(true) @map("trip_alerts")
+  marketingPromos Boolean  @default(true) @map("marketing_promos")
+  quietHoursStart String?  @map("quiet_hours_start")
+  quietHoursEnd   String?  @map("quiet_hours_end")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
+
+model NotificationCampaign {
+  id            String    @id @default(uuid()) @db.Uuid
+  title         String
+  body          String
+  imageUrl      String?   @map("image_url")
+  actionUrl     String?   @map("action_url")
+  targetRole    String?   @map("target_role")
+  targetFilter  Json?     @map("target_filter")
+  totalTargeted Int       @default(0) @map("total_targeted")
+  successCount  Int       @default(0) @map("success_count")
+  failureCount  Int       @default(0) @map("failure_count")
+  status        String    @default("SENT")
+  sentBy        String?   @map("sent_by")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("notification_campaigns")
+}
+
 
 

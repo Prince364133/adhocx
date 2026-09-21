@@ -36,6 +36,9 @@ describe('OffersService Unit Tests', () => {
       requirement: {
         findUnique: jest.fn(),
       },
+      vendor: {
+        findUnique: jest.fn().mockResolvedValue({ userId: 'vnd-user-1' }),
+      },
       $transaction: jest.fn(),
     };
 
@@ -45,6 +48,7 @@ describe('OffersService Unit Tests', () => {
 
     notifications = {
       emitEvent: jest.fn(),
+      sendPushToUser: jest.fn().mockResolvedValue({ success: true }),
     };
 
     audit = {

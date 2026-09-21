@@ -13,4 +13,5 @@ export * from './admin.dto';
 export * from './payment.dto';
 export * from './settlement.dto';
 export * from './coupon.dto';
+export * from './notification.dto';
 

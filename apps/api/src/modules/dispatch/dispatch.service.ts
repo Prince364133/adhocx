@@ -7,6 +7,7 @@ import {
   VehicleType,
   VerificationStatus,
   DriverAvailability,
+  NotificationType,
 } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
 import { LocationsService } from '../locations/locations.service';
@@ -403,13 +404,25 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
           expiresInSeconds: 60,
         });
 
-        // Send push notification
-        await this.notifications.sendPush(
-          driverId,
-          'New Trip Offer',
-          `Offer of ₹${requirement.ratePerVehicle} for ${requirement.vehicleType} pickup at ${requirement.pickupAddress}`,
-          { offerId: offer.id, requirementId },
-        );
+        // Send rich FCM push notification to driver device & in-app feed
+        const candidate = selectedCandidates.find((c) => c.driverId === driverId);
+        const targetUserId = candidate?.driver?.userId || driverId;
+
+        await this.notifications.sendPushToUser(targetUserId, {
+          title: '🚖 New Trip Offer Available!',
+          body: `Offer of ₹${requirement.ratePerVehicle} for ${requirement.vehicleType} pickup at ${requirement.pickupAddress}. 60s to accept!`,
+          type: NotificationType.TRIP_OFFER,
+          data: {
+            offerId: offer.id,
+            requirementId,
+            vehicleType: String(requirement.vehicleType),
+            rate: String(requirement.ratePerVehicle),
+            pickupAddress: requirement.pickupAddress,
+            route: `/offers/${offer.id}`,
+          },
+          actionUrl: `/offers/${offer.id}`,
+          saveInApp: true,
+        });
 
         return offer;
       }),
