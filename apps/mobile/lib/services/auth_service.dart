@@ -49,8 +49,28 @@ class UserModel {
     final dStatus = driverProf?['verificationStatus']?.toString().toUpperCase();
     final vStatus = vendorProf?['verificationStatus']?.toString().toUpperCase();
 
+    final bool hasVendorSubmission = vendorProf != null &&
+        (vStatus == 'UNDER_REVIEW' ||
+         vStatus == 'PENDING' ||
+         vStatus == 'VERIFIED' ||
+         vStatus == 'REJECTED' ||
+         (vendorProf['address'] != null && vendorProf['address'].toString().trim().isNotEmpty) ||
+         (vendorProf['organizationName'] != null &&
+          vendorProf['organizationName'].toString().trim().isNotEmpty &&
+          vendorProf['organizationName'] != 'AdhocX Mobility' &&
+          vendorProf['organizationName'] != 'Vendor Mobility'));
+
+    final bool hasDriverSubmission = driverProf != null &&
+        (dStatus == 'UNDER_REVIEW' ||
+         dStatus == 'VERIFIED' ||
+         dStatus == 'REJECTED' ||
+         (driverProf['vehiclePlate'] != null && driverProf['vehiclePlate'].toString().trim().isNotEmpty) ||
+         driverProf['dlFrontUrl'] != null);
+
     final bool isOb = data['isOnboarded'] == true ||
         root['isOnboarded'] == true ||
+        hasVendorSubmission ||
+        hasDriverSubmission ||
         dStatus == 'UNDER_REVIEW' ||
         dStatus == 'VERIFIED' ||
         vStatus == 'UNDER_REVIEW' ||
@@ -88,9 +108,11 @@ class UserModel {
   }
 
   bool get isVerified => verificationStatus == 'VERIFIED';
-  bool get isUnderReview => verificationStatus == 'UNDER_REVIEW';
   bool get isRejected => verificationStatus == 'REJECTED';
-  bool get isPending => verificationStatus == 'PENDING';
+  bool get isUnderReview =>
+      verificationStatus == 'UNDER_REVIEW' ||
+      (isOnboarded && !isVerified && !isRejected);
+  bool get isPending => verificationStatus == 'PENDING' || isUnderReview;
 
   String? get rejectionReason {
     if (isDriver && driverProfile != null) {

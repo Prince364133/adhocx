@@ -128,19 +128,6 @@ export class AuthService {
       throw new UnauthorizedException('Invalid mobile number/email or password');
     }
 
-    if (dto.role) {
-      const desiredRole = this.mapUserRole(dto.role);
-      if (user.role !== desiredRole) {
-        try {
-          user = await this.db.user.update({
-            where: { id: user.id },
-            data: { role: desiredRole },
-            include: { vendor: true, driver: true },
-          });
-          this.logger.log(`Switched user role on login to ${desiredRole}: ${user.id}`);
-        } catch (_) {}
-      }
-    }
 
     this.logger.log(`✅ [LOGIN SUCCESS] User authenticated: ${user.id} (${user.fullName || user.phone})`);
     return this.generateAuthResponse(user);
@@ -293,7 +280,7 @@ export class AuthService {
         });
 
         this.logger.log(`Created new user via OTP: ${user.id} (${user.phone})`);
-      } else if (dto.role) {
+      } else if (dto.isRegister && dto.role) {
         const assignedRole = this.mapUserRole(dto.role);
         if (user.role !== assignedRole) {
           try {
@@ -581,34 +568,43 @@ export class AuthService {
     let isOnboarded = false;
     let isApproved = false;
 
+    const hasVendorSubmission = Boolean(
+      user.vendor &&
+      (user.vendor.verificationStatus === 'VERIFIED' ||
+       user.vendor.verificationStatus === 'UNDER_REVIEW' ||
+       user.vendor.verificationStatus === 'PENDING' ||
+       user.vendor.verificationStatus === 'REJECTED' ||
+       user.vendor.address ||
+       user.vendor.gstNumber ||
+       (user.vendor.organizationName &&
+        user.vendor.organizationName !== 'AdhocX Mobility' &&
+        user.vendor.organizationName !== 'Vendor Mobility'))
+    );
+
+    const hasDriverSubmission = Boolean(
+      user.driver &&
+      (user.driver.verificationStatus === 'VERIFIED' ||
+       user.driver.verificationStatus === 'UNDER_REVIEW' ||
+       user.driver.verificationStatus === 'REJECTED' ||
+       user.driver.dlFrontUrl ||
+       (user.driver.vehiclePlate && user.driver.vehicleType))
+    );
+
     if (user.role === UserRole.DRIVER) {
       isApproved = user.driver?.verificationStatus === 'VERIFIED';
-      isOnboarded = Boolean(
-        user.driver &&
-        (user.driver.verificationStatus === 'VERIFIED' ||
-         user.driver.verificationStatus === 'UNDER_REVIEW' ||
-         (user.driver.vehiclePlate && user.driver.vehicleType))
-      );
+      isOnboarded = hasDriverSubmission;
     } else if (user.role === UserRole.VENDOR) {
       isApproved = user.vendor?.verificationStatus === 'VERIFIED';
-      isOnboarded = Boolean(
-        user.vendor &&
-        (user.vendor.verificationStatus === 'VERIFIED' ||
-         user.vendor.verificationStatus === 'UNDER_REVIEW' ||
-         (user.vendor.organizationName &&
-          user.vendor.organizationName !== 'AdhocX Mobility' &&
-          user.vendor.organizationName !== 'Vendor Mobility'))
-      );
+      isOnboarded = hasVendorSubmission;
     } else if (user.role === UserRole.ADMIN) {
       isApproved = true;
       isOnboarded = true;
     }
 
-    if (user.driver?.verificationStatus === 'UNDER_REVIEW' || user.vendor?.verificationStatus === 'UNDER_REVIEW') {
+    if (hasVendorSubmission || hasDriverSubmission) {
       isOnboarded = true;
     }
     if (user.driver?.verificationStatus === 'VERIFIED' || user.vendor?.verificationStatus === 'VERIFIED') {
-      isOnboarded = true;
       isApproved = true;
     }
 
@@ -625,6 +621,32 @@ export class AuthService {
         isApproved,
         hasPassword,
         isOnboarded,
+        vendorProfile: user.vendor
+          ? {
+              id: user.vendor.id,
+              organizationName: user.vendor.organizationName,
+              fullName: user.vendor.fullName,
+              phone: user.vendor.phone,
+              address: user.vendor.address,
+              gstNumber: user.vendor.gstNumber,
+              verificationStatus: user.vendor.verificationStatus,
+              rejectionReason: (user.vendor as any).rejectionReason || undefined,
+              createdAt: user.vendor.createdAt,
+            }
+          : undefined,
+        driverProfile: user.driver
+          ? {
+              id: user.driver.id,
+              fullName: user.driver.fullName,
+              phone: user.driver.phone,
+              verificationStatus: user.driver.verificationStatus,
+              availabilityStatus: user.driver.availabilityStatus,
+              vehicleType: user.driver.vehicleType || undefined,
+              walletBalance: Number(user.driver.walletBalance || 0),
+              rejectionReason: (user.driver as any).rejectionReason || undefined,
+              createdAt: user.driver.createdAt,
+            }
+          : undefined,
       },
     };
   }

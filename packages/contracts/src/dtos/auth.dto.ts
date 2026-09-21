@@ -146,6 +146,8 @@ export class AuthUserDto {
   isApproved!: boolean;
   hasPassword?: boolean;
   isOnboarded?: boolean;
+  vendorProfile?: any;
+  driverProfile?: any;
 }
 
 export class AuthResponseDto {

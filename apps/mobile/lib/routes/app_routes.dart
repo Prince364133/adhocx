@@ -342,6 +342,17 @@ final GoRouter appRouter = GoRouter(
     // 4. Mandatory Verification Gate (Wall):
     // If onboarded user is not yet verified by Admin, lock to waitlistGateScreen
     if (!user.isVerified) {
+      // If user has already submitted profile/documents and is under review (not rejected), redirect away from onboarding
+      if ((user.isOnboarded || user.isUnderReview) && !user.isRejected) {
+        if (currentPath == AppRoutes.onboardingPersonalScreen ||
+            currentPath == AppRoutes.onboardingVehicleScreen ||
+            currentPath == AppRoutes.onboardingDocumentsScreen ||
+            currentPath == AppRoutes.onboardingReviewScreen ||
+            currentPath == AppRoutes.chooseRoleScreen) {
+          return AppRoutes.waitlistGateScreen;
+        }
+      }
+
       const allowedUnverifiedRoutes = {
         AppRoutes.waitlistGateScreen,
         AppRoutes.welcomeSuccessScreen,
@@ -352,6 +363,7 @@ final GoRouter appRouter = GoRouter(
         AppRoutes.personalInfoScreen,
         AppRoutes.helpSupportScreen,
         AppRoutes.accountStatusScreen,
+        AppRoutes.userAccountStatusScreen,
       };
 
       if (allowedUnverifiedRoutes.contains(currentPath)) {

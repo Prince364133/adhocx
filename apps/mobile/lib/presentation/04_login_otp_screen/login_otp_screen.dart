@@ -109,19 +109,18 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
         if (!user.hasPassword) {
           context.go(AppRoutes.setPasswordScreen);
         }
-        // 2. Mandatory Onboarding: If user hasn't completed onboarding, navigate to onboardingPersonalScreen
-        else if (!user.isOnboarded) {
+        // 2. Mandatory Onboarding: Only if user has never completed onboarding/profile setup
+        else if (!user.isOnboarded && !user.isUnderReview && !user.isVerified) {
           context.go(AppRoutes.onboardingPersonalScreen);
         }
-        // 3. Driver Gate: If user is a driver and NOT verified, navigate to waitlistGateScreen
+        // 3. Verification Gate: If user has submitted profile but is not yet verified by Admin, lock to waitlistGateScreen
+        else if (!user.isVerified) {
+          context.go(AppRoutes.waitlistGateScreen);
+        }
+        // 4. Fully Verified Users
         else if (user.isDriver) {
-          if (!user.isVerified) {
-            context.go(AppRoutes.waitlistGateScreen);
-          } else {
-            context.go(AppRoutes.homeScreen);
-          }
+          context.go(AppRoutes.homeScreen);
         } else {
-          // Normal User / Booker
           context.go(AppRoutes.userHomeScreen);
         }
       }

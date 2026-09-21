@@ -75,14 +75,12 @@ class _SignInScreenState extends State<SignInScreen> {
 
         if (!user.hasPassword) {
           context.go(AppRoutes.setPasswordScreen);
-        } else if (!user.isOnboarded) {
+        } else if (!user.isOnboarded && !user.isUnderReview && !user.isVerified) {
           context.go(AppRoutes.onboardingPersonalScreen);
+        } else if (!user.isVerified) {
+          context.go(AppRoutes.waitlistGateScreen);
         } else if (user.isDriver) {
-          if (!user.isVerified) {
-            context.go(AppRoutes.waitlistGateScreen);
-          } else {
-            context.go(AppRoutes.homeScreen);
-          }
+          context.go(AppRoutes.homeScreen);
         } else {
           context.go(AppRoutes.userHomeScreen);
         }
