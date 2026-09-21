@@ -94,12 +94,22 @@ export default function DashboardPage() {
         adminApi.getAuditLogs(6),
       ]);
 
-      if (metricsRes.status === 'fulfilled') setMetrics(metricsRes.value);
-      if (paymentsRes.status === 'fulfilled') setPaymentMetrics(paymentsRes.value);
+      if (metricsRes.status === 'fulfilled' && metricsRes.value) {
+        setMetrics((prev) => ({ ...prev, ...metricsRes.value }));
+      }
+      if (paymentsRes.status === 'fulfilled' && paymentsRes.value) {
+        const val = paymentsRes.value as any;
+        setPaymentMetrics({
+          totalEscrowVolume: Number(val.totalEscrowVolume ?? val.totalVolume ?? 0),
+          activeEscrowHolds: Number(val.activeEscrowHolds ?? val.escrow ?? 0),
+          settledVolume: Number(val.settledVolume ?? val.captured ?? 0),
+          pendingTransactions: Number(val.pendingTransactions ?? 0),
+        });
+      }
       if (reportsRes.status === 'fulfilled') setOperationalReport(reportsRes.value);
-      if (corridorsRes.status === 'fulfilled') setCorridors(corridorsRes.value);
-      if (pricingRes.status === 'fulfilled') setPricingTiers(pricingRes.value);
-      if (logsRes.status === 'fulfilled') setRecentLogs(logsRes.value);
+      if (corridorsRes.status === 'fulfilled') setCorridors(corridorsRes.value || []);
+      if (pricingRes.status === 'fulfilled') setPricingTiers(pricingRes.value || []);
+      if (logsRes.status === 'fulfilled') setRecentLogs(logsRes.value || []);
     } finally {
       setLoading(false);
       setIsRefreshing(false);
@@ -175,8 +185,8 @@ export default function DashboardPage() {
       ? Math.round((metrics.completedTrips / (metrics.activeTrips + metrics.completedTrips)) * 100)
       : (metrics.activeRequirements > 0 ? 0 : 100);
 
-  const gmvValue = operationalReport?.totalGrossBookingValue ?? paymentMetrics.totalEscrowVolume ?? 0;
-  const netRevenue = operationalReport?.platformRevenue ?? Math.round(gmvValue * 0.12);
+  const gmvValue = Number(operationalReport?.totalGrossBookingValue ?? paymentMetrics?.totalEscrowVolume ?? 0);
+  const netRevenue = Number(operationalReport?.platformRevenue ?? Math.round(gmvValue * 0.12));
 
   return (
     <div style={{ paddingBottom: '2.5rem' }}>
@@ -336,28 +346,28 @@ export default function DashboardPage() {
         >
           <MetricCard
             label="Platform Gross Booking Value"
-            value={loading ? '...' : `₹ ${gmvValue.toLocaleString('en-IN')}`}
+            value={loading ? '...' : `₹ ${Number(gmvValue || 0).toLocaleString('en-IN')}`}
             subtext="Total marketplace GMV transacted"
             icon={<Banknote size={18} color="var(--brand-primary)" />}
             accentColor="var(--brand-primary)"
           />
           <MetricCard
             label="Live Escrow Held in Transit"
-            value={loading ? '...' : `₹ ${paymentMetrics.activeEscrowHolds.toLocaleString('en-IN')}`}
+            value={loading ? '...' : `₹ ${Number(paymentMetrics?.activeEscrowHolds || 0).toLocaleString('en-IN')}`}
             subtext="Client funds locked in active rides"
             icon={<Lock size={18} color="#2563EB" />}
             accentColor="#2563EB"
           />
           <MetricCard
             label="Platform Take-Rate Revenue"
-            value={loading ? '...' : `₹ ${netRevenue.toLocaleString('en-IN')}`}
+            value={loading ? '...' : `₹ ${Number(netRevenue || 0).toLocaleString('en-IN')}`}
             subtext="Net commission retained to date"
             icon={<TrendingUp size={18} color="var(--color-success)" />}
             accentColor="var(--color-success)"
           />
           <MetricCard
             label="Driver Settlements Disbursed"
-            value={loading ? '...' : `₹ ${paymentMetrics.settledVolume.toLocaleString('en-IN')}`}
+            value={loading ? '...' : `₹ ${Number(paymentMetrics?.settledVolume || 0).toLocaleString('en-IN')}`}
             subtext="Cleared payouts via bank UTR"
             icon={<Wallet size={18} color="#8B5CF6" />}
             accentColor="#8B5CF6"
@@ -756,10 +766,10 @@ export default function DashboardPage() {
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontWeight: 700, fontSize: '0.8125rem', color: 'var(--color-success)' }}>
-                      ₹ {c.totalRevenue.toLocaleString('en-IN')}
+                      ₹ {Number(c.totalRevenue || 0).toLocaleString('en-IN')}
                     </div>
                     <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
-                      Avg: ₹{Math.round(c.avgDriverRate)}
+                      Avg: ₹{Math.round(Number(c.avgDriverRate || 0))}
                     </div>
                   </div>
                 </div>

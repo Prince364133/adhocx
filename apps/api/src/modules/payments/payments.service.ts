@@ -470,6 +470,10 @@ export class PaymentsService {
       captured,
       escrow,
       refunded,
+      totalEscrowVolume: captured + escrow,
+      activeEscrowHolds: escrow,
+      settledVolume: captured,
+      pendingTransactions: all.filter((p) => p.status === 'AUTHORIZED' || p.status === 'PENDING').length,
     };
   }
 
