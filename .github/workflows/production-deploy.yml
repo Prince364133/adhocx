@@ -164,6 +164,7 @@ jobs:
             echo '$GITHUB_TOKEN' | docker login ghcr.io -u '$ACTOR' --password-stdin
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            docker compose -f docker-compose.prod.yml restart gateway
             
             echo 'Waiting for database to be ready...'
             sleep 10
