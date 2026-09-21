@@ -35,7 +35,11 @@ export class AdminService {
 
     const where: any = {};
     if (query.verificationStatus && (query.verificationStatus as any) !== 'ALL') {
-      where.verificationStatus = query.verificationStatus;
+      if (query.verificationStatus === 'UNDER_REVIEW') {
+        where.verificationStatus = { in: ['UNDER_REVIEW', 'PENDING'] };
+      } else {
+        where.verificationStatus = query.verificationStatus;
+      }
     }
     if (query.availabilityStatus && (query.availabilityStatus as any) !== 'ALL') {
       where.availabilityStatus = query.availabilityStatus;
@@ -277,7 +281,11 @@ export class AdminService {
 
     const where: any = {};
     if (query.verificationStatus && (query.verificationStatus as any) !== 'ALL') {
-      where.verificationStatus = query.verificationStatus;
+      if (query.verificationStatus === 'UNDER_REVIEW') {
+        where.verificationStatus = { in: ['UNDER_REVIEW', 'PENDING'] };
+      } else {
+        where.verificationStatus = query.verificationStatus;
+      }
     }
     if (query.search && query.search.trim().length > 0) {
       const q = query.search.trim();

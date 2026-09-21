@@ -116,8 +116,14 @@ export function useVerificationCenter() {
       }
 
       // Status filter
-      if (statusFilter !== 'ALL' && item.verificationStatus !== statusFilter) {
-        return false;
+      if (statusFilter !== 'ALL') {
+        if (statusFilter === 'UNDER_REVIEW') {
+          if (item.verificationStatus !== 'UNDER_REVIEW' && item.verificationStatus !== 'PENDING') {
+            return false;
+          }
+        } else if (item.verificationStatus !== statusFilter) {
+          return false;
+        }
       }
 
       // Search query
@@ -138,12 +144,14 @@ export function useVerificationCenter() {
 
   // Summary Metrics Computation
   const stats = useMemo(() => {
-    const underReview = items.filter((i) => i.verificationStatus === 'UNDER_REVIEW').length;
+    const underReview = items.filter(
+      (i) => i.verificationStatus === 'UNDER_REVIEW' || i.verificationStatus === 'PENDING',
+    ).length;
     const driversPending = items.filter(
-      (i) => i.entityType === 'DRIVER' && i.verificationStatus === 'UNDER_REVIEW',
+      (i) => i.entityType === 'DRIVER' && (i.verificationStatus === 'UNDER_REVIEW' || i.verificationStatus === 'PENDING'),
     ).length;
     const vendorsPending = items.filter(
-      (i) => i.entityType === 'VENDOR' && i.verificationStatus === 'UNDER_REVIEW',
+      (i) => i.entityType === 'VENDOR' && (i.verificationStatus === 'UNDER_REVIEW' || i.verificationStatus === 'PENDING'),
     ).length;
     const verifiedTotal = items.filter((i) => i.verificationStatus === 'VERIFIED').length;
     const rejectedTotal = items.filter((i) => i.verificationStatus === 'REJECTED').length;

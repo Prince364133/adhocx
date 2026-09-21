@@ -42,7 +42,8 @@ export default function DriversPage() {
     setLoading(true);
     try {
       const data = await adminApi.getDrivers(status).catch(() => [] as DriverListItem[]);
-      setDrivers(data);
+      const list = Array.isArray(data) ? data : ((data as any)?.items || []);
+      setDrivers(list);
     } finally {
       setLoading(false);
     }

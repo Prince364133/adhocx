@@ -41,7 +41,8 @@ export default function UsersPage() {
     setLoading(true);
     try {
       const data = await adminApi.getVendors(status).catch(() => [] as UserListItem[]);
-      setUsers(data);
+      const list = Array.isArray(data) ? data : ((data as any)?.items || []);
+      setUsers(list);
     } finally {
       setLoading(false);
     }
