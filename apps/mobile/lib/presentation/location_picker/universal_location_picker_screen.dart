@@ -93,7 +93,6 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
       setState(() {
         _recentLocations = recents;
         _categoryPlaces = places;
-        _isLoadingRecents = false;
       });
     }
   }
