@@ -154,6 +154,7 @@ services:
       - "443:443"
     volumes:
       - ./infrastructure/nginx/production.conf:/etc/nginx/nginx.conf:ro
+      - ./infrastructure/nginx/ssl:/etc/nginx/ssl:ro
     networks:
       - adhocx_internal
 

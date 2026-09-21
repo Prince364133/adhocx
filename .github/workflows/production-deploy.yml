@@ -112,10 +112,20 @@ jobs:
           ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
 
           echo "🚀 Syncing configuration to EC2 ($EC2_HOST)..."
-          ssh -i ~/.ssh/id_rsa "$EC2_USER@$EC2_HOST" "mkdir -p /home/$EC2_USER/adhocx/infrastructure/nginx"
+          ssh -i ~/.ssh/id_rsa "$EC2_USER@$EC2_HOST" "mkdir -p /home/$EC2_USER/adhocx/infrastructure/nginx/ssl"
 
           scp -i ~/.ssh/id_rsa docker-compose.prod.yml "$EC2_USER@$EC2_HOST:/home/$EC2_USER/adhocx/docker-compose.prod.yml"
           scp -i ~/.ssh/id_rsa infrastructure/nginx/production.conf "$EC2_USER@$EC2_HOST:/home/$EC2_USER/adhocx/infrastructure/nginx/production.conf"
+          scp -i ~/.ssh/id_rsa infrastructure/nginx/ssl/* "$EC2_USER@$EC2_HOST:/home/$EC2_USER/adhocx/infrastructure/nginx/ssl/" || true
+
+          ssh -i ~/.ssh/id_rsa "$EC2_USER@$EC2_HOST" "
+            if [ ! -f /home/$EC2_USER/adhocx/infrastructure/nginx/ssl/cert.pem ]; then
+              openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+                -keyout /home/$EC2_USER/adhocx/infrastructure/nginx/ssl/key.pem \
+                -out /home/$EC2_USER/adhocx/infrastructure/nginx/ssl/cert.pem \
+                -subj '/CN=*.adhocx.com'
+            fi
+          "
 
           echo "Writing production environment file on EC2..."
           ssh -i ~/.ssh/id_rsa "$EC2_USER@$EC2_HOST" "cat << 'ENV_EOF' > /home/$EC2_USER/adhocx/.env.production
