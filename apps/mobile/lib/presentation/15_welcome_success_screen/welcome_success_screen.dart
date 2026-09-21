@@ -167,21 +167,22 @@ class WelcomeSuccessScreen extends StatelessWidget {
 
                   // ── Action ───────────────────────────────────────────────
                   AppPrimaryButton(
-                    text: isUser ? 'Start Booking & Posting Trips' : 'Go to Driver Dashboard',
-                    onPressed: () {
-                      final user = UserModel(
-                        id: 'usr_${DateTime.now().millisecondsSinceEpoch}',
-                        phone: onboarding.phone,
-                        email: onboarding.email,
-                        fullName: onboarding.fullName.isNotEmpty ? onboarding.fullName : 'AdhocX User',
-                        role: isUser ? 'USER' : 'DRIVER',
-                      );
-                      context.read<AuthProvider>().setUser(user);
-
-                      if (isUser) {
-                        context.go(AppRoutes.userHomeScreen);
-                      } else {
-                        context.go(AppRoutes.homeScreen);
+                    text: isUser ? 'Go to App & Verification Status' : 'Proceed to Verification Status',
+                    onPressed: () async {
+                      final user = await AuthService.instance.fetchCurrentUser(forceRefresh: true);
+                      if (context.mounted) {
+                        if (user != null) {
+                          context.read<AuthProvider>().setUser(user);
+                        }
+                        if (user == null || !user.isVerified) {
+                          context.go(AppRoutes.waitlistGateScreen);
+                        } else {
+                          if (user.isUser) {
+                            context.go(AppRoutes.userHomeScreen);
+                          } else {
+                            context.go(AppRoutes.homeScreen);
+                          }
+                        }
                       }
                     },
                   ),

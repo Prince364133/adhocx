@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
@@ -126,6 +126,20 @@ export class AuthService {
     if (!isValidPassword) {
       this.logger.warn(`Login failed: invalid password for user ${value}`);
       throw new UnauthorizedException('Invalid mobile number/email or password');
+    }
+
+    if (dto.role) {
+      const desiredRole = this.mapUserRole(dto.role);
+      if (user.role !== desiredRole) {
+        try {
+          user = await this.db.user.update({
+            where: { id: user.id },
+            data: { role: desiredRole },
+            include: { vendor: true, driver: true },
+          });
+          this.logger.log(`Switched user role on login to ${desiredRole}: ${user.id}`);
+        } catch (_) {}
+      }
     }
 
     this.logger.log(`✅ [LOGIN SUCCESS] User authenticated: ${user.id} (${user.fullName || user.phone})`);
@@ -282,6 +296,18 @@ export class AuthService {
         });
 
         this.logger.log(`Created new user via OTP: ${user.id} (${user.phone})`);
+      } else if (dto.role) {
+        const assignedRole = this.mapUserRole(dto.role);
+        if (user.role !== assignedRole) {
+          try {
+            user = await this.db.user.update({
+              where: { id: user.id },
+              data: { role: assignedRole },
+              include: { vendor: true, driver: true },
+            });
+            this.logger.log(`Updated existing user role in verifyOtp to ${assignedRole}: ${user.id}`);
+          } catch (_) {}
+        }
       }
     } catch (dbErr: any) {
       this.logger.error(`Database error in verifyOtp: ${dbErr.message}`, dbErr.stack);
@@ -351,13 +377,13 @@ export class AuthService {
             data: {
               email,
               phone: generatedPhone,
-              fullName: fullName || (provider === 'GOOGLE' ? 'Google User' : 'Apple User'),
+              fullName: fullName || undefined,
               role: assignedRole,
               driver:
                 assignedRole === UserRole.DRIVER
                   ? {
                       create: {
-                        fullName: fullName || 'Driver Partner',
+                        fullName: fullName || generatedPhone,
                         phone: generatedPhone,
                         verificationStatus: 'PENDING',
                         availabilityStatus: 'OFFLINE',
@@ -368,8 +394,8 @@ export class AuthService {
                 assignedRole === UserRole.VENDOR
                   ? {
                       create: {
-                        fullName: fullName || 'Vendor Partner',
-                        organizationName: `${fullName || 'Vendor'} Mobility`,
+                        fullName: fullName || generatedPhone,
+                        organizationName: fullName ? `${fullName} Mobility` : 'My Organization',
                         phone: generatedPhone,
                         verificationStatus: 'PENDING',
                       },
@@ -436,7 +462,7 @@ export class AuthService {
             user = {
               id: '5a91aadb-d7be-4199-a412-479c0a69271d',
               email,
-              phone: '+919876543210',
+              phone: '',
               role: assignedRole,
               fullName: fullName || 'Verified User',
               driver: assignedRole === UserRole.DRIVER ? { verificationStatus: 'VERIFIED' } : undefined,
@@ -555,17 +581,37 @@ export class AuthService {
 
     const hasPassword = Boolean(user.passwordHash);
     let isOnboarded = false;
+    let isApproved = false;
+
     if (user.role === UserRole.DRIVER) {
+      isApproved = user.driver?.verificationStatus === 'VERIFIED';
       isOnboarded = Boolean(
         user.driver &&
-        (user.driver.vehicleType || user.driver.vehiclePlate || (user.driver.verificationStatus && user.driver.verificationStatus !== 'PENDING'))
+        (user.driver.verificationStatus === 'VERIFIED' ||
+         user.driver.verificationStatus === 'UNDER_REVIEW' ||
+         (user.driver.vehiclePlate && user.driver.vehicleType))
       );
     } else if (user.role === UserRole.VENDOR) {
+      isApproved = user.vendor?.verificationStatus === 'VERIFIED';
       isOnboarded = Boolean(
-        user.fullName && user.fullName !== 'User' && user.fullName !== 'Vendor Partner'
+        user.vendor &&
+        (user.vendor.verificationStatus === 'VERIFIED' ||
+         user.vendor.verificationStatus === 'UNDER_REVIEW' ||
+         (user.vendor.organizationName &&
+          user.vendor.organizationName !== 'AdhocX Mobility' &&
+          user.vendor.organizationName !== 'Vendor Mobility'))
       );
     } else if (user.role === UserRole.ADMIN) {
+      isApproved = true;
       isOnboarded = true;
+    }
+
+    if (user.driver?.verificationStatus === 'UNDER_REVIEW' || user.vendor?.verificationStatus === 'UNDER_REVIEW') {
+      isOnboarded = true;
+    }
+    if (user.driver?.verificationStatus === 'VERIFIED' || user.vendor?.verificationStatus === 'VERIFIED') {
+      isOnboarded = true;
+      isApproved = true;
     }
 
     return {
@@ -578,7 +624,7 @@ export class AuthService {
         email: user.email,
         role: user.role as UserRole,
         fullName: user.fullName || undefined,
-        isApproved: user.driver ? user.driver.verificationStatus === 'VERIFIED' : true,
+        isApproved,
         hasPassword,
         isOnboarded,
       },
@@ -590,6 +636,82 @@ export class AuthService {
       await this.redis.blacklistToken(accessToken, 3600);
     } catch (_) {}
     this.logger.log('User logged out and token invalidated');
+  }
+
+  async deleteAccount(userId: string, accessToken?: string): Promise<void> {
+    this.logger.warn(`Permanent account deletion requested for user ID: ${userId}`);
+
+    const user = await this.db.user.findUnique({
+      where: { id: userId },
+      include: { driver: true, vendor: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User account not found');
+    }
+
+    // 1. Blacklist current access token in Redis
+    if (accessToken) {
+      try {
+        await this.redis.blacklistToken(accessToken, 86400);
+      } catch (_) {}
+    }
+
+    // 2. Clear Redis cache for this user
+    try {
+      if (user.phone) {
+        await this.redis.del(`otp:sms:${user.phone}`);
+        await this.redis.del(`auth:session:${user.phone}`);
+      }
+      if (user.email) {
+        await this.redis.del(`otp:email:${user.email}`);
+        await this.redis.del(`auth:session:${user.email}`);
+      }
+      await this.redis.del(`auth:user:${userId}`);
+    } catch (_) {}
+
+    // 3. Atomically purge all user data from PostgreSQL
+    await this.db.$transaction(async (tx) => {
+      // If user is a driver, purge driver-specific child records
+      if (user.driver) {
+        const driverId = user.driver.id;
+        await tx.settlement.deleteMany({ where: { driverId } });
+        await tx.trip.deleteMany({ where: { driverId } });
+        await tx.assignment.deleteMany({ where: { driverId } });
+        await tx.bid.deleteMany({ where: { driverId } });
+        await tx.offer.deleteMany({ where: { driverId } });
+        await tx.vehicle.deleteMany({ where: { driverId } });
+        await tx.driver.delete({ where: { id: driverId } });
+      }
+
+      // If user is a vendor, purge vendor-specific records
+      if (user.vendor) {
+        const vendorId = user.vendor.id;
+        await tx.trip.deleteMany({ where: { vendorId } });
+        await tx.payment.deleteMany({ where: { vendorId } });
+        await tx.requirement.deleteMany({ where: { vendorId } });
+        await tx.vendor.delete({ where: { id: vendorId } });
+      }
+
+      // Clean up user-direct child records
+      await tx.deviceToken.deleteMany({ where: { userId } });
+      await tx.notification.deleteMany({ where: { userId } });
+      await tx.notificationPreference.deleteMany({ where: { userId } });
+      await tx.couponRedemption.deleteMany({ where: { userId } });
+      await tx.review.deleteMany({
+        where: {
+          OR: [{ reviewerId: userId }, { revieweeId: userId }],
+        },
+      });
+      await tx.dispute.deleteMany({ where: { reporterId: userId } });
+      await tx.dispute.deleteMany({ where: { accusedId: userId } });
+      await tx.auditLog.deleteMany({ where: { actorId: userId } });
+
+      // Permanently remove user record
+      await tx.user.delete({ where: { id: userId } });
+    });
+
+    this.logger.log(`User ${userId} (${user.phone}) and all associated records permanently erased from database.`);
   }
 
   async refreshToken(refreshToken: string): Promise<AuthResponseDto> {
@@ -619,89 +741,133 @@ export class AuthService {
       expiresIn: this.configService.get<string>('auth.jwtRefreshExpiresIn') || '30d',
     });
 
+    const user = await this.db.user.findUnique({
+      where: { id: payload.id },
+      include: { vendor: true, driver: true },
+    });
+
+    const hasPassword = user ? Boolean(user.passwordHash) : true;
+    let isOnboarded = false;
+    let isApproved = false;
+
+    if (user) {
+      if (user.role === UserRole.DRIVER) {
+        isApproved = user.driver?.verificationStatus === 'VERIFIED';
+        isOnboarded = Boolean(
+          user.driver &&
+          (user.driver.verificationStatus === 'VERIFIED' ||
+           user.driver.verificationStatus === 'UNDER_REVIEW' ||
+           (user.driver.vehiclePlate && user.driver.vehicleType))
+        );
+      } else if (user.role === UserRole.VENDOR) {
+        isApproved = user.vendor?.verificationStatus === 'VERIFIED';
+        isOnboarded = Boolean(
+          user.vendor &&
+          (user.vendor.verificationStatus === 'VERIFIED' ||
+           user.vendor.verificationStatus === 'UNDER_REVIEW' ||
+           (user.vendor.organizationName &&
+            user.vendor.organizationName !== 'AdhocX Mobility' &&
+            user.vendor.organizationName !== 'Vendor Mobility'))
+        );
+      } else if (user.role === UserRole.ADMIN) {
+        isApproved = true;
+        isOnboarded = true;
+      }
+
+      if (user.driver?.verificationStatus === 'UNDER_REVIEW' || user.vendor?.verificationStatus === 'UNDER_REVIEW') {
+        isOnboarded = true;
+      }
+      if (user.driver?.verificationStatus === 'VERIFIED' || user.vendor?.verificationStatus === 'VERIFIED') {
+        isOnboarded = true;
+        isApproved = true;
+      }
+    }
+
     return {
       accessToken: newAccessToken,
       refreshToken: newRefreshToken,
       expiresAt: new Date(Date.now() + 3600 * 1000).toISOString(),
       user: {
         id: payload.id,
-        phone: payload.phone,
-        email: payload.email,
+        phone: user?.phone || payload.phone,
+        email: user?.email || payload.email,
         role: payload.role as UserRole,
-        isApproved: true,
-        hasPassword: true,
-        isOnboarded: true,
+        fullName: user?.fullName || undefined,
+        isApproved,
+        hasPassword,
+        isOnboarded,
       },
     };
   }
 
   async getCurrentUser(userId: string): Promise<UserMeResponseDto> {
-    try {
-      const user = await this.db.user.findUnique({
-        where: { id: userId },
-        include: { vendor: true, driver: true },
-      });
+    const user = await this.db.user.findUnique({
+      where: { id: userId },
+      include: { vendor: true, driver: true },
+    });
 
-      if (user) {
-        const hasPassword = Boolean(user.passwordHash);
-        let isOnboarded = false;
-        if (user.role === UserRole.DRIVER) {
-          isOnboarded = Boolean(
-            user.driver &&
-            (user.driver.vehicleType || user.driver.vehiclePlate || (user.driver.verificationStatus && user.driver.verificationStatus !== 'PENDING'))
-          );
-        } else if (user.role === UserRole.VENDOR) {
-          isOnboarded = Boolean(
-            user.fullName && user.fullName !== 'User' && user.fullName !== 'Vendor Partner'
-          );
-        } else if (user.role === UserRole.ADMIN) {
-          isOnboarded = true;
-        }
+    if (!user) {
+      throw new BadRequestException('User account not found');
+    }
 
-        return {
-          id: user.id,
-          phone: user.phone,
-          email: user.email || undefined,
-          role: user.role as UserRole,
-          fullName: user.fullName || undefined,
-          status: user.status,
-          hasPassword,
-          isOnboarded,
-          vendorProfile: user.vendor
-            ? {
-                id: user.vendor.id,
-                organizationName: user.vendor.organizationName,
-                verificationStatus: user.vendor.verificationStatus,
-              }
-            : undefined,
-          driverProfile: user.driver
-            ? {
-                id: user.driver.id,
-                verificationStatus: user.driver.verificationStatus,
-                availabilityStatus: user.driver.availabilityStatus,
-                vehicleType: user.driver.vehicleType || undefined,
-                walletBalance: Number(user.driver.walletBalance || 0),
-                rejectionReason: (user.driver as any).rejectionReason,
-              }
-            : undefined,
-          createdAt: user.createdAt.toISOString(),
-        };
-      }
-    } catch (_) {}
+    const hasPassword = Boolean(user.passwordHash);
+    let isOnboarded = false;
+
+    if (user.role === UserRole.DRIVER) {
+      isOnboarded = Boolean(
+        user.driver &&
+        (user.driver.verificationStatus === 'VERIFIED' ||
+         user.driver.verificationStatus === 'UNDER_REVIEW' ||
+         (user.driver.vehiclePlate && user.driver.vehicleType))
+      );
+    } else if (user.role === UserRole.VENDOR) {
+      isOnboarded = Boolean(
+        user.vendor &&
+        (user.vendor.verificationStatus === 'VERIFIED' ||
+         user.vendor.verificationStatus === 'UNDER_REVIEW' ||
+         (user.vendor.organizationName &&
+          user.vendor.organizationName !== 'AdhocX Mobility' &&
+          user.vendor.organizationName !== 'Vendor Mobility'))
+      );
+    } else if (user.role === UserRole.ADMIN) {
+      isOnboarded = true;
+    }
+
+    if (user.driver?.verificationStatus === 'UNDER_REVIEW' || user.vendor?.verificationStatus === 'UNDER_REVIEW') {
+      isOnboarded = true;
+    }
+    if (user.driver?.verificationStatus === 'VERIFIED' || user.vendor?.verificationStatus === 'VERIFIED') {
+      isOnboarded = true;
+    }
 
     return {
-      id: userId,
-      phone: '+919876543210',
-      role: UserRole.DRIVER,
-      fullName: 'Driver Partner',
-      status: 'ACTIVE',
-      createdAt: new Date().toISOString(),
-      driverProfile: {
-        id: `drv_${userId}`,
-        verificationStatus: 'PENDING',
-        availabilityStatus: 'AVAILABLE',
-        walletBalance: 0,
-      },
+      id: user.id,
+      phone: user.phone,
+      email: user.email || undefined,
+      role: user.role as UserRole,
+      fullName: user.fullName || undefined,
+      status: user.status,
+      hasPassword,
+      isOnboarded,
+      vendorProfile: user.vendor
+        ? {
+            id: user.vendor.id,
+            organizationName: user.vendor.organizationName,
+            verificationStatus: user.vendor.verificationStatus,
+            rejectionReason: (user.vendor as any).rejectionReason || undefined,
+          }
+        : undefined,
+      driverProfile: user.driver
+        ? {
+            id: user.driver.id,
+            verificationStatus: user.driver.verificationStatus,
+            availabilityStatus: user.driver.availabilityStatus,
+            vehicleType: user.driver.vehicleType || undefined,
+            walletBalance: Number(user.driver.walletBalance || 0),
+            rejectionReason: (user.driver as any).rejectionReason || undefined,
+          }
+        : undefined,
+      createdAt: user.createdAt.toISOString(),
     };
   }
 }

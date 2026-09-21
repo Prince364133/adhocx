@@ -39,7 +39,6 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
 
   bool _isSearching = false;
   bool _isLoadingSearch = false;
-  bool _isLoadingRecents = true;
   bool _isLoadingCategoryPlaces = false;
   bool _isMapMode = false;
   String _selectedCategory = 'All';

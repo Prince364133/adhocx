@@ -72,17 +72,17 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
     final driver = trip['driver'] as Map<String, dynamic>?;
     final driverUser = driver?['user'] as Map<String, dynamic>?;
     final driverName = driverUser?['fullName'] ?? driver?['fullName'] ?? 'Assigned Driver';
-    final vehiclePlate = driver?['vehiclePlate'] ?? trip['vehiclePlate'] ?? 'DL 01 AB 1234';
-    final vehicleModel = driver?['vehicleModel'] ?? trip['vehicleModel'] ?? 'White Sedan';
-    final rating = (driver?['rating'] ?? 4.8).toString();
+    final vehiclePlate = driver?['vehiclePlate'] ?? trip['vehiclePlate'] ?? '—';
+    final vehicleModel = driver?['vehicleModel'] ?? trip['vehicleModel'] ?? trip['vehicleType'] ?? 'Commercial Fleet';
+    final rating = (driver?['rating'] ?? 0).toString();
     final status = (trip['status'] ?? 'IN_PROGRESS').toString();
-    final tripCode = trip['tripCode'] ?? trip['id'] ?? 'TRP-LIVE';
-    final otp = trip['startOtp'] ?? trip['otp'] ?? '4829';
+    final tripCode = trip['tripCode'] ?? trip['id'] ?? '—';
+    final otp = trip['startOtp'] ?? trip['otp'] ?? '—';
 
     final pickup = trip['pickupLocation'] as Map<String, dynamic>?;
     final drop = trip['dropLocation'] as Map<String, dynamic>?;
-    final pickupAddr = pickup?['address'] ?? 'DLF Cyber City, Gurugram';
-    final dropAddr = drop?['address'] ?? 'Indira Gandhi International Airport, Delhi';
+    final pickupAddr = pickup?['address'] ?? '—';
+    final dropAddr = drop?['address'] ?? '—';
 
     final isAssigned = status == 'ASSIGNED' || status == 'ACCEPTED' || status == 'ARRIVED' || status == 'IN_PROGRESS' || status == 'COMPLETED';
     final isArrived = status == 'ARRIVED' || status == 'IN_PROGRESS' || status == 'COMPLETED';

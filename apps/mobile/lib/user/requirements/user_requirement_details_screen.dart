@@ -418,7 +418,7 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                                           ),
                                           Text(
-                                            'Phone: ${d['driverPhone'] ?? "+91 98765 43210"} • Plate: ${d['vehiclePlate'] ?? "DL 01 AB 1234"}',
+                                            'Phone: ${d['driverPhone'] ?? "\u2014"} \u2022 Plate: ${d['vehiclePlate'] ?? "\u2014"}',
                                             style: TextStyle(fontSize: 11, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
                                           ),
                                         ],

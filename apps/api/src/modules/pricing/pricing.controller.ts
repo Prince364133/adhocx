@@ -9,6 +9,7 @@ import { PricingService } from './pricing.service';
 export class PricingController {
   constructor(private readonly pricingService: PricingService) {}
 
+  @Get()
   @Get('tiers')
   @ApiOperation({ summary: 'Get all marketplace vehicle rate cards and pricing tiers' })
   @SwaggerResponse({ status: 200, type: [PricingTierDto] })

@@ -37,13 +37,13 @@ class _UserVehicleDetailsScreenState extends State<UserVehicleDetailsScreen> {
         final t = list.first as Map<String, dynamic>;
         final driver = t['driver'] as Map<String, dynamic>?;
         _vehicle = {
-          'plate': driver?['vehiclePlate'] ?? t['vehiclePlate'] ?? 'DL 01 AB 1234',
-          'model': driver?['vehicleModel'] ?? t['vehicleModel'] ?? 'Sedan',
-          'type': driver?['vehicleType'] ?? 'Sedan',
-          'year': '2023',
-          'seating': '4 + 1 Passengers',
-          'fuel': 'Petrol / CNG',
-          'rcStatus': 'Verified & Insured',
+          'plate': driver?['vehiclePlate'] ?? t['vehiclePlate'] ?? '—',
+          'model': driver?['vehicleModel'] ?? t['vehicleModel'] ?? 'Commercial Fleet',
+          'type': driver?['vehicleType'] ?? t['vehicleType'] ?? 'Sedan',
+          'year': driver?['vehicleYear']?.toString() ?? '—',
+          'seating': driver?['seatingCapacity'] ?? '4 + 1 Passengers',
+          'fuel': driver?['fuelType'] ?? '—',
+          'rcStatus': driver?['rcStatus'] ?? 'Verified Commercial',
         };
       }
     } catch (_) {
@@ -58,11 +58,11 @@ class _UserVehicleDetailsScreenState extends State<UserVehicleDetailsScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     final v = _vehicle ?? {};
-    final plate = v['plate'] ?? v['vehiclePlate'] ?? 'DL 01 AB 1234';
-    final model = v['model'] ?? v['vehicleModel'] ?? 'Sedan';
-    final type = v['type'] ?? v['vehicleType'] ?? 'Sedan';
-    final seating = v['seating'] ?? '4 + 1';
-    final fuel = v['fuel'] ?? 'Petrol';
+    final plate = v['plate'] ?? v['vehiclePlate'] ?? '—';
+    final model = v['model'] ?? v['vehicleModel'] ?? 'Commercial Fleet';
+    final type = v['type'] ?? v['vehicleType'] ?? 'Commercial Vehicle';
+    final seating = v['seating'] ?? '—';
+    final fuel = v['fuel'] ?? '—';
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,

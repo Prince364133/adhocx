@@ -2,17 +2,27 @@ import '../../../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class WaitlistStepsWidget extends StatelessWidget {
-  const WaitlistStepsWidget({super.key});
+  final bool isBusiness;
+
+  const WaitlistStepsWidget({super.key, this.isBusiness = false});
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
+    return Row(
       children: [
-        _Step(number: '1', label: 'KYC\nSubmitted', state: _StepState.done),
-        _StepConnector(isActive: true),
-        _Step(number: '2', label: 'Admin\nReview', state: _StepState.active),
-        _StepConnector(isActive: false),
-        _Step(number: '3', label: 'Start\nDriving', state: _StepState.pending),
+        _Step(
+          number: '1',
+          label: isBusiness ? 'Profile\nSubmitted' : 'KYC\nSubmitted',
+          state: _StepState.done,
+        ),
+        const _StepConnector(isActive: true),
+        const _Step(number: '2', label: 'Admin\nReview', state: _StepState.active),
+        const _StepConnector(isActive: false),
+        _Step(
+          number: '3',
+          label: isBusiness ? 'Start\nBooking' : 'Start\nDriving',
+          state: _StepState.pending,
+        ),
       ],
     );
   }

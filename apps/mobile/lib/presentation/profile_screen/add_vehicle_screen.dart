@@ -17,10 +17,10 @@ class AddVehicleScreen extends StatefulWidget {
 }
 
 class _AddVehicleScreenState extends State<AddVehicleScreen> {
-  final _makeModelController = TextEditingController(text: 'Honda City');
-  final _plateController = TextEditingController(text: 'HR 26 AB 1234');
-  final _yearController = TextEditingController(text: '2022');
-  final _colorController = TextEditingController(text: 'White');
+  final _makeModelController = TextEditingController();
+  final _plateController = TextEditingController();
+  final _yearController = TextEditingController();
+  final _colorController = TextEditingController();
 
   String _category = 'Sedan';
   bool _isSubmitting = false;

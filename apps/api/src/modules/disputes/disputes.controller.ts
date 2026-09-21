@@ -38,6 +38,23 @@ export class DisputesController {
     return this.disputesService.getDisputes(query);
   }
 
+  @Get('my')
+  @ApiOperation({ summary: 'List current user dispute tickets' })
+  @SwaggerResponse({ status: 200, type: [DisputeResponseDto] })
+  async getMyDisputes(@CurrentUser() user: AuthUserDto) {
+    return this.disputesService.getUserDisputes(user.id);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get dispute ticket details by ID' })
+  @SwaggerResponse({ status: 200, type: DisputeResponseDto })
+  async getDisputeById(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUserDto,
+  ) {
+    return this.disputesService.getDisputeById(id, user.id, user.role === UserRole.ADMIN);
+  }
+
   @Patch(':id/resolve')
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Resolve or close a dispute ticket (Admin only)' })

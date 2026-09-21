@@ -32,18 +32,40 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
   bool _isLoadingInitial = true;
   bool _isSaving = false;
 
+  static bool _isFakeName(String? n) {
+    if (n == null) return true;
+    final lower = n.trim().toLowerCase();
+    return lower.isEmpty ||
+        lower == 'driver partner' ||
+        lower == 'google partner' ||
+        lower == 'google user' ||
+        lower == 'apple user' ||
+        lower == 'user' ||
+        lower == 'partner name';
+  }
+
+  static bool _isFakeEmail(String? e) {
+    if (e == null) return true;
+    final lower = e.trim().toLowerCase();
+    return lower.isEmpty ||
+        lower == 'user.google@gmail.com' ||
+        lower == 'test@example.com' ||
+        lower == 'user@adhocx.com' ||
+        lower == '—';
+  }
+
   @override
   void initState() {
     super.initState();
     final user = AuthService.instance.currentUser;
     final onboarding = Provider.of<OnboardingProvider>(context, listen: false);
 
-    final initialName = onboarding.fullName.isNotEmpty
+    final initialName = !_isFakeName(onboarding.fullName)
         ? onboarding.fullName
-        : (user?.fullName?.isNotEmpty == true ? user!.fullName! : '');
-    final initialEmail = onboarding.email.isNotEmpty
+        : (!_isFakeName(user?.fullName) ? user!.fullName! : '');
+    final initialEmail = !_isFakeEmail(onboarding.email)
         ? onboarding.email
-        : (user?.email?.isNotEmpty == true ? user!.email! : '');
+        : (!_isFakeEmail(user?.email) ? user!.email! : '');
 
     _nameController = TextEditingController(text: initialName);
     _emailController = TextEditingController(text: initialEmail);
@@ -57,10 +79,10 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
       if (profile != null && mounted) {
         final p = Map<String, dynamic>.from(profile is Map ? profile : {});
         setState(() {
-          if (p['fullName'] != null && p['fullName'].toString().trim().isNotEmpty) {
+          if (p['fullName'] != null && !_isFakeName(p['fullName'].toString())) {
             _nameController.text = p['fullName'].toString().trim();
           }
-          if (p['email'] != null && p['email'].toString().trim().isNotEmpty) {
+          if (p['email'] != null && !_isFakeEmail(p['email'].toString())) {
             _emailController.text = p['email'].toString().trim();
           }
           if (p['dateOfBirth'] != null) {
@@ -192,7 +214,7 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final user = AuthService.instance.currentUser;
-    final phone = user?.phone ?? '+91 98765 43210';
+    final phone = (user?.phone != null && user!.phone!.trim().isNotEmpty) ? user.phone! : '—';
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,

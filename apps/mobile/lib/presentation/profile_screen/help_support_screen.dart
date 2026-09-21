@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../core/utils/app_logger.dart';
 import '../../routes/app_routes.dart';
-import '../../services/auth_service.dart';
+import '../../services/auth_provider.dart';
+import '../../services/onboarding_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
@@ -15,6 +17,8 @@ class HelpSupportScreen extends StatelessWidget {
 
   void _handleLogout(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final authProvider = context.read<AuthProvider>();
+    final onboardingProvider = context.read<OnboardingProvider>();
 
     showDialog(
       context: context,
@@ -44,9 +48,12 @@ class HelpSupportScreen extends StatelessWidget {
             onPressed: () async {
               Navigator.of(ctx).pop();
               try {
-                final authService = context.read<AuthService>();
-                await authService.logout();
-              } catch (_) {}
+                AppLogger.info('Sign out from Help & Support screen', tag: 'AUTH');
+                await authProvider.logout();
+                onboardingProvider.reset();
+              } catch (e) {
+                AppLogger.error('Error during sign out: $e', tag: 'AUTH', error: e);
+              }
               if (context.mounted) {
                 Fluttertoast.showToast(
                   msg: 'Signed out successfully',

@@ -35,11 +35,11 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
       final draft = context.read<RequirementDraftProvider>();
       _tripType = draft.tripType;
       _pickupController = TextEditingController(
-        text: draft.pickupLocation.isNotEmpty ? draft.pickupLocation : 'DLF Cyber City, Gurugram',
+        text: draft.pickupLocation,
       );
       _pickupInstructions = TextEditingController(text: draft.pickupInstructions);
       _dropController = TextEditingController(
-        text: draft.dropLocation.isNotEmpty ? draft.dropLocation : 'Indira Gandhi International Airport, New Delhi',
+        text: draft.dropLocation,
       );
       _dropInstructions = TextEditingController(text: draft.dropInstructions);
       _pickupLat = draft.pickupLat;

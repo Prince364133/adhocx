@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Req, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Body, Req, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse as SwaggerResponse } from '@nestjs/swagger';
 import {
   RequestOtpDto,
@@ -96,5 +96,18 @@ export class AuthController {
     const token = authHeader?.split(' ')[1] || '';
     await this.authService.logout(token);
     return { success: true, message: 'Logged out successfully' };
+  }
+
+  @Delete('account')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Permanently delete user account and all data from database' })
+  @SwaggerResponse({ status: 200, description: 'Account permanently deleted from database' })
+  async deleteAccount(@CurrentUser() user: AuthUserDto, @Req() req: any) {
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.split(' ')[1] || '';
+    await this.authService.deleteAccount(user.id, token);
+    return { success: true, message: 'Account permanently deleted from database' };
   }
 }

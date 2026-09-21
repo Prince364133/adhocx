@@ -1,9 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
+import '../../core/utils/app_logger.dart';
 import '../../routes/app_routes.dart';
+import '../../services/auth_provider.dart';
 import '../../services/auth_service.dart';
+import '../../services/onboarding_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
@@ -66,9 +70,9 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
   }
 
   void _startStatusPolling() {
-    _statusPoller = Timer.periodic(const Duration(seconds: 4), (_) async {
+    _statusPoller = Timer.periodic(const Duration(seconds: 3), (_) async {
       try {
-        final user = await AuthService.instance.fetchCurrentUser();
+        final user = await AuthService.instance.fetchCurrentUser(forceRefresh: true);
         if (!mounted || user == null) return;
 
         if (user.isVerified && _approvalState != _ApprovalState.approved) {
@@ -90,11 +94,32 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
 
     _statusPoller?.cancel();
 
-    Future.delayed(const Duration(milliseconds: 1800), () {
+    Future.delayed(const Duration(milliseconds: 1600), () {
       if (mounted) {
-        context.go(AppRoutes.tripsScreen);
+        final user = AuthService.instance.currentUser;
+        if (user != null && user.isUser) {
+          context.go(AppRoutes.userHomeScreen);
+        } else {
+          context.go(AppRoutes.homeScreen);
+        }
       }
     });
+  }
+
+  Future<void> _manualCheck() async {
+    try {
+      final user = await AuthService.instance.fetchCurrentUser(forceRefresh: true);
+      if (!mounted || user == null) return;
+
+      if (user.isVerified) {
+        _handleApproved();
+      } else if (user.isRejected) {
+        setState(() {
+          _approvalState = _ApprovalState.rejected;
+          _rejectionReason = user.rejectionReason ?? 'Your submitted documents require updates.';
+        });
+      }
+    } catch (_) {}
   }
 
   void _reApply() {
@@ -102,7 +127,12 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
       _approvalState = _ApprovalState.waiting;
       _rejectionReason = null;
     });
-    context.go(AppRoutes.onboardingDocumentsScreen);
+    final user = AuthService.instance.currentUser;
+    if (user != null && user.isUser) {
+      context.go(AppRoutes.onboardingPersonalScreen);
+    } else {
+      context.go(AppRoutes.onboardingDocumentsScreen);
+    }
   }
 
   @override
@@ -125,6 +155,9 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
   }
 
   Widget _buildWaitingState(bool isDark) {
+    final user = AuthService.instance.currentUser;
+    final isBusiness = user != null && user.isUser;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.xxl),
       child: Column(
@@ -203,7 +236,7 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
           const SizedBox(height: AppSpacing.xl),
 
           Text(
-            "You're on the Waitlist!",
+            isBusiness ? "Verification Under Review" : "You're on the Waitlist!",
             style: AppTypography.display(
               color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
               fontWeight: FontWeight.w800,
@@ -212,7 +245,9 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'Your profile and KYC documents are currently under review by the AdhocX Verification Center.',
+            isBusiness
+                ? 'Your business profile is under review by the AdhocX Verification Team. Once approved, you can start posting trip requirements and booking fleets.'
+                : 'Your profile and KYC documents are currently under review by the AdhocX Verification Center.',
             style: AppTypography.body(
               color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
             ),
@@ -234,7 +269,7 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
                 _infoRow(
                   isDark,
                   Icons.admin_panel_settings_outlined,
-                  'Under Review by Verification Officer',
+                  isBusiness ? 'Business verification in progress' : 'Under Review by Verification Officer',
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 _infoRow(
@@ -252,7 +287,55 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
             ),
           ),
           const SizedBox(height: AppSpacing.xxxl),
-          const WaitlistStepsWidget(),
+          WaitlistStepsWidget(isBusiness: isBusiness),
+          const SizedBox(height: AppSpacing.xxl),
+
+          // Manual Action Buttons
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _manualCheck,
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  label: const Text('Check Status'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final authProvider = context.read<AuthProvider>();
+                  final onboardingProvider = context.read<OnboardingProvider>();
+                  final router = GoRouter.of(context);
+                  try {
+                    AppLogger.info('Driver sign out from waitlist gate', tag: 'AUTH');
+                    await authProvider.logout();
+                    onboardingProvider.reset();
+                  } catch (e) {
+                    AppLogger.error('Error during sign out: $e', tag: 'AUTH', error: e);
+                  }
+                  if (mounted) {
+                    router.go(AppRoutes.signInScreen);
+                  }
+                },
+                icon: const Icon(Icons.logout_rounded, size: 18, color: Colors.redAccent),
+                label: const Text('Sign Out', style: TextStyle(color: Colors.redAccent)),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.redAccent),
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.md, horizontal: AppSpacing.lg),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
         ],
       ),
     );

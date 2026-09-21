@@ -16,8 +16,8 @@ class UserContactInformationScreen extends StatelessWidget {
 
     final user = AuthService.instance.currentUser;
     final userName = user?.fullName ?? 'Business Requester';
-    final userEmail = user?.email ?? 'contact@adhocx.com';
-    final userPhone = user?.phone ?? '+91 98765 43210';
+    final userEmail = user?.email ?? '—';
+    final userPhone = user?.phone ?? '—';
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,

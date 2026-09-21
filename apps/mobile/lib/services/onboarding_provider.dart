@@ -11,17 +11,22 @@ class OnboardingProvider extends ChangeNotifier {
   String _gender = 'Male'; // 'Male', 'Female', 'Other'
   String _email = '';
   String _phoneNumber = '';
+  String _address = '';
+  String _emergencyContactName = '';
+  String _emergencyContactPhone = '';
   bool _isCorporate = false;
   String _companyName = '';
   String _gstNumber = '';
 
-  // Step 2: Vehicle Information (Driver)
+  // Step 2 & 3: Identity and Vehicle Information (Driver)
   String _vehicleType = 'Sedan';
   String _carModel = '';
   String _color = '';
   String _registrationNumber = '';
+  String _modelYear = '';
 
-  // Step 3: Document Uploads (URLs from Cloudflare R2)
+  // Document Uploads (URLs from Cloudflare R2)
+  String? _profilePhotoUrl;
   String? _drivingLicenseUrl;
   String? _rcBookUrl;
   String? _insuranceUrl;
@@ -44,14 +49,19 @@ class OnboardingProvider extends ChangeNotifier {
   String get email => _email;
   String get phoneNumber => _phoneNumber;
   String get phone => _phoneNumber;
+  String get address => _address;
+  String get emergencyContactName => _emergencyContactName;
+  String get emergencyContactPhone => _emergencyContactPhone;
 
   String get vehicleType => _vehicleType;
   String get carModel => _carModel;
   String get color => _color;
   String get registrationNumber => _registrationNumber;
+  String get modelYear => _modelYear;
   String get companyName => _companyName;
   String get gstNumber => _gstNumber;
 
+  String? get profilePhotoUrl => _profilePhotoUrl ?? _selfieUrl;
   String? get drivingLicenseUrl => _drivingLicenseUrl;
   String? get rcBookUrl => _rcBookUrl;
   String? get insuranceUrl => _insuranceUrl;
@@ -59,7 +69,7 @@ class OnboardingProvider extends ChangeNotifier {
   String? get aadharFrontUrl => _aadharFrontUrl;
   String? get aadharBackUrl => _aadharBackUrl;
   String? get panCardUrl => _panCardUrl;
-  String? get selfieUrl => _selfieUrl;
+  String? get selfieUrl => _selfieUrl ?? _profilePhotoUrl;
 
   int get uploadedDocumentsCount {
     int count = 0;
@@ -94,6 +104,9 @@ class OnboardingProvider extends ChangeNotifier {
     String? gender,
     String? email,
     String? phone,
+    String? address,
+    String? emergencyContactName,
+    String? emergencyContactPhone,
     String? companyName,
     bool? isCorporate,
   }) {
@@ -102,6 +115,9 @@ class OnboardingProvider extends ChangeNotifier {
     if (gender != null) _gender = gender;
     if (email != null) _email = email;
     if (phone != null) _phoneNumber = phone;
+    if (address != null) _address = address;
+    if (emergencyContactName != null) _emergencyContactName = emergencyContactName;
+    if (emergencyContactPhone != null) _emergencyContactPhone = emergencyContactPhone;
     if (companyName != null) _companyName = companyName;
     if (isCorporate != null) _isCorporate = isCorporate;
     notifyListeners();
@@ -113,6 +129,9 @@ class OnboardingProvider extends ChangeNotifier {
     String? gender,
     String? email,
     String? phone,
+    String? address,
+    String? emergencyContactName,
+    String? emergencyContactPhone,
     String? companyName,
     bool? isCorporate,
   }) => setPersonalDetails(
@@ -121,6 +140,9 @@ class OnboardingProvider extends ChangeNotifier {
     gender: gender,
     email: email,
     phone: phone,
+    address: address,
+    emergencyContactName: emergencyContactName,
+    emergencyContactPhone: emergencyContactPhone,
     companyName: companyName,
     isCorporate: isCorporate,
   );
@@ -130,11 +152,13 @@ class OnboardingProvider extends ChangeNotifier {
     required String carModel,
     required String color,
     required String registrationNumber,
+    String? modelYear,
   }) {
     _vehicleType = vehicleType;
     _carModel = carModel;
     _color = color;
     _registrationNumber = registrationNumber;
+    if (modelYear != null) _modelYear = modelYear;
     notifyListeners();
   }
 
@@ -149,6 +173,11 @@ class OnboardingProvider extends ChangeNotifier {
 
   void setDocumentUrl(String docType, String url) {
     switch (docType) {
+      case 'PROFILE_PHOTO':
+      case 'SELFIE':
+        _profilePhotoUrl = url;
+        _selfieUrl = url;
+        break;
       case 'DRIVING_LICENSE':
         _drivingLicenseUrl = url;
         break;
@@ -170,9 +199,6 @@ class OnboardingProvider extends ChangeNotifier {
       case 'PAN_CARD':
         _panCardUrl = url;
         break;
-      case 'SELFIE':
-        _selfieUrl = url;
-        break;
     }
     notifyListeners();
   }
@@ -184,13 +210,18 @@ class OnboardingProvider extends ChangeNotifier {
     _gender = 'Male';
     _email = '';
     _phoneNumber = '';
+    _address = '';
+    _emergencyContactName = '';
+    _emergencyContactPhone = '';
     _isCorporate = false;
     _vehicleType = 'Sedan';
     _carModel = '';
     _color = '';
     _registrationNumber = '';
+    _modelYear = '';
     _companyName = '';
     _gstNumber = '';
+    _profilePhotoUrl = null;
     _drivingLicenseUrl = null;
     _rcBookUrl = null;
     _insuranceUrl = null;

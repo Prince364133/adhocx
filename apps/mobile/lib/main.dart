@@ -1,9 +1,11 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 
+import './core/utils/app_logger.dart';
 import './routes/app_routes.dart';
 import './services/auth_provider.dart';
 import './services/auth_service.dart';
@@ -20,11 +22,34 @@ import './presentation/language_selection_widget.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Route uncaught framework errors to structured logger
+  FlutterError.onError = (FlutterErrorDetails details) {
+    AppLogger.error(
+      'Flutter Framework Exception: ${details.exceptionAsString()}',
+      tag: 'FLUTTER',
+      error: details.exception,
+      stackTrace: details.stack,
+    );
+  };
+
+  // Route uncaught async/platform errors to structured logger
+  PlatformDispatcher.instance.onError = (error, stack) {
+    AppLogger.error(
+      'Uncaught Asynchronous Exception: $error',
+      tag: 'ASYNC',
+      error: error,
+      stackTrace: stack,
+    );
+    return true;
+  };
+
+  AppLogger.info('AdhocX application starting bootstrap sequence...', tag: 'MAIN');
+
   // Lock orientation before anything renders (graceful on Web)
   try {
     await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   } catch (e) {
-    debugPrint('Orientation lock skipped on platform: $e');
+    AppLogger.debug('Orientation lock skipped on platform: $e', tag: 'MAIN');
   }
 
   // Initialize Language Provider and load saved language
@@ -32,7 +57,7 @@ void main() async {
   try {
     await languageProvider.loadSavedLanguage();
   } catch (e) {
-    debugPrint('Language init skipped: $e');
+    AppLogger.debug('Language init skipped: $e', tag: 'MAIN');
   }
 
   // Initialize Auth Provider and restore session
@@ -40,7 +65,7 @@ void main() async {
   try {
     await authProvider.checkSession();
   } catch (e) {
-    debugPrint('Auth session check skipped: $e');
+    AppLogger.debug('Auth session check skipped: $e', tag: 'MAIN');
   }
 
   // Initialize Onboarding Provider
@@ -53,7 +78,7 @@ void main() async {
   try {
     await SupabaseService.initialize().timeout(const Duration(seconds: 3));
   } catch (e) {
-    debugPrint('Supabase optional init skipped: $e');
+    AppLogger.debug('Supabase optional init skipped: $e', tag: 'MAIN');
   }
 
   bool hasShownError = false;

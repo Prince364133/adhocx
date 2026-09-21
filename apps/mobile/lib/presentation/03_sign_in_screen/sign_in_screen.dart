@@ -7,15 +7,12 @@ import '../../services/auth_provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/onboarding_provider.dart';
 import '../../theme/app_colors.dart';
-import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
-import '../../widgets/common/app_phone_field.dart';
 import '../../widgets/common/app_primary_button.dart';
+import '../../widgets/common/app_smart_identifier_field.dart';
 import '../../widgets/common/app_social_auth_button.dart';
 import '../../widgets/common/app_text_field.dart';
-
-enum AuthInputMode { phone, email }
 
 /// Screen 3: Login / Sign In with Phone, Email & Password.
 class SignInScreen extends StatefulWidget {
@@ -27,17 +24,14 @@ class SignInScreen extends StatefulWidget {
 
 class _SignInScreenState extends State<SignInScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _phoneController = TextEditingController();
-  final _emailController = TextEditingController();
+  final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
-  AuthInputMode _inputMode = AuthInputMode.phone;
   bool _obscurePassword = true;
   bool _isLoading = false;
 
   @override
   void dispose() {
-    _phoneController.dispose();
-    _emailController.dispose();
+    _identifierController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -51,13 +45,9 @@ class _SignInScreenState extends State<SignInScreen> {
       final onboarding = context.read<OnboardingProvider>();
       final authService = context.read<AuthService>();
 
-      String identifier;
-      if (_inputMode == AuthInputMode.phone) {
-        final rawPhone = _phoneController.text.trim().replaceAll(RegExp(r'\D'), '');
-        identifier = '+91$rawPhone';
-      } else {
-        identifier = _emailController.text.trim();
-      }
+      final text = _identifierController.text.trim();
+      final parsed = AppSmartIdentifierField.parseIdentifier(text);
+      final identifier = parsed['value'] as String;
 
       final result = await authService.loginWithPassword(
         identifier: identifier,
@@ -84,11 +74,11 @@ class _SignInScreenState extends State<SignInScreen> {
         );
 
         if (!user.hasPassword) {
-          context.push(AppRoutes.setPasswordScreen);
+          context.go(AppRoutes.setPasswordScreen);
         } else if (!user.isOnboarded) {
-          context.push(AppRoutes.onboardingPersonalScreen);
+          context.go(AppRoutes.onboardingPersonalScreen);
         } else if (user.isDriver) {
-          if (user.isUnderReview || user.isRejected) {
+          if (!user.isVerified) {
             context.go(AppRoutes.waitlistGateScreen);
           } else {
             context.go(AppRoutes.homeScreen);
@@ -112,16 +102,25 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   Future<void> _handleOtpSignIn() async {
-    final rawPhone = _phoneController.text.trim().replaceAll(RegExp(r'\D'), '');
-    final email = _emailController.text.trim();
-
-    if (_inputMode == AuthInputMode.phone && rawPhone.length != 10) {
-      Fluttertoast.showToast(msg: 'Enter a valid 10-digit mobile number for OTP');
+    final text = _identifierController.text.trim();
+    if (text.isEmpty) {
+      Fluttertoast.showToast(msg: 'Enter your mobile number or email for OTP');
       return;
     }
-    if (_inputMode == AuthInputMode.email && (email.isEmpty || !email.contains('@'))) {
-      Fluttertoast.showToast(msg: 'Enter a valid email address for OTP');
-      return;
+
+    final parsed = AppSmartIdentifierField.parseIdentifier(text);
+    if (parsed['isEmail'] == true) {
+      final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+      if (!emailRegex.hasMatch(text)) {
+        Fluttertoast.showToast(msg: 'Enter a valid email address for OTP');
+        return;
+      }
+    } else {
+      final rawDigits = parsed['rawDigits'] as String;
+      if (rawDigits.length != 10) {
+        Fluttertoast.showToast(msg: 'Enter a valid 10-digit mobile number for OTP');
+        return;
+      }
     }
 
     setState(() => _isLoading = true);
@@ -130,13 +129,13 @@ class _SignInScreenState extends State<SignInScreen> {
       final authService = context.read<AuthService>();
       final onboarding = context.read<OnboardingProvider>();
 
-      String? phoneTarget = _inputMode == AuthInputMode.phone ? '+91$rawPhone' : null;
-      String? emailTarget = _inputMode == AuthInputMode.email ? email : null;
+      final String? phoneTarget = parsed['phone'];
+      final String? emailTarget = parsed['email'];
 
       final res = await authService.requestOtp(
         phone: phoneTarget,
         email: emailTarget,
-        channel: _inputMode == AuthInputMode.phone ? 'SMS' : 'EMAIL',
+        channel: parsed['channel'],
         role: onboarding.role,
         isRegister: false,
       );
@@ -162,8 +161,9 @@ class _SignInScreenState extends State<SignInScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final msg = e.toString().replaceFirst('Exception: ', '').replaceFirst('ApiException: ', '');
         Fluttertoast.showToast(
-          msg: e.toString().replaceFirst('Exception: ', '').replaceFirst('ApiException: ', ''),
+          msg: msg,
           backgroundColor: AppColors.error,
           textColor: Colors.white,
         );
@@ -200,8 +200,12 @@ class _SignInScreenState extends State<SignInScreen> {
           textColor: Colors.white,
         );
 
-        if (user.isDriver) {
-          if (user.isUnderReview || user.isRejected) {
+        if (!user.hasPassword) {
+          context.go(AppRoutes.setPasswordScreen);
+        } else if (!user.isOnboarded) {
+          context.go(AppRoutes.onboardingPersonalScreen);
+        } else if (user.isDriver) {
+          if (!user.isVerified) {
             context.go(AppRoutes.waitlistGateScreen);
           } else {
             context.go(AppRoutes.homeScreen);
@@ -282,149 +286,10 @@ class _SignInScreenState extends State<SignInScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xl),
 
-                    // ── Phone / Email Segmented Switcher ─────────────────────
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.surfaceDark : AppColors.borderLight.withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                        border: Border.all(color: isDark ? AppColors.borderDark : Colors.transparent),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () => setState(() => _inputMode = AuthInputMode.phone),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: _inputMode == AuthInputMode.phone
-                                      ? (isDark ? AppColors.surfaceElevatedDark : Colors.white)
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                                  boxShadow: _inputMode == AuthInputMode.phone
-                                      ? [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
-                                            blurRadius: 4,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ]
-                                      : null,
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.phone_iphone_rounded,
-                                      size: 16,
-                                      color: _inputMode == AuthInputMode.phone
-                                          ? (isDark ? AppColors.primaryLight : AppColors.primary)
-                                          : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      'Mobile Number',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: _inputMode == AuthInputMode.phone ? FontWeight.w700 : FontWeight.w500,
-                                        color: _inputMode == AuthInputMode.phone
-                                            ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)
-                                            : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () => setState(() => _inputMode = AuthInputMode.email),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: _inputMode == AuthInputMode.email
-                                      ? (isDark ? AppColors.surfaceElevatedDark : Colors.white)
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                                  boxShadow: _inputMode == AuthInputMode.email
-                                      ? [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
-                                            blurRadius: 4,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ]
-                                      : null,
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.email_outlined,
-                                      size: 16,
-                                      color: _inputMode == AuthInputMode.email
-                                          ? (isDark ? AppColors.primaryLight : AppColors.primary)
-                                          : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      'Email Address',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: _inputMode == AuthInputMode.email ? FontWeight.w700 : FontWeight.w500,
-                                        color: _inputMode == AuthInputMode.email
-                                            ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)
-                                            : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                    // ── Unified Smart Identifier Input (Mobile Number or Email) ─────
+                    AppSmartIdentifierField(
+                      controller: _identifierController,
                     ),
-                    const SizedBox(height: AppSpacing.lg),
-
-                    // ── Active Identifier Input: Phone vs Email ──────────────
-                    if (_inputMode == AuthInputMode.phone)
-                      AppPhoneField(
-                        controller: _phoneController,
-                        label: 'Mobile Number',
-                        hintText: '98765 43210',
-                        validator: (val) {
-                          final digits = (val ?? '').replaceAll(RegExp(r'\D'), '');
-                          if (digits.length != 10) {
-                            return 'Enter a valid 10-digit mobile number';
-                          }
-                          return null;
-                        },
-                      )
-                    else
-                      AppTextField(
-                        controller: _emailController,
-                        label: 'Email Address',
-                        hintText: 'name@example.com',
-                        keyboardType: TextInputType.emailAddress,
-                        prefixIcon: Icon(
-                          Icons.email_outlined,
-                          size: 20,
-                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                        ),
-                        validator: (val) {
-                          if (val == null || val.trim().isEmpty) {
-                            return 'Email address is required';
-                          }
-                          final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-                          if (!emailRegex.hasMatch(val.trim())) {
-                            return 'Enter a valid email address';
-                          }
-                          return null;
-                        },
-                      ),
                     const SizedBox(height: AppSpacing.md),
 
                     // ── Password Input Field ─────────────────────────────────

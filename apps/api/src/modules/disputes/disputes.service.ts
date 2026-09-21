@@ -204,6 +204,31 @@ export class DisputesService {
     return this.mapToDto(updated);
   }
 
+  async getUserDisputes(userId: string): Promise<DisputeResponseDto[]> {
+    const items = await this.db.dispute.findMany({
+      where: {
+        OR: [{ reporterId: userId }, { accusedId: userId }],
+      },
+      include: { reporter: true, accused: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    return items.map((i) => this.mapToDto(i));
+  }
+
+  async getDisputeById(disputeId: string, userId: string, isAdmin = false): Promise<DisputeResponseDto> {
+    const dispute = await this.db.dispute.findUnique({
+      where: { id: disputeId },
+      include: { reporter: true, accused: true },
+    });
+    if (!dispute) {
+      throw new NotFoundException('Dispute ticket not found');
+    }
+    if (!isAdmin && dispute.reporterId !== userId && dispute.accusedId !== userId) {
+      throw new ForbiddenException('You do not have permission to view this ticket');
+    }
+    return this.mapToDto(dispute);
+  }
+
   private mapToDto(d: any): DisputeResponseDto {
     return {
       id: d.id,

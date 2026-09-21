@@ -2,13 +2,12 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-console.log('🚀 Checking Flutter environment for @adhocx/mobile...');
+console.log('⚡ Initializing AdhocX Flutter Web (Instant Hot-Reload Mode)...');
 
 function findFlutterExecutable() {
   const isWindows = process.platform === 'win32';
   const flutterName = isWindows ? 'flutter.bat' : 'flutter';
 
-  // Candidate paths
   const userProfile = process.env.USERPROFILE || process.env.HOME || '';
   const candidates = [
     flutterName,
@@ -22,7 +21,6 @@ function findFlutterExecutable() {
   for (const candidate of candidates) {
     if (candidate === flutterName) continue;
     if (fs.existsSync(candidate)) {
-      console.log(`✅ Found Flutter SDK at: ${candidate}`);
       return candidate;
     }
   }
@@ -32,14 +30,17 @@ function findFlutterExecutable() {
 
 const flutterCmd = findFlutterExecutable();
 const mobileDir = path.resolve(__dirname, '..');
+const libDir = path.join(mobileDir, 'lib');
 
 const userProfile = process.env.USERPROFILE || 'C:\\Users\\saavi';
 const localAppData = process.env.LOCALAPPDATA || path.join(userProfile, 'AppData', 'Local');
+const androidHome = process.env.ANDROID_HOME || path.join(localAppData, 'Android', 'Sdk');
+const javaHome = process.env.JAVA_HOME || 'C:\\Program Files\\Android\\Android Studio\\jbr';
 const pubCache = process.env.PUB_CACHE || path.join(localAppData, 'Pub', 'Cache');
 
-// Ensure Flutter SDK & Dart SDK directories are available in PATH
 const flutterBinDir = path.isAbsolute(flutterCmd) ? path.dirname(flutterCmd) : '';
 const dartSdkBinDir = flutterBinDir ? path.join(flutterBinDir, 'cache', 'dart-sdk', 'bin') : '';
+
 const pathSeparator = process.platform === 'win32' ? ';' : ':';
 const extraPaths = [flutterBinDir, dartSdkBinDir].filter(Boolean).join(pathSeparator);
 const childPath = extraPaths ? `${extraPaths}${pathSeparator}${process.env.PATH || ''}` : (process.env.PATH || '');
@@ -49,42 +50,72 @@ const childEnv = {
   USERPROFILE: userProfile,
   LOCALAPPDATA: localAppData,
   APPDATA: process.env.APPDATA || path.join(userProfile, 'AppData', 'Roaming'),
+  ANDROID_HOME: androidHome,
+  ANDROID_SDK_ROOT: androidHome,
+  JAVA_HOME: javaHome,
   PUB_CACHE: pubCache,
   PATH: childPath,
 };
 
-try {
-  const isWindows = process.platform === 'win32';
-  const execFile = isWindows ? 'cmd.exe' : flutterCmd;
-  const execArgs = isWindows
-    ? ['/c', flutterCmd, 'run', '-d', 'web-server', '--web-port', '7003', '--web-hostname', 'localhost']
-    : ['run', '-d', 'web-server', '--web-port', '7003', '--web-hostname', 'localhost'];
+const isWindows = process.platform === 'win32';
+const execFile = isWindows ? 'cmd.exe' : flutterCmd;
 
-  const child = spawn(execFile, execArgs, {
-    cwd: mobileDir,
-    stdio: 'inherit',
-    shell: false,
-    env: childEnv,
-  });
+// Launch Flutter Web on port 7003
+const execArgs = isWindows
+  ? ['/c', flutterCmd, 'run', '-d', 'web-server', '--web-port', '7003', '--web-hostname', 'localhost', '--dart-define=API_URL=http://localhost:7001/api/v1', '--dart-define=API_BASE_URL=http://localhost:7001/api/v1']
+  : ['run', '-d', 'web-server', '--web-port', '7003', '--web-hostname', 'localhost', '--dart-define=API_URL=http://localhost:7001/api/v1', '--dart-define=API_BASE_URL=http://localhost:7001/api/v1'];
 
-  child.on('error', (err) => {
-    console.log('\n📱 [AdhocX Mobile]');
-    console.log(`ℹ️  Unable to launch Flutter: ${err.message}`);
-    console.log('ℹ️  API (port 7001) & Admin (port 7002) are actively running!');
-    console.log('ℹ️  To launch Mobile, verify Flutter installation and run: pnpm dev:mobile\n');
+console.log('🌐 Starting Flutter Web on http://localhost:7003 ...');
 
-    setInterval(() => {}, 60000);
-  });
+const child = spawn(execFile, execArgs, {
+  cwd: mobileDir,
+  stdio: ['pipe', 'inherit', 'inherit'],
+  shell: false,
+  env: childEnv,
+});
 
-  child.on('exit', (code) => {
-    if (code !== 0) {
-      console.log('\n📱 [AdhocX Mobile]');
-      console.log(`ℹ️  Flutter process exited (code ${code}).`);
-      console.log('ℹ️  Keeping monorepo dev session active for API and Admin.\n');
-      setInterval(() => {}, 60000);
-    }
-  });
-} catch (e) {
-  console.log(`\n📱 [AdhocX Mobile] Flutter runner waiting: ${e.message}`);
-  setInterval(() => {}, 60000);
+// Auto-Watch lib/ folder for instant Hot Reload on Ctrl+S (File Save)
+let reloadTimeout = null;
+
+function triggerHotReload(filePath) {
+  if (reloadTimeout) clearTimeout(reloadTimeout);
+  reloadTimeout = setTimeout(() => {
+    try {
+      const relPath = path.relative(mobileDir, filePath);
+      console.log(`\n🔥 [Instant Reload] Detected change in: ${relPath}`);
+      console.log('⚡ Reloading Flutter Web...');
+      if (child.stdin && !child.stdin.destroyed) {
+        child.stdin.write('r\n');
+      }
+    } catch (e) {}
+  }, 250); // 250ms debounce
 }
+
+function startFileWatcher() {
+  if (!fs.existsSync(libDir)) return;
+
+  try {
+    fs.watch(libDir, { recursive: true }, (eventType, filename) => {
+      if (filename && (filename.endsWith('.dart') || filename.endsWith('.json') || filename.endsWith('.yaml'))) {
+        triggerHotReload(path.join(libDir, filename));
+      }
+    });
+    console.log('👀 Real-time file watcher active: saves in lib/ will auto-reload the app instantly!');
+  } catch (err) {
+    console.log('ℹ️  File watcher note:', err.message);
+  }
+}
+
+startFileWatcher();
+
+child.on('error', (err) => {
+  console.log(`\n📱 [AdhocX Mobile] Error: ${err.message}`);
+  setInterval(() => {}, 60000);
+});
+
+child.on('exit', (code) => {
+  if (code !== 0) {
+    console.log(`\n📱 [AdhocX Mobile] Exited (code ${code}).`);
+    setInterval(() => {}, 60000);
+  }
+});

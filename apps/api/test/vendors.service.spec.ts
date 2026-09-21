@@ -6,13 +6,20 @@ import { VerificationStatus } from '@adhocx/contracts';
 
 describe('VendorsService', () => {
   let service: VendorsService;
-  let mockDb: { vendor: { upsert: jest.Mock; findUnique: jest.Mock } };
+  let mockDb: {
+    vendor: { upsert: jest.Mock; findUnique: jest.Mock };
+    user: { findUnique: jest.Mock; update: jest.Mock };
+  };
 
   beforeEach(async () => {
     mockDb = {
       vendor: {
         upsert: jest.fn(),
         findUnique: jest.fn(),
+      },
+      user: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn().mockResolvedValue({}),
       },
     };
 

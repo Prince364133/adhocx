@@ -86,15 +86,15 @@ class _UserTripDetailsScreenState extends State<UserTripDetailsScreen> {
     final driver = trip['driver'] as Map<String, dynamic>?;
     final driverUser = driver?['user'] as Map<String, dynamic>?;
     final driverName = driverUser?['fullName'] ?? driver?['fullName'] ?? 'Assigned Driver';
-    final vehiclePlate = driver?['vehiclePlate'] ?? trip['vehiclePlate'] ?? 'DL 01 AB 1234';
-    final vehicleModel = driver?['vehicleModel'] ?? trip['vehicleModel'] ?? 'Sedan';
-    final tripCode = trip['tripCode'] ?? trip['id'] ?? 'TRP-LIVE';
+    final vehiclePlate = driver?['vehiclePlate'] ?? trip['vehiclePlate'] ?? '—';
+    final vehicleModel = driver?['vehicleModel'] ?? trip['vehicleModel'] ?? trip['vehicleType'] ?? 'Commercial Fleet';
+    final tripCode = trip['tripCode'] ?? trip['id'] ?? '—';
 
     final pickup = trip['pickupLocation'] as Map<String, dynamic>?;
     final drop = trip['dropLocation'] as Map<String, dynamic>?;
-    final pickupAddr = pickup?['address'] ?? 'DLF Cyber City, Gurugram';
-    final dropAddr = drop?['address'] ?? 'Indira Gandhi International Airport, Delhi';
-    final fare = trip['agreedRate'] ?? trip['fare'] ?? 1500;
+    final pickupAddr = pickup?['address'] ?? '—';
+    final dropAddr = drop?['address'] ?? '—';
+    final fare = trip['agreedRate'] ?? trip['fare'] ?? trip['ratePerVehicle'] ?? 0;
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,

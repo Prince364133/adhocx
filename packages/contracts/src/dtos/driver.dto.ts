@@ -90,6 +90,18 @@ export class KycSubmissionDto {
 
   @IsOptional()
   vehicle?: Record<string, any>;
+
+  @IsOptional()
+  @IsString()
+  vehiclePlate?: string;
+
+  @IsOptional()
+  @IsString()
+  vehicleType?: string;
+
+  @IsOptional()
+  @IsString()
+  vehicleModel?: string;
 }
 
 export class DriverKycDocumentDto {

@@ -53,12 +53,12 @@ class _UserDriverDetailsScreenState extends State<UserDriverDetailsScreen> {
     final driver = trip['driver'] as Map<String, dynamic>?;
     final driverUser = driver?['user'] as Map<String, dynamic>?;
     final driverName = driverUser?['fullName'] ?? driver?['fullName'] ?? 'Assigned Driver';
-    final driverPhone = driverUser?['phone'] ?? driver?['phone'] ?? '+91 98765 43210';
-    final rating = (driver?['rating'] ?? 4.8).toString();
-    final licenseNumber = driver?['licenseNumber'] ?? 'HR26 2020 1234567';
-    final vehiclePlate = driver?['vehiclePlate'] ?? trip['vehiclePlate'] ?? 'DL 01 AB 1234';
-    final vehicleModel = driver?['vehicleModel'] ?? trip['vehicleModel'] ?? 'Sedan';
-    final totalTrips = (driver?['totalTrips'] ?? 320).toString();
+    final driverPhone = driverUser?['phone'] ?? driver?['phone'] ?? '\u2014';
+    final rating = (driver?['rating'] ?? 0).toString();
+    final licenseNumber = driver?['licenseNumber'] ?? '\u2014';
+    final vehiclePlate = driver?['vehiclePlate'] ?? trip['vehiclePlate'] ?? '\u2014';
+    final vehicleModel = driver?['vehicleModel'] ?? trip['vehicleModel'] ?? '\u2014';
+    final totalTrips = (driver?['totalTrips'] ?? 0).toString();
 
     final initials = driverName.split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join().toUpperCase();
 

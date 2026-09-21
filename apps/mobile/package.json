@@ -5,8 +5,9 @@
   "description": "AdhocX Flutter Mobile Client (Driver & Vendor)",
   "scripts": {
     "dev": "node scripts/dev.js",
+    "emulator": "node scripts/emulator.js",
+    "dev:android": "node scripts/dev.js",
     "dev:chrome": "flutter run -d chrome --web-port 7003",
-    "dev:android": "flutter run -d android",
     "dev:ios": "flutter run -d ios",
     "build:web": "flutter build web",
     "build:apk": "flutter build apk --release",

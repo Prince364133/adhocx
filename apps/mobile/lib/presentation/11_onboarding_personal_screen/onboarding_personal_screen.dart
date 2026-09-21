@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/networking/api_client.dart';
+import '../../core/utils/app_logger.dart';
 import '../../routes/app_routes.dart';
+import '../../services/auth_provider.dart';
+import '../../services/auth_service.dart';
 import '../../services/onboarding_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
@@ -12,7 +17,7 @@ import '../../widgets/common/app_primary_button.dart';
 import '../../widgets/common/app_stepper_header.dart';
 import '../../widgets/common/app_text_field.dart';
 
-/// Screen 11: Personal Details & Fast 1-Step User Profile Setup.
+/// Screen 11: Step 1 of 3: Driver Personal Details & Basic Info.
 class OnboardingPersonalScreen extends StatefulWidget {
   const OnboardingPersonalScreen({super.key});
 
@@ -23,20 +28,47 @@ class OnboardingPersonalScreen extends StatefulWidget {
 
 class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
+  late final TextEditingController _nameController;
+  late final TextEditingController _phoneController;
+  final _addressController = TextEditingController();
+  final _emergencyNameController = TextEditingController();
+  final _emergencyPhoneController = TextEditingController();
   final _companyController = TextEditingController();
 
   DateTime? _selectedDate;
   String _selectedGender = 'Male';
   bool _isCorporateBooking = false;
+  bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
+    final authUser = AuthService.instance.currentUser;
     final onboarding = context.read<OnboardingProvider>();
-    _nameController.text = onboarding.fullName;
-    _selectedDate = onboarding.dateOfBirth ?? DateTime(1995, 8, 15);
-    _selectedGender = onboarding.gender;
+
+    // Avoid dummy placeholder names
+    final initialName = onboarding.fullName.isNotEmpty
+        ? onboarding.fullName
+        : ((authUser?.fullName != null &&
+                authUser!.fullName!.isNotEmpty &&
+                authUser.fullName != 'Driver Partner' &&
+                authUser.fullName != 'Google User' &&
+                authUser.fullName != 'Google Partner' &&
+                authUser.fullName != 'User')
+            ? authUser.fullName!
+            : '');
+
+    final initialPhone = onboarding.phoneNumber.isNotEmpty
+        ? onboarding.phoneNumber
+        : (authUser?.phone ?? '');
+
+    _nameController = TextEditingController(text: initialName);
+    _phoneController = TextEditingController(text: initialPhone);
+    _addressController.text = onboarding.address;
+    _emergencyNameController.text = onboarding.emergencyContactName;
+    _emergencyPhoneController.text = onboarding.emergencyContactPhone;
+    _selectedGender = onboarding.gender.isNotEmpty ? onboarding.gender : 'Male';
+    _selectedDate = onboarding.dateOfBirth;
     _companyController.text = onboarding.companyName;
     _isCorporateBooking = onboarding.isCorporate || onboarding.companyName.isNotEmpty;
   }
@@ -44,6 +76,10 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _phoneController.dispose();
+    _addressController.dispose();
+    _emergencyNameController.dispose();
+    _emergencyPhoneController.dispose();
     _companyController.dispose();
     super.dispose();
   }
@@ -53,8 +89,9 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
     final picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate ?? DateTime(1995, 1, 1),
-      firstDate: DateTime(1950),
+      firstDate: DateTime(1940),
       lastDate: DateTime.now().subtract(const Duration(days: 365 * 18)),
+      helpText: 'Select Date of Birth (18+ only)',
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -81,26 +118,74 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
     }
   }
 
-  void _handleContinue() {
+  Future<void> _handleContinue() async {
     if (!_formKey.currentState!.validate()) return;
 
     final onboarding = context.read<OnboardingProvider>();
+    final enteredName = _nameController.text.trim();
+    final enteredPhone = _phoneController.text.trim();
+    final enteredAddress = _addressController.text.trim();
+    final enteredEmergencyName = _emergencyNameController.text.trim();
+    final enteredEmergencyPhone = _emergencyPhoneController.text.trim();
+
     onboarding.setPersonalDetails(
-      fullName: _nameController.text.trim().isNotEmpty
-          ? _nameController.text.trim()
-          : 'Partner Name',
+      fullName: enteredName,
+      phone: enteredPhone,
+      address: enteredAddress,
+      emergencyContactName: enteredEmergencyName,
+      emergencyContactPhone: enteredEmergencyPhone,
       dateOfBirth: _selectedDate,
       gender: _selectedGender,
       companyName: _isCorporateBooking ? _companyController.text.trim() : '',
       isCorporate: _isCorporateBooking,
     );
 
-    // If User/Booker -> Direct 1-Step Onboarding Complete!
+    // If User/Booker -> Fast profile setup to /welcome-success
     if (onboarding.isUser) {
-      context.push(AppRoutes.welcomeSuccessScreen);
+      setState(() => _isSaving = true);
+      try {
+        final orgName = _isCorporateBooking && _companyController.text.trim().isNotEmpty
+            ? _companyController.text.trim()
+            : (enteredName.isNotEmpty ? '$enteredName Mobility' : 'My Organization');
+
+        await ApiClient.instance.post(
+          '/vendors/profile',
+          body: {
+            'organizationName': orgName,
+            'fullName': enteredName,
+            'gstNumber': onboarding.gstNumber.isNotEmpty ? onboarding.gstNumber : null,
+            'address': enteredAddress.isNotEmpty ? enteredAddress : 'India',
+          },
+        );
+
+        final updatedUser = await AuthService.instance.fetchCurrentUser(forceRefresh: true);
+        if (updatedUser != null && mounted) {
+          context.read<AuthProvider>().setUser(updatedUser);
+        }
+
+        if (mounted) {
+          Fluttertoast.showToast(
+            msg: 'Business Profile submitted for verification!',
+            backgroundColor: AppColors.accentGreenDark,
+            textColor: Colors.white,
+          );
+          context.go(AppRoutes.welcomeSuccessScreen);
+        }
+      } catch (e) {
+        AppLogger.error('Failed to create vendor profile: $e');
+        if (mounted) {
+          Fluttertoast.showToast(
+            msg: 'Submission failed: ${e.toString().replaceAll('Exception: ', '')}',
+            backgroundColor: Colors.redAccent,
+            textColor: Colors.white,
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isSaving = false);
+      }
     } else {
-      // Driver Partner -> Continues to vehicle registration
-      context.push(AppRoutes.onboardingVehicleScreen);
+      // Driver Partner -> Step 2 of 3: Identity Verification (Documents)
+      context.push(AppRoutes.onboardingDocumentsScreen);
     }
   }
 
@@ -135,17 +220,30 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // ── Header: Stepper for Driver, Simple Back for User ───────
+                    // ── Progress Header: 3 Steps for Driver, Simple Back for User ───────
                     if (isDriver)
                       AppStepperHeader(
                         currentStep: 1,
-                        onBack: () => context.pop(),
+                        totalSteps: 3,
+                        onBack: () {
+                          if (context.canPop()) {
+                            context.pop();
+                          } else {
+                            context.go(AppRoutes.signInScreen);
+                          }
+                        },
                       )
                     else
                       Row(
                         children: [
                           IconButton(
-                            onPressed: () => context.pop(),
+                            onPressed: () {
+                              if (context.canPop()) {
+                                context.pop();
+                              } else {
+                                context.go(AppRoutes.signInScreen);
+                              }
+                            },
                             icon: Icon(
                               Icons.arrow_back,
                               color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
@@ -177,7 +275,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
 
                     // ── Title & Subtitle ─────────────────────────────────────
                     Text(
-                      isDriver ? "Driver Personal Details" : "Complete your profile",
+                      isDriver ? "Basic Details" : "Complete your profile",
                       style: AppTypography.h1(
                         color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         fontWeight: FontWeight.bold,
@@ -186,90 +284,57 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                     const SizedBox(height: AppSpacing.xs),
                     Text(
                       isDriver
-                          ? 'Please provide your legal personal details'
-                          : 'Just a few quick details to personalize your ride bookings',
+                          ? 'Step 1 of 3: Provide your personal and contact details'
+                          : 'Just a few quick details to personalize your account',
                       style: AppTypography.body(
                         color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.xxl),
+                    const SizedBox(height: AppSpacing.xl),
 
-                    // ── Full Name Input ──────────────────────────────────────
+                    // ── 1. Full Name ─────────────────────────────────────────
                     AppTextField(
                       controller: _nameController,
                       label: 'Full Name',
-                      hintText: 'Enter full name',
+                      hintText: 'Enter your full legal name',
+                      prefixIcon: const Icon(Icons.person_outline, size: 20),
                       validator: (val) {
                         if (val == null || val.trim().length < 2) {
-                          return 'Please enter your full name';
+                          return 'Please enter your full legal name';
                         }
                         return null;
                       },
                     ),
                     const SizedBox(height: AppSpacing.lg),
 
-                    // ── Date of Birth Picker ─────────────────────────────────
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Date of Birth (Optional)',
-                          style: AppTypography.caption(
-                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        InkWell(
-                          onTap: _pickDate,
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.lg,
-                              vertical: 14,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight,
-                              borderRadius: BorderRadius.circular(AppRadius.md),
-                              border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  _selectedDate != null
-                                      ? _formatDate(_selectedDate!)
-                                      : 'Select Date',
-                                  style: AppTypography.body(
-                                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                  ),
-                                ),
-                                Icon(
-                                  Icons.calendar_today_outlined,
-                                  size: 18,
-                                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
+                    // ── 2. Phone Number ──────────────────────────────────────
+                    AppTextField(
+                      controller: _phoneController,
+                      label: 'Phone Number',
+                      hintText: 'e.g. +91 98765 43210',
+                      prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+                      keyboardType: TextInputType.phone,
+                      validator: (val) {
+                        if (val == null || val.trim().length < 8) {
+                          return 'Please enter a valid phone number';
+                        }
+                        return null;
+                      },
                     ),
-
                     const SizedBox(height: AppSpacing.lg),
 
-                    // ── Gender Segmented Pill Selector ───────────────────────
+                    // ── 3. Gender Segmented Selector ─────────────────────────
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Gender (Optional)',
+                          'Gender',
                           style: AppTypography.caption(
-                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                            fontWeight: FontWeight.w600,
+                            color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.xs),
+                        const SizedBox(height: 6),
                         Row(
                           children: ['Male', 'Female', 'Other'].map((gender) {
                             final isSelected = _selectedGender == gender;
@@ -284,25 +349,26 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                                     alignment: Alignment.center,
                                     decoration: BoxDecoration(
                                       color: isSelected
-                                          ? (isDark ? AppColors.primaryLight : AppColors.primary)
-                                          : (isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight),
-                                      borderRadius:
-                                          BorderRadius.circular(AppRadius.md),
+                                          ? (isDark
+                                              ? AppColors.primaryLight.withValues(alpha: 0.2)
+                                              : AppColors.primary.withValues(alpha: 0.12))
+                                          : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
+                                      borderRadius: BorderRadius.circular(AppRadius.md),
                                       border: Border.all(
                                         color: isSelected
                                             ? (isDark ? AppColors.primaryLight : AppColors.primary)
                                             : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                                        width: isSelected ? 1.5 : 1,
                                       ),
                                     ),
                                     child: Text(
                                       gender,
-                                      style: AppTypography.body(
+                                      style: TextStyle(
                                         color: isSelected
-                                            ? Colors.white
+                                            ? (isDark ? AppColors.primaryLight : AppColors.primary)
                                             : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
-                                        fontWeight: isSelected
-                                            ? FontWeight.w600
-                                            : FontWeight.normal,
+                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                        fontSize: 14,
                                       ),
                                     ),
                                   ),
@@ -315,7 +381,135 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                     ),
                     const SizedBox(height: AppSpacing.lg),
 
-                    // ── Optional Corporate / Event Booking Toggle (For Users) ───
+                    // ── 4. Date of Birth Picker ──────────────────────────────
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Date of Birth',
+                          style: AppTypography.caption(
+                            color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        InkWell(
+                          onTap: _pickDate,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.lg,
+                              vertical: 14,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                              borderRadius: BorderRadius.circular(AppRadius.md),
+                              border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.calendar_today_outlined,
+                                      size: 18,
+                                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                    ),
+                                    const SizedBox(width: AppSpacing.md),
+                                    Text(
+                                      _selectedDate != null
+                                          ? _formatDate(_selectedDate!)
+                                          : 'Select Date of Birth (DD MMM YYYY)',
+                                      style: AppTypography.body(
+                                        color: _selectedDate != null
+                                            ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)
+                                            : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Icon(
+                                  Icons.arrow_drop_down,
+                                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+
+                    // ── 5. Location / Permanent Address ──────────────────────
+                    AppTextField(
+                      controller: _addressController,
+                      label: 'Location / Residential Address',
+                      hintText: 'Enter your city / residential address with PIN code',
+                      prefixIcon: const Icon(Icons.location_on_outlined, size: 20),
+                      validator: (val) {
+                        if (isDriver && (val == null || val.trim().length < 3)) {
+                          return 'Please enter your residential address / location';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+
+                    // ── 6. Emergency Contact Details ─────────────────────────
+                    if (isDriver) ...[
+                      Container(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.error.withValues(alpha: 0.12),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.contact_phone_outlined, size: 16, color: AppColors.error),
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                Text(
+                                  'Emergency Contact',
+                                  style: AppTypography.body(
+                                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            AppTextField(
+                              controller: _emergencyNameController,
+                              label: 'Contact Name & Relation',
+                              hintText: 'e.g. Priya Sharma (Wife)',
+                              prefixIcon: const Icon(Icons.person_outline, size: 18),
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            AppTextField(
+                              controller: _emergencyPhoneController,
+                              label: 'Emergency Phone Number',
+                              hintText: 'e.g. +91 98765 43210',
+                              prefixIcon: const Icon(Icons.phone_outlined, size: 18),
+                              keyboardType: TextInputType.phone,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                    ],
+
+                    // ── Corporate Toggle (User only) ─────────────────────────
                     if (!isDriver) ...[
                       Container(
                         padding: const EdgeInsets.all(AppSpacing.md),
@@ -357,7 +551,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                                   onChanged: (val) {
                                     setState(() => _isCorporateBooking = val);
                                   },
-                                  activeColor: isDark ? AppColors.primaryLight : AppColors.primary,
+                                  activeTrackColor: isDark ? AppColors.primaryLight : AppColors.primary,
                                 ),
                               ],
                             ),
@@ -375,10 +569,11 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                       const SizedBox(height: AppSpacing.xl),
                     ],
 
-                    // ── Primary Action ───────────────────────────────────────
+                    // ── Continue Action Button ───────────────────────────────
                     AppPrimaryButton(
-                      text: isDriver ? 'Continue to Vehicle' : 'Start Booking & Posting Trips',
-                      onPressed: _handleContinue,
+                      text: isDriver ? 'CONTINUE TO IDENTITY VERIFICATION' : 'Start Booking & Posting Trips',
+                      isLoading: _isSaving,
+                      onPressed: _isSaving ? null : _handleContinue,
                     ),
                   ],
                 ),

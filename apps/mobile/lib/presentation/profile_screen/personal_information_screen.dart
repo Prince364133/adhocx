@@ -156,11 +156,23 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     final authService = context.watch<AuthService>();
     final user = authService.currentUser;
 
+    bool isFakeName(String? s) {
+      if (s == null) return true;
+      final l = s.trim().toLowerCase();
+      return l.isEmpty || l == 'driver partner' || l == 'google partner' || l == 'google user' || l == 'apple user' || l == 'user';
+    }
+
+    bool isFakeEmail(String? s) {
+      if (s == null) return true;
+      final l = s.trim().toLowerCase();
+      return l.isEmpty || l == 'user.google@gmail.com' || l == 'test@example.com' || l == '—';
+    }
+
     // Real profile fields prioritized from backend response, with live session fallbacks
     final rawName = _profile?['fullName'] ?? onboarding.fullName;
-    final name = (rawName != null && rawName.toString().trim().isNotEmpty)
+    final name = (rawName != null && !isFakeName(rawName.toString()))
         ? rawName.toString().trim()
-        : (user?.fullName?.isNotEmpty == true ? user!.fullName! : 'Driver Partner');
+        : (user?.fullName != null && !isFakeName(user!.fullName) ? user.fullName! : 'Not provided');
 
     final rawPhone = _profile?['phone'] ?? onboarding.phoneNumber;
     final phone = (rawPhone != null && rawPhone.toString().trim().isNotEmpty)
@@ -168,9 +180,9 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
         : (user?.phone?.isNotEmpty == true ? user!.phone! : '—');
 
     final rawEmail = _profile?['email'] ?? onboarding.email;
-    final email = (rawEmail != null && rawEmail.toString().trim().isNotEmpty)
+    final String? email = (rawEmail != null && !isFakeEmail(rawEmail.toString()))
         ? rawEmail.toString().trim()
-        : (user?.email?.isNotEmpty == true ? user!.email! : '—');
+        : (user?.email != null && !isFakeEmail(user!.email) ? user.email!.trim() : null);
 
     final rawDob = _profile?['dateOfBirth'];
     final dob = (rawDob != null && rawDob.toString().trim().isNotEmpty)
@@ -211,8 +223,8 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                 ? 'DRV${user!.id.replaceAll('-', '').substring(0, 6).toUpperCase()}'
                 : 'DRV-PENDING'));
 
-    final profilePhotoUrl = _profile?['profilePhotoUrl']?.toString();
-    final verificationStatus = _profile?['verificationStatus']?.toString().toUpperCase() ?? 'VERIFIED';
+    final profilePhotoUrl = _profile?['profilePhotoUrl']?.toString() ?? user?.photoUrl;
+    final verificationStatus = _profile?['verificationStatus']?.toString().toUpperCase() ?? user?.verificationStatus ?? 'PENDING';
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -433,26 +445,28 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                                               ),
                                             ],
                                           ),
-                                          const SizedBox(height: 4),
-                                          Row(
-                                            children: [
-                                              Icon(
-                                                Icons.email_outlined,
-                                                size: 14,
-                                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                                              ),
-                                              const SizedBox(width: 6),
-                                              Expanded(
-                                                child: Text(
-                                                  email,
-                                                  style: AppTypography.caption(
-                                                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                                                  ),
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
+                                           if (email != null && email.isNotEmpty) ...[
+                                             const SizedBox(height: 4),
+                                             Row(
+                                               children: [
+                                                 Icon(
+                                                   Icons.email_outlined,
+                                                   size: 14,
+                                                   color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                                 ),
+                                                 const SizedBox(width: 6),
+                                                 Expanded(
+                                                   child: Text(
+                                                     email,
+                                                     style: AppTypography.caption(
+                                                       color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                                     ),
+                                                     overflow: TextOverflow.ellipsis,
+                                                   ),
+                                                 ),
+                                               ],
+                                             ),
+                                           ],
                                         ],
                                       ),
                                     ),

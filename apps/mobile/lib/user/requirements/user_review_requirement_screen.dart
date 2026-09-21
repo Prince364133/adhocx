@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../routes/app_routes.dart';
@@ -90,6 +91,15 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
     final combinedNotes = notesParts.join(' | ');
     final couponCode = _appliedCoupon?['code'] as String?;
 
+    if (draft.pickupLocation.trim().isEmpty || draft.dropLocation.trim().isEmpty) {
+      Fluttertoast.showToast(
+        msg: 'Please provide both pickup and drop locations.',
+        backgroundColor: AppColors.error,
+        textColor: Colors.white,
+      );
+      return;
+    }
+
     setState(() => _isSubmitting = true);
 
     try {
@@ -97,10 +107,10 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
         vehicleType: _normalizeVehicleType(draft.vehicleType),
         quantity: draft.quantity,
         fulfillmentMode: draft.fulfillmentMode,
-        pickupAddress: draft.pickupLocation.isNotEmpty ? draft.pickupLocation : 'DLF Cyber City, Gurugram',
-        pickupLat: draft.pickupLat != 0.0 ? draft.pickupLat : 28.4950,
-        pickupLng: draft.pickupLng != 0.0 ? draft.pickupLng : 77.0895,
-        dropAddress: draft.dropLocation.isNotEmpty ? draft.dropLocation : 'Indira Gandhi International Airport, Delhi',
+        pickupAddress: draft.pickupLocation.trim(),
+        pickupLat: draft.pickupLat != 0.0 ? draft.pickupLat : 28.4595,
+        pickupLng: draft.pickupLng != 0.0 ? draft.pickupLng : 77.0266,
+        dropAddress: draft.dropLocation.trim(),
         dropLat: draft.dropLat != 0.0 ? draft.dropLat : 28.5562,
         dropLng: draft.dropLng != 0.0 ? draft.dropLng : 77.1000,
         reportingTime: draft.reportingDateTime,

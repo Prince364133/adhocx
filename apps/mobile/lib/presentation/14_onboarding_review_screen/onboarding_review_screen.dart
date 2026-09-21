@@ -3,6 +3,8 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../routes/app_routes.dart';
+import '../../services/auth_provider.dart';
+import '../../services/auth_service.dart';
 import '../../services/driver_service.dart';
 import '../../services/onboarding_provider.dart';
 import '../../theme/app_colors.dart';
@@ -40,27 +42,52 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
       final onboarding = context.read<OnboardingProvider>();
       final driverService = context.read<DriverService>();
 
-      final dlUrl = onboarding.drivingLicenseUrl ??
-          'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/dl_sample.jpg';
-      final rcUrl = onboarding.rcBookUrl ??
-          'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/rc_sample.jpg';
-      final insUrl = onboarding.insuranceUrl ??
-          'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/insurance_sample.jpg';
-      final vehUrl = onboarding.vehiclePhotoUrl ??
-          'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/vehicle_sample.jpg';
-      final aadharFUrl = onboarding.aadharFrontUrl ??
-          'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/aadhar_front_sample.jpg';
-      final aadharBUrl = onboarding.aadharBackUrl ??
-          'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/aadhar_back_sample.jpg';
-      final panUrl = onboarding.panCardUrl ??
-          'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/pan_card_sample.jpg';
+      // Validate all required documents are uploaded
+      final missingDocs = <String>[];
+      if (onboarding.drivingLicenseUrl == null) missingDocs.add('Driving License');
+      if (onboarding.rcBookUrl == null) missingDocs.add('RC Book');
+      if (onboarding.insuranceUrl == null) missingDocs.add('Insurance');
+      if (onboarding.vehiclePhotoUrl == null) missingDocs.add('Vehicle Photo');
+      if (onboarding.aadharFrontUrl == null) missingDocs.add('Aadhaar Front');
+      if (onboarding.aadharBackUrl == null) missingDocs.add('Aadhaar Back');
+      if (onboarding.panCardUrl == null) missingDocs.add('PAN Card');
+
+      if (missingDocs.isNotEmpty) {
+        Fluttertoast.showToast(
+          msg: 'Please upload: ${missingDocs.join(", ")}',
+          backgroundColor: AppColors.error,
+          textColor: Colors.white,
+          toastLength: Toast.LENGTH_LONG,
+        );
+        setState(() => _isSubmitting = false);
+        return;
+      }
+
+      // Validate vehicle details
+      if (onboarding.carModel.isEmpty || onboarding.registrationNumber.isEmpty) {
+        Fluttertoast.showToast(
+          msg: 'Please provide vehicle model and registration number.',
+          backgroundColor: AppColors.error,
+          textColor: Colors.white,
+        );
+        setState(() => _isSubmitting = false);
+        return;
+      }
+
+      final dlUrl = onboarding.drivingLicenseUrl!;
+      final rcUrl = onboarding.rcBookUrl!;
+      final insUrl = onboarding.insuranceUrl!;
+      final vehUrl = onboarding.vehiclePhotoUrl!;
+      final aadharFUrl = onboarding.aadharFrontUrl!;
+      final aadharBUrl = onboarding.aadharBackUrl!;
+      final panUrl = onboarding.panCardUrl!;
 
       final docList = [dlUrl, rcUrl, insUrl, vehUrl, aadharFUrl, aadharBUrl, panUrl];
 
       await driverService.submitKyc(
         licenseNumber: onboarding.registrationNumber.isNotEmpty
             ? 'DL-${onboarding.registrationNumber}'
-            : 'DL-987654321',
+            : '',
         licenseExpiry: DateTime.now().add(const Duration(days: 365 * 5)),
         documentUrls: docList,
         dlFrontUrl: dlUrl,
@@ -72,13 +99,27 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
         panDocUrl: panUrl,
         vehicleDetails: {
           'type': onboarding.vehicleType,
-          'model': onboarding.carModel.isNotEmpty ? onboarding.carModel : 'Honda City',
-          'color': onboarding.color.isNotEmpty ? onboarding.color : 'White',
-          'registrationNumber': onboarding.registrationNumber.isNotEmpty
-              ? onboarding.registrationNumber
-              : 'HR26 AB 1234',
+          'model': onboarding.carModel,
+          'color': onboarding.color,
+          'registrationNumber': onboarding.registrationNumber,
         },
       );
+
+      // Also persist personal details to driver profile
+      try {
+        await driverService.updateProfile({
+          if (onboarding.fullName.isNotEmpty) 'fullName': onboarding.fullName,
+          if (onboarding.dateOfBirth != null)
+            'dateOfBirth': '${onboarding.dateOfBirth!.day}/${onboarding.dateOfBirth!.month}/${onboarding.dateOfBirth!.year}',
+          if (onboarding.gender.isNotEmpty) 'gender': onboarding.gender,
+        });
+      } catch (_) {}
+
+      // Refresh live authenticated session
+      final updatedUser = await AuthService.instance.fetchCurrentUser(forceRefresh: true);
+      if (updatedUser != null && mounted) {
+        context.read<AuthProvider>().setUser(updatedUser);
+      }
 
       if (mounted) {
         Fluttertoast.showToast(
@@ -91,8 +132,11 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
       }
     } catch (e) {
       if (mounted) {
-        // Fallback for seamless flow
-        context.go(AppRoutes.welcomeSuccessScreen);
+        Fluttertoast.showToast(
+          msg: 'KYC submission failed: ${e.toString().replaceAll('Exception: ', '')}',
+          backgroundColor: Colors.redAccent,
+          textColor: Colors.white,
+        );
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -223,7 +267,7 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                         Text(
                           onboarding.phoneNumber.isNotEmpty
                               ? onboarding.phoneNumber
-                              : '+91 98765 43210',
+                              : (AuthService.instance.currentUser?.phone ?? '—'),
                           style: AppTypography.body(
                             color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                           ),
@@ -250,7 +294,7 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                         ),
                         const SizedBox(height: AppSpacing.xs),
                         Text(
-                          '${onboarding.carModel.isNotEmpty ? onboarding.carModel : 'Honda City'} • ${onboarding.vehicleType} • ${onboarding.color.isNotEmpty ? onboarding.color : 'White'}',
+                          '${onboarding.carModel.isNotEmpty ? onboarding.carModel : '—'} • ${onboarding.vehicleType} • ${onboarding.color.isNotEmpty ? onboarding.color : '—'}',
                           style: AppTypography.body(
                             color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             fontWeight: FontWeight.w600,
@@ -260,7 +304,7 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                         Text(
                           onboarding.registrationNumber.isNotEmpty
                               ? onboarding.registrationNumber
-                              : 'HR26 AB 1234',
+                              : '—',
                           style: AppTypography.caption(
                             color: isDark ? AppColors.primaryLight : AppColors.primary,
                             fontWeight: FontWeight.bold,

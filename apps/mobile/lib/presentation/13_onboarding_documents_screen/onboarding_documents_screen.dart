@@ -14,7 +14,7 @@ import '../../widgets/common/app_document_upload_tile.dart';
 import '../../widgets/common/app_primary_button.dart';
 import '../../widgets/common/app_stepper_header.dart';
 
-/// Screen 13: Step 3 of 4: Upload Documents (KYC & Cloudflare R2 Uploads).
+/// Screen 13: Step 2 of 3: Verify Driver Identity (Profile Photo, Aadhaar Front & Back, PAN Card).
 class OnboardingDocumentsScreen extends StatefulWidget {
   const OnboardingDocumentsScreen({super.key});
 
@@ -130,6 +130,9 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
     String docTitle,
     ImageSource source,
   ) async {
+    final driverService = context.read<DriverService>();
+    final onboarding = context.read<OnboardingProvider>();
+
     try {
       final XFile? pickedFile = await _picker.pickImage(
         source: source,
@@ -147,9 +150,6 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
       final mimeType = (ext == 'png') ? 'image/png' : 'image/jpeg';
       final filename = '${docType.toLowerCase()}_${DateTime.now().millisecondsSinceEpoch}.$ext';
 
-      final driverService = context.read<DriverService>();
-      final onboarding = context.read<OnboardingProvider>();
-
       final res = await driverService.uploadKycDocument(
         documentType: docType,
         fileBytes: bytes,
@@ -157,8 +157,10 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
         mimeType: mimeType,
       );
 
-      final uploadedUrl = res['url'] ??
-          'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/$filename';
+      final uploadedUrl = res['url'];
+      if (uploadedUrl == null || uploadedUrl.toString().isEmpty) {
+        throw Exception('Upload succeeded but no URL returned from server');
+      }
 
       onboarding.setDocumentUrl(docType, uploadedUrl);
 
@@ -184,59 +186,34 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
 
   void _handleContinue() {
     final onboarding = context.read<OnboardingProvider>();
-    if (!onboarding.areAllDocumentsUploaded) {
-      // Auto-populate remaining for demo ease if user wants to proceed
-      if (onboarding.drivingLicenseUrl == null) {
-        onboarding.setDocumentUrl(
-          'DRIVING_LICENSE',
-          'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/dl_sample.jpg',
-        );
-      }
-      if (onboarding.rcBookUrl == null) {
-        onboarding.setDocumentUrl(
-          'RC_BOOK',
-          'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/rc_sample.jpg',
-        );
-      }
-      if (onboarding.insuranceUrl == null) {
-        onboarding.setDocumentUrl(
-          'INSURANCE',
-          'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/insurance_sample.jpg',
-        );
-      }
-      if (onboarding.vehiclePhotoUrl == null) {
-        onboarding.setDocumentUrl(
-          'VEHICLE_PHOTO',
-          'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/vehicle_sample.jpg',
-        );
-      }
-      if (onboarding.aadharFrontUrl == null) {
-        onboarding.setDocumentUrl(
-          'AADHAR_FRONT',
-          'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/aadhar_front_sample.jpg',
-        );
-      }
-      if (onboarding.aadharBackUrl == null) {
-        onboarding.setDocumentUrl(
-          'AADHAR_BACK',
-          'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/aadhar_back_sample.jpg',
-        );
-      }
-      if (onboarding.panCardUrl == null) {
-        onboarding.setDocumentUrl(
-          'PAN_CARD',
-          'https://pub-6b0e7f5bbf684bc7aa7bb5f04e679bf7.r2.dev/documents/pan_card_sample.jpg',
-        );
-      }
+
+    // Check if user has uploaded at least basic identity documents
+    final hasAnyId = onboarding.profilePhotoUrl != null ||
+        onboarding.aadharFrontUrl != null ||
+        onboarding.panCardUrl != null;
+
+    if (!hasAnyId) {
+      Fluttertoast.showToast(
+        msg: 'Please upload at least your profile photo or ID document to proceed',
+        backgroundColor: Colors.orange,
+        textColor: Colors.white,
+      );
+      return;
     }
 
-    context.push(AppRoutes.onboardingReviewScreen);
+    // Step 3 of 3: Vehicle Verification (Add Vehicle)
+    context.push(AppRoutes.onboardingVehicleScreen);
   }
 
   @override
   Widget build(BuildContext context) {
     final onboarding = context.watch<OnboardingProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final int uploadedCount = (onboarding.profilePhotoUrl != null ? 1 : 0) +
+        (onboarding.aadharFrontUrl != null ? 1 : 0) +
+        (onboarding.aadharBackUrl != null ? 1 : 0) +
+        (onboarding.panCardUrl != null ? 1 : 0);
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -255,16 +232,17 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // ── 4-Step Progress Header ───────────────────────────
+                        // ── 3-Step Progress Header ───────────────────────────
                         AppStepperHeader(
-                          currentStep: 3,
+                          currentStep: 2,
+                          totalSteps: 3,
                           onBack: () => context.pop(),
                         ),
                         const SizedBox(height: AppSpacing.xl),
 
                         // ── Title & Subtitle ─────────────────────────────────
                         Text(
-                          'Upload KYC Documents',
+                          'Verify Identity',
                           style: AppTypography.h1(
                             color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             fontWeight: FontWeight.bold,
@@ -272,92 +250,58 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
                         ),
                         const SizedBox(height: AppSpacing.xs),
                         Text(
-                          'Upload required verification documents (${onboarding.uploadedCount}/7 completed)',
+                          'Step 2 of 3: Upload your photo and government ID documents ($uploadedCount/4 uploaded)',
                           style: AppTypography.body(
                             color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                           ),
                         ),
                         const SizedBox(height: AppSpacing.xl),
 
-                        // ── Document 1: Driving License ──────────────────────
+                        // ── Document 1: Profile Photo ────────────────────────
                         AppDocumentUploadTile(
-                          title: 'Driving License',
-                          subtitle: 'Upload clear front copy',
-                          icon: Icons.badge_outlined,
-                          isUploaded: onboarding.drivingLicenseUrl != null,
-                          isUploading: _uploadingState['DRIVING_LICENSE'] ?? false,
+                          title: 'Driver Profile Photo',
+                          subtitle: 'Clear front-facing selfie or portrait',
+                          icon: Icons.account_circle_outlined,
+                          isUploaded: onboarding.profilePhotoUrl != null,
+                          isUploading: _uploadingState['PROFILE_PHOTO'] ?? false,
                           onUploadTap: () =>
-                              _showImageSourcePicker('DRIVING_LICENSE', 'Driving License'),
+                              _showImageSourcePicker('PROFILE_PHOTO', 'Driver Profile Photo'),
                         ),
                         const SizedBox(height: AppSpacing.md),
 
-                        // ── Document 2: RC Book ──────────────────────────────
+                        // ── Document 2: Aadhar Card Front ───────────────────
                         AppDocumentUploadTile(
-                          title: 'Vehicle RC Book',
-                          subtitle: 'Registration certificate front',
-                          icon: Icons.description_outlined,
-                          isUploaded: onboarding.rcBookUrl != null,
-                          isUploading: _uploadingState['RC_BOOK'] ?? false,
-                          onUploadTap: () => _showImageSourcePicker('RC_BOOK', 'RC Book'),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-
-                        // ── Document 3: Insurance ────────────────────────────
-                        AppDocumentUploadTile(
-                          title: 'Vehicle Insurance',
-                          subtitle: 'Valid policy certificate',
-                          icon: Icons.verified_user_outlined,
-                          isUploaded: onboarding.insuranceUrl != null,
-                          isUploading: _uploadingState['INSURANCE'] ?? false,
-                          onUploadTap: () => _showImageSourcePicker('INSURANCE', 'Insurance'),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-
-                        // ── Document 4: Vehicle Photo ────────────────────────
-                        AppDocumentUploadTile(
-                          title: 'Vehicle Photo',
-                          subtitle: 'Front view with number plate',
-                          icon: Icons.directions_car_outlined,
-                          isUploaded: onboarding.vehiclePhotoUrl != null,
-                          isUploading: _uploadingState['VEHICLE_PHOTO'] ?? false,
-                          onUploadTap: () =>
-                              _showImageSourcePicker('VEHICLE_PHOTO', 'Vehicle Photo'),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-
-                        // ── Document 5: Aadhar Card Front ───────────────────
-                        AppDocumentUploadTile(
-                          title: 'Aadhar Card (Front)',
-                          subtitle: 'Clear photo of front side',
+                          title: 'Aadhaar Card (Front)',
+                          subtitle: 'Front side with photo and Aadhaar number',
                           icon: Icons.credit_card_rounded,
                           isUploaded: onboarding.aadharFrontUrl != null,
                           isUploading: _uploadingState['AADHAR_FRONT'] ?? false,
                           onUploadTap: () =>
-                              _showImageSourcePicker('AADHAR_FRONT', 'Aadhar Card (Front)'),
+                              _showImageSourcePicker('AADHAR_FRONT', 'Aadhaar Card (Front)'),
                         ),
                         const SizedBox(height: AppSpacing.md),
 
-                        // ── Document 6: Aadhar Card Back ────────────────────
+                        // ── Document 3: Aadhar Card Back ────────────────────
                         AppDocumentUploadTile(
-                          title: 'Aadhar Card (Back)',
-                          subtitle: 'Clear photo of back address side',
+                          title: 'Aadhaar Card (Back)',
+                          subtitle: 'Back side showing residential address',
                           icon: Icons.credit_card_outlined,
                           isUploaded: onboarding.aadharBackUrl != null,
                           isUploading: _uploadingState['AADHAR_BACK'] ?? false,
                           onUploadTap: () =>
-                              _showImageSourcePicker('AADHAR_BACK', 'Aadhar Card (Back)'),
+                              _showImageSourcePicker('AADHAR_BACK', 'Aadhaar Card (Back)'),
                         ),
                         const SizedBox(height: AppSpacing.md),
 
-                        // ── Document 7: PAN Card ────────────────────────────
+                        // ── Document 4: PAN Card Front ──────────────────────
                         AppDocumentUploadTile(
-                          title: 'PAN Card',
-                          subtitle: 'Permanent Account Number card',
+                          title: 'PAN Card (Front)',
+                          subtitle: 'Front side with PAN number and signature',
                           icon: Icons.assignment_ind_outlined,
                           isUploaded: onboarding.panCardUrl != null,
                           isUploading: _uploadingState['PAN_CARD'] ?? false,
                           onUploadTap: () =>
-                              _showImageSourcePicker('PAN_CARD', 'PAN Card'),
+                              _showImageSourcePicker('PAN_CARD', 'PAN Card (Front)'),
                         ),
                         const SizedBox(height: AppSpacing.xl),
                       ],
@@ -372,7 +316,7 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
                     vertical: AppSpacing.md,
                   ),
                   child: AppPrimaryButton(
-                    text: 'Continue',
+                    text: 'CONTINUE TO VEHICLE DETAILS',
                     onPressed: _handleContinue,
                   ),
                 ),

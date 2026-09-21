@@ -49,15 +49,15 @@ class _UserHistoricalTripDetailsScreenState extends State<UserHistoricalTripDeta
 
     final trip = _trip ?? {};
     final status = (trip['status'] ?? 'COMPLETED').toString();
-    final tripCode = trip['tripCode'] ?? trip['id'] ?? 'TRP-HISTORICAL';
+    final tripCode = trip['tripCode'] ?? trip['id'] ?? '—';
 
     final pickup = trip['pickupLocation'] as Map<String, dynamic>?;
     final drop = trip['dropLocation'] as Map<String, dynamic>?;
-    final pickupAddr = pickup?['address'] ?? 'DLF Cyber City, Gurugram';
-    final dropAddr = drop?['address'] ?? 'IGI Airport, New Delhi';
-    final fare = trip['agreedRate'] ?? trip['fare'] ?? 1500;
+    final pickupAddr = pickup?['address'] ?? '—';
+    final dropAddr = drop?['address'] ?? '—';
+    final fare = trip['agreedRate'] ?? trip['fare'] ?? trip['ratePerVehicle'] ?? 0;
     final driver = trip['driver'] as Map<String, dynamic>?;
-    final vehicleModel = driver?['vehicleModel'] ?? trip['vehicleModel'] ?? 'Sedan';
+    final vehicleModel = driver?['vehicleModel'] ?? trip['vehicleModel'] ?? trip['vehicleType'] ?? 'Commercial Fleet';
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,

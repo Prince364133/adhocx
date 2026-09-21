@@ -33,33 +33,24 @@ async function main() {
   console.log('\n📊 Pre-wipe record counts:');
   console.table(beforeCounts);
 
-  // 2. Truncate all application tables with CASCADE
-  console.log('\n🧹 Executing TRUNCATE TABLE across all tables with CASCADE...');
-  const tables = [
-    'trip_events',
-    'reviews',
-    'disputes',
-    'payments',
-    'settlements',
-    'ledger_entries',
-    'audit_logs',
-    'coupon_redemptions',
-    'coupons',
-    'trips',
-    'assignments',
-    'bids',
-    'offers',
-    'requirements',
-    'vehicles',
-    'drivers',
-    'vendors',
-    'users',
-    'blog_posts',
-  ];
+  // 2. Discover and truncate all existing application tables with CASCADE
+  console.log('\n🧹 Discovering all public tables in database...');
+  const tableRows = await prisma.$queryRawUnsafe(`
+    SELECT table_name 
+    FROM information_schema.tables 
+    WHERE table_schema = 'public' 
+      AND table_type = 'BASE TABLE'
+      AND table_name != '_prisma_migrations';
+  `);
 
-  const truncateQuery = `TRUNCATE TABLE ${tables.map((t) => `"${t}"`).join(', ')} RESTART IDENTITY CASCADE;`;
-  await prisma.$executeRawUnsafe(truncateQuery);
-  console.log('✅ PostgreSQL tables successfully truncated.');
+  const tablesToTruncate = tableRows.map((r) => `"${r.table_name}"`);
+  console.log(`Found ${tablesToTruncate.length} tables:`, tablesToTruncate.join(', '));
+
+  if (tablesToTruncate.length > 0) {
+    const truncateQuery = `TRUNCATE TABLE ${tablesToTruncate.join(', ')} RESTART IDENTITY CASCADE;`;
+    await prisma.$executeRawUnsafe(truncateQuery);
+    console.log('✅ All PostgreSQL tables successfully truncated with CASCADE.');
+  }
 
   // 3. Clear Redis Cache
   const redisUrl = process.env.REDIS_URL;

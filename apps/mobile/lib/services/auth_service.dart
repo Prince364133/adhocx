@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import '../core/networking/api_client.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import '../core/utils/app_logger.dart';
+import './fcm_service.dart';
 
 class UserModel {
   final String id;
@@ -21,31 +23,50 @@ class UserModel {
     required this.role,
     this.fullName,
     this.photoUrl,
-    this.hasPassword = true,
-    this.isOnboarded = true,
+    this.hasPassword = false,
+    this.isOnboarded = false,
     this.driverProfile,
     this.vendorProfile,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
-    // Handle wrapped payloads { success, data }
-    final data = json['data'] is Map<String, dynamic> ? json['data'] as Map<String, dynamic> : json;
+    // Handle wrapped payloads { success, data } or { user: ... }
+    final root = json['data'] is Map<String, dynamic> ? json['data'] as Map<String, dynamic> : json;
+    final Map<String, dynamic> data = (root['user'] is Map<String, dynamic>)
+        ? root['user'] as Map<String, dynamic>
+        : root;
 
-    final roleStr = (data['role'] ?? 'DRIVER').toString().toUpperCase();
-    final bool hasPass = data['hasPassword'] == true || data['passwordSet'] == true;
-    final bool isOb = data['isOnboarded'] == true;
+    final roleStr = (data['role'] ?? root['role'] ?? 'DRIVER').toString().toUpperCase();
+    final bool hasPass = data['hasPassword'] == true || data['passwordSet'] == true || root['hasPassword'] == true;
+
+    final driverProf = (data['driverProfile'] is Map)
+        ? Map<String, dynamic>.from(data['driverProfile'])
+        : (root['driverProfile'] is Map ? Map<String, dynamic>.from(root['driverProfile']) : null);
+    final vendorProf = (data['vendorProfile'] is Map)
+        ? Map<String, dynamic>.from(data['vendorProfile'])
+        : (root['vendorProfile'] is Map ? Map<String, dynamic>.from(root['vendorProfile']) : null);
+
+    final dStatus = driverProf?['verificationStatus']?.toString().toUpperCase();
+    final vStatus = vendorProf?['verificationStatus']?.toString().toUpperCase();
+
+    final bool isOb = data['isOnboarded'] == true ||
+        root['isOnboarded'] == true ||
+        dStatus == 'UNDER_REVIEW' ||
+        dStatus == 'VERIFIED' ||
+        vStatus == 'UNDER_REVIEW' ||
+        vStatus == 'VERIFIED';
 
     return UserModel(
-      id: (data['id'] ?? '').toString(),
-      phone: data['phone']?.toString(),
-      email: data['email']?.toString(),
+      id: (data['id'] ?? root['id'] ?? '').toString(),
+      phone: data['phone']?.toString() ?? root['phone']?.toString(),
+      email: data['email']?.toString() ?? root['email']?.toString(),
       role: roleStr,
-      fullName: (data['fullName'] ?? data['name'])?.toString(),
-      photoUrl: data['photoUrl']?.toString(),
-      hasPassword: data.containsKey('hasPassword') ? hasPass : true,
-      isOnboarded: data.containsKey('isOnboarded') ? isOb : true,
-      driverProfile: data['driverProfile'] is Map ? Map<String, dynamic>.from(data['driverProfile']) : null,
-      vendorProfile: data['vendorProfile'] is Map ? Map<String, dynamic>.from(data['vendorProfile']) : null,
+      fullName: (data['fullName'] ?? data['name'] ?? root['fullName'])?.toString(),
+      photoUrl: data['photoUrl']?.toString() ?? root['photoUrl']?.toString(),
+      hasPassword: hasPass,
+      isOnboarded: isOb,
+      driverProfile: driverProf,
+      vendorProfile: vendorProf,
     );
   }
 
@@ -55,10 +76,13 @@ class UserModel {
 
   String get verificationStatus {
     if (isDriver && driverProfile != null) {
-      return (driverProfile!['verificationStatus'] ?? 'PENDING').toString();
+      return (driverProfile!['verificationStatus'] ?? 'PENDING').toString().toUpperCase();
     }
     if (vendorProfile != null) {
-      return (vendorProfile!['verificationStatus'] ?? 'PENDING').toString();
+      return (vendorProfile!['verificationStatus'] ?? 'PENDING').toString().toUpperCase();
+    }
+    if (driverProfile != null) {
+      return (driverProfile!['verificationStatus'] ?? 'PENDING').toString().toUpperCase();
     }
     return 'PENDING';
   }
@@ -99,16 +123,16 @@ class AuthService {
 
   final ApiClient _api = ApiClient.instance;
   UserModel? _currentUser;
+  final ValueNotifier<UserModel?> authStateListenable = ValueNotifier<UserModel?>(null);
 
   UserModel? get currentUser => _currentUser;
 
   void setCurrentUser(UserModel? user) {
     _currentUser = user;
+    authStateListenable.value = user;
   }
 
-  /**
-   * Password Authentication (Mobile Number / Email + Password)
-   */
+  /// Password Authentication (Mobile Number / Email + Password)
   Future<AuthResult> loginWithPassword({
     required String identifier,
     required String password,
@@ -123,19 +147,13 @@ class AuthService {
       },
     );
 
-    final token = _extractToken(response);
-    if (token != null) {
-      await _api.setToken(token);
-    }
-
-    final user = await fetchCurrentUser();
+    final token = await _saveTokens(response);
+    final user = await fetchCurrentUser(forceRefresh: true);
     final effectiveUser = user ?? _currentUser ?? UserModel(id: 'usr_auth', role: role);
     return AuthResult(user: effectiveUser, accessToken: token);
   }
 
-  /**
-   * Request OTP via SMS (Phone) or Email
-   */
+  /// Request OTP via SMS (Phone) or Email
   Future<dynamic> requestOtp({
     String? phone,
     String? email,
@@ -160,9 +178,7 @@ class AuthService {
     return response is Map ? response : {'message': 'OTP sent successfully'};
   }
 
-  /**
-   * Verify OTP with Phone or Email
-   */
+  /// Verify OTP with Phone or Email
   Future<AuthResult> verifyOtp({
     String? phone,
     String? email,
@@ -183,19 +199,13 @@ class AuthService {
       },
     );
 
-    final token = _extractToken(response);
-    if (token != null) {
-      await _api.setToken(token);
-    }
-
-    final user = await fetchCurrentUser();
+    final token = await _saveTokens(response);
+    final user = await fetchCurrentUser(forceRefresh: true);
     final effectiveUser = user ?? _currentUser ?? UserModel(id: 'usr_auth', role: role, phone: phone, email: email, fullName: fullName);
     return AuthResult(user: effectiveUser, accessToken: token);
   }
 
-  /**
-   * Google Sign-In / Sign-Up (Pre-verified email, skips OTP)
-   */
+  /// Google Sign-In / Sign-Up (Pre-verified email, skips OTP)
   Future<AuthResult> signInWithGoogle({
     String role = 'DRIVER',
   }) async {
@@ -221,10 +231,9 @@ class AuthService {
       debugPrint('GoogleSignIn native/web sign-in event: $e');
     }
 
-    // If popup was blocked or running in web dev mode, provide fallback verified user
+    // If popup was cancelled or failed to authenticate
     if (email == null || email.isEmpty) {
-      email = 'user.google@gmail.com';
-      displayName = 'Google Partner';
+      throw Exception('Google Sign-In was cancelled or not completed. Please try again or use your mobile number.');
     }
 
     final response = await _api.post(
@@ -232,31 +241,28 @@ class AuthService {
       body: {
         'provider': 'GOOGLE',
         'email': email,
-        'fullName': displayName ?? 'Google User',
+        'fullName': displayName ?? 'User',
         if (idToken != null) 'idToken': idToken,
         'role': role,
       },
     );
 
-    final token = _extractToken(response);
-    if (token != null) {
-      await _api.setToken(token);
-    }
-
-    final user = await fetchCurrentUser();
+    final token = await _saveTokens(response);
+    final user = await fetchCurrentUser(forceRefresh: true);
     final effectiveUser = user ?? _currentUser ?? UserModel(id: 'usr_auth', role: role, email: email, fullName: displayName);
     return AuthResult(user: effectiveUser, accessToken: token);
   }
 
-  /**
-   * Apple Sign-In / Sign-Up (Pre-verified email, skips OTP)
-   */
+  /// Apple Sign-In / Sign-Up (Pre-verified email, skips OTP)
   Future<AuthResult> signInWithApple({
     String? email,
     String? fullName,
     String role = 'DRIVER',
   }) async {
-    final userEmail = email ?? 'apple.user@privaterelay.appleid.com';
+    if (email == null || email.isEmpty) {
+      throw Exception('Apple Sign-In was cancelled or not completed. Please try again or use your mobile number.');
+    }
+    final userEmail = email;
     final userName = fullName ?? 'Apple User';
 
     final response = await _api.post(
@@ -269,19 +275,13 @@ class AuthService {
       },
     );
 
-    final token = _extractToken(response);
-    if (token != null) {
-      await _api.setToken(token);
-    }
-
-    final user = await fetchCurrentUser();
+    final token = await _saveTokens(response);
+    final user = await fetchCurrentUser(forceRefresh: true);
     final effectiveUser = user ?? _currentUser ?? UserModel(id: 'usr_auth', role: role, email: userEmail, fullName: userName);
     return AuthResult(user: effectiveUser, accessToken: token);
   }
 
-  /**
-   * Set User Password for Authenticated User
-   */
+  /// Set User Password for Authenticated User
   Future<dynamic> setPassword({required String password}) async {
     final response = await _api.post(
       '/auth/password',
@@ -290,16 +290,14 @@ class AuthService {
     return response;
   }
 
-  /**
-   * Reset Password with Verified OTP
-   */
+  /// Reset Password with Verified OTP
   Future<dynamic> resetPassword({
     required String identifier,
     required String otp,
     required String newPassword,
   }) async {
     final response = await _api.post(
-      '/auth/password/reset',
+      '/auth/reset-password',
       body: {
         'identifier': identifier,
         'otp': otp,
@@ -312,76 +310,33 @@ class AuthService {
   Future<UserModel?>? _inFlightUserFetch;
   DateTime? _lastUserFetchTime;
 
-  Future<UserModel> ensureAuthenticatedSession({String role = 'DRIVER', bool force = false}) async {
-    final targetRole = role.toUpperCase();
-    final isDriverTarget = targetRole == 'DRIVER';
-    final isVendorTarget = targetRole == 'VENDOR' || targetRole == 'USER';
-
-    // 1. Fast path: If current cached user matches required role, return immediately without network call
+  Future<UserModel?> ensureAuthenticatedSession({String? role, bool force = false}) async {
     if (!force && _currentUser != null) {
-      final userRole = _currentUser!.role.toUpperCase();
-      final isDriverUser = userRole == 'DRIVER';
-      final isVendorUser = userRole == 'VENDOR' || userRole == 'USER' || userRole == 'ADMIN';
-
-      if ((isDriverTarget && isDriverUser) || (isVendorTarget && isVendorUser)) {
-        return _currentUser!;
-      }
+      return _currentUser;
     }
 
     final token = await _api.getToken();
     if (token != null && token.isNotEmpty) {
       try {
-        final user = await fetchCurrentUser();
+        final user = await fetchCurrentUser(forceRefresh: force);
         if (user != null) {
-          final userRole = user.role.toUpperCase();
-          final isDriverUser = userRole == 'DRIVER';
-          final isVendorUser = userRole == 'VENDOR' || userRole == 'USER' || userRole == 'ADMIN';
-
-          if ((isDriverTarget && isDriverUser) || (isVendorTarget && isVendorUser)) {
-            return user;
-          }
+          return user;
         }
       } catch (_) {}
     }
 
-    // Auto-bootstrap valid session via live backend social/dev auth
-    try {
-      final email = isDriverTarget ? 'driver.partner@adhocx.com' : 'booker.corporate@adhocx.com';
-      final fullName = isDriverTarget ? 'Driver Partner' : 'Corporate Booker';
-
-      final result = await _api.post(
-        '/auth/social',
-        body: {
-          'provider': 'GOOGLE',
-          'email': email,
-          'fullName': fullName,
-          'role': isDriverTarget ? 'DRIVER' : 'VENDOR',
-        },
-      );
-
-      final newToken = _extractToken(result);
-      if (newToken != null) {
-        await _api.setToken(newToken);
-      }
-      final user = await fetchCurrentUser(forceRefresh: true);
-      if (user != null) return user;
-    } catch (e) {
-      debugPrint('ensureAuthenticatedSession failed: $e');
-    }
-
-    _currentUser ??= UserModel(id: 'usr_guest', phone: '+919876543210', role: role);
-    return _currentUser!;
+    return _currentUser;
   }
 
-  Future<UserModel> ensureDriverSession() => ensureAuthenticatedSession(role: 'DRIVER');
-  Future<UserModel> ensureVendorSession() => ensureAuthenticatedSession(role: 'VENDOR');
+  Future<UserModel?> ensureDriverSession() => ensureAuthenticatedSession(role: 'DRIVER');
+  Future<UserModel?> ensureVendorSession() => ensureAuthenticatedSession(role: 'VENDOR');
 
   Future<UserModel?> fetchCurrentUser({bool forceRefresh = false}) async {
-    // 1. Cache hit check (30s TTL)
+    // 1. Cache hit check (15s TTL)
     if (!forceRefresh &&
         _currentUser != null &&
         _lastUserFetchTime != null &&
-        DateTime.now().difference(_lastUserFetchTime!) < const Duration(seconds: 30)) {
+        DateTime.now().difference(_lastUserFetchTime!) < const Duration(seconds: 15)) {
       return _currentUser;
     }
 
@@ -411,6 +366,7 @@ class AuthService {
         final data = response['data'] is Map<String, dynamic> ? response['data'] as Map<String, dynamic> : response;
         _currentUser = UserModel.fromJson(data);
         _lastUserFetchTime = DateTime.now();
+        authStateListenable.value = _currentUser;
         return _currentUser;
       }
     } catch (e) {
@@ -419,6 +375,7 @@ class AuthService {
         await _api.clearToken();
         _currentUser = null;
         _lastUserFetchTime = null;
+        authStateListenable.value = null;
         return null;
       }
     }
@@ -429,41 +386,103 @@ class AuthService {
     final token = await _api.getToken();
     if (token != null && token.isNotEmpty) {
       try {
-        final user = await fetchCurrentUser();
+        final user = await fetchCurrentUser(forceRefresh: true);
         if (user != null) return true;
       } catch (_) {
         await _api.clearToken();
       }
     }
 
-    // On local Web / Dev, auto-bootstrap live authenticated session so network calls never fail with 401
-    if (kDebugMode || kIsWeb) {
-      try {
-        await ensureAuthenticatedSession(role: defaultRole ?? 'DRIVER');
-        return _currentUser != null;
-      } catch (_) {}
-    }
-
     _currentUser = null;
+    authStateListenable.value = null;
     return false;
   }
 
   Future<void> logout() async {
+    AppLogger.info('User sign out started for: ${_currentUser?.id ?? "session"}', tag: 'AUTH');
+    try {
+      final token = await _api.getToken();
+      if (token != null && token.isNotEmpty) {
+        await FcmService.instance.unregisterToken(
+          apiBaseUrl: _api.baseUrl,
+          authToken: token,
+        );
+      }
+    } catch (e) {
+      AppLogger.warn('FCM token unregister skipped: $e', tag: 'AUTH');
+    }
+
     try {
       await _api.post('/auth/logout');
-    } catch (_) {}
+      AppLogger.info('Backend session invalidated via /auth/logout', tag: 'AUTH');
+    } catch (e) {
+      AppLogger.warn('Backend logout request note: $e', tag: 'AUTH');
+    }
+
+    try {
+      final googleSignIn = GoogleSignIn();
+      if (await googleSignIn.isSignedIn()) {
+        await googleSignIn.signOut();
+        AppLogger.info('Google SignIn session cleared', tag: 'AUTH');
+      }
+    } catch (e) {
+      AppLogger.debug('Google sign-out cleanup note: $e', tag: 'AUTH');
+    }
+
     await _api.clearToken();
     _currentUser = null;
+    _lastUserFetchTime = null;
+    _inFlightUserFetch = null;
+    authStateListenable.value = null;
+    AppLogger.info('User session and credentials completely cleared', tag: 'AUTH');
   }
 
-  String? _extractToken(dynamic response) {
+  /// Permanently delete account and all data from database
+  Future<void> deleteAccount() async {
+    AppLogger.warn('Initiating permanent account deletion from database...', tag: 'AUTH');
+    try {
+      final token = await _api.getToken();
+      if (token != null && token.isNotEmpty) {
+        await FcmService.instance.unregisterToken(
+          apiBaseUrl: _api.baseUrl,
+          authToken: token,
+        );
+      }
+    } catch (e) {
+      AppLogger.warn('FCM token unregister before deletion skipped: $e', tag: 'AUTH');
+    }
+
+    try {
+      await _api.delete('/auth/account');
+      AppLogger.info('Account permanently erased from backend database', tag: 'AUTH');
+    } catch (e) {
+      AppLogger.error('Account deletion API call failed: $e', tag: 'AUTH', error: e);
+      rethrow;
+    }
+
+    try {
+      final googleSignIn = GoogleSignIn();
+      if (await googleSignIn.isSignedIn()) {
+        await googleSignIn.disconnect();
+      }
+    } catch (_) {}
+
+    await _api.clearToken();
+    _currentUser = null;
+    _lastUserFetchTime = null;
+    _inFlightUserFetch = null;
+    authStateListenable.value = null;
+    AppLogger.info('All local credentials and state cleared after account deletion', tag: 'AUTH');
+  }
+
+  Future<String?> _saveTokens(dynamic response) async {
     if (response is Map) {
       final payload = response['data'] is Map ? response['data'] as Map : response;
-      if (payload['accessToken'] != null) {
-        return payload['accessToken'].toString();
-      }
-      if (payload['token'] != null) {
-        return payload['token'].toString();
+      final accessToken = payload['accessToken']?.toString() ?? payload['token']?.toString();
+      final refreshToken = payload['refreshToken']?.toString();
+      if (accessToken != null && accessToken.isNotEmpty) {
+        await _api.setToken(accessToken, refreshToken: refreshToken);
+        return accessToken;
       }
     }
     return null;

@@ -104,7 +104,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
                         ),
                       ),
                       IconButton(
-                        onPressed: () => context.push(AppRoutes.notificationsSettingsScreen),
+                        onPressed: () => context.push(AppRoutes.notificationsFeedScreen),
                         icon: Icon(
                           Icons.notifications_none_rounded,
                           color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
@@ -486,10 +486,10 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
         final drop = trip['dropLocation']?['address'] ??
             req['dropLocation']?['address'] ??
             'Drop Location';
-        final payout = '₹${trip['driverEarnings'] ?? trip['fare'] ?? '850'}';
-        final passengerName = req['vendor']?['businessName'] ?? 'Requester Passenger';
-        final passengerPhone = req['vendor']?['phone'] ?? '+91 98765 43210';
-        final vehicle = req['vehicleType']?.toString() ?? 'Sedan';
+        final payout = '₹${trip['driverEarnings'] ?? trip['fare'] ?? trip['ratePerVehicle'] ?? 0}';
+        final passengerName = req['vendor']?['businessName'] ?? req['vendor']?['companyName'] ?? 'Requester Passenger';
+        final passengerPhone = req['vendor']?['phone'] ?? '\u2014';
+        final vehicle = req['vehicleType']?.toString() ?? 'Commercial Vehicle';
 
         return Column(
           children: [

@@ -25,16 +25,16 @@ class ProfileDriverCardWidget extends StatelessWidget {
 
     final phone = (profile['phone'] != null && profile['phone'].toString().trim().isNotEmpty)
         ? profile['phone'].toString().trim()
-        : '+91 98765 43210';
+        : '—';
 
     final vehicle = (profile['vehicle'] != null && profile['vehicle'].toString().trim().isNotEmpty)
         ? profile['vehicle'].toString().trim()
         : 'Commercial Fleet Vehicle';
 
     final isVerified = profile['is_verified'] != false;
-    final rating = profile['rating']?.toString() ?? '4.92';
-    final totalTrips = profile['total_trips']?.toString() ?? '1,280';
-    final acceptanceRate = profile['acceptance_rate']?.toString() ?? '98.5%';
+    final rating = profile['rating']?.toString() ?? '0';
+    final totalTrips = profile['total_trips']?.toString() ?? '0';
+    final acceptanceRate = profile['acceptance_rate']?.toString() ?? '0%';
 
     return Container(
       decoration: BoxDecoration(

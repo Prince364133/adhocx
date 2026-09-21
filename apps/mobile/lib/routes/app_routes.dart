@@ -25,13 +25,11 @@ import '../presentation/opportunities_screen/opportunity_details_screen.dart';
 import '../presentation/opportunities_screen/opportunity_offer_screen.dart';
 import '../presentation/profile_screen/account_status_screen.dart';
 import '../presentation/profile_screen/add_vehicle_screen.dart';
-import '../presentation/profile_screen/app_settings_screen.dart';
 import '../presentation/profile_screen/document_details_screen.dart';
 import '../presentation/profile_screen/edit_personal_info_screen.dart';
 import '../presentation/profile_screen/help_support_screen.dart';
 import '../presentation/profile_screen/kyc_verification_screen.dart';
 import '../presentation/profile_screen/my_vehicle_screen.dart';
-import '../presentation/profile_screen/notifications_settings_screen.dart';
 import '../presentation/profile_screen/personal_information_screen.dart';
 import '../presentation/profile_screen/profile_screen.dart';
 import '../presentation/trips_screen/trip_details_screen.dart';
@@ -129,9 +127,9 @@ class AppRoutes {
   static const String driverScoreScreen = '/driver/score';
   static const String documentDetailsScreen = '/profile/documents/details';
   static const String accountStatusScreen = '/profile/account-status';
-  static const String notificationsSettingsScreen = '/profile/notifications';
+  static const String notificationsSettingsScreen = notificationsFeedScreen;
   static const String helpSupportScreen = '/profile/support';
-  static const String appSettingsScreen = '/profile/settings';
+  static const String appSettingsScreen = profileScreen;
 
   // 4 Earnings & Financial Screens
   static const String earningsTransactionsScreen = '/earnings/transactions';
@@ -275,6 +273,7 @@ class AppRoutes {
 
 final GoRouter appRouter = GoRouter(
   initialLocation: AppRoutes.splashScreen,
+  refreshListenable: AuthService.instance.authStateListenable,
   redirect: (BuildContext context, GoRouterState state) async {
     final user = AuthService.instance.currentUser;
     final isLoggedIn = user != null;
@@ -315,7 +314,7 @@ final GoRouter appRouter = GoRouter(
 
     // 3. Mandatory Onboarding Completion Guard:
     // If authenticated user has not completed onboarding, force appropriate onboarding screen
-    if (!user.isOnboarded) {
+    if (!user.isOnboarded && !user.isUnderReview && !user.isVerified) {
       const allowedOnboardingRoutes = {
         AppRoutes.chooseRoleScreen,
         AppRoutes.onboardingPersonalScreen,
@@ -323,6 +322,7 @@ final GoRouter appRouter = GoRouter(
         AppRoutes.onboardingDocumentsScreen,
         AppRoutes.onboardingReviewScreen,
         AppRoutes.welcomeSuccessScreen,
+        AppRoutes.waitlistGateScreen,
         AppRoutes.setPasswordScreen,
       };
 
@@ -333,7 +333,29 @@ final GoRouter appRouter = GoRouter(
       return AppRoutes.onboardingPersonalScreen;
     }
 
-    // 4. Authenticated & Onboarded users should not linger on auth pages
+    // 4. Mandatory Verification Gate (Wall):
+    // If onboarded user is not yet verified by Admin, lock to waitlistGateScreen
+    if (!user.isVerified) {
+      const allowedUnverifiedRoutes = {
+        AppRoutes.waitlistGateScreen,
+        AppRoutes.welcomeSuccessScreen,
+        AppRoutes.onboardingPersonalScreen,
+        AppRoutes.onboardingDocumentsScreen,
+        AppRoutes.onboardingReviewScreen,
+        AppRoutes.profileScreen,
+        AppRoutes.personalInfoScreen,
+        AppRoutes.helpSupportScreen,
+        AppRoutes.accountStatusScreen,
+      };
+
+      if (allowedUnverifiedRoutes.contains(currentPath)) {
+        return null;
+      }
+
+      return AppRoutes.waitlistGateScreen;
+    }
+
+    // 5. Authenticated, Onboarded & Verified users should not linger on auth / onboarding / waitlist pages
     const authAndOnboardingScreens = {
       AppRoutes.signInScreen,
       AppRoutes.signUpScreen,
@@ -344,12 +366,13 @@ final GoRouter appRouter = GoRouter(
       AppRoutes.onboardingVehicleScreen,
       AppRoutes.onboardingDocumentsScreen,
       AppRoutes.onboardingReviewScreen,
+      AppRoutes.waitlistGateScreen,
     };
     if (authAndOnboardingScreens.contains(currentPath)) {
       return user.isDriver ? AppRoutes.homeScreen : AppRoutes.userHomeScreen;
     }
 
-    // 5. Strict Role Separation:
+    // 6. Strict Role Separation:
     // Drivers cannot access /user/* routes
     if (user.isDriver && currentPath.startsWith('/user/')) {
       return AppRoutes.homeScreen;
@@ -415,7 +438,7 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final extra = state.extra as Map<String, dynamic>? ?? {};
         return ForgotPasswordOtpScreen(
-          phone: extra['phone'] ?? '+91 98765 43210',
+          phone: extra['phone'] ?? '',
         );
       },
     ),
@@ -424,7 +447,7 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final extra = state.extra as Map<String, dynamic>? ?? {};
         return ResetPasswordScreen(
-          phone: extra['phone'] ?? '+91 98765 43210',
+          phone: extra['phone'] ?? '',
           otp: extra['otp'],
         );
       },
@@ -500,16 +523,16 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const AccountStatusScreen(),
     ),
     GoRoute(
-      path: AppRoutes.notificationsSettingsScreen,
-      builder: (context, state) => const NotificationsSettingsScreen(),
+      path: '/profile/notifications',
+      redirect: (context, state) => AppRoutes.notificationsFeedScreen,
     ),
     GoRoute(
       path: AppRoutes.helpSupportScreen,
       builder: (context, state) => const HelpSupportScreen(),
     ),
     GoRoute(
-      path: AppRoutes.appSettingsScreen,
-      builder: (context, state) => const AppSettingsScreen(),
+      path: '/profile/settings',
+      redirect: (context, state) => AppRoutes.profileScreen,
     ),
 
     // ── 4 Earnings & Financial Routes ────────────────────────────────────────
@@ -649,7 +672,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.userEditRequirementScreen,
-      builder: (context, state) => const UserEditRequirementScreen(),
+      builder: (context, state) => UserEditRequirementScreen(requirementData: state.extra as Map<String, dynamic>?),
     ),
     GoRoute(
       path: AppRoutes.userBulkPostingScreen,
@@ -821,15 +844,24 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.userTicketDetailsOpenScreen,
-      builder: (context, state) => const UserTicketDetailsScreen(initialState: TicketStatusState.open),
+      builder: (context, state) => UserTicketDetailsScreen(
+        initialState: TicketStatusState.open,
+        ticketData: state.extra as Map<String, dynamic>?,
+      ),
     ),
     GoRoute(
       path: AppRoutes.userTicketDetailsInProgressScreen,
-      builder: (context, state) => const UserTicketDetailsScreen(initialState: TicketStatusState.inProgress),
+      builder: (context, state) => UserTicketDetailsScreen(
+        initialState: TicketStatusState.inProgress,
+        ticketData: state.extra as Map<String, dynamic>?,
+      ),
     ),
     GoRoute(
       path: AppRoutes.userTicketDetailsResolvedScreen,
-      builder: (context, state) => const UserTicketDetailsScreen(initialState: TicketStatusState.resolved),
+      builder: (context, state) => UserTicketDetailsScreen(
+        initialState: TicketStatusState.resolved,
+        ticketData: state.extra as Map<String, dynamic>?,
+      ),
     ),
     GoRoute(
       path: AppRoutes.userAppSettingsScreen,

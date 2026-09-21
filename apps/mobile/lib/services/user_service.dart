@@ -277,6 +277,40 @@ class UserService {
       body: reason != null ? {'reason': reason} : null,
     );
   }
+
+  // Vendor / Booker Profile
+  Future<dynamic> getVendorProfile({bool forceRefresh = false}) async {
+    await _ensureSession();
+    return await _api.get('/vendors/profile', force: forceRefresh);
+  }
+
+  // Dispute / Support Tickets
+  Future<List<dynamic>> getMyDisputes() async {
+    await _ensureSession();
+    final response = await _api.get('/disputes/my');
+    return response is List ? response : [];
+  }
+
+  Future<dynamic> getDispute(String id) async {
+    await _ensureSession();
+    return await _api.get('/disputes/$id');
+  }
+
+  Future<dynamic> createDispute({
+    required String tripId,
+    required String reason,
+    required String description,
+  }) async {
+    await _ensureSession();
+    return await _api.post(
+      '/disputes',
+      body: {
+        'tripId': tripId,
+        'reason': reason,
+        'description': description,
+      },
+    );
+  }
 }
 
 typedef VendorService = UserService;

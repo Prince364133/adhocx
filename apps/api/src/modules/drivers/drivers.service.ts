@@ -98,7 +98,7 @@ export class DriversService {
         userId,
         driverId: `DRV${userId.substring(0, 6).toUpperCase()}`,
         fullName: user?.fullName || 'Driver Partner',
-        phone: user?.phone || '+919876543210',
+        phone: user?.phone || '',
         email: user?.email || undefined,
         verificationStatus: VerificationStatus.PENDING,
         availabilityStatus: DriverAvailability.OFFLINE,
@@ -178,7 +178,7 @@ export class DriversService {
         data: {
           userId,
           fullName: user.fullName || 'Driver Partner',
-          phone: user.phone || '+919876543210',
+          phone: user.phone || '',
           verificationStatus: VerificationStatus.VERIFIED,
           availabilityStatus: dto.status,
           currentLat: dto.currentLocation?.latitude,
@@ -235,9 +235,9 @@ export class DriversService {
       ...(panDocUrl ? [{ id: 'doc_pan', documentType: 'PAN_CARD', title: 'PAN Card', fileUrl: panDocUrl, verified: false, uploadedAt: new Date().toISOString() }] : []),
     ];
 
-    const plate = dto.rcNumber || dto.vehicle?.registrationNumber || 'TS09EA1234';
-    const vehicleType = (dto.vehicle?.type as VehicleType) || VehicleType.SEDAN;
-    const vehicleModel = dto.vehicle?.model || 'Commercial Fleet';
+    const plate = dto.rcNumber || dto.vehicle?.registrationNumber || dto.vehiclePlate || 'TS09EA1234';
+    const vehicleType = (dto.vehicle?.type || dto.vehicleType || VehicleType.SEDAN) as VehicleType;
+    const vehicleModel = dto.vehicle?.model || dto.vehicleModel || 'Commercial Fleet';
 
     try {
       const existingDriver = await this.db.driver.findUnique({ where: { userId } });
@@ -261,6 +261,34 @@ export class DriversService {
             kycDocuments: docsList.length > 0 ? docsList : existingDriver.kycDocuments || [],
           },
         });
+
+        try {
+          await this.db.user.update({
+            where: { id: userId },
+            data: { role: 'DRIVER' },
+          });
+        } catch (_) {}
+
+        if (plate) {
+          try {
+            await this.db.vehicle.upsert({
+              where: { registrationNumber: plate },
+              create: {
+                driverId: existingDriver.id,
+                vehicleType,
+                model: vehicleModel,
+                registrationNumber: plate,
+                verificationStatus: VerificationStatus.UNDER_REVIEW,
+              },
+              update: {
+                driverId: existingDriver.id,
+                vehicleType,
+                model: vehicleModel,
+                verificationStatus: VerificationStatus.UNDER_REVIEW,
+              },
+            });
+          } catch (_) {}
+        }
 
         await this.audit.log({
           userId,
@@ -301,6 +329,34 @@ export class DriversService {
           },
         });
 
+        try {
+          await this.db.user.update({
+            where: { id: userId },
+            data: { role: 'DRIVER' },
+          });
+        } catch (_) {}
+
+        if (plate) {
+          try {
+            await this.db.vehicle.upsert({
+              where: { registrationNumber: plate },
+              create: {
+                driverId: newDriver.id,
+                vehicleType,
+                model: vehicleModel,
+                registrationNumber: plate,
+                verificationStatus: VerificationStatus.UNDER_REVIEW,
+              },
+              update: {
+                driverId: newDriver.id,
+                vehicleType,
+                model: vehicleModel,
+                verificationStatus: VerificationStatus.UNDER_REVIEW,
+              },
+            });
+          } catch (_) {}
+        }
+
         await this.audit.log({
           userId,
           action: 'DRIVER_KYC_SUBMITTED',
@@ -323,7 +379,7 @@ export class DriversService {
       id: `drv_${userId}`,
       userId,
       fullName: user?.fullName || 'Driver Partner',
-      phone: user?.phone || '+919876543210',
+      phone: user?.phone || '',
       verificationStatus: VerificationStatus.UNDER_REVIEW,
       availabilityStatus: DriverAvailability.OFFLINE,
       vehiclePlate: plate,
@@ -429,10 +485,10 @@ export class DriversService {
         data: {
           userId,
           fullName: user.fullName || 'Driver Partner',
-          phone: user.phone || '+919876543210',
-          trustScore: 94.0,
-          averageRating: 4.85,
-          totalTrips: 12,
+          phone: user.phone || '',
+          trustScore: 100.0,
+          averageRating: 5.0,
+          totalTrips: 0,
         },
         include: { user: true, trips: true },
       });

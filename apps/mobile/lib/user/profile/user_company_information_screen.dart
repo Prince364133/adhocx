@@ -16,8 +16,8 @@ class UserCompanyInformationScreen extends StatelessWidget {
 
     final user = AuthService.instance.currentUser;
     final userName = user?.fullName ?? 'Business Organization';
-    final userEmail = user?.email ?? 'contact@adhocx.com';
-    final userPhone = user?.phone ?? '+91 98765 43210';
+    final userEmail = user?.email ?? '—';
+    final userPhone = user?.phone ?? '—';
     final role = user?.role ?? 'VENDOR / BOOKER';
 
     return Scaffold(
@@ -49,7 +49,7 @@ class UserCompanyInformationScreen extends StatelessWidget {
                     const SizedBox(height: 10),
                     Text(userName, style: AppTypography.h2(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 2),
-                    Text('$role • Verified Account', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
+                    Text(role, style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
                   ],
                 ),
               ),
@@ -74,9 +74,9 @@ class UserCompanyInformationScreen extends StatelessWidget {
                     const Divider(),
                     _buildRow(context, 'Account Type', role, isDark),
                     const Divider(),
-                    _buildRow(context, 'Platform Verification', 'Verified Enterprise', isDark),
+                    _buildRow(context, 'Platform Verification', (user?.verificationStatus ?? 'PENDING').toUpperCase(), isDark),
                     const Divider(),
-                    _buildRow(context, 'Registered Office', 'DLF Cyber City, Phase 2, Gurugram, Haryana', isDark),
+                    _buildRow(context, 'Registered Office', '—', isDark),
                   ],
                 ),
               ),

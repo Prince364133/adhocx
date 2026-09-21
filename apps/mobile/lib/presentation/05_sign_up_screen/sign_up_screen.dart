@@ -3,18 +3,17 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../routes/app_routes.dart';
+import '../../services/auth_provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/onboarding_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
-import '../../widgets/common/app_phone_field.dart';
 import '../../widgets/common/app_primary_button.dart';
+import '../../widgets/common/app_smart_identifier_field.dart';
 import '../../widgets/common/app_social_auth_button.dart';
 import '../../widgets/common/app_text_field.dart';
-
-enum SignUpInputMode { phone, email }
 
 /// Screen 5: Create your account (Sign Up) supporting Phone, Email & Social Auth.
 class SignUpScreen extends StatefulWidget {
@@ -27,20 +26,17 @@ class SignUpScreen extends StatefulWidget {
 class _SignUpScreenState extends State<SignUpScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _emailController = TextEditingController();
+  final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
   final _referralController = TextEditingController();
 
-  SignUpInputMode _inputMode = SignUpInputMode.phone;
   bool _agreeToTerms = true;
   bool _isLoading = false;
 
   @override
   void dispose() {
     _nameController.dispose();
-    _phoneController.dispose();
-    _emailController.dispose();
+    _identifierController.dispose();
     _passwordController.dispose();
     _referralController.dispose();
     super.dispose();
@@ -62,15 +58,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
       final onboarding = context.read<OnboardingProvider>();
       final authService = context.read<AuthService>();
 
-      String? phoneTarget;
-      String? emailTarget;
-
-      if (_inputMode == SignUpInputMode.phone) {
-        final rawPhone = _phoneController.text.trim().replaceAll(RegExp(r'\D'), '');
-        phoneTarget = '+91$rawPhone';
-      } else {
-        emailTarget = _emailController.text.trim();
-      }
+      final text = _identifierController.text.trim();
+      final parsed = AppSmartIdentifierField.parseIdentifier(text);
+      final String? phoneTarget = parsed['phone'];
+      final String? emailTarget = parsed['email'];
 
       onboarding.setPersonalDetails(
         fullName: _nameController.text.trim(),
@@ -83,7 +74,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       final res = await authService.requestOtp(
         phone: phoneTarget,
         email: emailTarget,
-        channel: _inputMode == SignUpInputMode.phone ? 'SMS' : 'EMAIL',
+        channel: parsed['channel'],
         role: onboarding.role,
         isRegister: true,
         fullName: _nameController.text.trim(),
@@ -109,8 +100,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final msg = e.toString().replaceFirst('Exception: ', '').replaceFirst('ApiException: ', '');
         Fluttertoast.showToast(
-          msg: e.toString().replaceFirst('Exception: ', ''),
+          msg: msg,
           backgroundColor: AppColors.error,
           textColor: Colors.white,
         );
@@ -128,29 +120,39 @@ class _SignUpScreenState extends State<SignUpScreen> {
       final onboarding = context.read<OnboardingProvider>();
 
       final isGoogle = type == SocialAuthType.google;
-      final socialEmail = isGoogle ? 'google.user@gmail.com' : 'apple.user@privaterelay.appleid.com';
-      final socialName = isGoogle ? 'Google User' : 'Apple User';
-
       final result = isGoogle
           ? await authService.signInWithGoogle(role: onboarding.role)
-          : await authService.signInWithApple(role: onboarding.role, email: socialEmail, fullName: socialName);
+          : await authService.signInWithApple(role: onboarding.role);
 
       onboarding.setPersonalDetails(
-        fullName: result.user.fullName ?? socialName,
+        fullName: result.user.fullName ?? '',
         dateOfBirth: onboarding.dateOfBirth,
         gender: onboarding.gender,
-        email: result.user.email ?? socialEmail,
+        email: result.user.email,
         phone: result.user.phone,
       );
 
       if (mounted) {
+        context.read<AuthProvider>().setUser(result.user);
         Fluttertoast.showToast(
           msg: '${isGoogle ? "Google" : "Apple"} verified! Create your password to continue.',
           backgroundColor: AppColors.accentGreenDark,
           textColor: Colors.white,
         );
 
-        context.push(AppRoutes.setPasswordScreen);
+        if (!result.user.hasPassword) {
+          context.push(AppRoutes.setPasswordScreen);
+        } else if (!result.user.isOnboarded) {
+          context.push(AppRoutes.onboardingPersonalScreen);
+        } else if (result.user.isDriver) {
+          if (!result.user.isVerified) {
+            context.go(AppRoutes.waitlistGateScreen);
+          } else {
+            context.go(AppRoutes.homeScreen);
+          }
+        } else {
+          context.go(AppRoutes.userHomeScreen);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -211,7 +213,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                     // ── Title & Subtitle ─────────────────────────────────────
                     Text(
-                      isDriver ? 'Create Driver Account' : 'Create Business Account',
+                      isDriver ? 'Sign up as Driver' : 'Sign up as Business',
                       style: AppTypography.h1(
                         color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         fontWeight: FontWeight.bold,
@@ -228,113 +230,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xl),
 
-                    // ── Phone vs Email Switcher ──────────────────────────────
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.surfaceDark : AppColors.borderLight.withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                        border: Border.all(color: isDark ? AppColors.borderDark : Colors.transparent),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () => setState(() => _inputMode = SignUpInputMode.phone),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: _inputMode == SignUpInputMode.phone
-                                      ? (isDark ? AppColors.surfaceElevatedDark : Colors.white)
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                                  boxShadow: _inputMode == SignUpInputMode.phone
-                                      ? [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
-                                            blurRadius: 4,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ]
-                                      : null,
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.phone_iphone_rounded,
-                                      size: 16,
-                                      color: _inputMode == SignUpInputMode.phone
-                                          ? (isDark ? AppColors.primaryLight : AppColors.primary)
-                                          : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      'Mobile Number',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: _inputMode == SignUpInputMode.phone ? FontWeight.w700 : FontWeight.w500,
-                                        color: _inputMode == SignUpInputMode.phone
-                                            ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)
-                                            : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () => setState(() => _inputMode = SignUpInputMode.email),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: _inputMode == SignUpInputMode.email
-                                      ? (isDark ? AppColors.surfaceElevatedDark : Colors.white)
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                                  boxShadow: _inputMode == SignUpInputMode.email
-                                      ? [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
-                                            blurRadius: 4,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ]
-                                      : null,
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.email_outlined,
-                                      size: 16,
-                                      color: _inputMode == SignUpInputMode.email
-                                          ? (isDark ? AppColors.primaryLight : AppColors.primary)
-                                          : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      'Email Address',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: _inputMode == SignUpInputMode.email ? FontWeight.w700 : FontWeight.w500,
-                                        color: _inputMode == SignUpInputMode.email
-                                            ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)
-                                            : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-
                     // ── Form Inputs ──────────────────────────────────────────
                     AppTextField(
                       controller: _nameController,
@@ -349,41 +244,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     const SizedBox(height: AppSpacing.md),
 
-                    if (_inputMode == SignUpInputMode.phone)
-                      AppPhoneField(
-                        controller: _phoneController,
-                        label: 'Mobile Number',
-                        hintText: '98765 43210',
-                        validator: (val) {
-                          final digits = (val ?? '').replaceAll(RegExp(r'\D'), '');
-                          if (digits.length != 10) {
-                            return 'Enter a valid 10-digit mobile number';
-                          }
-                          return null;
-                        },
-                      )
-                    else
-                      AppTextField(
-                        controller: _emailController,
-                        label: 'Email Address',
-                        hintText: 'name@example.com',
-                        keyboardType: TextInputType.emailAddress,
-                        prefixIcon: Icon(
-                          Icons.email_outlined,
-                          size: 20,
-                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                        ),
-                        validator: (val) {
-                          if (val == null || val.trim().isEmpty) {
-                            return 'Email address is required';
-                          }
-                          final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-                          if (!emailRegex.hasMatch(val.trim())) {
-                            return 'Enter a valid email address';
-                          }
-                          return null;
-                        },
-                      ),
+                    // ── Unified Smart Identifier Input (Mobile Number or Email) ─────
+                    AppSmartIdentifierField(
+                      controller: _identifierController,
+                    ),
                     const SizedBox(height: AppSpacing.md),
 
                     AppTextField(
@@ -492,93 +356,67 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     const SizedBox(height: AppSpacing.lg),
 
-                    // ── Role Switcher Banner (Vendor / Driver) ─────────────
-                    Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () {
-                          final nextRole = isDriver ? 'VENDOR' : 'DRIVER';
-                          onboarding.setRole(nextRole);
-                          Fluttertoast.showToast(
-                            msg: isDriver
-                                ? 'Switched to Business Account registration'
-                                : 'Switched to Driver Partner registration',
-                            backgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.primaryDark,
-                            textColor: Colors.white,
-                          );
-                        },
+                    // ── Role Switcher: Sign up as Business / Driver ─────────
+                    Container(
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.surfaceDark : AppColors.primarySubtle.withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(AppRadius.md),
-                        child: Ink(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.md,
-                            vertical: AppSpacing.sm + 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isDark ? AppColors.surfaceDark : AppColors.primarySubtle,
-                            borderRadius: BorderRadius.circular(AppRadius.md),
-                            border: Border.all(
-                              color: isDark ? AppColors.borderDark : AppColors.primaryLight.withValues(alpha: 0.4),
-                              width: 1.2,
+                        border: Border.all(
+                          color: isDark ? AppColors.borderDark : AppColors.primaryLight.withValues(alpha: 0.35),
+                          width: 1,
+                        ),
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () {
+                            final nextRole = isDriver ? 'VENDOR' : 'DRIVER';
+                            onboarding.setRole(nextRole);
+                            Fluttertoast.showToast(
+                              msg: isDriver
+                                  ? 'Switched to Business Account registration'
+                                  : 'Switched to Driver Partner registration',
+                              backgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.primaryDark,
+                              textColor: Colors.white,
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.md,
+                              vertical: 14,
                             ),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: isDark ? AppColors.primaryLight : AppColors.primary,
-                                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                                ),
-                                child: Icon(
-                                  isDriver ? Icons.business_center_rounded : Icons.local_taxi_rounded,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                              ),
-                              const SizedBox(width: AppSpacing.md),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      isDriver
-                                          ? 'Sign up as a Business'
-                                          : 'Drive & Earn with AdhocX',
-                                      style: AppTypography.small(
-                                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    Text(
-                                      isDriver
-                                          ? 'Book outstation rides & bulk corporate travel'
-                                          : 'Join as a verified driver partner',
-                                      style: AppTypography.caption(
-                                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: isDark ? AppColors.primaryLight : AppColors.primary,
-                                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                                ),
-                                child: Text(
-                                  isDriver ? 'Sign up as Business' : 'Sign up as Driver',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                                  ),
+                                  child: Icon(
+                                    isDriver ? Icons.business_center_rounded : Icons.local_taxi_rounded,
+                                    color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                    size: 18,
                                   ),
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: AppSpacing.sm),
+                                Text(
+                                  isDriver ? 'Sign up as Business' : 'Sign up as Driver',
+                                  style: AppTypography.button(
+                                    color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.xs),
+                                Icon(
+                                  Icons.arrow_forward_rounded,
+                                  size: 16,
+                                  color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),

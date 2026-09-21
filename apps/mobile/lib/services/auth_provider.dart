@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/utils/app_logger.dart';
 import './auth_service.dart';
 
 class AuthProvider extends ChangeNotifier {
@@ -109,9 +110,30 @@ class AuthProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    await _authService.logout();
-    _user = null;
-    _isLoading = false;
+    try {
+      await _authService.logout();
+    } catch (e) {
+      AppLogger.error('Error during AuthProvider logout: $e', tag: 'AUTH', error: e);
+    } finally {
+      _user = null;
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> deleteAccount() async {
+    _isLoading = true;
     notifyListeners();
+
+    try {
+      await _authService.deleteAccount();
+    } catch (e) {
+      AppLogger.error('Error during AuthProvider deleteAccount: $e', tag: 'AUTH', error: e);
+      rethrow;
+    } finally {
+      _user = null;
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 }

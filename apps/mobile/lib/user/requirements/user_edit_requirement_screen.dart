@@ -1,19 +1,84 @@
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import '../../routes/app_routes.dart';
+import '../../services/user_service.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
 
-class UserEditRequirementScreen extends StatelessWidget {
-  const UserEditRequirementScreen({super.key});
+class UserEditRequirementScreen extends StatefulWidget {
+  final Map<String, dynamic>? requirementData;
+  const UserEditRequirementScreen({super.key, this.requirementData});
+
+  @override
+  State<UserEditRequirementScreen> createState() => _UserEditRequirementScreenState();
+}
+
+class _UserEditRequirementScreenState extends State<UserEditRequirementScreen> {
+  bool _isDeleting = false;
+
+  static const _months = [
+    '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+
+  String _formatDateTime(String? isoDate) {
+    if (isoDate == null || isoDate.isEmpty) return '—';
+    try {
+      final dt = DateTime.parse(isoDate).toLocal();
+      final day = dt.day.toString().padLeft(2, '0');
+      final month = (dt.month >= 1 && dt.month <= 12) ? _months[dt.month] : '';
+      final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+      final ampm = dt.hour >= 12 ? 'PM' : 'AM';
+      final min = dt.minute.toString().padLeft(2, '0');
+      return '$day $month ${dt.year}, $hour:$min $ampm';
+    } catch (_) {
+      return isoDate;
+    }
+  }
+
+  Future<void> _handleDelete() async {
+    final req = widget.requirementData ?? {};
+    final id = req['id']?.toString();
+
+    if (id == null || id.isEmpty) {
+      context.pop();
+      return;
+    }
+
+    setState(() => _isDeleting = true);
+    try {
+      await UserService.instance.cancelRequirement(id, reason: 'Cancelled by requester');
+      if (mounted) {
+        Fluttertoast.showToast(msg: 'Requirement cancelled successfully');
+        context.pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        Fluttertoast.showToast(msg: 'Error: ${e.toString().replaceAll("Exception: ", "")}');
+      }
+    } finally {
+      if (mounted) setState(() => _isDeleting = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+
+    final req = widget.requirementData ?? {};
+    final vehicleType = (req['vehicleType'] ?? 'Commercial Sedan').toString();
+    final quantity = (req['quantity'] ?? req['requiredQuantity'] ?? 1).toString();
+    final pickup = req['pickupLocation'] as Map<String, dynamic>?;
+    final drop = req['dropLocation'] as Map<String, dynamic>?;
+    final pickupAddr = pickup?['address'] ?? '—';
+    final dropAddr = drop?['address'] ?? '—';
+    final reportingTime = _formatDateTime(req['reportingTime'] as String? ?? req['createdAt'] as String?);
+    final fulfillmentMode = req['fulfillmentMode'] ?? 'DIRECT_DISPATCH';
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -33,13 +98,8 @@ class UserEditRequirementScreen extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Requirement deleted')),
-              );
-              context.pop();
-            },
-            child: Text('Delete', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold)),
+            onPressed: _isDeleting ? null : _handleDelete,
+            child: Text(_isDeleting ? 'Deleting...' : 'Cancel Booking', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -62,7 +122,7 @@ class UserEditRequirementScreen extends StatelessWidget {
                   ),
                   TextButton(
                     onPressed: () => context.push(AppRoutes.userCreateRequirementScreen),
-                    child: Text('Edit', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                    child: Text('Re-Post', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
@@ -78,17 +138,17 @@ class UserEditRequirementScreen extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    _buildSummaryRow(context, Icons.directions_car_outlined, 'Vehicle Type', 'Sedan', isDark),
+                    _buildSummaryRow(context, Icons.directions_car_outlined, 'Vehicle Type', vehicleType, isDark),
                     const Divider(),
-                    _buildSummaryRow(context, Icons.format_list_numbered, 'Quantity', '10 Vehicles', isDark),
+                    _buildSummaryRow(context, Icons.format_list_numbered, 'Quantity', '$quantity Vehicles', isDark),
                     const Divider(),
-                    _buildSummaryRow(context, Icons.location_on_outlined, 'Pickup', 'DLF Cyber City, Gurugram', isDark),
+                    _buildSummaryRow(context, Icons.location_on_outlined, 'Pickup', pickupAddr, isDark),
                     const Divider(),
-                    _buildSummaryRow(context, Icons.pin_drop_outlined, 'Destination', 'Indira Gandhi Airport, Delhi', isDark),
+                    _buildSummaryRow(context, Icons.pin_drop_outlined, 'Destination', dropAddr, isDark),
                     const Divider(),
-                    _buildSummaryRow(context, Icons.event_outlined, 'Date & Time', '10 May 2025, 06:30 PM', isDark),
+                    _buildSummaryRow(context, Icons.event_outlined, 'Date & Time', reportingTime, isDark),
                     const Divider(),
-                    _buildSummaryRow(context, Icons.swap_calls, 'Trip Type', 'One Way', isDark),
+                    _buildSummaryRow(context, Icons.swap_calls, 'Mode', fulfillmentMode, isDark),
                   ],
                 ),
               ),
@@ -105,39 +165,19 @@ class UserEditRequirementScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     ListTile(
-                      title: const Text('Additional Stops', style: TextStyle(fontWeight: FontWeight.w500)),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Text('0 stops', style: TextStyle(color: AppColors.slate400, fontSize: 13)),
-                          Icon(Icons.chevron_right, size: 20),
-                        ],
+                      title: const Text('Special Notes', style: TextStyle(fontWeight: FontWeight.w500)),
+                      trailing: Text(
+                        req['notes'] != null && req['notes'].toString().isNotEmpty ? 'Provided' : 'Standard',
+                        style: const TextStyle(color: AppColors.slate400, fontSize: 13),
                       ),
-                      onTap: () {},
                     ),
                     const Divider(height: 1),
                     ListTile(
-                      title: const Text('Passengers', style: TextStyle(fontWeight: FontWeight.w500)),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Text('1 Passenger', style: TextStyle(color: AppColors.slate400, fontSize: 13)),
-                          Icon(Icons.chevron_right, size: 20),
-                        ],
+                      title: const Text('Budget / Rate', style: TextStyle(fontWeight: FontWeight.w500)),
+                      trailing: Text(
+                        req['ratePerVehicle'] != null ? '₹${req['ratePerVehicle']}/veh' : (req['suggestedBudget'] != null ? '₹${req['suggestedBudget']}' : 'Market Dynamic'),
+                        style: TextStyle(color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark, fontWeight: FontWeight.bold, fontSize: 13),
                       ),
-                      onTap: () {},
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      title: const Text('Special Requests', style: TextStyle(fontWeight: FontWeight.w500)),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Text('No requests', style: TextStyle(color: AppColors.slate400, fontSize: 13)),
-                          Icon(Icons.chevron_right, size: 20),
-                        ],
-                      ),
-                      onTap: () {},
                     ),
                   ],
                 ),
@@ -145,13 +185,10 @@ class UserEditRequirementScreen extends StatelessWidget {
 
               const SizedBox(height: AppSpacing.xl),
 
-              // Update Requirement Button
+              // Done Button
               AppPrimaryButton(
-                text: 'Update Requirement',
+                text: 'Done',
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Requirement updated successfully!')),
-                  );
                   context.pop();
                 },
               ),
@@ -166,12 +203,22 @@ class UserEditRequirementScreen extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, size: 18, color: AppColors.primary),
           const SizedBox(width: 8),
           Text(label, style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
           const Spacer(),
-          Text(value, style: AppTypography.caption(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
+          Expanded(
+            flex: 2,
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.caption(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold),
+            ),
+          ),
         ],
       ),
     );

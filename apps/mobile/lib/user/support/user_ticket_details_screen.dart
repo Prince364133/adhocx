@@ -15,10 +15,12 @@ enum TicketStatusState {
 
 class UserTicketDetailsScreen extends StatefulWidget {
   final TicketStatusState initialState;
+  final Map<String, dynamic>? ticketData;
 
   const UserTicketDetailsScreen({
     super.key,
     this.initialState = TicketStatusState.open,
+    this.ticketData,
   });
 
   @override
@@ -29,10 +31,37 @@ class _UserTicketDetailsScreenState extends State<UserTicketDetailsScreen> {
   late TicketStatusState _currentState;
   int _rating = 0;
 
+  static const _months = [
+    '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+
   @override
   void initState() {
     super.initState();
-    _currentState = widget.initialState;
+    final status = widget.ticketData?['status']?.toString().toUpperCase();
+    if (status == 'RESOLVED' || status == 'CLOSED') {
+      _currentState = TicketStatusState.resolved;
+    } else if (status == 'UNDER_REVIEW' || status == 'IN_PROGRESS') {
+      _currentState = TicketStatusState.inProgress;
+    } else {
+      _currentState = widget.initialState;
+    }
+  }
+
+  String _formatDateTime(String? isoDate) {
+    if (isoDate == null || isoDate.isEmpty) return '—';
+    try {
+      final dt = DateTime.parse(isoDate).toLocal();
+      final day = dt.day.toString().padLeft(2, '0');
+      final month = (dt.month >= 1 && dt.month <= 12) ? _months[dt.month] : '';
+      final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+      final ampm = dt.hour >= 12 ? 'PM' : 'AM';
+      final min = dt.minute.toString().padLeft(2, '0');
+      return '$day $month ${dt.year}, $hour:$min $ampm';
+    } catch (_) {
+      return isoDate;
+    }
   }
 
   @override
@@ -40,14 +69,24 @@ class _UserTicketDetailsScreenState extends State<UserTicketDetailsScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    final data = widget.ticketData ?? {};
+    final rawId = (data['id'] ?? data['ticketId'] ?? 'TKT-LIVE').toString();
+    final ticketId = rawId.length > 14 ? 'TKT-${rawId.substring(0, 8).toUpperCase()}' : rawId.toUpperCase();
+    final reason = (data['reason'] ?? data['title'] ?? 'Trip Assistance Request').toString();
+    final description = (data['description'] ?? 'Your issue ticket is logged in the AdhocX support system.').toString();
+    final createdTime = _formatDateTime(data['createdAt'] as String?);
+    final updatedTime = _formatDateTime(data['updatedAt'] as String? ?? data['createdAt'] as String?);
+
+    final resolution = data['resolution']?.toString() ??
+        'Your dispute has been reviewed and resolved by our customer operations team.';
+
     final updates = [
-      {'time': '10 May 2025, 08:30 PM', 'text': 'Our team has received your ticket and will get back to you soon.'},
+      {'time': createdTime != '—' ? createdTime : 'Recently', 'text': 'Our operations team has received your ticket.'},
       if (_currentState != TicketStatusState.open) ...[
-        {'time': '10 May 2025, 09:45 PM', 'text': 'Our team is looking into this. Please allow some time.'},
-        {'time': '11 May 2025, 10:30 AM', 'text': 'We are processing your request.'},
+        {'time': updatedTime != '—' ? updatedTime : 'In Progress', 'text': 'Our support team is actively reviewing the trip telemetry and details.'},
       ],
       if (_currentState == TicketStatusState.resolved) ...[
-        {'time': '11 May 2025, 02:45 PM', 'text': 'Ticket has been marked as resolved.'},
+        {'time': 'Resolved', 'text': resolution},
       ],
     ];
 
@@ -106,14 +145,17 @@ class _UserTicketDetailsScreenState extends State<UserTicketDetailsScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('TKT-250510-0001', style: AppTypography.h3(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 2),
-                            Text('Payment not received', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
-                            Text('10 May 2025, 07:15 PM', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontSize: 10)),
-                          ],
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(ticketId, style: AppTypography.h3(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 2),
+                              Text(reason, style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
+                              if (createdTime != '—')
+                                Text(createdTime, style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontSize: 10)),
+                            ],
+                          ),
                         ),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -146,11 +188,11 @@ class _UserTicketDetailsScreenState extends State<UserTicketDetailsScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Your payment has been processed successfully and the amount will reflect in your account shortly.',
+                                    resolution,
                                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
                                   ),
                                   const SizedBox(height: 4),
-                                  Text('11 May 2025, 02:45 PM', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontSize: 10)),
+                                  Text(updatedTime, style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontSize: 10)),
                                 ],
                               ),
                             ),
@@ -170,13 +212,13 @@ class _UserTicketDetailsScreenState extends State<UserTicketDetailsScreen> {
                       ),
                       child: Column(
                         children: [
-                          _buildRow(context, 'Category', 'Payments', isDark),
+                          _buildRow(context, 'Issue', reason, isDark),
                           const Divider(),
-                          _buildRow(context, 'Priority', 'High', isDark, isRed: true),
+                          _buildRow(context, 'Details', description, isDark),
                           const Divider(),
                           _buildRow(context, 'Status', _getLabel(_currentState), isDark, colorOverride: _getColor(_currentState)),
                           const Divider(),
-                          _buildRow(context, 'Last Updated', '10 May 2025, 08:30 PM', isDark),
+                          _buildRow(context, 'Last Updated', updatedTime, isDark),
                         ],
                       ),
                     ),
@@ -299,7 +341,16 @@ class _UserTicketDetailsScreenState extends State<UserTicketDetailsScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
-          Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: color)),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: color),
+            ),
+          ),
         ],
       ),
     );
@@ -314,14 +365,16 @@ class _UserTicketDetailsScreenState extends State<UserTicketDetailsScreen> {
     }
 
     return OutlinedButton(
-      onPressed: () {},
+      onPressed: () {
+        context.pop();
+      },
       style: OutlinedButton.styleFrom(
         minimumSize: const Size.fromHeight(48),
         foregroundColor: AppColors.primary,
         side: BorderSide(color: AppColors.primary),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
       ),
-      child: const Text('Add Comment', style: TextStyle(fontWeight: FontWeight.bold)),
+      child: const Text('Back to Support', style: TextStyle(fontWeight: FontWeight.bold)),
     );
   }
 }

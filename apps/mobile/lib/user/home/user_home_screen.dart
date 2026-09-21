@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../core/utils/app_logger.dart';
 import '../../routes/app_routes.dart';
+import '../../services/auth_provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/onboarding_provider.dart';
 import '../../services/user_service.dart';
@@ -11,6 +13,7 @@ import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/theme/theme_provider.dart';
 import '../../shared/widgets/app_primary_button.dart';
+import '../requirements/requirement_draft_provider.dart';
 
 class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
@@ -172,17 +175,29 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                                           context.push(AppRoutes.userHelpFaqScreen);
                                         },
                                       ),
-                                      ListTile(
-                                        leading: Icon(Icons.logout, color: AppColors.error),
-                                        title: Text('Sign Out', style: TextStyle(color: AppColors.error)),
-                                        onTap: () async {
-                                          Navigator.pop(ctx);
-                                          await AuthService.instance.logout();
-                                          if (context.mounted) {
-                                            context.go(AppRoutes.signInScreen);
-                                          }
-                                        },
-                                      ),
+                                       ListTile(
+                                         leading: Icon(Icons.logout, color: AppColors.error),
+                                         title: Text('Sign Out', style: TextStyle(color: AppColors.error)),
+                                         onTap: () async {
+                                           final authProvider = context.read<AuthProvider>();
+                                           final onboardingProvider = context.read<OnboardingProvider>();
+                                           final requirementDraftProvider = context.read<RequirementDraftProvider>();
+                                           final router = GoRouter.of(context);
+
+                                           Navigator.pop(ctx);
+                                           try {
+                                             AppLogger.info('User sign out from home drawer', tag: 'AUTH');
+                                             await authProvider.logout();
+                                             onboardingProvider.reset();
+                                             requirementDraftProvider.reset();
+                                           } catch (e) {
+                                             AppLogger.error('Error during sign out: $e', tag: 'AUTH', error: e);
+                                           }
+                                           if (mounted) {
+                                             router.go(AppRoutes.signInScreen);
+                                           }
+                                         },
+                                       ),
                                     ],
                                   ),
                                 ),
@@ -500,7 +515,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                       child: _buildRequirementCard(
                         context,
                         title: '$vehicle ($qty Vehicles)',
-                        subtitle: '$title',
+                        subtitle: title,
                         status: status.replaceAll('_', ' '),
                         progressText: '$assigned/$qty',
                         statusColor: statusColor,

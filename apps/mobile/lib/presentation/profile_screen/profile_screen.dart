@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/utils/app_logger.dart';
 import '../../routes/app_routes.dart';
+import '../../services/auth_provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/driver_service.dart';
 import '../../services/onboarding_provider.dart';
@@ -17,6 +19,7 @@ import './modals/rate_card_modal.dart';
 import './widgets/profile_driver_card_widget.dart';
 import '../language_selection_widget.dart';
 import './widgets/profile_menu_item_widget.dart';
+import '../../user/requirements/requirement_draft_provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -28,7 +31,6 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _showLanguageSwitcher = false;
   Map<String, dynamic> _driverProfile = {};
-  bool _isLoading = true;
 
   @override
   void initState() {
@@ -50,7 +52,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
           final user = AuthService.instance.currentUser;
           _driverProfile['name'] = _driverProfile['fullName'] ?? _driverProfile['full_name'] ?? user?.fullName ?? 'Driver Partner';
-          _driverProfile['phone'] = _driverProfile['phone'] ?? user?.phone ?? '+91 98765 43210';
+          _driverProfile['phone'] = _driverProfile['phone'] ?? user?.phone ?? '';
 
           final veh = _driverProfile['vehicle'] ?? (_driverProfile['vehicles'] is List && (_driverProfile['vehicles'] as List).isNotEmpty ? _driverProfile['vehicles'][0] : null);
           if (veh is Map) {
@@ -72,8 +74,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } catch (e) {
       debugPrint('Error loading live driver profile: $e');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -91,7 +91,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -111,7 +111,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(dialogCtx).pop(),
             child: Text(
               'Cancel',
               style: AppTypography.body(
@@ -121,12 +121,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
+            onPressed: () async {
+              Navigator.of(dialogCtx).pop();
+              final authProvider = context.read<AuthProvider>();
+              final onboardingProvider = context.read<OnboardingProvider>();
+              final requirementDraftProvider = context.read<RequirementDraftProvider>();
+
               try {
-                Supabase.instance.client.auth.signOut();
-              } catch (_) {}
-              context.go(AppRoutes.signInScreen);
+                AppLogger.info('Driver confirmed sign out', tag: 'AUTH');
+                await authProvider.logout();
+                onboardingProvider.reset();
+                requirementDraftProvider.reset();
+                Fluttertoast.showToast(
+                  msg: 'Signed out successfully',
+                  backgroundColor: AppColors.primaryDark,
+                  textColor: Colors.white,
+                );
+              } catch (e) {
+                AppLogger.error('Error signing out: $e', tag: 'AUTH', error: e);
+              }
+              appRouter.go(AppRoutes.signInScreen);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,
@@ -137,6 +151,120 @@ class _ProfileScreenState extends State<ProfileScreen> {
               elevation: 0,
             ),
             child: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteAccount() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final authProvider = context.read<AuthProvider>();
+    final onboardingProvider = context.read<OnboardingProvider>();
+    final requirementDraftProvider = context.read<RequirementDraftProvider>();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          side: BorderSide(color: AppColors.error.withValues(alpha: 0.3)),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.delete_forever_rounded, color: AppColors.error, size: 24),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                'Delete Account',
+                style: AppTypography.h3(
+                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to permanently delete your AdhocX driver partner account?',
+              style: AppTypography.body(
+                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
+              ),
+              child: Text(
+                '⚠️ This action is permanent and cannot be undone. All your profile records, uploaded KYC documents, vehicle details, trip history, and credentials will be completely erased from our database.',
+                style: AppTypography.caption(
+                  color: isDark ? const Color(0xFFFFA4A4) : const Color(0xFFC92A2A),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(),
+            child: Text(
+              'Cancel',
+              style: AppTypography.body(
+                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(dialogCtx).pop();
+              try {
+                AppLogger.warn('Driver confirmed permanent account deletion from DB', tag: 'AUTH');
+                await authProvider.deleteAccount();
+                onboardingProvider.reset();
+                requirementDraftProvider.reset();
+                Fluttertoast.showToast(
+                  msg: 'Account permanently deleted from database',
+                  backgroundColor: AppColors.error,
+                  textColor: Colors.white,
+                );
+                appRouter.go(AppRoutes.signInScreen);
+              } catch (e) {
+                AppLogger.error('Error deleting account: $e', tag: 'AUTH', error: e);
+                Fluttertoast.showToast(
+                  msg: 'Failed to delete account: $e',
+                  backgroundColor: AppColors.error,
+                  textColor: Colors.white,
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              elevation: 0,
+            ),
+            child: const Text('Delete Forever', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -173,7 +301,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ? _driverProfile['phone'].toString()
           : (onboarding.phoneNumber.isNotEmpty
               ? onboarding.phoneNumber
-              : (AuthService.instance.currentUser?.phone?.isNotEmpty == true ? AuthService.instance.currentUser!.phone! : '+91 98765 43210')),
+              : (AuthService.instance.currentUser?.phone?.isNotEmpty == true ? AuthService.instance.currentUser!.phone! : '—')),
       'vehicle': (_driverProfile['vehicle'] != null && _driverProfile['vehicle'].toString().isNotEmpty)
           ? _driverProfile['vehicle'].toString()
           : (onboarding.registrationNumber.isNotEmpty
@@ -309,14 +437,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           _divider(isDark),
                           ProfileMenuItemWidget(
-                            icon: Icons.tune_rounded,
-                            iconColor: AppColors.textSecondaryLight,
-                            label: 'Notification Preferences',
-                            subtitle: 'Sound alerts, push & SMS notifications',
-                            onTap: () => context.push(AppRoutes.notificationsSettingsScreen),
-                          ),
-                          _divider(isDark),
-                          ProfileMenuItemWidget(
                             icon: Icons.language_rounded,
                             iconColor: AppColors.info,
                             label: 'App Language',
@@ -365,11 +485,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           _divider(isDark),
                           ProfileMenuItemWidget(
-                            icon: Icons.settings_outlined,
-                            iconColor: AppColors.info,
-                            label: 'App Settings',
-                            subtitle: 'Cache, storage & diagnostics',
-                            onTap: () => context.push(AppRoutes.appSettingsScreen),
+                            icon: Icons.delete_forever_outlined,
+                            iconColor: AppColors.error,
+                            label: 'Delete Account',
+                            subtitle: 'Permanently remove account & all data',
+                            onTap: _confirmDeleteAccount,
                           ),
                         ],
                       ),
@@ -377,6 +497,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                       // ── Sign Out Button ────────────────────────────────────
                       _buildSignOutButton(isDark),
+                      const SizedBox(height: AppSpacing.sm),
+                      Center(
+                        child: TextButton.icon(
+                          onPressed: _confirmDeleteAccount,
+                          icon: const Icon(Icons.delete_forever_rounded, size: 16, color: AppColors.error),
+                          label: const Text(
+                            'Delete Account Permanently',
+                            style: TextStyle(
+                              color: AppColors.error,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
 
                       const SizedBox(height: AppSpacing.xl),
 

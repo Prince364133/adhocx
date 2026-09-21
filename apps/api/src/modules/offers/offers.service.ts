@@ -49,7 +49,7 @@ export class OffersService {
             data: {
               userId: driverUserId,
               fullName: user.fullName || 'Driver Partner',
-              phone: user.phone || '+919876543210',
+              phone: user.phone || '',
               verificationStatus: VerificationStatus.VERIFIED,
               availabilityStatus: DriverAvailability.AVAILABLE,
             },

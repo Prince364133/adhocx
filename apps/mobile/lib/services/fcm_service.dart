@@ -2,12 +2,12 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
-import '../core/networking/api_client.dart';
 
 /// Centralized FCM Push Notification Service for Mobile Client
 class FcmService {
   static final FcmService _instance = FcmService._internal();
   factory FcmService() => _instance;
+  static FcmService get instance => _instance;
   FcmService._internal();
 
   String? _fcmToken;

@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
-import '../../services/onboarding_provider.dart';
+import '../../services/auth_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
@@ -54,13 +54,20 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
       final authService = context.read<AuthService>();
       await authService.setPassword(password: _passwordController.text.trim());
 
+      // Force-refresh the cached user so hasPassword is now true
+      // This prevents the router redirect guard from sending us back here
+      await authService.fetchCurrentUser(forceRefresh: true);
+
       if (mounted) {
+        // Also refresh the AuthProvider so listeners (including router) see updated state
+        context.read<AuthProvider>().refreshProfile();
+
         Fluttertoast.showToast(
           msg: 'Password created successfully!',
           backgroundColor: AppColors.accentGreenDark,
         );
 
-        context.push(AppRoutes.onboardingPersonalScreen);
+        context.go(AppRoutes.onboardingPersonalScreen);
       }
     } catch (e) {
       if (mounted) {

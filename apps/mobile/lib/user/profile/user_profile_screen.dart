@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../core/utils/app_logger.dart';
 import '../../routes/app_routes.dart';
+import '../../services/auth_provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/onboarding_provider.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
+import '../requirements/requirement_draft_provider.dart';
 
 class UserProfileScreen extends StatelessWidget {
   const UserProfileScreen({super.key});
@@ -205,9 +209,7 @@ class UserProfileScreen extends StatelessWidget {
                 ),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(AppRadius.lg),
-                  onTap: () {
-                    context.go(AppRoutes.signInScreen);
-                  },
+                  onTap: () => _confirmSignOut(context),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 14),
                     child: Row(
@@ -225,9 +227,210 @@ class UserProfileScreen extends StatelessWidget {
                   ),
                 ),
               ),
+              const SizedBox(height: AppSpacing.sm),
+              Center(
+                child: TextButton.icon(
+                  onPressed: () => _confirmDeleteAccount(context),
+                  icon: const Icon(Icons.delete_forever_rounded, size: 16, color: AppColors.error),
+                  label: const Text(
+                    'Delete Account Permanently',
+                    style: TextStyle(color: AppColors.error, fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _confirmDeleteAccount(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final authProvider = context.read<AuthProvider>();
+    final onboardingProvider = context.read<OnboardingProvider>();
+    final requirementDraftProvider = context.read<RequirementDraftProvider>();
+    final router = GoRouter.of(context);
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          side: BorderSide(color: AppColors.error.withValues(alpha: 0.3)),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.delete_forever_rounded, color: AppColors.error, size: 24),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                'Delete Account',
+                style: AppTypography.h3(
+                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to permanently delete your AdhocX account?',
+              style: AppTypography.body(
+                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
+              ),
+              child: Text(
+                '⚠️ This action is permanent. All your company records, requirements, payments, and credentials will be completely erased from our database.',
+                style: AppTypography.caption(
+                  color: isDark ? const Color(0xFFFFA4A4) : const Color(0xFFC92A2A),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(),
+            child: Text(
+              'Cancel',
+              style: AppTypography.body(
+                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(dialogCtx).pop();
+              try {
+                AppLogger.warn('User confirmed permanent account deletion from DB', tag: 'AUTH');
+                await authProvider.deleteAccount();
+                onboardingProvider.reset();
+                requirementDraftProvider.reset();
+                Fluttertoast.showToast(
+                  msg: 'Account permanently deleted from database',
+                  backgroundColor: AppColors.error,
+                  textColor: Colors.white,
+                );
+                if (context.mounted) {
+                  router.go(AppRoutes.signInScreen);
+                }
+              } catch (e) {
+                AppLogger.error('Error deleting account: $e', tag: 'AUTH', error: e);
+                Fluttertoast.showToast(
+                  msg: 'Failed to delete account: $e',
+                  backgroundColor: AppColors.error,
+                  textColor: Colors.white,
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              elevation: 0,
+            ),
+            child: const Text('Delete Forever', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmSignOut(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+        ),
+        title: Text(
+          'Sign Out',
+          style: AppTypography.h3(
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to sign out of your AdhocX account?',
+          style: AppTypography.body(
+            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(),
+            child: Text(
+              'Cancel',
+              style: AppTypography.body(
+                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final authProvider = context.read<AuthProvider>();
+              final onboardingProvider = context.read<OnboardingProvider>();
+              final requirementDraftProvider = context.read<RequirementDraftProvider>();
+
+              Navigator.of(dialogCtx).pop();
+              try {
+                AppLogger.info('User confirmed sign out', tag: 'AUTH');
+                await authProvider.logout();
+                onboardingProvider.reset();
+                requirementDraftProvider.reset();
+                Fluttertoast.showToast(
+                  msg: 'Signed out successfully',
+                  backgroundColor: AppColors.primaryDark,
+                  textColor: Colors.white,
+                );
+              } catch (e) {
+                AppLogger.error('Error signing out: $e', tag: 'AUTH', error: e);
+              }
+              if (context.mounted) {
+                context.go(AppRoutes.signInScreen);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              elevation: 0,
+            ),
+            child: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }

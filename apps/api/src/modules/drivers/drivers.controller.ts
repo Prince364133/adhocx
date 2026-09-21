@@ -30,14 +30,14 @@ export class DriversController {
   constructor(private readonly driversService: DriversService) {}
 
   @Get('profile')
-  @Roles(UserRole.DRIVER, UserRole.ADMIN)
+  @Roles(UserRole.DRIVER, UserRole.ADMIN, UserRole.VENDOR)
   @ApiOperation({ summary: 'Get current driver profile' })
   async getProfile(@CurrentUser() user: AuthUserDto) {
     return this.driversService.getProfile(user.id);
   }
 
   @Patch('profile')
-  @Roles(UserRole.DRIVER, UserRole.ADMIN)
+  @Roles(UserRole.DRIVER, UserRole.ADMIN, UserRole.VENDOR)
   @ApiOperation({ summary: 'Update driver profile details' })
   async updateProfile(
     @CurrentUser() user: AuthUserDto,
@@ -64,7 +64,7 @@ export class DriversController {
   }
 
   @Post('kyc')
-  @Roles(UserRole.DRIVER)
+  @Roles(UserRole.DRIVER, UserRole.ADMIN, UserRole.VENDOR)
   @ApiOperation({ summary: 'Submit driver KYC details for verification' })
   async submitKyc(
     @CurrentUser() user: AuthUserDto,

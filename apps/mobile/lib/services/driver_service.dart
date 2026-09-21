@@ -440,5 +440,14 @@ class DriverService {
     invalidateCache(trips: true);
     return res;
   }
+
+  Future<List<dynamic>> getPricingTiers({bool forceRefresh = false}) async {
+    try {
+      final res = await _api.get('/pricing', force: forceRefresh);
+      return res is List ? res : [];
+    } catch (_) {
+      return [];
+    }
+  }
 }
 

@@ -100,7 +100,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                         ),
                       ),
                       IconButton(
-                        onPressed: () => context.push(AppRoutes.notificationsSettingsScreen),
+                        onPressed: () => context.push(AppRoutes.notificationsFeedScreen),
                         icon: Icon(
                           Icons.notifications_none_rounded,
                           color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,

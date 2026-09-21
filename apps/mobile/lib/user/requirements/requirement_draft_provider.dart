@@ -13,14 +13,14 @@ class RequirementDraftProvider extends ChangeNotifier {
 
   // Step 2: Locations & Route
   String _tripType = 'One Way';
-  String _pickupAddress = 'DLF Cyber City, Gurugram';
-  double _pickupLat = 28.4950;
-  double _pickupLng = 77.0895;
+  String _pickupAddress = '';
+  double _pickupLat = 0.0;
+  double _pickupLng = 0.0;
   String _pickupInstructions = '';
 
-  String _dropAddress = 'Indira Gandhi International Airport, Delhi';
-  double _dropLat = 28.5562;
-  double _dropLng = 77.1000;
+  String _dropAddress = '';
+  double _dropLat = 0.0;
+  double _dropLng = 0.0;
   String _dropInstructions = '';
 
   // Step 3: Date & Time Schedule
@@ -250,13 +250,13 @@ class RequirementDraftProvider extends ChangeNotifier {
     _quantity = 10;
     _specialRequests = '';
     _tripType = 'One Way';
-    _pickupAddress = 'DLF Cyber City, Gurugram';
-    _pickupLat = 28.4950;
-    _pickupLng = 77.0895;
+    _pickupAddress = '';
+    _pickupLat = 0.0;
+    _pickupLng = 0.0;
     _pickupInstructions = '';
-    _dropAddress = 'Indira Gandhi International Airport, Delhi';
-    _dropLat = 28.5562;
-    _dropLng = 77.1000;
+    _dropAddress = '';
+    _dropLat = 0.0;
+    _dropLng = 0.0;
     _dropInstructions = '';
     _hasReturn = false;
     _returnDate = null;

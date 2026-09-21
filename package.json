@@ -9,6 +9,8 @@
     "dev:api": "pnpm --filter @adhocx/api run dev",
     "dev:admin": "pnpm --filter @adhocx/admin run dev",
     "dev:mobile": "pnpm --filter @adhocx/mobile run dev",
+    "dev:mobile:android": "pnpm --filter @adhocx/mobile run dev",
+    "emulator": "pnpm --filter @adhocx/mobile run emulator",
     "build": "turbo run build",
     "test": "turbo run test",
     "test:unit": "turbo run test:unit",

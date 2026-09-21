@@ -187,8 +187,8 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final trip = _trip as Map<String, dynamic>? ?? {};
     final req = trip['requirement'] as Map<String, dynamic>? ?? {};
-    final tripId = (trip['id'] ?? 'AY10234').toString();
-    final shortTripId = tripId.length > 8 ? tripId.substring(0, 8).toUpperCase() : tripId.toUpperCase();
+    final tripId = (trip['id'] ?? '').toString();
+    final shortTripId = tripId.length > 8 ? tripId.substring(0, 8).toUpperCase() : (tripId.isNotEmpty ? tripId.toUpperCase() : 'TRP');
     final status = (trip['status'] ?? 'IN_PROGRESS').toString().toUpperCase();
     final isAssigned = status == 'ASSIGNED' || status == 'DRIVER_ASSIGNED';
     final isArrived = status == 'ARRIVED';
@@ -197,14 +197,14 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
 
     final pickup = trip['pickupLocation']?['address'] ??
         req['pickupLocation']?['address'] ??
-        'DLF Cyber City, Gurugram\nTower A, Gate 2';
+        '—';
     final drop = trip['dropLocation']?['address'] ??
         req['dropLocation']?['address'] ??
-        'IGI Airport T3, New Delhi\nDeparture Gate Road';
-    final payout = '₹${trip['driverEarnings'] ?? trip['fare'] ?? '850'}';
-    final passengerName = req['vendor']?['businessName'] ?? 'Corporate Requester';
-    final passengerPhone = req['vendor']?['phone'] ?? '+91 98765 43210';
-    final vehicle = req['vehicleType']?.toString() ?? 'Sedan';
+        '—';
+    final payout = '₹${trip['driverEarnings'] ?? trip['fare'] ?? trip['ratePerVehicle'] ?? 0}';
+    final passengerName = req['vendor']?['businessName'] ?? req['vendor']?['companyName'] ?? 'Requester';
+    final passengerPhone = req['vendor']?['phone'] ?? '\u2014';
+    final vehicle = req['vehicleType']?.toString() ?? 'Commercial Vehicle';
     final startOtp = trip['startOtp'] ?? req['startOtp'];
 
     return Scaffold(

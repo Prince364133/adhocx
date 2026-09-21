@@ -105,13 +105,17 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
         final user = res.user;
         context.read<AuthProvider>().setUser(user);
 
-        // If user has not set a password, navigate to Set Password
+        // 1. Mandatory Password Setup: If user hasn't set a password, navigate to setPasswordScreen
         if (!user.hasPassword) {
-          context.push(AppRoutes.setPasswordScreen);
-        } else if (!user.isOnboarded) {
-          context.push(AppRoutes.onboardingPersonalScreen);
-        } else if (user.isDriver) {
-          if (user.isUnderReview || user.isRejected) {
+          context.go(AppRoutes.setPasswordScreen);
+        }
+        // 2. Mandatory Onboarding: If user hasn't completed onboarding, navigate to onboardingPersonalScreen
+        else if (!user.isOnboarded) {
+          context.go(AppRoutes.onboardingPersonalScreen);
+        }
+        // 3. Driver Gate: If user is a driver and NOT verified, navigate to waitlistGateScreen
+        else if (user.isDriver) {
+          if (!user.isVerified) {
             context.go(AppRoutes.waitlistGateScreen);
           } else {
             context.go(AppRoutes.homeScreen);

@@ -191,6 +191,7 @@ export class UserMeResponseDto {
     id: string;
     organizationName: string;
     verificationStatus: string;
+    rejectionReason?: string;
   };
   driverProfile?: {
     id: string;

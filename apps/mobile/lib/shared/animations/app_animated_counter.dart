@@ -22,12 +22,10 @@ class _AppAnimatedCounterState extends State<AppAnimatedCounter>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
-  String _oldValue = '';
 
   @override
   void initState() {
     super.initState();
-    _oldValue = widget.value;
     _controller = AnimationController(
       vsync: this,
       duration: widget.duration,
@@ -47,7 +45,6 @@ class _AppAnimatedCounterState extends State<AppAnimatedCounter>
   void didUpdateWidget(covariant AppAnimatedCounter oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.value != widget.value) {
-      _oldValue = oldWidget.value;
       _controller.forward(from: 0.0);
     }
   }
