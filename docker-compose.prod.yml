@@ -61,6 +61,8 @@ services:
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_TLS: ${REDIS_TLS:-false}
+    ports:
+      - "7001:3000"
     expose:
       - "3000"
     healthcheck:
@@ -87,6 +89,8 @@ services:
       NODE_ENV: production
       PORT: 3001
       HOSTNAME: "0.0.0.0"
+    ports:
+      - "7002:3001"
     expose:
       - "3001"
     healthcheck:
@@ -121,6 +125,8 @@ services:
     image: ghcr.io/prince364133/adhocx-mobile:latest
     container_name: adhocx_prod_mobile
     restart: always
+    ports:
+      - "7003:80"
     expose:
       - "80"
     healthcheck:
