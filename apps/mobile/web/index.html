@@ -24,38 +24,64 @@
 
     <style>
       body {
-        background: #000;
+        background-color: #0B1220;
         margin: 0;
+        padding: 0;
         overflow: hidden;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       }
 
       #loading-container {
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        background-color: black;
-        z-index: 9999;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: #0B1220;
+        z-index: 99999;
+        transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
       }
 
-      .loader {
-        border: 6px solid rgba(255, 255, 255, 0.2);
-        border-top: 6px solid #87ceeb;
+      .brand-title {
+        font-size: 36px;
+        font-weight: 900;
+        color: #FFFFFF;
+        letter-spacing: -1px;
+        margin: 0 0 6px 0;
+        user-select: none;
+      }
+
+      .brand-title span {
+        color: #3B82F6;
+      }
+
+      .brand-sub {
+        font-size: 11px;
+        font-weight: 700;
+        color: #94A3B8;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        margin: 0 0 32px 0;
+        user-select: none;
+      }
+
+      .pulse-loader {
+        width: 42px;
+        height: 42px;
+        border: 3px solid rgba(59, 130, 246, 0.2);
+        border-top: 3px solid #2563EB;
+        border-right: 3px solid #3B82F6;
         border-radius: 50%;
-        width: 50px;
-        height: 50px;
-        animation: spin 1s linear infinite;
+        animation: spin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
       }
 
       @keyframes spin {
-        0% {
-          transform: rotate(0deg);
-        }
-        100% {
-          transform: rotate(360deg);
-        }
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
       }
 
       #load-error {
@@ -63,16 +89,18 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        background-color: black;
-        color: #ccc;
-        font-family: system-ui, sans-serif;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: #0B1220;
+        color: #CBD5E1;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         text-align: center;
         padding: 24px;
         box-sizing: border-box;
-        z-index: 9998;
+        z-index: 99998;
       }
 
       #load-error.visible {
@@ -80,37 +108,31 @@
       }
 
       #load-error h2 {
-        color: #87ceeb;
+        color: #60A5FA;
         margin: 0 0 12px;
-        font-size: 1.25rem;
+        font-size: 1.3rem;
       }
 
       #load-error pre {
-        background: #1a1a1a;
+        background: #111827;
         padding: 12px;
         border-radius: 8px;
+        border: 1px solid #1F2937;
         overflow: auto;
         max-width: 90%;
         font-size: 12px;
         text-align: left;
-        color: #f87171;
+        color: #F87171;
         margin-top: 12px;
       }
     </style>
   </head>
-  <body
-    style="
-      background-color: black;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      margin: 0;
-    "
-  >
-    <!-- Loader Container -->
+  <body>
+    <!-- Enterprise Branded Splash Preloader -->
     <div id="loading-container">
-      <div class="loader"></div>
+      <div class="brand-title">Adhoc<span>X</span></div>
+      <div class="brand-sub">Corporate Mobility & Dispatch</div>
+      <div class="pulse-loader"></div>
     </div>
 
     <!-- Shown when a fatal startup error occurs -->
@@ -132,10 +154,21 @@
       var appLoaded = false;
 
       function removeLoader() {
+        if (appLoaded) return;
+        appLoaded = true;
         var loader = document.getElementById("loading-container");
         if (loader) {
-          loader.style.display = "none";
+          loader.style.opacity = "0";
+          loader.style.pointerEvents = "none";
+          setTimeout(function () {
+            loader.style.display = "none";
+            if (loader.parentNode) {
+              loader.parentNode.removeChild(loader);
+            }
+          }, 300);
         }
+        hideLoadError();
+        window.parent.postMessage({ type: "LOADING_COMPLETED" }, "*");
       }
 
       function hideLoadError() {
@@ -166,12 +199,22 @@
         );
       }
 
-      window.addEventListener("flutter-first-frame", function () {
-        appLoaded = true;
-        removeLoader();
-        hideLoadError();
-        window.parent.postMessage({ type: "LOADING_COMPLETED" }, "*");
+      // 1. MutationObserver: Instant detection when Flutter canvas/view attaches to DOM
+      var observer = new MutationObserver(function (mutations, obs) {
+        var flutterEl = document.querySelector("flutter-view, flt-glass-pane, flt-scene-host, canvas");
+        if (flutterEl) {
+          removeLoader();
+          obs.disconnect();
+        }
       });
+      observer.observe(document.body, { childList: true, subtree: true });
+
+      // 2. Framework & custom event listeners
+      window.addEventListener("flutter-first-frame", removeLoader);
+      window.addEventListener("flutter-app-rendered", removeLoader);
+
+      // 3. Failsafe auto-dismiss (2 seconds max)
+      setTimeout(removeLoader, 2000);
 
       // Capture errors but only show UI if not loaded and fatal
       window.onerror = function (message, source, lineno, colno, error) {
@@ -182,18 +225,6 @@
       window.addEventListener("unhandledrejection", function (event) {
         console.warn("[AdhocX Web Unhandled Rejection]", event.reason);
       });
-
-      // Timeout fallback: only trigger if Flutter has not rendered after 45s
-      setTimeout(function () {
-        if (appLoaded) return;
-        var loader = document.getElementById("loading-container");
-        if (loader && loader.style.display !== "none") {
-          showLoadError(
-            "Loading timed out",
-            "The app did not start in time. Please refresh the page.",
-          );
-        }
-      }, 45000);
     </script>
 
     <script>

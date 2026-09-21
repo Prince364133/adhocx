@@ -272,7 +272,7 @@ class AppRoutes {
 }
 
 final GoRouter appRouter = GoRouter(
-  initialLocation: AppRoutes.splashScreen,
+  initialLocation: AppRoutes.initial,
   refreshListenable: AuthService.instance.authStateListenable,
   redirect: (BuildContext context, GoRouterState state) async {
     final user = AuthService.instance.currentUser;
@@ -285,6 +285,7 @@ final GoRouter appRouter = GoRouter(
     }
 
     const publicAuthRoutes = {
+      AppRoutes.initial,
       AppRoutes.splashScreen,
       AppRoutes.languageSelectionScreen,
       AppRoutes.signInScreen,
@@ -295,12 +296,17 @@ final GoRouter appRouter = GoRouter(
       AppRoutes.resetPasswordScreen,
     };
 
-    // 1. Unauthenticated users can only access public auth screens
+    // 1. Unauthenticated users:
+    // If not logged in and visiting root or splash, show splash screen.
+    // Allow other public auth routes (/sign-in, /sign-up, etc.), otherwise redirect to splash.
     if (!isLoggedIn) {
+      if (currentPath == AppRoutes.initial || currentPath == AppRoutes.splashScreen) {
+        return null;
+      }
       if (publicAuthRoutes.contains(currentPath)) {
         return null;
       }
-      return AppRoutes.signInScreen;
+      return AppRoutes.splashScreen;
     }
 
     // 2. Mandatory Password Setup Guard:
@@ -355,8 +361,11 @@ final GoRouter appRouter = GoRouter(
       return AppRoutes.waitlistGateScreen;
     }
 
-    // 5. Authenticated, Onboarded & Verified users should not linger on auth / onboarding / waitlist pages
+    // 5. Authenticated, Onboarded & Verified users:
+    // If on root, splash, or an auth/onboarding screen, immediately route to their home dashboard
     const authAndOnboardingScreens = {
+      AppRoutes.initial,
+      AppRoutes.splashScreen,
       AppRoutes.signInScreen,
       AppRoutes.signUpScreen,
       AppRoutes.loginOtpScreen,
@@ -397,6 +406,10 @@ final GoRouter appRouter = GoRouter(
     return null;
   },
   routes: [
+    GoRoute(
+      path: AppRoutes.initial,
+      builder: (context, state) => const SplashScreen(),
+    ),
     GoRoute(
       path: AppRoutes.splashScreen,
       builder: (context, state) => const SplashScreen(),

@@ -63,7 +63,7 @@ void main() async {
   // Initialize Auth Provider and restore session
   final authProvider = AuthProvider();
   try {
-    await authProvider.checkSession();
+    await authProvider.checkSession().timeout(const Duration(milliseconds: 1500));
   } catch (e) {
     AppLogger.debug('Auth session check skipped: $e', tag: 'MAIN');
   }

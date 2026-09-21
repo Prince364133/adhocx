@@ -59,10 +59,17 @@ class ApiClient {
     if (fromBaseEnv.isNotEmpty) return fromBaseEnv;
 
     if (kIsWeb) {
+      final host = Uri.base.host;
+      if (host.contains('adhocx.com')) {
+        return 'https://api.adhocx.com/api/v1';
+      }
+      if (host.isNotEmpty && host != 'localhost' && host != '127.0.0.1') {
+        return '${Uri.base.scheme}://$host/api/v1';
+      }
       return 'http://localhost:7001/api/v1';
     }
 
-    return 'http://3.110.42.191/api/v1';
+    return 'https://api.adhocx.com/api/v1';
   }
 
   Future<String?> getToken() async {

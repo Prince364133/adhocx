@@ -16,7 +16,7 @@ RUN flutter pub get
 
 # Copy mobile source files and compile web release
 COPY apps/mobile ./
-RUN flutter build web --release --no-tree-shake-icons
+RUN flutter build web --release --no-tree-shake-icons --dart-define=API_URL=https://api.adhocx.com/api/v1
 
 # Stage 2: Serve web bundle via lightweight Nginx Alpine
 FROM nginx:alpine AS runner
