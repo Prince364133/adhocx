@@ -240,44 +240,49 @@ class _UserBidsBottomSheetState extends State<UserBidsBottomSheet> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          driverName,
-                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                                        ),
-                                        Row(
-                                          children: [
-                                            const Icon(Icons.star, color: AppColors.starAmber, size: 14),
-                                            const SizedBox(width: 2),
-                                            Text(
-                                              driverRating.toStringAsFixed(1),
-                                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                              decoration: BoxDecoration(
-                                                color: (trustScore >= 90 ? AppColors.success : AppColors.warning)
-                                                    .withAlpha(35),
-                                                borderRadius: BorderRadius.circular(4),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            driverName,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Row(
+                                            children: [
+                                              const Icon(Icons.star, color: AppColors.starAmber, size: 14),
+                                              const SizedBox(width: 2),
+                                              Text(
+                                                driverRating.toStringAsFixed(1),
+                                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                                               ),
-                                              child: Text(
-                                                '${trustScore.toStringAsFixed(0)}% Trust',
-                                                style: TextStyle(
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: trustScore >= 90 ? AppColors.success : AppColors.warning,
+                                              const SizedBox(width: 8),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: (trustScore >= 90 ? AppColors.success : AppColors.warning)
+                                                      .withAlpha(35),
+                                                  borderRadius: BorderRadius.circular(4),
+                                                ),
+                                                child: Text(
+                                                  '${trustScore.toStringAsFixed(0)}% Trust',
+                                                  style: TextStyle(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: trustScore >= 90 ? AppColors.success : AppColors.warning,
+                                                  ),
                                                 ),
                                               ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
+                                            ],
+                                          ),
+                                        ],
+                                      ),
                                     ),
+                                    const SizedBox(width: 12),
                                     Column(
                                       crossAxisAlignment: CrossAxisAlignment.end,
                                       children: [

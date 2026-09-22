@@ -211,30 +211,36 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Good morning,',
-                              style: AppTypography.caption(
-                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Row(
-                              children: [
-                                Text(
-                                  displayName,
-                                  style: AppTypography.h2(
-                                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Good morning,',
+                                style: AppTypography.caption(
+                                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                                 ),
-                                const SizedBox(width: 6),
-                                const Text('👋', style: TextStyle(fontSize: 20)),
-                              ],
-                            ),
-                          ],
+                              ),
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      displayName,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: AppTypography.h2(
+                                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  const Text('👋', style: TextStyle(fontSize: 20)),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),

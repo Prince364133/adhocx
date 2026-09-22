@@ -231,8 +231,16 @@ class _UserAccountStatusScreenState extends State<UserAccountStatusScreen> {
       children: [
         Icon(icon, size: 20, color: AppColors.primary),
         const SizedBox(width: 12),
-        Text(label, style: TextStyle(fontSize: 12, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)),
-        const Spacer(),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
         Text(
           isDone ? 'Verified' : 'Pending',
           style: TextStyle(

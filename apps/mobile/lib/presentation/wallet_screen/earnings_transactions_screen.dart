@@ -241,19 +241,19 @@ class _EarningsTransactionsScreenState extends State<EarningsTransactionsScreen>
                                                     : AppColors.error,
                                               ),
                                             ),
-                                            title: Row(
-                                              children: [
-                                                Text(
-                                                  tx['title'] as String,
-                                                  style: AppTypography.body(
-                                                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ],
+                                            title: Text(
+                                              tx['title'] as String,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: AppTypography.body(
+                                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                                fontWeight: FontWeight.bold,
+                                              ),
                                             ),
                                             subtitle: Text(
                                               '${tx['subtitle']}\n${tx['date']}',
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
                                               style: AppTypography.caption(
                                                 color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                                               ),

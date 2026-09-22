@@ -591,44 +591,44 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
                                   border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                                 ),
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(10),
-                                          decoration: BoxDecoration(
-                                            color: (isCredit ? AppColors.success : AppColors.error).withValues(alpha: 0.12),
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: Icon(
-                                            isCredit ? Icons.arrow_downward : Icons.arrow_upward,
-                                            color: isCredit ? AppColors.success : AppColors.error,
-                                            size: 20,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              desc,
-                                              style: AppTypography.h4(
-                                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              dateStr.length > 10 ? dateStr.substring(0, 10) : dateStr,
-                                              style: AppTypography.caption(
-                                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: (isCredit ? AppColors.success : AppColors.error).withValues(alpha: 0.12),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(
+                                        isCredit ? Icons.arrow_downward : Icons.arrow_upward,
+                                        color: isCredit ? AppColors.success : AppColors.error,
+                                        size: 20,
+                                      ),
                                     ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            desc,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: AppTypography.h4(
+                                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            dateStr.length > 10 ? dateStr.substring(0, 10) : dateStr,
+                                            style: AppTypography.caption(
+                                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
                                     Text(
                                       '${isCredit ? "+" : "-"} ₹ ${amount.toStringAsFixed(2)}',
                                       style: AppTypography.h4(
