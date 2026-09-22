@@ -632,6 +632,8 @@ export class NotificationsService implements OnModuleInit {
     for (let i = 0; i < tokens.length; i += chunkSize) {
       const chunk = tokens.slice(i, i + chunkSize);
 
+      const isUrgentDispatch = priority === 'high' || stringData['type'] === 'TRIP_OFFER' || stringData['offerId'] != null;
+
       const message: MulticastMessage = {
         tokens: chunk,
         notification: {
@@ -641,25 +643,32 @@ export class NotificationsService implements OnModuleInit {
         },
         data: stringData,
         android: {
-          priority: priority === 'high' ? 'high' : 'normal',
+          priority: isUrgentDispatch ? 'high' : 'normal',
+          ttl: isUrgentDispatch ? 30 * 1000 : 86400 * 1000,
           notification: {
             title,
             body,
             icon: 'notification_icon',
-            color: '#6366f1',
-            sound: 'default',
-            channelId: 'adhocx_operational_alerts',
+            color: '#5b42f3',
+            sound: isUrgentDispatch ? 'adhocx_dispatch_alert' : 'default',
+            channelId: isUrgentDispatch ? 'adhocx_trip_dispatch_urgent' : 'adhocx_operational_alerts',
             clickAction: actionUrl || 'FLUTTER_NOTIFICATION_CLICK',
             ...(imageUrl ? { imageUrl } : {}),
           },
         },
         apns: {
+          headers: {
+            'apns-priority': isUrgentDispatch ? '10' : '5',
+            'apns-push-type': 'alert',
+            ...(isUrgentDispatch ? { 'apns-expiration': String(Math.floor(Date.now() / 1000) + 30) } : {}),
+          },
           payload: {
             aps: {
               alert: { title, body },
               badge: 1,
-              sound: 'default',
-              category: 'ADHOCX_ALERT',
+              sound: isUrgentDispatch ? 'adhocx_dispatch_alert.wav' : 'default',
+              category: isUrgentDispatch ? 'TRIP_DISPATCH_CATEGORY' : 'ADHOCX_ALERT',
+              'interruption-level': isUrgentDispatch ? 'time-sensitive' : 'active',
               'mutable-content': 1,
             },
           },
@@ -792,6 +801,22 @@ export class NotificationsService implements OnModuleInit {
           }
         }
       } catch {}
+
+      // Strict Offline Driver Check: If this is a TRIP_OFFER, ensure driver is not OFFLINE
+      if (type === NotificationType.TRIP_OFFER) {
+        try {
+          const driver = await this.db.driver.findFirst({
+            where: { userId },
+            select: { availabilityStatus: true },
+          });
+          if (driver && driver.availabilityStatus === DriverAvailability.OFFLINE) {
+            this.logger.log(`Skipping TRIP_OFFER push to driver ${userId} because driver is OFFLINE`);
+            allowPush = false;
+          }
+        } catch (err: any) {
+          this.logger.warn(`Failed driver status check for push: ${err.message}`);
+        }
+      }
     }
 
     // 1. Save in-app notification in DB if requested
@@ -1252,37 +1277,42 @@ export class NotificationsService implements OnModuleInit {
       where.isRead = false;
     }
 
-    const [notifications, total, unreadCount] = await Promise.all([
-      this.db.notification.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        take: limit,
-        skip: (page - 1) * limit,
-      }),
-      this.db.notification.count({ where }),
-      this.db.notification.count({ where: { userId, isRead: false } }),
-    ]);
+    try {
+      const [notifications, total, unreadCount] = await Promise.all([
+        this.db.notification.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          take: limit,
+          skip: (page - 1) * limit,
+        }),
+        this.db.notification.count({ where }),
+        this.db.notification.count({ where: { userId, isRead: false } }),
+      ]);
 
-    return {
-      notifications: notifications.map((n) => ({
-        id: n.id,
-        userId: n.userId,
-        title: n.title,
-        body: n.body,
-        type: n.type,
-        data: n.data as Record<string, any> | undefined,
-        imageUrl: n.imageUrl || undefined,
-        isRead: n.isRead,
-        readAt: n.readAt ? n.readAt.toISOString() : undefined,
-        isClicked: n.isClicked,
-        clickedAt: n.clickedAt ? n.clickedAt.toISOString() : undefined,
-        createdAt: n.createdAt.toISOString(),
-      })),
-      unreadCount,
-      total,
-      page,
-      limit,
-    };
+      return {
+        notifications: notifications.map((n) => ({
+          id: n.id,
+          userId: n.userId,
+          title: n.title,
+          body: n.body,
+          type: n.type,
+          data: n.data as Record<string, any> | undefined,
+          imageUrl: n.imageUrl || undefined,
+          isRead: n.isRead,
+          readAt: n.readAt ? n.readAt.toISOString() : undefined,
+          isClicked: n.isClicked,
+          clickedAt: n.clickedAt ? n.clickedAt.toISOString() : undefined,
+          createdAt: n.createdAt.toISOString(),
+        })),
+        unreadCount,
+        total,
+        page,
+        limit,
+      };
+    } catch (err: any) {
+      this.logger.warn(`Failed to fetch notifications: ${err.message}`);
+      return { notifications: [], unreadCount: 0, total: 0, page, limit };
+    }
   }
 
   /**
@@ -1290,10 +1320,14 @@ export class NotificationsService implements OnModuleInit {
    */
   async markAsRead(userId: string, notificationId: string) {
     if (!this.db) return { success: true };
-    await this.db.notification.updateMany({
-      where: { id: notificationId, userId },
-      data: { isRead: true, readAt: new Date() },
-    });
+    try {
+      await this.db.notification.updateMany({
+        where: { id: notificationId, userId },
+        data: { isRead: true, readAt: new Date() },
+      });
+    } catch (err: any) {
+      this.logger.warn(`Failed to mark notification read: ${err.message}`);
+    }
     return { success: true };
   }
 

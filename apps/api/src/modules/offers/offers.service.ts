@@ -167,6 +167,12 @@ export class OffersService {
       throw new ForbiddenException('Driver profile not found');
     }
 
+    if (driver.subscriptionStatus === 'FROZEN' || driver.subscriptionStatus === 'EXPIRED') {
+      throw new ForbiddenException(
+        'Subscription required: Your 15-day trial or monthly membership has expired. Please renew your subscription to accept offers.',
+      );
+    }
+
     const offer = await this.db.offer.findUnique({
       where: { id: offerId },
       include: { requirement: { include: { vendor: true } } },

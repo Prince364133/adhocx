@@ -133,6 +133,14 @@ enum CouponApplicableContext {
   ALL
 }
 
+enum DriverSubscriptionStatus {
+  TRIAL_ACTIVE
+  ACTIVE
+  GRACE_PERIOD
+  EXPIRED
+  FROZEN
+}
+
 model User {
   id        String     @id @default(uuid()) @db.Uuid
   phone     String     @unique
@@ -190,7 +198,7 @@ model Driver {
   phone              String             @unique
   verificationStatus VerificationStatus @default(PENDING) @map("verification_status")
   availabilityStatus DriverAvailability @default(OFFLINE) @map("availability_status")
-  vehicleType        VehicleType?       @map("vehicle_type")
+  vehicleType        String?            @map("vehicle_type") @db.VarChar(50)
   vehicleModel       String?            @map("vehicle_model")
   vehiclePlate       String?            @map("vehicle_plate")
   walletBalance      Decimal            @default(0.00) @map("wallet_balance") @db.Decimal(12, 2)
@@ -211,17 +219,23 @@ model Driver {
   aadharFrontUrl     String?            @map("aadhar_front_url")
   aadharBackUrl      String?            @map("aadhar_back_url")
   panDocUrl          String?            @map("pan_doc_url")
+  subscriptionStatus DriverSubscriptionStatus @default(TRIAL_ACTIVE) @map("subscription_status")
+  trialStartDate      DateTime           @default(now()) @map("trial_start_date")
+  trialEndDate        DateTime?          @map("trial_end_date")
+  subscriptionExpiry  DateTime?          @map("subscription_expiry")
+  autoDebit           Boolean            @default(true) @map("auto_debit")
   createdAt          DateTime           @default(now()) @map("created_at")
   updatedAt          DateTime           @updatedAt @map("updated_at")
 
-  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  vehicles        Vehicle[]
-  offers          Offer[]
-  bids            Bid[]
-  assignments     Assignment[]
-  trips           Trip[]
-  settlements     Settlement[]
-  reviewsReceived Review[]      @relation("DriverReviewsReceived")
+  user                 User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicles             Vehicle[]
+  offers               Offer[]
+  bids                 Bid[]
+  assignments          Assignment[]
+  trips                Trip[]
+  settlements          Settlement[]
+  reviewsReceived      Review[]                  @relation("DriverReviewsReceived")
+  subscriptionPayments DriverSubscriptionPayment[]
 
   @@map("drivers")
 }
@@ -229,7 +243,7 @@ model Driver {
 model Vehicle {
   id                 String             @id @default(uuid()) @db.Uuid
   driverId           String             @map("driver_id") @db.Uuid
-  vehicleType        VehicleType        @map("vehicle_type")
+  vehicleType        String             @map("vehicle_type") @db.VarChar(50)
   make               String?
   model              String
   registrationNumber String             @unique @map("registration_number")
@@ -250,7 +264,7 @@ model Requirement {
   id               String            @id @default(uuid()) @db.Uuid
   vendorId         String            @map("vendor_id") @db.Uuid
   fulfillmentMode  FulfillmentMode   @default(DIRECT_DISPATCH) @map("fulfillment_mode")
-  vehicleType      VehicleType       @map("vehicle_type")
+  vehicleType      String            @map("vehicle_type") @db.VarChar(50)
   quantity         Int               @default(1)
   assignedQuantity Int               @default(0) @map("assigned_quantity")
   pickupLat        Decimal           @map("pickup_lat") @db.Decimal(10, 7)
@@ -282,7 +296,7 @@ model Offer {
   id            String      @id @default(uuid()) @db.Uuid
   requirementId String      @map("requirement_id") @db.Uuid
   driverId      String      @map("driver_id") @db.Uuid
-  vehicleType   VehicleType @map("vehicle_type")
+  vehicleType   String      @map("vehicle_type") @db.VarChar(50)
   offeredRate   Decimal     @map("offered_rate") @db.Decimal(10, 2)
   status        OfferStatus @default(SENT)
   expiresAt     DateTime    @map("expires_at")
@@ -347,7 +361,7 @@ model Trip {
   vendorId            String      @map("vendor_id") @db.Uuid
   driverId            String      @map("driver_id") @db.Uuid
   vehicleId           String?     @map("vehicle_id") @db.Uuid
-  vehicleType         VehicleType @map("vehicle_type")
+  vehicleType         String      @map("vehicle_type") @db.VarChar(50)
   pickupAddress       String      @map("pickup_address")
   dropAddress         String      @map("drop_address")
   reportingTime       DateTime    @map("reporting_time")
@@ -670,6 +684,56 @@ model NotificationCampaign {
   @@index([createdAt])
   @@map("notification_campaigns")
 }
+
+model VehiclePricingTier {
+  id                 String      @id @default(uuid()) @db.Uuid
+  vehicleType        String      @unique @map("vehicle_type") @db.VarChar(50)
+  categoryLabel      String      @map("category_label")
+  seatingCapacity    String      @map("seating_capacity")
+  description        String
+  iconKey            String?     @default("car") @map("icon_key")
+  baseFare           Decimal     @map("base_fare") @db.Decimal(10, 2)
+  baseKm             Decimal     @map("base_km") @db.Decimal(10, 2)
+  perKmRate          Decimal     @map("per_km_rate") @db.Decimal(10, 2)
+  driverSharePercent Decimal     @default(90.00) @map("driver_share_percent") @db.Decimal(5, 2)
+  platformFeePercent Decimal     @default(10.00) @map("platform_fee_percent") @db.Decimal(5, 2)
+  surgeMultiplier    Decimal     @default(1.00) @map("surge_multiplier") @db.Decimal(4, 2)
+  isActive           Boolean     @default(true) @map("is_active")
+  updatedAt          DateTime    @updatedAt @map("updated_at")
+  updatedBy          String?     @map("updated_by")
+
+  @@map("vehicle_pricing_tiers")
+}
+
+model SystemPolicyConfig {
+  id                  String   @id @default(uuid()) @db.Uuid
+  key                 String   @unique
+  driverMonthlyFee    Decimal  @default(499.00) @map("driver_monthly_fee") @db.Decimal(10, 2)
+  driverTrialDays     Int      @default(15) @map("driver_trial_days")
+  minWithdrawalAmount Decimal  @default(1000.00) @map("min_withdrawal_amount") @db.Decimal(10, 2)
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@map("system_policy_configs")
+}
+
+model DriverSubscriptionPayment {
+  id             String   @id @default(uuid()) @db.Uuid
+  driverId       String   @map("driver_id") @db.Uuid
+  amount         Decimal  @db.Decimal(10, 2)
+  discountAmount Decimal  @default(0.00) @map("discount_amount") @db.Decimal(10, 2)
+  finalAmount    Decimal  @map("final_amount") @db.Decimal(10, 2)
+  paymentMethod  String   @map("payment_method") // WALLET | RAZORPAY
+  paymentRef     String?  @map("payment_ref")
+  periodStart    DateTime @map("period_start")
+  periodEnd      DateTime @map("period_end")
+  couponCode     String?  @map("coupon_code")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@map("driver_subscription_payments")
+}
+
 
 
 

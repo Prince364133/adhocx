@@ -14,7 +14,6 @@ import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse as SwaggerResponse } 
 import {
   InitiatePaymentDto,
   PaymentResponseDto,
-  PaymentWebhookDto,
   AuthUserDto,
   UserRole,
 } from '@adhocx/contracts';
@@ -54,6 +53,18 @@ export class PaymentsController {
   @Roles(UserRole.VENDOR, UserRole.ADMIN)
   @ApiOperation({ summary: 'Create Razorpay Order for Wallet Top-Up' })
   async createTopUpOrder(
+    @CurrentUser() user: AuthUserDto,
+    @Body() dto: any,
+  ) {
+    return this.paymentsService.createWalletTopUpOrder(user.id, dto);
+  }
+
+  @Post('wallet/top-up/order')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.VENDOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Create Razorpay Order for Wallet Top-Up (alias)' })
+  async createTopUpOrderAlias(
     @CurrentUser() user: AuthUserDto,
     @Body() dto: any,
   ) {
@@ -128,9 +139,10 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Payment provider webhook endpoint (Razorpay/Stripe/mock)' })
   async handleWebhook(
     @Param('provider') provider: string,
-    @Body() payload: PaymentWebhookDto,
+    @Body() payload: any,
     @Headers('x-webhook-secret') webhookSecret?: string,
+    @Headers('x-razorpay-signature') razorpaySignature?: string,
   ) {
-    return this.paymentsService.handleWebhook(provider, payload, webhookSecret);
+    return this.paymentsService.handleWebhook(provider, payload, razorpaySignature || webhookSecret);
   }
 }

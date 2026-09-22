@@ -449,5 +449,86 @@ class DriverService {
       return [];
     }
   }
+
+  // Driver Monthly Subscription & 15-Day Free Trial Engine
+  Future<dynamic> getSubscriptionStatus({bool forceRefresh = false}) async {
+    await _ensureDriverSession();
+    return await _api.get('/subscriptions/status', force: forceRefresh);
+  }
+
+  Future<dynamic> createSubscriptionOrder({String? couponCode}) async {
+    await _ensureDriverSession();
+    return await _api.post(
+      '/subscriptions/order',
+      body: couponCode != null && couponCode.trim().isNotEmpty ? {'couponCode': couponCode.trim()} : null,
+    );
+  }
+
+  Future<dynamic> verifySubscriptionPayment({
+    required String razorpayOrderId,
+    required String razorpayPaymentId,
+    required String razorpaySignature,
+    String? couponCode,
+  }) async {
+    await _ensureDriverSession();
+    final res = await _api.post(
+      '/subscriptions/verify',
+      body: {
+        'razorpayOrderId': razorpayOrderId,
+        'razorpayPaymentId': razorpayPaymentId,
+        'razorpaySignature': razorpaySignature,
+        if (couponCode != null && couponCode.trim().isNotEmpty) 'couponCode': couponCode.trim(),
+      },
+    );
+    invalidateCache(profile: true);
+    return res;
+  }
+
+  Future<dynamic> renewSubscriptionWithWallet() async {
+    await _ensureDriverSession();
+    final res = await _api.post('/subscriptions/renew-wallet');
+    invalidateCache(profile: true, trips: true);
+    return res;
+  }
+
+  // Emergency Safety SOS
+  Future<dynamic> triggerSos(String tripId, {double? lat, double? lng, String? note}) async {
+    await _ensureDriverSession();
+    return await _api.post(
+      '/trips/$tripId/sos',
+      body: {
+        if (lat != null) 'latitude': lat,
+        if (lng != null) 'longitude': lng,
+        if (note != null) 'note': note,
+      },
+    );
+  }
+
+  // Dynamic Vehicle Categories & Authoritative Rate Cards
+  List<Map<String, dynamic>>? _cachedVehicleCategories;
+  DateTime? _lastVehicleCategoriesFetchTime;
+
+  Future<List<Map<String, dynamic>>> getVehicleCategories({bool forceRefresh = false}) async {
+    final now = DateTime.now();
+    if (!forceRefresh &&
+        _cachedVehicleCategories != null &&
+        _lastVehicleCategoriesFetchTime != null &&
+        now.difference(_lastVehicleCategoriesFetchTime!).inMinutes < 10) {
+      return _cachedVehicleCategories!;
+    }
+
+    try {
+      final res = await _api.get('/pricing/tiers', force: forceRefresh);
+      if (res is List) {
+        _cachedVehicleCategories = List<Map<String, dynamic>>.from(
+          res.map((item) => Map<String, dynamic>.from(item as Map)),
+        );
+        _lastVehicleCategoriesFetchTime = now;
+        return _cachedVehicleCategories!;
+      }
+    } catch (_) {}
+
+    return _cachedVehicleCategories ?? [];
+  }
 }
 

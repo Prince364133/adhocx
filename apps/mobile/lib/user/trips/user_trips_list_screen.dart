@@ -6,6 +6,7 @@ import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
+import '../../shared/widgets/app_adaptive_skeleton.dart';
 
 class UserTripsListScreen extends StatefulWidget {
   const UserTripsListScreen({super.key});
@@ -130,128 +131,146 @@ class _UserTripsListScreenState extends State<UserTripsListScreen> {
 
           // Trips List
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : list.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.directions_car_outlined, size: 48, color: AppColors.textMutedLight),
-                            const SizedBox(height: 12),
-                            Text(
-                              'No $_selectedTab Trips',
-                              style: AppTypography.body(color: AppColors.textMutedLight),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.separated(
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        itemCount: list.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
-                        itemBuilder: (context, index) {
-                          final trip = list[index] as Map<String, dynamic>? ?? {};
-                          final req = trip['requirement'] as Map<String, dynamic>? ?? {};
-                          final driver = trip['driver'] as Map<String, dynamic>? ?? {};
-                          final driverUser = driver['user'] as Map<String, dynamic>? ?? {};
-                          final driverName = driverUser['name'] ?? 'Driver Assigned';
-                          final status = (trip['status'] ?? 'SCHEDULED').toString().toUpperCase();
-                          final vehicle = req['vehicleType'] ?? 'Sedan';
-                          final tripId = (trip['id'] ?? 'TRIP').toString();
-                          final shortId = tripId.length > 8 ? tripId.substring(0, 8).toUpperCase() : tripId;
-
-                          Color statusColor = AppColors.info;
-                          if (status == 'ARRIVED' || status == 'IN_PROGRESS' || status == 'STARTED') {
-                            statusColor = AppColors.accentGreenDark;
-                          } else if (status == 'COMPLETED') {
-                            statusColor = AppColors.accentPurple;
-                          } else if (status == 'CANCELLED') {
-                            statusColor = AppColors.error;
-                          }
-
-                          return InkWell(
-                            onTap: () => context.push(AppRoutes.userRequirementDetailsScreen, extra: req['id'] ?? trip['requirementId']),
-                            borderRadius: BorderRadius.circular(AppRadius.lg),
-                            child: Container(
-                              padding: const EdgeInsets.all(AppSpacing.md),
-                              decoration: BoxDecoration(
-                                color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                                borderRadius: BorderRadius.circular(AppRadius.lg),
-                                border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primary.withValues(alpha: 0.1),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(Icons.directions_car, color: AppColors.primary),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          '$vehicle Transfer',
-                                          style: AppTypography.h4(
-                                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          'ID: $shortId',
-                                          style: AppTypography.caption(
-                                            color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'Driver: $driverName',
-                                          style: AppTypography.caption(
-                                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                        decoration: BoxDecoration(
-                                          color: statusColor.withValues(alpha: 0.12),
-                                          borderRadius: BorderRadius.circular(AppRadius.sm),
-                                        ),
-                                        child: Text(
-                                          status,
-                                          style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.bold),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        '₹${trip['fare'] ?? '850'}',
-                                        style: AppTypography.body(
-                                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
+            child: AdaptiveSkeleton.repeat(
+              isLoading: _isLoading,
+              mockCount: 4,
+              padding: const EdgeInsets.all(AppSpacing.md),
+              separator: const SizedBox(height: AppSpacing.sm),
+              mockBuilder: (context, index) => _buildTripTile(
+                {
+                  'id': 'TRIP-9901',
+                  'status': 'SCHEDULED',
+                  'fare': 1250,
+                  'requirement': {'vehicleType': 'Sedan'},
+                  'driver': {'user': {'name': 'Driver Assigned'}},
+                },
+                isDark,
+              ),
+              child: list.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.directions_car_outlined, size: 48, color: AppColors.textMutedLight),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No $_selectedTab Trips',
+                            style: AppTypography.body(color: AppColors.textMutedLight),
+                          ),
+                        ],
                       ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      itemCount: list.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+                      itemBuilder: (context, index) => _buildTripTile(
+                        list[index] as Map<String, dynamic>? ?? {},
+                        isDark,
+                      ),
+                    ),
+            ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTripTile(Map<String, dynamic> trip, bool isDark) {
+    final req = trip['requirement'] as Map<String, dynamic>? ?? {};
+    final driver = trip['driver'] as Map<String, dynamic>? ?? {};
+    final driverUser = driver['user'] as Map<String, dynamic>? ?? {};
+    final driverName = driverUser['name'] ?? 'Driver Assigned';
+    final status = (trip['status'] ?? 'SCHEDULED').toString().toUpperCase();
+    final vehicle = req['vehicleType'] ?? 'Sedan';
+    final tripId = (trip['id'] ?? 'TRIP').toString();
+    final shortId = tripId.length > 8 ? tripId.substring(0, 8).toUpperCase() : tripId;
+
+    Color statusColor = AppColors.info;
+    if (status == 'ARRIVED' || status == 'IN_PROGRESS' || status == 'STARTED') {
+      statusColor = AppColors.accentGreenDark;
+    } else if (status == 'COMPLETED') {
+      statusColor = AppColors.accentPurple;
+    } else if (status == 'CANCELLED') {
+      statusColor = AppColors.error;
+    }
+
+    return InkWell(
+      onTap: () => context.push(AppRoutes.userRequirementDetailsScreen, extra: {'id': req['id'] ?? trip['requirementId']}),
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.directions_car, color: AppColors.primary),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$vehicle Transfer',
+                    style: AppTypography.h4(
+                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'ID: $shortId',
+                    style: AppTypography.caption(
+                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Driver: $driverName',
+                    style: AppTypography.caption(
+                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                  ),
+                  child: Text(
+                    status,
+                    style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '₹${trip['fare'] ?? '850'}',
+                  style: AppTypography.body(
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

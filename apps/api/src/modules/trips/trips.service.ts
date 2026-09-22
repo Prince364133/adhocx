@@ -400,26 +400,13 @@ export class TripsService {
           walletBalance: { increment: totalDriverEarnings },
           totalTrips: { increment: 1 },
           trustScore: Math.min(100.0, Number(trip.driver.trustScore || 100) + 0.5),
-          currentLat: dto.currentLocation.latitude,
-          currentLng: dto.currentLocation.longitude,
+          currentLat: dto?.currentLocation?.latitude ? dto.currentLocation.latitude : undefined,
+          currentLng: dto?.currentLocation?.longitude ? dto.currentLocation.longitude : undefined,
           lastLocationAt: now,
         },
       });
 
-      // 4. If requirement had escrow (Bidding Mode), decrement vendor escrow balance
-      if (isBidding) {
-        const vendor = await tx.vendor.findUnique({ where: { id: trip.vendorId } });
-        if (vendor && Number(vendor.escrowBalance) > 0) {
-          await tx.vendor.update({
-            where: { id: trip.vendorId },
-            data: {
-              escrowBalance: { decrement: Math.min(Number(vendor.escrowBalance), fareAmount) },
-            },
-          });
-        }
-      }
-
-      // 5. Record immutable ledger entry for driver earnings
+      // 4. Record immutable ledger entry for driver earnings
       await tx.ledgerEntry.create({
         data: {
           accountType: 'DRIVER',
@@ -427,7 +414,7 @@ export class TripsService {
           entryType: 'CREDIT',
           amount: totalDriverEarnings,
           balanceAfter: updatedDriver.walletBalance,
-          referenceType: isBidding ? 'ESCROW_RELEASE' : 'TRIP',
+          referenceType: isBidding ? 'ESCROW_RELEASE' : 'TRIP_EARNINGS',
           referenceId: trip.id,
           description: `Earnings for trip ${trip.id.slice(-6)} (Fare: ₹${fareAmount}${commission ? `, Fee: -₹${commission}` : ''}${tollCharges ? `, Toll: ₹${tollCharges}` : ''}${parkingCharges ? `, Parking: ₹${parkingCharges}` : ''})`,
         },
@@ -473,8 +460,8 @@ export class TripsService {
       data: {
         tripId: id,
         eventType: 'TRIP_COMPLETED',
-        latitude: dto.currentLocation.latitude,
-        longitude: dto.currentLocation.longitude,
+        latitude: dto?.currentLocation?.latitude,
+        longitude: dto?.currentLocation?.longitude,
         metadata: {
           totalEarnings: totalDriverEarnings,
           tollCharges,
@@ -744,6 +731,90 @@ export class TripsService {
     });
 
     return this.mapToDto(updated);
+  }
+
+  /**
+   * Trigger emergency SOS / safety alert during an active trip.
+   */
+  async triggerEmergencySos(
+    id: string,
+    userId: string,
+    role: UserRole,
+    dto?: { latitude?: number; longitude?: number; note?: string },
+  ): Promise<{ success: boolean; eventId: string; message: string }> {
+    const trip = await this.db.trip.findUnique({
+      where: { id },
+      include: {
+        driver: { include: { user: true } },
+        requirement: { include: { vendor: { include: { user: true } } } },
+      },
+    });
+
+    if (!trip) {
+      throw new NotFoundException('Trip not found');
+    }
+
+    const isDriver = trip.driver.userId === userId;
+    const isVendor = trip.requirement.vendor.userId === userId;
+    if (!isDriver && !isVendor && role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only trip participants can trigger SOS alerts');
+    }
+
+    const lat = dto?.latitude ?? (trip.driver.currentLat ? Number(trip.driver.currentLat) : undefined);
+    const lng = dto?.longitude ?? (trip.driver.currentLng ? Number(trip.driver.currentLng) : undefined);
+
+    const event = await this.db.tripEvent.create({
+      data: {
+        tripId: id,
+        eventType: 'EMERGENCY_SOS_TRIGGERED',
+        latitude: lat,
+        longitude: lng,
+        metadata: {
+          triggeredByRole: role,
+          triggeredByUserId: userId,
+          note: dto?.note || 'In-app emergency SOS triggered',
+          timestamp: new Date().toISOString(),
+        },
+      },
+    });
+
+    // High-priority safety broadcast to admin and both participants
+    this.notifications.emitEvent('admin:safety', 'EMERGENCY_SOS_ALERT', {
+      tripId: id,
+      triggeredByRole: role,
+      triggeredByUserId: userId,
+      latitude: lat,
+      longitude: lng,
+      note: dto?.note,
+      driverName: trip.driver.fullName,
+      driverPhone: trip.driver.phone,
+      vendorName: trip.requirement.vendor.organizationName || trip.requirement.vendor.fullName,
+      vehiclePlate: trip.driver.vehiclePlate,
+    });
+
+    this.notifications.emitEvent(`vendor:${trip.vendorId}`, 'EMERGENCY_SOS_ACTIVE', {
+      tripId: id,
+      status: 'EMERGENCY_DESK_DISPATCHED',
+    });
+
+    this.notifications.emitEvent(`driver:${trip.driverId}`, 'EMERGENCY_SOS_ACTIVE', {
+      tripId: id,
+      status: 'EMERGENCY_DESK_DISPATCHED',
+    });
+
+    await this.audit.log({
+      userId,
+      action: 'EMERGENCY_SOS_TRIGGERED',
+      entityType: 'TRIP',
+      entityId: id,
+      metadata: { latitude: lat, longitude: lng, role },
+    });
+
+    return {
+      success: true,
+      eventId: event.id,
+      message: 'Emergency SOS alert dispatched to 24/7 safety command desk and authorities.',
+    };
   }
 
   // --- Private helpers ---

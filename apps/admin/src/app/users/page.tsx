@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { Building2, X } from 'lucide-react';
+import { Building2, X, Trash2, AlertTriangle } from 'lucide-react';
 import { adminApi } from '../../lib/api/client';
 import { UserListItem } from '../../lib/api/types';
 import {
@@ -32,6 +32,8 @@ export default function UsersPage() {
   const [reason, setReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [userToDelete, setUserToDelete] = useState<UserListItem | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     loadUsers(activeTab);
@@ -84,6 +86,30 @@ export default function UsersPage() {
       setAlert({ type: 'error', message: err instanceof Error ? err.message : 'Operation failed' });
     } finally {
       setActionLoading(false);
+    }
+  }
+
+  async function handleDeleteUser() {
+    if (!userToDelete) return;
+    setDeleteLoading(true);
+    try {
+      await adminApi.deleteVendor(userToDelete.id);
+      setAlert({
+        type: 'success',
+        message: `Account "${userToDelete.companyName || userToDelete.contactPerson}" was permanently deleted from database.`,
+      });
+      setUserToDelete(null);
+      if (selectedUser?.id === userToDelete.id) {
+        setSelectedUser(null);
+      }
+      loadUsers(activeTab);
+    } catch (err: unknown) {
+      setAlert({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Failed to delete user account from database.',
+      });
+    } finally {
+      setDeleteLoading(false);
     }
   }
 
@@ -158,17 +184,28 @@ export default function UsersPage() {
       label: 'Action',
       align: 'right',
       render: (u) => (
-        <Button
-          variant={u.verificationStatus === 'PENDING' ? 'primary' : 'secondary'}
-          size="sm"
-          onClick={() => {
-            setSelectedUser(u);
-            setActionType(null);
-            setReason('');
-          }}
-        >
-          {u.verificationStatus === 'PENDING' ? 'Review Application →' : 'Inspect →'}
-        </Button>
+        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+          <Button
+            variant={u.verificationStatus === 'PENDING' ? 'primary' : 'secondary'}
+            size="sm"
+            onClick={() => {
+              setSelectedUser(u);
+              setActionType(null);
+              setReason('');
+            }}
+          >
+            {u.verificationStatus === 'PENDING' ? 'Review Application →' : 'Inspect →'}
+          </Button>
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={() => setUserToDelete(u)}
+            title="Permanently Delete User from DB"
+            style={{ padding: '0.35rem 0.65rem' }}
+          >
+            <Trash2 size={13} style={{ marginRight: '0.25rem' }} /> Delete
+          </Button>
+        </div>
       ),
     },
   ];
@@ -259,6 +296,14 @@ export default function UsersPage() {
                   </Button>
                 </>
               )}
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => setUserToDelete(selectedUser)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                <Trash2 size={14} /> Delete from DB
+              </Button>
               <Button variant="secondary" size="sm" onClick={() => setSelectedUser(null)}>
                 Close
               </Button>
@@ -320,6 +365,89 @@ export default function UsersPage() {
           </div>
         )}
       </Drawer>
+
+      {/* Delete User Confirmation Modal */}
+      {userToDelete && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.6)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '1rem',
+          }}
+          onClick={() => !deleteLoading && setUserToDelete(null)}
+        >
+          <div
+            style={{
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-lg)',
+              maxWidth: '460px',
+              width: '100%',
+              padding: '1.5rem',
+              boxShadow: 'var(--shadow-xl)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+              <div
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--color-danger)',
+                }}
+              >
+                <AlertTriangle size={22} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  Delete User Account?
+                </h3>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Permanent database removal
+                </div>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 1.25rem 0' }}>
+              Are you sure you want to permanently delete{' '}
+              <strong style={{ color: 'var(--text-primary)' }}>
+                {userToDelete.companyName || userToDelete.contactPerson} ({userToDelete.phone})
+              </strong>{' '}
+              from the database? All associated vendor records, requirements, trips, and authentication sessions will be permanently purged.
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <Button
+                variant="secondary"
+                size="md"
+                disabled={deleteLoading}
+                onClick={() => setUserToDelete(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                size="md"
+                loading={deleteLoading}
+                onClick={handleDeleteUser}
+              >
+                Permanently Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

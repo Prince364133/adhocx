@@ -35,6 +35,8 @@ export enum VehicleType {
   PICKUP_TRUCK = 'PICKUP_TRUCK',
 }
 
+export type VehicleClass = VehicleType | string;
+
 export enum FulfillmentMode {
   DIRECT_DISPATCH = 'DIRECT_DISPATCH',
   BIDDING = 'BIDDING',

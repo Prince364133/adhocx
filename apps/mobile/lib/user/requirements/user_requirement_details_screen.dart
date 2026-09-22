@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../routes/app_routes.dart';
 import '../../services/user_service.dart';
@@ -8,6 +9,7 @@ import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
+import '../../shared/widgets/trip_rating_bottom_sheet.dart';
 import 'user_bids_bottom_sheet.dart';
 
 class UserRequirementDetailsScreen extends StatefulWidget {
@@ -33,7 +35,7 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
   @override
   void initState() {
     super.initState();
-    if (widget.initialData != null) {
+    if (widget.initialData != null && widget.initialData!.length > 1) {
       _requirement = widget.initialData;
       _isLoading = false;
     }
@@ -70,17 +72,23 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
     }
 
     try {
-      final effectiveId = widget.requirementId ?? _requirement?['id'] as String?;
+      final effectiveId = widget.requirementId ?? _requirement?['id']?.toString();
       if (effectiveId != null && effectiveId.isNotEmpty && !effectiveId.startsWith('REQ-LIVE')) {
         final data = await UserService.instance.getRequirement(effectiveId);
-        if (mounted) setState(() => _requirement = data as Map<String, dynamic>?);
+        if (mounted && data is Map) {
+          setState(() => _requirement = Map<String, dynamic>.from(data));
+        }
       } else {
         // Fallback: fetch most recent requirement for current vendor
         final list = await UserService.instance.getRequirements();
         if (list.isNotEmpty && mounted) {
           final first = list.first;
-          final full = await UserService.instance.getRequirement(first['id'] as String);
-          if (mounted) setState(() => _requirement = full as Map<String, dynamic>?);
+          if (first is Map && first['id'] != null) {
+            final full = await UserService.instance.getRequirement(first['id'].toString());
+            if (mounted && full is Map) {
+              setState(() => _requirement = Map<String, dynamic>.from(full));
+            }
+          }
         }
       }
     } catch (e) {
@@ -112,28 +120,48 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
     }
   }
 
+  num _parseNum(dynamic val, [num defaultVal = 0.0]) {
+    if (val == null) return defaultVal;
+    if (val is num) return val;
+    return num.tryParse(val.toString()) ?? defaultVal;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
     final req = _requirement;
-    final status = req?['status'] as String? ?? 'POSTED';
+    final status = req?['status']?.toString() ?? 'POSTED';
     final statusColor = _getStatusColor(status);
-    final requiredQty = (req?['quantity'] ?? req?['requiredQuantity'] as num?)?.toInt() ?? 1;
-    final assignedQty = (req?['assignedQuantity'] as num?)?.toInt() ?? 0;
+    final requiredQty = _parseNum(req?['quantity'] ?? req?['requiredQuantity'], 1).toInt();
+    final assignedQty = _parseNum(req?['assignedQuantity'], 0).toInt();
     final progress = requiredQty > 0 ? (assignedQty / requiredQty).clamp(0.0, 1.0) : 0.0;
-    final rawId = req?['id'] as String? ?? widget.requirementId ?? 'LIVE';
+    final rawId = req?['id']?.toString() ?? widget.requirementId ?? 'LIVE';
     final displayId = rawId.length > 8 ? 'REQ-${rawId.substring(0, 8).toUpperCase()}' : rawId;
 
     final isBidding = req?['fulfillmentMode'] == 'BIDDING';
-    final vehicle = req?['vehicleType'] as String? ?? 'Sedan';
-    final pickup = req?['pickupLocation']?['address'] as String? ?? req?['pickupAddress'] as String? ?? 'Pickup Location';
-    final drop = req?['dropLocation']?['address'] as String? ?? req?['dropAddress'] as String? ?? 'Drop Location';
+    final vehicle = req?['vehicleType']?.toString() ?? 'Sedan';
 
-    final budget = (req?['ratePerVehicle'] ?? req?['suggestedBudget'] ?? req?['totalAmount'] ?? 0.0) as num;
-    final bids = (req?['bids'] as List<dynamic>?) ?? [];
-    final assignedDrivers = (req?['assignedDrivers'] as List<dynamic>?) ?? [];
+    String pickup = 'Pickup Location';
+    final rawPickup = req?['pickupLocation'] ?? req?['pickupAddress'];
+    if (rawPickup is Map) {
+      pickup = (rawPickup['address'] ?? rawPickup['fullAddress'] ?? 'Pickup Location').toString();
+    } else if (rawPickup is String && rawPickup.isNotEmpty) {
+      pickup = rawPickup;
+    }
+
+    String drop = 'Drop Location';
+    final rawDrop = req?['dropLocation'] ?? req?['dropAddress'];
+    if (rawDrop is Map) {
+      drop = (rawDrop['address'] ?? rawDrop['fullAddress'] ?? 'Drop Location').toString();
+    } else if (rawDrop is String && rawDrop.isNotEmpty) {
+      drop = rawDrop;
+    }
+
+    final budget = _parseNum(req?['ratePerVehicle'] ?? req?['suggestedBudget'] ?? req?['totalAmount'], 0.0);
+    final bids = req?['bids'] is List ? (req!['bids'] as List) : [];
+    final assignedDrivers = req?['assignedDrivers'] is List ? (req!['assignedDrivers'] as List) : [];
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -178,7 +206,42 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                       ),
                     ),
                   )
-                : SingleChildScrollView(
+                : req == null
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(AppSpacing.lg),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.assignment_outlined, size: 56, color: AppColors.slate400),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No Requirement Details Found',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Select a requirement from your active bookings list.',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              ElevatedButton(
+                                onPressed: () => context.go(AppRoutes.userRequirementsScreen),
+                                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                                child: const Text('View All Requirements', style: TextStyle(color: Colors.white)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : SingleChildScrollView(
                     padding: const EdgeInsets.all(AppSpacing.md),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -380,12 +443,25 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
 
                         // Assigned Drivers Section (Live Real-time Dispatch)
                         if (assignedDrivers.isNotEmpty) ...[
-                          Text(
-                            'Assigned Drivers (${assignedDrivers.length})',
-                            style: AppTypography.h4(
-                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Assigned Drivers (${assignedDrivers.length})',
+                                style: AppTypography.h4(
+                                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                '${assignedDrivers.length} / $requiredQty Assigned',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: assignedDrivers.length >= requiredQty ? AppColors.success : AppColors.primary,
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 8),
                           ListView.builder(
@@ -394,46 +470,268 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                             itemCount: assignedDrivers.length,
                             itemBuilder: (context, index) {
                               final d = assignedDrivers[index];
+                              if (d is! Map) return const SizedBox.shrink();
+                              final driverName = d['driverName']?.toString() ?? 'Verified Driver';
+                              final driverPhone = d['driverPhone']?.toString() ?? '\u2014';
+                              final vehiclePlate = d['vehiclePlate']?.toString() ?? '\u2014';
+                              final rawStatus = (d['tripStatus']?.toString() ?? 'ASSIGNED');
+                              final tripStatus = rawStatus.replaceAll('_', ' ');
+                              final tripId = d['tripId']?.toString();
+                              final startOtp = d['startOtp']?.toString();
+
+                              final isArrived = rawStatus == 'ARRIVED';
+                              final isInProgress = rawStatus == 'IN_PROGRESS';
+                              final isCompleted = rawStatus == 'COMPLETED';
+
+                              Color badgeColor = AppColors.primary;
+                              if (isArrived) badgeColor = AppColors.warning;
+                              if (isInProgress) badgeColor = AppColors.info;
+                              if (isCompleted) badgeColor = AppColors.success;
+
                               return Container(
-                                margin: const EdgeInsets.only(bottom: 8),
+                                margin: const EdgeInsets.only(bottom: 12),
                                 padding: const EdgeInsets.all(AppSpacing.md),
                                 decoration: BoxDecoration(
                                   color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                                  borderRadius: BorderRadius.circular(AppRadius.md),
-                                  border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
-                                ),
-                                child: Row(
-                                  children: [
-                                    CircleAvatar(
-                                      backgroundColor: AppColors.success.withValues(alpha: 0.15),
-                                      child: const Icon(Icons.person, color: AppColors.success),
+                                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                                  border: Border.all(
+                                    color: isArrived
+                                        ? AppColors.warning.withValues(alpha: 0.6)
+                                        : isCompleted
+                                            ? AppColors.success.withValues(alpha: 0.5)
+                                            : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                                    width: isArrived ? 1.5 : 1.0,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: (isArrived ? AppColors.warning : Colors.black).withValues(alpha: isDark ? 0.2 : 0.06),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 3),
                                     ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            d['driverName'] as String? ?? 'Verified Driver',
-                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                  ],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Driver header
+                                    Row(
+                                      children: [
+                                        CircleAvatar(
+                                          backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+                                          child: const Icon(Icons.person, color: AppColors.primary),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Text(
+                                                    driverName,
+                                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  const Icon(Icons.verified, size: 14, color: AppColors.primary),
+                                                ],
+                                              ),
+                                              Text(
+                                                'Phone: $driverPhone \u2022 Plate: $vehiclePlate',
+                                                style: TextStyle(fontSize: 11, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                                              ),
+                                            ],
                                           ),
-                                          Text(
-                                            'Phone: ${d['driverPhone'] ?? "\u2014"} \u2022 Plate: ${d['vehiclePlate'] ?? "\u2014"}',
-                                            style: TextStyle(fontSize: 11, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: badgeColor.withValues(alpha: 0.15),
+                                            borderRadius: BorderRadius.circular(AppRadius.xs),
+                                            border: Border.all(color: badgeColor.withValues(alpha: 0.4)),
+                                          ),
+                                          child: Text(
+                                            tripStatus,
+                                            style: TextStyle(color: badgeColor, fontSize: 10, fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+
+                                    // Driver Arrival Alert Banner
+                                    if (isArrived) ...[
+                                      const SizedBox(height: 10),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.warning.withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                                          border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.location_on, size: 16, color: AppColors.warning),
+                                            const SizedBox(width: 6),
+                                            Expanded(
+                                              child: Text(
+                                                'Driver has arrived at your pickup spot! Share the Start OTP below.',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: isDark ? AppColors.textPrimaryDark : AppColors.slate900,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+
+                                    // Start Ride OTP Box (Shown before completion if OTP exists)
+                                    if (!isCompleted && startOtp != null && startOtp.isNotEmpty) ...[
+                                      const SizedBox(height: 10),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              AppColors.primary.withValues(alpha: 0.12),
+                                              AppColors.accentPurple.withValues(alpha: 0.08),
+                                            ],
+                                          ),
+                                          borderRadius: BorderRadius.circular(AppRadius.md),
+                                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                const Icon(Icons.lock_outline_rounded, size: 18, color: AppColors.primary),
+                                                const SizedBox(width: 8),
+                                                Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      'Ride Start OTP',
+                                                      style: TextStyle(
+                                                        fontSize: 10,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                                        letterSpacing: 0.5,
+                                                      ),
+                                                    ),
+                                                    Text(
+                                                      'Give to driver at pickup',
+                                                      style: TextStyle(
+                                                        fontSize: 11,
+                                                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                            InkWell(
+                                              onTap: () {
+                                                Clipboard.setData(ClipboardData(text: startOtp));
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text('Start OTP copied to clipboard!'),
+                                                    duration: Duration(seconds: 2),
+                                                  ),
+                                                );
+                                              },
+                                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.primary,
+                                                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: AppColors.primary.withValues(alpha: 0.3),
+                                                      blurRadius: 6,
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Text(
+                                                      startOtp,
+                                                      style: const TextStyle(
+                                                        color: Colors.white,
+                                                        fontWeight: FontWeight.w900,
+                                                        fontSize: 16,
+                                                        letterSpacing: 2,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 6),
+                                                    const Icon(Icons.copy_rounded, size: 14, color: Colors.white70),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+
+                                    const SizedBox(height: 10),
+
+                                    // Action Buttons Row
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: OutlinedButton.icon(
+                                            onPressed: () {
+                                              if (tripId != null && tripId.isNotEmpty) {
+                                                context.push('${AppRoutes.userActiveTripScreen}?id=$tripId');
+                                              } else {
+                                                context.push(AppRoutes.userActiveTripScreen);
+                                              }
+                                            },
+                                            icon: const Icon(Icons.map_outlined, size: 16),
+                                            label: Text(
+                                              isInProgress ? 'Track Live Ride 🗺️' : 'Trip Details',
+                                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                            ),
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor: AppColors.primary,
+                                              side: const BorderSide(color: AppColors.primary),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
+                                              padding: const EdgeInsets.symmetric(vertical: 8),
+                                            ),
+                                          ),
+                                        ),
+                                        if (isCompleted && tripId != null) ...[
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: ElevatedButton.icon(
+                                              onPressed: () {
+                                                TripRatingBottomSheet.show(
+                                                  context: context,
+                                                  tripId: tripId,
+                                                  targetName: driverName,
+                                                  vehicleInfo: vehiclePlate,
+                                                  isReviewingDriver: true,
+                                                  onReviewSubmitted: () => _loadRequirement(silent: true),
+                                                );
+                                              },
+                                              icon: const Icon(Icons.star_rounded, size: 16, color: Colors.white),
+                                              label: const Text(
+                                                'Rate Driver ⭐',
+                                                style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                              ),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: AppColors.starAmber,
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
+                                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                              ),
+                                            ),
                                           ),
                                         ],
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.success,
-                                        borderRadius: BorderRadius.circular(AppRadius.xs),
-                                      ),
-                                      child: Text(
-                                        (d['tripStatus'] as String? ?? 'ASSIGNED').replaceAll('_', ' '),
-                                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                                      ),
+                                      ],
                                     ),
                                   ],
                                 ),
@@ -504,9 +802,11 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                               itemCount: bids.length,
                               itemBuilder: (context, index) {
                                 final b = bids[index];
-                                final bidAmount = (b['bidAmount'] as num?)?.toDouble() ?? 0.0;
-                                final driverName = b['driverName'] as String? ?? 'Driver Partner';
-                                final rating = (b['driverRating'] as num?)?.toDouble() ?? 4.9;
+                                if (b is! Map) return const SizedBox.shrink();
+                                final bidAmount = _parseNum(b['bidAmount']).toDouble();
+                                final driverName = b['driverName']?.toString() ?? 'Driver Partner';
+                                final rating = _parseNum(b['driverRating'], 4.9).toDouble();
+                                final eta = b['etaMinutes']?.toString() ?? '15';
 
                                 return Container(
                                   margin: const EdgeInsets.only(bottom: 8),
@@ -528,7 +828,7 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                                                 const Icon(Icons.star, size: 14, color: AppColors.starAmber),
                                                 const SizedBox(width: 2),
                                                 Text('$rating', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                                                Text(' • ${b['etaMinutes'] ?? 15} mins ETA', style: TextStyle(fontSize: 11, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
+                                                Text(' • $eta mins ETA', style: TextStyle(fontSize: 11, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
                                               ],
                                             ),
                                           ],
@@ -541,12 +841,13 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                                           const SizedBox(height: 4),
                                           ElevatedButton(
                                             onPressed: () async {
+                                              final messenger = ScaffoldMessenger.of(context);
                                               try {
-                                                await UserService.instance.acceptBid(b['id'] as String);
+                                                await UserService.instance.acceptBid(b['id'].toString());
                                                 _loadRequirement(silent: false);
                                               } catch (e) {
                                                 if (mounted) {
-                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                  messenger.showSnackBar(
                                                     SnackBar(content: Text('Failed to accept quote: $e'), backgroundColor: AppColors.error),
                                                   );
                                                 }

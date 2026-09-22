@@ -44,8 +44,7 @@ export class NotificationsController {
     @CurrentUser() user: AuthUserDto,
     @Body() dto: RegisterDeviceTokenDto,
   ) {
-    const result = await this.notificationsService.registerDeviceToken(user.id, dto);
-    return { success: true, data: result };
+    return this.notificationsService.registerDeviceToken(user.id, dto);
   }
 
   @Delete('device-token')
@@ -53,8 +52,7 @@ export class NotificationsController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Unregister device FCM token upon logout' })
   async unregisterDeviceToken(@Body() dto: UnregisterDeviceTokenDto) {
-    const result = await this.notificationsService.unregisterDeviceToken(dto.token);
-    return { success: true, data: result };
+    return this.notificationsService.unregisterDeviceToken(dto.token);
   }
 
   // ─── User Notification Preferences ─────────────────────────────────────────
@@ -64,8 +62,7 @@ export class NotificationsController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get current user notification delivery preferences' })
   async getPreferences(@CurrentUser() user: AuthUserDto) {
-    const result = await this.notificationsService.getPreferences(user.id);
-    return { success: true, data: result };
+    return this.notificationsService.getPreferences(user.id);
   }
 
   @Patch('preferences')
@@ -76,8 +73,7 @@ export class NotificationsController {
     @CurrentUser() user: AuthUserDto,
     @Body() dto: UpdateNotificationPreferenceDto,
   ) {
-    const result = await this.notificationsService.updatePreferences(user.id, dto);
-    return { success: true, data: result };
+    return this.notificationsService.updatePreferences(user.id, dto);
   }
 
   // ─── In-App Notifications Feed & Interactions ──────────────────────────────
@@ -92,12 +88,11 @@ export class NotificationsController {
     @Query('limit') limit?: number,
     @Query('unreadOnly') unreadOnly?: boolean,
   ) {
-    const result = await this.notificationsService.getUserNotifications(user.id, {
+    return this.notificationsService.getUserNotifications(user.id, {
       page: page ? Number(page) : 1,
       limit: limit ? Number(limit) : 20,
       unreadOnly,
     });
-    return { success: true, data: result };
   }
 
   @Patch('in-app/:id/read')
@@ -108,8 +103,7 @@ export class NotificationsController {
     @CurrentUser() user: AuthUserDto,
     @Param('id') id: string,
   ) {
-    const result = await this.notificationsService.markAsRead(user.id, id);
-    return { success: true, data: result };
+    return this.notificationsService.markAsRead(user.id, id);
   }
 
   @Post('in-app/:id/interact')
@@ -121,8 +115,7 @@ export class NotificationsController {
     @Param('id') id: string,
     @Body() _dto?: NotificationInteractionDto,
   ) {
-    const result = await this.notificationsService.trackInteraction(user.id, id);
-    return { success: true, data: result };
+    return this.notificationsService.trackInteraction(user.id, id);
   }
 
   @Patch('in-app/read-all')
@@ -130,8 +123,7 @@ export class NotificationsController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Mark all in-app notifications as read for current user' })
   async markAllAsRead(@CurrentUser() user: AuthUserDto) {
-    const result = await this.notificationsService.markAllAsRead(user.id);
-    return { success: true, data: result };
+    return this.notificationsService.markAllAsRead(user.id);
   }
 
   // ─── Admin Push Campaign & Analytics Endpoints ─────────────────────────────
@@ -145,8 +137,7 @@ export class NotificationsController {
     @CurrentUser() adminUser: AuthUserDto,
     @Body() dto: BroadcastPushDto,
   ) {
-    const result = await this.notificationsService.broadcastPush(dto, adminUser.id);
-    return { success: true, data: result };
+    return this.notificationsService.broadcastPush(dto, adminUser.id);
   }
 
   @Post('admin/audience-estimate')
@@ -155,8 +146,7 @@ export class NotificationsController {
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Calculate estimated audience reach for given filters (Admin Only)' })
   async estimateAudience(@Body() filter: AudienceFilterDto) {
-    const result = await this.notificationsService.estimateAudience(filter);
-    return { success: true, data: result };
+    return this.notificationsService.estimateAudience(filter);
   }
 
   @Post('admin/test-push')
@@ -165,8 +155,7 @@ export class NotificationsController {
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Send instant test push notification to specific token or user (Admin Only)' })
   async sendTestPush(@Body() dto: TestPushDto) {
-    const result = await this.notificationsService.sendTestPush(dto);
-    return { success: true, data: result };
+    return this.notificationsService.sendTestPush(dto);
   }
 
   @Get('admin/campaigns')
@@ -178,11 +167,10 @@ export class NotificationsController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    const result = await this.notificationsService.getCampaigns({
+    return this.notificationsService.getCampaigns({
       page: page ? Number(page) : 1,
       limit: limit ? Number(limit) : 20,
     });
-    return { success: true, data: result };
   }
 
   @Get('admin/metrics')
@@ -191,8 +179,7 @@ export class NotificationsController {
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Get overall push notification and device telemetry metrics (Admin Only)' })
   async getMetrics() {
-    const result = await this.notificationsService.getMetrics();
-    return { success: true, data: result };
+    return this.notificationsService.getMetrics();
   }
 }
 

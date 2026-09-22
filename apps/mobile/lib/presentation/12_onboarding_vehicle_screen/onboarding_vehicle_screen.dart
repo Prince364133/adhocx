@@ -36,15 +36,96 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
   final Map<String, bool> _uploadingState = {};
   final ImagePicker _picker = ImagePicker();
 
+  List<Map<String, dynamic>> _vehicleOptions = [
+    {
+      'id': 'SEDAN',
+      'label': 'Prime Sedan',
+      'subtitle': '4 + 1 Passengers',
+      'icon': Icons.directions_car_rounded,
+      'perKmRate': 22.0,
+      'baseFare': 400.0,
+      'baseKm': 10,
+      'driverSharePercent': 90,
+    },
+    {
+      'id': 'SUV',
+      'label': 'Fleet SUV & MUV',
+      'subtitle': '6 + 1 Passengers',
+      'icon': Icons.airport_shuttle_rounded,
+      'perKmRate': 19.0,
+      'baseFare': 1400.0,
+      'baseKm': 40,
+      'driverSharePercent': 90,
+    },
+    {
+      'id': 'HATCHBACK',
+      'label': 'Compact Hatchback',
+      'subtitle': '4 + 1 Passengers',
+      'icon': Icons.directions_car_filled_rounded,
+      'perKmRate': 11.0,
+      'baseFare': 500.0,
+      'baseKm': 20,
+      'driverSharePercent': 90,
+    },
+  ];
+  Map<String, dynamic>? _selectedCategoryData;
+
   @override
   void initState() {
     super.initState();
     final onboarding = context.read<OnboardingProvider>();
-    _category = onboarding.vehicleType.isNotEmpty ? onboarding.vehicleType : 'Sedan';
+    _category = onboarding.vehicleType.isNotEmpty ? onboarding.vehicleType.toUpperCase() : 'SEDAN';
     _makeModelController.text = onboarding.carModel;
     _plateController.text = onboarding.registrationNumber;
     _yearController.text = onboarding.modelYear;
     _colorController.text = onboarding.color;
+    _loadDynamicCategories();
+  }
+
+  Future<void> _loadDynamicCategories() async {
+    try {
+      final tiers = await DriverService.instance.getVehicleCategories();
+      if (tiers.isNotEmpty && mounted) {
+        setState(() {
+          _vehicleOptions = tiers.map((t) {
+            final vType = (t['vehicleType'] as String? ?? 'SEDAN').toUpperCase();
+            final iconKey = t['iconKey'] as String? ?? '';
+            IconData icon = Icons.directions_car_rounded;
+            if (vType == 'BIKE' || iconKey == 'bike') {
+              icon = Icons.two_wheeler_rounded;
+            } else if (vType == 'BUS' || iconKey == 'bus') {
+              icon = Icons.directions_bus_rounded;
+            } else if (vType == 'SUV') {
+              icon = Icons.airport_shuttle_rounded;
+            } else if (vType == 'TEMPO_TRAVELLER' || vType == 'TATA_ACE' || vType == 'PICKUP_TRUCK' || iconKey == 'truck') {
+              icon = Icons.local_shipping_rounded;
+            }
+
+            return {
+              'id': vType,
+              'label': t['categoryLabel'] ?? vType,
+              'subtitle': t['seatingCapacity'] ?? t['description'] ?? '',
+              'icon': icon,
+              'perKmRate': (t['perKmRate'] as num?)?.toDouble() ?? 15.0,
+              'baseFare': (t['baseFare'] as num?)?.toDouble() ?? 400.0,
+              'baseKm': (t['baseKm'] as num?)?.toInt() ?? 10,
+              'driverSharePercent': (t['driverSharePercent'] as num?)?.toInt() ?? 90,
+              'description': t['description'] ?? '',
+            };
+          }).toList();
+
+          _syncSelectedCategoryData();
+        });
+      }
+    } catch (_) {}
+  }
+
+  void _syncSelectedCategoryData() {
+    final match = _vehicleOptions.firstWhere(
+      (v) => v['id'] == _category || v['label'].toString().toUpperCase() == _category.toUpperCase(),
+      orElse: () => _vehicleOptions.isNotEmpty ? _vehicleOptions.first : {'id': 'SEDAN', 'label': 'Sedan', 'perKmRate': 22.0, 'baseFare': 400.0, 'baseKm': 10, 'driverSharePercent': 90},
+    );
+    _selectedCategoryData = match;
   }
 
   @override
@@ -377,7 +458,7 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
 
                           // ── Vehicle Category ───────────────────────────────
                           Text(
-                            'Vehicle Category',
+                            'Vehicle Category *',
                             style: AppTypography.caption(
                               color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                               fontWeight: FontWeight.bold,
@@ -385,45 +466,240 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                           ),
                           const SizedBox(height: 6),
 
-                          Row(
-                            children: ['Sedan', 'SUV', 'Hatchback', 'EV'].map((cat) {
-                              final isSelected = _category == cat;
-                              return Expanded(
-                                child: GestureDetector(
-                                  onTap: () => setState(() => _category = cat),
-                                  child: Container(
-                                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                                    padding: const EdgeInsets.symmetric(vertical: 10),
-                                    alignment: Alignment.center,
-                                    decoration: BoxDecoration(
-                                      color: isSelected
-                                          ? (isDark
-                                              ? AppColors.primary.withValues(alpha: 0.25)
-                                              : AppColors.primaryLight.withValues(alpha: 0.15))
-                                          : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
-                                      borderRadius: BorderRadius.circular(AppRadius.md),
-                                      border: Border.all(
-                                        color: isSelected
-                                            ? (isDark ? AppColors.primaryLight : AppColors.primary)
-                                            : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                                        width: isSelected ? 1.5 : 1,
-                                      ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                              borderRadius: BorderRadius.circular(AppRadius.md),
+                              border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _vehicleOptions.any((v) => v['id'] == _category)
+                                    ? _category
+                                    : (_vehicleOptions.isNotEmpty ? _vehicleOptions.first['id'] as String : 'SEDAN'),
+                                isExpanded: true,
+                                itemHeight: 64.0,
+                                icon: Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primary),
+                                dropdownColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                                borderRadius: BorderRadius.circular(AppRadius.md),
+                                selectedItemBuilder: (BuildContext context) {
+                                  return _vehicleOptions.map((v) {
+                                    return Row(
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primary.withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                                          ),
+                                          child: Icon(v['icon'] as IconData, size: 18, color: AppColors.primary),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                v['label'] as String,
+                                                style: AppTypography.body(
+                                                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              Text(
+                                                v['subtitle'] as String,
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  }).toList();
+                                },
+                                items: _vehicleOptions.map((v) {
+                                  final isSelected = v['id'] == _category;
+                                  return DropdownMenuItem<String>(
+                                    value: v['id'] as String,
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: isSelected
+                                                ? AppColors.primary.withValues(alpha: 0.15)
+                                                : (isDark ? AppColors.slate800 : AppColors.slate100),
+                                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                                          ),
+                                          child: Icon(
+                                            v['icon'] as IconData,
+                                            size: 20,
+                                            color: isSelected
+                                                ? AppColors.primary
+                                                : (isDark ? AppColors.slate400 : AppColors.slate600),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                v['label'] as String,
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                                  color: isSelected
+                                                      ? AppColors.primary
+                                                      : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                                                ),
+                                              ),
+                                              Text(
+                                                v['subtitle'] as String,
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: isDark ? AppColors.slate400 : AppColors.slate600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        if (isSelected)
+                                          const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20),
+                                      ],
                                     ),
-                                    child: Text(
-                                      cat,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                                        color: isSelected
-                                            ? (isDark ? AppColors.primaryLight : AppColors.primary)
-                                            : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }).toList(),
+                                  );
+                                }).toList(),
+                                onChanged: (val) {
+                                  if (val != null) {
+                                    setState(() {
+                                      _category = val;
+                                      _syncSelectedCategoryData();
+                                    });
+                                  }
+                                },
+                              ),
+                            ),
                           ),
+
+                          // ── Authoritative Tariff & Earnings Disclosure ─────
+                          if (_selectedCategoryData != null) ...[
+                            const SizedBox(height: AppSpacing.sm),
+                            Container(
+                              padding: const EdgeInsets.all(AppSpacing.md),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: isDark ? 0.12 : 0.05),
+                                borderRadius: BorderRadius.circular(AppRadius.md),
+                                border: Border.all(
+                                  color: AppColors.primary.withValues(alpha: 0.25),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(Icons.verified_rounded, size: 16, color: AppColors.primary),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Official Tariff & Revenue Share',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.primary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Tariff Rate',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              '₹${_selectedCategoryData!['perKmRate']}/km',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold,
+                                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Base Fare',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              '₹${_selectedCategoryData!['baseFare']} (${_selectedCategoryData!['baseKm']} km)',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold,
+                                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'You Keep',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              '${_selectedCategoryData!['driverSharePercent']}% Payout',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors.accentGreenDark,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: AppSpacing.lg),
 
                           // ── Registration Number (Plate) ────────────────────

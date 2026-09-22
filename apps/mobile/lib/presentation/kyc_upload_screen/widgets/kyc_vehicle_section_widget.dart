@@ -1,5 +1,6 @@
 import 'package:adhocx/shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
+import '../../../services/driver_service.dart';
 
 class KycVehicleSectionWidget extends StatefulWidget {
   final String initialVehicleType;
@@ -20,16 +21,45 @@ class KycVehicleSectionWidget extends StatefulWidget {
 
 class _KycVehicleSectionWidgetState extends State<KycVehicleSectionWidget> {
   late String _vehicleType;
+  bool _isLoadingCategories = true;
+  List<Map<String, dynamic>> _vehicleOptions = [];
 
   @override
   void initState() {
     super.initState();
-    _vehicleType = widget.initialVehicleType;
+    _vehicleType = widget.initialVehicleType.toUpperCase();
+    _loadVehicleCategories();
+  }
+
+  Future<void> _loadVehicleCategories() async {
+    try {
+      final tiers = await DriverService.instance.getVehicleCategories();
+      if (mounted && tiers.isNotEmpty) {
+        setState(() {
+          _vehicleOptions = tiers.map((t) => {
+            'id': (t['vehicleType'] as String? ?? 'SEDAN').toUpperCase(),
+            'label': t['categoryLabel'] as String? ?? t['vehicleType'] as String? ?? 'Vehicle',
+            'iconKey': t['iconKey'] as String? ?? 'car',
+          }).toList();
+          _isLoadingCategories = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingCategories = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final options = _vehicleOptions.isNotEmpty
+        ? _vehicleOptions
+        : [
+            {'id': 'SEDAN', 'label': 'Prime Sedan', 'iconKey': 'car'},
+            {'id': 'SUV', 'label': 'Fleet SUV', 'iconKey': 'car'},
+            {'id': 'HATCHBACK', 'label': 'Hatchback', 'iconKey': 'car'},
+          ];
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -45,21 +75,95 @@ class _KycVehicleSectionWidgetState extends State<KycVehicleSectionWidget> {
           const SizedBox(height: 24),
           
           // Vehicle type toggle
-          Text(
-            'Vehicle Category',
-            style: TextStyle(
-              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 8),
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _typeButton(isDark, 'sedan', '🚗 Sedan'),
-              const SizedBox(width: 12),
-              _typeButton(isDark, 'suv', '🚙 SUV'),
+              Text(
+                'Vehicle Category',
+                style: TextStyle(
+                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              if (_isLoadingCategories)
+                const SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(strokeWidth: 1.5, color: AppColors.success),
+                ),
             ],
+          ),
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: options.map((opt) {
+                final id = (opt['id'] as String).toUpperCase();
+                final label = opt['label'] as String;
+                final isSelected = _vehicleType.toUpperCase() == id;
+                final iconKey = opt['iconKey'] as String? ?? 'car';
+
+                IconData iconData = Icons.directions_car_filled;
+                if (iconKey == 'bike') {
+                  iconData = Icons.two_wheeler_rounded;
+                } else if (iconKey == 'truck') {
+                  iconData = Icons.local_shipping_rounded;
+                } else if (iconKey == 'bus') {
+                  iconData = Icons.directions_bus_rounded;
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() => _vehicleType = id);
+                      widget.onVehicleTypeChanged(id);
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppColors.successContainer
+                            : (isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isSelected
+                              ? AppColors.success
+                              : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                          width: isSelected ? 1.5 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            iconData,
+                            size: 16,
+                            color: isSelected
+                                ? AppColors.success
+                                : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            label,
+                            style: TextStyle(
+                              color: isSelected
+                                  ? AppColors.success
+                                  : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                              fontSize: 13,
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
           ),
           const SizedBox(height: 24),
           
@@ -87,46 +191,6 @@ class _KycVehicleSectionWidgetState extends State<KycVehicleSectionWidget> {
                 (v == null || v.trim().isEmpty) ? 'Required' : null,
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _typeButton(bool isDark, String type, String label) {
-    final isSelected = _vehicleType == type;
-
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          setState(() => _vehicleType = type);
-          widget.onVehicleTypeChanged(type);
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? AppColors.successContainer
-                : (isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: isSelected
-                  ? AppColors.success
-                  : (isDark ? AppColors.borderDark : AppColors.borderLight),
-              width: isSelected ? 1.5 : 1,
-            ),
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: isSelected
-                  ? AppColors.success
-                  : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-              fontSize: 14,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-            ),
-          ),
-        ),
       ),
     );
   }

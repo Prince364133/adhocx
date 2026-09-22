@@ -7,6 +7,7 @@ import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/common/app_primary_button.dart';
+import '../../services/driver_service.dart';
 
 /// Screen 3: Add / Replace Vehicle matching exact design guidelines.
 class AddVehicleScreen extends StatefulWidget {
@@ -22,8 +23,35 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   final _yearController = TextEditingController();
   final _colorController = TextEditingController();
 
-  String _category = 'Sedan';
+  String _category = 'SEDAN';
   bool _isSubmitting = false;
+  List<Map<String, dynamic>> _categories = [
+    {'id': 'SEDAN', 'label': 'Sedan', 'perKmRate': 22.0},
+    {'id': 'SUV', 'label': 'SUV', 'perKmRate': 19.0},
+    {'id': 'HATCHBACK', 'label': 'Hatchback', 'perKmRate': 11.0},
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final tiers = await DriverService.instance.getVehicleCategories();
+      if (tiers.isNotEmpty && mounted) {
+        setState(() {
+          _categories = tiers.map((t) => {
+            'id': (t['vehicleType'] as String? ?? 'SEDAN').toUpperCase(),
+            'label': t['categoryLabel'] ?? t['vehicleType'] ?? 'Vehicle',
+            'perKmRate': (t['perKmRate'] as num?)?.toDouble() ?? 15.0,
+            'baseFare': (t['baseFare'] as num?)?.toDouble() ?? 400.0,
+          }).toList();
+        });
+      }
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
@@ -130,16 +158,17 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                       ),
                       const SizedBox(height: 6),
 
-                      Row(
-                        children: ['Sedan', 'SUV', 'Hatchback', 'EV'].map((cat) {
-                          final isSelected = _category == cat;
-                          return Expanded(
-                            child: GestureDetector(
-                              onTap: () => setState(() => _category = cat),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: _categories.map((cat) {
+                            final catId = cat['id'] as String;
+                            final isSelected = _category.toUpperCase() == catId.toUpperCase();
+                            return GestureDetector(
+                              onTap: () => setState(() => _category = catId),
                               child: Container(
-                                margin: const EdgeInsets.symmetric(horizontal: 4),
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                                alignment: Alignment.center,
+                                margin: const EdgeInsets.only(right: 8),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                 decoration: BoxDecoration(
                                   color: isSelected
                                       ? (isDark ? AppColors.primary.withValues(alpha: 0.25) : AppColors.primaryLight.withValues(alpha: 0.15))
@@ -152,20 +181,34 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                                     width: isSelected ? 1.5 : 1,
                                   ),
                                 ),
-                                child: Text(
-                                  cat,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                                    color: isSelected
-                                        ? (isDark ? AppColors.primaryLight : AppColors.primary)
-                                        : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
-                                  ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      cat['label'] as String,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                        color: isSelected
+                                            ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                                            : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '₹${cat['perKmRate']}/km',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: isSelected ? AppColors.primary : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ),
-                          );
-                        }).toList(),
+                            );
+                          }).toList(),
+                        ),
                       ),
                       const SizedBox(height: AppSpacing.lg),
 

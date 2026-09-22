@@ -183,6 +183,18 @@ export class UpdateDriverProfileDto {
   @IsOptional()
   @IsString()
   profilePhotoUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  vehicleType?: string;
+
+  @IsOptional()
+  @IsString()
+  vehicleModel?: string;
+
+  @IsOptional()
+  @IsString()
+  vehiclePlate?: string;
 }
 
 export class UploadDocumentDto {

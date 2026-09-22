@@ -10,7 +10,7 @@ import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/common/app_primary_button.dart';
 
-/// Screen 3: Request Withdrawal screen with live wallet integration.
+/// Screen 3: Request Withdrawal screen with live wallet integration and ₹1,000 minimum threshold.
 class EarningsWithdrawScreen extends StatefulWidget {
   const EarningsWithdrawScreen({super.key});
 
@@ -19,8 +19,8 @@ class EarningsWithdrawScreen extends StatefulWidget {
 }
 
 class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
-  final _amountController = TextEditingController(text: '500');
-  int _selectedPreset = 500;
+  final _amountController = TextEditingController(text: '1000');
+  int _selectedPreset = 1000;
   bool _isLoading = false;
   double _availableBalance = 0.0;
 
@@ -32,13 +32,13 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
 
   Future<void> _loadBalance() async {
     try {
-      final summary = await DriverService.instance.getWalletSummary();
+      final summary = await DriverService.instance.getWalletSummary(forceRefresh: true);
       if (summary is Map && mounted) {
         final bal = double.tryParse((summary['walletBalance'] ?? 0).toString()) ?? 0.0;
         setState(() {
           _availableBalance = bal;
-          if (bal >= 500) {
-            _amountController.text = (bal > 2000 ? 2000 : bal).toInt().toString();
+          if (bal >= 1000) {
+            _amountController.text = (bal > 5000 ? 5000 : bal).toInt().toString();
           }
         });
       }
@@ -62,9 +62,9 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
     final rawText = _amountController.text.replaceAll(',', '').trim();
     final amount = double.tryParse(rawText) ?? 0;
 
-    if (amount < 100) {
+    if (amount < 1000) {
       Fluttertoast.showToast(
-        msg: 'Minimum withdrawal amount is ₹100',
+        msg: 'Minimum withdrawal amount is ₹1,000',
         backgroundColor: AppColors.warning,
       );
       return;
@@ -90,7 +90,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
 
       if (mounted) {
         Fluttertoast.showToast(
-          msg: '₹$amount payout initiated successfully via Razorpay Payouts!',
+          msg: '₹$amount withdrawal request submitted to admin for bank transfer!',
           backgroundColor: AppColors.accentGreenDark,
         );
 
@@ -154,7 +154,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Withdraw',
+                          'Withdraw Earnings',
                           style: AppTypography.h3(
                             color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             fontWeight: FontWeight.bold,
@@ -220,7 +220,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Ready to withdraw to bank account',
+                              'Ready to withdraw to bank account (Min ₹1,000)',
                               style: AppTypography.caption(
                                 color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                               ),
@@ -260,7 +260,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                               ).copyWith(fontSize: 32),
                               decoration: InputDecoration(
                                 border: InputBorder.none,
-                                hintText: '0',
+                                hintText: '1000',
                                 hintStyle: TextStyle(
                                   color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                                 ),
@@ -270,7 +270,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                         ],
                       ),
                       Text(
-                        'Minimum ₹500',
+                        'Minimum ₹1,000 required per withdrawal request',
                         style: AppTypography.caption(
                           color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                         ),
@@ -279,7 +279,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
 
                       // ── Quick Preset Chips ─────────────────────────────────
                       Row(
-                        children: [500, 1000, 2000, 4000].map((preset) {
+                        children: [1000, 2000, 5000, 10000].map((preset) {
                           final isSelected = _selectedPreset == preset;
                           return Expanded(
                             child: GestureDetector(
@@ -399,11 +399,11 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            _buildInfoBullet('Withdrawals are processed within 24 hours', isDark),
+                            _buildInfoBullet('Withdrawals are audited & processed within 24 hours', isDark),
                             const SizedBox(height: 4),
-                            _buildInfoBullet('There is no fee for withdrawals', isDark),
+                            _buildInfoBullet('Zero platform withdrawal fee', isDark),
                             const SizedBox(height: 4),
-                            _buildInfoBullet('Minimum withdrawal amount is ₹500', isDark),
+                            _buildInfoBullet('Minimum withdrawal amount is strictly ₹1,000', isDark),
                           ],
                         ),
                       ),
@@ -411,7 +411,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
 
                       // ── Large Request Withdrawal Action Button ─────────────
                       AppPrimaryButton(
-                        text: 'REQUEST WITHDRAWAL',
+                        text: 'REQUEST WITHDRAWAL (MIN ₹1,000)',
                         isLoading: _isLoading,
                         onPressed: _handleWithdraw,
                       ),

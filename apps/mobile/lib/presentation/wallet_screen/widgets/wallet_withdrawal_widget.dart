@@ -48,8 +48,8 @@ class _WalletWithdrawalWidgetState extends State<WalletWithdrawalWidget> {
       setState(() => _error = 'Enter a valid amount');
       return;
     }
-    if (amount < 100) {
-      setState(() => _error = 'Minimum withdrawal is ₹100');
+    if (amount < 1000) {
+      setState(() => _error = 'Minimum withdrawal is ₹1,000');
       return;
     }
     if (amount > widget.availableBalance) {

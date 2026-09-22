@@ -2,6 +2,7 @@ import '../../../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../services/driver_service.dart';
 
 class EditProfileModal extends StatefulWidget {
   final Map<String, dynamic> profile;
@@ -27,6 +28,8 @@ class _EditProfileModalState extends State<EditProfileModal> {
   late TextEditingController _upiCtrl;
   late String _vehicleType;
   bool _isSaving = false;
+  bool _isLoadingCategories = true;
+  List<Map<String, dynamic>> _vehicleOptions = [];
 
   @override
   void initState() {
@@ -64,7 +67,26 @@ class _EditProfileModalState extends State<EditProfileModal> {
     _upiCtrl = TextEditingController(
       text: widget.profile['upi_id'] as String? ?? '',
     );
-    _vehicleType = widget.profile['vehicle_type'] as String? ?? 'sedan';
+    _vehicleType = (widget.profile['vehicle_type'] ?? widget.profile['vehicleType'] ?? 'SEDAN').toString().toUpperCase();
+    _loadVehicleCategories();
+  }
+
+  Future<void> _loadVehicleCategories() async {
+    try {
+      final tiers = await DriverService.instance.getVehicleCategories();
+      if (mounted && tiers.isNotEmpty) {
+        setState(() {
+          _vehicleOptions = tiers.map((t) => {
+            'id': (t['vehicleType'] as String? ?? 'SEDAN').toUpperCase(),
+            'label': t['categoryLabel'] as String? ?? t['vehicleType'] as String? ?? 'Vehicle',
+            'iconKey': t['iconKey'] as String? ?? 'car',
+          }).toList();
+          _isLoadingCategories = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingCategories = false);
+    }
   }
 
   @override
@@ -92,32 +114,42 @@ class _EditProfileModalState extends State<EditProfileModal> {
     setState(() => _isSaving = true);
 
     try {
-      final supabase = Supabase.instance.client;
-      final currentUser = supabase.auth.currentUser;
+      // 1. Authoritative Backend Update
+      await DriverService.instance.updateProfile({
+        'fullName': _nameCtrl.text.trim(),
+        'phone': _phoneCtrl.text.trim(),
+        'vehicleType': _vehicleType,
+        'vehiclePlate': _vehicleNumCtrl.text.trim(),
+        'rcNumber': _rcCtrl.text.trim(),
+        'dlNumber': _dlCtrl.text.trim(),
+      });
 
-      if (currentUser != null) {
-        await supabase.from('driver_profiles').update({
-          'full_name': _nameCtrl.text.trim(),
-          'phone': _phoneCtrl.text.trim(),
-          'dl_number': _dlCtrl.text.trim(),
-          'pan_number': _panCtrl.text.trim(),
-          'aadhaar_number': _aadhaarCtrl.text.trim(),
-          'vehicle_number': _vehicleNumCtrl.text.trim(),
-          'rc_number': _rcCtrl.text.trim(),
-          'bank_name': _bankNameCtrl.text.trim(),
-          'bank_account_number': _accountCtrl.text.trim(),
-          'bank_ifsc': _ifscCtrl.text.trim(),
-          'upi_id': _upiCtrl.text.trim(),
-          'vehicle_type': _vehicleType,
-        }).eq('user_id', currentUser.id);
-
-        Fluttertoast.showToast(msg: 'Profile updated successfully');
-
-        if (mounted) {
-          Navigator.of(context).pop();
+      // 2. Optional Supabase Sync if user is authenticated
+      try {
+        final supabase = Supabase.instance.client;
+        final currentUser = supabase.auth.currentUser;
+        if (currentUser != null) {
+          await supabase.from('driver_profiles').update({
+            'full_name': _nameCtrl.text.trim(),
+            'phone': _phoneCtrl.text.trim(),
+            'dl_number': _dlCtrl.text.trim(),
+            'pan_number': _panCtrl.text.trim(),
+            'aadhaar_number': _aadhaarCtrl.text.trim(),
+            'vehicle_number': _vehicleNumCtrl.text.trim(),
+            'rc_number': _rcCtrl.text.trim(),
+            'bank_name': _bankNameCtrl.text.trim(),
+            'bank_account_number': _accountCtrl.text.trim(),
+            'bank_ifsc': _ifscCtrl.text.trim(),
+            'upi_id': _upiCtrl.text.trim(),
+            'vehicle_type': _vehicleType,
+          }).eq('user_id', currentUser.id);
         }
-      } else {
-        Fluttertoast.showToast(msg: 'Error: Cannot save, user not logged in.');
+      } catch (_) {}
+
+      Fluttertoast.showToast(msg: 'Profile updated successfully');
+
+      if (mounted) {
+        Navigator.of(context).pop();
       }
     } catch (e) {
       Fluttertoast.showToast(msg: 'Error saving profile: $e');
@@ -462,62 +494,105 @@ class _EditProfileModalState extends State<EditProfileModal> {
   }
 
   Widget _vehicleToggle(bool isDark) {
+    final options = _vehicleOptions.isNotEmpty
+        ? _vehicleOptions
+        : [
+            {'id': 'SEDAN', 'label': 'Prime Sedan', 'iconKey': 'car'},
+            {'id': 'SUV', 'label': 'Fleet SUV', 'iconKey': 'car'},
+            {'id': 'HATCHBACK', 'label': 'Hatchback', 'iconKey': 'car'},
+          ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Vehicle Category',
-          style: TextStyle(
-            color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 6),
         Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _typeBtn('sedan', '🚗 Sedan', isDark),
-            const SizedBox(width: 10),
-            _typeBtn('suv', '🚙 SUV', isDark),
+            Text(
+              'Vehicle Category (Authoritative Database)',
+              style: TextStyle(
+                color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            if (_isLoadingCategories)
+              const SizedBox(
+                width: 12,
+                height: 12,
+                child: CircularProgressIndicator(strokeWidth: 1.5, color: AppColors.warning),
+              ),
           ],
         ),
-      ],
-    );
-  }
+        const SizedBox(height: 8),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          child: Row(
+            children: options.map((opt) {
+              final id = (opt['id'] as String).toUpperCase();
+              final label = opt['label'] as String;
+              final isSelected = _vehicleType.toUpperCase() == id;
+              final iconKey = opt['iconKey'] as String? ?? 'car';
 
-  Widget _typeBtn(String type, String label, bool isDark) {
-    final isSelected = _vehicleType == type;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _vehicleType = type),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? AppColors.warning.withValues(alpha: isDark ? 0.2 : 0.12)
-                : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: isSelected
-                  ? AppColors.warning
-                  : (isDark ? AppColors.borderDark : AppColors.borderLight),
-              width: isSelected ? 1.5 : 1,
-            ),
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: isSelected
-                  ? AppColors.warning
-                  : (isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight),
-              fontSize: 13,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-            ),
+              IconData iconData = Icons.directions_car_filled;
+              if (iconKey == 'bike') {
+                iconData = Icons.two_wheeler_rounded;
+              } else if (iconKey == 'truck') {
+                iconData = Icons.local_shipping_rounded;
+              } else if (iconKey == 'bus') {
+                iconData = Icons.directions_bus_rounded;
+              }
+
+              return Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: GestureDetector(
+                  onTap: () => setState(() => _vehicleType = id),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.warning.withValues(alpha: isDark ? 0.25 : 0.15)
+                          : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isSelected
+                            ? AppColors.warning
+                            : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                        width: isSelected ? 1.5 : 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          iconData,
+                          size: 16,
+                          color: isSelected
+                              ? AppColors.warning
+                              : (isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          label,
+                          style: TextStyle(
+                            color: isSelected
+                                ? AppColors.warning
+                                : (isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight),
+                            fontSize: 13,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
           ),
         ),
-      ),
+      ],
     );
   }
 }

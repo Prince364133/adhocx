@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
@@ -13,8 +14,34 @@ class UserAppSettingsScreen extends StatefulWidget {
 }
 
 class _UserAppSettingsScreenState extends State<UserAppSettingsScreen> {
-  bool _darkMode = false;
-  bool _dataSaver = false;
+  Future<void> _launchMarketingUrl(String path) async {
+    const baseUrl = 'https://www.adhocx.com';
+    final fullUrl = '$baseUrl$path';
+    try {
+      final uri = Uri.parse(fullUrl);
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open $fullUrl'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening link: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +57,13 @@ class _UserAppSettingsScreenState extends State<UserAppSettingsScreen> {
           onPressed: () => context.pop(),
           icon: Icon(Icons.arrow_back, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
         ),
-        title: Text('Settings', style: AppTypography.h3(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
+        title: Text(
+          'Settings',
+          style: AppTypography.h3(
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -38,62 +71,14 @@ class _UserAppSettingsScreenState extends State<UserAppSettingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Section General
-              Text('General', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 6),
-              Container(
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                ),
-                child: Column(
-                  children: [
-                    _buildOption('Language', 'English', isDark),
-                    const Divider(height: 1),
-                    _buildOption('Currency', 'INR (₹)', isDark),
-                    const Divider(height: 1),
-                    _buildOption('Date Format', 'DD/MM/YYYY', isDark),
-                    const Divider(height: 1),
-                    _buildOption('Time Format', '12 Hour', isDark),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: AppSpacing.lg),
-
-              // Section Preferences
-              Text('Preferences', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 6),
-              Container(
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                ),
-                child: Column(
-                  children: [
-                    SwitchListTile(
-                      title: Text('Dark Mode', style: TextStyle(fontSize: 13, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)),
-                      value: _darkMode,
-                      onChanged: (val) => setState(() => _darkMode = val),
-                      activeColor: AppColors.primary,
-                    ),
-                    const Divider(height: 1),
-                    SwitchListTile(
-                      title: Text('Data Saver', style: TextStyle(fontSize: 13, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)),
-                      value: _dataSaver,
-                      onChanged: (val) => setState(() => _dataSaver = val),
-                      activeColor: AppColors.primary,
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: AppSpacing.lg),
-
               // Section About
-              Text('About', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontWeight: FontWeight.bold)),
+              Text(
+                'About',
+                style: AppTypography.caption(
+                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 6),
               Container(
                 decoration: BoxDecoration(
@@ -104,20 +89,64 @@ class _UserAppSettingsScreenState extends State<UserAppSettingsScreen> {
                 child: Column(
                   children: [
                     ListTile(
-                      title: Text('App Version', style: TextStyle(fontSize: 13, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)),
-                      trailing: const Text('1.0.0', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      leading: Icon(
+                        Icons.info_outline,
+                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                        size: 20,
+                      ),
+                      title: Text(
+                        'App Version',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                        ),
+                      ),
+                      trailing: const Text(
+                        '1.0.0',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
                     ),
                     const Divider(height: 1),
                     ListTile(
-                      title: Text('Privacy Policy', style: TextStyle(fontSize: 13, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)),
-                      trailing: const Icon(Icons.chevron_right, size: 20),
-                      onTap: () {},
+                      leading: Icon(
+                        Icons.privacy_tip_outlined,
+                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                        size: 20,
+                      ),
+                      title: Text(
+                        'Privacy Policy',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                        ),
+                      ),
+                      trailing: Icon(
+                        Icons.open_in_new,
+                        size: 18,
+                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                      ),
+                      onTap: () => _launchMarketingUrl('/privacy'),
                     ),
                     const Divider(height: 1),
                     ListTile(
-                      title: Text('Terms & Conditions', style: TextStyle(fontSize: 13, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)),
-                      trailing: const Icon(Icons.chevron_right, size: 20),
-                      onTap: () {},
+                      leading: Icon(
+                        Icons.description_outlined,
+                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                        size: 20,
+                      ),
+                      title: Text(
+                        'Terms & Conditions',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                        ),
+                      ),
+                      trailing: Icon(
+                        Icons.open_in_new,
+                        size: 18,
+                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                      ),
+                      onTap: () => _launchMarketingUrl('/terms'),
                     ),
                   ],
                 ),
@@ -126,21 +155,6 @@ class _UserAppSettingsScreenState extends State<UserAppSettingsScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildOption(String title, String val, bool isDark) {
-    return ListTile(
-      title: Text(title, style: TextStyle(fontSize: 13, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(val, style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
-          const SizedBox(width: 4),
-          const Icon(Icons.chevron_right, size: 20),
-        ],
-      ),
-      onTap: () {},
     );
   }
 }

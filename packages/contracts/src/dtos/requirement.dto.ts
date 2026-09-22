@@ -116,6 +116,8 @@ export class RequirementDetailResponseDto extends RequirementResponseDto {
     driverPhone: string;
     vehiclePlate?: string;
     tripStatus?: string;
+    tripId?: string;
+    startOtp?: string;
   }>;
 }
 

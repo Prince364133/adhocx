@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
-import '../theme/app_radius.dart';
-import '../theme/app_spacing.dart';
+import 'app_adaptive_skeleton.dart';
 
+export 'app_adaptive_skeleton.dart';
+
+/// Legacy skeleton helper, now powered by the universal [AdaptiveSkeleton] engine.
 class AppSkeletonLoader extends StatelessWidget {
   final double width;
   final double height;
@@ -12,56 +13,48 @@ class AppSkeletonLoader extends StatelessWidget {
     super.key,
     this.width = double.infinity,
     required this.height,
-    this.borderRadius = AppRadius.md,
+    this.borderRadius = 8.0,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      width: width,
+    return AdaptiveSkeleton.bone(
+      width: width == double.infinity ? null : width,
       height: height,
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : AppColors.slate300,
-        borderRadius: BorderRadius.circular(borderRadius),
-      ),
+      borderRadius: borderRadius,
     );
   }
 
+  /// Legacy card list helper, now wrapped in [AdaptiveSkeleton].
   static Widget cardList({int count = 3}) {
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(AppSpacing.md),
-      itemCount: count,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
+    return AdaptiveSkeleton.repeat(
+      isLoading: true,
+      mockCount: count,
+      mockBuilder: (context, index) {
         return Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Theme.of(context).brightness == Brightness.dark ? AppColors.surfaceDark : AppColors.surfaceLight,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: AppColors.slate400.withValues(alpha: 0.2)),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: const [
-              AppSkeletonLoader(height: 16, width: 140),
+              Bone(height: 16, width: 140),
               SizedBox(height: 8),
-              AppSkeletonLoader(height: 12, width: 220),
+              Bone(height: 12, width: 220),
               SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  AppSkeletonLoader(height: 12, width: 80),
-                  AppSkeletonLoader(height: 12, width: 60),
+                  Bone(height: 12, width: 80),
+                  Bone(height: 12, width: 60),
                 ],
               ),
             ],
           ),
         );
       },
+      child: const SizedBox.shrink(),
     );
   }
 }

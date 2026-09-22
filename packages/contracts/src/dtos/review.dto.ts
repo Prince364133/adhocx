@@ -11,8 +11,9 @@ export class CreateReviewDto {
   @IsString({ message: 'tripId must be a valid string' })
   tripId!: string;
 
+  @IsOptional()
   @IsString({ message: 'revieweeId must be a valid string' })
-  revieweeId!: string;
+  revieweeId?: string;
 
   @Type(() => Number)
   @IsInt()

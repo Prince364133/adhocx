@@ -107,9 +107,9 @@ export default function DashboardPage() {
         });
       }
       if (reportsRes.status === 'fulfilled') setOperationalReport(reportsRes.value);
-      if (corridorsRes.status === 'fulfilled') setCorridors(corridorsRes.value || []);
-      if (pricingRes.status === 'fulfilled') setPricingTiers(pricingRes.value || []);
-      if (logsRes.status === 'fulfilled') setRecentLogs(logsRes.value || []);
+      if (corridorsRes.status === 'fulfilled') setCorridors(Array.isArray(corridorsRes.value) ? corridorsRes.value : []);
+      if (pricingRes.status === 'fulfilled') setPricingTiers(Array.isArray(pricingRes.value) ? pricingRes.value : []);
+      if (logsRes.status === 'fulfilled') setRecentLogs(Array.isArray(logsRes.value) ? logsRes.value : []);
     } finally {
       setLoading(false);
       setIsRefreshing(false);
@@ -813,7 +813,7 @@ export default function DashboardPage() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem' }}>
-            {pricingTiers.slice(0, 6).map((tier) => (
+            {(Array.isArray(pricingTiers) ? pricingTiers : []).slice(0, 6).map((tier) => (
               <div
                 key={tier.vehicleType}
                 style={{

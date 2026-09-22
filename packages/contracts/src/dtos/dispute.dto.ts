@@ -13,8 +13,9 @@ export class CreateDisputeDto {
   @IsString({ message: 'tripId must be a valid string' })
   tripId!: string;
 
+  @IsOptional()
   @IsString({ message: 'accusedId must be a valid string' })
-  accusedId!: string;
+  accusedId?: string;
 
   @IsString({ message: 'reason is required' })
   reason!: string;

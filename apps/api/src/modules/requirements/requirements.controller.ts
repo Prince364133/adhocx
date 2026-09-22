@@ -32,18 +32,24 @@ export class RequirementsController {
 
   @Get()
   @Roles(UserRole.VENDOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Get requirements created by current vendor with filtering' })
+  @ApiOperation({ summary: 'Get requirements created by current vendor or all requirements if admin' })
   async getRequirements(
     @CurrentUser() user: AuthUserDto,
     @Query() query: RequirementQueryDto,
   ) {
+    if (user.role === UserRole.ADMIN) {
+      return this.requirementsService.getAllRequirements(query);
+    }
     return this.requirementsService.getRequirementsByVendor(user.id, query);
   }
 
   @Get('summary')
   @Roles(UserRole.VENDOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Get aggregated requirement metrics and fulfillment counts for vendor dashboard' })
+  @ApiOperation({ summary: 'Get aggregated requirement metrics and fulfillment counts for vendor or admin dashboard' })
   async getRequirementsSummary(@CurrentUser() user: AuthUserDto) {
+    if (user.role === UserRole.ADMIN) {
+      return this.requirementsService.getAllRequirementsSummary();
+    }
     return this.requirementsService.getRequirementsSummary(user.id);
   }
 

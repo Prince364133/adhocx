@@ -158,6 +158,9 @@ export class DriversService {
       data: {
         ...(dto.fullName ? { fullName: dto.fullName } : {}),
         ...(dto.profilePhotoUrl ? { vehiclePhotoUrl: dto.profilePhotoUrl } : {}),
+        ...(dto.vehicleType ? { vehicleType: dto.vehicleType.toUpperCase() } : {}),
+        ...(dto.vehicleModel ? { vehicleModel: dto.vehicleModel } : {}),
+        ...(dto.vehiclePlate ? { vehiclePlate: dto.vehiclePlate.toUpperCase() } : {}),
         kycDocuments: updatedKyc,
       },
     });

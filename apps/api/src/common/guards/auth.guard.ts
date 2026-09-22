@@ -32,7 +32,10 @@ export class JwtAuthGuard implements CanActivate {
 
       const secret = this.configService.get<string>('auth.jwtAccessSecret') || process.env.JWT_ACCESS_SECRET;
       const payload = await this.jwtService.verifyAsync(token, { secret });
-      request.user = payload;
+      request.user = {
+        ...payload,
+        id: payload.id || payload.sub,
+      };
       return true;
     } catch (err) {
       if (err instanceof UnauthorizedException) {

@@ -1,4 +1,4 @@
-import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString, IsNumber } from 'class-validator';
 import { VerificationStatus, DriverAvailability, VehicleType } from '../enums';
 import { PaginationQueryDto } from './common.dto';
 
@@ -173,6 +173,56 @@ export class PricingTierDto {
   updatedAt!: string;
 }
 
+export class CreatePricingTierDto {
+  @IsNotEmpty()
+  @IsString()
+  vehicleType!: string;
+
+  @IsNotEmpty()
+  @IsString()
+  categoryLabel!: string;
+
+  @IsNotEmpty()
+  @IsString()
+  seatingCapacity!: string;
+
+  @IsNotEmpty()
+  @IsString()
+  description!: string;
+
+  @IsOptional()
+  @IsString()
+  iconKey?: string;
+
+  @IsNotEmpty()
+  @IsNumber()
+  baseFare!: number;
+
+  @IsNotEmpty()
+  @IsNumber()
+  baseKm!: number;
+
+  @IsNotEmpty()
+  @IsNumber()
+  perKmRate!: number;
+
+  @IsOptional()
+  @IsNumber()
+  perMinuteRate?: number;
+
+  @IsOptional()
+  @IsNumber()
+  driverSharePercent?: number;
+
+  @IsOptional()
+  @IsNumber()
+  platformFeePercent?: number;
+
+  @IsOptional()
+  @IsNumber()
+  surgeMultiplier?: number;
+}
+
 export class UpdatePricingTierDto {
   @IsOptional()
   baseFare?: number;
@@ -184,10 +234,31 @@ export class UpdatePricingTierDto {
   perKmRate?: number;
 
   @IsOptional()
+  perMinuteRate?: number;
+
+  @IsOptional()
+  minimumFare?: number;
+
+  @IsOptional()
+  deadheadThresholdKm?: number;
+
+  @IsOptional()
+  deadheadPerKmRate?: number;
+
+  @IsOptional()
+  nightChargeMultiplier?: number;
+
+  @IsOptional()
   driverSharePercent?: number;
 
   @IsOptional()
+  driverSharePercentage?: number;
+
+  @IsOptional()
   platformFeePercent?: number;
+
+  @IsOptional()
+  platformFeePercentage?: number;
 
   @IsOptional()
   surgeMultiplier?: number;

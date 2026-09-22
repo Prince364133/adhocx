@@ -6,6 +6,7 @@ import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
+import '../../shared/widgets/app_adaptive_skeleton.dart';
 
 class UserRequirementsListScreen extends StatefulWidget {
   const UserRequirementsListScreen({super.key});
@@ -17,6 +18,7 @@ class UserRequirementsListScreen extends StatefulWidget {
 class _UserRequirementsListScreenState extends State<UserRequirementsListScreen> {
   String _selectedTab = 'All';
   bool _isLoading = true;
+  List<dynamic> _allRequirements = [];
   List<dynamic> _requirements = [];
 
   final List<String> _filterTabs = ['All', 'Active', 'Completed', 'Cancelled'];
@@ -30,17 +32,10 @@ class _UserRequirementsListScreenState extends State<UserRequirementsListScreen>
   Future<void> _fetchRequirements() async {
     setState(() => _isLoading = true);
     try {
-      String? statusQuery;
-      if (_selectedTab == 'Active') statusQuery = 'DISPATCHING';
-      if (_selectedTab == 'Completed') statusQuery = 'FULFILLED';
-      if (_selectedTab == 'Cancelled') statusQuery = 'CANCELLED';
-
-      final res = await UserService.instance.getRequirements(status: statusQuery);
+      final res = await UserService.instance.getRequirements();
       if (mounted) {
-        setState(() {
-          _requirements = res;
-          _isLoading = false;
-        });
+        _allRequirements = res;
+        _applyFilter();
       }
     } catch (e) {
       debugPrint('Error fetching requirements: $e');
@@ -48,6 +43,35 @@ class _UserRequirementsListScreenState extends State<UserRequirementsListScreen>
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  void _applyFilter() {
+    List<dynamic> filtered = _allRequirements;
+    if (_selectedTab == 'Active') {
+      filtered = _allRequirements.where((r) {
+        final s = r['status']?.toString();
+        return s == 'POSTED' ||
+            s == 'DISPATCHING' ||
+            s == 'PARTIALLY_FULFILLED' ||
+            s == 'IN_PROGRESS' ||
+            s == 'NO_DRIVER_AVAILABLE';
+      }).toList();
+    } else if (_selectedTab == 'Completed') {
+      filtered = _allRequirements.where((r) {
+        final s = r['status']?.toString();
+        return s == 'FULFILLED' || s == 'COMPLETED';
+      }).toList();
+    } else if (_selectedTab == 'Cancelled') {
+      filtered = _allRequirements.where((r) {
+        final s = r['status']?.toString();
+        return s == 'CANCELLED';
+      }).toList();
+    }
+
+    setState(() {
+      _requirements = filtered;
+      _isLoading = false;
+    });
   }
 
   @override
@@ -103,7 +127,7 @@ class _UserRequirementsListScreenState extends State<UserRequirementsListScreen>
                   return GestureDetector(
                     onTap: () {
                       setState(() => _selectedTab = tab);
-                      _fetchRequirements();
+                      _applyFilter();
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 8),
@@ -140,165 +164,65 @@ class _UserRequirementsListScreenState extends State<UserRequirementsListScreen>
 
             // Requirements List
             Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-                  : _requirements.isEmpty
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(AppSpacing.xl),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.inventory_2_outlined, size: 64, color: AppColors.textMutedLight),
-                                const SizedBox(height: AppSpacing.md),
-                                Text(
-                                  'No Requirements in "$_selectedTab"',
-                                  style: AppTypography.h3(
-                                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+              child: AdaptiveSkeleton.repeat(
+                isLoading: _isLoading,
+                mockCount: 3,
+                padding: const EdgeInsets.all(AppSpacing.md),
+                separator: const SizedBox(height: AppSpacing.sm),
+                mockBuilder: (context, index) => _buildRequirementCard(
+                  {
+                    'id': 'REQ-MOCK',
+                    'vehicleType': 'Sedan',
+                    'quantity': 3,
+                    'assignedQuantity': 1,
+                    'pickupAddress': 'Cyber City, Building 10, DLF Phase 2, Gurugram',
+                    'dropAddress': 'Terminal 3, Indira Gandhi International Airport, New Delhi',
+                    'status': 'POSTED',
+                  },
+                  isDark,
+                ),
+                child: _requirements.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(AppSpacing.xl),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.inventory_2_outlined, size: 64, color: AppColors.textMutedLight),
+                              const SizedBox(height: AppSpacing.md),
+                              Text(
+                                'No Requirements in "$_selectedTab"',
+                                style: AppTypography.h3(
+                                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                                const SizedBox(height: AppSpacing.xs),
-                                Text(
-                                  'Click "+ Post Requirement" to create a new fleet trip.',
-                                  textAlign: TextAlign.center,
-                                  style: AppTypography.caption(
-                                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                                  ),
+                              ),
+                              const SizedBox(height: AppSpacing.xs),
+                              Text(
+                                'Click "+ Post Requirement" to create a new fleet trip.',
+                                textAlign: TextAlign.center,
+                                style: AppTypography.caption(
+                                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                                 ),
-                              ],
-                            ),
-                          ),
-                        )
-                      : RefreshIndicator(
-                          onRefresh: _fetchRequirements,
-                          color: AppColors.primary,
-                          child: ListView.separated(
-                            padding: const EdgeInsets.all(AppSpacing.md),
-                            itemCount: _requirements.length,
-                            separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.sm),
-                            itemBuilder: (context, index) {
-                              final item = _requirements[index];
-                              final String id = item['id'] ?? '';
-                              final String vehicle = item['vehicleType'] ?? 'Sedan';
-                              final int qty = item['quantity'] ?? 1;
-                              final int assigned = item['assignedQuantity'] ?? 0;
-                              final String pickup = item['pickupAddress'] ?? 'Pickup location';
-                              final String drop = item['dropAddress'] ?? 'Drop location';
-                              final String status = item['status'] ?? 'POSTED';
-
-                              Color statusColor = AppColors.info;
-                              if (status == 'FULFILLED' || status == 'COMPLETED') statusColor = AppColors.success;
-                              if (status == 'PARTIALLY_FULFILLED') statusColor = AppColors.warning;
-                              if (status == 'CANCELLED') statusColor = AppColors.error;
-
-                              return InkWell(
-                                onTap: () => context.push(
-                                  AppRoutes.userRequirementDetailsScreen,
-                                  extra: {'id': id},
-                                ),
-                                borderRadius: BorderRadius.circular(AppRadius.lg),
-                                child: Container(
-                                  padding: const EdgeInsets.all(AppSpacing.md),
-                                  decoration: BoxDecoration(
-                                    color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                                    borderRadius: BorderRadius.circular(AppRadius.lg),
-                                    border: Border.all(
-                                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                                    ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            '$vehicle ($qty Vehicles)',
-                                            style: AppTypography.h4(
-                                              color: isDark
-                                                  ? AppColors.textPrimaryDark
-                                                  : AppColors.textPrimaryLight,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                            decoration: BoxDecoration(
-                                              color: statusColor.withValues(alpha: 0.12),
-                                              borderRadius: BorderRadius.circular(AppRadius.sm),
-                                            ),
-                                            child: Text(
-                                              status.replaceAll('_', ' '),
-                                              style: TextStyle(
-                                                color: statusColor,
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Row(
-                                        children: [
-                                          Icon(Icons.trip_origin, size: 12, color: AppColors.primary),
-                                          const SizedBox(width: 6),
-                                          Expanded(
-                                            child: Text(
-                                              pickup,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: AppTypography.caption(
-                                                color: isDark
-                                                    ? AppColors.textPrimaryDark
-                                                    : AppColors.textPrimaryLight,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Row(
-                                        children: [
-                                          Icon(Icons.location_on, size: 12, color: AppColors.accentPurple),
-                                          const SizedBox(width: 6),
-                                          Expanded(
-                                            child: Text(
-                                              drop,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: AppTypography.caption(
-                                                color: isDark
-                                                    ? AppColors.textMutedDark
-                                                    : AppColors.textMutedLight,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 10),
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            'Progress: $assigned/$qty Fulfilled',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                              color: AppColors.primary,
-                                            ),
-                                          ),
-                                          const Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.textMutedLight),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
+                              ),
+                            ],
                           ),
                         ),
+                      )
+                    : RefreshIndicator(
+                        onRefresh: _fetchRequirements,
+                        color: AppColors.primary,
+                        child: ListView.separated(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          itemCount: _requirements.length,
+                          separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.sm),
+                          itemBuilder: (context, index) => _buildRequirementCard(
+                            _requirements[index] as Map<String, dynamic>? ?? {},
+                            isDark,
+                          ),
+                        ),
+                      ),
+              ),
             ),
           ],
         ),
@@ -309,6 +233,120 @@ class _UserRequirementsListScreenState extends State<UserRequirementsListScreen>
         onPressed: () => context.push(AppRoutes.userCreateRequirementScreen),
         icon: const Icon(Icons.add),
         label: const Text('Post Requirement', style: TextStyle(fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+
+  Widget _buildRequirementCard(Map<String, dynamic> item, bool isDark) {
+    final String id = item['id'] ?? '';
+    final String vehicle = item['vehicleType'] ?? 'Sedan';
+    final int qty = item['quantity'] ?? 1;
+    final int assigned = item['assignedQuantity'] ?? 0;
+    final String pickup = item['pickupAddress'] ?? 'Pickup location';
+    final String drop = item['dropAddress'] ?? 'Drop location';
+    final String status = item['status'] ?? 'POSTED';
+
+    Color statusColor = AppColors.info;
+    if (status == 'FULFILLED' || status == 'COMPLETED') statusColor = AppColors.success;
+    if (status == 'PARTIALLY_FULFILLED' || status == 'NO_DRIVER_AVAILABLE') statusColor = AppColors.warning;
+    if (status == 'CANCELLED') statusColor = AppColors.error;
+
+    return InkWell(
+      onTap: () => context.push(
+        AppRoutes.userRequirementDetailsScreen,
+        extra: {'id': id},
+      ),
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '$vehicle ($qty Vehicles)',
+                  style: AppTypography.h4(
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                  ),
+                  child: Text(
+                    status.replaceAll('_', ' '),
+                    style: TextStyle(
+                      color: statusColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(Icons.trip_origin, size: 12, color: AppColors.primary),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    pickup,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.caption(
+                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Row(
+              children: [
+                const Icon(Icons.location_on, size: 12, color: AppColors.accentPurple),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    drop,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.caption(
+                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Progress: $assigned/$qty Fulfilled',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.textMutedLight),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -32,6 +32,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { HealthModule } from './modules/health/health.module';
 import { CouponsModule } from './modules/coupons/coupons.module';
 import { BlogsModule } from './modules/blogs/blogs.module';
+import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 
 @Module({
   imports: [
@@ -74,6 +75,7 @@ import { BlogsModule } from './modules/blogs/blogs.module';
     AdminModule,
     CouponsModule,
     BlogsModule,
+    SubscriptionsModule,
   ],
   controllers: [AppController],
 })

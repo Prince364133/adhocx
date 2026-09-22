@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Logger, Optional } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger, Optional } from '@nestjs/common';
 import {
   AdminDriverQueryDto,
   AdminVendorQueryDto,
@@ -748,5 +748,83 @@ export class AdminService {
 
     return updated;
   }
-}
 
+  /**
+   * Permanently delete a vendor/corporate account and all associated records.
+   */
+  async deleteVendor(id: string, adminId: string) {
+    let vendor = await this.db.vendor.findUnique({
+      where: { id },
+      include: { user: true },
+    });
+
+    if (!vendor) {
+      vendor = await this.db.vendor.findFirst({
+        where: { userId: id },
+        include: { user: true },
+      });
+    }
+
+    if (!vendor) {
+      throw new NotFoundException(`Vendor not found with ID ${id}`);
+    }
+
+    if (vendor.user?.role === 'ADMIN') {
+      throw new BadRequestException('Cannot delete an administrator account');
+    }
+
+    const userId = vendor.userId;
+    const organizationName = vendor.organizationName;
+
+    await this.db.user.delete({
+      where: { id: userId },
+    });
+
+    await this.audit.log({
+      userId: adminId,
+      action: 'ADMIN_VENDOR_DELETED',
+      entityType: 'VENDOR',
+      entityId: id,
+      metadata: { organizationName, userId },
+    });
+
+    this.logger.log(`Vendor ${id} (${organizationName}) permanently deleted by admin ${adminId}`);
+    return { success: true, message: `Account "${organizationName}" permanently deleted.` };
+  }
+
+  /**
+   * Permanently delete any user account from the database.
+   */
+  async deleteUser(id: string, adminId: string) {
+    const user = await this.db.user.findUnique({
+      where: { id },
+      include: { vendor: true, driver: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User not found with ID ${id}`);
+    }
+
+    if (user.role === 'ADMIN') {
+      throw new BadRequestException('Cannot delete an administrator account');
+    }
+
+    const phone = user.phone;
+    const fullName = user.fullName || 'User';
+
+    await this.db.user.delete({
+      where: { id },
+    });
+
+    await this.audit.log({
+      userId: adminId,
+      action: 'ADMIN_USER_DELETED',
+      entityType: 'USER',
+      entityId: id,
+      metadata: { phone, fullName, role: user.role },
+    });
+
+    this.logger.log(`User ${id} (${fullName}, ${phone}) permanently deleted by admin ${adminId}`);
+    return { success: true, message: `User "${fullName}" permanently deleted.` };
+  }
+}

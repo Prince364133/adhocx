@@ -308,6 +308,8 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
                                 return;
                               }
 
+                              final messenger = ScaffoldMessenger.of(context);
+                              final navigator = Navigator.of(ctx);
                               setModalState(() => isProcessing = true);
                               try {
                                 final couponCode = appliedCoupon?['code'] as String?;
@@ -323,9 +325,11 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
                                   couponCode: couponCode,
                                 );
 
+                                if (ctx.mounted) {
+                                  navigator.pop();
+                                }
                                 if (mounted) {
-                                  Navigator.pop(ctx);
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                  messenger.showSnackBar(
                                     SnackBar(
                                       content: Text('₹${amount.toStringAsFixed(0)} added to wallet successfully!${couponCode != null ? " ($couponCode applied)" : ""}'),
                                       backgroundColor: AppColors.success,
@@ -336,8 +340,9 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
                               } catch (err) {
                                 setModalState(() => isProcessing = false);
                                 if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Top-up failed: $err'), backgroundColor: AppColors.error),
+                                  final msg = err.toString().replaceAll('ClientException: ', '').replaceAll('Exception: ', '').replaceAll('ApiException(400): ', '');
+                                  messenger.showSnackBar(
+                                    SnackBar(content: Text('Top-up failed: $msg'), backgroundColor: AppColors.error),
                                   );
                                 }
                               }

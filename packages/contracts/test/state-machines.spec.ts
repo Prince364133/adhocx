@@ -107,8 +107,9 @@ describe('State Machines Validator Tests (docs/12_STATE_MACHINES.md)', () => {
       expect(canTransitionVerification(VerificationStatus.SUSPENDED, VerificationStatus.VERIFIED)).toBe(true);
     });
 
-    it('should reject illegal jumps like PENDING directly to VERIFIED or SUSPENDED to PENDING', () => {
+    it('should reject illegal jumps like PENDING to VERIFIED or SUSPENDED to PENDING', () => {
       expect(canTransitionVerification(VerificationStatus.PENDING, VerificationStatus.VERIFIED)).toBe(false);
+      expect(canTransitionVerification(VerificationStatus.PENDING, VerificationStatus.REJECTED)).toBe(true);
       expect(canTransitionVerification(VerificationStatus.SUSPENDED, VerificationStatus.PENDING)).toBe(false);
       expect(() => validateVerificationTransition(VerificationStatus.PENDING, VerificationStatus.VERIFIED))
         .toThrow(InvalidStateTransitionError);

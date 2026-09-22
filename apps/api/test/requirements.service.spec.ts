@@ -40,6 +40,13 @@ describe('RequirementsService Unit Tests', () => {
       bid: {
         updateMany: jest.fn(),
       },
+      ledgerEntry: {
+        create: jest.fn().mockResolvedValue({ id: 'led-1' }),
+      },
+      payment: {
+        create: jest.fn().mockResolvedValue({ id: 'pay-1' }),
+      },
+      $transaction: jest.fn().mockImplementation(async (cb: any) => cb(db)),
     };
 
     dispatchService = {
@@ -81,6 +88,7 @@ describe('RequirementsService Unit Tests', () => {
       id: 'vnd-1',
       userId: 'usr-vnd-1',
       verificationStatus: VerificationStatus.VERIFIED,
+      escrowBalance: 10000,
     });
 
     const now = new Date();

@@ -8,6 +8,7 @@ import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
 import 'requirement_draft_provider.dart';
+import '../../services/driver_service.dart';
 
 class UserCreateRequirementScreen extends StatefulWidget {
   const UserCreateRequirementScreen({super.key});
@@ -26,50 +27,63 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
   late TextEditingController _specialRequestsController;
   bool _initialized = false;
 
-  final List<Map<String, dynamic>> _vehicleOptions = [
+  List<Map<String, dynamic>> _vehicleOptions = [
     {
-      'id': 'Sedan',
-      'label': 'Sedan',
-      'subtitle': '4 Seater (Dzire, Etios, Aura)',
+      'id': 'SEDAN',
+      'label': 'Prime Sedan',
+      'subtitle': '4 + 1 Passengers • ₹22/km',
       'icon': Icons.directions_car_rounded,
     },
     {
       'id': 'SUV',
-      'label': 'SUV',
-      'subtitle': '6-7 Seater (Innova, Ertiga, XUV)',
+      'label': 'Fleet SUV & MUV',
+      'subtitle': '6 + 1 Passengers • ₹19/km',
       'icon': Icons.airport_shuttle_rounded,
     },
     {
-      'id': 'Hatchback',
-      'label': 'Hatchback',
-      'subtitle': '4 Seater (WagonR, Swift, i10)',
+      'id': 'HATCHBACK',
+      'label': 'Compact Hatchback',
+      'subtitle': '4 + 1 Passengers • ₹11/km',
       'icon': Icons.directions_car_filled_rounded,
     },
-    {
-      'id': 'Tempo Traveller',
-      'label': 'Tempo Traveller',
-      'subtitle': '12-26 Seater (Force Traveller)',
-      'icon': Icons.directions_bus_rounded,
-    },
-    {
-      'id': 'Tata Ace',
-      'label': 'Tata Ace',
-      'subtitle': 'Mini Truck (750kg payload)',
-      'icon': Icons.local_shipping_rounded,
-    },
-    {
-      'id': 'Pickup Truck',
-      'label': 'Pickup Truck',
-      'subtitle': 'Commercial Cargo (1-1.5 Ton)',
-      'icon': Icons.fire_truck_rounded,
-    },
-    {
-      'id': 'Bus',
-      'label': 'Bus',
-      'subtitle': '30+ Seater Luxury Bus',
-      'icon': Icons.directions_bus_filled_rounded,
-    },
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final tiers = await DriverService.instance.getVehicleCategories();
+      if (tiers.isNotEmpty && mounted) {
+        setState(() {
+          _vehicleOptions = tiers.map((t) {
+            final vType = (t['vehicleType'] as String? ?? 'SEDAN').toUpperCase();
+            final iconKey = t['iconKey'] as String? ?? '';
+            IconData icon = Icons.directions_car_rounded;
+            if (vType == 'BIKE' || iconKey == 'bike') {
+              icon = Icons.two_wheeler_rounded;
+            } else if (vType == 'BUS' || iconKey == 'bus') {
+              icon = Icons.directions_bus_rounded;
+            } else if (vType == 'SUV') {
+              icon = Icons.airport_shuttle_rounded;
+            } else if (vType == 'TEMPO_TRAVELLER' || vType == 'TATA_ACE' || vType == 'PICKUP_TRUCK' || iconKey == 'truck') {
+              icon = Icons.local_shipping_rounded;
+            }
+
+            return {
+              'id': vType,
+              'label': t['categoryLabel'] ?? vType,
+              'subtitle': '${t['seatingCapacity'] ?? ''} • ₹${t['perKmRate']}/km',
+              'icon': icon,
+            };
+          }).toList();
+        });
+      }
+    } catch (_) {}
+  }
 
   @override
   void didChangeDependencies() {
@@ -77,10 +91,10 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
     if (!_initialized) {
       final draft = context.read<RequirementDraftProvider>();
       _selectedFulfillmentMode = draft.fulfillmentMode;
-      _selectedVehicleType = draft.vehicleType;
+      _selectedVehicleType = draft.vehicleType.toUpperCase();
       // Ensure selected vehicle is valid
       if (!_vehicleOptions.any((v) => v['id'] == _selectedVehicleType)) {
-        _selectedVehicleType = 'Sedan';
+        _selectedVehicleType = _vehicleOptions.isNotEmpty ? _vehicleOptions.first['id'] as String : 'SEDAN';
       }
       _quantity = draft.quantity;
       _suggestedBudget = draft.suggestedBudget;

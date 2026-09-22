@@ -58,7 +58,7 @@ export class TripsController {
     return this.tripsService.getTripEvents(id, user.id, user.role);
   }
 
-  @Post(':id/arrive')
+  @Post([':id/arrive', ':id/arrived'])
   @Roles(UserRole.DRIVER)
   @ApiOperation({ summary: 'Mark driver arrival at pickup location' })
   @SwaggerResponse({ status: 200, type: TripResponseDto })
@@ -126,5 +126,16 @@ export class TripsController {
   ) {
     await this.tripsService.updateLocation(id, user.id, dto);
     return { success: true };
+  }
+
+  @Post(':id/sos')
+  @Roles(UserRole.DRIVER, UserRole.VENDOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Trigger emergency SOS alert for an active trip' })
+  async triggerSos(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUserDto,
+    @Body() body?: { latitude?: number; longitude?: number; note?: string },
+  ) {
+    return this.tripsService.triggerEmergencySos(id, user.id, user.role, body);
   }
 }

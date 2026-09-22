@@ -55,6 +55,12 @@ export class BidsService {
       throw new ForbiddenException('Driver account is inactive');
     }
 
+    if (driver.subscriptionStatus === 'FROZEN' || driver.subscriptionStatus === 'EXPIRED') {
+      throw new ForbiddenException(
+        'Subscription required: Your 15-day trial or monthly membership has expired. Please renew your subscription to place bids on requirements.',
+      );
+    }
+
     if (driver.verificationStatus !== VerificationStatus.VERIFIED) {
       throw new ForbiddenException('Only VERIFIED drivers can submit bids');
     }
@@ -430,15 +436,20 @@ export class BidsService {
         },
       });
 
-      // 2. Reject all other competing bids for this requirement
-      await tx.bid.updateMany({
-        where: {
-          requirementId: requirement.id,
-          id: { not: bidId },
-          status: BidStatus.PENDING,
-        },
-        data: { status: BidStatus.REJECTED },
-      });
+      const newAssignedQuantity = (requirement.assignedQuantity || 0) + 1;
+      const isFullyFulfilled = newAssignedQuantity >= requirement.quantity;
+
+      // 2. Reject all other competing bids for this requirement ONLY IF fully fulfilled
+      if (isFullyFulfilled) {
+        await tx.bid.updateMany({
+          where: {
+            requirementId: requirement.id,
+            id: { not: bidId },
+            status: BidStatus.PENDING,
+          },
+          data: { status: BidStatus.REJECTED },
+        });
+      }
 
       // QA-01: Expire other pending bids placed by this newly busy driver across platform
       await tx.bid.updateMany({
@@ -450,12 +461,12 @@ export class BidsService {
         data: { status: BidStatus.EXPIRED },
       });
 
-      // 3. Mark requirement FULFILLED
+      // 3. Update requirement assignedQuantity and status
       await tx.requirement.update({
         where: { id: requirement.id },
         data: {
-          assignedQuantity: 1,
-          status: RequirementStatus.FULFILLED,
+          assignedQuantity: newAssignedQuantity,
+          status: isFullyFulfilled ? RequirementStatus.FULFILLED : RequirementStatus.POSTED,
         },
       });
 
@@ -498,13 +509,25 @@ export class BidsService {
         data: { availabilityStatus: DriverAvailability.BUSY },
       });
 
-      // 8. QA-05: Lock funds in Escrow atomically inside transaction
-      const updatedVendor = await tx.vendor.update({
-        where: { id: vendor.id },
-        data: {
-          escrowBalance: { increment: bid.bidAmount },
-        },
-      });
+      // 8. Earmark and link trip to escrow funds
+      const heldPerVehicle = requirement.totalAmount ? Number(requirement.totalAmount) / requirement.quantity : 0;
+      const additionalRequired = Math.max(0, Number(bid.bidAmount) - heldPerVehicle);
+      let currentVendorBalance = Number(vendor.escrowBalance);
+
+      if (additionalRequired > 0) {
+        if (currentVendorBalance < additionalRequired) {
+          throw new BadRequestException(
+            `Insufficient wallet balance to accept bid: required ₹${additionalRequired} additional funds, available ₹${currentVendorBalance}. Please top up your wallet.`,
+          );
+        }
+        const updated = await tx.vendor.update({
+          where: { id: vendor.id },
+          data: {
+            escrowBalance: { decrement: additionalRequired },
+          },
+        });
+        currentVendorBalance = Number(updated.escrowBalance);
+      }
 
       await tx.ledgerEntry.create({
         data: {
@@ -512,10 +535,10 @@ export class BidsService {
           accountId: vendor.id,
           entryType: 'DEBIT',
           amount: bid.bidAmount,
-          balanceAfter: updatedVendor.escrowBalance,
+          balanceAfter: currentVendorBalance,
           referenceType: 'ESCROW_HOLD',
           referenceId: trip.id,
-          description: `Escrow hold for accepted bid on trip ${trip.id.slice(-6)}`,
+          description: `Escrow hold for accepted bid on trip ${trip.id.slice(-6)} (Fare: ₹${bid.bidAmount})`,
         },
       });
 

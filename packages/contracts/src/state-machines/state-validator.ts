@@ -82,9 +82,9 @@ export const LEGAL_AVAILABILITY_TRANSITIONS: Record<DriverAvailability, DriverAv
 };
 
 export const LEGAL_VERIFICATION_TRANSITIONS: Record<VerificationStatus, VerificationStatus[]> = {
-  [VerificationStatus.PENDING]: [VerificationStatus.UNDER_REVIEW],
-  [VerificationStatus.UNDER_REVIEW]: [VerificationStatus.VERIFIED, VerificationStatus.REJECTED],
-  [VerificationStatus.VERIFIED]: [VerificationStatus.SUSPENDED],
+  [VerificationStatus.PENDING]: [VerificationStatus.UNDER_REVIEW, VerificationStatus.REJECTED],
+  [VerificationStatus.UNDER_REVIEW]: [VerificationStatus.VERIFIED, VerificationStatus.REJECTED, VerificationStatus.PENDING],
+  [VerificationStatus.VERIFIED]: [VerificationStatus.SUSPENDED, VerificationStatus.REJECTED],
   [VerificationStatus.REJECTED]: [VerificationStatus.PENDING, VerificationStatus.UNDER_REVIEW],
   [VerificationStatus.SUSPENDED]: [VerificationStatus.VERIFIED, VerificationStatus.REJECTED],
 };

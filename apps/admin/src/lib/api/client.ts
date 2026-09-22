@@ -23,6 +23,8 @@ import {
   AdminPaymentItem,
   AdminPaymentMetrics,
   RateCard,
+  CreateRateCardPayload,
+  SystemPolicyConfig,
   CorridorAnalytics,
   OperationalReportData,
   SupportTicketItem,
@@ -192,6 +194,11 @@ export const adminApi = {
       body: { reason },
     }),
 
+  deleteVendor: (id: string) =>
+    apiClient(`/admin/vendors/${id}`, {
+      method: 'DELETE',
+    }),
+
   getUsers: (status?: string) => {
     const query = status && status !== 'ALL' ? `?verificationStatus=${status}` : '';
     return apiClient<any>(`/admin/vendors${query}`).then((res) => {
@@ -213,13 +220,33 @@ export const adminApi = {
       body: { reason },
     }),
 
+  deleteUser: (id: string) =>
+    apiClient(`/admin/users/${id}`, {
+      method: 'DELETE',
+    }),
+
   // Requirements & Dispatch
   getRequirements: (status?: string) => {
     const query = status && status !== 'ALL' ? `?status=${status}` : '';
     return apiClient<any>(`/requirements${query}`).then((res) => {
-      if (Array.isArray(res)) return res as RequirementListItem[];
-      if (res && Array.isArray(res.items)) return res.items as RequirementListItem[];
-      return [] as RequirementListItem[];
+      const raw = Array.isArray(res) ? res : (res?.items || []);
+      return raw.map((r: any) => ({
+        id: r.id,
+        vendorName: r.vendorName || r.vendor?.organizationName || 'Corporate Client',
+        fulfillmentMode: r.fulfillmentMode,
+        vehicleType: r.vehicleType,
+        quantity: r.quantity,
+        assignedQuantity: r.assignedQuantity ?? 0,
+        pickupAddress: r.pickupAddress || r.pickupLocation?.address || 'Pickup Location',
+        dropAddress: r.dropAddress || r.dropLocation?.address || 'Drop Location',
+        reportingTime: r.reportingTime,
+        status: r.status,
+        vendorRate: r.ratePerVehicle ?? r.vendorRate ?? r.suggestedBudget ?? 0,
+        ratePerVehicle: r.ratePerVehicle ?? r.vendorRate ?? r.suggestedBudget ?? 0,
+        suggestedBudget: r.suggestedBudget,
+        bidsCount: r.bids?.length ?? 0,
+        createdAt: r.createdAt,
+      })) as RequirementListItem[];
     });
   },
 
@@ -264,11 +291,30 @@ export const adminApi = {
 
   getAdminPaymentMetrics: () => apiClient<AdminPaymentMetrics>('/payments/admin/metrics'),
 
-  // Dynamic Pricing Engine
+  // Dynamic Pricing Engine & System Policy Configuration
   getPricingTiers: () => apiClient<RateCard[]>('/pricing/tiers'),
+
+  createPricingTier: (data: CreateRateCardPayload) =>
+    apiClient<RateCard>('/pricing/admin/tiers', {
+      method: 'POST',
+      body: data,
+    }),
 
   updatePricingTier: (vehicleType: string, data: Partial<RateCard>) =>
     apiClient<RateCard>(`/pricing/admin/${vehicleType}`, {
+      method: 'PATCH',
+      body: data,
+    }),
+
+  deletePricingTier: (vehicleType: string) =>
+    apiClient<{ success: boolean; message: string }>(`/pricing/admin/tiers/${vehicleType}`, {
+      method: 'DELETE',
+    }),
+
+  getPolicyConfig: () => apiClient<SystemPolicyConfig>('/pricing/policy-config'),
+
+  updatePolicyConfig: (data: Partial<SystemPolicyConfig>) =>
+    apiClient<SystemPolicyConfig>('/pricing/admin/policy-config', {
       method: 'PATCH',
       body: data,
     }),

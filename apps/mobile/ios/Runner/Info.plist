@@ -54,5 +54,18 @@
 	<string>AdhocX needs camera access for driver KYC verification and vehicle photo capture.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>AdhocX needs photo library access to upload KYC documents and vehicle photos.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>AdhocX needs your location to show available ride requests nearby and provide turn-by-turn navigation assistance.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>AdhocX requires background location while on duty to dispatch nearby trips and calculate accurate trip fares.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>remote-notification</string>
+		<string>processing</string>
+		<string>audio</string>
+	</array>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 </dict>
 </plist>

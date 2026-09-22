@@ -36,12 +36,12 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit() {
-    // Background automatic wave reaper for timed-out offers (every 15s)
+    // Background automatic wave reaper for timed-out offers (every 10s)
     this.reaperInterval = setInterval(() => {
       this.reapExpiredOffersAndRedispatch().catch((err) => {
         this.logger.warn(`Wave reaper tick notice: ${err.message}`);
       });
-    }, 15000);
+    }, 10000);
     this.reaperInterval.unref(); // Prevents hanging process or test teardown
   }
 
@@ -375,8 +375,8 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
 
     const selectedDriverIds = selectedCandidates.map((c) => c.driverId);
 
-    // 60-second offer countdown window
-    const expiresAt = new Date(Date.now() + 60 * 1000);
+    // 30-second offer countdown window
+    const expiresAt = new Date(Date.now() + 30 * 1000);
 
     const createdOffers = await Promise.all(
       selectedDriverIds.map(async (driverId) => {
@@ -394,6 +394,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
         // Emit real-time offer event to driver channel
         this.notifications.emitEvent(`driver:${driverId}`, 'OFFER_RECEIVED', {
           offerId: offer.id,
+          id: offer.id,
           requirementId,
           vehicleType: requirement.vehicleType,
           offeredRate: Number(requirement.ratePerVehicle),
@@ -401,7 +402,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
           dropAddress: requirement.dropAddress,
           reportingTime: requirement.reportingTime.toISOString(),
           expiresAt: expiresAt.toISOString(),
-          expiresInSeconds: 60,
+          expiresInSeconds: 30,
         });
 
         // Send rich FCM push notification to driver device & in-app feed
@@ -410,14 +411,18 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
 
         await this.notifications.sendPushToUser(targetUserId, {
           title: '🚖 New Trip Offer Available!',
-          body: `Offer of ₹${requirement.ratePerVehicle} for ${requirement.vehicleType} pickup at ${requirement.pickupAddress}. 60s to accept!`,
+          body: `Offer of ₹${requirement.ratePerVehicle} for ${requirement.vehicleType} pickup at ${requirement.pickupAddress}. 30s to accept!`,
           type: NotificationType.TRIP_OFFER,
           data: {
             offerId: offer.id,
+            id: offer.id,
             requirementId,
             vehicleType: String(requirement.vehicleType),
             rate: String(requirement.ratePerVehicle),
             pickupAddress: requirement.pickupAddress,
+            dropAddress: requirement.dropAddress,
+            expiresAt: expiresAt.toISOString(),
+            expiresInSeconds: '30',
             route: `/offers/${offer.id}`,
           },
           actionUrl: `/offers/${offer.id}`,

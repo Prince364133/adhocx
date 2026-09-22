@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../routes/app_routes.dart';
+import '../../services/driver_service.dart';
 import '../../theme/app_colors.dart';
 import './widgets/kyc_banking_section_widget.dart';
 import './widgets/kyc_documents_section_widget.dart';
@@ -109,42 +110,56 @@ class _KycUploadScreenState extends State<KycUploadScreen> {
       final insurancePath = await _uploadToStorage(_uploadedDocs['insurance'], _docBytes['insurance'], 'insurance');
       final aadhaarPath = await _uploadToStorage(_uploadedDocs['aadhaar_doc'], _docBytes['aadhaar_doc'], 'aadhaar');
 
-      // 2. Map vehicle_type to the ENUM values expected by driver_profiles
-      final rawVehicleType = (_formData['vehicle_type'] as String?) ?? 'Sedan';
-      final vehicleTypeEnum = rawVehicleType.toLowerCase() == 'suv' ? 'SUV' : 'Sedan';
+      // 2. Map dynamic vehicle_type for authoritative database
+      final rawVehicleType = (_formData['vehicle_type'] as String?) ?? 'SEDAN';
+      final dynamicVehicleType = rawVehicleType.toUpperCase();
 
-      // 3. Upsert into the database using the new cloud paths
-      await Supabase.instance.client.from('driver_profiles').upsert({
-        'user_id': user.id,
-        // Identity
-        'full_name': _formData['full_name'],
-        'phone': _formData['phone'],
-        'aadhaar_number': _formData['aadhaar'],
-        'pan_number': _formData['pan'],
-        // Driving
-        'dl_number': _formData['dl_number'],
-        // Vehicle
-        'vehicle_type': vehicleTypeEnum,
-        'vehicle_number': _formData['vehicle_number'],
-        'vehicle_plate': _formData['vehicle_number'],
-        'rc_number': _formData['rc_number'],
-        // Banking
-        'bank_account_name': _formData['account_holder_name'],
-        'bank_name': _formData['bank_name'],
-        'bank_account_number': _formData['account_number'],
-        'bank_ifsc': _formData['ifsc'],
-        // Document URLs 
-        'profile_photo_url': selfiePath ?? _selfieUrl,
-        'dl_front_url': dlFrontPath ?? _uploadedDocs['dl_front'],
-        'dl_back_url': dlBackPath ?? _uploadedDocs['dl_back'],
-        'rc_document_url': rcBookPath ?? _uploadedDocs['rc_book'],
-        'insurance_document_url': insurancePath ?? _uploadedDocs['insurance'],
-        'aadhaar_document_url': aadhaarPath ?? _uploadedDocs['aadhaar_doc'],
-        // Status — mark as submitted for admin review
-        'approval_status': 'pending',
-        'is_approved': false,
-        'updated_at': DateTime.now().toIso8601String(),
-      }, onConflict: 'user_id');
+      // 3. Authoritative Backend Update via DriverService
+      try {
+        await DriverService.instance.updateProfile({
+          'fullName': _formData['full_name'],
+          'phone': _formData['phone'],
+          'vehicleType': dynamicVehicleType,
+          'vehiclePlate': (_formData['vehicle_number'] as String?)?.toUpperCase(),
+          'rcNumber': (_formData['rc_number'] as String?)?.toUpperCase(),
+          'dlNumber': (_formData['dl_number'] as String?)?.toUpperCase(),
+          'profilePhotoUrl': selfiePath ?? _selfieUrl,
+          'dlFrontUrl': dlFrontPath ?? _uploadedDocs['dl_front'],
+          'dlBackUrl': dlBackPath ?? _uploadedDocs['dl_back'],
+          'rcDocUrl': rcBookPath ?? _uploadedDocs['rc_book'],
+          'insuranceDocUrl': insurancePath ?? _uploadedDocs['insurance'],
+          'aadharFrontUrl': aadhaarPath ?? _uploadedDocs['aadhaar_doc'],
+        });
+      } catch (_) {}
+
+      // 4. Optional Supabase client sync
+      try {
+        await Supabase.instance.client.from('driver_profiles').upsert({
+          'user_id': user.id,
+          'full_name': _formData['full_name'],
+          'phone': _formData['phone'],
+          'aadhaar_number': _formData['aadhaar'],
+          'pan_number': _formData['pan'],
+          'dl_number': _formData['dl_number'],
+          'vehicle_type': dynamicVehicleType,
+          'vehicle_number': _formData['vehicle_number'],
+          'vehicle_plate': _formData['vehicle_number'],
+          'rc_number': _formData['rc_number'],
+          'bank_account_name': _formData['account_holder_name'],
+          'bank_name': _formData['bank_name'],
+          'bank_account_number': _formData['account_number'],
+          'bank_ifsc': _formData['ifsc'],
+          'profile_photo_url': selfiePath ?? _selfieUrl,
+          'dl_front_url': dlFrontPath ?? _uploadedDocs['dl_front'],
+          'dl_back_url': dlBackPath ?? _uploadedDocs['dl_back'],
+          'rc_document_url': rcBookPath ?? _uploadedDocs['rc_book'],
+          'insurance_document_url': insurancePath ?? _uploadedDocs['insurance'],
+          'aadhaar_document_url': aadhaarPath ?? _uploadedDocs['aadhaar_doc'],
+          'approval_status': 'pending',
+          'is_approved': false,
+          'updated_at': DateTime.now().toIso8601String(),
+        }, onConflict: 'user_id');
+      } catch (_) {}
 
       if (!mounted) return;
       setState(() => _isSubmitting = false);

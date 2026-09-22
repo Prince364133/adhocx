@@ -33,10 +33,10 @@ export class SettlementsService {
     return this.ledger.getDriverWalletSummary(driverUserId);
   }
 
-
   /**
    * Driver requests wallet withdrawal to their bank account.
    * Atomically debits driver wallet and appends immutable ledger DEBIT entry.
+   * Enforces minimum withdrawal threshold (default ₹1,000).
    */
   async requestWithdrawal(driverUserId: string, dto: WithdrawalRequestDto): Promise<SettlementResponseDto> {
     const driver = await this.db.driver.findUnique({ where: { userId: driverUserId } });
@@ -44,17 +44,20 @@ export class SettlementsService {
       throw new NotFoundException('Driver profile not found');
     }
 
-    if (dto.amount < 100) {
-      throw new BadRequestException('Minimum withdrawal amount is ₹100');
+    const policy = await this.db.systemPolicyConfig.findUnique({ where: { key: 'GLOBAL_POLICY' } });
+    const minWithdrawal = policy ? Number(policy.minWithdrawalAmount) : 1000.00;
+
+    if (dto.amount < minWithdrawal) {
+      throw new BadRequestException(`Minimum withdrawal amount is ₹${minWithdrawal.toLocaleString('en-IN')}`);
     }
 
     if (Number(driver.walletBalance) < dto.amount) {
       throw new BadRequestException(
-        `Insufficient balance. Available: ₹${driver.walletBalance}, Requested: ₹${dto.amount}`,
+        `Insufficient balance. Available: ₹${Number(driver.walletBalance).toFixed(2)}, Requested: ₹${dto.amount.toFixed(2)}`,
       );
     }
 
-    const maskedAcc = dto.bankAccountNumber.slice(-4);
+    const maskedAcc = dto.bankAccountNumber ? dto.bankAccountNumber.slice(-4) : 'bank';
     const description = `Withdrawal payout to bank account ending in ${maskedAcc}`;
 
     // Create settlement inside transaction with atomic debit
@@ -87,7 +90,7 @@ export class SettlementsService {
           entryType: 'DEBIT',
           amount: dto.amount,
           balanceAfter: updatedDriver.walletBalance,
-          referenceType: 'WITHDRAWAL',
+          referenceType: 'WITHDRAWAL_HOLD',
           referenceId: s.id,
           description,
         },
@@ -115,10 +118,8 @@ export class SettlementsService {
   }
 
   /**
-   * Admin processes payout settlement (mark SETTLED or FAILED).
-   * Per docs/12_STATE_MACHINES.md Section 60:
-   * "A failed withdrawal must not silently remove the driver's funds".
-   * If FAILED, funds are atomically credited back to the driver's wallet.
+   * Admin processes payout settlement (mark SETTLED or FAILED/CANCELLED).
+   * If FAILED or CANCELLED, funds are atomically refunded back to the driver's wallet.
    */
   async processSettlement(
     id: string,
@@ -168,7 +169,11 @@ export class SettlementsService {
       return this.mapToDto(updated);
     }
 
-    if (dto.status === SettlementStatus.FAILED) {
+    if (
+      dto.status === SettlementStatus.FAILED ||
+      dto.status === SettlementStatus.CANCELLED ||
+      (dto.status as string) === 'REJECTED'
+    ) {
       // Transactional refund rollback
       const updated = await this.db.$transaction(async (tx) => {
         // 1. Credit driver wallet back
@@ -189,16 +194,17 @@ export class SettlementsService {
             balanceAfter: updatedDriver.walletBalance,
             referenceType: 'WITHDRAWAL_REFUND',
             referenceId: id,
-            description: `Refund for failed payout: ${dto.failureReason || 'Bank processing rejected'}`,
+            description: `Refund for rejected/failed payout: ${dto.failureReason || 'Admin rejected request'}`,
           },
         });
 
-        // 3. Mark settlement FAILED
+        // 3. Mark settlement CANCELLED / FAILED
         return tx.settlement.update({
           where: { id },
           data: {
-            status: SettlementStatus.FAILED,
+            status: SettlementStatus.CANCELLED,
             processedAt: now,
+            transactionRef: dto.failureReason || 'Rejected by Admin',
           },
         });
       }, { timeout: 30000, maxWait: 10000 });
@@ -206,18 +212,18 @@ export class SettlementsService {
       this.notifications.emitEvent(`driver:${settlement.driverId}`, 'SETTLEMENT_FAILED', {
         settlementId: id,
         amount: Number(settlement.amount),
-        reason: dto.failureReason || 'Payout failed. Funds refunded to wallet.',
+        reason: dto.failureReason || 'Payout rejected. Funds refunded to wallet.',
       });
 
       await this.audit.log({
         userId: adminUserId,
-        action: 'SETTLEMENT_FAILED',
+        action: 'SETTLEMENT_REJECTED',
         entityType: 'SETTLEMENT',
         entityId: id,
         metadata: { failureReason: dto.failureReason, refundedAmount: Number(settlement.amount) },
       });
 
-      this.logger.warn(`Settlement ${id} failed and refunded to driver ${settlement.driverId}: ${dto.failureReason}`);
+      this.logger.warn(`Settlement ${id} cancelled and refunded to driver ${settlement.driverId}: ${dto.failureReason}`);
       return this.mapToDto(updated);
     }
 
@@ -242,9 +248,9 @@ export class SettlementsService {
   }
 
   /**
-   * List all settlements for admin operations.
+   * List all settlements for admin operations with enriched driver details.
    */
-  async listAllSettlements(status?: SettlementStatus): Promise<SettlementResponseDto[]> {
+  async listAllSettlements(status?: SettlementStatus): Promise<any[]> {
     const where: any = {};
     if (status) {
       where.status = status;
@@ -252,10 +258,28 @@ export class SettlementsService {
 
     const settlements = await this.db.settlement.findMany({
       where,
+      include: {
+        driver: {
+          select: {
+            id: true,
+            fullName: true,
+            phone: true,
+            vehicleType: true,
+            vehiclePlate: true,
+            walletBalance: true,
+          },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
 
-    return settlements.map((s) => this.mapToDto(s));
+    return settlements.map((s) => ({
+      ...this.mapToDto(s),
+      driverName: s.driver?.fullName || 'Driver',
+      driverPhone: s.driver?.phone || '—',
+      driverVehicle: s.driver?.vehicleType ? `${s.driver.vehicleType} (${s.driver.vehiclePlate || '—'})` : '—',
+      driverWalletBalance: s.driver ? Number(s.driver.walletBalance) : 0,
+    }));
   }
 
   private mapToDto(s: any): SettlementResponseDto {
@@ -268,9 +292,9 @@ export class SettlementsService {
       bankAccountNumber: s.bankAccountNumber ? `••••${s.bankAccountNumber.slice(-4)}` : undefined,
       bankIfsc: s.bankIfsc || undefined,
       transactionRef: s.transactionRef || undefined,
-      processedAt: s.processedAt?.toISOString(),
-      createdAt: s.createdAt.toISOString(),
-      updatedAt: s.updatedAt.toISOString(),
+      processedAt: s.processedAt ? (s.processedAt instanceof Date ? s.processedAt.toISOString() : String(s.processedAt)) : undefined,
+      createdAt: s.createdAt instanceof Date ? s.createdAt.toISOString() : String(s.createdAt),
+      updatedAt: s.updatedAt instanceof Date ? s.updatedAt.toISOString() : String(s.updatedAt),
     };
   }
 }

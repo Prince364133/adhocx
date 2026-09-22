@@ -397,7 +397,33 @@ export interface RateCard {
   platformFeePercentage?: number;
   driverSharePercent?: number;
   driverSharePercentage?: number;
+  iconKey?: string;
   status?: string;
+  updatedAt?: string;
+}
+
+export interface CreateRateCardPayload {
+  vehicleType: string;
+  categoryLabel: string;
+  seatingCapacity: string;
+  description: string;
+  iconKey?: string;
+  baseFare: number;
+  baseKm: number;
+  perKmRate: number;
+  perMinuteRate?: number;
+  driverSharePercent?: number;
+  platformFeePercent?: number;
+  surgeMultiplier?: number;
+}
+
+export interface SystemPolicyConfig {
+  id?: string;
+  driverMonthlyFee: number;
+  driverTrialDays: number;
+  minWithdrawalAmount: number;
+  convenienceFeePercent: number;
+  gstPercent: number;
   updatedAt?: string;
 }
 

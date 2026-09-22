@@ -5,10 +5,14 @@ import 'package:go_router/go_router.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
 import '../../services/driver_service.dart';
+import '../../services/global_dispatch_overlay_service.dart';
+import '../../core/networking/api_client.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
+import '../../shared/widgets/trip_rating_bottom_sheet.dart';
+import '../../shared/widgets/app_adaptive_skeleton.dart';
 import '../opportunities_screen/driver_submit_bid_sheet.dart';
 
 enum DriverHomeState { offline, available, offerAttention, assignedTrip, activeTrip, completedTrip }
@@ -45,6 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _autoRefreshTimer?.cancel();
     _otpController.dispose();
+    GlobalDispatchOverlayService.instance.stopRealtimeListener();
     super.dispose();
   }
 
@@ -52,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _startAutoRefresh() {
     _autoRefreshTimer?.cancel();
-    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 25), (_) {
+    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 6), (_) {
       if (mounted && (_currentState == DriverHomeState.available || _currentState == DriverHomeState.offerAttention)) {
         _loadLiveDriverData(silent: true, force: false);
       }
@@ -89,11 +94,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ? oRaw
           : (oRaw is Map && oRaw['data'] is List ? oRaw['data'] as List<dynamic> : []);
 
-      final bRaw = results[3];
-      final biddingOps = bRaw is List
-          ? bRaw
-          : (bRaw is Map && bRaw['data'] is List ? bRaw['data'] as List<dynamic> : []);
-
       final tRaw = results[4];
       final trips = tRaw is List
           ? tRaw
@@ -115,8 +115,11 @@ class _HomeScreenState extends State<HomeScreen> {
             _trustTier = rawScore >= 90 ? 'Platinum' : rawScore >= 80 ? 'Gold' : rawScore >= 70 ? 'Silver' : 'Bronze';
 
             final avail = profile['availabilityStatus'] as String? ?? 'OFFLINE';
-            if (avail == 'AVAILABLE' && _currentState == DriverHomeState.offline) {
-              _currentState = DriverHomeState.available;
+            if (avail == 'AVAILABLE') {
+              if (_currentState == DriverHomeState.offline) {
+                _currentState = DriverHomeState.available;
+              }
+              _ensureRealtimeConnected();
             }
           }
 
@@ -152,21 +155,19 @@ class _HomeScreenState extends State<HomeScreen> {
           // 3. Check for direct dispatch offers
           final sentOffers = offers.where((o) => o['status'] == 'SENT' || o['status'] == null).toList();
           if (sentOffers.isNotEmpty) {
-            _liveOffer = sentOffers.first as Map<String, dynamic>;
-            _currentState = DriverHomeState.offerAttention;
-            return;
-          }
-
-          // 4. Check for open bidding opportunities
-          if (biddingOps.isNotEmpty) {
-            _liveOffer = biddingOps.first as Map<String, dynamic>;
-            _currentState = DriverHomeState.offerAttention;
-            return;
-          }
-
-          // 5. If no active trip or offer, and status is not offline, keep available
-          if (_currentState == DriverHomeState.offerAttention) {
+            final activeOffer = sentOffers.first as Map<String, dynamic>;
+            _liveOffer = activeOffer;
+            if (_currentState == DriverHomeState.available) {
+              GlobalDispatchOverlayService.instance.showIncomingOffer(activeOffer);
+            }
+          } else {
             _liveOffer = null;
+          }
+
+          // 4. If driver is available and has no assigned/active trip, ensure available state
+          if (_currentState != DriverHomeState.offline &&
+              _currentState != DriverHomeState.assignedTrip &&
+              _currentState != DriverHomeState.activeTrip) {
             _currentState = DriverHomeState.available;
           }
         });
@@ -179,6 +180,21 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _ensureRealtimeConnected() async {
+    if (GlobalDispatchOverlayService.instance.isListening) return;
+    try {
+      final token = await ApiClient.instance.getToken();
+      final user = AuthService.instance.currentUser;
+      if (token != null) {
+        GlobalDispatchOverlayService.instance.startRealtimeListener(
+          apiBaseUrl: ApiClient.instance.baseUrl,
+          authToken: token,
+          channel: user != null ? 'user:${user.id}' : null,
+        );
+      }
+    } catch (_) {}
+  }
+
   Future<void> _toggleOnline(bool goOnline) async {
     try {
       await AuthService.instance.ensureAuthenticatedSession(role: 'DRIVER');
@@ -188,6 +204,12 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _currentState = goOnline ? DriverHomeState.available : DriverHomeState.offline;
         });
+        if (goOnline) {
+          _ensureRealtimeConnected();
+          GlobalDispatchOverlayService.promptAndroidOverlayPermission(context);
+        } else {
+          GlobalDispatchOverlayService.instance.stopRealtimeListener();
+        }
         Fluttertoast.showToast(
           msg: goOnline ? '🟢 You are now ONLINE & Available for trips' : '⚪ You are now OFFLINE',
           backgroundColor: goOnline ? AppColors.accentGreenDark : AppColors.slate700,
@@ -204,8 +226,70 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _setDriverState(DriverHomeState state) {
-    setState(() => _currentState = state);
+  Widget _buildStatusPill(bool isDark) {
+    final (label, color, bgColor) = switch (_currentState) {
+      DriverHomeState.offline => (
+          'Offline',
+          AppColors.textMutedLight,
+          isDark ? AppColors.surfaceElevatedDark : AppColors.borderLight,
+        ),
+      DriverHomeState.available => (
+          'Online & Scanning',
+          AppColors.accentGreenDark,
+          AppColors.accentGreenDark.withValues(alpha: 0.12),
+        ),
+      DriverHomeState.offerAttention => (
+          'Offer Pending',
+          AppColors.warning,
+          AppColors.warning.withValues(alpha: 0.14),
+        ),
+      DriverHomeState.assignedTrip => (
+          'Assigned',
+          AppColors.primary,
+          AppColors.primary.withValues(alpha: 0.14),
+        ),
+      DriverHomeState.activeTrip => (
+          'Busy • On Trip',
+          AppColors.brandOrange,
+          AppColors.brandOrange.withValues(alpha: 0.14),
+        ),
+      DriverHomeState.completedTrip => (
+          'Completed',
+          AppColors.accentPurple,
+          AppColors.accentPurple.withValues(alpha: 0.14),
+        ),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(AppRadius.full),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -255,12 +339,21 @@ class _HomeScreenState extends State<HomeScreen> {
                                 color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                               ).copyWith(fontSize: 11),
                             ),
-                            Text(
-                              _driverName,
-                              style: AppTypography.body(
-                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    _driverName,
+                                    style: AppTypography.body(
+                                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                _buildStatusPill(isDark),
+                              ],
                             ),
                             const SizedBox(height: 3),
                             GestureDetector(
@@ -325,90 +418,28 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
-                // ── Live Driver State Simulator Bar ──────────────────────────
-                Container(
-                  color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: DriverHomeState.values.map((state) {
-                        final isSelected = _currentState == state;
-                        final label = switch (state) {
-                          DriverHomeState.offline => '1. Offline',
-                          DriverHomeState.available => '2. Available',
-                          DriverHomeState.offerAttention => '3. Offer',
-                          DriverHomeState.assignedTrip => '4. Assigned',
-                          DriverHomeState.activeTrip => '5. Active Trip',
-                          DriverHomeState.completedTrip => '6. Completed',
-                        };
-
-                        return GestureDetector(
-                          onTap: () {
-                            if (state == DriverHomeState.available) {
-                              _toggleOnline(true);
-                            } else if (state == DriverHomeState.offline) {
-                              _toggleOnline(false);
-                            } else {
-                              _setDriverState(state);
-                            }
-                          },
-                          child: Container(
-                            margin: const EdgeInsets.only(right: 6),
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppColors.primary
-                                  : (isDark ? AppColors.surfaceElevatedDark : AppColors.bgLight),
-                              borderRadius: BorderRadius.circular(AppRadius.full),
-                              border: Border.all(
-                                color: isSelected
-                                    ? AppColors.primary
-                                    : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                              ),
-                            ),
-                            child: Text(
-                              label,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                color: isSelected
-                                    ? Colors.white
-                                    : (isDark ? AppColors.textSecondaryDark : AppColors.textPrimaryLight),
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ),
-                Divider(
-                  height: 1,
-                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                ),
-
                 // ── Dynamic State Body ───────────────────────────────────────
                 Expanded(
-                  child: _isLoading && _liveOffer == null && _liveTrip == null
-                      ? const Center(child: CircularProgressIndicator())
-                      : RefreshIndicator(
-                          onRefresh: () => _loadLiveDriverData(silent: false),
-                          child: ListView(
-                            padding: const EdgeInsets.all(AppSpacing.lg),
-                            children: [
-                              switch (_currentState) {
-                                DriverHomeState.offline => _buildOfflineState(isDark),
-                                DriverHomeState.available => _buildAvailableState(isDark),
-                                DriverHomeState.offerAttention => _buildOfferAttentionState(isDark),
-                                DriverHomeState.assignedTrip => _buildAssignedState(isDark),
-                                DriverHomeState.activeTrip => _buildActiveTripState(isDark),
-                                DriverHomeState.completedTrip => _buildCompletedTripState(isDark),
-                              },
-                              const SizedBox(height: 100),
-                            ],
-                          ),
-                        ),
+                  child: AdaptiveSkeleton(
+                    isLoading: _isLoading && _liveOffer == null && _liveTrip == null,
+                    child: RefreshIndicator(
+                      onRefresh: () => _loadLiveDriverData(silent: false),
+                      child: ListView(
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        children: [
+                          switch (_currentState) {
+                            DriverHomeState.offline => _buildOfflineState(isDark),
+                            DriverHomeState.available => _buildAvailableState(isDark),
+                            DriverHomeState.offerAttention => _buildOfferAttentionState(isDark),
+                            DriverHomeState.assignedTrip => _buildAssignedState(isDark),
+                            DriverHomeState.activeTrip => _buildActiveTripState(isDark),
+                            DriverHomeState.completedTrip => _buildCompletedTripState(isDark),
+                          },
+                          const SizedBox(height: 100),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -552,6 +583,47 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (_liveOffer != null) ...[
+          GestureDetector(
+            onTap: () => GlobalDispatchOverlayService.instance.showIncomingOffer(_liveOffer!),
+            child: Container(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              margin: const EdgeInsets.only(bottom: AppSpacing.md),
+              decoration: BoxDecoration(
+                color: AppColors.accentGreenDark.withValues(alpha: isDark ? 0.2 : 0.12),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                border: Border.all(color: AppColors.accentGreenDark, width: 1.5),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.notifications_active, color: AppColors.accentGreenDark),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '⚡ Live Dispatch Offer Available',
+                          style: AppTypography.body(
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                          ),
+                        ),
+                        Text(
+                          'Tap to view route & accept guaranteed fare',
+                          style: AppTypography.caption(
+                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.accentGreenDark),
+                ],
+              ),
+            ),
+          ),
+        ],
         Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
@@ -1155,6 +1227,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final tripId = trip?['id'] as String? ?? '';
     final status = (trip?['status'] as String? ?? 'IN_PROGRESS');
     final drop = (trip?['dropLocation']?['address'] ?? trip?['dropAddress'] ?? 'Destination').toString();
+    final payout = (trip?['driverRate'] ?? trip?['fare'] ?? trip?['rate'] ?? '850').toString();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1225,7 +1298,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     onPressed: () async {
                       final otp = _otpController.text.trim();
                       if (otp.isEmpty) {
-                        Fluttertoast.showToast(msg: 'Please enter OTP');
+                        Fluttertoast.showToast(msg: 'Please enter 4-digit OTP');
                         return;
                       }
                       try {
@@ -1233,7 +1306,31 @@ class _HomeScreenState extends State<HomeScreen> {
                         Fluttertoast.showToast(msg: 'Trip Started! Drive safely.', backgroundColor: AppColors.success);
                         _loadLiveDriverData(silent: false);
                       } catch (e) {
-                        Fluttertoast.showToast(msg: 'Invalid OTP: $e', backgroundColor: AppColors.error);
+                        if (mounted) {
+                          showDialog(
+                            context: context,
+                          builder: (ctx) => AlertDialog(
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+                            title: const Row(
+                              children: [
+                                Icon(Icons.error_outline, color: AppColors.error),
+                                SizedBox(width: 8),
+                                Text('Invalid Start OTP', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                              ],
+                            ),
+                            content: Text(
+                              'The OTP entered ($otp) is incorrect.\n\nPlease ask the passenger for the 4-digit Ride Start PIN displayed on their AdhocX booking screen.',
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(ctx).pop(),
+                                child: const Text('OK, Try Again'),
+                              ),
+                            ],
+                          ),
+                        );
+                        }
                       }
                     },
                     style: ElevatedButton.styleFrom(
@@ -1264,15 +1361,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   width: double.infinity,
                   height: 48,
                   child: ElevatedButton.icon(
-                    onPressed: () async {
-                      try {
-                        await DriverService.instance.completeTrip(tripId);
-                        Fluttertoast.showToast(msg: 'Trip Completed! Payout credited.', backgroundColor: AppColors.success);
-                        _setDriverState(DriverHomeState.completedTrip);
-                      } catch (e) {
-                        Fluttertoast.showToast(msg: 'Failed to complete trip: $e', backgroundColor: AppColors.error);
-                      }
-                    },
+                    onPressed: () => _showCompleteTripModal(context, tripId, drop, payout),
                     icon: const Icon(Icons.check_circle_rounded, color: Colors.white),
                     label: const Text('COMPLETE TRIP ✓', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     style: ElevatedButton.styleFrom(
@@ -1289,10 +1378,210 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showCompleteTripModal(BuildContext context, String tripId, String dropAddress, String rawFare) {
+    final tollController = TextEditingController();
+    final parkingController = TextEditingController();
+    final baseFare = double.tryParse(rawFare.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
+    bool isSubmitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          final isDark = Theme.of(ctx).brightness == Brightness.dark;
+          final bottomInset = MediaQuery.of(ctx).viewInsets.bottom;
+          final toll = double.tryParse(tollController.text.trim()) ?? 0.0;
+          final parking = double.tryParse(parkingController.text.trim()) ?? 0.0;
+          final isBidding = (_liveTrip?['requirement']?['fulfillmentMode'] ?? _liveTrip?['fulfillmentMode']) == 'BIDDING';
+          final platformFee = isBidding ? (baseFare * 0.05).roundToDouble() : 0.0;
+          final netPayout = (baseFare - platformFee + toll + parking).clamp(0.0, 9999999.0);
+
+          return Container(
+            padding: EdgeInsets.only(
+              left: AppSpacing.lg,
+              right: AppSpacing.lg,
+              top: AppSpacing.lg,
+              bottom: AppSpacing.lg + bottomInset,
+            ),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Complete Dropoff',
+                        style: AppTypography.h2(
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Arrived at: $dropAddress',
+                    style: TextStyle(fontSize: 12, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                  ),
+                  const Divider(height: 24),
+                  Text(
+                    'Additional FASTag Toll / Parking (Optional)',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? AppColors.textPrimaryDark : AppColors.slate900),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: tollController,
+                          keyboardType: TextInputType.number,
+                          onChanged: (_) => setModalState(() {}),
+                          decoration: InputDecoration(
+                            labelText: 'Toll (₹)',
+                            hintText: '0',
+                            prefixText: '₹ ',
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: parkingController,
+                          keyboardType: TextInputType.number,
+                          onChanged: (_) => setModalState(() {}),
+                          decoration: InputDecoration(
+                            labelText: 'Parking (₹)',
+                            hintText: '0',
+                            prefixText: '₹ ',
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.slate800 : AppColors.slate100,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Base Fare', style: TextStyle(fontSize: 12)),
+                            Text('₹ ${baseFare.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          ],
+                        ),
+                        if (platformFee > 0) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Platform Fee (5%)', style: TextStyle(fontSize: 12, color: AppColors.error)),
+                              Text('-₹ ${platformFee.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.error)),
+                            ],
+                          ),
+                        ],
+                        if (toll > 0) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Toll Charges', style: TextStyle(fontSize: 12, color: AppColors.success)),
+                              Text('+₹ ${toll.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.success)),
+                            ],
+                          ),
+                        ],
+                        if (parking > 0) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Parking Charges', style: TextStyle(fontSize: 12, color: AppColors.success)),
+                              Text('+₹ ${parking.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.success)),
+                            ],
+                          ),
+                        ],
+                        const Divider(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Net Driver Wallet Credit', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            Text(
+                              '₹ ${netPayout.toStringAsFixed(0)}',
+                              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppColors.primary),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: isSubmitting
+                          ? null
+                          : () async {
+                              setModalState(() => isSubmitting = true);
+                              try {
+                                await DriverService.instance.completeTrip(
+                                  tripId,
+                                  tollCharges: toll,
+                                  parkingCharges: parking,
+                                );
+                                if (ctx.mounted) Navigator.of(ctx).pop();
+                                Fluttertoast.showToast(msg: 'Trip Completed! ₹${netPayout.toStringAsFixed(0)} credited.', backgroundColor: AppColors.success);
+                                setState(() => _currentState = DriverHomeState.completedTrip);
+                                _loadLiveDriverData(silent: false);
+                              } catch (e) {
+                                setModalState(() => isSubmitting = false);
+                                Fluttertoast.showToast(msg: 'Failed: $e', backgroundColor: AppColors.error);
+                              }
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accentGreenDark,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                      ),
+                      child: isSubmitting
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Text('CONFIRM & COMPLETE TRIP ✓', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   // ───────────────────────────────────────────────────────────────────────────
   // STATE 6: COMPLETED TRIP STATE
   // ───────────────────────────────────────────────────────────────────────────
   Widget _buildCompletedTripState(bool isDark) {
+    final tripId = _liveTrip?['id']?.toString() ?? '';
+    final vendor = _liveTrip?['vendor'] as Map<String, dynamic>?;
+    final customerName = vendor?['organizationName'] ?? vendor?['fullName'] ?? 'Passenger';
+
     return Column(
       children: [
         Container(
@@ -1317,16 +1606,37 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Fare has been credited to your AdhocX Wallet.',
+                'Earnings credited directly to your AdhocX Driver Wallet.',
                 style: TextStyle(
                   fontSize: 12,
                   color: isDark ? AppColors.textSecondaryDark : AppColors.slate600,
                 ),
               ),
-              const SizedBox(height: AppSpacing.xl),
+              const SizedBox(height: AppSpacing.lg),
+              if (tripId.isNotEmpty) ...[
+                OutlinedButton.icon(
+                  onPressed: () {
+                    TripRatingBottomSheet.show(
+                      context: context,
+                      tripId: tripId,
+                      targetName: customerName,
+                      isReviewingDriver: false,
+                    );
+                  },
+                  icon: const Icon(Icons.star_rounded, color: AppColors.starAmber),
+                  label: const Text('Rate Passenger ⭐', style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.starAmber,
+                    side: const BorderSide(color: AppColors.starAmber),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                    minimumSize: const Size.fromHeight(44),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
               ElevatedButton(
                 onPressed: () {
-                  _setDriverState(DriverHomeState.available);
+                  setState(() => _currentState = DriverHomeState.available);
                   _loadLiveDriverData(silent: false);
                 },
                 style: ElevatedButton.styleFrom(

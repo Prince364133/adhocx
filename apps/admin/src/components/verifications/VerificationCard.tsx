@@ -180,13 +180,13 @@ export const VerificationCard: React.FC<CardProps> = ({
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Vehicle Plate:</span>
                 <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                  {item.vehiclePlate || 'TS09EA1234'}
+                  {item.vehiclePlate || 'Not Registered'}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Class & Model:</span>
                 <span style={{ color: 'var(--text-secondary)' }}>
-                  {item.vehicleType} · {item.vehicleModel || 'Sedan'}
+                  {item.vehicleType ? `${item.vehicleType}${item.vehicleModel ? ` · ${item.vehicleModel}` : ''}` : (item.vehicleModel || 'Unspecified')}
                 </span>
               </div>
             </>
@@ -195,12 +195,14 @@ export const VerificationCard: React.FC<CardProps> = ({
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--text-muted)' }}>GST Number:</span>
                 <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                  {item.gstNumber || '36AAAAA1234A1Z5'}
+                  {item.gstNumber || 'Not Provided'}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--text-muted)' }}>HQ City:</span>
-                <span style={{ color: 'var(--text-secondary)' }}>Hyderabad, Telangana</span>
+                <span style={{ color: 'var(--text-secondary)' }}>
+                  {item.address || item.location?.address || 'Unspecified'}
+                </span>
               </div>
             </>
           )}
@@ -261,7 +263,7 @@ export const VerificationCard: React.FC<CardProps> = ({
         >
           <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             <FileText size={13} />
-            <span>{item.documents?.length || 4} Docs Uploaded</span>
+            <span>{item.documents?.length ?? 0} Docs Uploaded</span>
           </span>
           <span style={{ color: 'var(--text-muted)', fontSize: '0.6875rem' }}>
             {new Date(item.submittedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}

@@ -24,6 +24,9 @@ describe('SettlementsService Unit Tests', () => {
         findMany: jest.fn(),
         update: jest.fn(),
       },
+      systemPolicyConfig: {
+        findUnique: jest.fn().mockResolvedValue({ minWithdrawalAmount: 100 }),
+      },
       $transaction: jest.fn(),
     };
 
@@ -220,7 +223,7 @@ describe('SettlementsService Unit Tests', () => {
       expect.objectContaining({ reason: 'Invalid IFSC code' }),
     );
     expect(audit.log).toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'SETTLEMENT_FAILED' }),
+      expect.objectContaining({ action: 'SETTLEMENT_REJECTED' }),
     );
   });
 });

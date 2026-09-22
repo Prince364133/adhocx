@@ -60,6 +60,15 @@ async function bootstrap() {
       return callback(null, true);
     },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'Accept',
+      'x-webhook-secret',
+      'x-correlation-id',
+      'x-requested-with',
+      'x-razorpay-signature',
+    ],
     credentials: true,
     maxAge: 86400,
   });

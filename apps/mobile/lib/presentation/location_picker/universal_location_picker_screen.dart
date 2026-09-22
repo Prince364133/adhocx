@@ -464,43 +464,6 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
 
           const SizedBox(height: AppSpacing.md),
 
-          // Mini Map Preview Card
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Interactive OpenStreetMap',
-                      style: AppTypography.h4(
-                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => setState(() => _isMapMode = true),
-                      icon: const Icon(Icons.fullscreen_rounded, size: 16),
-                      label: const Text('Expand Map', style: TextStyle(fontSize: 12)),
-                    ),
-                  ],
-                ),
-                SizedBox(
-                  height: 180,
-                  child: OsmMapPickerWidget(
-                    initialLat: _selectedLocation.latitude,
-                    initialLng: _selectedLocation.longitude,
-                    onPositionChanged: _handleMapPinChanged,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: AppSpacing.md),
-
           // Recent Searches Section
           if (_recentLocations.isNotEmpty) ...[
             Padding(

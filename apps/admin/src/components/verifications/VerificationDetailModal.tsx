@@ -245,16 +245,16 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ color: 'var(--text-muted)' }}>Registration Plate:</span>
                         <span style={{ fontWeight: 700, color: 'var(--accent-primary)' }}>
-                          {item.vehiclePlate || 'TS09EA1234'}
+                          {item.vehiclePlate || 'Not Registered'}
                         </span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ color: 'var(--text-muted)' }}>Vehicle Tier:</span>
-                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{item.vehicleType}</span>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{item.vehicleType || 'Unspecified'}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ color: 'var(--text-muted)' }}>Car Model:</span>
-                        <span style={{ color: 'var(--text-secondary)' }}>{item.vehicleModel || 'Dzire (White)'}</span>
+                        <span style={{ color: 'var(--text-secondary)' }}>{item.vehicleModel || 'Unspecified'}</span>
                       </div>
                     </>
                   ) : (
@@ -262,19 +262,19 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ color: 'var(--text-muted)' }}>Organization:</span>
                         <span style={{ fontWeight: 700, color: 'var(--accent-secondary)' }}>
-                          {item.organizationName || 'Fleet Logistics'}
+                          {item.organizationName || 'Not Provided'}
                         </span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ color: 'var(--text-muted)' }}>GST Number:</span>
                         <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                          {item.gstNumber || '36AAAAA1234A1Z5'}
+                          {item.gstNumber || 'Not Provided'}
                         </span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ color: 'var(--text-muted)' }}>Address:</span>
                         <span style={{ color: 'var(--text-secondary)' }}>
-                          {item.address || 'HITEC City, Hyderabad'}
+                          {item.address || item.location?.address || 'Not Provided'}
                         </span>
                       </div>
                     </>
@@ -373,79 +373,95 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
                     gap: '0.5rem',
                   }}
                 >
-                  <FileText size={15} color="var(--brand-primary)" /> KYC & Compliance Documents ({item.documents?.length || 4})
+                  <FileText size={15} color="var(--brand-primary)" /> KYC & Compliance Documents ({item.documents?.length ?? 0})
                 </h3>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                   Click document card to inspect & zoom
                 </span>
               </div>
 
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                  gap: '1rem',
-                }}
-              >
-                {(item.documents || []).map((doc) => (
-                  <div
-                    key={doc.id}
-                    onClick={() => setActivePreviewDoc(doc)}
-                    style={{
-                      background: 'var(--bg-base)',
-                      border: '1px solid var(--border)',
-                      borderRadius: '10px',
-                      padding: '1rem',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '0.75rem',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--accent-primary)';
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--border)';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                    }}
-                  >
+              {(!item.documents || item.documents.length === 0) ? (
+                <div
+                  style={{
+                    padding: '2rem',
+                    textAlign: 'center',
+                    background: 'var(--bg-base)',
+                    border: '1px dashed var(--border)',
+                    borderRadius: '10px',
+                    color: 'var(--text-muted)',
+                    fontSize: '0.8125rem',
+                  }}
+                >
+                  No documents have been uploaded for this applicant yet.
+                </div>
+              ) : (
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                    gap: '1rem',
+                  }}
+                >
+                  {item.documents.map((doc) => (
                     <div
+                      key={doc.id}
+                      onClick={() => setActivePreviewDoc(doc)}
                       style={{
-                        height: '110px',
-                        background: 'var(--bg-surface-elevated)',
-                        borderRadius: '6px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        overflow: 'hidden',
-                        position: 'relative',
+                        background: 'var(--bg-base)',
                         border: '1px solid var(--border)',
+                        borderRadius: '10px',
+                        padding: '1rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.75rem',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--accent-primary)';
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--border)';
+                        e.currentTarget.style.transform = 'translateY(0)';
                       }}
                     >
-                      <img
-                        src={doc.fileUrl}
-                        alt={doc.title}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
+                      <div
+                        style={{
+                          height: '110px',
+                          background: 'var(--bg-surface-elevated)',
+                          borderRadius: '6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          overflow: 'hidden',
+                          position: 'relative',
+                          border: '1px solid var(--border)',
                         }}
-                      />
-                      <FileText size={28} color="var(--text-muted)" style={{ position: 'absolute' }} />
-                    </div>
+                      >
+                        <img
+                          src={doc.fileUrl}
+                          alt={doc.title}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                        <FileText size={28} color="var(--text-muted)" style={{ position: 'absolute' }} />
+                      </div>
 
-                    <div>
-                      <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                        {doc.title}
-                      </div>
-                      <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>
-                        Encrypted Cloudflare R2
+                      <div>
+                        <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {doc.title}
+                        </div>
+                        <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>
+                          Encrypted Cloudflare R2
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

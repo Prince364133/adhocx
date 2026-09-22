@@ -15,9 +15,11 @@ import {
 
 const STATUS_TABS = [
   { id: 'ALL', label: 'All Demands' },
+  { id: 'POSTED', label: 'Posted' },
   { id: 'DISPATCHING', label: 'Dispatching' },
   { id: 'PARTIALLY_FULFILLED', label: 'Partially Fulfilled' },
   { id: 'FULFILLED', label: 'Fulfilled' },
+  { id: 'NO_DRIVER_AVAILABLE', label: 'Seeking Fleet' },
   { id: 'IN_PROGRESS', label: 'In Progress' },
   { id: 'COMPLETED', label: 'Completed' },
   { id: 'CANCELLED', label: 'Cancelled' },

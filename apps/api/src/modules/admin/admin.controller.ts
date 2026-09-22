@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Body,
   Param,
   Query,
@@ -135,6 +136,28 @@ export class AdminController {
     @Body() dto: RejectVendorDto,
   ) {
     return this.adminService.rejectVendor(id, admin.id, dto);
+  }
+
+  @Delete('vendors/:id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Permanently delete vendor account and cascade records' })
+  @SwaggerResponse({ status: 200, description: 'Vendor deleted permanently' })
+  async deleteVendor(
+    @Param('id') id: string,
+    @CurrentUser() admin: AuthUserDto,
+  ) {
+    return this.adminService.deleteVendor(id, admin.id);
+  }
+
+  @Delete('users/:id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Permanently delete user account and cascade records' })
+  @SwaggerResponse({ status: 200, description: 'User deleted permanently' })
+  async deleteUser(
+    @Param('id') id: string,
+    @CurrentUser() admin: AuthUserDto,
+  ) {
+    return this.adminService.deleteUser(id, admin.id);
   }
 
   // --- Platform Analytics & Audit Logs ---

@@ -13,11 +13,13 @@ import {
   RequirementQueryDto,
   CancelRequirementDto,
   RequirementStatus,
+  AssignmentStatus,
   VerificationStatus,
   OfferStatus,
   BidStatus,
   FulfillmentMode,
   VehicleType,
+  PaymentStatus,
   validateRequirementTransition,
 } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
@@ -131,45 +133,98 @@ export class RequirementsService {
       }
     }
 
-    const requirement = await this.db.requirement.create({
-      data: {
-        vendorId,
-        fulfillmentMode: mode,
-        vehicleType: dto.vehicleType as any,
-        quantity: dto.quantity || 1,
-        assignedQuantity: 0,
-        pickupLat: dto.pickupLocation.latitude,
-        pickupLng: dto.pickupLocation.longitude,
-        pickupAddress: dto.pickupLocation.address || 'Pickup Location',
-        dropLat: dto.dropLocation.latitude,
-        dropLng: dto.dropLocation.longitude,
-        dropAddress: dto.dropLocation.address || 'Drop Location',
-        reportingTime: new Date(dto.reportingTime),
-        ratePerVehicle,
-        suggestedBudget,
-        totalAmount,
-        status: RequirementStatus.POSTED,
-        notes: dto.notes,
-      },
-    });
+    // Enforce Wallet-Only payment deduction rule
+    if (Number(vendor.escrowBalance) < totalAmount) {
+      throw new BadRequestException(
+        `Insufficient AdhocX Wallet balance: required ₹${totalAmount}, available ₹${vendor.escrowBalance}. Please top up your wallet before posting requirements.`,
+      );
+    }
 
-    if (couponToRedeem) {
-      await this.db.couponRedemption.create({
+    const { requirement, updatedVendor } = await this.db.$transaction(async (tx) => {
+      // 1. Deduct totalAmount from vendor wallet balance
+      const v = await tx.vendor.update({
+        where: { id: vendor.id },
         data: {
-          couponId: couponToRedeem.id,
-          userId: vendorUserId,
-          referenceType: 'REQUIREMENT_BOOKING',
-          referenceId: requirement.id,
-          orderAmount: totalAmount + discountAmount,
-          discountAmount,
-          finalAmount: totalAmount,
+          escrowBalance: { decrement: totalAmount },
         },
       });
-      await this.db.coupon.update({
-        where: { id: couponToRedeem.id },
-        data: { usedCount: { increment: 1 } },
+
+      // 2. Create requirement
+      const req = await tx.requirement.create({
+        data: {
+          vendorId,
+          fulfillmentMode: mode,
+          vehicleType: dto.vehicleType as any,
+          quantity: dto.quantity || 1,
+          assignedQuantity: 0,
+          pickupLat: dto.pickupLocation.latitude,
+          pickupLng: dto.pickupLocation.longitude,
+          pickupAddress: dto.pickupLocation.address || 'Pickup Location',
+          dropLat: dto.dropLocation.latitude,
+          dropLng: dto.dropLocation.longitude,
+          dropAddress: dto.dropLocation.address || 'Drop Location',
+          reportingTime: new Date(dto.reportingTime),
+          ratePerVehicle,
+          suggestedBudget,
+          totalAmount,
+          status: RequirementStatus.POSTED,
+          notes: dto.notes,
+        },
       });
-    }
+
+      // 3. Create immutable ledger debit entry
+      await tx.ledgerEntry.create({
+        data: {
+          accountType: 'VENDOR',
+          accountId: vendor.id,
+          entryType: 'DEBIT',
+          amount: totalAmount,
+          balanceAfter: v.escrowBalance,
+          referenceType: 'REQUIREMENT_HOLD',
+          referenceId: req.id,
+          description: `Escrow hold for ${req.quantity}x ${req.vehicleType} requirement (${req.id.slice(-6)})${couponToRedeem ? ` [Promo: ${couponToRedeem.code}]` : ''}`,
+        },
+      });
+
+      // 4. Create captured Payment record
+      await tx.payment.create({
+        data: {
+          requirementId: req.id,
+          vendorId: vendor.id,
+          amount: totalAmount,
+          paymentMethod: 'WALLET',
+          transactionRef: `pay_wallet_${req.id.slice(-8)}_${Date.now()}`,
+          status: PaymentStatus.CAPTURED,
+        },
+      });
+
+      // 5. Coupon redemption
+      if (couponToRedeem) {
+        await tx.couponRedemption.create({
+          data: {
+            couponId: couponToRedeem.id,
+            userId: vendorUserId,
+            referenceType: 'REQUIREMENT_BOOKING',
+            referenceId: req.id,
+            orderAmount: totalAmount + discountAmount,
+            discountAmount,
+            finalAmount: totalAmount,
+          },
+        });
+        await tx.coupon.update({
+          where: { id: couponToRedeem.id },
+          data: { usedCount: { increment: 1 } },
+        });
+      }
+
+      return { requirement: req, updatedVendor: v };
+    }, { timeout: 30000, maxWait: 10000 });
+
+    this.notifications.emitEvent(`vendor:${vendor.id}`, 'WALLET_DEBITED', {
+      requirementId: requirement.id,
+      amount: totalAmount,
+      newBalance: Number(updatedVendor.escrowBalance),
+    });
 
     if (mode === FulfillmentMode.BIDDING) {
       // Bidding Mode: Broadcast to nearby drivers
@@ -274,7 +329,101 @@ export class RequirementsService {
         completedCount++;
       } else if (
         req.status === RequirementStatus.DISPATCHING ||
-        req.status === RequirementStatus.POSTED
+        req.status === RequirementStatus.POSTED ||
+        req.status === RequirementStatus.NO_DRIVER_AVAILABLE
+      ) {
+        searchingCount++;
+      } else if (req.status === RequirementStatus.PARTIALLY_FULFILLED) {
+        assignedCount++;
+      }
+    }
+
+    return {
+      totalRequirements: allRequirements.length,
+      totalVehiclesRequired,
+      totalVehiclesFulfilled,
+      assignedCount,
+      searchingCount,
+      completedCount,
+    };
+  }
+
+  /**
+   * List all platform requirements for administrative review across all vendors.
+   */
+  async getAllRequirements(
+    query?: RequirementQueryDto,
+  ): Promise<{ items: any[]; total: number; page: number; pageSize: number }> {
+    const page = query?.page || 1;
+    const limit = query?.limit || 50;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (query?.status && (query.status as any) !== 'ALL') {
+      where.status = query.status;
+    }
+    if (query?.vehicleType) {
+      where.vehicleType = query.vehicleType as any;
+    }
+
+    const [items, total] = await Promise.all([
+      this.db.requirement.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          vendor: {
+            include: { user: true },
+          },
+          offers: true,
+          bids: true,
+          assignments: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.db.requirement.count({ where }),
+    ]);
+
+    return {
+      items: items.map((r) => {
+        const dto = this.mapToDto(r);
+        return {
+          ...dto,
+          vendorName: r.vendor?.organizationName || r.vendor?.fullName || 'Corporate Client',
+          vendorPhone: r.vendor?.phone || r.vendor?.user?.phone || '',
+          vendorId: r.vendorId,
+        };
+      }),
+      total,
+      page,
+      pageSize: limit,
+    };
+  }
+
+  /**
+   * Get platform-wide aggregated requirement metrics for administrator dashboard.
+   */
+  async getAllRequirementsSummary(): Promise<RequirementSummaryDto> {
+    const allRequirements = await this.db.requirement.findMany();
+
+    let totalVehiclesRequired = 0;
+    let totalVehiclesFulfilled = 0;
+    let assignedCount = 0;
+    let searchingCount = 0;
+    let completedCount = 0;
+
+    for (const req of allRequirements) {
+      totalVehiclesRequired += req.quantity;
+      totalVehiclesFulfilled += req.assignedQuantity;
+      if (
+        req.status === RequirementStatus.COMPLETED ||
+        req.status === RequirementStatus.FULFILLED
+      ) {
+        completedCount++;
+      } else if (
+        req.status === RequirementStatus.DISPATCHING ||
+        req.status === RequirementStatus.POSTED ||
+        req.status === RequirementStatus.NO_DRIVER_AVAILABLE
       ) {
         searchingCount++;
       } else if (req.status === RequirementStatus.PARTIALLY_FULFILLED) {
@@ -310,6 +459,7 @@ export class RequirementsService {
           orderBy: { bidAmount: 'asc' },
         },
         assignments: {
+          where: { status: { not: AssignmentStatus.CANCELLED } },
           include: {
             driver: {
               include: { user: true },
@@ -362,6 +512,8 @@ export class RequirementsService {
         driverPhone: a.driver.phone,
         vehiclePlate: a.driver.vehiclePlate || undefined,
         tripStatus: a.trip?.status,
+        tripId: a.trip?.id,
+        startOtp: a.trip?.otp,
       })),
     };
   }
@@ -435,10 +587,48 @@ export class RequirementsService {
       }
     }
 
-    const updated = await this.db.requirement.update({
-      where: { id },
-      data: { status: RequirementStatus.CANCELLED },
-    });
+    // Calculate unfulfilled capacity to refund escrow funds back to vendor wallet
+    const unassigned = requirement.quantity - requirement.assignedQuantity;
+    let refundAmount = 0;
+    if (unassigned > 0 && Number(requirement.totalAmount) > 0 && requirement.quantity > 0) {
+      refundAmount = Math.round((unassigned / requirement.quantity) * Number(requirement.totalAmount));
+    }
+
+    const updated = await this.db.$transaction(async (tx) => {
+      if (refundAmount > 0) {
+        const v = await tx.vendor.update({
+          where: { id: requirement.vendorId },
+          data: {
+            escrowBalance: { increment: refundAmount },
+          },
+        });
+
+        await tx.ledgerEntry.create({
+          data: {
+            accountType: 'VENDOR',
+            accountId: requirement.vendorId,
+            entryType: 'CREDIT',
+            amount: refundAmount,
+            balanceAfter: v.escrowBalance,
+            referenceType: 'REQUIREMENT_REFUND',
+            referenceId: requirement.id,
+            description: `Refund for cancelled requirement ${requirement.id.slice(-6)} (${unassigned} unfulfilled vehicles)`,
+          },
+        });
+      }
+
+      return tx.requirement.update({
+        where: { id },
+        data: { status: RequirementStatus.CANCELLED },
+      });
+    }, { timeout: 30000, maxWait: 10000 });
+
+    if (refundAmount > 0) {
+      this.notifications.emitEvent(`vendor:${requirement.vendorId}`, 'WALLET_REFUNDED', {
+        requirementId: id,
+        refundAmount,
+      });
+    }
 
     await this.audit.log({
       userId: vendorUserId,

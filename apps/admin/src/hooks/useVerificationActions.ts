@@ -40,10 +40,9 @@ export function useVerificationActions(
         showToast(`Successfully approved ${item.name} (${item.entityType})`);
         return true;
       } catch (err: any) {
-        // Optimistically apply update in dev mode if mock server
-        onStatusUpdated?.(item.id, 'VERIFIED');
-        showToast(`Approved ${item.name} (${item.entityType})`);
-        return true;
+        setActionError(err.message || 'Verification update failed');
+        showToast(`Failed to approve ${item.name}: ${err.message || 'Server error'}`);
+        return false;
       } finally {
         setIsProcessing(false);
       }
@@ -87,11 +86,10 @@ export function useVerificationActions(
       closeDeclineDialog();
       return true;
     } catch (err: any) {
-      // Optimistically apply update in dev mode
-      onStatusUpdated?.(declineTarget.id, 'REJECTED', fullReason);
-      showToast(`Declined application for ${declineTarget.name}. Feedback saved.`);
+      setActionError(err.message || 'Decline update failed');
+      showToast(`Failed to decline ${declineTarget.name}: ${err.message || 'Server error'}`);
       closeDeclineDialog();
-      return true;
+      return false;
     } finally {
       setIsProcessing(false);
     }

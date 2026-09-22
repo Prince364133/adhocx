@@ -271,7 +271,10 @@ class AppRoutes {
   static const String vendorAppSettingsScreen = userAppSettingsScreen;
 }
 
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+
 final GoRouter appRouter = GoRouter(
+  navigatorKey: rootNavigatorKey,
   initialLocation: AppRoutes.initial,
   refreshListenable: AuthService.instance.authStateListenable,
   redirect: (BuildContext context, GoRouterState state) async {
@@ -710,9 +713,22 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.userRequirementDetailsScreen,
       builder: (context, state) {
-        final extra = state.extra as Map<String, dynamic>?;
-        final reqId = extra?['requirementId'] as String? ?? extra?['id'] as String? ?? state.uri.queryParameters['id'];
-        return UserRequirementDetailsScreen(requirementId: reqId, initialData: extra);
+        String? reqId;
+        Map<String, dynamic>? initialData;
+
+        final rawExtra = state.extra;
+        if (rawExtra is Map<String, dynamic>) {
+          initialData = rawExtra;
+          reqId = initialData['requirementId'] as String? ?? initialData['id'] as String?;
+        } else if (rawExtra is Map) {
+          initialData = Map<String, dynamic>.from(rawExtra);
+          reqId = initialData['requirementId'] as String? ?? initialData['id'] as String?;
+        } else if (rawExtra is String) {
+          reqId = rawExtra;
+        }
+
+        reqId ??= state.uri.queryParameters['id'];
+        return UserRequirementDetailsScreen(requirementId: reqId, initialData: initialData);
       },
     ),
     GoRoute(
@@ -761,7 +777,10 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.userActiveTripScreen,
-      builder: (context, state) => UserActiveTripScreen(trip: state.extra as Map<String, dynamic>?),
+      builder: (context, state) => UserActiveTripScreen(
+        trip: state.extra as Map<String, dynamic>?,
+        tripId: state.uri.queryParameters['id'],
+      ),
     ),
     GoRoute(
       path: AppRoutes.userTripDetailsUpcomingScreen,

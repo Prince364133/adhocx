@@ -24,6 +24,32 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
   bool _isValidatingCoupon = false;
   Map<String, dynamic>? _appliedCoupon;
   String? _couponError;
+  double? _walletBalance;
+  bool _isLoadingWallet = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWallet();
+  }
+
+  Future<void> _loadWallet() async {
+    try {
+      final summary = await UserService.instance.getWalletSummary();
+      if (mounted) {
+        setState(() {
+          _walletBalance = (summary['walletBalance'] as num?)?.toDouble() ??
+              (summary['escrowBalance'] as num?)?.toDouble() ??
+              0.0;
+          _isLoadingWallet = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoadingWallet = false);
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -32,30 +58,12 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
   }
 
   String _normalizeVehicleType(String type) {
-    switch (type.trim().toUpperCase()) {
-      case 'SEDAN':
-        return 'SEDAN';
-      case 'SUV':
-        return 'SUV';
-      case 'HATCHBACK':
-        return 'HATCHBACK';
-      case 'TEMPO TRAVELLER':
-      case 'TEMPO_TRAVELLER':
-        return 'TEMPO_TRAVELLER';
-      case 'TATA ACE':
-      case 'TATA_ACE':
-        return 'TATA_ACE';
-      case 'PICKUP TRUCK':
-      case 'PICKUP_TRUCK':
-        return 'PICKUP_TRUCK';
-      case 'BUS':
-        return 'BUS';
-      default:
-        return 'SEDAN';
-    }
+    final cleaned = type.trim().toUpperCase().replaceAll(' ', '_');
+    if (cleaned.isNotEmpty) return cleaned;
+    return 'SEDAN';
   }
 
-  Future<void> _handleConfirmAndPost(BuildContext context) async {
+  Future<void> _handleConfirmAndPost() async {
     final draft = context.read<RequirementDraftProvider>();
 
     // Prepare structured notes containing all auxiliary details
@@ -129,10 +137,23 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
     } catch (e) {
       if (mounted) {
         setState(() => _isSubmitting = false);
+        final rawMsg = e.toString().replaceAll("Exception: ", "").replaceAll("ApiException(400): ", "").replaceAll("BadRequestException: ", "");
+        final isLowBalance = rawMsg.toLowerCase().contains("insufficient") || rawMsg.toLowerCase().contains("wallet");
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to post requirement: ${e.toString().replaceAll("Exception: ", "")}'),
+            content: Text(rawMsg),
             backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 6),
+            action: isLowBalance
+                ? SnackBarAction(
+                    label: 'TOP UP WALLET',
+                    textColor: Colors.white,
+                    onPressed: () {
+                      context.push(AppRoutes.userPaymentsScreen).then((_) => _loadWallet());
+                    },
+                  )
+                : null,
           ),
         );
       }
@@ -429,6 +450,102 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                       ),
                     ),
 
+                    const SizedBox(height: AppSpacing.md),
+
+                    // AdhocX Wallet Balance & Deduction Indicator
+                    Builder(
+                      builder: (context) {
+                        final rawTotal = draft.fulfillmentMode == 'BIDDING' ? draft.suggestedBudget : (draft.quantity * 850.0);
+                        final discount = ((_appliedCoupon?['discountAmount'] as num?)?.toDouble() ?? 0.0);
+                        final estTotal = (rawTotal - discount).clamp(0.0, double.infinity);
+                        final isInsufficient = _walletBalance != null && _walletBalance! < estTotal;
+
+                        return Container(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          decoration: BoxDecoration(
+                            color: isInsufficient
+                                ? AppColors.error.withValues(alpha: 0.06)
+                                : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
+                            borderRadius: BorderRadius.circular(AppRadius.lg),
+                            border: Border.all(
+                              color: isInsufficient
+                                  ? AppColors.error.withValues(alpha: 0.5)
+                                  : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                              width: isInsufficient ? 1.5 : 1.0,
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.account_balance_wallet_outlined,
+                                        color: isInsufficient ? AppColors.error : AppColors.primary,
+                                        size: 22,
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'AdhocX Wallet (Platform Deductions)',
+                                            style: AppTypography.caption(
+                                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                            ),
+                                          ),
+                                          Text(
+                                            _isLoadingWallet
+                                                ? 'Checking...'
+                                                : '₹${(_walletBalance ?? 0.0).toStringAsFixed(2)} Available',
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.bold,
+                                              color: isInsufficient ? AppColors.error : AppColors.success,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  OutlinedButton.icon(
+                                    onPressed: () {
+                                      context.push(AppRoutes.userPaymentsScreen).then((_) => _loadWallet());
+                                    },
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: isInsufficient ? AppColors.error : AppColors.primary,
+                                      side: BorderSide(color: isInsufficient ? AppColors.error : AppColors.primary),
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.full)),
+                                    ),
+                                    icon: const Icon(Icons.add_circle_outline, size: 14),
+                                    label: const Text('Top Up', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                  ),
+                                ],
+                              ),
+                              if (isInsufficient) ...[
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Icon(Icons.warning_amber_rounded, size: 14, color: AppColors.error),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        'Top up ₹${(estTotal - (_walletBalance ?? 0.0)).toStringAsFixed(0)} more to post this requirement.',
+                                        style: const TextStyle(fontSize: 11, color: AppColors.error, fontWeight: FontWeight.w600),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+
                     const SizedBox(height: AppSpacing.xl),
 
                     // Bottom Action Buttons (Back + Confirm & Post)
@@ -450,7 +567,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                           child: AppPrimaryButton(
                             text: draft.fulfillmentMode == 'BIDDING' ? '🚀 Launch Reverse Auction' : '⚡ Deploy Fleet Dispatch',
                             isLoading: _isSubmitting,
-                            onPressed: () => _handleConfirmAndPost(context),
+                            onPressed: _handleConfirmAndPost,
                           ),
                         ),
                       ],
