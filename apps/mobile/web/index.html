@@ -279,21 +279,6 @@
           var config = event.data.config || {};
           function launchRzp() {
             try {
-              var isDemoKey = !config.key || config.key.indexOf("Mock") !== -1 || config.key.indexOf("AdhocX") !== -1 || config.key === "rzp_test_AdhocXMockKey123";
-              if (isDemoKey) {
-                // In demo/test environment without registered Razorpay merchant account:
-                // Complete test transaction smoothly
-                setTimeout(function() {
-                  window.postMessage({
-                    type: "RAZORPAY_PAYMENT_SUCCESS",
-                    paymentId: "pay_test_" + Date.now(),
-                    orderId: config.order_id || ("order_" + Date.now()),
-                    signature: "sig_test_" + Date.now()
-                  }, "*");
-                }, 750);
-                return;
-              }
-
               var options = {
                 key: config.key,
                 amount: config.amount,
@@ -307,9 +292,9 @@
                 handler: function(response) {
                   window.postMessage({
                     type: "RAZORPAY_PAYMENT_SUCCESS",
-                    paymentId: response.razorpay_payment_id || ("pay_web_" + Date.now()),
+                    paymentId: response.razorpay_payment_id || "",
                     orderId: response.razorpay_order_id || config.order_id,
-                    signature: response.razorpay_signature || ("sig_web_" + Date.now())
+                    signature: response.razorpay_signature || ""
                   }, "*");
                 },
                 modal: {

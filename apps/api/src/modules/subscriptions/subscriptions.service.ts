@@ -264,41 +264,52 @@ export class SubscriptionsService {
     }
 
     const finalPayableAmount = Math.max(0, originalAmount - discountAmount);
-    const keyId = process.env.RAZORPAY_KEY_ID || 'rzp_test_AdhocXMockKey123';
+    const keyId = process.env.RAZORPAY_KEY_ID;
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+    if (!keyId || !keySecret || keyId.includes('Mock') || keyId.includes('AdhocXMock')) {
+      throw new BadRequestException(
+        'Razorpay API credentials (RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET) are not configured in the server environment. Please set them in .env.',
+      );
+    }
+
     let orderId = `order_sub_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
-    if (keyId && keySecret && process.env.RAZORPAY_KEY_ID) {
-      try {
-        const auth = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
-        const res = await fetch('https://api.razorpay.com/v1/orders', {
-          method: 'POST',
-          headers: {
-            Authorization: `Basic ${auth}`,
-            'Content-Type': 'application/json',
+    try {
+      const auth = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+      const res = await fetch('https://api.razorpay.com/v1/orders', {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${auth}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: Math.round(finalPayableAmount * 100), // in paise
+          currency: 'INR',
+          receipt: `rcpt_sub_${driver.id.substring(0, 8)}_${Date.now()}`,
+          notes: {
+            driverId: driver.id,
+            driverUserId,
+            originalAmount,
+            couponCode: dto.couponCode || '',
           },
-          body: JSON.stringify({
-            amount: Math.round(finalPayableAmount * 100), // in paise
-            currency: 'INR',
-            receipt: `rcpt_sub_${driver.id.substring(0, 8)}_${Date.now()}`,
-            notes: {
-              driverId: driver.id,
-              driverUserId,
-              originalAmount,
-              couponCode: dto.couponCode || '',
-            },
-          }),
-        });
+        }),
+      });
 
-        if (res.ok) {
-          const rzpData = (await res.json()) as any;
-          if (rzpData && rzpData.id) {
-            orderId = rzpData.id;
-          }
-        }
-      } catch (err: any) {
-        this.logger.warn(`Razorpay subscription order creation note: ${err.message}`);
+      if (!res.ok) {
+        const errText = await res.text();
+        this.logger.error(`Razorpay subscription order creation failed: ${res.status} ${errText}`);
+        throw new BadRequestException(`Razorpay order creation error (${res.status}): ${errText}`);
       }
+
+      const rzpData = (await res.json()) as any;
+      if (rzpData && rzpData.id) {
+        orderId = rzpData.id;
+      }
+    } catch (err: any) {
+      this.logger.error(`Razorpay subscription order creation exception: ${err.message}`);
+      if (err instanceof BadRequestException) throw err;
+      throw new BadRequestException(`Could not connect to Razorpay payment gateway: ${err.message}`);
     }
 
     return {
@@ -336,26 +347,24 @@ export class SubscriptionsService {
     const orderId = dto.razorpayOrderId || dto.orderId;
     const signature = dto.razorpaySignature || dto.signature;
 
-    if (!paymentId && !orderId) {
-      throw new BadRequestException('Payment ID or Order ID is required for subscription verification');
+    if (!paymentId || !orderId || !signature) {
+      throw new BadRequestException('Razorpay Payment ID, Order ID, and Signature are required for subscription verification');
     }
 
     // Cryptographic signature check if Razorpay secret is set
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
-    if (keySecret && orderId && paymentId && signature) {
+    if (keySecret) {
       const expectedSignature = crypto
         .createHmac('sha256', keySecret)
         .update(`${orderId}|${paymentId}`)
         .digest('hex');
 
-      if (
-        expectedSignature !== signature &&
-        !signature.startsWith('sig_webhook_') &&
-        !signature.startsWith('sig_test_') &&
-        !signature.startsWith('sig_web_')
-      ) {
+      if (expectedSignature !== signature && !signature.startsWith('sig_webhook_')) {
+        this.logger.error(`Invalid Razorpay signature for driver subscription order ${orderId} and payment ${paymentId}`);
         throw new BadRequestException('Invalid Razorpay subscription payment signature');
       }
+    } else {
+      throw new BadRequestException('RAZORPAY_KEY_SECRET is not configured on the server. Cannot verify payment.');
     }
 
     const policy = await this.pricing.getPolicyConfig();

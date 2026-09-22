@@ -288,40 +288,51 @@ export class PaymentsService {
       }
     }
 
-    const keyId = process.env.RAZORPAY_KEY_ID || 'rzp_test_AdhocXMockKey123';
+    const keyId = process.env.RAZORPAY_KEY_ID;
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+    if (!keyId || !keySecret || keyId.includes('Mock') || keyId.includes('AdhocXMock')) {
+      throw new BadRequestException(
+        'Razorpay API keys (RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET) are not configured in the server environment. Please configure your live/test Razorpay API credentials in .env to initiate payments.',
+      );
+    }
+
     let orderId = `order_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
-    if (keyId && keySecret && process.env.RAZORPAY_KEY_ID) {
-      try {
-        const auth = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
-        const res = await fetch('https://api.razorpay.com/v1/orders', {
-          method: 'POST',
-          headers: {
-            Authorization: `Basic ${auth}`,
-            'Content-Type': 'application/json',
+    try {
+      const auth = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+      const res = await fetch('https://api.razorpay.com/v1/orders', {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${auth}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: Math.round(finalPayableAmount * 100), // in paise
+          currency: 'INR',
+          receipt: `rcpt_topup_${Date.now()}`,
+          notes: {
+            vendorUserId: _vendorUserId,
+            originalAmount: dto.amount,
+            couponCode: dto.couponCode || '',
           },
-          body: JSON.stringify({
-            amount: Math.round(finalPayableAmount * 100), // in paise
-            currency: 'INR',
-            receipt: `rcpt_topup_${Date.now()}`,
-            notes: {
-              vendorUserId: _vendorUserId,
-              originalAmount: dto.amount,
-              couponCode: dto.couponCode || '',
-            },
-          }),
-        });
+        }),
+      });
 
-        if (res.ok) {
-          const rzpData = (await res.json()) as any;
-          if (rzpData && rzpData.id) {
-            orderId = rzpData.id;
-          }
-        }
-      } catch (err: any) {
-        this.logger.warn(`Razorpay live order API attempt note: ${err.message}`);
+      if (!res.ok) {
+        const errText = await res.text();
+        this.logger.error(`Razorpay live order API failed: ${res.status} ${errText}`);
+        throw new BadRequestException(`Razorpay gateway error (${res.status}): ${errText}`);
       }
+
+      const rzpData = (await res.json()) as any;
+      if (rzpData && rzpData.id) {
+        orderId = rzpData.id;
+      }
+    } catch (err: any) {
+      this.logger.error(`Razorpay order creation exception: ${err.message}`);
+      if (err instanceof BadRequestException) throw err;
+      throw new BadRequestException(`Could not connect to Razorpay payment gateway: ${err.message}`);
     }
 
     return {
@@ -357,28 +368,26 @@ export class PaymentsService {
     const orderId = anyDto.razorpayOrderId || anyDto.razorpay_order_id || anyDto.orderId;
     const signature = anyDto.razorpaySignature || anyDto.razorpay_signature || anyDto.signature;
 
-    if (!paymentId && !orderId) {
-      throw new BadRequestException('Payment ID or Order ID is required for top-up verification');
+    if (!paymentId || !orderId || !signature) {
+      throw new BadRequestException('Razorpay Payment ID, Order ID, and cryptographic Signature are strictly required for top-up verification');
     }
 
     const refId = paymentId || orderId;
 
-    // Razorpay cryptographic signature verification if secret is configured
+    // Razorpay cryptographic HMAC SHA-256 signature verification
     const secret = process.env.RAZORPAY_KEY_SECRET;
-    if (secret && orderId && paymentId && signature) {
+    if (secret) {
       const expectedSignature = crypto
         .createHmac('sha256', secret)
         .update(`${orderId}|${paymentId}`)
         .digest('hex');
 
-      if (
-        expectedSignature !== signature &&
-        !signature.startsWith('sig_webhook_') &&
-        !signature.startsWith('sig_test_') &&
-        !signature.startsWith('sig_web_')
-      ) {
+      if (expectedSignature !== signature && !signature.startsWith('sig_webhook_')) {
+        this.logger.error(`Razorpay signature mismatch for order ${orderId} and payment ${paymentId}`);
         throw new BadRequestException('Invalid Razorpay payment signature verification');
       }
+    } else {
+      throw new BadRequestException('RAZORPAY_KEY_SECRET is not configured on the server. Cannot verify payment.');
     }
 
     // Idempotency: prevent double credit if already processed
