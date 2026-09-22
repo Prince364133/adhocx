@@ -4,12 +4,17 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - production
+    paths:
+      - 'apps/mobile/**'
+      - '.github/workflows/mobile-release.yml'
   workflow_dispatch:
     inputs:
       version_tag:
         description: "Release Version Tag (e.g. v1.0.0)"
-        required: true
-        default: "v1.0.0"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -38,6 +43,14 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Ensure Debug Keystore Exists
+        run: |
+          mkdir -p ~/.android ~/.config/.android
+          if [ ! -f ~/.android/debug.keystore ]; then
+            keytool -genkey -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          fi
+          cp ~/.android/debug.keystore ~/.config/.android/debug.keystore || true
+
       - name: Install Dependencies
         working-directory: apps/mobile
         run: |
@@ -62,9 +75,19 @@ jobs:
       - name: Prepare Android Release Artifacts
         run: |
           mkdir -p release-android
-          TAG="${{ github.event.inputs.version_tag || github.ref_name || 'v1.0.0' }}"
+          if [ -n "${{ github.event.inputs.version_tag }}" ]; then
+            TAG="${{ github.event.inputs.version_tag }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${{ github.ref_name }}"
+          else
+            TAG="v1.0.${{ github.run_number }}"
+          fi
+          echo "Using release tag: $TAG"
           cp apps/mobile/build/app/outputs/flutter-apk/app-release.apk "release-android/adhocx-driver-vendor-${TAG}.apk"
+          cp apps/mobile/build/app/outputs/flutter-apk/app-release.apk "release-android/adhocx-app-latest.apk"
+          cp apps/mobile/build/app/outputs/flutter-apk/app-release.apk "release-android/adhocx-driver-vendor.apk"
           cp apps/mobile/build/app/outputs/bundle/release/app-release.aab "release-android/adhocx-driver-vendor-${TAG}.aab"
+          cp apps/mobile/build/app/outputs/bundle/release/app-release.aab "release-android/adhocx-app-latest.aab"
           echo "Android artifacts ready:"
           ls -lh release-android/
 
@@ -108,14 +131,20 @@ jobs:
         working-directory: apps/mobile
         run: |
           flutter build ios --release --no-codesign \
-            --dart-define=API_URL=http://3.110.42.191/api/v1 \
+            --dart-define=API_URL=https://api.adhocx.com/api/v1 \
             --dart-define=SUPABASE_URL=https://ybqxhawowjktupfizfod.supabase.co \
             --dart-define=SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlicXhoYXdvd2prdHVwZml6Zm9kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc4NTQ5OTgsImV4cCI6MjEwMzQzMDk5OH0.grjHadhTvuvcyLsF7CNoY4U73cL1bI3vJOsBaV4Bj1Q
 
       - name: Package iOS Distribution Archive
         run: |
           mkdir -p release-ios/Payload
-          TAG="${{ github.event.inputs.version_tag || github.ref_name || 'v1.0.0' }}"
+          if [ -n "${{ github.event.inputs.version_tag }}" ]; then
+            TAG="${{ github.event.inputs.version_tag }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${{ github.ref_name }}"
+          else
+            TAG="v1.0.${{ github.run_number }}"
+          fi
           cp -r apps/mobile/build/ios/iphoneos/Runner.app release-ios/Payload/
           cd release-ios
           zip -r "adhocx-driver-vendor-${TAG}-ios.zip" Payload
@@ -142,29 +171,24 @@ jobs:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
-      - name: Download Android APK
+      - name: Download All Mobile Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: adhocx-android-apk
+          pattern: adhocx-*
           path: all-releases
-
-      - name: Download Android AAB
-        uses: actions/download-artifact@v4
-        with:
-          name: adhocx-android-aab
-          path: all-releases
-
-      - name: Download iOS Archive
-        uses: actions/download-artifact@v4
-        with:
-          name: adhocx-ios-release
-          path: all-releases
+          merge-multiple: true
 
       - name: Create or Update GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="${{ github.event.inputs.version_tag || github.ref_name || 'v1.0.0' }}"
+          if [ -n "${{ github.event.inputs.version_tag }}" ]; then
+            TAG="${{ github.event.inputs.version_tag }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${{ github.ref_name }}"
+          else
+            TAG="v1.0.${{ github.run_number }}"
+          fi
           echo "Publishing release for tag: $TAG"
           ls -lh all-releases/
 
@@ -174,9 +198,13 @@ jobs:
             
             This release contains the production-ready distribution binaries for the AdhocX Flutter application:
             
-            - **Android APK (.apk)**: Direct installable binary for Android devices (Driver & Vendor testing).
+            - **Latest Android APK (.apk)**: Direct installable binary for Android devices.
             - **Android App Bundle (.aab)**: Production bundle for publishing to the Google Play Store Console.
             - **iOS Release Archive (.zip)**: Compiled iOS Runner bundle for App Store Connect / TestFlight / ad-hoc testing.
+            
+            **Permanent Direct Download Links:**
+            - Latest APK: https://github.com/${{ github.repository }}/releases/latest/download/adhocx-app-latest.apk
+            - Driver/Vendor APK: https://github.com/${{ github.repository }}/releases/latest/download/adhocx-driver-vendor.apk
             
             Built with Flutter Stable channel & automated GitHub Actions CI/CD." \
             --repo "${{ github.repository }}" || \
