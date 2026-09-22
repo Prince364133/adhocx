@@ -69,7 +69,7 @@ class ApiClient {
       return 'http://localhost:7001/api/v1';
     }
 
-    return 'https://api.adhocx.com/api/v1';
+    return 'http://3.110.42.191/api/v1';
   }
 
   Future<String?> getToken() async {

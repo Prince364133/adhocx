@@ -231,16 +231,29 @@ class AuthService {
   Future<AuthResult> signInWithGoogle({
     String role = 'DRIVER',
   }) async {
-    final googleClientId = const String.fromEnvironment('GOOGLE_CLIENT_ID', defaultValue: '');
+    const defaultWebClientId = '886573696369-84dnfvb9jaegbqp8deosr3ucf8tq93ms.apps.googleusercontent.com';
+    const envClientId = String.fromEnvironment('GOOGLE_CLIENT_ID', defaultValue: '');
+    final googleClientId = envClientId.isNotEmpty ? envClientId : defaultWebClientId;
+
     String? email;
     String? displayName;
     String? idToken;
+    String? signInError;
 
     try {
       final GoogleSignIn googleSignIn = GoogleSignIn(
-        clientId: googleClientId.isNotEmpty ? googleClientId : null,
+        // On Android, clientId MUST be null (Google Play Services resolves via package name + SHA-1).
+        // On Web, clientId is required.
+        clientId: kIsWeb ? googleClientId : null,
+        // serverClientId is required on Android to generate an idToken for backend verification.
+        serverClientId: googleClientId,
         scopes: ['email', 'profile'],
       );
+
+      // Attempt clean sign out so account chooser opens reliably
+      try {
+        await googleSignIn.signOut();
+      } catch (_) {}
 
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
       if (googleUser != null) {
@@ -250,11 +263,29 @@ class AuthService {
         idToken = googleAuth.idToken;
       }
     } catch (e) {
-      debugPrint('GoogleSignIn native/web sign-in event: $e');
+      debugPrint('GoogleSignIn native/web sign-in error: $e');
+      signInError = e.toString();
     }
 
     // If popup was cancelled or failed to authenticate
     if (email == null || email.isEmpty) {
+      if (signInError != null) {
+        if (signInError.contains('ApiException: 10') || signInError.contains('DEVELOPER_ERROR')) {
+          throw Exception(
+            'Google Sign-In configuration error (Code 10: DEVELOPER_ERROR). Please ensure the Android OAuth client and SHA-1 fingerprint are registered in Google Cloud Console.',
+          );
+        } else if (signInError.contains('ApiException: 12500')) {
+          throw Exception(
+            'Google Sign-In failed (Code 12500). Please check your Google Play Services or network connection.',
+          );
+        } else if (signInError.contains('network_error') || signInError.contains('ApiException: 7')) {
+          throw Exception(
+            'Google Sign-In network error. Please check your internet connection and try again.',
+          );
+        } else {
+          throw Exception('Google Sign-In error: $signInError');
+        }
+      }
       throw Exception('Google Sign-In was cancelled or not completed. Please try again or use your mobile number.');
     }
 

@@ -14,6 +14,10 @@ import '../../theme/app_typography.dart';
 import '../../shared/widgets/trip_rating_bottom_sheet.dart';
 import '../../shared/widgets/app_adaptive_skeleton.dart';
 import '../opportunities_screen/driver_submit_bid_sheet.dart';
+import 'package:geolocator/geolocator.dart';
+import '../../services/edge_case_manager.dart';
+import '../../services/permission_service.dart';
+import '../../services/location_monitor_service.dart';
 
 enum DriverHomeState { offline, available, offerAttention, assignedTrip, activeTrip, completedTrip }
 
@@ -43,6 +47,21 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _loadLiveDriverData();
     _startAutoRefresh();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAndRequestStartupPermissions();
+    });
+  }
+
+  Future<void> _checkAndRequestStartupPermissions() async {
+    try {
+      final results = await PermissionService.instance.requestAllEssentialPermissions();
+      await EdgeCaseManager.instance.initializeRealPermissions();
+      if (mounted && results['location'] != true) {
+        EdgeCaseManager.instance.toggleLocationPermission(false);
+      }
+    } catch (e) {
+      debugPrint('📍 Error requesting startup permissions: $e');
+    }
   }
 
   @override
@@ -50,6 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _autoRefreshTimer?.cancel();
     _otpController.dispose();
     GlobalDispatchOverlayService.instance.stopRealtimeListener();
+    LocationMonitorService.instance.stopMonitoring();
     super.dispose();
   }
 
@@ -120,6 +140,22 @@ class _HomeScreenState extends State<HomeScreen> {
                 _currentState = DriverHomeState.available;
               }
               _ensureRealtimeConnected();
+              if (!LocationMonitorService.instance.isMonitoring) {
+                LocationMonitorService.instance.startMonitoring(
+                  onAutoOffline: () {
+                    if (mounted) {
+                      setState(() {
+                        _currentState = DriverHomeState.offline;
+                      });
+                      Fluttertoast.showToast(
+                        msg: '⚠️ GPS was turned off. You have been automatically set to OFFLINE.',
+                        backgroundColor: AppColors.error,
+                        toastLength: Toast.LENGTH_LONG,
+                      );
+                    }
+                  },
+                );
+              }
             }
           }
 
@@ -198,8 +234,50 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _toggleOnline(bool goOnline) async {
     try {
       await AuthService.instance.ensureAuthenticatedSession(role: 'DRIVER');
+
+      Position? currentPos;
+      if (goOnline) {
+        // Enforce location permission and active GPS service
+        final hasLocation = await PermissionService.instance.isLocationPermissionGranted();
+        final gpsEnabled = await PermissionService.instance.isLocationServiceEnabled();
+
+        if (!hasLocation || !gpsEnabled) {
+          final granted = await PermissionService.instance.requestLocationPermission();
+          if (!granted) {
+            EdgeCaseManager.instance.toggleLocationPermission(false);
+            if (mounted) {
+              Fluttertoast.showToast(
+                msg: '📍 Location permission and GPS are required to go online and receive trips.',
+                backgroundColor: AppColors.error,
+                toastLength: Toast.LENGTH_LONG,
+              );
+            }
+            return;
+          }
+        }
+
+        currentPos = await PermissionService.instance.getCurrentPosition();
+        if (currentPos == null) {
+          final gpsOn = await PermissionService.instance.isLocationServiceEnabled();
+          if (!gpsOn) {
+            if (mounted) {
+              Fluttertoast.showToast(
+                msg: '📍 Please enable GPS / Location services on your device to go online.',
+                backgroundColor: AppColors.error,
+                toastLength: Toast.LENGTH_LONG,
+              );
+            }
+            return;
+          }
+        }
+      }
+
       final newStatus = goOnline ? 'AVAILABLE' : 'OFFLINE';
-      await DriverService.instance.updateAvailability(newStatus, lat: 28.4950, lng: 77.0895);
+      final lat = currentPos?.latitude ?? 28.4950;
+      final lng = currentPos?.longitude ?? 77.0895;
+
+      await DriverService.instance.updateAvailability(newStatus, lat: lat, lng: lng);
+
       if (mounted) {
         setState(() {
           _currentState = goOnline ? DriverHomeState.available : DriverHomeState.offline;
@@ -207,7 +285,24 @@ class _HomeScreenState extends State<HomeScreen> {
         if (goOnline) {
           _ensureRealtimeConnected();
           GlobalDispatchOverlayService.promptAndroidOverlayPermission(context);
+
+          // Start GPS background monitor: auto-switches to OFFLINE if GPS is switched off
+          LocationMonitorService.instance.startMonitoring(
+            onAutoOffline: () {
+              if (mounted) {
+                setState(() {
+                  _currentState = DriverHomeState.offline;
+                });
+                Fluttertoast.showToast(
+                  msg: '⚠️ GPS was turned off. You have been automatically switched to OFFLINE.',
+                  backgroundColor: AppColors.error,
+                  toastLength: Toast.LENGTH_LONG,
+                );
+              }
+            },
+          );
         } else {
+          LocationMonitorService.instance.stopMonitoring();
           GlobalDispatchOverlayService.instance.stopRealtimeListener();
         }
         Fluttertoast.showToast(

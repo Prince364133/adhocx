@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'permission_service.dart';
 
 /// Centralized Manager controlling and simulating system edge cases:
 /// 1. Location Permission Required
@@ -18,6 +19,28 @@ class EdgeCaseManager extends ChangeNotifier {
   bool get isLocationAvailable => _isLocationAvailable;
   bool get isNetworkOnline => _isNetworkOnline;
   bool get isSessionValid => _isSessionValid;
+
+  /// Initialize with real device permission states.
+  /// Called at app startup to determine actual permission status.
+  Future<void> initializeRealPermissions() async {
+    try {
+      final locGranted = await PermissionService.instance.isLocationPermissionGranted();
+      final locAvailable = await PermissionService.instance.isLocationServiceEnabled();
+
+      _isLocationPermissionGranted = locGranted;
+      _isLocationAvailable = locAvailable;
+      notifyListeners();
+
+      debugPrint('🔑 [EdgeCaseManager] Permissions initialized: '
+          'locPermission=$locGranted, locAvailable=$locAvailable');
+    } catch (e) {
+      debugPrint('🔑 [EdgeCaseManager] Permission check error: $e');
+      // Default to true to avoid blocking the UI if permission check fails
+      _isLocationPermissionGranted = true;
+      _isLocationAvailable = true;
+      notifyListeners();
+    }
+  }
 
   void toggleLocationPermission([bool? value]) {
     _isLocationPermissionGranted = value ?? !_isLocationPermissionGranted;

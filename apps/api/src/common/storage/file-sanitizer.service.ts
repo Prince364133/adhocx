@@ -67,6 +67,22 @@ export class FileSanitizerService {
     /onerror\s*=\s*['"][^'"]*['"]/i,
   ];
 
+  // Targeted web-shell & script injection markers for binary image streams.
+  // We scan the header metadata window (2KB) and trailer (1KB) specifically for
+  // markup/script polyglots to prevent false positives from random compressed byte entropy.
+  private readonly imageDangerousPatterns: RegExp[] = [
+    /<script[\s\S]*?>/i,
+    /<\/script>/i,
+    /<\?php/i,
+    /<\?=/i,
+    /<jsp:/i,
+    /<%[\s\S]*?%>/i,
+    /<html[\s\S]*?>/i,
+    /<iframe[\s\S]*?>/i,
+    /<embed[\s\S]*?>/i,
+    /<object[\s\S]*?>/i,
+  ];
+
   // Dangerous PDF objects & active execution vectors
   private readonly dangerousPdfPatterns: RegExp[] = [
     /\/JavaScript\b/i,
@@ -136,7 +152,8 @@ export class FileSanitizerService {
 
     // 4. Scan for Malicious Payload / Script Injections in buffer
     if (options.scanMaliciousPayloads !== false) {
-      this.scanForScriptInjections(buffer);
+      const isImage = detectedType.mimeType.startsWith('image/');
+      this.scanForScriptInjections(buffer, isImage);
     }
 
     // 5. Special Security Scanning for PDF files
@@ -261,9 +278,31 @@ export class FileSanitizerService {
 
   /**
    * Scans raw buffer for embedded script / web-shell markers.
+   * For binary images (JPEG, PNG, WEBP), scans the header (first 2KB) and trailer (last 1KB)
+   * specifically for web markup / PHP polyglot tags, avoiding false positives on random
+   * compressed byte sequences (e.g. JPEG entropy matching words like "exec(" or "eval(").
    */
-  private scanForScriptInjections(buffer: Buffer): void {
-    // Convert first 64KB and last 64KB to ASCII / UTF-8 for pattern matching
+  private scanForScriptInjections(buffer: Buffer, isImage = false): void {
+    if (isImage) {
+      const headerWindow = buffer.subarray(0, Math.min(buffer.length, 2048)).toString('latin1');
+      const trailerWindow =
+        buffer.length > 2048
+          ? buffer.subarray(Math.max(0, buffer.length - 1024)).toString('latin1')
+          : '';
+      const sample = `${headerWindow} ${trailerWindow}`;
+
+      for (const pattern of this.imageDangerousPatterns) {
+        if (pattern.test(sample)) {
+          this.logger.warn(`Malicious web payload detected in image: ${pattern.toString()}`);
+          throw new BadRequestException(
+            'Security violation: Malicious script or embedded executable code detected in file content.',
+          );
+        }
+      }
+      return;
+    }
+
+    // Convert first 64KB and last 64KB to ASCII / UTF-8 for pattern matching on non-image files
     const sampleSize = Math.min(buffer.length, 65536);
     const headerSample = buffer.subarray(0, sampleSize).toString('utf-8', 0, sampleSize);
     const trailerSample =

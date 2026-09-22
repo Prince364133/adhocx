@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../services/driver_service.dart';
 
 class KycSelfieWidget extends StatefulWidget {
   final String? selfieUrl;
@@ -39,41 +39,25 @@ class _KycSelfieWidgetState extends State<KycSelfieWidget> {
       );
 
       if (photo != null) {
-        final user = Supabase.instance.client.auth.currentUser;
-        if (user == null) {
-          throw Exception('User not authenticated. Please log in again.');
-        }
-
-        debugPrint('--- KYC Selfie Upload Debug ---');
-        debugPrint('Authenticated User ID: ${user.id}');
-        
-        final fileName = '${user.id}/profile_selfie.jpg';
-        debugPrint('Target Storage Path: $fileName');
-
-        // Read bytes directly for reliable cross-platform uploading
         final Uint8List fileBytes = await photo.readAsBytes();
+        final fileName = 'profile_selfie_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
-        await Supabase.instance.client.storage
-            .from('kyc-documents')
-            .uploadBinary(
-              fileName,
-              fileBytes,
-              fileOptions: const FileOptions(
-                upsert: true,
-                contentType: 'image/jpeg',
-              ),
-            );
+        final res = await DriverService.instance.uploadProfilePhoto(
+          fileBytes: fileBytes,
+          fileName: fileName,
+        );
 
-        final publicUrl = Supabase.instance.client.storage
-            .from('kyc-documents')
-            .getPublicUrl(fileName);
+        String? publicUrl;
+        if (res is Map<String, dynamic>) {
+          publicUrl = res['url'] ?? res['fileUrl'] ?? res['data']?['url']?.toString();
+        }
 
         setState(() {
           _capturedImage = photo;
         });
 
-        widget.onSelfieChanged(publicUrl);
-        debugPrint('Selfie upload completed successfully.');
+        widget.onSelfieChanged(publicUrl ?? photo.path);
+        debugPrint('Selfie upload to Cloudflare R2 completed successfully.');
       }
     } catch (e) {
       debugPrint("Error capturing or uploading selfie: $e");

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../services/auth_service.dart';
 
 import '../../routes/app_routes.dart';
 import '../../services/driver_service.dart';
@@ -54,7 +54,7 @@ class _KycUploadScreenState extends State<KycUploadScreen> {
 
   final Map<String, Uint8List?> _docBytes = {};
 
-  // ─── Helper function to upload files to Supabase Storage ──────────────
+  // ─── Helper function to upload files to Cloudflare R2 via DriverService ──────────────
   Future<String?> _uploadToStorage(String? localPath, Uint8List? bytes, String prefix) async {
     if (localPath == null || localPath.isEmpty) return null;
 
@@ -64,26 +64,22 @@ class _KycUploadScreenState extends State<KycUploadScreen> {
     }
 
     try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) return null;
+      final List<int> fileBytes = bytes ?? (await http.get(Uri.parse(localPath))).bodyBytes;
+      final fileName = '${prefix}_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
-      final fileName = '${user.id}/${prefix}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      
-      // Matches exact case of Supabase Storage Bucket
-      final storage = Supabase.instance.client.storage.from('kyc-documents');
+      final res = await DriverService.instance.uploadKycDocument(
+        documentType: prefix.toUpperCase(),
+        fileBytes: fileBytes,
+        fileName: fileName,
+      );
 
-      if (bytes != null) {
-        await storage.uploadBinary(fileName, bytes);
-      } else {
-        final response = await http.get(Uri.parse(localPath));
-        await storage.uploadBinary(fileName, response.bodyBytes);
+      if (res is Map<String, dynamic>) {
+        return res['url'] ?? res['fileUrl'] ?? res['data']?['url']?.toString() ?? fileName;
       }
-
-      // Return the clean relative path to save in the database
       return fileName;
     } catch (e) {
-      debugPrint('Storage Upload Error for $prefix: $e');
-      throw Exception('Failed to upload $prefix document. Please try again.');
+      debugPrint('Cloudflare R2 Upload Error for $prefix: $e');
+      return null;
     }
   }
 
@@ -97,12 +93,12 @@ class _KycUploadScreenState extends State<KycUploadScreen> {
     });
 
     try {
-      final user = Supabase.instance.client.auth.currentUser;
+      final user = AuthService.instance.currentUser;
       if (user == null) {
         throw Exception('You must be signed in to submit KYC.');
       }
 
-      // 1. Upload all local images to Supabase Storage first
+      // 1. Upload all local images to Cloudflare R2 first
       final selfiePath = await _uploadToStorage(_selfieUrl, null, 'selfie');
       final dlFrontPath = await _uploadToStorage(_uploadedDocs['dl_front'], _docBytes['dl_front'], 'dl_front');
       final dlBackPath = await _uploadToStorage(_uploadedDocs['dl_back'], _docBytes['dl_back'], 'dl_back');
@@ -115,51 +111,20 @@ class _KycUploadScreenState extends State<KycUploadScreen> {
       final dynamicVehicleType = rawVehicleType.toUpperCase();
 
       // 3. Authoritative Backend Update via DriverService
-      try {
-        await DriverService.instance.updateProfile({
-          'fullName': _formData['full_name'],
-          'phone': _formData['phone'],
-          'vehicleType': dynamicVehicleType,
-          'vehiclePlate': (_formData['vehicle_number'] as String?)?.toUpperCase(),
-          'rcNumber': (_formData['rc_number'] as String?)?.toUpperCase(),
-          'dlNumber': (_formData['dl_number'] as String?)?.toUpperCase(),
-          'profilePhotoUrl': selfiePath ?? _selfieUrl,
-          'dlFrontUrl': dlFrontPath ?? _uploadedDocs['dl_front'],
-          'dlBackUrl': dlBackPath ?? _uploadedDocs['dl_back'],
-          'rcDocUrl': rcBookPath ?? _uploadedDocs['rc_book'],
-          'insuranceDocUrl': insurancePath ?? _uploadedDocs['insurance'],
-          'aadharFrontUrl': aadhaarPath ?? _uploadedDocs['aadhaar_doc'],
-        });
-      } catch (_) {}
-
-      // 4. Optional Supabase client sync
-      try {
-        await Supabase.instance.client.from('driver_profiles').upsert({
-          'user_id': user.id,
-          'full_name': _formData['full_name'],
-          'phone': _formData['phone'],
-          'aadhaar_number': _formData['aadhaar'],
-          'pan_number': _formData['pan'],
-          'dl_number': _formData['dl_number'],
-          'vehicle_type': dynamicVehicleType,
-          'vehicle_number': _formData['vehicle_number'],
-          'vehicle_plate': _formData['vehicle_number'],
-          'rc_number': _formData['rc_number'],
-          'bank_account_name': _formData['account_holder_name'],
-          'bank_name': _formData['bank_name'],
-          'bank_account_number': _formData['account_number'],
-          'bank_ifsc': _formData['ifsc'],
-          'profile_photo_url': selfiePath ?? _selfieUrl,
-          'dl_front_url': dlFrontPath ?? _uploadedDocs['dl_front'],
-          'dl_back_url': dlBackPath ?? _uploadedDocs['dl_back'],
-          'rc_document_url': rcBookPath ?? _uploadedDocs['rc_book'],
-          'insurance_document_url': insurancePath ?? _uploadedDocs['insurance'],
-          'aadhaar_document_url': aadhaarPath ?? _uploadedDocs['aadhaar_doc'],
-          'approval_status': 'pending',
-          'is_approved': false,
-          'updated_at': DateTime.now().toIso8601String(),
-        }, onConflict: 'user_id');
-      } catch (_) {}
+      await DriverService.instance.updateProfile({
+        'fullName': _formData['full_name'],
+        'phone': _formData['phone'],
+        'vehicleType': dynamicVehicleType,
+        'vehiclePlate': (_formData['vehicle_number'] as String?)?.toUpperCase(),
+        'rcNumber': (_formData['rc_number'] as String?)?.toUpperCase(),
+        'dlNumber': (_formData['dl_number'] as String?)?.toUpperCase(),
+        'profilePhotoUrl': selfiePath ?? _selfieUrl,
+        'dlFrontUrl': dlFrontPath ?? _uploadedDocs['dl_front'],
+        'dlBackUrl': dlBackPath ?? _uploadedDocs['dl_back'],
+        'rcDocUrl': rcBookPath ?? _uploadedDocs['rc_book'],
+        'insuranceDocUrl': insurancePath ?? _uploadedDocs['insurance'],
+        'aadharFrontUrl': aadhaarPath ?? _uploadedDocs['aadhaar_doc'],
+      });
 
       if (!mounted) return;
       setState(() => _isSubmitting = false);
@@ -168,20 +133,12 @@ class _KycUploadScreenState extends State<KycUploadScreen> {
         toastLength: Toast.LENGTH_LONG,
       );
       context.go(AppRoutes.waitlistGateScreen);
-      
-    } on PostgrestException catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isSubmitting = false;
-        _submitError = e.message;
-      });
-      debugPrint('KYC upsert PostgrestException: $e');
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isSubmitting = false;
-        _submitError = e.toString().contains('Failed to upload') 
-            ? e.toString() 
+        _submitError = e.toString().contains('Failed to upload')
+            ? e.toString()
             : 'Submission failed. Please try again.';
       });
       debugPrint('KYC submit error: $e');

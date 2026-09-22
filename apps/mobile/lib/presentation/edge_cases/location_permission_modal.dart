@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../services/edge_case_manager.dart';
+import '../../services/permission_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
@@ -77,12 +79,21 @@ class LocationPermissionModal extends StatelessWidget {
 
           AppPrimaryButton(
             text: 'ENABLE LOCATION SERVICES',
-            onPressed: () {
-              EdgeCaseManager.instance.grantLocationPermission();
-              Fluttertoast.showToast(
-                msg: 'Location permission granted!',
-                backgroundColor: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
-              );
+            onPressed: () async {
+              final granted = await PermissionService.instance.requestLocationPermission();
+              if (granted) {
+                EdgeCaseManager.instance.grantLocationPermission();
+                Fluttertoast.showToast(
+                  msg: 'Location permission granted!',
+                  backgroundColor: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
+                );
+              } else {
+                await openAppSettings();
+                Fluttertoast.showToast(
+                  msg: 'Please grant Location permission in Settings to receive trip offers.',
+                  backgroundColor: AppColors.warning,
+                );
+              }
             },
           ),
           const SizedBox(height: AppSpacing.md),

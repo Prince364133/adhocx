@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:url_launcher/url_launcher.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../presentation/dispatch_overlay/incoming_requirement_bottom_sheet.dart';
 import '../routes/app_routes.dart';
 import '../theme/app_colors.dart';
@@ -278,11 +278,15 @@ class GlobalDispatchOverlayService {
                   onPressed: () async {
                     Navigator.of(ctx).pop();
                     try {
-                      final uri = Uri.parse('package:com.adhocx.app');
-                      if (await canLaunchUrl(uri)) {
-                        await launchUrl(uri);
+                      final status = await Permission.systemAlertWindow.request();
+                      if (!status.isGranted) {
+                        await openAppSettings();
                       }
-                    } catch (_) {}
+                    } catch (_) {
+                      try {
+                        await openAppSettings();
+                      } catch (_) {}
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,

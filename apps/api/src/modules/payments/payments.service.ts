@@ -252,9 +252,11 @@ export class PaymentsService {
     return {
       walletBalance: Number(vendor.escrowBalance),
       escrowBalance: Number(vendor.escrowBalance),
+      balance: Number(vendor.escrowBalance),
+      escrowHeld: Number(vendor.escrowBalance),
       totalSpent,
       currency: 'INR',
-    };
+    } as any;
   }
 
   /**
@@ -502,6 +504,7 @@ export class PaymentsService {
       id: e.id,
       amount: Number(e.amount),
       entryType: e.entryType,
+      type: e.entryType,
       balanceAfter: Number(e.balanceAfter),
       referenceType: e.referenceType,
       referenceId: e.referenceId,

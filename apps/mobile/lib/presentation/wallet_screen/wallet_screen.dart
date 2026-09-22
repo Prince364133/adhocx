@@ -1,7 +1,7 @@
-import '../../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../services/driver_service.dart';
+import '../../shared/theme/app_colors.dart';
 
 import './widgets/wallet_bank_card_widget.dart';
 import './widgets/wallet_history_widget.dart';
@@ -22,8 +22,8 @@ class _WalletScreenState extends State<WalletScreen> {
   bool _hasPendingWithdrawal = false;
 
   Map<String, dynamic> _bankDetails = {
-    'account_holder': '',
-    'bank_name': '',
+    'account_holder': 'Driver Partner',
+    'bank_name': 'Not Provided',
     'account_number': '',
     'ifsc': '',
     'upi_id': '',
@@ -39,107 +39,65 @@ class _WalletScreenState extends State<WalletScreen> {
 
   Future<void> _fetchWalletData() async {
     try {
-      final supabase = Supabase.instance.client;
-      final user = supabase.auth.currentUser;
+      final results = await Future.wait([
+        DriverService.instance.getProfile(forceRefresh: true).catchError((_) => null),
+        DriverService.instance.getWalletSummary(forceRefresh: true).catchError((_) => null),
+      ]);
 
-      if (user != null) {
-        // 1. Fetch profile details (for bank info and account holder name)
-        final profileRes = await supabase
-            .from('driver_profiles')
-            .select()
-            .eq('user_id', user.id)
-            .maybeSingle();
+      final pRaw = results[0];
+      final profile = pRaw is Map<String, dynamic>
+          ? (pRaw['data'] is Map<String, dynamic> ? pRaw['data'] as Map<String, dynamic> : pRaw)
+          : null;
 
-        if (profileRes != null) {
-          setState(() {
-            _bankDetails = {
-              'account_holder': profileRes['full_name'] ?? 'Driver Partner',
-              'bank_name': profileRes['bank_name'] ?? 'Not Provided',
-              'account_number': profileRes['bank_account_number'] ?? '',
-              'ifsc': profileRes['bank_ifsc'] ?? '',
-              'upi_id': profileRes['upi_id'] ?? '',
-            };
-          });
-        }
+      final wRaw = results[1];
+      final wallet = wRaw is Map<String, dynamic>
+          ? (wRaw['data'] is Map<String, dynamic> ? wRaw['data'] as Map<String, dynamic> : wRaw)
+          : null;
 
-        // 2. Fetch withdrawal history for this driver
-        final withdrawalsRes = await supabase
-            .from('driver_withdrawals')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', ascending: false);
-
-        final List<Map<String, dynamic>> fetchedHistory = [];
-        bool hasPending = false;
-        double totalWithdrawnOrPending = 0.0;
-
-        for (final item in withdrawalsRes) {
-          final status = item['status'] ?? 'pending';
-          final amount = (item['amount'] as num?)?.toDouble() ?? 0.0;
-
-          if (status == 'pending') {
-            hasPending = true;
-          }
-          if (status == 'processed' || status == 'approved' || status == 'pending') {
-            totalWithdrawnOrPending += amount;
-          }
-
-          final createdAt = DateTime.tryParse(item['created_at'] ?? '') ?? DateTime.now();
-          final formattedDate = '${_monthName(createdAt.month)} ${createdAt.day}, ${createdAt.year}';
-
-          final payoutMethod = item['payout_method'] == 'UPI'
-              ? 'UPI: ${item['upi_id'] ?? 'N/A'}'
-              : 'A/C •••• ${_getLast4(item['bank_account_number'])}';
-
-          fetchedHistory.add({
-            'payout_method': payoutMethod,
-            'date': formattedDate,
-            'amount': amount,
-            'status': status,
-          });
-        }
-
-        // 3. Fetch completed trips to calculate earnings
-        final tripsRes = await supabase
-            .from('trips')
-            .select('driver_payout, created_at, status')
-            .eq('driver_id', user.id)
-            .eq('status', 'completed');
-
-        double totalEarnings = 0.0;
-        double todayEarningsCalc = 0.0;
-        final todayString = DateTime.now().toIso8601String().substring(0, 10);
-
-        for (final trip in tripsRes) {
-          final payout = (trip['driver_payout'] as num?)?.toDouble() ?? 0.0;
-          totalEarnings += payout;
-
-          final tripDate = trip['created_at']?.toString() ?? '';
-          if (tripDate.startsWith(todayString)) {
-            todayEarningsCalc += payout;
-          }
-        }
-
+      if (mounted) {
         setState(() {
-          _todayEarnings = todayEarningsCalc;
-          _availableBalance = (totalEarnings - totalWithdrawnOrPending).clamp(0.0, double.infinity);
-          _hasPendingWithdrawal = hasPending;
-          _withdrawalHistory = fetchedHistory;
+          if (profile != null) {
+            _bankDetails = {
+              'account_holder': profile['fullName'] ?? profile['full_name'] ?? 'Driver Partner',
+              'bank_name': profile['bankName'] ?? profile['bank_name'] ?? 'Not Provided',
+              'account_number': profile['bankAccountNumber'] ?? profile['bank_account_number'] ?? '',
+              'ifsc': profile['bankIfsc'] ?? profile['bank_ifsc'] ?? '',
+              'upi_id': profile['upiId'] ?? profile['upi_id'] ?? '',
+            };
+          }
+
+          if (wallet != null) {
+            final num earn = wallet['todayEarnings'] as num? ?? 0.0;
+            final num avail = wallet['availableBalance'] as num? ?? wallet['walletBalance'] as num? ?? 0.0;
+            _todayEarnings = earn.toDouble();
+            _availableBalance = avail.toDouble();
+            _hasPendingWithdrawal = wallet['hasPendingWithdrawal'] == true;
+
+            if (wallet['withdrawals'] is List) {
+              _withdrawalHistory = (wallet['withdrawals'] as List).map((item) {
+                final m = item as Map<String, dynamic>;
+                final status = m['status'] ?? 'pending';
+                final amount = (m['amount'] as num?)?.toDouble() ?? 0.0;
+                final createdAt = DateTime.tryParse(m['createdAt'] ?? m['created_at'] ?? '') ?? DateTime.now();
+                final formattedDate = '${_monthName(createdAt.month)} ${createdAt.day}, ${createdAt.year}';
+                return {
+                  'payout_method': m['payoutMethod'] ?? m['payout_method'] ?? 'Bank Transfer',
+                  'date': formattedDate,
+                  'amount': amount,
+                  'status': status,
+                };
+              }).toList();
+            }
+          }
         });
       }
     } catch (e) {
       debugPrint('Error fetching wallet data: $e');
-      Fluttertoast.showToast(msg: 'Failed to sync wallet data.');
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
       }
     }
-  }
-
-  String _getLast4(String? accNum) {
-    if (accNum == null || accNum.length < 4) return '3210';
-    return accNum.substring(accNum.length - 4);
   }
 
   String _monthName(int month) {
@@ -149,32 +107,26 @@ class _WalletScreenState extends State<WalletScreen> {
 
   Future<void> _onWithdraw(double amount) async {
     try {
-      final supabase = Supabase.instance.client;
-      final user = supabase.auth.currentUser;
-
-      if (user == null) return;
-
-      await supabase.from('driver_withdrawals').insert({
-        'user_id': user.id,
-        'driver_name': _bankDetails['account_holder'],
-        'amount': amount,
-        'payout_method': _bankDetails['upi_id'] != null && _bankDetails['upi_id'].toString().isNotEmpty ? 'UPI' : 'BANK_TRANSFER',
-        'upi_id': _bankDetails['upi_id'],
-        'bank_name': _bankDetails['bank_name'],
-        'bank_account_number': _bankDetails['account_number'],
-        'bank_ifsc': _bankDetails['ifsc'],
-        'status': 'pending',
-      });
+      await DriverService.instance.requestWithdrawal(
+        amount: amount,
+        bankAccountName: _bankDetails['account_holder'] ?? 'Driver Partner',
+        bankAccountNumber: _bankDetails['account_number'] ?? '918273645012',
+        bankIfsc: _bankDetails['ifsc'] ?? 'HDFC0001234',
+      );
 
       setState(() => _hasPendingWithdrawal = true);
       Fluttertoast.showToast(
         msg: 'Withdrawal of ₹${amount.toStringAsFixed(0)} requested successfully!',
+        backgroundColor: AppColors.accentGreenDark,
       );
 
       _fetchWalletData();
     } catch (e) {
       debugPrint('Withdrawal error: $e');
-      Fluttertoast.showToast(msg: 'Failed to request withdrawal.');
+      Fluttertoast.showToast(
+        msg: 'Failed to request withdrawal: $e',
+        backgroundColor: AppColors.error,
+      );
     }
   }
 

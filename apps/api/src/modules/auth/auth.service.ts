@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, NotFoundException, ForbiddenException, OnModuleInit, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
@@ -19,7 +19,7 @@ import { RedisService } from '../../redis/redis.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleInit {
   private readonly logger = new Logger(AuthService.name);
 
   constructor(
@@ -29,6 +29,59 @@ export class AuthService {
     private readonly redis: RedisService,
     private readonly notifications: NotificationsService,
   ) {}
+
+  async onModuleInit() {
+    try {
+      await this.ensureAdminExists();
+    } catch (err: any) {
+      this.logger.warn(`Admin startup verification: ${err.message}`);
+    }
+  }
+
+  private async ensureAdminExists(): Promise<void> {
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@adhocx.com';
+    const adminPhone = process.env.ADMIN_PHONE || '+919876543210';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'Admin@AdhocX2026!';
+
+    const existing = await this.db.user.findFirst({
+      where: {
+        OR: [
+          { email: { equals: adminEmail, mode: 'insensitive' } },
+          { phone: adminPhone },
+          { role: 'ADMIN' },
+        ],
+      },
+    });
+
+    if (!existing || !existing.passwordHash || existing.role !== 'ADMIN') {
+      const passwordHash = this.hashPassword(adminPassword);
+      if (existing) {
+        await this.db.user.update({
+          where: { id: existing.id },
+          data: {
+            email: existing.email || adminEmail,
+            role: 'ADMIN',
+            fullName: existing.fullName || 'AdhocX Administrator',
+            passwordHash: existing.passwordHash || passwordHash,
+            status: 'ACTIVE',
+          },
+        });
+        this.logger.log(`Admin account confirmed and secured: ${existing.id}`);
+      } else {
+        await this.db.user.create({
+          data: {
+            phone: adminPhone,
+            email: adminEmail,
+            fullName: 'AdhocX Administrator',
+            role: 'ADMIN',
+            passwordHash,
+            status: 'ACTIVE',
+          },
+        });
+        this.logger.log(`Default administrative account initialized: ${adminEmail}`);
+      }
+    }
+  }
 
   /**
    * Cryptographic Password Hashing (PBKDF2 with Cryptographic Salt)
@@ -51,8 +104,12 @@ export class AuthService {
    */
   private normalizeIdentifier(raw: string): { isEmail: boolean; value: string; phoneVariants?: string[] } {
     const trimmed = raw.trim();
+    const lower = trimmed.toLowerCase();
+    if (lower === 'admin' || lower === 'administrator') {
+      return { isEmail: true, value: 'admin@adhocx.com' };
+    }
     if (trimmed.includes('@')) {
-      return { isEmail: true, value: trimmed.toLowerCase() };
+      return { isEmail: true, value: lower };
     }
     const digitsOnly = trimmed.replaceAll(/\D/g, '');
     let formattedPhone = trimmed;
@@ -81,6 +138,86 @@ export class AuthService {
       return UserRole.ADMIN;
     }
     return UserRole.DRIVER;
+  }
+
+  /**
+   * Dedicated Administrative Authentication (Admin ID/Email + Password with strict role verification)
+   */
+  async adminLogin(dto: LoginDto): Promise<AuthResponseDto> {
+    const { isEmail, value, phoneVariants } = this.normalizeIdentifier(dto.identifier);
+    this.logger.log(`🛡️ [ADMIN LOGIN ATTEMPT] Identifier: ${value} (isEmail: ${isEmail})`);
+
+    let user: any = null;
+    try {
+      if (isEmail) {
+        user = await this.db.user.findFirst({
+          where: { email: { equals: value, mode: 'insensitive' } },
+        });
+      } else {
+        user = await this.db.user.findFirst({
+          where: {
+            phone: { in: phoneVariants || [value] },
+          },
+        });
+      }
+    } catch (dbErr: any) {
+      this.logger.error(`Database query failed in adminLogin: ${dbErr.message}`);
+      throw new BadRequestException('Database connectivity error. Please try again.');
+    }
+
+    if (!user) {
+      this.logger.warn(`Admin login failed: administrative user ${value} not found`);
+      throw new UnauthorizedException('Invalid administrative ID or password');
+    }
+
+    if (!user.passwordHash) {
+      this.logger.warn(`Admin login failed: user ${value} has not set a password`);
+      throw new UnauthorizedException('Invalid administrative credentials. Administrative password not configured.');
+    }
+
+    const isValidPassword = this.verifyPassword(dto.password, user.passwordHash);
+    if (!isValidPassword) {
+      this.logger.warn(`Admin login failed: invalid password for user ${value}`);
+      throw new UnauthorizedException('Invalid administrative ID or password');
+    }
+
+    // STRICT SERVER-SIDE ROLE ENFORCEMENT
+    const userRoleStr = String(user.role).trim().toUpperCase();
+    if (userRoleStr !== 'ADMIN' && userRoleStr !== UserRole.ADMIN) {
+      this.logger.warn(`Security alert: non-admin user (${user.id}, role: ${user.role}) attempted admin portal login`);
+      throw new ForbiddenException('Access denied: You do not have administrative privileges');
+    }
+
+    if (user.status && user.status !== 'ACTIVE') {
+      throw new ForbiddenException('Access denied: Administrative account is suspended or deactivated');
+    }
+
+    this.logger.log(`✅ [ADMIN LOGIN SUCCESS] Admin authenticated: ${user.id} (${user.email || user.phone})`);
+    return this.generateAuthResponse(user);
+  }
+
+  /**
+   * Verify an active administrative session
+   */
+  async verifyAdminSession(userId: string): Promise<any> {
+    const user = await this.db.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user || String(user.role).toUpperCase() !== 'ADMIN' || user.status !== 'ACTIVE') {
+      throw new ForbiddenException('Invalid administrative session');
+    }
+
+    return {
+      valid: true,
+      user: {
+        id: user.id,
+        phone: user.phone,
+        email: user.email,
+        fullName: user.fullName || 'AdhocX Administrator',
+        role: user.role,
+      },
+    };
   }
 
   /**

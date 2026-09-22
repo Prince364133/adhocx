@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Bell, CheckCheck, ExternalLink, X, Send, Radio, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Bell, CheckCheck, ExternalLink, X, Send, Radio, AlertCircle, CheckCircle2, LogOut } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
-import { adminApi } from '../lib/api/client';
+import { adminApi, getStoredAdminUser } from '../lib/api/client';
 import { InAppNotificationItem } from '../lib/api/types';
 
 type HeaderProps = {
@@ -15,6 +15,10 @@ type HeaderProps = {
 export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
   const pathname = usePathname();
   const router = useRouter();
+
+  // Admin user & session state
+  const [adminUser, setAdminUser] = useState<any>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Notification state
   const [notifications, setNotifications] = useState<InAppNotificationItem[]>([]);
@@ -43,6 +47,22 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
     if (pathname.startsWith('/audit')) return 'Audit Logs & Compliance';
     if (pathname.startsWith('/support')) return 'Customer & Driver Support';
     return 'Control Portal';
+  };
+
+  useEffect(() => {
+    const user = getStoredAdminUser();
+    if (user) {
+      setAdminUser(user);
+    }
+  }, []);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await adminApi.logoutAdmin();
+    } finally {
+      router.replace('/login');
+    }
   };
 
   useEffect(() => {
@@ -457,6 +477,68 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
         >
           <span className="pulse-dot success" style={{ width: '6px', height: '6px' }} />
           <span>Operational</span>
+        </div>
+
+        {/* Admin Profile & Logout */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.65rem',
+            paddingLeft: '0.5rem',
+            borderLeft: '1px solid var(--border)',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-end',
+              fontSize: '0.75rem',
+              lineHeight: 1.25,
+            }}
+          >
+            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+              {adminUser?.fullName || 'Administrator'}
+            </span>
+            <span style={{ fontSize: '0.68rem', color: 'var(--brand-primary)', fontWeight: 600 }}>
+              {adminUser?.email || 'admin@adhocx.com'}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            id="admin-header-logout-btn"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            title="Sign Out of Admin Control Portal"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.4rem',
+              padding: '0.4rem 0.75rem',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--color-danger-border)',
+              background: 'var(--color-danger-bg)',
+              color: 'var(--color-danger)',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              cursor: isLoggingOut ? 'not-allowed' : 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--color-danger)';
+              e.currentTarget.style.color = '#ffffff';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--color-danger-bg)';
+              e.currentTarget.style.color = 'var(--color-danger)';
+            }}
+          >
+            <LogOut size={14} />
+            <span>{isLoggingOut ? 'Signing Out...' : 'Log Out'}</span>
+          </button>
         </div>
       </div>
     </header>

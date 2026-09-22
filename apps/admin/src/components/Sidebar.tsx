@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LucideIcon,
   LayoutDashboard,
@@ -21,8 +21,10 @@ import {
   BarChart3,
   FileText,
   BellRing,
+  LogOut,
 } from 'lucide-react';
 import { AdhocxBrandLogo } from './AdhocxBrandLogo';
+import { adminApi, getStoredAdminUser } from '../lib/api/client';
 
 interface NavSection {
   title?: string;
@@ -84,6 +86,25 @@ const navSections: NavSection[] = [
 
 export const Sidebar: React.FC = () => {
   const pathname = usePathname();
+  const router = useRouter();
+  const [adminUser, setAdminUser] = React.useState<any>(null);
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false);
+
+  React.useEffect(() => {
+    const user = getStoredAdminUser();
+    if (user) {
+      setAdminUser(user);
+    }
+  }, []);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await adminApi.logoutAdmin();
+    } finally {
+      router.replace('/login');
+    }
+  };
 
   return (
     <aside className="admin-sidebar" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
@@ -186,6 +207,98 @@ export const Sidebar: React.FC = () => {
           </div>
         ))}
       </nav>
+
+      {/* Administrative User & Logout Footer */}
+      <div
+        style={{
+          padding: '1rem 1.1rem',
+          borderTop: '1px solid var(--border)',
+          background: 'var(--bg-surface)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.75rem',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div
+            style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '50%',
+              background: 'var(--brand-primary-gradient)',
+              color: '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 800,
+              fontSize: '0.82rem',
+              boxShadow: '0 2px 8px rgba(91, 66, 243, 0.3)',
+              flexShrink: 0,
+            }}
+          >
+            AD
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+            <span
+              style={{
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {adminUser?.fullName || 'Administrator'}
+            </span>
+            <span
+              style={{
+                fontSize: '0.72rem',
+                color: 'var(--text-muted)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {adminUser?.email || 'admin@adhocx.com'}
+            </span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          id="sidebar-logout-btn"
+          onClick={handleLogout}
+          disabled={isLoggingOut}
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem',
+            padding: '0.6rem 0.9rem',
+            borderRadius: 'var(--radius-md)',
+            background: 'var(--color-danger-bg)',
+            border: '1px solid var(--color-danger-border)',
+            color: 'var(--color-danger)',
+            fontSize: '0.82rem',
+            fontWeight: 700,
+            cursor: isLoggingOut ? 'not-allowed' : 'pointer',
+            transition: 'all 0.15s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'var(--color-danger)';
+            e.currentTarget.style.color = '#ffffff';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'var(--color-danger-bg)';
+            e.currentTarget.style.color = 'var(--color-danger)';
+          }}
+        >
+          <LogOut size={16} />
+          <span>{isLoggingOut ? 'Signing Out...' : 'Log Out'}</span>
+        </button>
+      </div>
     </aside>
   );
 };

@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import { Sidebar } from '../components/Sidebar';
-import { Header } from '../components/Header';
+import { AdminShell } from '../components/AdminShell';
 
 export const metadata: Metadata = {
   title: 'AdhocX Control Portal',
@@ -42,13 +41,7 @@ export default function RootLayout({
         />
       </head>
       <body suppressHydrationWarning>
-        <div className="admin-layout">
-          <Sidebar />
-          <div className="admin-main">
-            <Header />
-            <div className="admin-content">{children}</div>
-          </div>
-        </div>
+        <AdminShell>{children}</AdminShell>
       </body>
     </html>
   );

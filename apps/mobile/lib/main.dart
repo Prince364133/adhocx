@@ -11,13 +11,13 @@ import './services/auth_provider.dart';
 import './services/auth_service.dart';
 import './services/driver_service.dart';
 import './services/onboarding_provider.dart';
-import './services/supabase_service.dart';
 import './services/user_service.dart';
 import './theme/app_theme.dart';
 import './theme/theme_provider.dart';
 import './user/requirements/requirement_draft_provider.dart';
 import './widgets/custom_error_widget.dart';
 import './presentation/language_selection_widget.dart';
+import './services/edge_case_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -71,14 +71,11 @@ void main() async {
   // Initialize Onboarding Provider
   final onboardingProvider = OnboardingProvider();
 
-  // Initialize Supabase if credentials are provided (graceful fallback)
-  bool supabaseReady = true;
-  Object? initError;
-
+  // Initialize real device permissions (location, notifications, camera)
   try {
-    await SupabaseService.initialize().timeout(const Duration(seconds: 3));
+    await EdgeCaseManager.instance.initializeRealPermissions();
   } catch (e) {
-    AppLogger.debug('Supabase optional init skipped: $e', tag: 'MAIN');
+    AppLogger.debug('Permission initialization skipped: $e', tag: 'MAIN');
   }
 
   bool hasShownError = false;
@@ -109,16 +106,13 @@ void main() async {
         Provider<DriverService>(create: (_) => DriverService.instance),
         Provider<UserService>(create: (_) => UserService.instance),
       ],
-      child: MyApp(supabaseReady: supabaseReady, initError: initError),
+      child: const MyApp(),
     ),
   );
 }
 
 class MyApp extends StatelessWidget {
-  final bool supabaseReady;
-  final Object? initError;
-
-  const MyApp({super.key, required this.supabaseReady, this.initError});
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {

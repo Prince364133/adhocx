@@ -371,8 +371,8 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final balance = (_walletData?['balance'] as num?)?.toDouble() ?? 0.0;
-    final escrowHeld = (_walletData?['escrowHeld'] as num?)?.toDouble() ?? 0.0;
+    final balance = (_walletData?['walletBalance'] as num?)?.toDouble() ?? (_walletData?['balance'] as num?)?.toDouble() ?? 0.0;
+    final escrowHeld = (_walletData?['escrowBalance'] as num?)?.toDouble() ?? (_walletData?['escrowHeld'] as num?)?.toDouble() ?? 0.0;
     final totalSpent = (_walletData?['totalSpent'] as num?)?.toDouble() ?? 0.0;
 
     return Scaffold(
@@ -542,7 +542,7 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
                             separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
                             itemBuilder: (context, index) {
                               final item = _transactions[index] as Map<String, dynamic>;
-                              final type = item['type'] as String? ?? 'CREDIT';
+                              final type = item['entryType'] as String? ?? item['type'] as String? ?? 'CREDIT';
                               final isCredit = type == 'CREDIT';
                               final amount = (item['amount'] as num?)?.toDouble() ?? 0.0;
                               final desc = item['description'] as String? ?? 'Wallet transaction';

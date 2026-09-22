@@ -9,14 +9,33 @@ import {
   LoginDto,
   ResetPasswordDto,
   AuthUserDto,
+  UserRole,
 } from '@adhocx/contracts';
-import { JwtAuthGuard, CurrentUser } from '../../common';
+import { JwtAuthGuard, RolesGuard, Roles, CurrentUser } from '../../common';
 import { AuthService } from './auth.service';
 
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @Post('admin/login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Authenticate Administrator using Admin ID/Email and Password' })
+  @SwaggerResponse({ status: 200, description: 'Admin authentication successful, JWT tokens returned' })
+  async adminLogin(@Body() dto: LoginDto) {
+    return this.authService.adminLogin(dto);
+  }
+
+  @Get('admin/verify')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Verify active administrative session and credentials' })
+  @SwaggerResponse({ status: 200, description: 'Administrative session is valid' })
+  async verifyAdminSession(@CurrentUser() user: AuthUserDto) {
+    return this.authService.verifyAdminSession(user.id);
+  }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)

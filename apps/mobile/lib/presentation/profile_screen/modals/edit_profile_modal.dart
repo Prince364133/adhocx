@@ -1,7 +1,6 @@
 import '../../../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../services/driver_service.dart';
 
 class EditProfileModal extends StatefulWidget {
@@ -123,28 +122,6 @@ class _EditProfileModalState extends State<EditProfileModal> {
         'rcNumber': _rcCtrl.text.trim(),
         'dlNumber': _dlCtrl.text.trim(),
       });
-
-      // 2. Optional Supabase Sync if user is authenticated
-      try {
-        final supabase = Supabase.instance.client;
-        final currentUser = supabase.auth.currentUser;
-        if (currentUser != null) {
-          await supabase.from('driver_profiles').update({
-            'full_name': _nameCtrl.text.trim(),
-            'phone': _phoneCtrl.text.trim(),
-            'dl_number': _dlCtrl.text.trim(),
-            'pan_number': _panCtrl.text.trim(),
-            'aadhaar_number': _aadhaarCtrl.text.trim(),
-            'vehicle_number': _vehicleNumCtrl.text.trim(),
-            'rc_number': _rcCtrl.text.trim(),
-            'bank_name': _bankNameCtrl.text.trim(),
-            'bank_account_number': _accountCtrl.text.trim(),
-            'bank_ifsc': _ifscCtrl.text.trim(),
-            'upi_id': _upiCtrl.text.trim(),
-            'vehicle_type': _vehicleType,
-          }).eq('user_id', currentUser.id);
-        }
-      } catch (_) {}
 
       Fluttertoast.showToast(msg: 'Profile updated successfully');
 

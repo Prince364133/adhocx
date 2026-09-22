@@ -55,10 +55,35 @@ function getApiBaseUrl(): string {
 
 const API_BASE_URL = getApiBaseUrl();
 
-// Permanent Administrative Access Token for AdhocX Control Portal
-export const DEFAULT_ADMIN_TOKEN =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImMwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMSIsInBob25lIjoiKzkxOTk5OTk5OTk5OSIsImVtYWlsIjoiYWRtaW5AYWRob2N4LmNvbSIsInJvbGUiOiJBRE1JTiJ9.cBnGfUlm7E5L93Q39mke9M5HfovdkKFgua_H7ozlB1Y';
+export function getStoredAdminToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('adhocx_admin_token');
+}
 
+export function getStoredAdminUser(): any | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem('adhocx_admin_user');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setAdminSession(token: string, user: any): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem('adhocx_admin_token', token);
+  localStorage.setItem('adhocx_admin_user', JSON.stringify(user));
+  // Synchronize cookie for Next.js server-side middleware (7 days)
+  document.cookie = `adhocx_admin_token=${encodeURIComponent(token)}; path=/; max-age=${7 * 24 * 3600}; SameSite=Lax`;
+}
+
+export function clearAdminSession(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem('adhocx_admin_token');
+  localStorage.removeItem('adhocx_admin_user');
+  document.cookie = 'adhocx_admin_token=; path=/; max-age=0; SameSite=Lax';
+}
 
 type RequestOptions = {
   method?: string;
@@ -85,8 +110,8 @@ export async function apiClient<T = unknown>(
   const activeToken =
     token ||
     (typeof window !== 'undefined'
-      ? localStorage.getItem('adhocx_admin_token') || DEFAULT_ADMIN_TOKEN
-      : DEFAULT_ADMIN_TOKEN);
+      ? localStorage.getItem('adhocx_admin_token')
+      : null);
   if (activeToken) {
     requestHeaders['Authorization'] = `Bearer ${activeToken}`;
   }
@@ -98,6 +123,16 @@ export async function apiClient<T = unknown>(
   });
 
   if (!response.ok) {
+    if (typeof window !== 'undefined' && (response.status === 401 || response.status === 403)) {
+      // Do not trigger global redirect if user is attempting login
+      if (!endpoint.includes('/auth/admin/login')) {
+        clearAdminSession();
+        if (!window.location.pathname.startsWith('/login')) {
+          const redirect = encodeURIComponent(window.location.pathname);
+          window.location.href = `/login?redirect=${redirect}`;
+        }
+      }
+    }
     const errorBody = await response.json().catch(() => ({}));
     throw new ApiError(
       response.status,
@@ -492,5 +527,22 @@ export const adminApi = {
     apiClient<{ success: boolean }>('/notifications/in-app/read-all', {
       method: 'PATCH',
     }),
+
+  // ── Administrative Authentication & Session ──
+  loginAdmin: (credentials: { identifier: string; password: string }) =>
+    apiClient<{ accessToken: string; refreshToken: string; user: any }>('/auth/admin/login', {
+      method: 'POST',
+      body: credentials,
+    }),
+
+  verifyAdminSession: () =>
+    apiClient<{ valid: boolean; user: any }>('/auth/admin/verify'),
+
+  logoutAdmin: async () => {
+    try {
+      await apiClient('/auth/logout', { method: 'POST' });
+    } catch (_) {}
+    clearAdminSession();
+  },
 };
 

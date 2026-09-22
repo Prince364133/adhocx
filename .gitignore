@@ -63,3 +63,6 @@ coverage/
 # Local tools (not part of project)
 mingit/
 mingit.zip
+.agents/
+scratch/
+
