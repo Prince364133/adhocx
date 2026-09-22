@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../../../services/driver_service.dart';
+import '../../../services/razorpay_checkout_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_radius.dart';
 import '../../../theme/app_spacing.dart';
@@ -145,15 +146,44 @@ class _SubscriptionPaywallModalState extends State<SubscriptionPaywallModal> {
         couponCode: _appliedCoupon,
       );
 
-      if (orderRes is Map && orderRes['order'] != null) {
-        final orderId = orderRes['order']['id']?.toString() ?? 'order_sim_${DateTime.now().millisecondsSinceEpoch}';
-        final mockPaymentId = 'pay_sub_${DateTime.now().millisecondsSinceEpoch}';
-        final mockSignature = 'sig_sub_${DateTime.now().millisecondsSinceEpoch}';
+      if (orderRes is Map) {
+        final orderId = (orderRes['orderId'] ?? orderRes['order']?['id'])?.toString();
+        final keyId = (orderRes['keyId'] ?? orderRes['key'])?.toString();
+        final double payableAmount = (orderRes['finalPayableAmount'] as num?)?.toDouble() ?? _finalAmount;
+
+        if (orderId == null || keyId == null) {
+          throw Exception('Unable to generate payment order. Please try again.');
+        }
+
+        final result = await RazorpayCheckoutService.instance.openCheckout(
+          keyId: keyId,
+          orderId: orderId,
+          amount: payableAmount,
+          name: 'AdhocX Driver Subscription',
+          description: '30-day driver platform access',
+          notes: {
+            'couponCode': _appliedCoupon ?? '',
+          },
+        );
+
+        if (!result.success) {
+          if (mounted) {
+            Fluttertoast.showToast(
+              msg: result.errorMessage ?? 'Payment cancelled or failed',
+              backgroundColor: AppColors.error,
+            );
+          }
+          return;
+        }
+
+        if (result.paymentId == null || result.signature == null) {
+          throw Exception('Invalid payment confirmation received from payment gateway');
+        }
 
         await DriverService.instance.verifySubscriptionPayment(
-          razorpayOrderId: orderId,
-          razorpayPaymentId: mockPaymentId,
-          razorpaySignature: mockSignature,
+          razorpayOrderId: result.orderId ?? orderId,
+          razorpayPaymentId: result.paymentId!,
+          razorpaySignature: result.signature!,
           couponCode: _appliedCoupon,
         );
 

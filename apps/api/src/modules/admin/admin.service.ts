@@ -578,24 +578,7 @@ export class AdminService {
     }
 
     if (routeMap.size === 0) {
-      return [
-        {
-          route: 'Hyderabad (Gachibowli ⇄ Airport RGI)',
-          vehicleClass: 'Sedan & SUV',
-          demands: 0,
-          fulfilled: 0,
-          avgFare: 1200,
-          fulfillmentRate: 100,
-        },
-        {
-          route: 'Bangalore ⇄ Mysore Expressway',
-          vehicleClass: 'Sedan & SUV',
-          demands: 0,
-          fulfilled: 0,
-          avgFare: 3250,
-          fulfillmentRate: 100,
-        },
-      ];
+      return [];
     }
 
     return Array.from(routeMap.values()).map((c) => ({
@@ -622,7 +605,7 @@ export class AdminService {
     const fulfillmentRate =
       totalRequirements > 0
         ? `${Math.round((fulfilledRequirements / totalRequirements) * 1000) / 10}%`
-        : '94.5%';
+        : '0.0%';
 
     const completed = await this.db.trip.findMany({
       where: { status: 'COMPLETED' },
@@ -631,43 +614,129 @@ export class AdminService {
 
     const gmv = completed.reduce((acc, t) => acc + Number(t.totalDriverEarnings || 0), 0);
 
+    // Compute live average driver response time from assignments
+    const acceptedAssignments = await this.db.assignment.findMany({
+      where: { status: 'CONFIRMED' },
+      select: { createdAt: true, updatedAt: true },
+      take: 20,
+    });
+    let avgDriverResponse = '0s';
+    if (acceptedAssignments.length > 0) {
+      const totalSecs = acceptedAssignments.reduce((acc, a) => {
+        const diff = Math.max(1, Math.round((a.updatedAt.getTime() - a.createdAt.getTime()) / 1000));
+        return acc + diff;
+      }, 0);
+      const avgSec = Math.round(totalSecs / acceptedAssignments.length);
+      avgDriverResponse = avgSec >= 60 ? `${Math.round(avgSec / 60)}m` : `${avgSec}s`;
+    }
+
+    const tripCancellationRate =
+      totalTrips > 0 ? `${Math.round(((totalTrips - completedTrips) / totalTrips) * 1000) / 10}%` : '0.0%';
+
+    // Live category breakdown from requirements
+    const reqGroup = await this.db.requirement.groupBy({
+      by: ['vehicleType'],
+      _count: { id: true },
+    });
+    const fulfilledReqGroup = await this.db.requirement.groupBy({
+      by: ['vehicleType'],
+      where: { status: { in: ['FULFILLED', 'IN_PROGRESS', 'COMPLETED'] } },
+      _count: { id: true },
+    });
+    const fulfilledMap = new Map<string, number>();
+    fulfilledReqGroup.forEach((g) => fulfilledMap.set(g.vehicleType, g._count.id));
+
+    const categoryBreakdown = reqGroup.map((g) => {
+      const demands = g._count.id;
+      const fulfilled = fulfilledMap.get(g.vehicleType) || 0;
+      const rate = demands > 0 ? Math.round((fulfilled / demands) * 100) : 0;
+      return {
+        category: g.vehicleType,
+        rate,
+        demands,
+      };
+    });
+
+    // Live SLA telemetry calculations
+    const approvedDrivers = await this.db.driver.findMany({
+      where: { verificationStatus: 'VERIFIED' },
+      select: { createdAt: true, updatedAt: true },
+      take: 20,
+    });
+    let kycTurnaround = 'N/A';
+    if (approvedDrivers.length > 0) {
+      const totalHours = approvedDrivers.reduce((acc, d) => {
+        const diff = (d.updatedAt.getTime() - d.createdAt.getTime()) / (1000 * 60 * 60);
+        return acc + Math.max(0.1, diff);
+      }, 0);
+      kycTurnaround = `${(totalHours / approvedDrivers.length).toFixed(1)} Hours`;
+    }
+
+    const settledPayouts = await this.db.settlement.findMany({
+      where: { status: 'SETTLED' },
+      select: { createdAt: true, updatedAt: true },
+      take: 20,
+    });
+    let settlementTurnaround = 'N/A';
+    if (settledPayouts.length > 0) {
+      const totalHours = settledPayouts.reduce((acc, s) => {
+        const diff = (s.updatedAt.getTime() - s.createdAt.getTime()) / (1000 * 60 * 60);
+        return acc + Math.max(0.1, diff);
+      }, 0);
+      settlementTurnaround = `${(totalHours / settledPayouts.length).toFixed(1)} Hours`;
+    }
+
+    const completedTripsList = await this.db.trip.findMany({
+      where: { status: 'COMPLETED' },
+      select: { startedAt: true, reportingTime: true },
+      take: 50,
+    });
+    let onTimePickupRate = totalTrips > 0 ? '100.0%' : 'N/A';
+    if (completedTripsList.length > 0) {
+      const onTimeCount = completedTripsList.filter((t) => {
+        if (!t.reportingTime || !t.startedAt) return true;
+        const diffMins = (t.startedAt.getTime() - t.reportingTime.getTime()) / (1000 * 60);
+        return diffMins <= 10;
+      }).length;
+      onTimePickupRate = `${((onTimeCount / completedTripsList.length) * 100).toFixed(1)}%`;
+    }
+
+    const cancelledNoShowTrips = await this.db.trip.count({
+      where: { status: 'CANCELLED' },
+    });
+    const driverNoShowRate = totalTrips > 0 ? `${((cancelledNoShowTrips / totalTrips) * 100).toFixed(1)}%` : '0.0%';
+
     return {
       fulfillmentRate,
-      avgDriverResponse: '38s',
+      avgDriverResponse,
       platformGmv: gmv > 0 ? `₹ ${gmv.toLocaleString('en-IN')}` : '₹ 0',
-      tripCancellationRate: totalTrips > 0 ? `${Math.round(((totalTrips - completedTrips) / totalTrips) * 1000) / 10}%` : '1.2%',
-      categoryBreakdown: [
-        { category: 'Sedan (Dzire, Etios, Aura)', rate: 94, demands: totalRequirements },
-        { category: 'SUV (Innova Crysta, Ertiga, Carens)', rate: 90, demands: totalTrips },
-        { category: 'Tempo Traveller (12-16 Seater Mini Bus)', rate: 86, demands: 0 },
-        { category: 'Hatchback (WagonR, Tiago City Cabs)', rate: 96, demands: 0 },
-        { category: 'Commercial Truck / Ace', rate: 92, demands: 0 },
-      ],
+      tripCancellationRate,
+      categoryBreakdown,
       slaHealth: [
         {
           metric: 'On-Time Pickup Reliability',
-          value: '96.8%',
+          value: onTimePickupRate,
           sla: 'Threshold: 92.0%',
           status: 'HEALTHY',
           desc: 'Vehicle arrives within ±10 mins of scheduled time',
         },
         {
           metric: 'Driver No-Show Guarantee',
-          value: '0.4%',
+          value: driverNoShowRate,
           sla: 'Threshold: < 1.5%',
           status: 'HEALTHY',
           desc: 'Cases where backup driver reassignment was auto-triggered',
         },
         {
           metric: 'KYC Document Verification SLA',
-          value: '1.8 Hours',
+          value: kycTurnaround,
           sla: 'Threshold: < 6.0 Hours',
           status: 'HEALTHY',
           desc: 'Average turnaround from driver doc upload to approval',
         },
         {
           metric: 'Bank Settlement Payout Cycle',
-          value: '2.4 Hours',
+          value: settlementTurnaround,
           sla: 'Threshold: < 24.0 Hours',
           status: 'HEALTHY',
           desc: 'Average time from withdrawal request to UTR dispatch',

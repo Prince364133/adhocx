@@ -734,6 +734,21 @@ model DriverSubscriptionPayment {
   @@map("driver_subscription_payments")
 }
 
+model LeadCapture {
+  id                   String   @id @default(uuid()) @db.Uuid
+  type                 String   @map("type") // 'ENTERPRISE_DEMO' | 'NEWSLETTER'
+  email                String   @map("email")
+  phone                String?  @map("phone")
+  companyName          String?  @map("company_name")
+  contactName          String?  @map("contact_name")
+  city                 String?  @map("city")
+  fleetRequirements    String?  @map("fleet_requirements")
+  monthlyTripsEstimate String?  @map("monthly_trips_estimate")
+  preferredVehicles    String?  @map("preferred_vehicles")
+  notes                String?  @map("notes")
+  status               String   @default("NEW") @map("status") // 'NEW' | 'CONTACTED' | 'RESOLVED'
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
 
-
-
+  @@map("lead_captures")
+}

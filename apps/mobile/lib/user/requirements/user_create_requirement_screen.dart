@@ -26,27 +26,9 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
   late TextEditingController _budgetController;
   late TextEditingController _specialRequestsController;
   bool _initialized = false;
+  bool _loadingCategories = true;
 
-  List<Map<String, dynamic>> _vehicleOptions = [
-    {
-      'id': 'SEDAN',
-      'label': 'Prime Sedan',
-      'subtitle': '4 + 1 Passengers • ₹22/km',
-      'icon': Icons.directions_car_rounded,
-    },
-    {
-      'id': 'SUV',
-      'label': 'Fleet SUV & MUV',
-      'subtitle': '6 + 1 Passengers • ₹19/km',
-      'icon': Icons.airport_shuttle_rounded,
-    },
-    {
-      'id': 'HATCHBACK',
-      'label': 'Compact Hatchback',
-      'subtitle': '4 + 1 Passengers • ₹11/km',
-      'icon': Icons.directions_car_filled_rounded,
-    },
-  ];
+  List<Map<String, dynamic>> _vehicleOptions = [];
 
   @override
   void initState() {
@@ -76,13 +58,20 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
             return {
               'id': vType,
               'label': t['categoryLabel'] ?? vType,
-              'subtitle': '${t['seatingCapacity'] ?? ''} • ₹${t['perKmRate']}/km',
+              'subtitle': '${t['seatingCapacity'] ?? '4 Passengers'} • ₹${t['perKmRate'] ?? '15'}/km',
               'icon': icon,
             };
           }).toList();
+
+          if (!_vehicleOptions.any((v) => v['id'] == _selectedVehicleType) && _vehicleOptions.isNotEmpty) {
+            _selectedVehicleType = _vehicleOptions.first['id'] as String;
+          }
         });
       }
-    } catch (_) {}
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _loadingCategories = false);
+    }
   }
 
   @override
@@ -304,14 +293,39 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                         borderRadius: BorderRadius.circular(AppRadius.md),
                         border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                       ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _selectedVehicleType,
-                          isExpanded: true,
-                          itemHeight: 64.0,
-                          icon: Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primary),
-                          dropdownColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                          borderRadius: BorderRadius.circular(AppRadius.md),
+                      child: _loadingCategories || _vehicleOptions.isEmpty
+                          ? Container(
+                              height: 64,
+                              alignment: Alignment.centerLeft,
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: Row(
+                                children: [
+                                  const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    'Loading live vehicle categories...',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _vehicleOptions.any((v) => v['id'] == _selectedVehicleType)
+                                    ? _selectedVehicleType
+                                    : _vehicleOptions.first['id'] as String,
+                                isExpanded: true,
+                                itemHeight: 64.0,
+                                icon: Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primary),
+                                dropdownColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                                borderRadius: BorderRadius.circular(AppRadius.md),
                           selectedItemBuilder: (BuildContext context) {
                             return _vehicleOptions.map((v) {
                               return Row(

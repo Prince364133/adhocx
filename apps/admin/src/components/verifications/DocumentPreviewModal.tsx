@@ -210,9 +210,9 @@ export const DocumentPreviewModal: React.FC<PreviewModalProps> = ({
                 boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
               }}
               onError={(e) => {
-                // Fallback graphic for placeholder image
+                // Informative graphic if live document file cannot be loaded
                 e.currentTarget.src =
-                  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="600" height="380" viewBox="0 0 600 380"><rect width="600" height="380" fill="%231e293b"/><text x="50%" y="45%" fill="%236366f1" font-size="20" font-family="sans-serif" text-anchor="middle" font-weight="bold">GOVERNMENT OF INDIA / OFFICIAL DOCUMENT</text><text x="50%" y="55%" fill="%2394a3b8" font-size="14" font-family="sans-serif" text-anchor="middle">Official Verified Document Sample</text></svg>';
+                  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="600" height="380" viewBox="0 0 600 380"><rect width="600" height="380" fill="%230f172a"/><text x="50%" y="45%" fill="%23f43f5e" font-size="18" font-family="sans-serif" text-anchor="middle" font-weight="bold">DOCUMENT PREVIEW UNAVAILABLE</text><text x="50%" y="55%" fill="%2364748b" font-size="13" font-family="sans-serif" text-anchor="middle">Original document file could not be retrieved from secure storage</text></svg>';
               }}
             />
           )}

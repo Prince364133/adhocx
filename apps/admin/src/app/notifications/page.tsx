@@ -69,12 +69,12 @@ export default function NotificationsPage() {
 
   // Metrics
   const [metrics, setMetrics] = useState<NotificationMetrics>({
-    totalDelivered: 12480,
-    totalCampaigns: 24,
-    activeDevicesCount: 1420,
-    devicesByPlatform: { android: 1120, ios: 240, web: 60 },
-    deliverySuccessRate: 99.2,
-    inAppNotificationsCount: 8450,
+    totalDelivered: 0,
+    totalCampaigns: 0,
+    activeDevicesCount: 0,
+    devicesByPlatform: { android: 0, ios: 0, web: 0 },
+    deliverySuccessRate: 0,
+    inAppNotificationsCount: 0,
   });
 
   // Campaigns list
@@ -85,26 +85,26 @@ export default function NotificationsPage() {
 
   // Live Audience Estimate
   const [audienceEstimate, setAudienceEstimate] = useState<AudienceEstimateResult>({
-    matchingUsers: 48,
-    matchingDevices: 54,
-    platformBreakdown: { android: 44, ios: 8, web: 2 },
+    matchingUsers: 0,
+    matchingDevices: 0,
+    platformBreakdown: { android: 0, ios: 0, web: 0 },
   });
 
   // Compose State
-  const [title, setTitle] = useState('🚖 Special Weekend Surge Bonus: Earn up to ₹3,000 extra!');
-  const [body, setBody] = useState('High demand across all pickup corridors. Log online now to unlock guaranteed surge rates and priority trip allocations.');
-  const [imageUrl, setImageUrl] = useState('https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?w=800&q=80');
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
   const [actionUrl, setActionUrl] = useState('/trips');
   const [customActionUrl, setCustomActionUrl] = useState('');
   const [priority, setPriority] = useState<'high' | 'normal'>('high');
-  const [customPayloadKey, setCustomPayloadKey] = useState('promo_tag');
-  const [customPayloadVal, setCustomPayloadVal] = useState('WEEKEND_SURGE_2026');
+  const [customPayloadKey, setCustomPayloadKey] = useState('');
+  const [customPayloadVal, setCustomPayloadVal] = useState('');
 
   // Filter State
   const [targetRole, setTargetRole] = useState<'ALL' | 'DRIVER' | 'VENDOR' | 'ADMIN'>('DRIVER');
   const [driverAvailability, setDriverAvailability] = useState<'ALL' | 'AVAILABLE' | 'BUSY' | 'OFFLINE'>('ALL');
   const [verificationStatus, setVerificationStatus] = useState<'ALL' | 'VERIFIED' | 'PENDING' | 'REJECTED'>('VERIFIED');
-  const [selectedVehicles, setSelectedVehicles] = useState<string[]>(['SEDAN', 'SUV']);
+  const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
   const [cityFilter, setCityFilter] = useState('ALL');
   const [phoneFilter, setPhoneFilter] = useState('');
 
@@ -133,12 +133,12 @@ export default function NotificationsPage() {
     try {
       const [metricData, campaignData] = await Promise.all([
         adminApi.getNotificationMetrics().catch(() => ({
-          totalDelivered: 12480,
-          totalCampaigns: 24,
-          activeDevicesCount: 1420,
-          devicesByPlatform: { android: 1120, ios: 240, web: 60 },
-          deliverySuccessRate: 99.2,
-          inAppNotificationsCount: 8450,
+          totalDelivered: 0,
+          totalCampaigns: 0,
+          activeDevicesCount: 0,
+          devicesByPlatform: { android: 0, ios: 0, web: 0 },
+          deliverySuccessRate: 0,
+          inAppNotificationsCount: 0,
         })),
         adminApi.getNotificationCampaigns(campaignPage, 20).catch(() => ({
           campaigns: [],

@@ -15,6 +15,7 @@ export default function EnterpriseLeadForm() {
 
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const vehicleOptions = [
     '4-Seater Sedan (Dzire/Etios)',
@@ -33,13 +34,46 @@ export default function EnterpriseLeadForm() {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    setTimeout(() => {
-      setSubmitting(false);
+    setErrorMsg(null);
+    try {
+      const apiUrl =
+        typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+          ? 'http://localhost:7001/api/v1'
+          : 'https://api.adhocx.com/api/v1';
+
+      const res = await fetch(`${apiUrl}/leads/enterprise`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          companyName: formData.companyName,
+          contactName: formData.contactName,
+          email: formData.email,
+          phone: formData.phone,
+          city: formData.city,
+          fleetRequirements: formData.fleetRequirements,
+          monthlyTripsEstimate: formData.monthlyTripsEstimate,
+          preferredVehicles: formData.preferredVehicles.join(', '),
+          notes: formData.notes,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error?.message || data?.message || 'Failed to submit enterprise inquiry');
+      }
+
       setSubmitted(true);
-    }, 750);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Submission failed. Please check your internet connection.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (submitted) {
@@ -298,6 +332,20 @@ export default function EnterpriseLeadForm() {
             })}
           </div>
         </div>
+
+        {errorMsg && (
+          <div style={{
+            padding: '10px 14px',
+            borderRadius: '8px',
+            background: '#fee2e2',
+            border: '1px solid #ef4444',
+            color: '#b91c1c',
+            fontSize: '0.85rem',
+            fontWeight: 500,
+          }}>
+            ⚠️ {errorMsg}
+          </div>
+        )}
 
         <button
           type="submit"

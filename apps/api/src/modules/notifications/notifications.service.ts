@@ -1435,7 +1435,7 @@ export class NotificationsService implements OnModuleInit {
     });
 
     const deliverySuccessRate =
-      totalTargeted > 0 ? Number(((totalSuccess / totalTargeted) * 100).toFixed(1)) : 98.4;
+      totalTargeted > 0 ? Number(((totalSuccess / totalTargeted) * 100).toFixed(1)) : 0;
 
     return {
       totalDelivered: totalSuccess || inAppCount,

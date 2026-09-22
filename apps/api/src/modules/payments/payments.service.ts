@@ -373,7 +373,6 @@ export class PaymentsService {
 
       if (
         expectedSignature !== signature &&
-        !signature.startsWith('sig_sim_') &&
         !signature.startsWith('sig_webhook_')
       ) {
         throw new BadRequestException('Invalid Razorpay payment signature verification');

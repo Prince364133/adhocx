@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Lock,
@@ -16,7 +16,7 @@ import {
 import { AdhocxBrandLogo } from '../../components/AdhocxBrandLogo';
 import { adminApi, setAdminSession, getStoredAdminToken } from '../../lib/api/client';
 
-export default function AdminLoginPage() {
+function AdminLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get('redirect') || '/dashboard';
@@ -404,5 +404,13 @@ export default function AdminLoginPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function AdminLoginPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100vh', background: '#0a0a0f' }} />}>
+      <AdminLoginForm />
+    </Suspense>
   );
 }

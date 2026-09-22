@@ -1,4 +1,4 @@
-import React, { useState, useId } from 'react';
+import React, { useState, useEffect, useId } from 'react';
 
 interface VehicleRate {
   id: string;
@@ -8,25 +8,66 @@ interface VehicleRate {
   icon: string;
 }
 
-const VEHICLES: VehicleRate[] = [
+const DEFAULT_VEHICLES: VehicleRate[] = [
   { id: 'sedan', name: 'Dzire / Etios', category: 'Compact Sedan', avgPerTrip: 480, icon: '🚗' },
   { id: 'suv', name: 'Ertiga / XL6', category: '6-Seater MUV', avgPerTrip: 680, icon: '🚙' },
   { id: 'innova', name: 'Innova Crysta', category: 'Executive SUV', avgPerTrip: 950, icon: '✨' },
-
 ];
 
 export default function EarningsCalculator() {
+  const [vehicles, setVehicles] = useState<VehicleRate[]>(DEFAULT_VEHICLES);
   const [selectedVehicle, setSelectedVehicle] = useState<string>('sedan');
   const [tripsPerDay, setTripsPerDay] = useState<number>(6);
   const [daysPerMonth, setDaysPerMonth] = useState<number>(26);
+
+  useEffect(() => {
+    async function loadLiveTiers() {
+      try {
+        const apiUrl =
+          typeof window !== 'undefined' &&
+          (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'http://localhost:7001/api/v1'
+            : 'https://api.adhocx.com/api/v1';
+
+        const res = await fetch(`${apiUrl}/pricing/tiers`);
+        if (res.ok) {
+          const raw = await res.json();
+          const tiers = Array.isArray(raw) ? raw : raw?.data || [];
+          if (Array.isArray(tiers) && tiers.length > 0) {
+            const mapped: VehicleRate[] = tiers.map((t: any) => {
+              const vType = (t.vehicleType || '').toLowerCase();
+              let icon = '🚗';
+              if (vType.includes('suv') || vType.includes('muv')) icon = '🚙';
+              else if (vType.includes('bus') || vType.includes('tempo')) icon = '🚐';
+              else if (vType.includes('bike')) icon = '🏍️';
+              else if (vType.includes('truck') || vType.includes('ace')) icon = '🚚';
+
+              return {
+                id: vType,
+                name: t.categoryLabel || t.vehicleType,
+                category: t.seatingCapacity || `${t.vehicleType} Fleet`,
+                avgPerTrip: Number(t.baseFare || 480),
+                icon,
+              };
+            });
+            setVehicles(mapped);
+            if (!mapped.some((m) => m.id === selectedVehicle)) {
+              setSelectedVehicle(mapped[0].id);
+            }
+          }
+        }
+      } catch (_) {}
+    }
+    loadLiveTiers();
+  }, []);
 
   const vehicleId = useId();
   const tripsId = useId();
   const daysId = useId();
 
-  const vehicle = VEHICLES.find(v => v.id === selectedVehicle) || VEHICLES[0];
+  const vehicle = vehicles.find((v) => v.id === selectedVehicle) || vehicles[0] || DEFAULT_VEHICLES[0];
   const totalTripsMonth = tripsPerDay * daysPerMonth;
-  const grossMonthlyEarnings = totalTripsMonth * vehicle.avgPerTrip;
+  const grossMonthlyEarnings = totalTripsMonth * (vehicle?.avgPerTrip || 480);
 
   // Bonus applies if they hit 100+ trips in a month
   const milestoneBonus = totalTripsMonth >= 100 ? 2000 : 0;
@@ -71,7 +112,7 @@ export default function EarningsCalculator() {
           1. Select Commercial Vehicle Category
         </label>
         <div id={vehicleId} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
-          {VEHICLES.map((v) => {
+          {vehicles.map((v) => {
             const isSelected = v.id === selectedVehicle;
             return (
               <button

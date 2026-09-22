@@ -36,38 +36,8 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
   final Map<String, bool> _uploadingState = {};
   final ImagePicker _picker = ImagePicker();
 
-  List<Map<String, dynamic>> _vehicleOptions = [
-    {
-      'id': 'SEDAN',
-      'label': 'Prime Sedan',
-      'subtitle': '4 + 1 Passengers',
-      'icon': Icons.directions_car_rounded,
-      'perKmRate': 22.0,
-      'baseFare': 400.0,
-      'baseKm': 10,
-      'driverSharePercent': 90,
-    },
-    {
-      'id': 'SUV',
-      'label': 'Fleet SUV & MUV',
-      'subtitle': '6 + 1 Passengers',
-      'icon': Icons.airport_shuttle_rounded,
-      'perKmRate': 19.0,
-      'baseFare': 1400.0,
-      'baseKm': 40,
-      'driverSharePercent': 90,
-    },
-    {
-      'id': 'HATCHBACK',
-      'label': 'Compact Hatchback',
-      'subtitle': '4 + 1 Passengers',
-      'icon': Icons.directions_car_filled_rounded,
-      'perKmRate': 11.0,
-      'baseFare': 500.0,
-      'baseKm': 20,
-      'driverSharePercent': 90,
-    },
-  ];
+  List<Map<String, dynamic>> _vehicleOptions = [];
+  bool _loadingCategories = true;
   Map<String, dynamic>? _selectedCategoryData;
 
   @override
@@ -117,13 +87,20 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
           _syncSelectedCategoryData();
         });
       }
-    } catch (_) {}
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _loadingCategories = false);
+    }
   }
 
   void _syncSelectedCategoryData() {
+    if (_vehicleOptions.isEmpty) {
+      _selectedCategoryData = null;
+      return;
+    }
     final match = _vehicleOptions.firstWhere(
       (v) => v['id'] == _category || v['label'].toString().toUpperCase() == _category.toUpperCase(),
-      orElse: () => _vehicleOptions.isNotEmpty ? _vehicleOptions.first : {'id': 'SEDAN', 'label': 'Sedan', 'perKmRate': 22.0, 'baseFare': 400.0, 'baseKm': 10, 'driverSharePercent': 90},
+      orElse: () => _vehicleOptions.first,
     );
     _selectedCategoryData = match;
   }
@@ -480,7 +457,13 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                                     : (_vehicleOptions.isNotEmpty ? _vehicleOptions.first['id'] as String : 'SEDAN'),
                                 isExpanded: true,
                                 itemHeight: 64.0,
-                                icon: Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primary),
+                                icon: _loadingCategories
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      )
+                                    : Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primary),
                                 dropdownColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                                 borderRadius: BorderRadius.circular(AppRadius.md),
                                 selectedItemBuilder: (BuildContext context) {

@@ -265,7 +265,41 @@ export class SubscriptionsService {
 
     const finalPayableAmount = Math.max(0, originalAmount - discountAmount);
     const keyId = process.env.RAZORPAY_KEY_ID || 'rzp_test_AdhocXMockKey123';
-    const orderId = `order_sub_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    let orderId = `order_sub_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+    if (keyId && keySecret && process.env.RAZORPAY_KEY_ID) {
+      try {
+        const auth = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+        const res = await fetch('https://api.razorpay.com/v1/orders', {
+          method: 'POST',
+          headers: {
+            Authorization: `Basic ${auth}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            amount: Math.round(finalPayableAmount * 100), // in paise
+            currency: 'INR',
+            receipt: `rcpt_sub_${driver.id.substring(0, 8)}_${Date.now()}`,
+            notes: {
+              driverId: driver.id,
+              driverUserId,
+              originalAmount,
+              couponCode: dto.couponCode || '',
+            },
+          }),
+        });
+
+        if (res.ok) {
+          const rzpData = (await res.json()) as any;
+          if (rzpData && rzpData.id) {
+            orderId = rzpData.id;
+          }
+        }
+      } catch (err: any) {
+        this.logger.warn(`Razorpay subscription order creation note: ${err.message}`);
+      }
+    }
 
     return {
       orderId,
@@ -316,7 +350,6 @@ export class SubscriptionsService {
 
       if (
         expectedSignature !== signature &&
-        !signature.startsWith('sig_sim_') &&
         !signature.startsWith('sig_webhook_')
       ) {
         throw new BadRequestException('Invalid Razorpay subscription payment signature');

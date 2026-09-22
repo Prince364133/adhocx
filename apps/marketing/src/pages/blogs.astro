@@ -1,44 +1,66 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 
-const posts = [
-  {
-    slug: 'eliminating-corporate-fleet-chaos-in-hyderabad',
-    title: 'Solving Last-Minute Corporate Fleet Drops in Hyderabad Tech Parks',
-    category: 'Enterprise Mobility',
-    readTime: '5 min read',
-    date: 'Sep 15, 2026',
-    author: 'AdhocX Logistics Team',
-    summary: 'Why traditional WhatsApp dispatch groups fail high-growth tech companies and how algorithmic 15-minute search cutoff SLAs restore corporate trust.'
-  },
-  {
-    slug: 'driver-economics-century-milestone-bonus',
-    title: 'Driver Economics: Why Yellow-Plate Commercial Drivers Earn More with AdhocX',
-    category: 'Driver Welfare',
-    readTime: '4 min read',
-    date: 'Sep 10, 2026',
-    author: 'Partner Relations',
-    summary: 'A deep dive into our ₹2,000 Milestone Bonus program on 100 rides, 0% promotional commission, and 1-hour instant bank withdrawals.'
-  },
-  {
-    slug: 'how-automated-bank-refunds-work-in-corporate-transport',
-    title: 'How AdhocX Automates 1-Hour Bank Refunds & SLA Guarantees',
-    category: 'Engineering & Ops',
-    readTime: '6 min read',
-    date: 'Aug 28, 2026',
-    author: 'AdhocX Engineering',
-    summary: 'Under the hood of our automated banking integrations that eliminate weeks of accounting reconciliation and return unfulfilled funds in 60 minutes.'
-  },
-  {
-    slug: 'commercial-vehicle-safety-and-statutory-compliance-guide',
-    title: 'Commercial Fleet Compliance: Yellow Plate vs White Plate Risks for Corporates',
-    category: 'Compliance & Safety',
-    readTime: '7 min read',
-    date: 'Aug 14, 2026',
-    author: 'Legal & Compliance Desk',
-    summary: 'The legal liabilities corporate travel desks face when using unverified private cars and how 100% yellow-board verification protects your enterprise.'
+interface BlogItem {
+  id: string;
+  slug: string;
+  title: string;
+  category: string;
+  readTime: string;
+  date: string;
+  author: string;
+  summary: string;
+}
+
+let posts: BlogItem[] = [];
+
+try {
+  const apiUrl =
+    process.env.API_URL ||
+    process.env.PUBLIC_API_URL ||
+    'http://localhost:7001/api/v1';
+
+  const res = await fetch(`${apiUrl}/blogs?status=PUBLISHED&limit=10`, {
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  if (res.ok) {
+    const json = await res.json();
+    const rawList = Array.isArray(json?.data?.items)
+      ? json.data.items
+      : Array.isArray(json?.items)
+      ? json.items
+      : Array.isArray(json)
+      ? json
+      : [];
+
+    posts = rawList.map((p: any) => {
+      const pubDate = p.publishedAt ? new Date(p.publishedAt) : new Date(p.createdAt || Date.now());
+      const formattedDate = pubDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+
+      return {
+        id: p.id,
+        slug: p.slug,
+        title: p.title,
+        category: p.category || 'Enterprise Mobility',
+        readTime: p.readTime || '5 min read',
+        date: formattedDate,
+        author: p.authorName ? `${p.authorName} (${p.authorRole || 'AdhocX Desk'})` : 'AdhocX Logistics Operations Desk',
+        summary: p.excerpt || p.seoDescription || (p.content ? p.content.substring(0, 160) + '...' : ''),
+      };
+    });
   }
-];
+} catch (e) {
+  // If API is temporarily unreachable during static build, empty array
+  posts = [];
+}
+
+const featuredPost = posts.length > 0 ? posts[0] : null;
+const remainingPosts = posts.length > 1 ? posts.slice(1) : posts;
 
 const jsonLd = {
   "@context": "https://schema.org",
@@ -67,31 +89,33 @@ const jsonLd = {
     </div>
   </section>
 
-  <!-- Featured Blog Post Banner -->
-  <section class="section-padding" style="padding-top: 0;">
-    <div class="container">
-      <div class="card" style="padding: var(--space-8); border: 2px solid var(--color-primary-500); background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);" data-animate>
-        <div style="display: flex; gap: var(--space-4); align-items: center; margin-bottom: var(--space-3); flex-wrap: wrap;">
-          <span class="badge badge-primary">Featured Article</span>
-          <span style="font-size: 0.85rem; color: var(--color-text-muted);">Enterprise Mobility • 5 min read • Sep 15, 2026</span>
-        </div>
-        <h2 class="h2-title" style="margin-bottom: var(--space-3); color: var(--color-primary-600);">
-          Solving Last-Minute Corporate Fleet Drops in Hyderabad Tech Parks
-        </h2>
-        <p class="body-large" style="margin-bottom: var(--space-6); color: var(--color-text);">
-          Corporate transport desks in HITEC City and Gachibowli spend an average of 42 hours per month frantically following up on unconfirmed cabs in informal WhatsApp groups. Learn how AdhocX's reverse-auction dispatching and 15-minute search cutoff SLA eliminate last-minute cancellations entirely.
-        </p>
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-4);">
-          <div style="font-size: 0.875rem; color: var(--color-text-muted);">
-            By <strong>AdhocX Logistics Operations Desk</strong>
+  <!-- Featured Blog Post Banner (Live from PostgreSQL) -->
+  {featuredPost && (
+    <section class="section-padding" style="padding-top: 0;">
+      <div class="container">
+        <div class="card" style="padding: var(--space-8); border: 2px solid var(--color-primary-500); background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);" data-animate>
+          <div style="display: flex; gap: var(--space-4); align-items: center; margin-bottom: var(--space-3); flex-wrap: wrap;">
+            <span class="badge badge-primary">Featured Article</span>
+            <span style="font-size: 0.85rem; color: var(--color-text-muted);">{featuredPost.category} • {featuredPost.readTime} • {featuredPost.date}</span>
           </div>
-          <a href="#featured" class="btn btn-primary">Read Full Case Study →</a>
+          <h2 class="h2-title" style="margin-bottom: var(--space-3); color: var(--color-primary-600);">
+            {featuredPost.title}
+          </h2>
+          <p class="body-large" style="margin-bottom: var(--space-6); color: var(--color-text);">
+            {featuredPost.summary}
+          </p>
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-4);">
+            <div style="font-size: 0.875rem; color: var(--color-text-muted);">
+              By <strong>{featuredPost.author}</strong>
+            </div>
+            <a href={`/blog-detail.html?slug=${featuredPost.slug}`} class="btn btn-primary">Read Full Article →</a>
+          </div>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
+  )}
 
-  <!-- Blog Post Grid -->
+  <!-- Blog Post Grid (Live from PostgreSQL) -->
   <section class="section-padding" style="background: var(--color-surface-muted);">
     <div class="container">
       <div class="section-header">
@@ -99,34 +123,40 @@ const jsonLd = {
         <p class="body-large">Curated insights for facilities directors, corporate travel leads, and commercial driver partners.</p>
       </div>
 
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-6);">
-        {posts.map((post) => (
-          <article class="card" style="display: flex; flex-direction: column; justify-content: space-between;" data-animate>
-            <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3);">
-                <span class="badge badge-info">{post.category}</span>
-                <span style="font-size: 0.8rem; color: var(--color-text-muted);">{post.readTime}</span>
+      {remainingPosts.length > 0 ? (
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-6);">
+          {remainingPosts.map((post) => (
+            <article class="card" style="display: flex; flex-direction: column; justify-content: space-between;" data-animate>
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3);">
+                  <span class="badge badge-info">{post.category}</span>
+                  <span style="font-size: 0.8rem; color: var(--color-text-muted);">{post.readTime}</span>
+                </div>
+                <h3 class="h4-title" style="margin-bottom: var(--space-3); font-size: 1.15rem; line-height: 1.4;">
+                  {post.title}
+                </h3>
+                <p class="body-text" style="color: var(--color-text-muted); margin-bottom: var(--space-6);">
+                  {post.summary}
+                </p>
               </div>
-              <h3 class="h4-title" style="margin-bottom: var(--space-3); font-size: 1.15rem; line-height: 1.4;">
-                {post.title}
-              </h3>
-              <p class="body-text" style="color: var(--color-text-muted); margin-bottom: var(--space-6);">
-                {post.summary}
-              </p>
-            </div>
-            <div style="border-top: 1px solid var(--color-border); padding-top: var(--space-4); display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 0.8rem; color: var(--color-text-muted);">{post.date}</span>
-              <a href={`#${post.slug}`} style="font-weight: 700; color: var(--color-primary-600); text-decoration: none; font-size: 0.875rem;">
-                Read Article →
-              </a>
-            </div>
-          </article>
-        ))}
-      </div>
+              <div style="border-top: 1px solid var(--color-border); padding-top: var(--space-4); display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 0.8rem; color: var(--color-text-muted);">{post.date}</span>
+                <a href={`/blog-detail.html?slug=${post.slug}`} style="font-weight: 700; color: var(--color-primary-600); text-decoration: none; font-size: 0.875rem;">
+                  Read Article →
+                </a>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div style="text-align: center; padding: var(--space-8); color: var(--color-text-muted);">
+          <p>No published articles currently found in the marketplace database.</p>
+        </div>
+      )}
     </div>
   </section>
 
-  <!-- Newsletter & Updates Section -->
+  <!-- Newsletter & Updates Section (Live API Persistence) -->
   <section class="section-padding">
     <div class="container" style="max-width: 700px; text-align: center;">
       <span class="badge badge-success">Stay Informed</span>
@@ -135,15 +165,66 @@ const jsonLd = {
         Receive monthly insights on corporate transport policy, GST tax updates for transport, and mobility tech developments directly in your inbox.
       </p>
 
-      <form style="display: flex; gap: var(--space-3); max-width: 500px; margin: 0 auto; flex-wrap: wrap;" onsubmit="event.preventDefault(); alert('Thank you for subscribing to AdhocX Fleet Dispatch!');">
+      <form id="newsletter-form" style="display: flex; gap: var(--space-3); max-width: 500px; margin: 0 auto; flex-wrap: wrap;">
         <input
+          id="newsletter-email"
           type="email"
           required
           placeholder="Enter your official work email"
           style="flex: 1; min-width: 240px; padding: 12px 16px; border-radius: var(--radius-md); border: 1px solid var(--color-border); font-size: 0.95rem; outline: none;"
         />
-        <button type="submit" class="btn btn-primary">Subscribe</button>
+        <button id="newsletter-submit-btn" type="submit" class="btn btn-primary">Subscribe</button>
       </form>
+      <div id="newsletter-feedback" style="margin-top: 14px; font-size: 0.9rem; font-weight: 500; display: none;"></div>
     </div>
   </section>
+
+  <script>
+    const form = document.getElementById('newsletter-form') as HTMLFormElement | null;
+    const emailInput = document.getElementById('newsletter-email') as HTMLInputElement | null;
+    const submitBtn = document.getElementById('newsletter-submit-btn') as HTMLButtonElement | null;
+    const feedback = document.getElementById('newsletter-feedback') as HTMLDivElement | null;
+
+    if (form && emailInput && submitBtn && feedback) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = emailInput.value.trim();
+        if (!email) return;
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Subscribing...';
+        feedback.style.display = 'none';
+
+        try {
+          const apiUrl =
+            window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+              ? 'http://localhost:7001/api/v1'
+              : 'https://api.adhocx.com/api/v1';
+
+          const res = await fetch(`${apiUrl}/leads/newsletter`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+          });
+
+          const data = await res.json();
+          if (res.ok) {
+            feedback.style.display = 'block';
+            feedback.style.color = '#15803d';
+            feedback.textContent = '✓ ' + (data?.data?.message || 'Thank you for subscribing to AdhocX Fleet Dispatch!');
+            emailInput.value = '';
+          } else {
+            throw new Error(data?.error?.message || data?.message || 'Subscription failed');
+          }
+        } catch (err: any) {
+          feedback.style.display = 'block';
+          feedback.style.color = '#b91c1c';
+          feedback.textContent = '⚠️ ' + (err.message || 'Could not subscribe. Please try again.');
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Subscribe';
+        }
+      });
+    }
+  </script>
 </BaseLayout>

@@ -33,6 +33,7 @@ import { HealthModule } from './modules/health/health.module';
 import { CouponsModule } from './modules/coupons/coupons.module';
 import { BlogsModule } from './modules/blogs/blogs.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
+import { LeadsModule } from './modules/leads/leads.module';
 
 @Module({
   imports: [
@@ -76,6 +77,7 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
     CouponsModule,
     BlogsModule,
     SubscriptionsModule,
+    LeadsModule,
   ],
   controllers: [AppController],
 })

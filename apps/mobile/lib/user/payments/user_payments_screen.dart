@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../services/razorpay_checkout_service.dart';
 import '../../services/user_service.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
@@ -314,13 +315,47 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
                               try {
                                 final couponCode = appliedCoupon?['code'] as String?;
                                 final orderRes = await UserService.instance.createTopUpOrder(amount, couponCode: couponCode);
-                                final razorpayOrderId = orderRes['orderId'] as String? ?? 'order_simulated_${DateTime.now().millisecondsSinceEpoch}';
+                                final razorpayOrderId = orderRes['orderId'] as String?;
+                                final keyId = orderRes['keyId'] as String?;
+                                final payableAmount = (orderRes['finalPayableAmount'] as num?)?.toDouble() ?? (appliedCoupon != null ? netPayable : rawAmount);
 
-                                // Auto verify topup with correct amount and coupon
+                                if (razorpayOrderId == null || keyId == null) {
+                                  throw Exception('Unable to generate payment order. Please try again.');
+                                }
+
+                                final result = await RazorpayCheckoutService.instance.openCheckout(
+                                  keyId: keyId,
+                                  orderId: razorpayOrderId,
+                                  amount: payableAmount,
+                                  name: 'AdhocX Wallet Top-Up',
+                                  description: 'Add funds to AdhocX wallet',
+                                  notes: {
+                                    'couponCode': couponCode ?? '',
+                                  },
+                                );
+
+                                if (!result.success) {
+                                  setModalState(() => isProcessing = false);
+                                  if (mounted) {
+                                    messenger.showSnackBar(
+                                      SnackBar(
+                                        content: Text(result.errorMessage ?? 'Payment was cancelled or failed'),
+                                        backgroundColor: AppColors.error,
+                                      ),
+                                    );
+                                  }
+                                  return;
+                                }
+
+                                if (result.paymentId == null || result.signature == null) {
+                                  throw Exception('Invalid payment confirmation received from payment gateway');
+                                }
+
+                                // Live verify topup with genuine Razorpay credentials
                                 await UserService.instance.verifyTopUp(
-                                  razorpayOrderId: razorpayOrderId,
-                                  razorpayPaymentId: 'pay_sim_${DateTime.now().millisecondsSinceEpoch}',
-                                  razorpaySignature: 'sig_sim_${DateTime.now().millisecondsSinceEpoch}',
+                                  razorpayOrderId: result.orderId ?? razorpayOrderId,
+                                  razorpayPaymentId: result.paymentId!,
+                                  razorpaySignature: result.signature!,
                                   amount: amount,
                                   couponCode: couponCode,
                                 );
