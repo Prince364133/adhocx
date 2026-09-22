@@ -312,22 +312,6 @@ class UserService {
     );
   }
 
-  // Reviews & Feedback
-  Future<dynamic> submitReview({
-    required String tripId,
-    required int rating,
-    String? feedback,
-  }) async {
-    await _ensureSession();
-    return await _api.post(
-      '/reviews',
-      body: {
-        'tripId': tripId,
-        'rating': rating,
-        if (feedback != null && feedback.isNotEmpty) 'feedback': feedback,
-      },
-    );
-  }
   // Emergency Safety SOS
   Future<dynamic> triggerSos(String tripId, {double? lat, double? lng, String? note}) async {
     await _ensureSession();
