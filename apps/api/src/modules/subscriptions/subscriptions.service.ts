@@ -359,7 +359,16 @@ export class SubscriptionsService {
         .update(`${orderId}|${paymentId}`)
         .digest('hex');
 
-      if (expectedSignature !== signature && !signature.startsWith('sig_webhook_')) {
+      let isValid = false;
+      try {
+        const expectedBuf = Buffer.from(expectedSignature, 'hex');
+        const signatureBuf = Buffer.from(signature, 'hex');
+        isValid = expectedBuf.length === signatureBuf.length && crypto.timingSafeEqual(expectedBuf, signatureBuf);
+      } catch (_) {
+        isValid = expectedSignature === signature;
+      }
+
+      if (!isValid && !signature.startsWith('sig_webhook_')) {
         this.logger.error(`Invalid Razorpay signature for driver subscription order ${orderId} and payment ${paymentId}`);
         throw new BadRequestException('Invalid Razorpay subscription payment signature');
       }

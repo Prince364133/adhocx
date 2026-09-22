@@ -59,6 +59,7 @@ class _UserPaymentDetailsScreenState extends State<UserPaymentDetailsScreen> {
 
     Color badgeColor = AppColors.success;
     if (status == 'PENDING') badgeColor = AppColors.warning;
+    if (status == 'CANCELLED') badgeColor = isDark ? AppColors.slate400 : AppColors.slate600;
     if (status == 'FAILED') badgeColor = AppColors.error;
 
     return Scaffold(
@@ -67,7 +68,13 @@ class _UserPaymentDetailsScreenState extends State<UserPaymentDetailsScreen> {
         backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
         elevation: 0,
         leading: IconButton(
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              context.pop();
+            }
+          },
           icon: Icon(Icons.arrow_back, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
         ),
         title: Text('Payment Details', style: AppTypography.h3(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold)),
@@ -139,7 +146,7 @@ class _UserPaymentDetailsScreenState extends State<UserPaymentDetailsScreen> {
                           const Divider(),
                           _buildRow(context, 'Settlement Status', status, isDark),
                           const Divider(),
-                          _buildRow(context, 'Payment Method', 'Universal Shared Wallet (Escrow & Razorpay)', isDark),
+                          _buildRow(context, 'Payment Method', 'Universal Shared Wallet (Online Escrow)', isDark),
                         ],
                       ),
                     ),

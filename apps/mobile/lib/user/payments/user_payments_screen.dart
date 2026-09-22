@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import './user_payment_details_screen.dart';
 import '../../services/razorpay_checkout_service.dart';
 import '../../services/user_service.dart';
 import '../../shared/theme/app_colors.dart';
@@ -105,7 +106,7 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Add funds to your AdhocX business wallet via Razorpay UPI / Cards / Net Banking.',
+                    'Add funds to your AdhocX business wallet via UPI / Cards / Net Banking.',
                     style: TextStyle(fontSize: 12, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
                   ),
                   const SizedBox(height: AppSpacing.lg),
@@ -286,7 +287,7 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Net Payable (Razorpay):', style: TextStyle(fontSize: 12, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
+                          Text('Net Payable:', style: TextStyle(fontSize: 12, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
                           Text('₹ ${netPayable.toStringAsFixed(2)}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary)),
                         ],
                       ),
@@ -336,11 +337,20 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
 
                                 if (!result.success) {
                                   setModalState(() => isProcessing = false);
+                                  final isCancelled = (result.errorMessage ?? '').toLowerCase().contains('cancel');
+                                  await UserService.instance.recordTopUpStatus(
+                                    orderId: razorpayOrderId,
+                                    amount: payableAmount,
+                                    status: isCancelled ? 'CANCELLED' : 'FAILED',
+                                    reason: result.errorMessage ?? 'Payment was cancelled or failed',
+                                  ).catchError((_) => null);
+
                                   if (mounted) {
+                                    _loadWallet();
                                     messenger.showSnackBar(
                                       SnackBar(
                                         content: Text(result.errorMessage ?? 'Payment was cancelled or failed'),
-                                        backgroundColor: AppColors.error,
+                                        backgroundColor: isCancelled ? AppColors.slate700 : AppColors.error,
                                       ),
                                     );
                                   }
@@ -448,200 +458,260 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
                       ),
                     ),
                   )
-                : SingleChildScrollView(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Wallet Balance Hero Card
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(AppSpacing.lg),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [AppColors.primary, AppColors.primaryHover],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(AppRadius.lg),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.primary.withValues(alpha: 0.3),
-                                blurRadius: 12,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Available AdhocX Balance',
-                                style: TextStyle(color: Colors.white70, fontSize: 13),
-                              ),
-                              const SizedBox(height: 6),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    '₹ ${balance.toStringAsFixed(2)}',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  ElevatedButton.icon(
-                                    onPressed: _showTopUpDialog,
-                                    icon: const Icon(Icons.add, size: 18),
-                                    label: const Text('Top Up', style: TextStyle(fontWeight: FontWeight.bold)),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.white,
-                                      foregroundColor: AppColors.primary,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.full)),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: AppSpacing.lg),
-
-                        // Wallet Metrics Row
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildPaymentKPI(context, 'Escrow Held', '₹ ${escrowHeld.toStringAsFixed(0)}', AppColors.warning, isDark),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _buildPaymentKPI(context, 'Total Spent', '₹ ${totalSpent.toStringAsFixed(0)}', AppColors.success, isDark),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _buildPaymentKPI(context, 'Status', 'Active', AppColors.primary, isDark),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: AppSpacing.xl),
-
-                        // Ledger History Header
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Wallet Transactions',
-                              style: AppTypography.h3(
-                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              '${_transactions.length} entries',
-                              style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: AppSpacing.xs),
-
-                        // Ledger Transactions List
-                        if (_transactions.isEmpty)
+                : RefreshIndicator(
+                    onRefresh: _loadWallet,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Balance Hero Card
                           Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(AppSpacing.xl),
-                            margin: const EdgeInsets.only(top: 8),
                             decoration: BoxDecoration(
-                              color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                              borderRadius: BorderRadius.circular(AppRadius.lg),
-                              border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                            ),
-                            child: Column(
-                              children: [
-                                Icon(Icons.receipt_long_outlined, size: 40, color: AppColors.slate400),
-                                const SizedBox(height: 8),
-                                Text('No wallet transactions yet', style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)),
-                                const SizedBox(height: 4),
-                                Text('Top up funds or book trips to see wallet ledger logs', style: TextStyle(fontSize: 12, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(AppRadius.xl),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF4F46E5).withValues(alpha: 0.3),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 8),
+                                ),
                               ],
                             ),
-                          )
-                        else
-                          ListView.separated(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _transactions.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
-                            itemBuilder: (context, index) {
-                              final item = _transactions[index] as Map<String, dynamic>;
-                              final type = item['entryType'] as String? ?? item['type'] as String? ?? 'CREDIT';
-                              final isCredit = type == 'CREDIT';
-                              final amount = (item['amount'] as num?)?.toDouble() ?? 0.0;
-                              final desc = item['description'] as String? ?? 'Wallet transaction';
-                              final dateStr = item['createdAt'] as String? ?? '';
-
-                              return Container(
-                                padding: const EdgeInsets.all(AppSpacing.md),
-                                decoration: BoxDecoration(
-                                  color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                                  border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Available AdhocX Balance',
+                                  style: AppTypography.caption(
+                                    color: Colors.white.withValues(alpha: 0.8),
+                                  ),
                                 ),
-                                child: Row(
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color: (isCredit ? AppColors.success : AppColors.error).withValues(alpha: 0.12),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Icon(
-                                        isCredit ? Icons.arrow_downward : Icons.arrow_upward,
-                                        color: isCredit ? AppColors.success : AppColors.error,
-                                        size: 20,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
                                     Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            desc,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: AppTypography.h4(
-                                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            dateStr.length > 10 ? dateStr.substring(0, 10) : dateStr,
-                                            style: AppTypography.caption(
-                                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                                            ),
-                                          ),
-                                        ],
+                                      child: Text(
+                                        '₹ ${balance.toStringAsFixed(2)}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: AppTypography.h1(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w900,
+                                        ),
                                       ),
                                     ),
-                                    const SizedBox(width: 12),
-                                    Text(
-                                      '${isCredit ? "+" : "-"} ₹ ${amount.toStringAsFixed(2)}',
-                                      style: AppTypography.h4(
-                                        color: isCredit ? AppColors.success : AppColors.error,
-                                        fontWeight: FontWeight.bold,
+                                    ElevatedButton.icon(
+                                      onPressed: _showTopUpDialog,
+                                      icon: const Icon(Icons.add, size: 18),
+                                      label: const Text('Top Up', style: TextStyle(fontWeight: FontWeight.bold)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.white,
+                                        foregroundColor: AppColors.primary,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.full)),
                                       ),
                                     ),
                                   ],
                                 ),
-                              );
-                            },
+                              ],
+                            ),
                           ),
-                      ],
+
+                          const SizedBox(height: AppSpacing.lg),
+
+                          // Wallet Metrics Row
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildPaymentKPI(context, 'Escrow Held', '₹ ${escrowHeld.toStringAsFixed(0)}', AppColors.warning, isDark),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildPaymentKPI(context, 'Total Spent', '₹ ${totalSpent.toStringAsFixed(0)}', AppColors.success, isDark),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildPaymentKPI(context, 'Status', 'Active', AppColors.primary, isDark),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: AppSpacing.xl),
+
+                          // Ledger History Header
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Wallet Transactions',
+                                style: AppTypography.h3(
+                                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                '${_transactions.length} entries',
+                                style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: AppSpacing.xs),
+
+                          // Ledger Transactions List
+                          if (_transactions.isEmpty)
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(AppSpacing.xl),
+                              margin: const EdgeInsets.only(top: 8),
+                              decoration: BoxDecoration(
+                                color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                                borderRadius: BorderRadius.circular(AppRadius.lg),
+                                border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                              ),
+                              child: Column(
+                                children: [
+                                  Icon(Icons.receipt_long_outlined, size: 40, color: AppColors.slate400),
+                                  const SizedBox(height: 8),
+                                  Text('No wallet transactions yet', style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)),
+                                  const SizedBox(height: 4),
+                                  Text('Top up funds or book trips to see wallet ledger logs', style: TextStyle(fontSize: 12, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
+                                ],
+                              ),
+                            )
+                          else
+                            ListView.separated(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: _transactions.length,
+                              separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+                              itemBuilder: (context, index) {
+                                final item = _transactions[index] as Map<String, dynamic>;
+                                final type = item['entryType'] as String? ?? item['type'] as String? ?? 'CREDIT';
+                                final status = (item['status'] as String? ?? 'COMPLETED').toUpperCase();
+                                final desc = item['description'] as String? ?? 'Wallet transaction';
+                                final refType = item['referenceType'] as String? ?? '';
+                                final isCancelled = status == 'CANCELLED' || refType.contains('CANCEL') || desc.toLowerCase().contains('cancel');
+                                final isFailed = status == 'FAILED' || refType.contains('FAIL') || desc.toLowerCase().contains('fail');
+                                final isCredit = type == 'CREDIT' && !isCancelled && !isFailed;
+                                final amount = (item['amount'] as num?)?.toDouble() ?? 0.0;
+                                final dateStr = item['createdAt'] as String? ?? '';
+
+                                IconData iconData = isCredit ? Icons.arrow_downward : Icons.arrow_upward;
+                                Color iconColor = isCredit ? AppColors.success : AppColors.error;
+                                if (isCancelled) {
+                                  iconData = Icons.block;
+                                  iconColor = isDark ? AppColors.slate400 : AppColors.slate600;
+                                } else if (isFailed) {
+                                  iconData = Icons.error_outline;
+                                  iconColor = AppColors.error;
+                                }
+
+                                return InkWell(
+                                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => UserPaymentDetailsScreen(transaction: item),
+                                      ),
+                                    );
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(AppSpacing.md),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                                      border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(
+                                            color: iconColor.withValues(alpha: 0.12),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Icon(
+                                            iconData,
+                                            color: iconColor,
+                                            size: 20,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                desc,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: AppTypography.h4(
+                                                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Row(
+                                                children: [
+                                                  Text(
+                                                    dateStr.length > 10 ? dateStr.substring(0, 10) : dateStr,
+                                                    style: AppTypography.caption(
+                                                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                                    ),
+                                                  ),
+                                                  if (isCancelled || isFailed) ...[
+                                                    const SizedBox(width: 8),
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                                      decoration: BoxDecoration(
+                                                        color: (isCancelled ? AppColors.slate700 : AppColors.error).withValues(alpha: 0.15),
+                                                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                                                      ),
+                                                      child: Text(
+                                                        isCancelled ? 'CANCELLED' : 'FAILED',
+                                                        style: TextStyle(
+                                                          fontSize: 9,
+                                                          fontWeight: FontWeight.bold,
+                                                          color: isCancelled ? (isDark ? AppColors.slate300 : AppColors.slate700) : AppColors.error,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Text(
+                                          isCancelled
+                                              ? '₹ ${amount.toStringAsFixed(2)}'
+                                              : '${isCredit ? "+" : "-"} ₹ ${amount.toStringAsFixed(2)}',
+                                          style: AppTypography.h4(
+                                            color: isCancelled
+                                                ? (isDark ? AppColors.textMutedDark : AppColors.textMutedLight)
+                                                : (isCredit ? AppColors.success : AppColors.error),
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                        ],
+                      ),
                     ),
                   ),
       ),

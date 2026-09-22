@@ -24,11 +24,27 @@ import { AuditService } from '../audit/audit.service';
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
 
+  // In-memory cache for tamper-proof order verification (orderId -> order metadata)
+  private readonly topUpOrders = new Map<
+    string,
+    { vendorUserId: string; amount: number; finalPayableAmount: number; couponCode?: string; createdAt: number }
+  >();
+
   constructor(
     private readonly db: DatabaseService,
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
-  ) {}
+  ) {
+    // Periodically clean up stale pending orders older than 2 hours
+    setInterval(() => {
+      const now = Date.now();
+      for (const [orderId, data] of this.topUpOrders.entries()) {
+        if (now - data.createdAt > 2 * 60 * 60 * 1000) {
+          this.topUpOrders.delete(orderId);
+        }
+      }
+    }, 15 * 60 * 1000);
+  }
 
   /**
    * Initiate a vendor payment for a requirement.
@@ -90,13 +106,20 @@ export class PaymentsService {
     payload: any,
     webhookSecret?: string,
   ): Promise<{ success: boolean; message: string }> {
-    // In production, signature verification uses provider secret or HMAC hash.
     const expectedSecret = process.env.RAZORPAY_WEBHOOK_SECRET || process.env.PAYMENT_WEBHOOK_SECRET || 'test_secret';
     if (webhookSecret) {
       const payloadStr = typeof payload === 'string' ? payload : JSON.stringify(payload);
       const computedHmac = crypto.createHmac('sha256', expectedSecret).update(payloadStr).digest('hex');
       const isDirectSecretMatch = webhookSecret === 'test_secret' || webhookSecret === expectedSecret;
-      const isHmacMatch = webhookSecret === computedHmac;
+      
+      let isHmacMatch = false;
+      try {
+        const secretBuf = Buffer.from(webhookSecret, 'hex');
+        const hmacBuf = Buffer.from(computedHmac, 'hex');
+        isHmacMatch = secretBuf.length === hmacBuf.length && crypto.timingSafeEqual(secretBuf, hmacBuf);
+      } catch (_) {
+        isHmacMatch = webhookSecret === computedHmac;
+      }
 
       if (!isDirectSecretMatch && !isHmacMatch) {
         throw new ForbiddenException('Invalid webhook signature');
@@ -244,7 +267,7 @@ export class PaymentsService {
 
     let totalSpent = 0;
     for (const e of entries) {
-      if (e.entryType === 'DEBIT') {
+      if (e.entryType === 'DEBIT' && e.referenceType !== 'WALLET_TOPUP_CANCELLED' && e.referenceType !== 'WALLET_TOPUP_FAILED') {
         totalSpent += Number(e.amount);
       }
     }
@@ -262,7 +285,7 @@ export class PaymentsService {
   /**
    * Create Razorpay Order for Wallet Top-Up.
    */
-  async createWalletTopUpOrder(_vendorUserId: string, dto: WalletTopUpOrderDto): Promise<WalletTopUpOrderResponseDto> {
+  async createWalletTopUpOrder(vendorUserId: string, dto: WalletTopUpOrderDto): Promise<WalletTopUpOrderResponseDto> {
     let discountAmount = 0;
     let finalPayableAmount = dto.amount;
 
@@ -312,7 +335,7 @@ export class PaymentsService {
           currency: 'INR',
           receipt: `rcpt_topup_${Date.now()}`,
           notes: {
-            vendorUserId: _vendorUserId,
+            vendorUserId,
             originalAmount: dto.amount,
             couponCode: dto.couponCode || '',
           },
@@ -334,6 +357,15 @@ export class PaymentsService {
       if (err instanceof BadRequestException) throw err;
       throw new BadRequestException(`Could not connect to Razorpay payment gateway: ${err.message}`);
     }
+
+    // Cache order details for tamper-proof validation upon verification
+    this.topUpOrders.set(orderId, {
+      vendorUserId,
+      amount: dto.amount,
+      finalPayableAmount,
+      couponCode: dto.couponCode,
+      createdAt: Date.now(),
+    });
 
     return {
       orderId,
@@ -374,7 +406,19 @@ export class PaymentsService {
 
     const refId = paymentId || orderId;
 
-    // Razorpay cryptographic HMAC SHA-256 signature verification
+    // Tamper-proof amount verification against registered server order
+    const cachedOrder = this.topUpOrders.get(orderId);
+    if (cachedOrder) {
+      if (cachedOrder.vendorUserId !== vendorUserId) {
+        throw new ForbiddenException('Order was generated for a different vendor account');
+      }
+      if (Math.abs(cachedOrder.amount - dto.amount) > 0.01) {
+        this.logger.error(`Tamper alert: Client amount ₹${dto.amount} does not match server order amount ₹${cachedOrder.amount}`);
+        throw new BadRequestException('Amount tampering detected: submitted amount does not match registered order amount');
+      }
+    }
+
+    // Razorpay cryptographic HMAC SHA-256 constant-time signature verification
     const secret = process.env.RAZORPAY_KEY_SECRET;
     if (secret) {
       const expectedSignature = crypto
@@ -382,7 +426,16 @@ export class PaymentsService {
         .update(`${orderId}|${paymentId}`)
         .digest('hex');
 
-      if (expectedSignature !== signature && !signature.startsWith('sig_webhook_')) {
+      let isValid = false;
+      try {
+        const expectedBuf = Buffer.from(expectedSignature, 'hex');
+        const signatureBuf = Buffer.from(signature, 'hex');
+        isValid = expectedBuf.length === signatureBuf.length && crypto.timingSafeEqual(expectedBuf, signatureBuf);
+      } catch (_) {
+        isValid = expectedSignature === signature;
+      }
+
+      if (!isValid && !signature.startsWith('sig_webhook_')) {
         this.logger.error(`Razorpay signature mismatch for order ${orderId} and payment ${paymentId}`);
         throw new BadRequestException('Invalid Razorpay payment signature verification');
       }
@@ -407,8 +460,9 @@ export class PaymentsService {
     // Check if coupon is attached
     let couponToRedeem: any = null;
     let discountAmount = 0;
-    if (dto.couponCode) {
-      const code = dto.couponCode.trim().toUpperCase();
+    const couponCodeToUse = dto.couponCode || cachedOrder?.couponCode;
+    if (couponCodeToUse) {
+      const code = couponCodeToUse.trim().toUpperCase();
       const coupon = await this.db.coupon.findUnique({ where: { code } });
       const now = new Date();
       if (coupon && coupon.isActive && now >= coupon.validFrom && now <= coupon.validUntil) {
@@ -429,6 +483,8 @@ export class PaymentsService {
       }
     }
 
+    const cleanDescription = `Wallet Top-up${couponToRedeem ? ` [Promo: ${couponToRedeem.code}]` : ''}`;
+
     const updated = await this.db.$transaction(async (tx) => {
       const v = await tx.vendor.update({
         where: { id: vendor.id },
@@ -446,7 +502,7 @@ export class PaymentsService {
           balanceAfter: v.escrowBalance,
           referenceType: 'WALLET_TOPUP',
           referenceId: refId,
-          description: `Wallet top-up via Razorpay (${refId})${couponToRedeem ? ` [Promo: ${couponToRedeem.code}]` : ''}`,
+          description: cleanDescription,
         },
       });
 
@@ -471,6 +527,9 @@ export class PaymentsService {
 
       return v;
     }, { timeout: 30000, maxWait: 10000 });
+
+    // Remove from pending cache once verified
+    this.topUpOrders.delete(orderId);
 
     this.notifications.emitEvent(`vendor:${vendor.id}`, 'WALLET_TOPPED_UP', {
       amount: dto.amount,
@@ -498,7 +557,62 @@ export class PaymentsService {
   }
 
   /**
-   * Get ledger transactions for vendor wallet.
+   * Record top-up status (e.g. Cancelled by user, or Gateway failure).
+   */
+  async recordTopUpStatus(
+    vendorUserId: string,
+    dto: { orderId?: string; amount?: number; status: string; reason?: string },
+  ): Promise<{ success: boolean; message: string }> {
+    let vendor = await this.db.vendor.findUnique({ where: { userId: vendorUserId } });
+    if (!vendor) {
+      const user = await this.db.user.findUnique({ where: { id: vendorUserId } });
+      vendor = await this.db.vendor.create({
+        data: {
+          userId: vendorUserId,
+          fullName: user?.fullName || 'User',
+          organizationName: `${user?.fullName || 'AdhocX'} Mobility`,
+          phone: user?.phone || '+919999999999',
+          verificationStatus: 'VERIFIED',
+        },
+      });
+    }
+
+    const isCancelled = dto.status === 'CANCELLED' || (dto.reason && dto.reason.toLowerCase().includes('cancel'));
+    const statusDesc = isCancelled ? 'Wallet Top-up (Cancelled by user)' : 'Wallet Top-up (Failed)';
+    const refType = isCancelled ? 'WALLET_TOPUP_CANCELLED' : 'WALLET_TOPUP_FAILED';
+    const amountVal = dto.amount || (dto.orderId && this.topUpOrders.get(dto.orderId)?.amount) || 0;
+
+    await this.db.ledgerEntry.create({
+      data: {
+        accountType: 'VENDOR',
+        accountId: vendor.id,
+        entryType: 'DEBIT',
+        amount: amountVal,
+        balanceAfter: vendor.escrowBalance,
+        referenceType: refType,
+        referenceId: dto.orderId || `topup_status_${Date.now()}`,
+        description: statusDesc,
+      },
+    });
+
+    await this.audit.log({
+      userId: vendorUserId,
+      action: isCancelled ? 'WALLET_TOPUP_CANCELLED' : 'WALLET_TOPUP_FAILED',
+      entityType: 'VENDOR_WALLET',
+      entityId: vendor.id,
+      metadata: {
+        orderId: dto.orderId,
+        amount: amountVal,
+        reason: dto.reason || (isCancelled ? 'Cancelled by user' : 'Payment failed at gateway'),
+      },
+    });
+
+    this.logger.log(`Recorded wallet top-up ${dto.status} for vendor ${vendor.id} (order: ${dto.orderId})`);
+    return { success: true, message: `Recorded ${dto.status} status successfully` };
+  }
+
+  /**
+   * Get ledger transactions for vendor wallet with clean formatting and full status auditability.
    */
   async getVendorWalletTransactions(vendorUserId: string) {
     const vendor = await this.db.vendor.findUnique({ where: { userId: vendorUserId } });
@@ -510,17 +624,39 @@ export class PaymentsService {
       take: 50,
     });
 
-    return entries.map((e) => ({
-      id: e.id,
-      amount: Number(e.amount),
-      entryType: e.entryType,
-      type: e.entryType,
-      balanceAfter: Number(e.balanceAfter),
-      referenceType: e.referenceType,
-      referenceId: e.referenceId,
-      description: e.description,
-      createdAt: e.createdAt.toISOString(),
-    }));
+    return entries.map((e) => {
+      // Clean up legacy text strings (remove vendor branding like "via Razorpay" or raw token strings)
+      let cleanDesc = e.description
+        .replace(/via Razorpay\s*/gi, '')
+        .replace(/\(order_[^)]+\)/g, '')
+        .replace(/\(pay_[^)]+\)/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (e.referenceType === 'WALLET_TOPUP' && (cleanDesc.toLowerCase() === 'wallet top-up' || cleanDesc.startsWith('Wallet top-up'))) {
+        cleanDesc = cleanDesc.replace(/Wallet top-up/i, 'Wallet Top-up');
+      }
+
+      let status = 'COMPLETED';
+      if (e.referenceType === 'WALLET_TOPUP_CANCELLED' || cleanDesc.toLowerCase().includes('cancel')) {
+        status = 'CANCELLED';
+      } else if (e.referenceType === 'WALLET_TOPUP_FAILED' || cleanDesc.toLowerCase().includes('fail')) {
+        status = 'FAILED';
+      }
+
+      return {
+        id: e.id,
+        amount: Number(e.amount),
+        entryType: e.entryType,
+        type: e.entryType,
+        status,
+        balanceAfter: Number(e.balanceAfter),
+        referenceType: e.referenceType,
+        referenceId: e.referenceId,
+        description: cleanDesc,
+        createdAt: e.createdAt.toISOString(),
+      };
+    });
   }
 
   /**

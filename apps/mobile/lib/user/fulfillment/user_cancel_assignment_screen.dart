@@ -139,11 +139,14 @@ class _UserCancelAssignmentScreenState extends State<UserCancelAssignmentScreen>
                 ),
                 child: Column(
                   children: _reasons.map((reason) {
+                    // ignore: deprecated_member_use
                     return RadioListTile<String>(
                       value: reason,
+                      // ignore: deprecated_member_use
                       groupValue: _selectedReason,
                       activeColor: AppColors.error,
                       title: Text(reason, style: TextStyle(fontSize: 13, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)),
+                      // ignore: deprecated_member_use
                       onChanged: (val) {
                         if (val != null) setState(() => _selectedReason = val);
                       },

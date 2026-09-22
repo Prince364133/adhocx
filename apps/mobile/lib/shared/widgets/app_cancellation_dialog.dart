@@ -95,10 +95,13 @@ class _AppCancellationDialogState extends State<AppCancellationDialog> {
             const SizedBox(height: AppSpacing.md),
             Column(
               children: widget.reasons.map((r) {
+                // ignore: deprecated_member_use
                 return RadioListTile<String>(
                   title: Text(r, style: TextStyle(fontSize: 13, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)),
                   value: r,
+                  // ignore: deprecated_member_use
                   groupValue: _selectedReason,
+                  // ignore: deprecated_member_use
                   onChanged: (val) => setState(() => _selectedReason = val),
                   activeColor: AppColors.error,
                   contentPadding: EdgeInsets.zero,

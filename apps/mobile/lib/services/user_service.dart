@@ -224,6 +224,25 @@ class UserService {
     couponCode: couponCode,
   );
 
+  /// Record payment cancellation or failure on ledger for full financial auditability
+  Future<dynamic> recordTopUpStatus({
+    required String orderId,
+    required double amount,
+    required String status,
+    String? reason,
+  }) async {
+    await _ensureSession();
+    return await _api.post(
+      '/payments/wallet/top-up/record-status',
+      body: {
+        'orderId': orderId,
+        'amount': amount,
+        'status': status,
+        if (reason != null && reason.isNotEmpty) 'reason': reason,
+      },
+    );
+  }
+
   // Promotional Coupons & Discounts
   Future<Map<String, dynamic>> validateCoupon({
     required String code,

@@ -75,12 +75,24 @@ export class PaymentsController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.VENDOR, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Verify Razorpay signature and credit vendor wallet' })
+  @ApiOperation({ summary: 'Verify payment signature and credit vendor wallet' })
   async verifyTopUp(
     @CurrentUser() user: AuthUserDto,
     @Body() dto: any,
   ) {
     return this.paymentsService.verifyWalletTopUp(user.id, dto);
+  }
+
+  @Post('wallet/top-up/record-status')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.VENDOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Record top-up lifecycle event (cancelled by user, gateway failure)' })
+  async recordTopUpStatus(
+    @CurrentUser() user: AuthUserDto,
+    @Body() dto: any,
+  ) {
+    return this.paymentsService.recordTopUpStatus(user.id, dto);
   }
 
   @Get('admin/metrics')

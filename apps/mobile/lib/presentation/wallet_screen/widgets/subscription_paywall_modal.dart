@@ -112,7 +112,7 @@ class _SubscriptionPaywallModalState extends State<SubscriptionPaywallModal> {
   Future<void> _handleWalletRenewal() async {
     if (widget.walletBalance < _finalAmount) {
       Fluttertoast.showToast(
-        msg: 'Insufficient wallet balance (₹${widget.walletBalance.toStringAsFixed(0)}). Please top up or pay via Razorpay.',
+        msg: 'Insufficient wallet balance (₹${widget.walletBalance.toStringAsFixed(0)}). Please top up or pay online.',
         backgroundColor: AppColors.error,
       );
       return;
@@ -533,9 +533,9 @@ class _SubscriptionPaywallModalState extends State<SubscriptionPaywallModal> {
                 const SizedBox(height: AppSpacing.md),
               ],
 
-              // ── Payment Action 2: Razorpay Online Checkout ────────────────
+              // ── Payment Action 2: Online Checkout ────────────────
               AppPrimaryButton(
-                text: 'PAY ₹${_finalAmount.toStringAsFixed(0)} VIA RAZORPAY',
+                text: 'PAY ₹${_finalAmount.toStringAsFixed(0)} ONLINE',
                 isLoading: _isLoading,
                 onPressed: _handleRazorpayCheckout,
               ),
