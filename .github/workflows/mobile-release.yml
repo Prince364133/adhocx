@@ -47,7 +47,7 @@ jobs:
         working-directory: apps/mobile
         run: |
           flutter build apk --release --no-tree-shake-icons \
-            --dart-define=API_URL=http://3.110.42.191/api/v1 \
+            --dart-define=API_URL=https://api.adhocx.com/api/v1 \
             --dart-define=SUPABASE_URL=https://ybqxhawowjktupfizfod.supabase.co \
             --dart-define=SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlicXhoYXdvd2prdHVwZml6Zm9kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc4NTQ5OTgsImV4cCI6MjEwMzQzMDk5OH0.grjHadhTvuvcyLsF7CNoY4U73cL1bI3vJOsBaV4Bj1Q
 
@@ -55,7 +55,7 @@ jobs:
         working-directory: apps/mobile
         run: |
           flutter build appbundle --release --no-tree-shake-icons \
-            --dart-define=API_URL=http://3.110.42.191/api/v1 \
+            --dart-define=API_URL=https://api.adhocx.com/api/v1 \
             --dart-define=SUPABASE_URL=https://ybqxhawowjktupfizfod.supabase.co \
             --dart-define=SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlicXhoYXdvd2prdHVwZml6Zm9kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc4NTQ5OTgsImV4cCI6MjEwMzQzMDk5OH0.grjHadhTvuvcyLsF7CNoY4U73cL1bI3vJOsBaV4Bj1Q
 
