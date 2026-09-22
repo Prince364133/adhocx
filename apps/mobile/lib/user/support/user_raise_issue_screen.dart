@@ -134,7 +134,7 @@ class _UserRaiseIssueScreenState extends State<UserRaiseIssueScreen> {
               Text('Issue Category', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontWeight: FontWeight.bold)),
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
-                value: _selectedCategory,
+                initialValue: _selectedCategory,
                 hint: const Text('Select Category', style: TextStyle(fontSize: 13)),
                 items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 13)))).toList(),
                 onChanged: (val) => setState(() => _selectedCategory = val),

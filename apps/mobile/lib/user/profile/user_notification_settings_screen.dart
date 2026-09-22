@@ -128,7 +128,7 @@ class _UserNotificationSettingsScreenState extends State<UserNotificationSetting
       title: Text(title, style: TextStyle(fontSize: 13, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)),
       value: val,
       onChanged: onChanged,
-      activeColor: AppColors.primary,
+      activeThumbColor: AppColors.primary,
     );
   }
 }

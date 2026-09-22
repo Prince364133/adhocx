@@ -100,9 +100,7 @@ class AuthService {
     _currentUser = user;
   }
 
-  /**
-   * Request OTP via SMS (Phone) or Email
-   */
+  /// Request OTP via SMS (Phone) or Email
   Future<dynamic> requestOtp({
     String? phone,
     String? email,
@@ -127,9 +125,7 @@ class AuthService {
     return response is Map ? response : {'message': 'OTP sent successfully'};
   }
 
-  /**
-   * Verify OTP with Phone or Email
-   */
+  /// Verify OTP with Phone or Email
   Future<AuthResult> verifyOtp({
     String? phone,
     String? email,
@@ -167,9 +163,7 @@ class AuthService {
     return AuthResult(user: user, accessToken: token);
   }
 
-  /**
-   * Google Sign-In / Sign-Up (Pre-verified email, skips OTP)
-   */
+  /// Google Sign-In / Sign-Up (Pre-verified email, skips OTP)
   Future<AuthResult> signInWithGoogle({
     String? email,
     String? fullName,
@@ -207,9 +201,7 @@ class AuthService {
     return AuthResult(user: user, accessToken: token);
   }
 
-  /**
-   * Apple Sign-In / Sign-Up (Pre-verified email, skips OTP)
-   */
+  /// Apple Sign-In / Sign-Up (Pre-verified email, skips OTP)
   Future<AuthResult> signInWithApple({
     String? email,
     String? fullName,
@@ -245,9 +237,7 @@ class AuthService {
     return AuthResult(user: user, accessToken: token);
   }
 
-  /**
-   * Set User Password
-   */
+  /// Set User Password
   Future<dynamic> setPassword({required String password}) async {
     final response = await _api.post(
       '/auth/password',

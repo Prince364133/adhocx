@@ -87,8 +87,8 @@ class _AppOtpFieldState extends State<AppOtpField> {
     }
   }
 
-  void _onKeyDown(int index, RawKeyEvent event) {
-    if (event is RawKeyDownEvent &&
+  void _onKeyDown(int index, KeyEvent event) {
+    if (event is KeyDownEvent &&
         event.logicalKey == LogicalKeyboardKey.backspace &&
         _controllers[index].text.isEmpty &&
         index > 0) {
@@ -106,9 +106,9 @@ class _AppOtpFieldState extends State<AppOtpField> {
         return SizedBox(
           width: 46,
           height: 54,
-          child: RawKeyboardListener(
+          child: KeyboardListener(
             focusNode: FocusNode(),
-            onKey: (event) => _onKeyDown(index, event),
+            onKeyEvent: (event) => _onKeyDown(index, event),
             child: TextFormField(
               controller: _controllers[index],
               focusNode: _focusNodes[index],

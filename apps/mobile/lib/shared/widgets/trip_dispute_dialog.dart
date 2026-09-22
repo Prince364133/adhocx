@@ -139,7 +139,7 @@ class _TripDisputeDialogState extends State<TripDisputeDialog> {
               ),
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
-                value: _selectedReason,
+                initialValue: _selectedReason,
                 items: _reasons
                     .map((r) => DropdownMenuItem(value: r, child: Text(r, style: const TextStyle(fontSize: 13))))
                     .toList(),

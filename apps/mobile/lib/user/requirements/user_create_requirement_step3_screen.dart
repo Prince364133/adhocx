@@ -199,7 +199,7 @@ class _UserCreateRequirementStep3ScreenState extends State<UserCreateRequirement
                         ),
                         Switch(
                           value: _hasReturn,
-                          activeColor: AppColors.primary,
+                          activeThumbColor: AppColors.primary,
                           onChanged: (val) => setState(() => _hasReturn = val),
                         ),
                       ],
