@@ -39,11 +39,15 @@ class RazorpayCheckoutService {
     // ── 1. Web Platform Implementation ──────────────────────────────────────
     if (kIsWeb) {
       final completer = Completer<RazorpayPaymentResult>();
+      final token = 'rzp_tok_${DateTime.now().millisecondsSinceEpoch}_${orderId.hashCode.abs()}';
       StreamSubscription? messageSubscription;
 
       messageSubscription = html.window.onMessage.listen((event) {
         final dynamic data = event.data;
         if (data is Map) {
+          final msgToken = data['token']?.toString();
+          if (msgToken != null && msgToken != token) return; // ignore unrelated messages
+
           final type = data['type']?.toString();
           if (type == 'RAZORPAY_PAYMENT_SUCCESS') {
             if (!completer.isCompleted) {
@@ -76,6 +80,7 @@ class RazorpayCheckoutService {
         {
           'type': 'OPEN_RAZORPAY_CHECKOUT',
           'config': {
+            'token': token,
             'key': keyId,
             'amount': (amount * 100).round(), // in paise
             'currency': 'INR',

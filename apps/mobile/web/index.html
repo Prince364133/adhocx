@@ -217,43 +217,54 @@
       // 3. Failsafe auto-dismiss (2 seconds max)
       setTimeout(removeLoader, 2000);
 
-      // Capture errors but only show UI if not loaded and fatal
+      // Capture errors and shield against third-party checkout chunk warnings
       window.onerror = function (message, source, lineno, colno, error) {
+        if (source && (source.includes("razorpay") || source.includes("v2-entry") || source.includes("checkout"))) {
+          console.warn("[Suppressed Gateway Chunk Notice]", message);
+          return true; // prevent third party scripts from throwing fatal errors
+        }
         console.error("[AdhocX Web Error]", message, source, lineno, colno, error);
         return false;
       };
 
       window.addEventListener("unhandledrejection", function (event) {
+        var reasonStr = (event && event.reason && event.reason.toString()) || "";
+        if (reasonStr.includes("razorpay") || reasonStr.includes("v2-entry") || reasonStr.includes("ChunkLoadError") || reasonStr.includes("Loading chunk")) {
+          event.preventDefault();
+          return;
+        }
         console.warn("[AdhocX Web Unhandled Rejection]", event.reason);
       });
     </script>
 
     <script>
-      // Navigation tracking
+      // Navigation tracking (strictly send to parent only if running in iframe)
       (function (history) {
         const pushState = history.pushState;
         const replaceState = history.replaceState;
 
         function logNavigation(method, url) {
-            if (!url) return;
+          if (!url) return;
 
-            var actualPath = url;
-            var lastHashSlash = url.lastIndexOf('#/');
-            if (lastHashSlash !== -1) {
-              actualPath = '/' + url.substring(lastHashSlash + 2);
-            }
+          var actualPath = url;
+          var lastHashSlash = url.lastIndexOf('#/');
+          if (lastHashSlash !== -1) {
+            actualPath = '/' + url.substring(lastHashSlash + 2);
+          }
 
-            var formattedUrl = actualPath;
-            if (actualPath.startsWith('/') && !actualPath.startsWith('/#')) {
-              formattedUrl = '/#' + actualPath;
-            }
+          var formattedUrl = actualPath;
+          if (actualPath.startsWith('/') && !actualPath.startsWith('/#')) {
+            formattedUrl = '/#' + actualPath;
+          }
 
+          if (window.parent && window.parent !== window) {
             window.parent.postMessage({
               type: "NAVIGATION",
               method: method,
               url: formattedUrl
             }, "*");
           }
+        }
 
         history.pushState = function (state, title, url) {
           logNavigation("pushState", url);
@@ -271,11 +282,54 @@
       })(window.history);
     </script>
 
-    <!-- Razorpay Checkout Web Bridge (Loaded on-demand only when initiating payment) -->
+    <!-- Razorpay Checkout Web Bridge (Isolated execution with full DOM teardown) -->
     <script>
+      function purgeRazorpayElements() {
+        try {
+          var selectors = [
+            '.razorpay-container',
+            '.razorpay-backdrop',
+            'iframe[name^="razorpay"]',
+            'iframe[src*="razorpay"]',
+            'iframe[class*="razorpay"]',
+            'div[class*="razorpay"]'
+          ];
+          selectors.forEach(function(sel) {
+            var elements = document.querySelectorAll(sel);
+            for (var i = 0; i < elements.length; i++) {
+              if (elements[i] && elements[i].parentNode) {
+                elements[i].parentNode.removeChild(elements[i]);
+              }
+            }
+          });
+        } catch (_) {}
+      }
+
       window.addEventListener("message", function(event) {
-        if (event.data && event.data.type === "OPEN_RAZORPAY_CHECKOUT") {
+        if (event.data && typeof event.data === "object" && event.data.type === "OPEN_RAZORPAY_CHECKOUT") {
           var config = event.data.config || {};
+          var token = config.token || ("tok_" + Date.now());
+          var isDone = false;
+          var rzpInstance = null;
+
+          purgeRazorpayElements();
+
+          function notifyAndTeardown(type, data) {
+            if (isDone) return;
+            isDone = true;
+
+            try {
+              if (rzpInstance && typeof rzpInstance.close === "function") {
+                rzpInstance.close();
+              }
+            } catch (_) {}
+
+            setTimeout(purgeRazorpayElements, 50);
+
+            var payload = Object.assign({ type: type, token: token }, data);
+            window.postMessage(payload, "*");
+          }
+
           function launchRzp() {
             try {
               var options = {
@@ -289,43 +343,40 @@
                 notes: config.notes || {},
                 theme: config.theme || { color: "#5B42F3" },
                 handler: function(response) {
-                  window.postMessage({
-                    type: "RAZORPAY_PAYMENT_SUCCESS",
+                  notifyAndTeardown("RAZORPAY_PAYMENT_SUCCESS", {
                     paymentId: response.razorpay_payment_id || "",
                     orderId: response.razorpay_order_id || config.order_id,
                     signature: response.razorpay_signature || ""
-                  }, "*");
+                  });
                 },
                 modal: {
                   ondismiss: function() {
-                    window.postMessage({
-                      type: "RAZORPAY_PAYMENT_FAILURE",
+                    notifyAndTeardown("RAZORPAY_PAYMENT_FAILURE", {
                       errorMessage: "Payment cancelled by user"
-                    }, "*");
+                    });
                   }
                 }
               };
-              var rzpInstance = new Razorpay(options);
+
+              rzpInstance = new Razorpay(options);
               rzpInstance.on("payment.failed", function(response) {
                 var msg = (response.error && (response.error.description || response.error.reason)) || "Payment failed at gateway";
-                window.postMessage({
-                  type: "RAZORPAY_PAYMENT_FAILURE",
+                notifyAndTeardown("RAZORPAY_PAYMENT_FAILURE", {
                   errorMessage: msg
-                }, "*");
+                });
               });
               rzpInstance.open();
             } catch (err) {
-              window.postMessage({
-                type: "RAZORPAY_PAYMENT_FAILURE",
+              notifyAndTeardown("RAZORPAY_PAYMENT_FAILURE", {
                 errorMessage: err.message || "Failed to initialize payment gateway"
-              }, "*");
+              });
             }
           }
 
           if (typeof Razorpay === "undefined") {
             var existingScript = document.getElementById("razorpay-checkout-js");
             if (existingScript) {
-              existingScript.addEventListener("load", launchRzp);
+              existingScript.addEventListener("load", launchRzp, { once: true });
             } else {
               var script = document.createElement("script");
               script.id = "razorpay-checkout-js";
@@ -333,12 +384,11 @@
               script.async = true;
               script.onload = launchRzp;
               script.onerror = function() {
-                window.postMessage({
-                  type: "RAZORPAY_PAYMENT_FAILURE",
-                  errorMessage: "Failed to load Razorpay Checkout SDK"
-                }, "*");
+                notifyAndTeardown("RAZORPAY_PAYMENT_FAILURE", {
+                  errorMessage: "Failed to load payment gateway SDK"
+                });
               };
-              document.body.appendChild(script);
+              document.head.appendChild(script);
             }
           } else {
             launchRzp();
