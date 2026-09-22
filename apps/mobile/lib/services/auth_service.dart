@@ -245,8 +245,8 @@ class AuthService {
         // On Android, clientId MUST be null (Google Play Services resolves via package name + SHA-1).
         // On Web, clientId is required.
         clientId: kIsWeb ? googleClientId : null,
-        // serverClientId is required on Android to generate an idToken for backend verification.
-        serverClientId: googleClientId,
+        // serverClientId is required on Android to generate an idToken for backend verification (not supported on Web).
+        serverClientId: kIsWeb ? null : googleClientId,
         scopes: ['email', 'profile'],
       );
 

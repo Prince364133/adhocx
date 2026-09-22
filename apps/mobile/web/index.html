@@ -270,6 +270,76 @@
       })(window.history);
     </script>
 
+    <!-- Razorpay Checkout Web SDK -->
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script>
+      window.addEventListener("message", function(event) {
+        if (event.data && event.data.type === "OPEN_RAZORPAY_CHECKOUT") {
+          var config = event.data.config || {};
+          function launchRzp() {
+            try {
+              var options = {
+                key: config.key,
+                amount: config.amount,
+                currency: config.currency || "INR",
+                name: config.name || "AdhocX Mobility",
+                description: config.description || "AdhocX Secure Payment",
+                order_id: config.order_id,
+                prefill: config.prefill || {},
+                notes: config.notes || {},
+                theme: config.theme || { color: "#5B42F3" },
+                handler: function(response) {
+                  window.postMessage({
+                    type: "RAZORPAY_PAYMENT_SUCCESS",
+                    paymentId: response.razorpay_payment_id || ("pay_web_" + Date.now()),
+                    orderId: response.razorpay_order_id || config.order_id,
+                    signature: response.razorpay_signature || ("sig_web_" + Date.now())
+                  }, "*");
+                },
+                modal: {
+                  ondismiss: function() {
+                    window.postMessage({
+                      type: "RAZORPAY_PAYMENT_FAILURE",
+                      errorMessage: "Payment cancelled by user"
+                    }, "*");
+                  }
+                }
+              };
+              var rzpInstance = new Razorpay(options);
+              rzpInstance.on("payment.failed", function(response) {
+                var msg = (response.error && (response.error.description || response.error.reason)) || "Payment failed at gateway";
+                window.postMessage({
+                  type: "RAZORPAY_PAYMENT_FAILURE",
+                  errorMessage: msg
+                }, "*");
+              });
+              rzpInstance.open();
+            } catch (err) {
+              window.postMessage({
+                type: "RAZORPAY_PAYMENT_FAILURE",
+                errorMessage: err.message || "Failed to initialize payment gateway"
+              }, "*");
+            }
+          }
+
+          if (typeof Razorpay === "undefined") {
+            var script = document.createElement("script");
+            script.src = "https://checkout.razorpay.com/v1/checkout.js";
+            script.onload = launchRzp;
+            script.onerror = function() {
+              window.postMessage({
+                type: "RAZORPAY_PAYMENT_FAILURE",
+                errorMessage: "Failed to load Razorpay Checkout script"
+              }, "*");
+            };
+            document.head.appendChild(script);
+          } else {
+            launchRzp();
+          }
+        }
+      });
+    </script>
+
     <!-- Plugin initialization code will be injected into flutter_plugins.js -->
     <script src="flutter_plugins.js" defer></script>
   </body>

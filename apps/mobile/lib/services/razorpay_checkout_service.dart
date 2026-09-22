@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:universal_html/html.dart' as html;
 
 class RazorpayPaymentResult {
   final bool success;
@@ -23,7 +25,7 @@ class RazorpayCheckoutService {
   RazorpayCheckoutService._();
   static final RazorpayCheckoutService instance = RazorpayCheckoutService._();
 
-  /// Initiates live Razorpay checkout dialog
+  /// Initiates live Razorpay checkout dialog across Web, Android, and iOS
   Future<RazorpayPaymentResult> openCheckout({
     required String keyId,
     required String orderId,
@@ -34,6 +36,67 @@ class RazorpayCheckoutService {
     String? prefillEmail,
     Map<String, dynamic>? notes,
   }) async {
+    // ── 1. Web Platform Implementation ──────────────────────────────────────
+    if (kIsWeb) {
+      final completer = Completer<RazorpayPaymentResult>();
+      StreamSubscription? messageSubscription;
+
+      messageSubscription = html.window.onMessage.listen((event) {
+        final dynamic data = event.data;
+        if (data is Map) {
+          final type = data['type']?.toString();
+          if (type == 'RAZORPAY_PAYMENT_SUCCESS') {
+            if (!completer.isCompleted) {
+              completer.complete(
+                RazorpayPaymentResult(
+                  success: true,
+                  paymentId: data['paymentId']?.toString(),
+                  orderId: data['orderId']?.toString() ?? orderId,
+                  signature: data['signature']?.toString(),
+                ),
+              );
+            }
+            messageSubscription?.cancel();
+          } else if (type == 'RAZORPAY_PAYMENT_FAILURE') {
+            if (!completer.isCompleted) {
+              completer.complete(
+                RazorpayPaymentResult(
+                  success: false,
+                  errorMessage: data['errorMessage']?.toString() ?? 'Payment was cancelled or failed',
+                ),
+              );
+            }
+            messageSubscription?.cancel();
+          }
+        }
+      });
+
+      // Dispatch checkout event to browser window
+      html.window.postMessage(
+        {
+          'type': 'OPEN_RAZORPAY_CHECKOUT',
+          'config': {
+            'key': keyId,
+            'amount': (amount * 100).round(), // in paise
+            'currency': 'INR',
+            'name': name,
+            'order_id': orderId,
+            'description': description,
+            'prefill': {
+              if (prefillContact != null && prefillContact.isNotEmpty) 'contact': prefillContact,
+              if (prefillEmail != null && prefillEmail.isNotEmpty) 'email': prefillEmail,
+            },
+            if (notes != null) 'notes': notes,
+            'theme': {'color': '#5B42F3'},
+          },
+        },
+        '*',
+      );
+
+      return completer.future;
+    }
+
+    // ── 2. Native Mobile (Android & iOS) Implementation ─────────────────────
     final completer = Completer<RazorpayPaymentResult>();
     final razorpay = Razorpay();
 
