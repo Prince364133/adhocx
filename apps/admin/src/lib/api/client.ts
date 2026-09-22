@@ -38,11 +38,8 @@ import {
 } from './types';
 
 function getApiBaseUrl(): string {
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
-  }
   if (typeof window !== 'undefined') {
-    const host = window.location.hostname;
+    const host = window.location.hostname.toLowerCase();
     if (host.includes('adhocx.com')) {
       return '/api/v1';
     }
@@ -50,7 +47,10 @@ function getApiBaseUrl(): string {
       return `${window.location.origin}/api/v1`;
     }
   }
-  return 'http://localhost:7001/api/v1';
+  if (process.env.NEXT_PUBLIC_API_URL && !process.env.NEXT_PUBLIC_API_URL.includes('localhost')) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  return typeof window !== 'undefined' ? '/api/v1' : 'https://api.adhocx.com/api/v1';
 }
 
 const API_BASE_URL = getApiBaseUrl();

@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -17,10 +16,29 @@ import './theme/theme_provider.dart';
 import './user/requirements/requirement_draft_provider.dart';
 import './widgets/custom_error_widget.dart';
 import './presentation/language_selection_widget.dart';
+import 'package:flutter/foundation.dart';
+import 'package:firebase_core/firebase_core.dart';
 import './services/edge_case_manager.dart';
+import './services/local_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase for Push Notifications
+  try {
+    if (!kIsWeb) {
+      await Firebase.initializeApp();
+    }
+  } catch (e) {
+    AppLogger.debug('Firebase initialization notice: $e', tag: 'MAIN');
+  }
+
+  // Initialize Local Notifications for urgent dispatch alerts
+  try {
+    await LocalNotificationService.instance.initialize();
+  } catch (e) {
+    AppLogger.debug('Local notification init skipped: $e', tag: 'MAIN');
+  }
 
   // Route uncaught framework errors to structured logger
   FlutterError.onError = (FlutterErrorDetails details) {

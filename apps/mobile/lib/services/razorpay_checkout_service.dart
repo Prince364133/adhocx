@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:universal_html/html.dart' as html;
+import './global_dispatch_overlay_service.dart';
 
 class RazorpayPaymentResult {
   final bool success;
@@ -36,9 +37,14 @@ class RazorpayCheckoutService {
     String? prefillEmail,
     Map<String, dynamic>? notes,
   }) async {
+    GlobalDispatchOverlayService.instance.pauseForPaymentFlow();
+
     // ── 1. Web Platform Implementation ──────────────────────────────────────
     if (kIsWeb) {
       final completer = Completer<RazorpayPaymentResult>();
+      completer.future.whenComplete(() {
+        GlobalDispatchOverlayService.instance.resumeAfterPaymentFlow();
+      });
       final token = 'rzp_tok_${DateTime.now().millisecondsSinceEpoch}_${orderId.hashCode.abs()}';
       StreamSubscription? messageSubscription;
 
@@ -104,6 +110,9 @@ class RazorpayCheckoutService {
     // ── 2. Native Mobile (Android & iOS) Implementation ─────────────────────
 
     final completer = Completer<RazorpayPaymentResult>();
+    completer.future.whenComplete(() {
+      GlobalDispatchOverlayService.instance.resumeAfterPaymentFlow();
+    });
     final razorpay = Razorpay();
 
     void handlePaymentSuccess(PaymentSuccessResponse response) {

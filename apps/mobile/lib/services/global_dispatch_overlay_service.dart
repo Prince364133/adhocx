@@ -11,6 +11,7 @@ import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import '../utils/dispatch_sound_player.dart';
+import './local_notification_service.dart';
 
 /// Global Dispatch Overlay Service for AdhocX Driver App.
 /// Decoupled singleton that manages:
@@ -31,10 +32,31 @@ class GlobalDispatchOverlayService {
   String? _lastBaseUrl;
   String? _lastToken;
   String? _lastChannel;
+  int _reconnectAttempts = 0;
+  static const int _maxReconnectAttempts = 10;
+  bool _isPaymentFlowActive = false;
 
   bool get isShowingOffer => _isShowingOffer;
   String? get activeOfferId => _activeOfferId;
   bool get isListening => _isListening;
+  bool get isPaymentFlowActive => _isPaymentFlowActive;
+
+  /// Call this when entering a payment flow (Razorpay, wallet top-up) to
+  /// prevent SSE reconnect loops from flooding the network.
+  void pauseForPaymentFlow() {
+    _isPaymentFlowActive = true;
+    debugPrint('⏸️ [SSE] Paused for payment flow');
+  }
+
+  /// Resume SSE after payment flow completes or is cancelled.
+  void resumeAfterPaymentFlow() {
+    _isPaymentFlowActive = false;
+    _reconnectAttempts = 0;
+    debugPrint('▶️ [SSE] Resumed after payment flow');
+    if (_isListening) {
+      _connectSseStream();
+    }
+  }
 
   /// Starts the persistent Real-Time Server-Sent Events (SSE) listener for driver dispatches.
   void startRealtimeListener({
@@ -51,6 +73,11 @@ class GlobalDispatchOverlayService {
 
   void _connectSseStream() async {
     if (!_isListening || _lastBaseUrl == null || _lastToken == null) return;
+    if (_isPaymentFlowActive) return; // Don't reconnect during payment flows
+    if (_reconnectAttempts >= _maxReconnectAttempts) {
+      debugPrint('⛔ [SSE] Max reconnect attempts ($_maxReconnectAttempts) reached. Stopping.');
+      return;
+    }
 
     _reconnectTimer?.cancel();
     _sseSubscription?.cancel();
@@ -70,6 +97,7 @@ class GlobalDispatchOverlayService {
 
       if (response.statusCode == 200) {
         debugPrint('🟢 [SSE STREAM CONNECTED] Listening on channel: $targetChannel');
+        _reconnectAttempts = 0; // Reset on successful connection
         String buffer = '';
 
         _sseSubscription = response.stream
@@ -131,10 +159,17 @@ class GlobalDispatchOverlayService {
   }
 
   void _scheduleSseReconnect({int delaySeconds = 3}) {
-    if (!_isListening) return;
+    if (!_isListening || _isPaymentFlowActive) return;
+    _reconnectAttempts++;
+    if (_reconnectAttempts >= _maxReconnectAttempts) {
+      debugPrint('⛔ [SSE] Max reconnect attempts reached. Call resumeAfterPaymentFlow() or stopRealtimeListener() to reset.');
+      return;
+    }
+    // Exponential backoff: 3s, 4s, 5s, 8s, 13s... capped at 30s
+    final backoffDelay = (delaySeconds + _reconnectAttempts).clamp(3, 30);
     _reconnectTimer?.cancel();
-    _reconnectTimer = Timer(Duration(seconds: delaySeconds), () {
-      if (_isListening) {
+    _reconnectTimer = Timer(Duration(seconds: backoffDelay), () {
+      if (_isListening && !_isPaymentFlowActive) {
         _connectSseStream();
       }
     });
@@ -143,6 +178,8 @@ class GlobalDispatchOverlayService {
   /// Stop listening to real-time events (e.g. when driver toggles OFFLINE)
   void stopRealtimeListener() {
     _isListening = false;
+    _isPaymentFlowActive = false;
+    _reconnectAttempts = 0;
     _reconnectTimer?.cancel();
     _sseSubscription?.cancel();
     _sseClient?.close();
@@ -169,6 +206,17 @@ class GlobalDispatchOverlayService {
     // Trigger audible chime and haptic burst
     DispatchSoundPlayer.playIncomingOfferAlert();
 
+    // Trigger heads-up notification with sound & vibration
+    final req = offerData['requirement'] as Map<String, dynamic>?;
+    final pickup = (req?['pickupLocation'] ?? offerData['pickupLocation'] ?? 'Pickup available').toString();
+    final rate = (offerData['offeredRate'] ?? req?['ratePerVehicle'] ?? '').toString();
+    final bodyText = rate.isNotEmpty ? '₹$rate • Pickup: $pickup' : 'Pickup: $pickup';
+    LocalNotificationService.instance.showIncomingRideNotification(
+      title: '🚗 New Ride Requirement Available!',
+      body: bodyText,
+      payload: offerId,
+    );
+
     try {
       final result = await IncomingRequirementBottomSheet.show<bool>(
         context: context,
@@ -176,6 +224,8 @@ class GlobalDispatchOverlayService {
         onDismissed: () {
           _isShowingOffer = false;
           _activeOfferId = null;
+          DispatchSoundPlayer.stopAlert();
+          LocalNotificationService.instance.cancelAll();
         },
       );
       return result;
@@ -183,6 +233,7 @@ class GlobalDispatchOverlayService {
       debugPrint('⚠️ [OverlayService] Failed to display bottom sheet: $e');
       _isShowingOffer = false;
       _activeOfferId = null;
+      DispatchSoundPlayer.stopAlert();
       return null;
     }
   }
@@ -200,6 +251,8 @@ class GlobalDispatchOverlayService {
     }
     _isShowingOffer = false;
     _activeOfferId = null;
+    DispatchSoundPlayer.stopAlert();
+    LocalNotificationService.instance.cancelAll();
   }
 
   /// Dispatches real-time SSE / WebSocket event to overlay service

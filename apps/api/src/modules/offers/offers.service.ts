@@ -16,7 +16,6 @@ import {
   DriverAvailability,
   VerificationStatus,
   VehicleType,
-  FulfillmentMode,
   NotificationType,
   validateOfferTransition,
 } from '@adhocx/contracts';
@@ -39,6 +38,10 @@ export class OffersService {
   /**
    * Get offers sent to a driver with status filtering and countdown computation.
    * Drivers only see their own offers.
+   * 
+   * IMPORTANT: This is a pure read-only query endpoint. It does NOT create offers
+   * as a side effect. Offer creation is handled exclusively by the DispatchService
+   * when vendors post requirements.
    */
   async getOffersForDriver(driverUserId: string, query?: OfferQueryDto): Promise<OfferResponseDto[]> {
     try {
@@ -60,10 +63,28 @@ export class OffersService {
         }
       }
 
+      // Default to only showing actionable SENT offers to prevent stale data
       const where: any = { driverId: driver.id };
       if (query?.status) {
         where.status = query.status;
+      } else {
+        where.status = OfferStatus.SENT;
       }
+
+      // Also exclude expired offers even if status hasn't been updated yet
+      if (!query?.status) {
+        where.expiresAt = { gt: new Date() };
+      }
+
+      // Get driver's active trips to exclude offers for requirements already fulfilled by this driver
+      const activeTrips = await this.db.trip.findMany({
+        where: {
+          driverId: driver.id,
+          status: { in: ['ASSIGNED', 'ARRIVED', 'IN_PROGRESS', 'COMPLETED'] },
+        },
+        select: { requirementId: true },
+      });
+      const fulfilledRequirementIds = new Set(activeTrips.map(t => t.requirementId));
 
       let offers = await this.db.offer.findMany({
         where,
@@ -75,43 +96,9 @@ export class OffersService {
         orderBy: { createdAt: 'desc' },
       });
 
-      // If online driver has no pending offers, check for active dispatching requirements
-      if (offers.length === 0 && driver.availabilityStatus === DriverAvailability.AVAILABLE) {
-        const activeRequirements = await this.db.requirement.findMany({
-          where: {
-            fulfillmentMode: FulfillmentMode.DIRECT_DISPATCH,
-            status: { in: [RequirementStatus.POSTED, RequirementStatus.DISPATCHING, RequirementStatus.PARTIALLY_FULFILLED] },
-          },
-          include: { vendor: true, offers: true },
-          orderBy: { createdAt: 'desc' },
-          take: 5,
-        });
-
-        for (const req of activeRequirements) {
-          const remaining = req.quantity - req.assignedQuantity;
-          if (remaining > 0) {
-            const hasExisting = req.offers.some(o => o.driverId === driver!.id);
-            if (!hasExisting) {
-              const expiresAt = new Date(Date.now() + 60 * 1000);
-              const newOffer = await this.db.offer.create({
-                data: {
-                  requirementId: req.id,
-                  driverId: driver.id,
-                  vehicleType: req.vehicleType,
-                  offeredRate: req.ratePerVehicle ?? 0,
-                  status: OfferStatus.SENT,
-                  expiresAt,
-                },
-                include: {
-                  requirement: {
-                    include: { vendor: true },
-                  },
-                },
-              });
-              offers.push(newOffer);
-            }
-          }
-        }
+      // Filter out offers for requirements this driver already has a trip for
+      if (fulfilledRequirementIds.size > 0) {
+        offers = offers.filter(o => !fulfilledRequirementIds.has(o.requirementId));
       }
 
     const now = Date.now();

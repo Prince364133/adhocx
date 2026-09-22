@@ -7,7 +7,7 @@ FROM ghcr.io/cirruslabs/flutter:stable AS builder
 WORKDIR /app
 
 # Accept API URL build argument
-ARG NEXT_PUBLIC_API_URL=http://localhost:7001/api/v1
+ARG NEXT_PUBLIC_API_URL=https://api.adhocx.com/api/v1
 ENV API_BASE_URL=$NEXT_PUBLIC_API_URL
 
 # Copy Flutter dependencies definitions
@@ -16,7 +16,7 @@ RUN flutter pub get
 
 # Copy mobile source files and compile web release
 COPY apps/mobile ./
-RUN flutter build web --release --no-tree-shake-icons --dart-define=API_URL=https://api.adhocx.com/api/v1
+RUN flutter build web --release --no-tree-shake-icons --dart-define=API_URL=https://api.adhocx.com/api/v1 --dart-define=API_BASE_URL=https://api.adhocx.com/api/v1
 
 # Stage 2: Serve web bundle via lightweight Nginx Alpine
 FROM nginx:alpine AS runner

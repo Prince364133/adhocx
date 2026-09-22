@@ -110,6 +110,7 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
   @override
   void dispose() {
     _countdownTimer?.cancel();
+    DispatchSoundPlayer.stopAlert();
     super.dispose();
   }
 

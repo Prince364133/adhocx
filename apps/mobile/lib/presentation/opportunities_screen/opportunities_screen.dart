@@ -49,9 +49,38 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
         orElse: () => null,
       );
 
+      // Build set of requirementIds the driver already has trips for
+      final Set<String> fulfilledRequirementIds = {};
+      for (final t in trips) {
+        final status = (t['status'] ?? '').toString();
+        if (status == 'ASSIGNED' || status == 'ARRIVED' || status == 'IN_PROGRESS' || status == 'COMPLETED') {
+          final reqId = t['requirementId']?.toString();
+          if (reqId != null) fulfilledRequirementIds.add(reqId);
+        }
+      }
+
+      // Filter direct offers: only show SENT offers for requirements the driver doesn't already have a trip for
+      final filteredDirectOffers = directOffers.where((o) {
+        final status = (o['status'] ?? 'SENT').toString().toUpperCase();
+        if (status != 'SENT') return false;
+        final reqId = o['requirementId']?.toString();
+        if (reqId != null && fulfilledRequirementIds.contains(reqId)) return false;
+        return true;
+      }).toList();
+
+      // Filter bidding opportunities: exclude accepted bids and requirements with existing trips
+      final filteredBidOpportunities = bidOpportunities.where((o) {
+        final reqId = (o['requirementId'] ?? o['id'])?.toString();
+        if (reqId != null && fulfilledRequirementIds.contains(reqId)) return false;
+        // If bid was already accepted, hide from opportunities
+        final myBid = o['myBid'] as Map<String, dynamic>?;
+        if (myBid != null && myBid['status'] == 'ACCEPTED') return false;
+        return true;
+      }).toList();
+
       if (mounted) {
         setState(() {
-          _offers = [...directOffers, ...bidOpportunities];
+          _offers = [...filteredDirectOffers, ...filteredBidOpportunities];
           _isOnActiveTrip = activeTrip != null;
           if (dynamicTiers.isNotEmpty) {
             final catSet = <String>{'All'};

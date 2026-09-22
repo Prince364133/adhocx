@@ -1,7 +1,16 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import './local_notification_service.dart';
+import '../utils/dispatch_sound_player.dart';
+
+/// Top-level background message handler required by FirebaseMessaging
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  debugPrint('📬 [FCM BACKGROUND MESSAGE] ${message.messageId} - ${message.data}');
+}
 
 /// Centralized FCM Push Notification Service for Mobile Client
 class FcmService {
@@ -12,23 +21,86 @@ class FcmService {
 
   String? _fcmToken;
   String? get fcmToken => _fcmToken;
+  String? _lastApiBaseUrl;
+  String? _lastUserToken;
 
   /// Initialize FCM listeners and register token with backend API
   Future<void> initialize({required String apiBaseUrl, String? userToken}) async {
+    _lastApiBaseUrl = apiBaseUrl;
+    _lastUserToken = userToken;
+
     try {
       debugPrint('🔔 [FCM SERVICE] Initializing Push Notification handler...');
-      
-      // In web/desktop/simulated mobile, retrieve or generate local client push token
-      final prefs = await SharedPreferences.getInstance();
-      String? savedToken = prefs.getString('adhocx_fcm_token');
-      
-      if (savedToken == null) {
-        savedToken = 'fcm_tok_${DateTime.now().millisecondsSinceEpoch}_${(1000 + (DateTime.now().microsecond % 9000))}';
-        await prefs.setString('adhocx_fcm_token', savedToken);
+
+      if (!kIsWeb) {
+        // 1. Request notification permissions from device
+        final messaging = FirebaseMessaging.instance;
+        final settings = await messaging.requestPermission(
+          alert: true,
+          announcement: true,
+          badge: true,
+          carPlay: false,
+          criticalAlert: true,
+          provisional: false,
+          sound: true,
+        );
+
+        debugPrint('🔔 [FCM PERMISSION STATUS] ${settings.authorizationStatus}');
+
+        // 2. Retrieve real Firebase FCM registration token
+        try {
+          final token = await messaging.getToken();
+          if (token != null && token.isNotEmpty) {
+            _fcmToken = token;
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('adhocx_fcm_token', token);
+            debugPrint('📱 [REAL FCM TOKEN] Token: ${_fcmToken?.substring(0, 20)}...');
+          }
+        } catch (tokenErr) {
+          debugPrint('⚠️ [FCM GET TOKEN NOTICE] $tokenErr');
+        }
+
+        // 3. Listen to token refreshes
+        messaging.onTokenRefresh.listen((newToken) {
+          debugPrint('🔄 [FCM TOKEN REFRESHED] New token generated');
+          _fcmToken = newToken;
+          if (_lastApiBaseUrl != null && _lastUserToken != null) {
+            registerTokenWithBackend(apiBaseUrl: _lastApiBaseUrl!, authToken: _lastUserToken!);
+          }
+        });
+
+        // 4. Foreground message listener -> show heads-up local notification
+        FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+          debugPrint('📬 [FCM FOREGROUND MESSAGE] ${message.notification?.title}: ${message.notification?.body}');
+          final title = message.notification?.title ?? message.data['title'] ?? '🚗 AdhocX Notification';
+          final body = message.notification?.body ?? message.data['body'] ?? 'You have a new update';
+          final type = message.data['type']?.toString();
+
+          if (type == 'TRIP_OFFER' || type == 'NEW_OFFER') {
+            DispatchSoundPlayer.playIncomingOfferAlert();
+          }
+
+          LocalNotificationService.instance.showIncomingRideNotification(
+            title: title,
+            body: body,
+            payload: jsonEncode(message.data),
+          );
+        });
+
+        // 5. Background message handler
+        FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
       }
-      
-      _fcmToken = savedToken;
-      debugPrint('📱 [FCM TOKEN READY] Token: ${_fcmToken?.substring(0, 15)}...');
+
+      // Fallback token for simulated / web environments if real token is absent
+      if (_fcmToken == null) {
+        final prefs = await SharedPreferences.getInstance();
+        String? savedToken = prefs.getString('adhocx_fcm_token');
+        if (savedToken == null) {
+          savedToken = 'fcm_tok_${DateTime.now().millisecondsSinceEpoch}_${(1000 + (DateTime.now().microsecond % 9000))}';
+          await prefs.setString('adhocx_fcm_token', savedToken);
+        }
+        _fcmToken = savedToken;
+      }
 
       if (userToken != null && userToken.isNotEmpty) {
         await registerTokenWithBackend(apiBaseUrl: apiBaseUrl, authToken: userToken);
@@ -59,7 +131,7 @@ class FcmService {
           'token': _fcmToken,
           'platform': platformStr,
           'deviceModel': kIsWeb ? 'Web Browser' : defaultTargetPlatform.toString(),
-          'appVersion': '1.0.0+3',
+          'appVersion': '1.0.0+4',
         }),
       );
 
@@ -117,4 +189,3 @@ class FcmService {
     }
   }
 }
-

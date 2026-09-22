@@ -40,6 +40,12 @@ async function bootstrap() {
 
   // CORS (with origin reflection and 24h preflight caching to prevent browser OPTIONS request flooding)
   const allowedOrigins = [
+    'https://app.adhocx.com',
+    'https://admin.adhocx.com',
+    'https://adhocx.com',
+    'https://www.adhocx.com',
+    'https://api.adhocx.com',
+    'http://3.110.42.191',
     'http://localhost:7002',
     'http://localhost:7003',
     'http://localhost:3000',
@@ -52,6 +58,8 @@ async function bootstrap() {
       if (!origin) return callback(null, true);
       if (
         allowedOrigins.includes(origin) ||
+        origin.endsWith('.adhocx.com') ||
+        origin === 'https://adhocx.com' ||
         origin.startsWith('http://localhost:') ||
         origin.startsWith('http://127.0.0.1:')
       ) {

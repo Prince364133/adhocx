@@ -50,26 +50,52 @@ class ApiClient {
     }
   }
 
-  // Base URL configuration (Default to live AWS production server or localhost for web)
+  // Base URL configuration (Strictly prioritize live production domain when running in browser or release)
   String get baseUrl {
-    const fromEnv = String.fromEnvironment('API_URL', defaultValue: '');
-    if (fromEnv.isNotEmpty) return fromEnv;
-
-    const fromBaseEnv = String.fromEnvironment('API_BASE_URL', defaultValue: '');
-    if (fromBaseEnv.isNotEmpty) return fromBaseEnv;
-
+    // 1. If running in a web browser:
     if (kIsWeb) {
-      final host = Uri.base.host;
+      final host = Uri.base.host.toLowerCase();
+      // On any adhocx domain (app.adhocx.com, m.adhocx.com, etc.), ALWAYS use live production API
       if (host.contains('adhocx.com')) {
         return 'https://api.adhocx.com/api/v1';
       }
-      if (host.isNotEmpty && host != 'localhost' && host != '127.0.0.1') {
+      // If deployed on any non-local domain/IP, use current origin's /api/v1
+      if (host.isNotEmpty && host != 'localhost' && host != '127.0.0.1' && !host.startsWith('192.168.') && !host.startsWith('10.')) {
         return '${Uri.base.scheme}://$host/api/v1';
       }
+    }
+
+    // 2. Check compile-time definitions (e.g. from CI/CD or launch scripts),
+    // but NEVER let a localhost URL be used when on a remote web domain
+    const fromEnv = String.fromEnvironment('API_URL', defaultValue: '');
+    if (fromEnv.isNotEmpty) {
+      if (kIsWeb && fromEnv.contains('localhost')) {
+        final host = Uri.base.host.toLowerCase();
+        if (host.isNotEmpty && host != 'localhost' && host != '127.0.0.1') {
+          return 'https://api.adhocx.com/api/v1';
+        }
+      }
+      return fromEnv;
+    }
+
+    const fromBaseEnv = String.fromEnvironment('API_BASE_URL', defaultValue: '');
+    if (fromBaseEnv.isNotEmpty) {
+      if (kIsWeb && fromBaseEnv.contains('localhost')) {
+        final host = Uri.base.host.toLowerCase();
+        if (host.isNotEmpty && host != 'localhost' && host != '127.0.0.1') {
+          return 'https://api.adhocx.com/api/v1';
+        }
+      }
+      return fromBaseEnv;
+    }
+
+    // 3. Local web development fallback
+    if (kIsWeb) {
       return 'http://localhost:7001/api/v1';
     }
 
-    return 'http://3.110.42.191/api/v1';
+    // 4. Default for Native Mobile (Android & iOS) -> Live AWS Production API
+    return 'https://api.adhocx.com/api/v1';
   }
 
   Future<String?> getToken() async {

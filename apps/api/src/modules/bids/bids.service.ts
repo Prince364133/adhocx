@@ -278,6 +278,8 @@ export class BidsService {
 
   /**
    * Driver gets open outstation reverse auction requirements to submit quotes on.
+   * Excludes requirements where this driver already has an active/completed trip
+   * or where their bid has already been accepted.
    */
   async getOpenBiddingOpportunities(driverUserId: string): Promise<any[]> {
     try {
@@ -304,6 +306,16 @@ export class BidsService {
         }
       }
 
+      // Get requirements this driver already has trips for (to exclude from opportunities)
+      const driverTrips = await this.db.trip.findMany({
+        where: {
+          driverId: driver.id,
+          status: { in: ['ASSIGNED', 'ARRIVED', 'IN_PROGRESS', 'COMPLETED'] },
+        },
+        select: { requirementId: true },
+      });
+      const fulfilledRequirementIds = new Set(driverTrips.map(t => t.requirementId));
+
       const requirements = await this.db.requirement.findMany({
         where: {
           fulfillmentMode: FulfillmentMode.BIDDING,
@@ -322,7 +334,17 @@ export class BidsService {
         take: 50,
       });
 
-      return requirements.map((req) => ({
+      // Filter out requirements the driver already has a trip for,
+      // and requirements where the driver's bid was already accepted
+      const filteredRequirements = requirements.filter(req => {
+        // Skip if driver already has a trip for this requirement
+        if (fulfilledRequirementIds.has(req.id)) return false;
+        // Skip if driver's bid was already accepted (trip is being created)
+        if (req.bids.length > 0 && req.bids[0].status === 'ACCEPTED') return false;
+        return true;
+      });
+
+      return filteredRequirements.map((req) => ({
         id: req.id,
         requirementId: req.id,
         fulfillmentMode: req.fulfillmentMode,

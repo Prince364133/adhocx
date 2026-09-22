@@ -78,6 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _startAutoRefresh() {
     _autoRefreshTimer?.cancel();
     _autoRefreshTimer = Timer.periodic(const Duration(seconds: 6), (_) {
+      if (GlobalDispatchOverlayService.instance.isPaymentFlowActive) return;
       if (mounted && (_currentState == DriverHomeState.available || _currentState == DriverHomeState.offerAttention)) {
         _loadLiveDriverData(silent: true, force: false);
       }
@@ -85,7 +86,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadLiveDriverData({bool silent = false, bool? force}) async {
-    if (_isSyncing) return;
+    if (_isSyncing || GlobalDispatchOverlayService.instance.isPaymentFlowActive) return;
     _isSyncing = true;
     final forceFetch = force ?? !silent;
 

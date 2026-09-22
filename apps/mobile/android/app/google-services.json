@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "886573696369",
+    "project_id": "adhocx-507407",
+    "storage_bucket": "adhocx-507407.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:886573696369:android:db157e40337b14c5dfa2d0",
+        "android_client_info": {
+          "package_name": "com.adhocx.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "886573696369-71b25h9oo9e0bjph84okjqd6k1ld7lmm.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.adhocx.app",
+            "certificate_hash": "e6a17b6294d35eecad0664db8731114b35e69bf6"
+          }
+        },
+        {
+          "client_id": "886573696369-84dnfvb9jaegbqp8deosr3ucf8tq93ms.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBnCwx_Jtc9gE4_ADFiYWAEQaerCt9Xji0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "886573696369-84dnfvb9jaegbqp8deosr3ucf8tq93ms.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

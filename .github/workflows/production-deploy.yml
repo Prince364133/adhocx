@@ -79,7 +79,7 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service.name }}
           build-args: |
-            NEXT_PUBLIC_API_URL=/api/v1
+            NEXT_PUBLIC_API_URL=https://api.adhocx.com/api/v1
 
   # ============================================================================
   # 2. Deploy Container Fleet to AWS EC2 Instance
@@ -132,6 +132,10 @@ jobs:
           NODE_ENV=production
           PORT=3000
           API_PREFIX=api/v1
+          APP_URL=https://api.adhocx.com
+          CORS_ORIGINS=https://app.adhocx.com,https://admin.adhocx.com,https://adhocx.com,https://www.adhocx.com,https://api.adhocx.com,http://localhost:7002,http://localhost:7003,http://localhost:3000,http://localhost:3001,http://3.110.42.191
+          NEXT_PUBLIC_API_URL=https://api.adhocx.com/api/v1
+          NEXT_PUBLIC_WS_URL=wss://api.adhocx.com
           POSTGRES_USER=${{ secrets.POSTGRES_USER || 'adhocx_user' }}
           POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD || 'adhocx_prod_db_sec_pass_2026!' }}
           POSTGRES_DB=${{ secrets.POSTGRES_DB || 'adhocx' }}
@@ -143,7 +147,7 @@ jobs:
           RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID || 'rzp_live_TJ4cJdMCagilvq' }}
           RAZORPAY_KEY_SECRET=${{ secrets.RAZORPAY_KEY_SECRET || 'c5RbhL5k0DIQKTDOQot3cyei' }}
           RAZORPAY_WEBHOOK_SECRET=${{ secrets.RAZORPAY_WEBHOOK_SECRET || 'rzp_webhook_secret_placeholder' }}
-          RAZORPAY_WEBHOOK_URL=http://3.110.42.191/api/v1/payments/webhooks/razorpay
+          RAZORPAY_WEBHOOK_URL=https://api.adhocx.com/api/v1/payments/webhooks/razorpay
           GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY || 'AQ.Ab8RN6KMmpoX5Rw278uN7G6ekxY4JmMdxoi3iDsRw0s1lbvtgA' }}
           R2_ACCOUNT_ID=${{ secrets.R2_ACCOUNT_ID || 'e2d2bf9eb658189a975bb2edfc73b377' }}
           R2_ACCESS_KEY_ID=${{ secrets.R2_ACCESS_KEY_ID || '84969ae0c79a6fab61d239619eb33933' }}
