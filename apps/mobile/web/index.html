@@ -271,8 +271,7 @@
       })(window.history);
     </script>
 
-    <!-- Razorpay Checkout Web SDK -->
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <!-- Razorpay Checkout Web Bridge (Loaded on-demand only when initiating payment) -->
     <script>
       window.addEventListener("message", function(event) {
         if (event.data && event.data.type === "OPEN_RAZORPAY_CHECKOUT") {
@@ -324,16 +323,23 @@
           }
 
           if (typeof Razorpay === "undefined") {
-            var script = document.createElement("script");
-            script.src = "https://checkout.razorpay.com/v1/checkout.js";
-            script.onload = launchRzp;
-            script.onerror = function() {
-              window.postMessage({
-                type: "RAZORPAY_PAYMENT_FAILURE",
-                errorMessage: "Failed to load Razorpay Checkout script"
-              }, "*");
-            };
-            document.head.appendChild(script);
+            var existingScript = document.getElementById("razorpay-checkout-js");
+            if (existingScript) {
+              existingScript.addEventListener("load", launchRzp);
+            } else {
+              var script = document.createElement("script");
+              script.id = "razorpay-checkout-js";
+              script.src = "https://checkout.razorpay.com/v1/checkout.js";
+              script.async = true;
+              script.onload = launchRzp;
+              script.onerror = function() {
+                window.postMessage({
+                  type: "RAZORPAY_PAYMENT_FAILURE",
+                  errorMessage: "Failed to load Razorpay Checkout SDK"
+                }, "*");
+              };
+              document.body.appendChild(script);
+            }
           } else {
             launchRzp();
           }
