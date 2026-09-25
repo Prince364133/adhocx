@@ -136,6 +136,26 @@ export default function CouponsPage() {
       setAlert({ type: 'error', message: 'Discount value must be greater than zero.' });
       return;
     }
+    if (createForm.discountType === 'PERCENTAGE' && createForm.discountValue > 100) {
+      setAlert({ type: 'error', message: 'Percentage discount cannot exceed 100%.' });
+      return;
+    }
+    if (createForm.usageLimitTotal && createForm.usageLimitPerUser && createForm.usageLimitPerUser > createForm.usageLimitTotal) {
+      setAlert({ type: 'error', message: 'Per-user limit cannot exceed total platform usage limit.' });
+      return;
+    }
+    if (createForm.maxDiscountAmount && createForm.maxDiscountAmount > 99999999) {
+      setAlert({ type: 'error', message: 'Max cap cannot exceed ₹9,99,99,999.' });
+      return;
+    }
+    if (createForm.minOrderAmount && createForm.minOrderAmount > 99999999) {
+      setAlert({ type: 'error', message: 'Min order spend cannot exceed ₹9,99,99,999.' });
+      return;
+    }
+    if (createForm.usageLimitPerUser && createForm.usageLimitPerUser > 1000000) {
+      setAlert({ type: 'error', message: 'Per-user limit cannot exceed 1,000,000.' });
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -174,6 +194,29 @@ export default function CouponsPage() {
   async function handleUpdateCoupon(e: React.FormEvent) {
     e.preventDefault();
     if (!editingCoupon) return;
+
+    if (editForm.discountValue !== undefined && editForm.discountValue <= 0) {
+      setAlert({ type: 'error', message: 'Discount value must be greater than zero.' });
+      return;
+    }
+    if (editForm.discountType === 'PERCENTAGE' && editForm.discountValue !== undefined && editForm.discountValue > 100) {
+      setAlert({ type: 'error', message: 'Percentage discount cannot exceed 100%.' });
+      return;
+    }
+    const effTotal = editForm.usageLimitTotal !== undefined ? editForm.usageLimitTotal : editingCoupon.usageLimitTotal;
+    const effUser = editForm.usageLimitPerUser !== undefined ? editForm.usageLimitPerUser : editingCoupon.usageLimitPerUser;
+    if (effTotal && effUser && effUser > effTotal) {
+      setAlert({ type: 'error', message: 'Per-user limit cannot exceed total platform usage limit.' });
+      return;
+    }
+    if (editForm.maxDiscountAmount && editForm.maxDiscountAmount > 99999999) {
+      setAlert({ type: 'error', message: 'Max cap cannot exceed ₹9,99,99,999.' });
+      return;
+    }
+    if (editForm.minOrderAmount && editForm.minOrderAmount > 99999999) {
+      setAlert({ type: 'error', message: 'Min order spend cannot exceed ₹9,99,99,999.' });
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -644,6 +687,7 @@ export default function CouponsPage() {
               <input
                 type="number"
                 min={1}
+                max={99999999}
                 placeholder="No max cap"
                 value={createForm.maxDiscountAmount || ''}
                 onChange={(e) =>
@@ -672,6 +716,7 @@ export default function CouponsPage() {
               <input
                 type="number"
                 min={0}
+                max={99999999}
                 value={createForm.minOrderAmount ?? 0}
                 onChange={(e) => setCreateForm({ ...createForm, minOrderAmount: parseFloat(e.target.value) || 0 })}
                 style={{
@@ -721,6 +766,7 @@ export default function CouponsPage() {
               <input
                 type="number"
                 min={1}
+                max={10000000}
                 placeholder="e.g. 1000 (empty for unlimited)"
                 value={createForm.usageLimitTotal || ''}
                 onChange={(e) =>
@@ -742,12 +788,13 @@ export default function CouponsPage() {
 
             <div>
               <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
-                Per User Limit *
+                Per User Limit * {createForm.usageLimitTotal ? `(Max: ${createForm.usageLimitTotal})` : ''}
               </label>
               <input
                 type="number"
                 required
                 min={1}
+                max={createForm.usageLimitTotal || 1000000}
                 value={createForm.usageLimitPerUser}
                 onChange={(e) => setCreateForm({ ...createForm, usageLimitPerUser: parseInt(e.target.value, 10) || 1 })}
                 style={{
@@ -938,6 +985,7 @@ export default function CouponsPage() {
               <input
                 type="number"
                 min={1}
+                max={99999999}
                 value={editForm.maxDiscountAmount || ''}
                 onChange={(e) =>
                   setEditForm({
@@ -965,6 +1013,7 @@ export default function CouponsPage() {
               <input
                 type="number"
                 min={0}
+                max={99999999}
                 value={editForm.minOrderAmount ?? 0}
                 onChange={(e) => setEditForm({ ...editForm, minOrderAmount: parseFloat(e.target.value) || 0 })}
                 style={{

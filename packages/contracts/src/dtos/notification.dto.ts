@@ -1,47 +1,153 @@
-import { DevicePlatform, NotificationType, UserRole, DriverAvailability, VerificationStatus, VehicleType } from '../enums';
+import {
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsEnum,
+  IsBoolean,
+  IsArray,
+  ValidateNested,
+  IsObject,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  DevicePlatform,
+  NotificationType,
+  UserRole,
+  DriverAvailability,
+  VerificationStatus,
+  VehicleType,
+} from '../enums';
 
 export class RegisterDeviceTokenDto {
+  @IsNotEmpty({ message: 'Device token is required' })
+  @IsString()
   token!: string;
+
+  @IsNotEmpty({ message: 'Device platform is required' })
+  @IsEnum(DevicePlatform)
   platform!: DevicePlatform;
+
+  @IsOptional()
+  @IsString()
   deviceModel?: string;
+
+  @IsOptional()
+  @IsString()
   appVersion?: string;
 }
 
 export class UnregisterDeviceTokenDto {
+  @IsNotEmpty({ message: 'Device token is required' })
+  @IsString()
   token!: string;
 }
 
 export class AudienceFilterDto {
+  @IsOptional()
+  @IsString()
   role?: 'ALL' | UserRole;
+
+  @IsOptional()
+  @IsString()
   availability?: 'ALL' | DriverAvailability;
+
+  @IsOptional()
+  @IsString()
   verificationStatus?: 'ALL' | VerificationStatus;
+
+  @IsOptional()
+  @IsArray()
   vehicleTypes?: VehicleType[];
+
+  @IsOptional()
+  @IsString()
   city?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
   userIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
   phones?: string[];
+
+  @IsOptional()
+  @IsString()
   topic?: string;
 }
 
 export class BroadcastPushDto {
+  @IsNotEmpty({ message: 'Notification title is required' })
+  @IsString()
   title!: string;
+
+  @IsNotEmpty({ message: 'Notification body is required' })
+  @IsString()
   body!: string;
+
+  @IsOptional()
+  @IsString()
   imageUrl?: string;
+
+  @IsOptional()
+  @IsString()
   actionUrl?: string;
+
+  @IsOptional()
+  @IsString()
   priority?: 'normal' | 'high';
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AudienceFilterDto)
   filter?: AudienceFilterDto;
+
+  @IsOptional()
+  @IsObject()
   data?: Record<string, string>;
+
+  @IsOptional()
+  @IsBoolean()
   dryRun?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   bypassQuietHours?: boolean;
 }
 
 export class TestPushDto {
+  @IsNotEmpty({ message: 'Notification title is required' })
+  @IsString()
   title!: string;
+
+  @IsNotEmpty({ message: 'Notification body is required' })
+  @IsString()
   body!: string;
+
+  @IsOptional()
+  @IsString()
   imageUrl?: string;
+
+  @IsOptional()
+  @IsString()
   actionUrl?: string;
+
+  @IsOptional()
+  @IsString()
   targetToken?: string;
+
+  @IsOptional()
+  @IsString()
   targetUserId?: string;
+
+  @IsOptional()
+  @IsString()
   targetPhone?: string;
+
+  @IsOptional()
+  @IsObject()
   data?: Record<string, string>;
 }
 
@@ -100,12 +206,32 @@ export class AudienceEstimateDto {
 }
 
 export class UpdateNotificationPreferenceDto {
+  @IsOptional()
+  @IsBoolean()
   pushEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   emailEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   smsEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   tripAlerts?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   marketingPromos?: boolean;
+
+  @IsOptional()
+  @IsString()
   quietHoursStart?: string;
+
+  @IsOptional()
+  @IsString()
   quietHoursEnd?: string;
 }
 
@@ -123,6 +249,11 @@ export class NotificationPreferenceResponseDto {
 }
 
 export class NotificationInteractionDto {
+  @IsOptional()
+  @IsString()
   action?: 'CLICK' | 'DISMISS' | 'OPEN';
+
+  @IsOptional()
+  @IsString()
   timestamp?: string;
 }

@@ -61,7 +61,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
 
     final initialPhone = onboarding.phoneNumber.isNotEmpty
         ? onboarding.phoneNumber
-        : (authUser?.phone ?? '');
+        : ((authUser?.email == null || authUser!.email!.isEmpty) ? (authUser?.phone ?? '') : '');
 
     _nameController = TextEditingController(text: initialName);
     _phoneController = TextEditingController(text: initialPhone);
@@ -119,8 +119,48 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
     }
   }
 
+  Future<void> _pickLocation() async {
+    final result = await context.push<Map<String, dynamic>>(
+      AppRoutes.universalLocationSearchScreen,
+      extra: {
+        'title': 'Select Residential Location',
+        'initialAddress': _addressController.text.trim(),
+      },
+    );
+    if (result != null && mounted) {
+      final address = (result['fullAddress'] as String?) ??
+          (result['address'] as String?) ??
+          (result['title'] as String?) ??
+          '';
+      if (address.isNotEmpty) {
+        setState(() {
+          _addressController.text = address;
+        });
+      }
+    }
+  }
+
   Future<void> _handleContinue() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (_selectedDate == null) {
+      Fluttertoast.showToast(
+        msg: 'Please select your Date of Birth',
+        backgroundColor: AppColors.error,
+        textColor: Colors.white,
+      );
+      return;
+    }
+
+    final age = DateTime.now().difference(_selectedDate!).inDays ~/ 365;
+    if (age < 18) {
+      Fluttertoast.showToast(
+        msg: 'Driver partners must be at least 18 years old to onboard',
+        backgroundColor: AppColors.error,
+        textColor: Colors.white,
+      );
+      return;
+    }
 
     final onboarding = context.read<OnboardingProvider>();
     final enteredName = _nameController.text.trim();
@@ -128,6 +168,15 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
     final enteredAddress = _addressController.text.trim();
     final enteredEmergencyName = _emergencyNameController.text.trim();
     final enteredEmergencyPhone = _emergencyPhoneController.text.trim();
+
+    if (enteredAddress.isEmpty) {
+      Fluttertoast.showToast(
+        msg: 'Please select your residential location',
+        backgroundColor: AppColors.error,
+        textColor: Colors.white,
+      );
+      return;
+    }
 
     onboarding.setPersonalDetails(
       fullName: enteredName,
@@ -315,12 +364,12 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                     // ── 1. Full Name ─────────────────────────────────────────
                     AppTextField(
                       controller: _nameController,
-                      label: 'Full Name',
-                      hintText: 'Enter your full legal name',
+                      label: 'Full Legal Name *',
+                      hintText: 'Enter your full legal name as per Aadhaar/PAN',
                       prefixIcon: const Icon(Icons.person_outline, size: 20),
                       validator: (val) {
-                        if (val == null || val.trim().length < 2) {
-                          return 'Please enter your full legal name';
+                        if (val == null || val.trim().length < 3) {
+                          return 'Please enter your full legal name (min 3 characters)';
                         }
                         return null;
                       },
@@ -330,13 +379,17 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                     // ── 2. Phone Number ──────────────────────────────────────
                     AppTextField(
                       controller: _phoneController,
-                      label: 'Phone Number',
-                      hintText: 'e.g. +91 98765 43210',
+                      label: 'Phone Number *',
+                      hintText: 'e.g. 9876543210',
                       prefixIcon: const Icon(Icons.phone_outlined, size: 20),
                       keyboardType: TextInputType.phone,
                       validator: (val) {
-                        if (val == null || val.trim().length < 8) {
-                          return 'Please enter a valid phone number';
+                        if (val == null || val.trim().isEmpty) {
+                          return 'Please enter your mobile phone number';
+                        }
+                        final digits = val.replaceAll(RegExp(r'\D'), '');
+                        if (digits.length < 10) {
+                          return 'Please enter a valid 10-digit mobile number';
                         }
                         return null;
                       },
@@ -348,7 +401,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Gender',
+                          'Gender *',
                           style: AppTypography.caption(
                             color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                             fontWeight: FontWeight.bold,
@@ -376,8 +429,8 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                                       borderRadius: BorderRadius.circular(AppRadius.md),
                                       border: Border.all(
                                         color: isSelected
-                                            ? (isDark ? AppColors.primaryLight : AppColors.primary)
-                                            : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                                          ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                                          : (isDark ? AppColors.borderDark : AppColors.borderLight),
                                         width: isSelected ? 1.5 : 1,
                                       ),
                                     ),
@@ -406,7 +459,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Date of Birth',
+                          'Date of Birth (18+ years required) *',
                           style: AppTypography.caption(
                             color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                             fontWeight: FontWeight.bold,
@@ -464,12 +517,19 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                     // ── 5. Location / Permanent Address ──────────────────────
                     AppTextField(
                       controller: _addressController,
-                      label: 'Location / Residential Address',
-                      hintText: 'Enter your city / residential address with PIN code',
+                      readOnly: true,
+                      onTap: _pickLocation,
+                      label: 'Location / Residential Address *',
+                      hintText: 'Tap to select city or location from map/search',
                       prefixIcon: const Icon(Icons.location_on_outlined, size: 20),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.my_location_rounded, color: AppColors.primary, size: 20),
+                        tooltip: 'Select Location',
+                        onPressed: _pickLocation,
+                      ),
                       validator: (val) {
-                        if (isDriver && (val == null || val.trim().length < 3)) {
-                          return 'Please enter your residential address / location';
+                        if (val == null || val.trim().length < 3) {
+                          return 'Please select your residential location / city';
                         }
                         return null;
                       },

@@ -180,12 +180,16 @@ export default function NotificationsPage() {
   }
 
   async function handleBroadcastPush() {
+    if (!title.trim() || !body.trim()) {
+      setAlert({ type: 'error', message: 'Please enter both Title and Body for the broadcast campaign before dispatching.' });
+      return;
+    }
     setSubmitting(true);
     try {
       const finalRoute = actionUrl === 'CUSTOM' ? customActionUrl : actionUrl;
       const payload: BroadcastPushPayload = {
-        title,
-        body,
+        title: title.trim(),
+        body: body.trim(),
         imageUrl: imageUrl.trim() || undefined,
         actionUrl: finalRoute.trim() || undefined,
         priority,
@@ -224,8 +228,8 @@ export default function NotificationsPage() {
       const finalRoute = actionUrl === 'CUSTOM' ? customActionUrl : actionUrl;
       const isToken = testPhoneOrToken.length > 25;
       const payload: TestPushPayload = {
-        title,
-        body,
+        title: title.trim() || 'AdhocX Test Notification',
+        body: body.trim() || 'Live test push delivery from AdhocX Push Notification & Campaign Studio.',
         imageUrl: imageUrl.trim() || undefined,
         actionUrl: finalRoute.trim() || undefined,
         targetToken: isToken ? testPhoneOrToken.trim() : undefined,
@@ -233,11 +237,18 @@ export default function NotificationsPage() {
         data: { test: 'true', sentAt: new Date().toISOString() },
       };
 
-      await adminApi.sendTestPushNotification(payload);
-      setAlert({
-        type: 'success',
-        message: `Test push sent successfully to ${testPhoneOrToken}! Check target device.`,
-      });
+      const res = await adminApi.sendTestPushNotification(payload);
+      if (res && res.totalTokens === 0) {
+        setAlert({
+          type: 'success',
+          message: `Target user found! In-app test notification stored in feed. (Note: No active FCM device token was registered for this user yet).`,
+        });
+      } else {
+        setAlert({
+          type: 'success',
+          message: `Test push sent successfully to ${testPhoneOrToken}! Delivered to ${(res as any)?.successCount ?? 1} device(s).`,
+        });
+      }
       setIsTestPushOpen(false);
     } catch (err: any) {
       setAlert({ type: 'error', message: err.message || 'Failed to send test push' });

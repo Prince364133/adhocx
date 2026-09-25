@@ -4,7 +4,7 @@ class RequirementDraftProvider extends ChangeNotifier {
   // Step 1: Category & Vehicle & Quantity & Bidding Config
   String _fulfillmentMode = 'DIRECT_DISPATCH';
   String _vehicleType = 'Sedan';
-  int _quantity = 10;
+  int _quantity = 5;
   String _specialRequests = '';
   double _suggestedBudget = 3500.0;
   double _maxBudgetCap = 4500.0;
@@ -31,11 +31,17 @@ class RequirementDraftProvider extends ChangeNotifier {
   String? _returnTime;
   DateTime _reportingDateTime = DateTime.now().add(const Duration(hours: 4));
 
-  // Step 4: Passengers & Luggage & Notes
-  int _passengers = 1;
-  String? _selectedLuggage = 'Standard (2 Suitcases)';
+  // Step 4 / Additional Options: Passengers & Stops & Notes
+  int _passengers = 4;
+  String? _selectedLuggage;
   String _additionalInfo = '';
   List<String> _additionalStops = [];
+
+  // Road Routing Telemetry via OpenStreetMap (OSRM)
+  double _roadDistanceKm = 0.0;
+  int _estimatedDurationMinutes = 0;
+  String _formattedEta = '';
+  String _formattedDistance = '';
 
   RequirementDraftProvider() {
     _initDefaultDateTime();
@@ -91,11 +97,17 @@ class RequirementDraftProvider extends ChangeNotifier {
   String get additionalInfo => _additionalInfo;
   List<String> get additionalStops => _additionalStops;
 
+  double get roadDistanceKm => _roadDistanceKm;
+  int get estimatedDurationMinutes => _estimatedDurationMinutes;
+  String get formattedEta => _formattedEta;
+  String get formattedDistance => _formattedDistance;
+
   // Setters / Updates
   void updateStep1({
     required String fulfillmentMode,
     required String vehicleType,
     required int quantity,
+    int? passengers,
     String? specialRequests,
     double? suggestedBudget,
     double? maxBudgetCap,
@@ -105,6 +117,7 @@ class RequirementDraftProvider extends ChangeNotifier {
     _fulfillmentMode = fulfillmentMode;
     _vehicleType = vehicleType;
     _quantity = quantity;
+    if (passengers != null) _passengers = passengers;
     if (specialRequests != null) _specialRequests = specialRequests;
     if (suggestedBudget != null) _suggestedBudget = suggestedBudget;
     if (maxBudgetCap != null) _maxBudgetCap = maxBudgetCap;
@@ -117,11 +130,13 @@ class RequirementDraftProvider extends ChangeNotifier {
     required String fulfillmentMode,
     required String vehicleType,
     required int quantity,
+    int? passengers,
     String? specialRequests,
   }) => updateStep1(
     fulfillmentMode: fulfillmentMode,
     vehicleType: vehicleType,
     quantity: quantity,
+    passengers: passengers,
     specialRequests: specialRequests,
   );
 
@@ -177,12 +192,16 @@ class RequirementDraftProvider extends ChangeNotifier {
     String? returnDate,
     String? returnTime,
     DateTime? reportingDateTime,
+    List<String>? additionalStops,
+    String? additionalInfo,
   }) {
     _pickupDate = pickupDate;
     _pickupTime = pickupTime;
     _hasReturn = hasReturn;
     _returnDate = returnDate;
     _returnTime = returnTime;
+    if (additionalStops != null) _additionalStops = additionalStops;
+    if (additionalInfo != null) _additionalInfo = additionalInfo;
     if (reportingDateTime != null) {
       _reportingDateTime = reportingDateTime;
     } else {
@@ -244,10 +263,23 @@ class RequirementDraftProvider extends ChangeNotifier {
     additionalInfo: specialInstructions,
   );
 
+  void setRoadRoute({
+    required double distanceKm,
+    required int durationMinutes,
+    String? formattedDistance,
+    String? formattedEta,
+  }) {
+    _roadDistanceKm = distanceKm;
+    _estimatedDurationMinutes = durationMinutes;
+    _formattedDistance = formattedDistance ?? (distanceKm < 1 ? '${(distanceKm * 1000).round()} m' : '${distanceKm.toStringAsFixed(1)} km');
+    _formattedEta = formattedEta ?? (durationMinutes < 60 ? '$durationMinutes mins' : '${durationMinutes ~/ 60}h ${durationMinutes % 60}m');
+    notifyListeners();
+  }
+
   void reset() {
     _fulfillmentMode = 'DIRECT_DISPATCH';
     _vehicleType = 'Sedan';
-    _quantity = 10;
+    _quantity = 5;
     _specialRequests = '';
     _tripType = 'One Way';
     _pickupAddress = '';
@@ -261,10 +293,14 @@ class RequirementDraftProvider extends ChangeNotifier {
     _hasReturn = false;
     _returnDate = null;
     _returnTime = null;
-    _passengers = 1;
-    _selectedLuggage = 'Standard (2 Suitcases)';
+    _passengers = 4;
+    _selectedLuggage = null;
     _additionalInfo = '';
     _additionalStops = [];
+    _roadDistanceKm = 0.0;
+    _estimatedDurationMinutes = 0;
+    _formattedEta = '';
+    _formattedDistance = '';
     _initDefaultDateTime();
     notifyListeners();
   }

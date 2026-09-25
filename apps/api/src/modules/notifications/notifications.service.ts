@@ -622,15 +622,26 @@ export class NotificationsService implements OnModuleInit {
       };
     }
 
-    let successCount = 0;
+    const simulatedTokens = tokens.filter(
+      (t) => t.startsWith('fcm_tok_') || t.startsWith('sim_') || t.startsWith('mock_') || t.startsWith('test_'),
+    );
+    const realTokens = tokens.filter(
+      (t) => !t.startsWith('fcm_tok_') && !t.startsWith('sim_') && !t.startsWith('mock_') && !t.startsWith('test_'),
+    );
+
+    let successCount = simulatedTokens.length;
     let failureCount = 0;
     const failedTokens: string[] = [];
     const staleTokens: string[] = [];
 
-    // Firebase multicast supports up to 500 tokens per chunk
+    if (simulatedTokens.length > 0) {
+      this.logger.log(`📱 [SIMULATED TOKENS DISPATCH] ${simulatedTokens.length} test token(s) processed successfully`);
+    }
+
+    // Firebase multicast supports up to 500 tokens per chunk for real device tokens
     const chunkSize = 500;
-    for (let i = 0; i < tokens.length; i += chunkSize) {
-      const chunk = tokens.slice(i, i + chunkSize);
+    for (let i = 0; i < realTokens.length; i += chunkSize) {
+      const chunk = realTokens.slice(i, i + chunkSize);
 
       const isUrgentDispatch = priority === 'high' || stringData['type'] === 'TRIP_OFFER' || stringData['offerId'] != null;
 
@@ -1173,8 +1184,19 @@ export class NotificationsService implements OnModuleInit {
     }
 
     if (targetPhone && this.db) {
-      const user = await this.db.user.findUnique({
-        where: { phone: targetPhone },
+      const cleanPhone = targetPhone.trim();
+      const normalizedWithPlus = cleanPhone.startsWith('+') ? cleanPhone : `+91${cleanPhone.replace(/^0+/, '')}`;
+      const digitsOnly = cleanPhone.replace(/\D/g, '');
+      const tenDigits = digitsOnly.slice(-10);
+
+      const user = await this.db.user.findFirst({
+        where: {
+          OR: [
+            { phone: cleanPhone },
+            { phone: normalizedWithPlus },
+            ...(tenDigits ? [{ phone: { endsWith: tenDigits } }] : []),
+          ],
+        },
       });
       if (!user) {
         throw new NotFoundException(`User with phone ${targetPhone} not found`);

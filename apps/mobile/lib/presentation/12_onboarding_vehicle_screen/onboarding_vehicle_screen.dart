@@ -277,6 +277,24 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
     final onboarding = context.read<OnboardingProvider>();
     final driverService = context.read<DriverService>();
 
+    if (onboarding.rcBookUrl == null) {
+      Fluttertoast.showToast(
+        msg: 'Please upload Vehicle RC (Registration Certificate)',
+        backgroundColor: AppColors.error,
+        textColor: Colors.white,
+      );
+      return;
+    }
+
+    if (onboarding.insuranceUrl == null) {
+      Fluttertoast.showToast(
+        msg: 'Please upload Vehicle Insurance Certificate',
+        backgroundColor: AppColors.error,
+        textColor: Colors.white,
+      );
+      return;
+    }
+
     final makeModel = _makeModelController.text.trim();
     final plate = _plateController.text.trim().toUpperCase();
     final year = _yearController.text.trim();
@@ -295,6 +313,7 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
     try {
       final docList = [
         if (onboarding.profilePhotoUrl != null) onboarding.profilePhotoUrl!,
+        if (onboarding.drivingLicenseUrl != null) onboarding.drivingLicenseUrl!,
         if (onboarding.aadharFrontUrl != null) onboarding.aadharFrontUrl!,
         if (onboarding.aadharBackUrl != null) onboarding.aadharBackUrl!,
         if (onboarding.panCardUrl != null) onboarding.panCardUrl!,
@@ -419,13 +438,13 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
 
                           // ── Vehicle Make & Model ───────────────────────────
                           _buildTextField(
-                            label: 'Vehicle Make & Model',
+                            label: 'Vehicle Make & Model *',
                             controller: _makeModelController,
                             icon: Icons.directions_car_outlined,
-                            hint: 'e.g. Honda City, Maruti Dzire',
+                            hint: 'e.g. Honda City, Maruti Dzire, Innova',
                             isDark: isDark,
                             validator: (val) {
-                              if (val == null || val.trim().length < 2) {
+                              if (val == null || val.trim().length < 3) {
                                 return 'Please enter vehicle make and model';
                               }
                               return null;
@@ -687,14 +706,14 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
 
                           // ── Registration Number (Plate) ────────────────────
                           _buildTextField(
-                            label: 'Registration Number (Plate)',
+                            label: 'Registration Number (Plate) *',
                             controller: _plateController,
                             icon: Icons.badge_outlined,
                             hint: 'e.g. HR 26 AB 1234',
                             isDark: isDark,
                             validator: (val) {
-                              if (val == null || val.trim().length < 4) {
-                                return 'Please enter vehicle registration plate number';
+                              if (val == null || val.trim().length < 6) {
+                                return 'Please enter valid registration plate number';
                               }
                               return null;
                             },
@@ -706,22 +725,34 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                             children: [
                               Expanded(
                                 child: _buildTextField(
-                                  label: 'Model Year',
+                                  label: 'Model Year *',
                                   controller: _yearController,
                                   icon: Icons.calendar_today_outlined,
                                   keyboardType: TextInputType.number,
                                   hint: 'e.g. 2022',
                                   isDark: isDark,
+                                  validator: (val) {
+                                    if (val == null || val.trim().length < 4) {
+                                      return 'Enter 4-digit year';
+                                    }
+                                    return null;
+                                  },
                                 ),
                               ),
                               const SizedBox(width: AppSpacing.md),
                               Expanded(
                                 child: _buildTextField(
-                                  label: 'Color',
+                                  label: 'Color *',
                                   controller: _colorController,
                                   icon: Icons.palette_outlined,
                                   hint: 'e.g. White',
                                   isDark: isDark,
+                                  validator: (val) {
+                                    if (val == null || val.trim().length < 2) {
+                                      return 'Enter color';
+                                    }
+                                    return null;
+                                  },
                                 ),
                               ),
                             ],
@@ -730,7 +761,7 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
 
                           // ── Upload Vehicle Documents ───────────────────────
                           Text(
-                            'Upload Vehicle Documents',
+                            'Upload Vehicle Documents (Mandatory)',
                             style: AppTypography.h3(
                               color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                               fontWeight: FontWeight.bold,
@@ -739,7 +770,7 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                           const SizedBox(height: AppSpacing.md),
 
                           _buildUploadTile(
-                            title: 'Vehicle RC Photo (Front & Back)',
+                            title: 'Vehicle RC Photo (Front & Back) *',
                             isDark: isDark,
                             isUploaded: onboarding.rcBookUrl != null,
                             isUploading: _uploadingState['RC_BOOK'] ?? false,
@@ -748,7 +779,7 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                           const SizedBox(height: AppSpacing.md),
 
                           _buildUploadTile(
-                            title: 'Commercial Insurance Certificate',
+                            title: 'Commercial Insurance Certificate *',
                             isDark: isDark,
                             isUploaded: onboarding.insuranceUrl != null,
                             isUploading: _uploadingState['INSURANCE'] ?? false,

@@ -22,6 +22,8 @@ class _UserCreateRequirementStep3ScreenState extends State<UserCreateRequirement
   late TextEditingController _timeController;
   late TextEditingController _returnDateController;
   late TextEditingController _returnTimeController;
+  late TextEditingController _additionalInfoController;
+  final List<String> _stops = [];
   bool _initialized = false;
 
   @override
@@ -34,6 +36,9 @@ class _UserCreateRequirementStep3ScreenState extends State<UserCreateRequirement
       _timeController = TextEditingController(text: draft.pickupTime);
       _returnDateController = TextEditingController(text: draft.returnDate ?? '');
       _returnTimeController = TextEditingController(text: draft.returnTime ?? '');
+      _additionalInfoController = TextEditingController(text: draft.additionalInfo);
+      _stops.clear();
+      _stops.addAll(draft.additionalStops);
       _initialized = true;
     }
   }
@@ -44,6 +49,7 @@ class _UserCreateRequirementStep3ScreenState extends State<UserCreateRequirement
     _timeController.dispose();
     _returnDateController.dispose();
     _returnTimeController.dispose();
+    _additionalInfoController.dispose();
     super.dispose();
   }
 
@@ -81,6 +87,22 @@ class _UserCreateRequirementStep3ScreenState extends State<UserCreateRequirement
     }
   }
 
+  Future<void> _showAddStopPicker() async {
+    final result = await context.push<Map<String, dynamic>>(
+      AppRoutes.universalLocationPickerScreen,
+      extra: {
+        'title': 'Add Intermediate Stop',
+      },
+    );
+
+    if (result != null && mounted) {
+      final address = (result['fullAddress'] as String?) ?? (result['address'] as String?) ?? (result['title'] as String?) ?? '';
+      if (address.isNotEmpty) {
+        setState(() => _stops.add(address));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -106,12 +128,12 @@ class _UserCreateRequirementStep3ScreenState extends State<UserCreateRequirement
       body: SafeArea(
         child: Column(
           children: [
-            // Stepper Header (1, 2, 3, 4, 5)
+            // Stepper Header (4 Steps: 1, 2, 3, 4)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: List.generate(5, (index) {
+                children: List.generate(4, (index) {
                   final stepNum = index + 1;
                   final isActive = stepNum <= 3;
                   return CircleAvatar(
@@ -238,6 +260,72 @@ class _UserCreateRequirementStep3ScreenState extends State<UserCreateRequirement
 
                     const SizedBox(height: AppSpacing.lg),
 
+                    // Additional Stops (Optional)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Additional Stops (Optional)',
+                          style: AppTypography.h4(
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: _showAddStopPicker,
+                          icon: Icon(Icons.add, size: 16, color: AppColors.primary),
+                          label: Text('+ Add Stop', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    if (_stops.isEmpty)
+                      Text(
+                        'No intermediate stops added.',
+                        style: TextStyle(fontSize: 12, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                      )
+                    else
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _stops.length,
+                        itemBuilder: (context, index) {
+                          return ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(Icons.location_on, size: 18, color: AppColors.primary),
+                            title: Text(_stops[index], style: const TextStyle(fontSize: 13)),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
+                              onPressed: () => setState(() => _stops.removeAt(index)),
+                            ),
+                          );
+                        },
+                      ),
+
+                    const SizedBox(height: AppSpacing.lg),
+
+                    // Additional Information / Special Requests
+                    Text(
+                      'Additional Information / Special Notes (Optional)',
+                      style: AppTypography.h4(
+                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: _additionalInfoController,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        hintText: 'Any special requests or notes for drivers/dispatchers...',
+                        hintStyle: TextStyle(fontSize: 13, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                      ),
+                    ),
+
+                    const SizedBox(height: AppSpacing.lg),
+
                     // Info Note Container Banner
                     Container(
                       padding: const EdgeInsets.all(AppSpacing.md),
@@ -279,7 +367,7 @@ class _UserCreateRequirementStep3ScreenState extends State<UserCreateRequirement
                         Expanded(
                           flex: 2,
                           child: AppPrimaryButton(
-                            text: 'Continue →',
+                            text: 'Review & Deploy →',
                             onPressed: () {
                               final draft = context.read<RequirementDraftProvider>();
                               draft.updateStep3(
@@ -288,8 +376,10 @@ class _UserCreateRequirementStep3ScreenState extends State<UserCreateRequirement
                                 hasReturn: _hasReturn,
                                 returnDate: _hasReturn ? _returnDateController.text.trim() : null,
                                 returnTime: _hasReturn ? _returnTimeController.text.trim() : null,
+                                additionalStops: _stops,
+                                additionalInfo: _additionalInfoController.text.trim(),
                               );
-                              context.push(AppRoutes.userCreateRequirementStep4Screen);
+                              context.push(AppRoutes.userReviewRequirementScreen);
                             },
                           ),
                         ),

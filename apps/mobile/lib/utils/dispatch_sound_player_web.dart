@@ -37,3 +37,53 @@ void playWebAudioChime() {
     debugPrint('Web audio synthesis notice: $e');
   }
 }
+
+/// Synthesizes a pleasant 4-tone ascending musical chime (C5 - E5 - G5 - C6) for in-app messaging & notifications
+void playWebMusicalNotificationChime() {
+  try {
+    final ctx = web.AudioContext();
+    if (ctx.state == 'suspended') {
+      ctx.resume();
+    }
+    final now = ctx.currentTime;
+    final notes = [
+      {'freq': 523.25, 'delay': 0.0, 'duration': 0.35, 'vol': 0.25}, // C5
+      {'freq': 659.25, 'delay': 0.09, 'duration': 0.35, 'vol': 0.25}, // E5
+      {'freq': 783.99, 'delay': 0.18, 'duration': 0.40, 'vol': 0.28}, // G5
+      {'freq': 1046.50, 'delay': 0.27, 'duration': 0.60, 'vol': 0.32}, // C6
+    ];
+
+    for (final note in notes) {
+      final osc = ctx.createOscillator();
+      final gain = ctx.createGain();
+      final startTime = now + (note['delay'] as double);
+      final duration = note['duration'] as double;
+      final vol = note['vol'] as double;
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(note['freq'] as double, startTime);
+      gain.gain.setValueAtTime(vol, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + duration);
+    }
+  } catch (e) {
+    debugPrint('Web musical chime notice: $e');
+  }
+}
+
+/// Speaks out a voice announcement using Web Speech Synthesis API
+void speakWebVoiceAnnouncement(String message) {
+  try {
+    final synth = web.window.speechSynthesis;
+    final utter = web.SpeechSynthesisUtterance(message);
+    utter.rate = 1.05;
+    utter.pitch = 1.0;
+    synth.speak(utter);
+  } catch (e) {
+    debugPrint('Web voice announcement notice: $e');
+  }
+}

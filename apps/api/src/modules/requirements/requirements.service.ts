@@ -20,6 +20,7 @@ import {
   FulfillmentMode,
   VehicleType,
   PaymentStatus,
+  UserRole,
   validateRequirementTransition,
 } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
@@ -449,7 +450,14 @@ export class RequirementsService {
     const requirement = await this.db.requirement.findUnique({
       where: { id },
       include: {
-        offers: true,
+        offers: {
+          include: {
+            driver: {
+              include: { user: true, vehicles: true },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
         bids: {
           include: {
             driver: {
@@ -478,13 +486,77 @@ export class RequirementsService {
       throw new ForbiddenException('Not authorized to access this requirement');
     }
 
+    // Auto-timeout check: If requirement is in POSTED or DISPATCHING state but last active > 15 mins ago
+    // with no active unexpired offers, auto-transition to NO_DRIVER_AVAILABLE or PARTIALLY_FULFILLED
+    const now = new Date();
+    const lastActiveTime = requirement.updatedAt ?? requirement.createdAt;
+    const ageMinutes = (now.getTime() - lastActiveTime.getTime()) / (60 * 1000);
+    const hasActiveSentOffers = requirement.offers.some(
+      (o) => o.status === OfferStatus.SENT && o.expiresAt > now,
+    );
+
+    if (
+      !hasActiveSentOffers &&
+      ageMinutes > 15 &&
+      (requirement.status === RequirementStatus.POSTED ||
+        requirement.status === RequirementStatus.DISPATCHING)
+    ) {
+      const autoStatus =
+        requirement.assignedQuantity > 0
+          ? RequirementStatus.PARTIALLY_FULFILLED
+          : RequirementStatus.NO_DRIVER_AVAILABLE;
+
+      await this.db.requirement.update({
+        where: { id: requirement.id },
+        data: { status: autoStatus },
+      });
+      requirement.status = autoStatus;
+    }
+
     const baseDto = this.mapToDto(requirement);
+    const isStopped = [
+      RequirementStatus.NO_DRIVER_AVAILABLE,
+      RequirementStatus.CANCELLED,
+      RequirementStatus.COMPLETED,
+      RequirementStatus.FULFILLED,
+    ].includes(requirement.status as RequirementStatus);
 
     return {
       ...baseDto,
       remainingQuantity: requirement.quantity - requirement.assignedQuantity,
       offersCount: requirement.offers.length,
       bidsCount: requirement.bids.length,
+      driversApproachedCount: requirement.offers.length,
+      searchStartedAt: requirement.createdAt.toISOString(),
+      searchEndedAt: isStopped ? requirement.updatedAt.toISOString() : null,
+      searchDurationMinutes: Math.max(
+        1,
+        Math.round(
+          ((isStopped ? requirement.updatedAt.getTime() : Date.now()) -
+            requirement.createdAt.getTime()) /
+            (60 * 1000),
+        ),
+      ),
+      offers: requirement.offers.map((o) => {
+        const primaryVehicle = o.driver?.vehicles?.[0];
+        return {
+          id: o.id,
+          requirementId: o.requirementId,
+          driverId: o.driverId,
+          driverName: o.driver?.fullName || 'Verified Driver',
+          driverPhone: o.driver?.phone || '—',
+          driverRating: o.driver?.averageRating || 4.9,
+          driverTrustScore: o.driver?.trustScore || 95.0,
+          vehicleType: o.vehicleType || o.driver?.vehicleType || 'SEDAN',
+          vehicleModel: o.driver?.vehicleModel || primaryVehicle?.model || 'Commercial Vehicle',
+          vehiclePlate: o.driver?.vehiclePlate || primaryVehicle?.registrationNumber || '—',
+          offeredRate: Number(o.offeredRate),
+          status: o.status,
+          createdAt: o.createdAt.toISOString(),
+          expiresAt: o.expiresAt.toISOString(),
+          respondedAt: o.respondedAt ? o.respondedAt.toISOString() : undefined,
+        };
+      }),
       bids: requirement.bids.map((b) => {
         const primaryVehicle = b.driver.vehicles[0];
         return {
@@ -516,6 +588,47 @@ export class RequirementsService {
         startOtp: a.trip?.otp,
       })),
     };
+  }
+
+  /**
+   * Retry dispatch for a requirement marked NO_DRIVER_AVAILABLE.
+   */
+  async retryRequirement(id: string, vendorUserId: string): Promise<RequirementDetailResponseDto> {
+    const user = await this.db.user.findUnique({ where: { id: vendorUserId } });
+    const vendor = await this.db.vendor.findUnique({ where: { userId: vendorUserId } });
+    const requirement = await this.db.requirement.findUnique({ where: { id } });
+
+    if (!requirement) {
+      throw new NotFoundException('Requirement not found');
+    }
+
+    const isAdmin = user?.role === UserRole.ADMIN;
+    if (!isAdmin && vendor && requirement.vendorId !== vendor.id) {
+      throw new ForbiddenException('Not authorized to retry this requirement');
+    }
+
+    if (
+      requirement.status === RequirementStatus.COMPLETED ||
+      requirement.status === RequirementStatus.CANCELLED
+    ) {
+      throw new BadRequestException(`Cannot retry requirement in ${requirement.status} status`);
+    }
+
+    await this.db.requirement.update({
+      where: { id },
+      data: {
+        status: RequirementStatus.DISPATCHING,
+        updatedAt: new Date(),
+      },
+    });
+
+    try {
+      await this.dispatchService.dispatchRequirement(id, true);
+    } catch (err: any) {
+      this.logger.warn(`Retry dispatch notice for ${id}: ${err.message}`);
+    }
+
+    return this.getRequirementDetails(id, vendorUserId);
   }
 
   /**

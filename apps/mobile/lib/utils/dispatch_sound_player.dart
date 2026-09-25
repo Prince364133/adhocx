@@ -59,6 +59,49 @@ class DispatchSoundPlayer {
     }
   }
 
+  /// Play in-app messaging & push notification voice chime and music alert.
+  /// Features a harmonic ascending musical chime, subtle haptic pulse, and
+  /// vocalized voice announcement.
+  static Future<void> playNotificationChime({
+    String? title,
+    String? body,
+    bool withVoice = true,
+  }) async {
+    // 1. Play musical notification chime
+    if (kIsWeb) {
+      web_audio.playWebMusicalNotificationChime();
+    } else {
+      try {
+        _audioPlayer ??= AudioPlayer();
+        await _audioPlayer?.stop();
+        await _audioPlayer?.setVolume(0.85);
+        await _audioPlayer?.play(AssetSource('sounds/dispatch_alert.wav'));
+      } catch (e) {
+        debugPrint('⚠️ [AUDIO PLAYER NOTICE] $e');
+        try {
+          SystemSound.play(SystemSoundType.alert);
+        } catch (_) {}
+      }
+    }
+
+    // 2. Soft haptic feedback on mobile
+    if (!kIsWeb) {
+      try {
+        HapticFeedback.mediumImpact();
+      } catch (_) {}
+    }
+
+    // 3. Spoken voice announcement
+    if (withVoice && title != null && title.trim().isNotEmpty) {
+      final voicePrompt = 'AdhocX notification: $title';
+      if (kIsWeb) {
+        Future.delayed(const Duration(milliseconds: 350), () {
+          web_audio.speakWebVoiceAnnouncement(voicePrompt);
+        });
+      }
+    }
+  }
+
   /// Stop vibration and audio when driver responds (accepts / declines) or dialog closes
   static Future<void> stopAlert() async {
     if (!kIsWeb) {

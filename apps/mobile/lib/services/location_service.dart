@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -109,10 +110,10 @@ class LocationService {
   }
 
   /// Primary search engine: Queries OSM Nominatim + Photon Komoot OSM in parallel for rapid results
-  Future<List<LocationModel>> searchLocations(String query) async {
+  Future<List<LocationModel>> searchLocations(String query, {double? lat, double? lon}) async {
     final cleanQuery = query.trim();
     if (cleanQuery.isEmpty) {
-      return fetchCategoryPlaces('All');
+      return fetchCategoryPlaces('All', lat: lat, lon: lon);
     }
 
     final results = <LocationModel>[];
@@ -120,7 +121,9 @@ class LocationService {
 
     // 1. Query Photon Komoot OpenStreetMap (Sub-150ms typo-tolerant autocomplete)
     try {
-      final photonUri = Uri.parse('$_photonBase/?q=${Uri.encodeComponent(cleanQuery)}&limit=10&lat=28.6139&lon=77.2090');
+      final latParam = lat != null ? '&lat=$lat' : '&lat=28.6139';
+      final lonParam = lon != null ? '&lon=$lon' : '&lon=77.2090';
+      final photonUri = Uri.parse('$_photonBase/?q=${Uri.encodeComponent(cleanQuery)}&limit=15$latParam$lonParam');
       final photonRes = await http.get(photonUri, headers: _headers).timeout(const Duration(milliseconds: 2500));
 
       if (photonRes.statusCode == 200) {
@@ -231,33 +234,34 @@ class LocationService {
     return results;
   }
 
-  /// Live Category Places from OpenStreetMap Nominatim / Photon API
-  Future<List<LocationModel>> fetchCategoryPlaces(String category) async {
+  /// Live Category Places from OpenStreetMap Nominatim / Photon API dynamically biased to user city and lat/lon
+  Future<List<LocationModel>> fetchCategoryPlaces(String category, {double? lat, double? lon, String? cityName}) async {
+    final citySuffix = (cityName != null && cityName.trim().isNotEmpty) ? ' ${cityName.trim()}' : '';
     String searchQuery;
     switch (category) {
       case 'Airports':
-        searchQuery = 'international airport aerodrome Terminal New Delhi Bengaluru Mumbai';
+        searchQuery = 'airport aerodrome terminal$citySuffix';
         break;
       case 'Tech Parks':
-        searchQuery = 'cyber city tech park business park electronic city Gurugram Bengaluru Noida';
+        searchQuery = 'tech park IT park cyber business park$citySuffix';
         break;
       case 'Railway Stations':
-        searchQuery = 'railway station junction New Delhi Anand Vihar Nizamuddin Bangalore';
+        searchQuery = 'railway station junction terminal$citySuffix';
         break;
       case 'Metro Hubs':
-        searchQuery = 'metro station Rajiv Chowk Huda City Millennium City Botanical Garden';
+        searchQuery = 'metro station metro$citySuffix';
         break;
       case 'Commercial Hubs':
-        searchQuery = 'Connaught Place Aerocity CyberHub Bandra Kurla Complex World Trade Center';
+        searchQuery = 'commercial mall shopping center market$citySuffix';
         break;
       case 'Hospitals':
-        searchQuery = 'Medanta Apollo Hospital Fortis AIIMS Max Super Speciality';
+        searchQuery = 'hospital medical clinic$citySuffix';
         break;
       case 'Hotels':
-        searchQuery = 'The Leela Taj Palace JW Marriott Radisson Blu Oberoi';
+        searchQuery = 'hotel resort palace inn$citySuffix';
         break;
       default:
-        searchQuery = 'Cyber City IGI Airport New Delhi Railway Station Connaught Place Aerocity';
+        searchQuery = 'airport railway station tech park mall$citySuffix';
         break;
     }
 
@@ -265,8 +269,10 @@ class LocationService {
     final seenKeys = <String>{};
 
     try {
-      final photonUri = Uri.parse('$_photonBase/?q=${Uri.encodeComponent(searchQuery)}&limit=10&lat=28.6139&lon=77.2090');
-      final res = await http.get(photonUri, headers: _headers).timeout(const Duration(milliseconds: 2500));
+      final latParam = lat != null ? '&lat=$lat' : '&lat=28.6139';
+      final lonParam = lon != null ? '&lon=$lon' : '&lon=77.2090';
+      final photonUri = Uri.parse('$_photonBase/?q=${Uri.encodeComponent(searchQuery)}&limit=15$latParam$lonParam');
+      final res = await http.get(photonUri, headers: _headers).timeout(const Duration(milliseconds: 3000));
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
@@ -290,8 +296,8 @@ class LocationService {
           if (state.isNotEmpty) addressParts.add(state);
 
           final fullAddress = addressParts.isNotEmpty ? addressParts.join(', ') : name;
-          final lon = coords != null && coords.isNotEmpty ? (coords[0] as num).toDouble() : 77.0895;
-          final lat = coords != null && coords.length > 1 ? (coords[1] as num).toDouble() : 28.4950;
+          final pLon = coords != null && coords.isNotEmpty ? (coords[0] as num).toDouble() : (lon ?? 77.0895);
+          final pLat = coords != null && coords.length > 1 ? (coords[1] as num).toDouble() : (lat ?? 28.4950);
 
           final dedupeKey = name.toLowerCase();
           if (!seenKeys.contains(dedupeKey)) {
@@ -300,8 +306,8 @@ class LocationService {
               LocationModel(
                 title: name,
                 fullAddress: fullAddress,
-                latitude: lat,
-                longitude: lon,
+                latitude: pLat,
+                longitude: pLon,
                 city: city,
                 state: state,
                 postcode: postcode,
@@ -314,6 +320,54 @@ class LocationService {
       }
     } catch (e) {
       debugPrint('Category fetch fallback: $e');
+    }
+
+    // If Photon returned fewer than 3, try Nominatim live search for the city
+    if (results.length < 3) {
+      try {
+        final nominatimUri = Uri.parse(
+          '$_nominatimBase/search?q=${Uri.encodeComponent(searchQuery)}&format=json&limit=10&addressdetails=1',
+        );
+        final nomRes = await http.get(nominatimUri, headers: _headers).timeout(const Duration(milliseconds: 3000));
+        if (nomRes.statusCode == 200) {
+          final data = jsonDecode(nomRes.body) as List<dynamic>? ?? [];
+          for (final item in data) {
+            final displayName = item['display_name'] as String? ?? '';
+            if (displayName.isEmpty) continue;
+
+            final parts = displayName.split(',');
+            final shortTitle = parts.isNotEmpty ? parts[0].trim() : searchQuery;
+
+            final address = item['address'] as Map<String, dynamic>? ?? {};
+            final city = (address['city'] ?? address['town'] ?? address['suburb'] ?? address['state_district'] ?? '').toString();
+            final state = (address['state'] ?? '').toString();
+            final postcode = (address['postcode'] ?? '').toString();
+
+            final pLat = double.tryParse(item['lat']?.toString() ?? '') ?? (lat ?? 28.4950);
+            final pLon = double.tryParse(item['lon']?.toString() ?? '') ?? (lon ?? 77.0895);
+
+            final dedupeKey = shortTitle.toLowerCase();
+            if (!seenKeys.contains(dedupeKey)) {
+              seenKeys.add(dedupeKey);
+              results.add(
+                LocationModel(
+                  title: shortTitle,
+                  fullAddress: displayName,
+                  latitude: pLat,
+                  longitude: pLon,
+                  city: city,
+                  state: state,
+                  postcode: postcode,
+                  category: category,
+                  icon: getIconForCategory(category, shortTitle),
+                ),
+              );
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Nominatim category fetch fallback: $e');
+      }
     }
 
     if (results.isEmpty) {
@@ -527,4 +581,95 @@ class LocationService {
     final filtered = all.where((p) => p.category == category).toList();
     return filtered.isNotEmpty ? filtered : all;
   }
+
+  /// Real-time client-side road distance and ETA calculation using OpenStreetMap (OSRM)
+  Future<RoadRouteResult> calculateRoadRoute({
+    required double startLat,
+    required double startLng,
+    required double endLat,
+    required double endLng,
+  }) async {
+    if (startLat == 0.0 || startLng == 0.0 || endLat == 0.0 || endLng == 0.0 ||
+        (startLat == endLat && startLng == endLng)) {
+      return const RoadRouteResult(
+        distanceKm: 0.0,
+        durationMinutes: 0,
+        formattedDistance: '0 km',
+        formattedEta: '0 mins',
+      );
+    }
+
+    try {
+      final uri = Uri.parse(
+        'https://router.project-osrm.org/route/v1/driving/'
+        '$startLng,$startLat;$endLng,$endLat?overview=false',
+      );
+
+      final response = await http.get(uri, headers: {
+        'User-Agent': 'AdhocX-OpenStreetMap-Mobility/2.0 (support@adhocx.com)',
+        'Accept': 'application/json',
+      }).timeout(const Duration(seconds: 4));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['routes'] != null && (data['routes'] as List).isNotEmpty) {
+          final route = data['routes'][0];
+          final distanceMeters = (route['distance'] as num?)?.toDouble() ?? 0.0;
+          final durationSeconds = (route['duration'] as num?)?.toDouble() ?? 0.0;
+          if (distanceMeters > 0) {
+            return RoadRouteResult.fromMetersAndSeconds(distanceMeters, durationSeconds, isAccurate: true);
+          }
+        }
+      }
+    } catch (_) {}
+
+    // Fallback: Haversine distance * 1.28x Indian road network curvature factor
+    final haversineKm = _calculateHaversineKm(startLat, startLng, endLat, endLng) * 1.28;
+    final fallbackMins = (haversineKm * 2.2).round().clamp(5, 600);
+    return RoadRouteResult.fromMetersAndSeconds(haversineKm * 1000.0, fallbackMins * 60.0, isAccurate: false);
+  }
+
+  double _calculateHaversineKm(double lat1, double lon1, double lat2, double lon2) {
+    const double p = 0.017453292519943295; // Math.PI / 180
+    final dLat = (lat2 - lat1) * p;
+    final dLon = (lon2 - lon1) * p;
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(lat1 * p) * math.cos(lat2 * p) * math.sin(dLon / 2) * math.sin(dLon / 2);
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    const double earthRadiusKm = 6371.0;
+    final d = earthRadiusKm * c;
+    return d > 0 ? d : 5.0;
+  }
 }
+
+/// Result of an OpenStreetMap road routing computation
+class RoadRouteResult {
+  final double distanceKm;
+  final int durationMinutes;
+  final String formattedDistance;
+  final String formattedEta;
+  final bool isAccurateRoad;
+
+  const RoadRouteResult({
+    required this.distanceKm,
+    required this.durationMinutes,
+    required this.formattedDistance,
+    required this.formattedEta,
+    this.isAccurateRoad = true,
+  });
+
+  factory RoadRouteResult.fromMetersAndSeconds(double distanceMeters, double durationSeconds, {bool isAccurate = true}) {
+    final km = (distanceMeters / 1000.0);
+    final mins = (durationSeconds / 60.0).round();
+    final String distStr = km < 1 ? '${(km * 1000).round()} m' : '${km.toStringAsFixed(1)} km';
+    final String etaStr = mins < 60 ? '$mins mins' : '${mins ~/ 60}h ${mins % 60}m';
+    return RoadRouteResult(
+      distanceKm: km,
+      durationMinutes: mins,
+      formattedDistance: distStr,
+      formattedEta: etaStr,
+      isAccurateRoad: isAccurate,
+    );
+  }
+}
+

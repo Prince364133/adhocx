@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../routes/app_routes.dart';
+import '../../services/location_service.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
@@ -27,6 +29,8 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
   double _dropLat = 28.5562;
   double _dropLng = 77.1000;
   bool _initialized = false;
+  bool _isCalculatingRoute = false;
+  RoadRouteResult? _routeResult;
 
   @override
   void didChangeDependencies() {
@@ -47,6 +51,12 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
       _dropLat = draft.dropLat;
       _dropLng = draft.dropLng;
       _initialized = true;
+
+      if (_pickupLat != 0.0 && _dropLat != 0.0 && (_pickupLat != _dropLat || _pickupLng != _dropLng)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _calculateAndSyncRoute();
+        });
+      }
     }
   }
 
@@ -57,6 +67,34 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
     _dropController.dispose();
     _dropInstructions.dispose();
     super.dispose();
+  }
+
+  Future<void> _calculateAndSyncRoute() async {
+    if (_pickupLat != 0.0 && _dropLat != 0.0 && (_pickupLat != _dropLat || _pickupLng != _dropLng)) {
+      setState(() => _isCalculatingRoute = true);
+      try {
+        final res = await LocationService.instance.calculateRoadRoute(
+          startLat: _pickupLat,
+          startLng: _pickupLng,
+          endLat: _dropLat,
+          endLng: _dropLng,
+        );
+        if (mounted) {
+          setState(() {
+            _routeResult = res;
+            _isCalculatingRoute = false;
+          });
+          context.read<RequirementDraftProvider>().setRoadRoute(
+            distanceKm: res.distanceKm,
+            durationMinutes: res.durationMinutes,
+            formattedDistance: res.formattedDistance,
+            formattedEta: res.formattedEta,
+          );
+        }
+      } catch (_) {
+        if (mounted) setState(() => _isCalculatingRoute = false);
+      }
+    }
   }
 
   Future<void> _openLocationSearch({required bool isPickup}) async {
@@ -91,6 +129,8 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
           _dropLng = lng;
         }
       });
+
+      _calculateAndSyncRoute();
     }
   }
 
@@ -108,6 +148,8 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
       _dropLat = tempLat;
       _dropLng = tempLng;
     });
+
+    _calculateAndSyncRoute();
   }
 
   @override
@@ -135,12 +177,12 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
       body: SafeArea(
         child: Column(
           children: [
-            // Stepper Header (1, 2, 3, 4, 5)
+            // Stepper Header (1 to 4)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: List.generate(5, (index) {
+                children: List.generate(4, (index) {
                   final stepNum = index + 1;
                   final isActive = stepNum <= 2;
                   return CircleAvatar(
@@ -198,29 +240,6 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                       isDark: isDark,
                     ),
 
-                    const SizedBox(height: 4),
-
-                    // Pickup Notes Field
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.surfaceDark.withValues(alpha: 0.5) : AppColors.slate100,
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                      ),
-                      child: TextField(
-                        controller: _pickupInstructions,
-                        style: const TextStyle(fontSize: 12),
-                        decoration: InputDecoration(
-                          hintText: 'Add pickup notes (e.g. Tower B Gate 2, Near Reception)',
-                          hintStyle: TextStyle(fontSize: 11, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
-                          icon: Icon(Icons.edit_note_rounded, size: 16, color: AppColors.slate400),
-                          border: InputBorder.none,
-                          isDense: true,
-                        ),
-                      ),
-                    ),
-
                     const SizedBox(height: AppSpacing.md),
 
                     // Destination Location Card
@@ -233,28 +252,79 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                       isDark: isDark,
                     ),
 
-                    const SizedBox(height: 4),
-
-                    // Destination Notes Field
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.surfaceDark.withValues(alpha: 0.5) : AppColors.slate100,
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                      ),
-                      child: TextField(
-                        controller: _dropInstructions,
-                        style: const TextStyle(fontSize: 12),
-                        decoration: InputDecoration(
-                          hintText: 'Add drop notes (e.g. Departures Gate 5, Parking slot 3)',
-                          hintStyle: TextStyle(fontSize: 11, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
-                          icon: Icon(Icons.edit_note_rounded, size: 16, color: AppColors.slate400),
-                          border: InputBorder.none,
-                          isDense: true,
+                    // Road-based distance & ETA status card via OpenStreetMap (OSRM)
+                    if (_isCalculatingRoute) ...[
+                      Container(
+                        margin: const EdgeInsets.only(top: AppSpacing.md),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                        ),
+                        child: Row(
+                          children: [
+                            const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Calculating road distance & ETA via OpenStreetMap...',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
+                    ] else if (_routeResult != null && _routeResult!.distanceKm > 0) ...[
+                      Container(
+                        margin: const EdgeInsets.only(top: AppSpacing.md),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.directions_car_rounded, size: 14, color: Colors.white),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${_routeResult!.formattedDistance} • ~${_routeResult!.formattedEta}',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Road-based route calculated via OpenStreetMap',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
 
                     const SizedBox(height: AppSpacing.lg),
 
@@ -323,18 +393,35 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                           child: AppPrimaryButton(
                             text: 'Continue →',
                             onPressed: () {
+                              if (_pickupController.text.trim().isEmpty || _dropController.text.trim().isEmpty) {
+                                Fluttertoast.showToast(
+                                  msg: 'Please select both pickup and destination locations',
+                                  backgroundColor: AppColors.error,
+                                  textColor: Colors.white,
+                                );
+                                return;
+                              }
+
                               final draft = context.read<RequirementDraftProvider>();
                               draft.updateStep2(
                                 pickupLocation: _pickupController.text.trim(),
-                                pickupInstructions: _pickupInstructions.text.trim(),
+                                pickupInstructions: '',
                                 dropLocation: _dropController.text.trim(),
-                                dropInstructions: _dropInstructions.text.trim(),
+                                dropInstructions: '',
                                 tripType: _tripType,
                                 pickupLat: _pickupLat,
                                 pickupLng: _pickupLng,
                                 dropLat: _dropLat,
                                 dropLng: _dropLng,
                               );
+                              if (_routeResult != null) {
+                                draft.setRoadRoute(
+                                  distanceKm: _routeResult!.distanceKm,
+                                  durationMinutes: _routeResult!.durationMinutes,
+                                  formattedDistance: _routeResult!.formattedDistance,
+                                  formattedEta: _routeResult!.formattedEta,
+                                );
+                              }
                               context.push(AppRoutes.userCreateRequirementStep3Screen);
                             },
                           ),

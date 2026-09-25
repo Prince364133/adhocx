@@ -187,15 +187,46 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
   void _handleContinue() {
     final onboarding = context.read<OnboardingProvider>();
 
-    // Check if user has uploaded at least basic identity documents
-    final hasAnyId = onboarding.profilePhotoUrl != null ||
-        onboarding.aadharFrontUrl != null ||
-        onboarding.panCardUrl != null;
-
-    if (!hasAnyId) {
+    if (onboarding.profilePhotoUrl == null) {
       Fluttertoast.showToast(
-        msg: 'Please upload at least your profile photo or ID document to proceed',
-        backgroundColor: Colors.orange,
+        msg: 'Please upload your Driver Profile Photo',
+        backgroundColor: AppColors.error,
+        textColor: Colors.white,
+      );
+      return;
+    }
+
+    if (onboarding.drivingLicenseUrl == null) {
+      Fluttertoast.showToast(
+        msg: 'Please upload your Driving License',
+        backgroundColor: AppColors.error,
+        textColor: Colors.white,
+      );
+      return;
+    }
+
+    if (onboarding.aadharFrontUrl == null) {
+      Fluttertoast.showToast(
+        msg: 'Please upload Aadhaar Card (Front)',
+        backgroundColor: AppColors.error,
+        textColor: Colors.white,
+      );
+      return;
+    }
+
+    if (onboarding.aadharBackUrl == null) {
+      Fluttertoast.showToast(
+        msg: 'Please upload Aadhaar Card (Back)',
+        backgroundColor: AppColors.error,
+        textColor: Colors.white,
+      );
+      return;
+    }
+
+    if (onboarding.panCardUrl == null) {
+      Fluttertoast.showToast(
+        msg: 'Please upload PAN Card (Front)',
+        backgroundColor: AppColors.error,
         textColor: Colors.white,
       );
       return;
@@ -211,6 +242,7 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final int uploadedCount = (onboarding.profilePhotoUrl != null ? 1 : 0) +
+        (onboarding.drivingLicenseUrl != null ? 1 : 0) +
         (onboarding.aadharFrontUrl != null ? 1 : 0) +
         (onboarding.aadharBackUrl != null ? 1 : 0) +
         (onboarding.panCardUrl != null ? 1 : 0);
@@ -250,7 +282,7 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
                         ),
                         const SizedBox(height: AppSpacing.xs),
                         Text(
-                          'Step 2 of 3: Upload your photo and government ID documents ($uploadedCount/4 uploaded)',
+                          'Step 2 of 3: Upload your photo and mandatory government documents ($uploadedCount/5 uploaded)',
                           style: AppTypography.body(
                             color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                           ),
@@ -259,7 +291,7 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
 
                         // ── Document 1: Profile Photo ────────────────────────
                         AppDocumentUploadTile(
-                          title: 'Driver Profile Photo',
+                          title: 'Driver Profile Photo *',
                           subtitle: 'Clear front-facing selfie or portrait',
                           icon: Icons.account_circle_outlined,
                           isUploaded: onboarding.profilePhotoUrl != null,
@@ -269,9 +301,21 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
                         ),
                         const SizedBox(height: AppSpacing.md),
 
-                        // ── Document 2: Aadhar Card Front ───────────────────
+                        // ── Document 2: Driving License ──────────────────────
                         AppDocumentUploadTile(
-                          title: 'Aadhaar Card (Front)',
+                          title: 'Driving License *',
+                          subtitle: 'Front side of commercial / transport driving license',
+                          icon: Icons.badge_outlined,
+                          isUploaded: onboarding.drivingLicenseUrl != null,
+                          isUploading: _uploadingState['DRIVING_LICENSE'] ?? false,
+                          onUploadTap: () =>
+                              _showImageSourcePicker('DRIVING_LICENSE', 'Driving License'),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+
+                        // ── Document 3: Aadhar Card Front ───────────────────
+                        AppDocumentUploadTile(
+                          title: 'Aadhaar Card (Front) *',
                           subtitle: 'Front side with photo and Aadhaar number',
                           icon: Icons.credit_card_rounded,
                           isUploaded: onboarding.aadharFrontUrl != null,
@@ -281,9 +325,9 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
                         ),
                         const SizedBox(height: AppSpacing.md),
 
-                        // ── Document 3: Aadhar Card Back ────────────────────
+                        // ── Document 4: Aadhar Card Back ────────────────────
                         AppDocumentUploadTile(
-                          title: 'Aadhaar Card (Back)',
+                          title: 'Aadhaar Card (Back) *',
                           subtitle: 'Back side showing residential address',
                           icon: Icons.credit_card_outlined,
                           isUploaded: onboarding.aadharBackUrl != null,
@@ -293,9 +337,9 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
                         ),
                         const SizedBox(height: AppSpacing.md),
 
-                        // ── Document 4: PAN Card Front ──────────────────────
+                        // ── Document 5: PAN Card Front ──────────────────────
                         AppDocumentUploadTile(
-                          title: 'PAN Card (Front)',
+                          title: 'PAN Card (Front) *',
                           subtitle: 'Front side with PAN number and signature',
                           icon: Icons.assignment_ind_outlined,
                           isUploaded: onboarding.panCardUrl != null,

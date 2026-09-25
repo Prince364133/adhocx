@@ -112,6 +112,8 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
       case 'PARTIALLY_FULFILLED':
       case 'ACTIVE':
         return AppColors.warning;
+      case 'NO_DRIVER_AVAILABLE':
+        return AppColors.warning;
       case 'CANCELLED':
       case 'EXPIRED':
         return AppColors.error;
@@ -120,10 +122,440 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
     }
   }
 
+  String _formatDateTime(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return '—';
+    try {
+      final dt = DateTime.parse(dateStr).toLocal();
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      final month = months[dt.month - 1];
+      final day = dt.day;
+      final year = dt.year;
+      final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+      final minute = dt.minute.toString().padLeft(2, '0');
+      final period = dt.hour >= 12 ? 'PM' : 'AM';
+      return '$month $day, $year • $hour:$minute $period';
+    } catch (_) {
+      return dateStr;
+    }
+  }
+
+  int _calculateDurationMinutes(String? startStr, String? endStr) {
+    if (startStr == null || startStr.isEmpty) return 1;
+    try {
+      final start = DateTime.parse(startStr);
+      final end = (endStr != null && endStr.isNotEmpty) ? DateTime.parse(endStr) : DateTime.now();
+      final diff = end.difference(start).inMinutes;
+      return diff < 1 ? 1 : diff;
+    } catch (_) {
+      return 1;
+    }
+  }
+
+  Future<void> _confirmCancelRequirement(BuildContext context, String rawId) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancel Searching?'),
+        content: const Text(
+          'Are you sure you want to stop searching for drivers? This will immediately cancel dispatch waves and return any escrow funds to your wallet.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Keep Searching'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Stop & Cancel', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      setState(() => _isLoading = true);
+      try {
+        await UserService.instance.cancelRequirement(rawId, reason: 'Cancelled by user');
+        if (mounted) {
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('Search stopped and requirement cancelled.'),
+              backgroundColor: AppColors.primary,
+            ),
+          );
+          _refreshTimer?.cancel();
+          await _loadRequirement(silent: false);
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          messenger.showSnackBar(
+            SnackBar(content: Text('Failed to cancel: $e'), backgroundColor: AppColors.error),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _handleRetryDispatch(BuildContext context, String rawId) async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _isLoading = true);
+    try {
+      await UserService.instance.retryRequirement(rawId);
+      if (mounted) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('⚡ Re-dispatch waves initiated! Searching for nearby verified drivers...'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        await _loadRequirement(silent: false);
+        _startAutoRefresh();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        messenger.showSnackBar(
+          SnackBar(content: Text('Retry failed: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    }
+  }
+
   num _parseNum(dynamic val, [num defaultVal = 0.0]) {
     if (val == null) return defaultVal;
     if (val is num) return val;
     return num.tryParse(val.toString()) ?? defaultVal;
+  }
+
+  String _formatDuration(int minutes) {
+    if (minutes < 1) return '< 1 min';
+    if (minutes < 60) return '$minutes mins';
+    final hours = minutes ~/ 60;
+    final mins = minutes % 60;
+    if (mins == 0) return '${hours}h';
+    return '${hours}h ${mins}m';
+  }
+
+  Color _getOfferStatusColor(String status) {
+    switch (status) {
+      case 'ACCEPTED':
+        return AppColors.success;
+      case 'SENT':
+        return AppColors.primary;
+      case 'DECLINED':
+        return AppColors.error;
+      case 'EXPIRED':
+        return AppColors.slate500;
+      case 'CANCELLED':
+        return AppColors.slate400;
+      default:
+        return AppColors.slate500;
+    }
+  }
+
+  String _getOfferStatusLabel(String status) {
+    switch (status) {
+      case 'ACCEPTED':
+        return 'Accepted 🎉';
+      case 'SENT':
+        return 'Offer Sent ⏳';
+      case 'DECLINED':
+        return 'Declined';
+      case 'EXPIRED':
+        return 'Expired (No Response)';
+      case 'CANCELLED':
+        return 'Cancelled';
+      default:
+        return status.replaceAll('_', ' ');
+    }
+  }
+
+  Widget _buildTelemetryCell({
+    required String title,
+    required String value,
+    required IconData icon,
+    required bool isDark,
+    Color? valueColor,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 12, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+            const SizedBox(width: 4),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: valueColor ?? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildApproachedDriversSection({
+    required List offers,
+    required bool isDark,
+    required bool isSearching,
+    required bool isNoDriver,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.people_alt_outlined, size: 18, color: AppColors.primary),
+                const SizedBox(width: 6),
+                Text(
+                  'Approached Drivers (${offers.length})',
+                  style: AppTypography.h4(
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            if (offers.isNotEmpty)
+              Text(
+                '${offers.length} Dispatched',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (offers.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  isSearching ? Icons.radar_rounded : Icons.person_search_outlined,
+                  size: 32,
+                  color: isSearching ? AppColors.primary : AppColors.slate400,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  isSearching ? 'Broadcasting dispatch waves...' : 'No drivers were approached in this wave',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  isSearching
+                      ? 'Matching nearby verified drivers matching vehicle type & rating criteria...'
+                      : 'No verified drivers were within range during the dispatch window.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: offers.length,
+            itemBuilder: (context, index) {
+              final o = offers[index];
+              if (o is! Map) return const SizedBox.shrink();
+
+              final driverName = o['driverName']?.toString() ?? 'Verified Partner';
+              final driverPhone = o['driverPhone']?.toString() ?? '—';
+              final rating = _parseNum(o['driverRating'], 4.9).toDouble();
+              final trustScore = _parseNum(o['driverTrustScore'], 95.0).toDouble();
+              final vehicleModel = o['vehicleModel']?.toString() ?? 'Commercial Vehicle';
+              final vehiclePlate = o['vehiclePlate']?.toString() ?? '—';
+              final offeredRate = _parseNum(o['offeredRate'], 0.0).toDouble();
+              final rawStatus = (o['status']?.toString() ?? 'SENT').toUpperCase();
+              final statusColor = _getOfferStatusColor(rawStatus);
+              final statusLabel = _getOfferStatusLabel(rawStatus);
+              final sentAt = _formatDateTime(o['createdAt']?.toString());
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  border: Border.all(
+                    color: rawStatus == 'ACCEPTED'
+                        ? AppColors.success.withValues(alpha: 0.6)
+                        : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Row 1: Profile + Rating + Status Chip
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 18,
+                          backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+                          child: Text(
+                            driverName.isNotEmpty ? driverName[0].toUpperCase() : 'D',
+                            style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      driverName,
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.verified, size: 14, color: AppColors.primary),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  const Icon(Icons.star_rounded, size: 14, color: AppColors.starAmber),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    rating.toStringAsFixed(1),
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                                  ),
+                                  Text(
+                                    ' • ${trustScore.toStringAsFixed(0)}% Trust',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(AppRadius.xs),
+                            border: Border.all(color: statusColor.withValues(alpha: 0.4)),
+                          ),
+                          child: Text(
+                            statusLabel,
+                            style: TextStyle(
+                              color: statusColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 16),
+                    // Row 2: Vehicle details & Offered Rate
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.directions_car_rounded, size: 14, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                            const SizedBox(width: 6),
+                            Text(
+                              '$vehicleModel • $vehiclePlate',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          '₹ ${offeredRate.toStringAsFixed(0)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    // Row 3: Timestamp & Contact
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.schedule_rounded, size: 12, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Dispatched: $sentAt',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (driverPhone != '—')
+                          Text(
+                            driverPhone,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+      ],
+    );
   }
 
   @override
@@ -142,6 +574,19 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
 
     final isBidding = req?['fulfillmentMode'] == 'BIDDING';
     final vehicle = req?['vehicleType']?.toString() ?? 'Sedan';
+
+    final isFulfilled = status == 'FULFILLED' || status == 'COMPLETED' || (requiredQty > 0 && assignedQty >= requiredQty);
+    final isCancelled = status == 'CANCELLED';
+    final isExpired = status == 'EXPIRED';
+    final isNoDriver = status == 'NO_DRIVER_AVAILABLE';
+    final isPartiallyFulfilled = status == 'PARTIALLY_FULFILLED';
+    final isSearching = !isFulfilled && !isCancelled && !isExpired && !isNoDriver && (status == 'POSTED' || status == 'DISPATCHING' || status == 'OPEN');
+
+    final offers = req?['offers'] is List ? (req!['offers'] as List) : [];
+    final driversApproachedCount = _parseNum(req?['driversApproachedCount'] ?? offers.length, offers.length).toInt();
+    final searchStartedAt = req?['searchStartedAt']?.toString() ?? req?['createdAt']?.toString();
+    final searchEndedAt = req?['searchEndedAt']?.toString() ?? (isSearching ? null : req?['updatedAt']?.toString());
+    final searchDurationMinutes = _parseNum(req?['searchDurationMinutes'], _calculateDurationMinutes(searchStartedAt, searchEndedAt)).toInt();
 
     String pickup = 'Pickup Location';
     final rawPickup = req?['pickupLocation'] ?? req?['pickupAddress'];
@@ -180,6 +625,15 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
           ),
         ),
         actions: [
+          if (isSearching)
+            TextButton.icon(
+              onPressed: () => _confirmCancelRequirement(context, rawId),
+              icon: const Icon(Icons.cancel_outlined, color: AppColors.error, size: 16),
+              label: const Text(
+                'Cancel',
+                style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ),
           IconButton(
             onPressed: () => _loadRequirement(silent: false),
             icon: Icon(Icons.refresh, color: AppColors.primary),
@@ -273,7 +727,7 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                                   ),
                                   Text(
                                     displayId,
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 12,
                                       color: AppColors.primary,
@@ -328,7 +782,9 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                                     '$assignedQty / $requiredQty Fulfilled',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
-                                      color: assignedQty >= requiredQty ? AppColors.success : AppColors.primary,
+                                      color: isFulfilled
+                                          ? AppColors.success
+                                          : (isNoDriver ? AppColors.warning : AppColors.primary),
                                     ),
                                   ),
                                 ],
@@ -338,31 +794,219 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                                 value: progress,
                                 backgroundColor: isDark ? AppColors.slate800 : AppColors.slate200,
                                 valueColor: AlwaysStoppedAnimation<Color>(
-                                  assignedQty >= requiredQty ? AppColors.success : AppColors.primary,
+                                  isFulfilled
+                                      ? AppColors.success
+                                      : (isNoDriver ? AppColors.warning : AppColors.primary),
                                 ),
                                 minHeight: 8,
                                 borderRadius: BorderRadius.circular(4),
                               ),
-                              if (assignedQty < requiredQty) ...[
-                                const SizedBox(height: 8),
+                              const SizedBox(height: 10),
+                              if (isSearching) ...[
                                 Row(
                                   children: [
                                     const SizedBox(
-                                      width: 12,
-                                      height: 12,
+                                      width: 14,
+                                      height: 14,
                                       child: CircularProgressIndicator(strokeWidth: 2),
                                     ),
                                     const SizedBox(width: 8),
-                                    Text(
-                                      isBidding ? 'Waiting for driver quotes...' : 'Dispatching waves to nearby verified drivers...',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                    Expanded(
+                                      child: Text(
+                                        isBidding
+                                            ? 'Waiting for driver quotes...'
+                                            : 'Actively dispatching waves to nearby verified drivers...',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                          color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                        ),
                                       ),
                                     ),
                                   ],
                                 ),
+                              ] else if (isNoDriver) ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.warning.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                                    border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.info_outline_rounded, size: 18, color: AppColors.warning),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'Search Concluded • No Drivers Available',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors.warning,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              'No driver accepted the rate within the search window. You can retry dispatch waves or cancel to refund escrow holds.',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ] else if (isFulfilled) ...[
+                                Row(
+                                  children: [
+                                    const Icon(Icons.check_circle_rounded, size: 16, color: AppColors.success),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'All $requiredQty vehicle${requiredQty > 1 ? "s" : ""} fulfilled successfully!',
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.success),
+                                    ),
+                                  ],
+                                ),
+                              ] else if (isCancelled) ...[
+                                Row(
+                                  children: [
+                                    const Icon(Icons.cancel_outlined, size: 16, color: AppColors.error),
+                                    const SizedBox(width: 6),
+                                    const Text(
+                                      'Requirement search was cancelled.',
+                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.error),
+                                    ),
+                                  ],
+                                ),
+                              ] else if (isExpired) ...[
+                                Row(
+                                  children: [
+                                    const Icon(Icons.timer_off_outlined, size: 16, color: AppColors.slate400),
+                                    const SizedBox(width: 6),
+                                    const Text(
+                                      'Search window expired.',
+                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.slate400),
+                                    ),
+                                  ],
+                                ),
+                              ] else if (isPartiallyFulfilled) ...[
+                                Row(
+                                  children: [
+                                    const Icon(Icons.info_outline, size: 16, color: AppColors.warning),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Search ended with $assignedQty of $requiredQty fulfilled.',
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.warning),
+                                    ),
+                                  ],
+                                ),
                               ],
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: AppSpacing.md),
+
+                        // Search & Dispatch Telemetry Card
+                        Container(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                            borderRadius: BorderRadius.circular(AppRadius.lg),
+                            border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.insights_rounded, size: 18, color: AppColors.primary),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Search & Dispatch Telemetry',
+                                        style: AppTypography.h4(
+                                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: (isSearching ? AppColors.primary : (isNoDriver ? AppColors.warning : AppColors.slate500)).withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(AppRadius.xs),
+                                      border: Border.all(
+                                        color: (isSearching ? AppColors.primary : (isNoDriver ? AppColors.warning : AppColors.slate500)).withValues(alpha: 0.3),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      isSearching ? 'SEARCHING' : (isNoDriver ? 'CONCLUDED' : status),
+                                      style: TextStyle(
+                                        color: isSearching ? AppColors.primary : (isNoDriver ? AppColors.warning : AppColors.slate500),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildTelemetryCell(
+                                      title: 'POSTED AT',
+                                      value: _formatDateTime(searchStartedAt),
+                                      icon: Icons.access_time_rounded,
+                                      isDark: isDark,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _buildTelemetryCell(
+                                      title: 'ACTIVE DURATION',
+                                      value: _formatDuration(searchDurationMinutes),
+                                      icon: Icons.timelapse_rounded,
+                                      isDark: isDark,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const Divider(height: 20),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildTelemetryCell(
+                                      title: isSearching ? 'SEARCH STATUS' : 'STOPPED AT',
+                                      value: isSearching ? 'Active Searching' : _formatDateTime(searchEndedAt),
+                                      icon: isSearching ? Icons.radar_rounded : Icons.stop_circle_outlined,
+                                      isDark: isDark,
+                                      valueColor: isSearching ? AppColors.primary : null,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _buildTelemetryCell(
+                                      title: 'DRIVERS CONTACTED',
+                                      value: '$driversApproachedCount in Waves',
+                                      icon: Icons.group_outlined,
+                                      isDark: isDark,
+                                      valueColor: AppColors.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ],
                           ),
                         ),
@@ -472,8 +1116,8 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                               final d = assignedDrivers[index];
                               if (d is! Map) return const SizedBox.shrink();
                               final driverName = d['driverName']?.toString() ?? 'Verified Driver';
-                              final driverPhone = d['driverPhone']?.toString() ?? '\u2014';
-                              final vehiclePlate = d['vehiclePlate']?.toString() ?? '\u2014';
+                              final driverPhone = d['driverPhone']?.toString() ?? '—';
+                              final vehiclePlate = d['vehiclePlate']?.toString() ?? '—';
                               final rawStatus = (d['tripStatus']?.toString() ?? 'ASSIGNED');
                               final tripStatus = rawStatus.replaceAll('_', ' ');
                               final tripId = d['tripId']?.toString();
@@ -536,7 +1180,7 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                                                 ],
                                               ),
                                               Text(
-                                                'Phone: $driverPhone \u2022 Plate: $vehiclePlate',
+                                                'Phone: $driverPhone • Plate: $vehiclePlate',
                                                 style: TextStyle(fontSize: 11, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
                                               ),
                                             ],
@@ -738,10 +1382,20 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                               );
                             },
                           ),
+                          const SizedBox(height: AppSpacing.md),
                         ],
+
+                        // Approached Drivers Section (All dispatch waves)
+                        _buildApproachedDriversSection(
+                          offers: offers,
+                          isDark: isDark,
+                          isSearching: isSearching,
+                          isNoDriver: isNoDriver,
+                        ),
 
                         // Competing Driver Bids Section (For Outstation Bidding Mode)
                         if (isBidding) ...[
+                          const SizedBox(height: AppSpacing.md),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -872,11 +1526,98 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
 
                         const SizedBox(height: AppSpacing.xl),
 
-                        // Action button
-                        AppPrimaryButton(
-                          text: 'Back to All Requirements',
-                          onPressed: () => context.go(AppRoutes.userRequirementsScreen),
-                        ),
+                        // Bottom Actions
+                        if (isSearching) ...[
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: () => _confirmCancelRequirement(context, rawId),
+                                  icon: const Icon(Icons.stop_circle_outlined, size: 18, color: AppColors.error),
+                                  label: const Text(
+                                    'Cancel Search',
+                                    style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    side: const BorderSide(color: AppColors.error),
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: () => context.go(AppRoutes.userRequirementsScreen),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                                  ),
+                                  child: const Text('All Bookings', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ] else if (isNoDriver) ...[
+                          Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      onPressed: () => _confirmCancelRequirement(context, rawId),
+                                      icon: const Icon(Icons.cancel_outlined, size: 16, color: AppColors.error),
+                                      label: const Text('Cancel Req.', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold)),
+                                      style: OutlinedButton.styleFrom(
+                                        side: const BorderSide(color: AppColors.error),
+                                        padding: const EdgeInsets.symmetric(vertical: 14),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    flex: 2,
+                                    child: ElevatedButton.icon(
+                                      onPressed: () => _handleRetryDispatch(context, rawId),
+                                      icon: const Icon(Icons.bolt_rounded, size: 18, color: Colors.white),
+                                      label: const Text('Retry Dispatch Waves', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.primary,
+                                        padding: const EdgeInsets.symmetric(vertical: 14),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton(
+                                  onPressed: () => context.go(AppRoutes.userRequirementsScreen),
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                                  ),
+                                  child: Text(
+                                    'Back to All Requirements',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ] else ...[
+                          AppPrimaryButton(
+                            text: 'Back to All Requirements',
+                            onPressed: () => context.go(AppRoutes.userRequirementsScreen),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -884,3 +1625,4 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
     );
   }
 }
+

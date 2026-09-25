@@ -20,6 +20,8 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import './services/edge_case_manager.dart';
 import './services/local_notification_service.dart';
+import './services/fcm_service.dart';
+import './core/networking/api_client.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -94,6 +96,18 @@ void main() async {
     await EdgeCaseManager.instance.initializeRealPermissions();
   } catch (e) {
     AppLogger.debug('Permission initialization skipped: $e', tag: 'MAIN');
+  }
+
+  // Initialize FCM Push Notifications and sync device token with backend
+  try {
+    final token = await ApiClient.instance.getToken();
+    await FcmService.instance.initialize(
+      apiBaseUrl: ApiClient.instance.baseUrl,
+      userToken: token,
+    );
+    AppLogger.info('FCM Push notification service initialized', tag: 'MAIN');
+  } catch (e) {
+    AppLogger.debug('FCM Push notification initialization skipped: $e', tag: 'MAIN');
   }
 
   bool hasShownError = false;

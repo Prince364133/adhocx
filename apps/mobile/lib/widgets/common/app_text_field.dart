@@ -24,6 +24,8 @@ class AppTextField extends StatelessWidget {
   final FormFieldValidator<String>? validator;
   final bool autofocus;
   final bool enabled;
+  final bool readOnly;
+  final VoidCallback? onTap;
   final int maxLines;
   final TextInputAction? textInputAction;
   final TextCapitalization textCapitalization;
@@ -46,6 +48,8 @@ class AppTextField extends StatelessWidget {
     this.validator,
     this.autofocus = false,
     this.enabled = true,
+    this.readOnly = false,
+    this.onTap,
     this.maxLines = 1,
     this.textInputAction,
     this.textCapitalization = TextCapitalization.none,
@@ -76,6 +80,8 @@ class AppTextField extends StatelessWidget {
           obscureText: obscureText,
           autofocus: autofocus,
           enabled: enabled,
+          readOnly: readOnly,
+          onTap: onTap,
           maxLines: maxLines,
           textInputAction: textInputAction,
           textCapitalization: textCapitalization,

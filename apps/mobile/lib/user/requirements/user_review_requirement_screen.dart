@@ -3,6 +3,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../routes/app_routes.dart';
+import '../../services/driver_service.dart';
 import '../../services/razorpay_checkout_service.dart';
 import '../../services/user_service.dart';
 import '../../shared/theme/app_colors.dart';
@@ -27,11 +28,81 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
   String? _couponError;
   double? _walletBalance;
   bool _isLoadingWallet = true;
+  List<Map<String, dynamic>> _vehicleTiers = [];
 
   @override
   void initState() {
     super.initState();
     _loadWallet();
+    _loadVehicleTiers();
+  }
+
+  Future<void> _loadVehicleTiers() async {
+    try {
+      final tiers = await DriverService.instance.getVehicleCategories();
+      if (mounted && tiers.isNotEmpty) {
+        setState(() {
+          _vehicleTiers = tiers;
+        });
+      }
+    } catch (_) {}
+  }
+
+  double _getRatePerVehicle(RequirementDraftProvider draft) {
+    final vType = draft.vehicleType.trim().toUpperCase();
+    Map<String, dynamic>? tier;
+    if (_vehicleTiers.isNotEmpty) {
+      tier = _vehicleTiers.firstWhere(
+        (t) => (t['vehicleType']?.toString().toUpperCase() == vType),
+        orElse: () => _vehicleTiers.firstWhere(
+          (t) => (t['categoryLabel']?.toString().toUpperCase().contains(vType) == true),
+          orElse: () => _vehicleTiers.first,
+        ),
+      );
+    }
+
+    double baseFare = 400.0;
+    double baseKm = 10.0;
+    double perKmRate = 22.0;
+
+    if (tier != null) {
+      baseFare = double.tryParse(tier['baseFare']?.toString() ?? '') ?? 400.0;
+      baseKm = double.tryParse(tier['baseKm']?.toString() ?? '') ?? 10.0;
+      perKmRate = double.tryParse(tier['perKmRate']?.toString() ?? '') ?? 22.0;
+    } else {
+      if (vType == 'HATCHBACK') {
+        baseFare = 500.0;
+        baseKm = 20.0;
+        perKmRate = 11.0;
+      } else if (vType == 'SUV') {
+        baseFare = 1400.0;
+        baseKm = 40.0;
+        perKmRate = 19.0;
+      }
+    }
+
+    final isRoundTrip = draft.tripType.toLowerCase().contains('round') || draft.hasReturn;
+    final distance = draft.roadDistanceKm > 0 ? draft.roadDistanceKm : 15.0;
+    final effectiveKm = isRoundTrip ? (distance * 2) : distance;
+    final extraKm = (effectiveKm - baseKm).clamp(0.0, double.infinity);
+    return (baseFare + (extraKm * perKmRate)).roundToDouble();
+  }
+
+  String _getVehicleCategoryLabel(String type) {
+    final vType = type.trim().toUpperCase();
+    if (_vehicleTiers.isNotEmpty) {
+      final match = _vehicleTiers.firstWhere(
+        (t) => t['vehicleType']?.toString().toUpperCase() == vType,
+        orElse: () => <String, dynamic>{},
+      );
+      if (match.isNotEmpty && match['categoryLabel'] != null) {
+        return match['categoryLabel'].toString();
+      }
+    }
+    if (vType == 'SUV') return 'Fleet SUV & MUV';
+    if (vType == 'HATCHBACK') return 'Compact Hatchback';
+    if (vType == 'SEDAN') return 'Prime Sedan';
+    return type;
   }
 
   Future<void> _loadWallet() async {
@@ -422,6 +493,22 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
   Future<void> _handleConfirmAndPost() async {
     final draft = context.read<RequirementDraftProvider>();
 
+    final ratePerVehicle = _getRatePerVehicle(draft);
+    final rawTotal = draft.fulfillmentMode == 'BIDDING' ? draft.suggestedBudget : (draft.quantity * ratePerVehicle);
+    final discount = ((_appliedCoupon?['discountAmount'] as num?)?.toDouble() ?? 0.0);
+    final estTotal = (rawTotal - discount).clamp(0.0, double.infinity);
+
+    // Auto-open top-up bottom sheet if wallet balance is insufficient
+    if (_walletBalance != null && _walletBalance! < estTotal) {
+      Fluttertoast.showToast(
+        msg: 'Insufficient wallet balance. Please top up to deploy fleet.',
+        backgroundColor: AppColors.error,
+        textColor: Colors.white,
+      );
+      _showTopUpBottomSheet();
+      return;
+    }
+
     // Prepare structured notes containing all auxiliary details
     final List<String> notesParts = [];
     if (draft.specialRequests.isNotEmpty) {
@@ -442,11 +529,8 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
     if (draft.hasReturn && draft.returnDate != null) {
       notesParts.add('Return Trip: ${draft.returnDate} ${draft.returnTime ?? ""}');
     }
-    if (draft.passengers > 1) {
+    if (draft.passengers > 0) {
       notesParts.add('Passengers per vehicle: ${draft.passengers}');
-    }
-    if (draft.selectedLuggage != null && draft.selectedLuggage!.isNotEmpty) {
-      notesParts.add('Luggage: ${draft.selectedLuggage}');
     }
     if (draft.additionalInfo.isNotEmpty) {
       notesParts.add('Additional Info: ${draft.additionalInfo}');
@@ -478,7 +562,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
         dropLat: draft.dropLat != 0.0 ? draft.dropLat : 28.5562,
         dropLng: draft.dropLng != 0.0 ? draft.dropLng : 77.1000,
         reportingTime: draft.reportingDateTime,
-        ratePerVehicle: draft.fulfillmentMode == 'DIRECT_DISPATCH' ? 850.0 : null,
+        ratePerVehicle: draft.fulfillmentMode == 'DIRECT_DISPATCH' ? ratePerVehicle : null,
         suggestedBudget: draft.fulfillmentMode == 'BIDDING' ? draft.suggestedBudget : null,
         notes: combinedNotes.isNotEmpty ? combinedNotes : 'Standard Booking Requirement',
         couponCode: couponCode,
@@ -494,24 +578,24 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
       if (mounted) {
         setState(() => _isSubmitting = false);
         final rawMsg = e.toString().replaceAll("Exception: ", "").replaceAll("ApiException(400): ", "").replaceAll("BadRequestException: ", "");
-        final isLowBalance = rawMsg.toLowerCase().contains("insufficient") || rawMsg.toLowerCase().contains("wallet");
+        final isLowBalance = rawMsg.toLowerCase().contains("insufficient") || rawMsg.toLowerCase().contains("wallet") || rawMsg.toLowerCase().contains("balance");
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(rawMsg),
+        if (isLowBalance) {
+          Fluttertoast.showToast(
+            msg: rawMsg,
             backgroundColor: AppColors.error,
-            duration: const Duration(seconds: 6),
-            action: isLowBalance
-                ? SnackBarAction(
-                    label: 'TOP UP WALLET',
-                    textColor: Colors.white,
-                    onPressed: () {
-                      _showTopUpBottomSheet();
-                    },
-                  )
-                : null,
-          ),
-        );
+            textColor: Colors.white,
+          );
+          _showTopUpBottomSheet();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(rawMsg),
+              backgroundColor: AppColors.error,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
       }
     }
   }
@@ -547,7 +631,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: List.generate(5, (index) {
+                children: List.generate(4, (index) {
                   final stepNum = index + 1;
                   return CircleAvatar(
                     radius: 14,
@@ -611,14 +695,14 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                             _buildReviewRow(context, Icons.timer_outlined, 'Bidding Window', '${draft.biddingWindowMinutes} Minutes', isDark),
                             const Divider(),
                           ] else ...[
-                            _buildReviewRow(context, Icons.currency_rupee, 'Rate per Vehicle', '₹850', isDark),
+                            _buildReviewRow(context, Icons.currency_rupee, 'Rate per Vehicle', '₹${_getRatePerVehicle(draft).toStringAsFixed(0)}', isDark),
                             const Divider(),
-                            _buildReviewRow(context, Icons.payments_outlined, 'Est. Total Cost', '₹${(draft.quantity * 850).toStringAsFixed(0)}', isDark, valueColor: _appliedCoupon != null ? AppColors.textMutedLight : AppColors.success),
+                            _buildReviewRow(context, Icons.payments_outlined, 'Est. Total Cost', '₹${(draft.quantity * _getRatePerVehicle(draft)).toStringAsFixed(0)}', isDark, valueColor: _appliedCoupon != null ? AppColors.textMutedLight : AppColors.success),
                             const Divider(),
                             if (_appliedCoupon != null) ...[
                               _buildReviewRow(context, Icons.local_offer_outlined, 'Promo Discount (${_appliedCoupon!["code"]})', '- ₹${((_appliedCoupon!["discountAmount"] as num?)?.toDouble() ?? 0).toStringAsFixed(0)}', isDark, valueColor: AppColors.success),
                               const Divider(),
-                              _buildReviewRow(context, Icons.account_balance_wallet_outlined, 'Net Est. Amount', '₹${((_appliedCoupon!["finalAmount"] as num?)?.toDouble() ?? (draft.quantity * 850)).toStringAsFixed(0)}', isDark, valueColor: AppColors.primary),
+                              _buildReviewRow(context, Icons.account_balance_wallet_outlined, 'Net Est. Amount', '₹${((_appliedCoupon!["finalAmount"] as num?)?.toDouble() ?? (draft.quantity * _getRatePerVehicle(draft))).toStringAsFixed(0)}', isDark, valueColor: AppColors.primary),
                               const Divider(),
                             ],
                           ],
@@ -626,11 +710,20 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                             context,
                             Icons.directions_car_outlined,
                             'Vehicle Type',
-                            draft.vehicleType.toUpperCase() == 'SUV'
-                                ? 'SUV 7 Seater'
-                                : (draft.vehicleType.toUpperCase() == 'SEDAN' ? 'Prime Sedan' : draft.vehicleType),
+                            _getVehicleCategoryLabel(draft.vehicleType),
                             isDark,
                           ),
+                          const Divider(),
+                          if (draft.roadDistanceKm > 0) ...[
+                            _buildReviewRow(
+                              context,
+                              Icons.alt_route_rounded,
+                              'Road Distance & ETA',
+                              '${draft.formattedDistance.isNotEmpty ? draft.formattedDistance : "${draft.roadDistanceKm.toStringAsFixed(1)} km"}${draft.formattedEta.isNotEmpty ? " • ~${draft.formattedEta}" : ""}',
+                              isDark,
+                            ),
+                            const Divider(),
+                          ],
                           const Divider(),
                           _buildReviewRow(context, Icons.format_list_numbered, 'Quantity', '${draft.quantity} ${draft.quantity > 1 ? "Vehicles" : "Vehicle"}', isDark),
                           const Divider(),
@@ -661,8 +754,6 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                           ],
                           const Divider(),
                           _buildReviewRow(context, Icons.person_outline, 'Passengers/Cab', '${draft.passengers}', isDark),
-                          const Divider(),
-                          _buildReviewRow(context, Icons.luggage_outlined, 'Luggage', draft.selectedLuggage ?? 'Not Specified', isDark),
                           if (draft.specialRequests.isNotEmpty) ...[
                             const Divider(),
                             _buildReviewRow(context, Icons.note_outlined, 'Preferences', draft.specialRequests, isDark),
@@ -719,7 +810,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                                       ? null
                                       : () async {
                                           final code = _couponController.text.trim().toUpperCase();
-                                          final baseCost = (draft.quantity * 850).toDouble();
+                                          final baseCost = (draft.quantity * _getRatePerVehicle(draft)).toDouble();
 
                                           setState(() {
                                             _isValidatingCoupon = true;
@@ -819,7 +910,8 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                     // AdhocX Wallet Balance & Deduction Indicator
                     Builder(
                       builder: (context) {
-                        final rawTotal = draft.fulfillmentMode == 'BIDDING' ? draft.suggestedBudget : (draft.quantity * 850.0);
+                        final ratePerVehicle = _getRatePerVehicle(draft);
+                        final rawTotal = draft.fulfillmentMode == 'BIDDING' ? draft.suggestedBudget : (draft.quantity * ratePerVehicle);
                         final discount = ((_appliedCoupon?['discountAmount'] as num?)?.toDouble() ?? 0.0);
                         final estTotal = (rawTotal - discount).clamp(0.0, double.infinity);
                         final isInsufficient = _walletBalance != null && _walletBalance! < estTotal;
@@ -929,7 +1021,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                         Expanded(
                           flex: 2,
                           child: AppPrimaryButton(
-                            text: draft.fulfillmentMode == 'BIDDING' ? '🚀 Launch Reverse Auction' : '⚡ Deploy Fleet Dispatch',
+                            text: '⚡ Deploy Fleet Dispatch',
                             isLoading: _isSubmitting,
                             onPressed: _handleConfirmAndPost,
                           ),

@@ -143,9 +143,14 @@ export async function apiClient<T = unknown>(
       }
     }
     const errorBody = await response.json().catch(() => ({}));
+    const message =
+      (Array.isArray(errorBody.error?.details) ? errorBody.error.details.join(', ') : null) ||
+      errorBody.error?.message ||
+      (Array.isArray(errorBody.message) ? errorBody.message.join(', ') : errorBody.message) ||
+      `Request failed with status ${response.status}`;
     throw new ApiError(
       response.status,
-      errorBody.message || `Request failed with status ${response.status}`,
+      message,
       errorBody,
     );
   }

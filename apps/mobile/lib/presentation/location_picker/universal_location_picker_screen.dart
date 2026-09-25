@@ -2,12 +2,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/location_service.dart';
+import '../../services/permission_service.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
-import '../../shared/widgets/app_primary_button.dart';
-import '../../shared/widgets/osm_map_picker_widget.dart';
 
 class UniversalLocationPickerScreen extends StatefulWidget {
   final String title;
@@ -40,9 +39,12 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
   bool _isSearching = false;
   bool _isLoadingSearch = false;
   bool _isLoadingCategoryPlaces = false;
-  bool _isMapMode = false;
   String _selectedCategory = 'All';
   Timer? _debounceTimer;
+
+  String? _currentCity;
+  double? _currentLat;
+  double? _currentLng;
 
   final List<String> _categories = [
     'All',
@@ -60,9 +62,11 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
     super.initState();
     final defaultLat = widget.initialLat ?? 28.4950;
     final defaultLng = widget.initialLng ?? 77.0895;
+    _currentLat = defaultLat;
+    _currentLng = defaultLng;
     final defaultAddress = widget.initialAddress != null && widget.initialAddress!.isNotEmpty
         ? widget.initialAddress!
-        : 'DLF Cyber City, Gurugram';
+        : 'Select Location';
 
     _selectedLocation = LocationModel(
       title: defaultAddress.split(',').first.trim(),
@@ -74,7 +78,7 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
     );
 
     _searchController.addListener(_onSearchChanged);
-    _loadRecentsAndCategories();
+    _detectLocationAndLoadData();
   }
 
   @override
@@ -85,13 +89,45 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
     super.dispose();
   }
 
-  Future<void> _loadRecentsAndCategories() async {
+  Future<void> _detectLocationAndLoadData() async {
     final recents = await _locationService.getRecentLocations();
-    final places = await _locationService.fetchCategoryPlaces('All');
+    if (mounted) {
+      setState(() => _recentLocations = recents);
+    }
+
+    try {
+      final pos = await PermissionService.instance.getCurrentPosition();
+      if (pos != null) {
+        _currentLat = pos.latitude;
+        _currentLng = pos.longitude;
+        final rev = await _locationService.reverseGeocode(pos.latitude, pos.longitude);
+        if (rev.city != null && rev.city!.isNotEmpty) {
+          _currentCity = rev.city;
+        }
+      }
+    } catch (e) {
+      debugPrint('Location detection error: $e');
+    }
+
+    // If city is still null, try reverse geocode from initial coords
+    if (_currentCity == null && _currentLat != null && _currentLng != null) {
+      try {
+        final rev = await _locationService.reverseGeocode(_currentLat!, _currentLng!);
+        if (rev.city != null && rev.city!.isNotEmpty) {
+          _currentCity = rev.city;
+        }
+      } catch (_) {}
+    }
+
+    final places = await _locationService.fetchCategoryPlaces(
+      'All',
+      lat: _currentLat,
+      lon: _currentLng,
+      cityName: _currentCity,
+    );
 
     if (mounted) {
       setState(() {
-        _recentLocations = recents;
         _categoryPlaces = places;
       });
     }
@@ -103,7 +139,12 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
       _isLoadingCategoryPlaces = true;
     });
 
-    final places = await _locationService.fetchCategoryPlaces(category);
+    final places = await _locationService.fetchCategoryPlaces(
+      category,
+      lat: _currentLat,
+      lon: _currentLng,
+      cityName: _currentCity,
+    );
     if (mounted) {
       setState(() {
         _categoryPlaces = places;
@@ -130,7 +171,11 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
     });
 
     _debounceTimer = Timer(const Duration(milliseconds: 300), () async {
-      final results = await _locationService.searchLocations(text);
+      final results = await _locationService.searchLocations(
+        text,
+        lat: _currentLat,
+        lon: _currentLng,
+      );
       if (mounted) {
         setState(() {
           _searchResults = results;
@@ -140,51 +185,33 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
     });
   }
 
-  Future<void> _selectLocation(LocationModel loc, {bool confirmImmediately = false}) async {
+  Future<void> _selectLocation(LocationModel loc) async {
     await _locationService.saveRecentLocation(loc);
     if (!mounted) return;
-
-    setState(() {
-      _selectedLocation = loc;
-      _isSearching = false;
-      _searchController.text = loc.title;
-      _searchFocus.unfocus();
-    });
-
-    if (confirmImmediately) {
-      _confirmAndReturn();
-    }
-  }
-
-  Future<void> _handleMapPinChanged(double lat, double lng) async {
-    final reverse = await _locationService.reverseGeocode(lat, lng);
-    if (mounted) {
-      setState(() {
-        _selectedLocation = reverse;
-      });
-    }
+    context.pop(loc.toMap());
   }
 
   Future<void> _fetchCurrentGpsLocation() async {
     setState(() => _isLoadingSearch = true);
-    // Reverse geocode default current location via live OpenStreetMap
-    final loc = await _locationService.reverseGeocode(_selectedLocation.latitude, _selectedLocation.longitude);
-    if (mounted) {
-      setState(() => _isLoadingSearch = false);
-      _selectLocation(loc);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('📍 Current Location: ${loc.title} (${loc.city ?? "OpenStreetMap"})'),
-          duration: const Duration(seconds: 2),
-          backgroundColor: AppColors.primary,
-        ),
-      );
-    }
-  }
+    try {
+      final pos = await PermissionService.instance.getCurrentPosition();
+      final lat = pos != null ? pos.latitude : (_currentLat ?? _selectedLocation.latitude);
+      final lng = pos != null ? pos.longitude : (_currentLng ?? _selectedLocation.longitude);
+      _currentLat = lat;
+      _currentLng = lng;
 
-  void _confirmAndReturn() {
-    _locationService.saveRecentLocation(_selectedLocation);
-    context.pop(_selectedLocation.toMap());
+      final loc = await _locationService.reverseGeocode(lat, lng);
+      if (loc.city != null && loc.city!.isNotEmpty) {
+        _currentCity = loc.city;
+      }
+
+      if (mounted) {
+        setState(() => _isLoadingSearch = false);
+        _selectLocation(loc);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingSearch = false);
+    }
   }
 
   @override
@@ -228,14 +255,6 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
           ],
         ),
         actions: [
-          IconButton(
-            onPressed: () => setState(() => _isMapMode = !_isMapMode),
-            icon: Icon(
-              _isMapMode ? Icons.list_alt_rounded : Icons.map_rounded,
-              color: AppColors.primary,
-            ),
-            tooltip: _isMapMode ? 'Switch to List View' : 'Switch to Map View',
-          ),
           IconButton(
             onPressed: _fetchCurrentGpsLocation,
             icon: Icon(Icons.my_location_rounded, color: AppColors.primary),
@@ -308,13 +327,8 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
             Expanded(
               child: _isSearching
                   ? _buildSearchResultsList(isDark)
-                  : _isMapMode
-                      ? _buildFullMapView(isDark)
-                      : _buildExploreAndRecentView(isDark),
+                  : _buildExploreAndRecentView(isDark),
             ),
-
-            // Bottom Selected Location Card & Confirm Action
-            _buildBottomConfirmationCard(isDark),
           ],
         ),
       ),
@@ -432,33 +446,18 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Quick Action Tiles
+          // Quick Action - Use Current Location via GPS
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildQuickActionButton(
-                    icon: Icons.my_location_rounded,
-                    label: 'Current Location',
-                    subtitle: 'GPS Geocode',
-                    color: AppColors.primary,
-                    onTap: _fetchCurrentGpsLocation,
-                    isDark: isDark,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: _buildQuickActionButton(
-                    icon: Icons.map_rounded,
-                    label: 'Choose on Map',
-                    subtitle: 'Drag & Pinpoint',
-                    color: AppColors.accentPurple,
-                    onTap: () => setState(() => _isMapMode = true),
-                    isDark: isDark,
-                  ),
-                ),
-              ],
+            child: _buildQuickActionButton(
+              icon: Icons.my_location_rounded,
+              label: 'Use Current Location',
+              subtitle: _currentCity != null
+                  ? 'Biased to $_currentCity • Live GPS OpenStreetMap'
+                  : 'Tap to fetch precise GPS coordinates',
+              color: AppColors.primary,
+              onTap: _fetchCurrentGpsLocation,
+              isDark: isDark,
             ),
           ),
 
@@ -665,28 +664,7 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
     );
   }
 
-  /// 3. Fullscreen Interactive OpenStreetMap Map Mode
-  Widget _buildFullMapView(bool isDark) {
-    return Stack(
-      children: [
-        OsmMapPickerWidget(
-          initialLat: _selectedLocation.latitude,
-          initialLng: _selectedLocation.longitude,
-          onPositionChanged: _handleMapPinChanged,
-        ),
-        Positioned(
-          bottom: 12,
-          right: 12,
-          child: FloatingActionButton.extended(
-            onPressed: () => setState(() => _isMapMode = false),
-            icon: const Icon(Icons.list_alt_rounded),
-            label: const Text('Back to Search'),
-            backgroundColor: AppColors.primary,
-          ),
-        ),
-      ],
-    );
-  }
+
 
   /// Quick Action Button Tile
   Widget _buildQuickActionButton({
@@ -748,93 +726,6 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  /// 4. Bottom Selected Location Summary and Confirmation Button
-  Widget _buildBottomConfirmationCard(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
-        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 10,
-            offset: const Offset(0, -3),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: Icon(_selectedLocation.icon, color: AppColors.primary, size: 24),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            _selectedLocation.title,
-                            style: AppTypography.h4(
-                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (_selectedLocation.city != null && _selectedLocation.city!.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(AppRadius.xs),
-                            ),
-                            child: Text(
-                              _selectedLocation.city!,
-                              style: TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _selectedLocation.fullAddress,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          AppPrimaryButton(
-            text: 'Confirm Location ✓',
-            onPressed: _confirmAndReturn,
-          ),
-        ],
       ),
     );
   }

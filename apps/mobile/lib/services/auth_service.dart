@@ -149,6 +149,8 @@ class AuthService {
 
   UserModel? get currentUser => _currentUser;
 
+  Future<String?> getToken() => _api.getToken();
+
   void setCurrentUser(UserModel? user) {
     _currentUser = user;
     authStateListenable.value = user;
@@ -440,7 +442,15 @@ class AuthService {
     if (token != null && token.isNotEmpty) {
       try {
         final user = await fetchCurrentUser(forceRefresh: true);
-        if (user != null) return true;
+        if (user != null) {
+          try {
+            FcmService.instance.registerTokenWithBackend(
+              apiBaseUrl: _api.baseUrl,
+              authToken: token,
+            );
+          } catch (_) {}
+          return true;
+        }
       } catch (_) {
         await _api.clearToken();
       }
@@ -535,6 +545,12 @@ class AuthService {
       final refreshToken = payload['refreshToken']?.toString();
       if (accessToken != null && accessToken.isNotEmpty) {
         await _api.setToken(accessToken, refreshToken: refreshToken);
+        try {
+          FcmService.instance.registerTokenWithBackend(
+            apiBaseUrl: _api.baseUrl,
+            authToken: accessToken,
+          );
+        } catch (_) {}
         return accessToken;
       }
     }

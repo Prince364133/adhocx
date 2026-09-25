@@ -21,6 +21,7 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
   late String _selectedFulfillmentMode;
   late String _selectedVehicleType;
   late int _quantity;
+  int _passengersPerVehicle = 4;
   late double _suggestedBudget;
   late int _biddingWindowMinutes;
   late TextEditingController _budgetController;
@@ -54,52 +55,28 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
       final tiers = await DriverService.instance.getVehicleCategories();
       if (tiers.isNotEmpty && mounted) {
         setState(() {
-          // Strictly filter to SEDAN and SUV
-          final filteredTiers = tiers.where((t) {
-            final vType = (t['vehicleType'] as String? ?? '').toUpperCase();
-            return vType == 'SEDAN' || vType == 'SUV';
+          _vehicleOptions = tiers.map((t) {
+            final vType = (t['vehicleType'] as String? ?? 'SEDAN').toUpperCase();
+            final label = t['categoryLabel']?.toString() ?? vType;
+            final seating = t['seatingCapacity']?.toString() ?? '4 + 1 Passengers';
+            final desc = t['description']?.toString() ?? '';
+
+            IconData icon = Icons.directions_car_rounded;
+            if (vType == 'SUV') {
+              icon = Icons.airport_shuttle_rounded;
+            } else if (vType == 'HATCHBACK') {
+              icon = Icons.electric_car_rounded;
+            } else if (vType == 'BUS') {
+              icon = Icons.directions_bus_rounded;
+            }
+
+            return {
+              'id': vType,
+              'label': label,
+              'subtitle': seating.isNotEmpty ? seating : desc,
+              'icon': icon,
+            };
           }).toList();
-
-          if (filteredTiers.isNotEmpty) {
-            _vehicleOptions = filteredTiers.map((t) {
-              final vType = (t['vehicleType'] as String? ?? 'SEDAN').toUpperCase();
-              final isSuv = vType == 'SUV';
-
-              final label = isSuv
-                  ? 'SUV 7 Seater'
-                  : (t['categoryLabel'] ?? 'Prime Sedan');
-              final seating = isSuv
-                  ? (t['seatingCapacity'] ?? '6 + 1 Passengers')
-                  : (t['seatingCapacity'] ?? '4 + 1 Passengers');
-              final rate = t['perKmRate'] ?? (isSuv ? '19' : '14.5');
-
-              return {
-                'id': vType,
-                'label': label,
-                'subtitle': '$seating • ₹$rate/km',
-                'icon': isSuv ? Icons.airport_shuttle_rounded : Icons.directions_car_rounded,
-              };
-            }).toList();
-
-            // Ensure SUV is present if not returned by API
-            if (!_vehicleOptions.any((v) => v['id'] == 'SUV')) {
-              _vehicleOptions.add({
-                'id': 'SUV',
-                'label': 'SUV 7 Seater',
-                'subtitle': '6 + 1 Passengers • ₹19/km',
-                'icon': Icons.airport_shuttle_rounded,
-              });
-            }
-            // Ensure SEDAN is present if not returned by API
-            if (!_vehicleOptions.any((v) => v['id'] == 'SEDAN')) {
-              _vehicleOptions.insert(0, {
-                'id': 'SEDAN',
-                'label': 'Prime Sedan',
-                'subtitle': '4 + 1 Passengers • ₹14.5/km',
-                'icon': Icons.directions_car_rounded,
-              });
-            }
-          }
 
           if (!_vehicleOptions.any((v) => v['id'] == _selectedVehicleType) && _vehicleOptions.isNotEmpty) {
             _selectedVehicleType = _vehicleOptions.first['id'] as String;
@@ -117,16 +94,16 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
     super.didChangeDependencies();
     if (!_initialized) {
       final draft = context.read<RequirementDraftProvider>();
-      // Outstation Bidding option hidden in UI for now; default strictly to DIRECT_DISPATCH
+      // Corporate Bulk / Direct Dispatch single mode
       _selectedFulfillmentMode = 'DIRECT_DISPATCH';
 
       final draftType = draft.vehicleType.toUpperCase();
-      _selectedVehicleType = (draftType == 'SUV') ? 'SUV' : 'SEDAN';
-      // Ensure selected vehicle is valid among allowed options
+      _selectedVehicleType = draftType.isNotEmpty ? draftType : 'SEDAN';
       if (!_vehicleOptions.any((v) => v['id'] == _selectedVehicleType)) {
         _selectedVehicleType = _vehicleOptions.isNotEmpty ? _vehicleOptions.first['id'] as String : 'SEDAN';
       }
-      _quantity = draft.quantity > 0 ? draft.quantity : 1;
+      _quantity = draft.quantity > 0 ? draft.quantity : 5;
+      _passengersPerVehicle = draft.passengers > 0 ? draft.passengers : (_selectedVehicleType == 'SUV' ? 6 : 4);
       _suggestedBudget = draft.suggestedBudget;
       _biddingWindowMinutes = draft.biddingWindowMinutes;
       _budgetController = TextEditingController(text: _suggestedBudget.toStringAsFixed(0));
@@ -176,12 +153,12 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
       body: SafeArea(
         child: Column(
           children: [
-            // Stepper Header (1, 2, 3, 4, 5)
+            // Stepper Header (1 to 4)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: List.generate(5, (index) {
+                children: List.generate(4, (index) {
                   final stepNum = index + 1;
                   final isActive = stepNum == 1;
                   return CircleAvatar(
@@ -208,69 +185,6 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Booking Category Selector (Outstation Trip option hidden as requested; all logic preserved)
-                    Text(
-                      'Booking Category *',
-                      style: AppTypography.h4(
-                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(AppRadius.md),
-                              border: Border.all(
-                                color: AppColors.primary,
-                                width: 2,
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary.withValues(alpha: 0.15),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(Icons.flash_on_rounded, size: 16, color: AppColors.primary),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'Corporate Bulk',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                          color: AppColors.primary,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        'Direct Timed Dispatch',
-                                        style: TextStyle(fontSize: 11, color: isDark ? AppColors.slate400 : AppColors.slate600),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const Icon(Icons.check_circle_rounded, size: 18, color: AppColors.primary),
-                              ],
-                            ),
-                          ),
-                        ),
-                        // NOTE: Outstation Trip option hidden from UI right now as requested.
-                        // All underlying bidding mode logic and handlers are preserved in the file.
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
 
                     // Vehicle Type Dropdown Selector
                     Text(
@@ -602,48 +516,81 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                         ),
                       ),
                       const SizedBox(height: AppSpacing.lg),
+
+                      // Total Passengers per Vehicle (Optional)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Passengers per Vehicle (Optional)',
+                            style: AppTypography.h4(
+                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            'Max ${_selectedVehicleType == "SUV" ? "7" : "4"} Seats',
+                            style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            IconButton(
+                              onPressed: () {
+                                if (_passengersPerVehicle > 1) setState(() => _passengersPerVehicle--);
+                              },
+                              icon: Icon(Icons.remove, color: AppColors.primary),
+                            ),
+                            Row(
+                              children: [
+                                Icon(Icons.person_rounded, size: 20, color: AppColors.primary),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '$_passengersPerVehicle ${_passengersPerVehicle > 1 ? "Passengers" : "Passenger"} / Cab',
+                                  style: AppTypography.body(
+                                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            IconButton(
+                              onPressed: () {
+                                final maxPass = _selectedVehicleType == 'SUV' ? 7 : 4;
+                                if (_passengersPerVehicle < maxPass) setState(() => _passengersPerVehicle++);
+                              },
+                              icon: Icon(Icons.add, color: AppColors.primary),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+
+                      // Continue Button -> Step 2
+                      AppPrimaryButton(
+                        text: 'Continue to Route →',
+                        onPressed: () {
+                          final draft = context.read<RequirementDraftProvider>();
+                          draft.updateStep1(
+                            fulfillmentMode: 'DIRECT_DISPATCH',
+                            vehicleType: _selectedVehicleType,
+                            quantity: _quantity,
+                            passengers: _passengersPerVehicle,
+                          );
+                          context.push(AppRoutes.userCreateRequirementStep2Screen);
+                        },
+                      ),
                     ],
-
-                    // Special Requests (Optional)
-                    Text(
-                      _selectedFulfillmentMode == 'BIDDING' ? 'Driver / Vehicle Preferences (Optional)' : 'Special Requests (Optional)',
-                      style: AppTypography.h4(
-                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    TextField(
-                      controller: _specialRequestsController,
-                      maxLines: 2,
-                      decoration: InputDecoration(
-                        hintText: _selectedFulfillmentMode == 'BIDDING'
-                            ? 'e.g. AC Sedan with boot space, 4.8+ rating, Non-smoking driver'
-                            : 'Any specific fleet requirements or reporting guidelines.',
-                        hintStyle: TextStyle(fontSize: 13, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                      ),
-                    ),
-
-                    const SizedBox(height: AppSpacing.xl),
-
-                    // Continue Button -> Step 2
-                    AppPrimaryButton(
-                      text: _selectedFulfillmentMode == 'BIDDING' ? 'Configure Outstation Route →' : 'Continue to Route →',
-                      onPressed: () {
-                        final parsedBudget = double.tryParse(_budgetController.text.trim()) ?? _suggestedBudget;
-                        final draft = context.read<RequirementDraftProvider>();
-                        draft.updateStep1(
-                          fulfillmentMode: _selectedFulfillmentMode,
-                          vehicleType: _selectedVehicleType,
-                          quantity: _selectedFulfillmentMode == 'BIDDING' ? 1 : _quantity,
-                          suggestedBudget: parsedBudget,
-                          biddingWindowMinutes: _biddingWindowMinutes,
-                          specialRequests: _specialRequestsController.text.trim(),
-                        );
-                        context.push(AppRoutes.userCreateRequirementStep2Screen);
-                      },
-                    ),
                   ],
                 ),
               ),

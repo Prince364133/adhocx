@@ -94,6 +94,11 @@ class UserService {
     );
   }
 
+  Future<dynamic> retryRequirement(String id) async {
+    await _ensureSession();
+    return await _api.post('/requirements/$id/retry');
+  }
+
   // Bidding Flow for Requester
   Future<List<dynamic>> getBids(String requirementId) async {
     await _ensureSession();

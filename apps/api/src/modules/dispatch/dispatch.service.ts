@@ -130,8 +130,8 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
   /**
    * Dispatch available drivers for a requirement following docs/11_DISPATCH_ENGINE.md.
    */
-  async dispatchRequirement(requirementId: string): Promise<DispatchResult> {
-    this.logger.log(`Dispatch initiated for requirement ${requirementId}`);
+  async dispatchRequirement(requirementId: string, isRetry: boolean = false): Promise<DispatchResult> {
+    this.logger.log(`Dispatch initiated for requirement ${requirementId} (isRetry: ${isRetry})`);
 
     const requirement = await this.db.requirement.findUnique({
       where: { id: requirementId },
@@ -196,15 +196,24 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       requirement.vehicleType as unknown as VehicleType,
     );
 
-    // Collect already offered driver IDs (SENT, ACCEPTED, DECLINED, EXPIRED) to prevent harassment / duplicates
+    // Collect already offered driver IDs
+    // During normal automated progressive waves, exclude SENT, ACCEPTED, DECLINED, EXPIRED to avoid duplicates.
+    // On retry waves (isRetry === true or previous status was NO_DRIVER_AVAILABLE), allow re-approaching EXPIRED/DECLINED drivers,
+    // only excluding drivers currently holding active SENT or ACCEPTED offers.
+    const isRetryWave = isRetry || requirement.status === RequirementStatus.NO_DRIVER_AVAILABLE;
     const alreadyOfferedDriverIds = new Set(
       requirement.offers
-        .filter((o) =>
-          o.status === OfferStatus.SENT ||
-          o.status === OfferStatus.ACCEPTED ||
-          o.status === OfferStatus.DECLINED ||
-          o.status === OfferStatus.EXPIRED,
-        )
+        .filter((o) => {
+          if (isRetryWave) {
+            return o.status === OfferStatus.SENT || o.status === OfferStatus.ACCEPTED;
+          }
+          return (
+            o.status === OfferStatus.SENT ||
+            o.status === OfferStatus.ACCEPTED ||
+            o.status === OfferStatus.DECLINED ||
+            o.status === OfferStatus.EXPIRED
+          );
+        })
         .map((o) => o.driverId),
     );
 

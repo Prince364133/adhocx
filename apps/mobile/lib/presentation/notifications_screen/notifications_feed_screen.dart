@@ -3,6 +3,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import '../../routes/app_routes.dart';
 import '../../services/driver_service.dart';
+import '../../services/in_app_message_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
@@ -199,6 +200,18 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                      ),
+                      IconButton(
+                        tooltip: 'Test Voice & Music Alert',
+                        icon: const Icon(
+                          Icons.volume_up_rounded,
+                          color: AppColors.primary,
+                          size: 22,
+                        ),
+                        onPressed: () {
+                          InAppMessageService.instance.triggerTestNotification();
+                          Fluttertoast.showToast(msg: 'Playing in-app voice & music notification alert');
+                        },
                       ),
                       TextButton(
                         onPressed: _markAllAsRead,

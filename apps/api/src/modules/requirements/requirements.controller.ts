@@ -75,4 +75,15 @@ export class RequirementsController {
   ) {
     return this.requirementsService.cancelRequirement(id, user.id, dto);
   }
+
+  @Post(':id/retry')
+  @Roles(UserRole.VENDOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Retry dispatch for a requirement marked NO_DRIVER_AVAILABLE' })
+  @SwaggerResponse({ status: 200, type: RequirementDetailResponseDto })
+  async retryRequirement(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUserDto,
+  ) {
+    return this.requirementsService.retryRequirement(id, user.id);
+  }
 }

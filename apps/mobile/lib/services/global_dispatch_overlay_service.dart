@@ -13,6 +13,7 @@ import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import '../utils/dispatch_sound_player.dart';
 import './local_notification_service.dart';
+import './in_app_message_service.dart';
 import './permission_service.dart';
 
 /// Global Dispatch Overlay Service for AdhocX Driver App.
@@ -269,6 +270,14 @@ class GlobalDispatchOverlayService {
         final data = payload['data'] as Map<String, dynamic>?;
         if (type == 'TRIP_OFFER' && data != null) {
           showIncomingOffer(data);
+        } else {
+          final title = payload['title']?.toString() ?? '🚗 AdhocX Notification';
+          final body = payload['body']?.toString() ?? payload['message']?.toString() ?? 'You have a new update';
+          InAppMessageService.instance.showInAppNotification(
+            title: title,
+            body: body,
+            data: payload,
+          );
         }
         break;
       case 'OFFER_EXPIRED':

@@ -109,6 +109,27 @@ export class RequirementDetailResponseDto extends RequirementResponseDto {
   offersCount!: number;
   bidsCount?: number;
   bids?: Array<any>;
+  offers?: Array<{
+    id: string;
+    requirementId: string;
+    driverId: string;
+    driverName: string;
+    driverPhone: string;
+    driverRating: number;
+    driverTrustScore: number;
+    vehicleType?: string;
+    vehicleModel?: string;
+    vehiclePlate?: string;
+    offeredRate: number;
+    status: string;
+    createdAt: string;
+    expiresAt: string;
+    respondedAt?: string;
+  }>;
+  searchStartedAt?: string;
+  searchEndedAt?: string | null;
+  searchDurationMinutes?: number;
+  driversApproachedCount?: number;
   assignedDrivers?: Array<{
     assignmentId: string;
     driverId: string;
