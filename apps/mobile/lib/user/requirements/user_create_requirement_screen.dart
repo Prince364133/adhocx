@@ -28,7 +28,20 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
   bool _initialized = false;
   bool _loadingCategories = true;
 
-  List<Map<String, dynamic>> _vehicleOptions = [];
+  List<Map<String, dynamic>> _vehicleOptions = [
+    {
+      'id': 'SEDAN',
+      'label': 'Prime Sedan',
+      'subtitle': '4 + 1 Passengers • ₹14.5/km',
+      'icon': Icons.directions_car_rounded,
+    },
+    {
+      'id': 'SUV',
+      'label': 'SUV 7 Seater',
+      'subtitle': '6 + 1 Passengers • ₹19/km',
+      'icon': Icons.airport_shuttle_rounded,
+    },
+  ];
 
   @override
   void initState() {
@@ -41,27 +54,52 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
       final tiers = await DriverService.instance.getVehicleCategories();
       if (tiers.isNotEmpty && mounted) {
         setState(() {
-          _vehicleOptions = tiers.map((t) {
-            final vType = (t['vehicleType'] as String? ?? 'SEDAN').toUpperCase();
-            final iconKey = t['iconKey'] as String? ?? '';
-            IconData icon = Icons.directions_car_rounded;
-            if (vType == 'BIKE' || iconKey == 'bike') {
-              icon = Icons.two_wheeler_rounded;
-            } else if (vType == 'BUS' || iconKey == 'bus') {
-              icon = Icons.directions_bus_rounded;
-            } else if (vType == 'SUV') {
-              icon = Icons.airport_shuttle_rounded;
-            } else if (vType == 'TEMPO_TRAVELLER' || vType == 'TATA_ACE' || vType == 'PICKUP_TRUCK' || iconKey == 'truck') {
-              icon = Icons.local_shipping_rounded;
-            }
-
-            return {
-              'id': vType,
-              'label': t['categoryLabel'] ?? vType,
-              'subtitle': '${t['seatingCapacity'] ?? '4 Passengers'} • ₹${t['perKmRate'] ?? '15'}/km',
-              'icon': icon,
-            };
+          // Strictly filter to SEDAN and SUV
+          final filteredTiers = tiers.where((t) {
+            final vType = (t['vehicleType'] as String? ?? '').toUpperCase();
+            return vType == 'SEDAN' || vType == 'SUV';
           }).toList();
+
+          if (filteredTiers.isNotEmpty) {
+            _vehicleOptions = filteredTiers.map((t) {
+              final vType = (t['vehicleType'] as String? ?? 'SEDAN').toUpperCase();
+              final isSuv = vType == 'SUV';
+
+              final label = isSuv
+                  ? 'SUV 7 Seater'
+                  : (t['categoryLabel'] ?? 'Prime Sedan');
+              final seating = isSuv
+                  ? (t['seatingCapacity'] ?? '6 + 1 Passengers')
+                  : (t['seatingCapacity'] ?? '4 + 1 Passengers');
+              final rate = t['perKmRate'] ?? (isSuv ? '19' : '14.5');
+
+              return {
+                'id': vType,
+                'label': label,
+                'subtitle': '$seating • ₹$rate/km',
+                'icon': isSuv ? Icons.airport_shuttle_rounded : Icons.directions_car_rounded,
+              };
+            }).toList();
+
+            // Ensure SUV is present if not returned by API
+            if (!_vehicleOptions.any((v) => v['id'] == 'SUV')) {
+              _vehicleOptions.add({
+                'id': 'SUV',
+                'label': 'SUV 7 Seater',
+                'subtitle': '6 + 1 Passengers • ₹19/km',
+                'icon': Icons.airport_shuttle_rounded,
+              });
+            }
+            // Ensure SEDAN is present if not returned by API
+            if (!_vehicleOptions.any((v) => v['id'] == 'SEDAN')) {
+              _vehicleOptions.insert(0, {
+                'id': 'SEDAN',
+                'label': 'Prime Sedan',
+                'subtitle': '4 + 1 Passengers • ₹14.5/km',
+                'icon': Icons.directions_car_rounded,
+              });
+            }
+          }
 
           if (!_vehicleOptions.any((v) => v['id'] == _selectedVehicleType) && _vehicleOptions.isNotEmpty) {
             _selectedVehicleType = _vehicleOptions.first['id'] as String;
@@ -79,13 +117,16 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
     super.didChangeDependencies();
     if (!_initialized) {
       final draft = context.read<RequirementDraftProvider>();
-      _selectedFulfillmentMode = draft.fulfillmentMode;
-      _selectedVehicleType = draft.vehicleType.toUpperCase();
-      // Ensure selected vehicle is valid
+      // Outstation Bidding option hidden in UI for now; default strictly to DIRECT_DISPATCH
+      _selectedFulfillmentMode = 'DIRECT_DISPATCH';
+
+      final draftType = draft.vehicleType.toUpperCase();
+      _selectedVehicleType = (draftType == 'SUV') ? 'SUV' : 'SEDAN';
+      // Ensure selected vehicle is valid among allowed options
       if (!_vehicleOptions.any((v) => v['id'] == _selectedVehicleType)) {
         _selectedVehicleType = _vehicleOptions.isNotEmpty ? _vehicleOptions.first['id'] as String : 'SEDAN';
       }
-      _quantity = draft.quantity;
+      _quantity = draft.quantity > 0 ? draft.quantity : 1;
       _suggestedBudget = draft.suggestedBudget;
       _biddingWindowMinutes = draft.biddingWindowMinutes;
       _budgetController = TextEditingController(text: _suggestedBudget.toStringAsFixed(0));
@@ -167,7 +208,7 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Booking Category Selector (Corporate Bulk vs Outstation Trip)
+                    // Booking Category Selector (Outstation Trip option hidden as requested; all logic preserved)
                     Text(
                       'Booking Category *',
                       style: AppTypography.h4(
@@ -179,99 +220,54 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                     Row(
                       children: [
                         Expanded(
-                          child: GestureDetector(
-                            onTap: () => setState(() {
-                              _selectedFulfillmentMode = 'DIRECT_DISPATCH';
-                            }),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-                              decoration: BoxDecoration(
-                                color: _selectedFulfillmentMode == 'DIRECT_DISPATCH'
-                                    ? AppColors.primary.withValues(alpha: 0.12)
-                                    : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
-                                borderRadius: BorderRadius.circular(AppRadius.md),
-                                border: Border.all(
-                                  color: _selectedFulfillmentMode == 'DIRECT_DISPATCH'
-                                      ? AppColors.primary
-                                      : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                                  width: _selectedFulfillmentMode == 'DIRECT_DISPATCH' ? 2 : 1,
-                                ),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(AppRadius.md),
+                              border: Border.all(
+                                color: AppColors.primary,
+                                width: 2,
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(alpha: 0.15),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.flash_on_rounded, size: 16, color: AppColors.primary),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Icon(Icons.flash_on_rounded, size: 16, color: AppColors.primary),
-                                      const SizedBox(width: 4),
-                                      Text(
+                                      const Text(
                                         'Corporate Bulk',
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 13,
-                                          color: _selectedFulfillmentMode == 'DIRECT_DISPATCH' ? AppColors.primary : null,
+                                          color: AppColors.primary,
                                         ),
                                       ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Direct Timed Dispatch',
-                                    style: TextStyle(fontSize: 11, color: isDark ? AppColors.slate400 : AppColors.slate600),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => setState(() {
-                              _selectedFulfillmentMode = 'BIDDING';
-                              _quantity = 1;
-                            }),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-                              decoration: BoxDecoration(
-                                color: _selectedFulfillmentMode == 'BIDDING'
-                                    ? AppColors.primary.withValues(alpha: 0.12)
-                                    : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
-                                borderRadius: BorderRadius.circular(AppRadius.md),
-                                border: Border.all(
-                                  color: _selectedFulfillmentMode == 'BIDDING'
-                                      ? AppColors.primary
-                                      : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                                  width: _selectedFulfillmentMode == 'BIDDING' ? 2 : 1,
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(Icons.gavel_rounded, size: 16, color: AppColors.primary),
-                                      const SizedBox(width: 4),
+                                      const SizedBox(height: 2),
                                       Text(
-                                        'Outstation Trip',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                          color: _selectedFulfillmentMode == 'BIDDING' ? AppColors.primary : null,
-                                        ),
+                                        'Direct Timed Dispatch',
+                                        style: TextStyle(fontSize: 11, color: isDark ? AppColors.slate400 : AppColors.slate600),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Reverse Auction Quotes',
-                                    style: TextStyle(fontSize: 11, color: isDark ? AppColors.slate400 : AppColors.slate600),
-                                  ),
-                                ],
-                              ),
+                                ),
+                                const Icon(Icons.check_circle_rounded, size: 18, color: AppColors.primary),
+                              ],
                             ),
                           ),
                         ),
+                        // NOTE: Outstation Trip option hidden from UI right now as requested.
+                        // All underlying bidding mode logic and handlers are preserved in the file.
                       ],
                     ),
                     const SizedBox(height: AppSpacing.lg),

@@ -3,6 +3,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../routes/app_routes.dart';
+import '../../services/razorpay_checkout_service.dart';
 import '../../services/user_service.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
@@ -55,6 +56,361 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
   void dispose() {
     _couponController.dispose();
     super.dispose();
+  }
+
+  void _showTopUpBottomSheet() {
+    final amountController = TextEditingController(text: '5000');
+    final topUpCouponController = TextEditingController();
+    bool isProcessing = false;
+    bool isValidatingTopUpCoupon = false;
+    Map<String, dynamic>? appliedTopUpCoupon;
+    String? topUpCouponError;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+        final isDark = theme.brightness == Brightness.dark;
+
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final rawAmount = double.tryParse(amountController.text.trim()) ?? 0;
+            final discountAmount = (appliedTopUpCoupon?['discountAmount'] as num?)?.toDouble() ?? 0.0;
+            final netPayable = (rawAmount - discountAmount).clamp(0.0, double.infinity);
+
+            return Container(
+              padding: EdgeInsets.only(
+                top: AppSpacing.lg,
+                left: AppSpacing.lg,
+                right: AppSpacing.lg,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + AppSpacing.lg,
+              ),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Top Up AdhocX Wallet',
+                        style: AppTypography.h3(
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Add funds to your AdhocX business wallet via UPI / Cards / Net Banking.',
+                    style: TextStyle(fontSize: 12, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+
+                  TextField(
+                    controller: amountController,
+                    keyboardType: TextInputType.number,
+                    onChanged: (_) {
+                      if (appliedTopUpCoupon != null) {
+                        setModalState(() {
+                          appliedTopUpCoupon = null;
+                          topUpCouponError = null;
+                        });
+                      }
+                    },
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.currency_rupee, color: AppColors.primary),
+                      labelText: 'Amount (₹)',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+
+                  // Preset chips
+                  Row(
+                    children: [2000, 5000, 10000, 25000].map((preset) {
+                      return Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            setModalState(() {
+                              amountController.text = preset.toString();
+                              appliedTopUpCoupon = null;
+                              topUpCouponError = null;
+                            });
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                              border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                            ),
+                            child: Text('₹$preset', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+
+                  // Promo Coupon Code Input
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: topUpCouponController,
+                          textCapitalization: TextCapitalization.characters,
+                          decoration: InputDecoration(
+                            prefixIcon: const Icon(Icons.local_offer_outlined, size: 20, color: AppColors.primary),
+                            hintText: 'Enter Promo / Coupon Code',
+                            hintStyle: const TextStyle(fontSize: 12),
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        height: 44,
+                        child: OutlinedButton(
+                          onPressed: isValidatingTopUpCoupon || topUpCouponController.text.trim().isEmpty
+                              ? null
+                              : () async {
+                                  final code = topUpCouponController.text.trim().toUpperCase();
+                                  final amount = double.tryParse(amountController.text.trim()) ?? 0;
+                                  if (amount < 100) {
+                                    setModalState(() => topUpCouponError = 'Enter at least ₹100 before applying coupon');
+                                    return;
+                                  }
+                                  setModalState(() {
+                                    isValidatingTopUpCoupon = true;
+                                    topUpCouponError = null;
+                                  });
+                                  try {
+                                    final res = await UserService.instance.validateCoupon(
+                                      code: code,
+                                      amount: amount,
+                                      context: 'WALLET_TOPUP',
+                                    );
+                                    if (res['valid'] == true) {
+                                      setModalState(() {
+                                        appliedTopUpCoupon = res;
+                                        topUpCouponError = null;
+                                        isValidatingTopUpCoupon = false;
+                                      });
+                                    } else {
+                                      setModalState(() {
+                                        appliedTopUpCoupon = null;
+                                        topUpCouponError = res['message'] ?? 'Invalid coupon code';
+                                        isValidatingTopUpCoupon = false;
+                                      });
+                                    }
+                                  } catch (err) {
+                                    setModalState(() {
+                                      appliedTopUpCoupon = null;
+                                      topUpCouponError = err.toString().replaceAll('Exception: ', '').replaceAll('ApiException(400): ', '');
+                                      isValidatingTopUpCoupon = false;
+                                    });
+                                  }
+                                },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            side: const BorderSide(color: AppColors.primary),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                          ),
+                          child: isValidatingTopUpCoupon
+                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Text('APPLY', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  if (topUpCouponError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6, left: 4),
+                      child: Text(
+                        topUpCouponError!,
+                        style: const TextStyle(fontSize: 11, color: AppColors.error, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+
+                  if (appliedTopUpCoupon != null)
+                    Container(
+                      margin: const EdgeInsets.only(top: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                        border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.check_circle_outline, size: 16, color: AppColors.success),
+                              const SizedBox(width: 6),
+                              Text(
+                                '${appliedTopUpCoupon!['code']}: ₹${discountAmount.toStringAsFixed(0)} off!',
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.success),
+                              ),
+                            ],
+                          ),
+                          GestureDetector(
+                            onTap: () {
+                              setModalState(() {
+                                appliedTopUpCoupon = null;
+                                topUpCouponController.clear();
+                              });
+                            },
+                            child: const Icon(Icons.close, size: 16, color: AppColors.error),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  if (appliedTopUpCoupon != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Net Payable:', style: TextStyle(fontSize: 12, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
+                          Text('₹ ${netPayable.toStringAsFixed(2)}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                        ],
+                      ),
+                    ),
+
+                  const SizedBox(height: AppSpacing.lg),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: isProcessing
+                          ? null
+                          : () async {
+                              final amount = double.tryParse(amountController.text.trim()) ?? 0;
+                              if (amount < 100) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Minimum top-up amount is ₹100')),
+                                );
+                                return;
+                              }
+
+                              final messenger = ScaffoldMessenger.of(context);
+                              final navigator = Navigator.of(ctx);
+                              setModalState(() => isProcessing = true);
+                              try {
+                                final couponCode = appliedTopUpCoupon?['code'] as String?;
+                                final orderRes = await UserService.instance.createTopUpOrder(amount, couponCode: couponCode);
+                                final razorpayOrderId = orderRes['orderId'] as String?;
+                                final keyId = orderRes['keyId'] as String?;
+                                final payableAmount = (orderRes['finalPayableAmount'] as num?)?.toDouble() ?? (appliedTopUpCoupon != null ? netPayable : rawAmount);
+
+                                if (razorpayOrderId == null || keyId == null) {
+                                  throw Exception('Unable to generate payment order. Please try again.');
+                                }
+
+                                final result = await RazorpayCheckoutService.instance.openCheckout(
+                                  keyId: keyId,
+                                  orderId: razorpayOrderId,
+                                  amount: payableAmount,
+                                  name: 'AdhocX Wallet Top-Up',
+                                  description: 'Add funds to AdhocX wallet',
+                                  notes: {
+                                    'couponCode': couponCode ?? '',
+                                  },
+                                );
+
+                                if (!result.success) {
+                                  setModalState(() => isProcessing = false);
+                                  final isCancelled = (result.errorMessage ?? '').toLowerCase().contains('cancel');
+                                  await UserService.instance.recordTopUpStatus(
+                                    orderId: razorpayOrderId,
+                                    amount: payableAmount,
+                                    status: isCancelled ? 'CANCELLED' : 'FAILED',
+                                    reason: result.errorMessage ?? 'Payment was cancelled or failed',
+                                  ).catchError((_) => null);
+
+                                  if (mounted) {
+                                    _loadWallet();
+                                    messenger.showSnackBar(
+                                      SnackBar(
+                                        content: Text(result.errorMessage ?? 'Payment was cancelled or failed'),
+                                        backgroundColor: isCancelled ? AppColors.slate700 : AppColors.error,
+                                      ),
+                                    );
+                                  }
+                                  return;
+                                }
+
+                                if (result.paymentId == null || result.signature == null) {
+                                  throw Exception('Invalid payment confirmation received from payment gateway');
+                                }
+
+                                await UserService.instance.verifyTopUp(
+                                  razorpayOrderId: result.orderId ?? razorpayOrderId,
+                                  razorpayPaymentId: result.paymentId!,
+                                  razorpaySignature: result.signature!,
+                                  amount: amount,
+                                  couponCode: couponCode,
+                                );
+
+                                if (ctx.mounted) {
+                                  navigator.pop();
+                                }
+                                if (mounted) {
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text('₹${amount.toStringAsFixed(0)} added to wallet successfully!${couponCode != null ? " ($couponCode applied)" : ""}'),
+                                      backgroundColor: AppColors.success,
+                                    ),
+                                  );
+                                  _loadWallet();
+                                }
+                              } catch (err) {
+                                setModalState(() => isProcessing = false);
+                                if (mounted) {
+                                  final msg = err.toString().replaceAll('ClientException: ', '').replaceAll('Exception: ', '').replaceAll('ApiException(400): ', '');
+                                  messenger.showSnackBar(
+                                    SnackBar(content: Text('Top-up failed: $msg'), backgroundColor: AppColors.error),
+                                  );
+                                }
+                              }
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                      ),
+                      child: isProcessing
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : Text('PROCEED TO PAY ₹${(appliedTopUpCoupon != null ? netPayable : rawAmount).toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   String _normalizeVehicleType(String type) {
@@ -150,7 +506,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                     label: 'TOP UP WALLET',
                     textColor: Colors.white,
                     onPressed: () {
-                      context.push(AppRoutes.userPaymentsScreen).then((_) => _loadWallet());
+                      _showTopUpBottomSheet();
                     },
                   )
                 : null,
@@ -266,7 +622,15 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                               const Divider(),
                             ],
                           ],
-                          _buildReviewRow(context, Icons.directions_car_outlined, 'Vehicle Type', draft.vehicleType, isDark),
+                          _buildReviewRow(
+                            context,
+                            Icons.directions_car_outlined,
+                            'Vehicle Type',
+                            draft.vehicleType.toUpperCase() == 'SUV'
+                                ? 'SUV 7 Seater'
+                                : (draft.vehicleType.toUpperCase() == 'SEDAN' ? 'Prime Sedan' : draft.vehicleType),
+                            isDark,
+                          ),
                           const Divider(),
                           _buildReviewRow(context, Icons.format_list_numbered, 'Quantity', '${draft.quantity} ${draft.quantity > 1 ? "Vehicles" : "Vehicle"}', isDark),
                           const Divider(),
@@ -512,7 +876,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                                   ),
                                   OutlinedButton.icon(
                                     onPressed: () {
-                                      context.push(AppRoutes.userPaymentsScreen).then((_) => _loadWallet());
+                                      _showTopUpBottomSheet();
                                     },
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: isInsufficient ? AppColors.error : AppColors.primary,

@@ -44,7 +44,7 @@ export const DEFAULT_PRICING_TIERS: Record<VehicleType, Omit<VehiclePricingTierD
   },
   [VehicleType.SUV]: {
     vehicleType: VehicleType.SUV,
-    categoryLabel: 'Fleet SUV & MUV',
+    categoryLabel: 'SUV 7 Seater',
     seatingCapacity: '6 + 1 Passengers',
     description: '6-7 seater commercial SUVs (Innova Crysta, Ertiga, Carens, Marazzo)',
     baseFare: 1400,

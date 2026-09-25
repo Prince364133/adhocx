@@ -38,19 +38,28 @@ import {
 } from './types';
 
 function getApiBaseUrl(): string {
+  // In production (adhocx.com), use relative /api/v1 (reverse proxy handles routing)
   if (typeof window !== 'undefined') {
     const host = window.location.hostname.toLowerCase();
     if (host.includes('adhocx.com')) {
       return '/api/v1';
     }
-    if (host !== 'localhost' && host !== '127.0.0.1') {
-      return `${window.location.origin}/api/v1`;
-    }
   }
-  if (process.env.NEXT_PUBLIC_API_URL && !process.env.NEXT_PUBLIC_API_URL.includes('localhost')) {
+
+  // Use env variable if set (handles localhost dev: points to API server on port 7001)
+  if (process.env.NEXT_PUBLIC_API_URL) {
     return process.env.NEXT_PUBLIC_API_URL;
   }
-  return typeof window !== 'undefined' ? '/api/v1' : 'https://api.adhocx.com/api/v1';
+
+  // Fallback: relative path in browser, full URL on server
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname.toLowerCase();
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return 'http://localhost:7001/api/v1';
+    }
+    return `${window.location.origin}/api/v1`;
+  }
+  return 'https://api.adhocx.com/api/v1';
 }
 
 const API_BASE_URL = getApiBaseUrl();
