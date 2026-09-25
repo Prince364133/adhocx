@@ -8,6 +8,7 @@ import '../../core/utils/app_logger.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_provider.dart';
 import '../../services/auth_service.dart';
+import '../../services/driver_service.dart';
 import '../../services/onboarding_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
@@ -153,6 +154,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
           body: {
             'organizationName': orgName,
             'fullName': enteredName,
+            if (enteredPhone.isNotEmpty) 'phone': enteredPhone,
             'gstNumber': onboarding.gstNumber.isNotEmpty ? onboarding.gstNumber : null,
             'address': enteredAddress.isNotEmpty ? enteredAddress : 'India',
           },
@@ -184,8 +186,26 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
         if (mounted) setState(() => _isSaving = false);
       }
     } else {
-      // Driver Partner -> Step 2 of 3: Identity Verification (Documents)
-      context.push(AppRoutes.onboardingDocumentsScreen);
+      // Driver Partner -> Persist personal details & phone number to backend immediately
+      try {
+        await DriverService.instance.updateProfile({
+          if (enteredName.isNotEmpty) 'fullName': enteredName,
+          if (enteredPhone.isNotEmpty) 'phone': enteredPhone,
+          if (enteredAddress.isNotEmpty) 'address': enteredAddress,
+          if (enteredEmergencyName.isNotEmpty) 'emergencyContactName': enteredEmergencyName,
+          if (enteredEmergencyPhone.isNotEmpty) 'emergencyContactPhone': enteredEmergencyPhone,
+          if (_selectedDate != null)
+            'dateOfBirth': '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
+          if (_selectedGender.isNotEmpty) 'gender': _selectedGender,
+        });
+      } catch (e) {
+        AppLogger.warn('Immediate driver profile update on personal step notice: $e');
+      }
+
+      // Step 2 of 3: Identity Verification (Documents)
+      if (mounted) {
+        context.push(AppRoutes.onboardingDocumentsScreen);
+      }
     }
   }
 

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, Logger, Optional } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, Logger, Optional } from '@nestjs/common';
 import {
   AdminDriverQueryDto,
   AdminVendorQueryDto,
@@ -58,13 +58,22 @@ export class AdminService {
         where,
         skip,
         take: limit,
+        include: {
+          user: true,
+        },
         orderBy: { createdAt: 'desc' },
       }),
       this.db.driver.count({ where }),
     ]);
 
+    const mappedItems = items.map((d: any) => ({
+      ...d,
+      phone: d.phone || d.user?.phone || '',
+      fullName: d.fullName || d.user?.fullName || 'Driver Applicant',
+    }));
+
     return {
-      items,
+      items: mappedItems,
       total,
       page,
       pageSize: limit,
@@ -91,7 +100,11 @@ export class AdminService {
       throw new NotFoundException('Driver not found');
     }
 
-    return driver;
+    return {
+      ...driver,
+      phone: driver.phone || driver.user?.phone || '',
+      fullName: driver.fullName || driver.user?.fullName || 'Driver Applicant',
+    };
   }
 
   /**
@@ -302,6 +315,7 @@ export class AdminService {
         skip,
         take: limit,
         include: {
+          user: true,
           requirements: { select: { id: true } },
         },
         orderBy: { createdAt: 'desc' },
@@ -309,14 +323,14 @@ export class AdminService {
       this.db.vendor.count({ where }),
     ]);
 
-    const mapped = items.map((v) => ({
+    const mapped = items.map((v: any) => ({
       id: v.id,
       userId: v.userId,
       organizationName: v.organizationName,
       companyName: v.organizationName,
-      fullName: v.fullName,
-      contactPerson: v.fullName,
-      phone: v.phone,
+      fullName: v.fullName || v.user?.fullName || 'Vendor Partner',
+      contactPerson: v.fullName || v.user?.fullName || 'Vendor Partner',
+      phone: v.phone || v.user?.phone || '',
       gstNumber: v.gstNumber,
       address: v.address,
       verificationStatus: v.verificationStatus,
@@ -354,9 +368,113 @@ export class AdminService {
 
     return {
       ...vendor,
+      phone: vendor.phone || vendor.user?.phone || '',
+      fullName: vendor.fullName || vendor.user?.fullName || 'Vendor Partner',
       companyName: vendor.organizationName,
-      contactPerson: vendor.fullName,
+      contactPerson: vendor.fullName || vendor.user?.fullName || 'Vendor Partner',
       requirementsCount: vendor.requirements?.length || 0,
+    };
+  }
+
+  /**
+   * Admin direct update for Driver profile information (phone, name, vehicle details).
+   */
+  async updateDriver(id: string, data: { fullName?: string; phone?: string; vehiclePlate?: string; vehicleModel?: string; vehicleType?: string }) {
+    const driver = await this.db.driver.findUnique({
+      where: { id },
+      include: { user: true },
+    });
+    if (!driver) throw new NotFoundException('Driver not found');
+
+    const cleanPhone = data.phone ? data.phone.trim().replace(/\s+/g, '') : undefined;
+    const cleanName = data.fullName ? data.fullName.trim() : undefined;
+
+    if (cleanPhone && cleanPhone !== driver.phone && cleanPhone !== driver.user?.phone) {
+      const existing = await this.db.user.findFirst({
+        where: { phone: cleanPhone, id: { not: driver.userId } },
+      });
+      if (existing) {
+        throw new ConflictException('This mobile number is already registered to another account');
+      }
+    }
+
+    if (cleanPhone || cleanName) {
+      await this.db.user.update({
+        where: { id: driver.userId },
+        data: {
+          ...(cleanPhone ? { phone: cleanPhone } : {}),
+          ...(cleanName ? { fullName: cleanName } : {}),
+        },
+      });
+    }
+
+    const updatedDriver = await this.db.driver.update({
+      where: { id },
+      data: {
+        ...(cleanName ? { fullName: cleanName } : {}),
+        ...(cleanPhone ? { phone: cleanPhone } : {}),
+        ...(data.vehiclePlate ? { vehiclePlate: data.vehiclePlate.toUpperCase() } : {}),
+        ...(data.vehicleModel ? { vehicleModel: data.vehicleModel } : {}),
+        ...(data.vehicleType ? { vehicleType: data.vehicleType.toUpperCase() } : {}),
+      },
+      include: { user: true },
+    });
+
+    return {
+      ...updatedDriver,
+      phone: updatedDriver.phone || updatedDriver.user?.phone || '',
+      fullName: updatedDriver.fullName || updatedDriver.user?.fullName || 'Driver Applicant',
+    };
+  }
+
+  /**
+   * Admin direct update for Vendor profile information (phone, org name, contact).
+   */
+  async updateVendor(id: string, data: { organizationName?: string; fullName?: string; phone?: string; gstNumber?: string; address?: string }) {
+    const vendor = await this.db.vendor.findUnique({
+      where: { id },
+      include: { user: true },
+    });
+    if (!vendor) throw new NotFoundException('Vendor not found');
+
+    const cleanPhone = data.phone ? data.phone.trim().replace(/\s+/g, '') : undefined;
+    const cleanName = data.fullName ? data.fullName.trim() : undefined;
+
+    if (cleanPhone && cleanPhone !== vendor.phone && cleanPhone !== vendor.user?.phone) {
+      const existing = await this.db.user.findFirst({
+        where: { phone: cleanPhone, id: { not: vendor.userId } },
+      });
+      if (existing) {
+        throw new ConflictException('This mobile number is already registered to another account');
+      }
+    }
+
+    if (cleanPhone || cleanName) {
+      await this.db.user.update({
+        where: { id: vendor.userId },
+        data: {
+          ...(cleanPhone ? { phone: cleanPhone } : {}),
+          ...(cleanName ? { fullName: cleanName } : {}),
+        },
+      });
+    }
+
+    const updatedVendor = await this.db.vendor.update({
+      where: { id },
+      data: {
+        ...(data.organizationName ? { organizationName: data.organizationName } : {}),
+        ...(cleanName ? { fullName: cleanName } : {}),
+        ...(cleanPhone ? { phone: cleanPhone } : {}),
+        ...(data.gstNumber !== undefined ? { gstNumber: data.gstNumber } : {}),
+        ...(data.address !== undefined ? { address: data.address } : {}),
+      },
+      include: { user: true },
+    });
+
+    return {
+      ...updatedVendor,
+      phone: updatedVendor.phone || updatedVendor.user?.phone || '',
+      fullName: updatedVendor.fullName || updatedVendor.user?.fullName || 'Vendor Partner',
     };
   }
 

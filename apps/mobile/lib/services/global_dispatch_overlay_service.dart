@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../presentation/dispatch_overlay/incoming_requirement_bottom_sheet.dart';
 import '../routes/app_routes.dart';
 import '../theme/app_colors.dart';
@@ -12,6 +13,7 @@ import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import '../utils/dispatch_sound_player.dart';
 import './local_notification_service.dart';
+import './permission_service.dart';
 
 /// Global Dispatch Overlay Service for AdhocX Driver App.
 /// Decoupled singleton that manages:
@@ -279,8 +281,23 @@ class GlobalDispatchOverlayService {
 
   /// Android SYSTEM_ALERT_WINDOW In-App Onboarding Dialog
   /// Guides driver to enable "Display over other apps" so they never miss an alert while using Google Maps/Waze.
-  static Future<void> promptAndroidOverlayPermission(BuildContext context) async {
+  static Future<void> promptAndroidOverlayPermission(BuildContext context, {bool force = false}) async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+
+    // 1. If already granted by the system, never prompt again
+    final isGranted = await PermissionService.instance.isOverlayPermissionGranted();
+    if (isGranted) return;
+
+    // 2. If user already dismissed or was previously prompted, do not nag repeatedly on every online switch
+    if (!force) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final hasPrompted = prefs.getBool('overlay_permission_prompted') ?? false;
+        if (hasPrompted) return;
+      } catch (_) {}
+    }
+
+    if (!context.mounted) return;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -331,6 +348,8 @@ class GlobalDispatchOverlayService {
                   onPressed: () async {
                     Navigator.of(ctx).pop();
                     try {
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setBool('overlay_permission_prompted', true);
                       final status = await Permission.systemAlertWindow.request();
                       if (!status.isGranted) {
                         await openAppSettings();
@@ -350,7 +369,13 @@ class GlobalDispatchOverlayService {
               ),
               const SizedBox(height: AppSpacing.sm),
               TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
+                onPressed: () async {
+                  Navigator.of(ctx).pop();
+                  try {
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.setBool('overlay_permission_prompted', true);
+                  } catch (_) {}
+                },
                 child: Text('Maybe Later', style: TextStyle(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
               ),
             ],
@@ -358,5 +383,11 @@ class GlobalDispatchOverlayService {
         ),
       ),
     );
+
+    // Save flag even if dismissed by tapping outside or swiping down
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('overlay_permission_prompted', true);
+    } catch (_) {}
   }
 }

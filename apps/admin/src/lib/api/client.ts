@@ -183,6 +183,12 @@ export const adminApi = {
 
   getDriverDetails: (id: string) => apiClient<DriverDetail>(`/admin/drivers/${id}`),
 
+  updateDriver: (id: string, data: { fullName?: string; phone?: string; vehiclePlate?: string; vehicleModel?: string; vehicleType?: string }) =>
+    apiClient(`/admin/drivers/${id}`, {
+      method: 'PATCH',
+      body: data,
+    }),
+
   verifyDriver: (id: string, notes?: string) =>
     apiClient(`/admin/drivers/${id}/verify`, {
       method: 'POST',
@@ -216,6 +222,12 @@ export const adminApi = {
       return [] as VendorListItem[];
     });
   },
+
+  updateVendor: (id: string, data: { organizationName?: string; fullName?: string; phone?: string; gstNumber?: string; address?: string }) =>
+    apiClient(`/admin/vendors/${id}`, {
+      method: 'PATCH',
+      body: data,
+    }),
 
   verifyVendor: (id: string, notes?: string) =>
     apiClient(`/admin/vendors/${id}/verify`, {

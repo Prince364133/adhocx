@@ -90,6 +90,8 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
             : '',
         licenseExpiry: DateTime.now().add(const Duration(days: 365 * 5)),
         documentUrls: docList,
+        phone: onboarding.phone.isNotEmpty ? onboarding.phone : null,
+        fullName: onboarding.fullName.isNotEmpty ? onboarding.fullName : null,
         dlFrontUrl: dlUrl,
         rcDocUrl: rcUrl,
         insuranceDocUrl: insUrl,
@@ -109,6 +111,12 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
       try {
         await driverService.updateProfile({
           if (onboarding.fullName.isNotEmpty) 'fullName': onboarding.fullName,
+          if (onboarding.phone.isNotEmpty) 'phone': onboarding.phone,
+          if (onboarding.address.isNotEmpty) 'address': onboarding.address,
+          if (onboarding.emergencyContactName.isNotEmpty)
+            'emergencyContactName': onboarding.emergencyContactName,
+          if (onboarding.emergencyContactPhone.isNotEmpty)
+            'emergencyContactPhone': onboarding.emergencyContactPhone,
           if (onboarding.dateOfBirth != null)
             'dateOfBirth': '${onboarding.dateOfBirth!.day}/${onboarding.dateOfBirth!.month}/${onboarding.dateOfBirth!.year}',
           if (onboarding.gender.isNotEmpty) 'gender': onboarding.gender,

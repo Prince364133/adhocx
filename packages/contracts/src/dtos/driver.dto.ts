@@ -102,6 +102,14 @@ export class KycSubmissionDto {
   @IsOptional()
   @IsString()
   vehicleModel?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  fullName?: string;
 }
 
 export class DriverKycDocumentDto {
@@ -155,6 +163,10 @@ export class UpdateDriverProfileDto {
   @IsOptional()
   @IsString()
   fullName?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
 
   @IsOptional()
   @IsString()

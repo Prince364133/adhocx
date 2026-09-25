@@ -119,7 +119,22 @@ export class DriversService {
       throw new NotFoundException('Driver profile not found');
     }
 
-    if (dto.fullName || dto.email) {
+    const cleanPhone = dto.phone ? dto.phone.trim().replace(/\s+/g, '') : undefined;
+    const cleanName = dto.fullName ? dto.fullName.trim() : undefined;
+
+    if (cleanName || dto.email || cleanPhone) {
+      if (cleanPhone && cleanPhone !== driver.phone && cleanPhone !== driver.user?.phone) {
+        const existingWithPhone = await this.db.user.findFirst({
+          where: {
+            phone: cleanPhone,
+            id: { not: userId },
+          },
+        });
+        if (existingWithPhone) {
+          throw new ConflictException('This mobile number is already registered to another account');
+        }
+      }
+
       if (dto.email && dto.email.toLowerCase() !== driver.user?.email?.toLowerCase()) {
         const existing = await this.db.user.findUnique({
           where: { email: dto.email.toLowerCase() },
@@ -133,11 +148,16 @@ export class DriversService {
         ? dto.email.toLowerCase()
         : undefined;
 
+      const phoneToUpdate = cleanPhone && cleanPhone !== driver.user?.phone
+        ? cleanPhone
+        : undefined;
+
       await this.db.user.update({
         where: { id: userId },
         data: {
-          ...(dto.fullName ? { fullName: dto.fullName } : {}),
+          ...(cleanName ? { fullName: cleanName } : {}),
           ...(emailToUpdate ? { email: emailToUpdate } : {}),
+          ...(phoneToUpdate ? { phone: phoneToUpdate } : {}),
         },
       });
     }
@@ -156,7 +176,8 @@ export class DriversService {
     await this.db.driver.update({
       where: { userId },
       data: {
-        ...(dto.fullName ? { fullName: dto.fullName } : {}),
+        ...(cleanName ? { fullName: cleanName } : {}),
+        ...(cleanPhone ? { phone: cleanPhone } : {}),
         ...(dto.profilePhotoUrl ? { vehiclePhotoUrl: dto.profilePhotoUrl } : {}),
         ...(dto.vehicleType ? { vehicleType: dto.vehicleType.toUpperCase() } : {}),
         ...(dto.vehicleModel ? { vehicleModel: dto.vehicleModel } : {}),
@@ -242,7 +263,34 @@ export class DriversService {
     const vehicleType = (dto.vehicle?.type || dto.vehicleType || VehicleType.SEDAN) as VehicleType;
     const vehicleModel = dto.vehicle?.model || dto.vehicleModel || 'Commercial Fleet';
 
+    const cleanPhone = dto.phone ? dto.phone.trim().replace(/\s+/g, '') : undefined;
+    const cleanName = dto.fullName ? dto.fullName.trim() : undefined;
+
     try {
+      if (cleanPhone) {
+        const existingWithPhone = await this.db.user.findFirst({
+          where: {
+            phone: cleanPhone,
+            id: { not: userId },
+          },
+        });
+        if (existingWithPhone) {
+          throw new ConflictException('This mobile number is already registered to another account');
+        }
+      }
+
+      if (cleanPhone || cleanName) {
+        try {
+          await this.db.user.update({
+            where: { id: userId },
+            data: {
+              ...(cleanName ? { fullName: cleanName } : {}),
+              ...(cleanPhone ? { phone: cleanPhone } : {}),
+            },
+          });
+        } catch (_) {}
+      }
+
       const existingDriver = await this.db.driver.findUnique({ where: { userId } });
 
       if (existingDriver) {
@@ -254,6 +302,8 @@ export class DriversService {
             vehiclePlate: plate,
             vehicleType,
             vehicleModel,
+            ...(cleanName ? { fullName: cleanName } : {}),
+            ...(cleanPhone ? { phone: cleanPhone } : {}),
             dlFrontUrl: dlFrontUrl || existingDriver.dlFrontUrl,
             rcDocUrl: rcDocUrl || existingDriver.rcDocUrl,
             insuranceDocUrl: insuranceDocUrl || existingDriver.insuranceDocUrl,
@@ -314,8 +364,8 @@ export class DriversService {
         const newDriver = await this.db.driver.create({
           data: {
             userId,
-            fullName: user.fullName || 'Driver Partner',
-            phone: user.phone,
+            fullName: cleanName || user.fullName || 'Driver Partner',
+            phone: cleanPhone || user.phone,
             verificationStatus: VerificationStatus.UNDER_REVIEW,
             availabilityStatus: DriverAvailability.OFFLINE,
             vehiclePlate: plate,

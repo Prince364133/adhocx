@@ -12,6 +12,10 @@ export class CreateUserProfileDto {
 
   @IsOptional()
   @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
   gstNumber?: string;
 
   @IsOptional()

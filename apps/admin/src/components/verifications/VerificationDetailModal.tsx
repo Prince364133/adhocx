@@ -12,8 +12,12 @@ import {
   FileText,
   CheckCircle2,
   XCircle,
+  Edit3,
+  Check,
+  Loader2,
 } from 'lucide-react';
 import { VerificationItem, DriverKycDocument } from '../../lib/api/types';
+import { adminApi } from '../../lib/api/client';
 import { DocumentPreviewModal } from './DocumentPreviewModal';
 
 interface DetailModalProps {
@@ -32,8 +36,38 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
   isProcessing,
 }) => {
   const [activePreviewDoc, setActivePreviewDoc] = useState<DriverKycDocument | null>(null);
+  const [isEditingContact, setIsEditingContact] = useState(false);
+  const [editName, setEditName] = useState(item?.name || '');
+  const [editPhone, setEditPhone] = useState(item?.phone || '');
+  const [isSavingContact, setIsSavingContact] = useState(false);
+  const [contactError, setContactError] = useState<string | null>(null);
 
   if (!item) return null;
+
+  const handleSaveContact = async () => {
+    setIsSavingContact(true);
+    setContactError(null);
+    try {
+      if (item.entityType === 'DRIVER') {
+        await adminApi.updateDriver(item.id, {
+          fullName: editName.trim(),
+          phone: editPhone.trim(),
+        });
+      } else {
+        await adminApi.updateVendor(item.id, {
+          fullName: editName.trim(),
+          phone: editPhone.trim(),
+        });
+      }
+      item.name = editName.trim();
+      item.phone = editPhone.trim();
+      setIsEditingContact(false);
+    } catch (e: any) {
+      setContactError(e.message || 'Failed to update contact info');
+    } finally {
+      setIsSavingContact(false);
+    }
+  };
 
   const isDriver = item.entityType === 'DRIVER';
   const isUnderReview = item.verificationStatus === 'UNDER_REVIEW';
@@ -176,30 +210,131 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
                   padding: '1.25rem',
                 }}
               >
-                <h3
-                  style={{
-                    fontSize: '0.8125rem',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                    color: 'var(--text-muted)',
-                    marginBottom: '1rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                  }}
-                >
-                  <User size={15} color="var(--brand-primary)" /> Profile Information
-                </h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <h3
+                    style={{
+                      fontSize: '0.8125rem',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em',
+                      color: 'var(--text-muted)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      margin: 0,
+                    }}
+                  >
+                    <User size={15} color="var(--brand-primary)" /> Profile Information
+                  </h3>
+                  {!isEditingContact ? (
+                    <button
+                      onClick={() => {
+                        setEditName(item.name);
+                        setEditPhone(item.phone);
+                        setIsEditingContact(true);
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid var(--border-light)',
+                        borderRadius: '6px',
+                        color: 'var(--brand-primary)',
+                        padding: '0.2rem 0.5rem',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.25rem',
+                      }}
+                    >
+                      <Edit3 size={12} /> Edit
+                    </button>
+                  ) : (
+                    <div style={{ display: 'flex', gap: '0.375rem' }}>
+                      <button
+                        onClick={handleSaveContact}
+                        disabled={isSavingContact}
+                        style={{
+                          background: 'var(--brand-primary)',
+                          border: 'none',
+                          borderRadius: '6px',
+                          color: '#fff',
+                          padding: '0.2rem 0.5rem',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                        }}
+                      >
+                        {isSavingContact ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />} Save
+                      </button>
+                      <button
+                        onClick={() => setIsEditingContact(false)}
+                        disabled={isSavingContact}
+                        style={{
+                          background: 'transparent',
+                          border: '1px solid var(--border-light)',
+                          borderRadius: '6px',
+                          color: 'var(--text-muted)',
+                          padding: '0.2rem 0.5rem',
+                          fontSize: '0.75rem',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {contactError && (
+                  <div style={{ color: '#f43f5e', fontSize: '0.75rem', marginBottom: '0.5rem' }}>
+                    {contactError}
+                  </div>
+                )}
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.8125rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ color: 'var(--text-muted)' }}>Full Name:</span>
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{item.name}</span>
+                    {isEditingContact ? (
+                      <input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        style={{
+                          background: 'var(--bg-surface)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '6px',
+                          color: 'var(--text-primary)',
+                          padding: '0.25rem 0.5rem',
+                          fontSize: '0.8125rem',
+                          width: '180px',
+                        }}
+                      />
+                    ) : (
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{item.name}</span>
+                    )}
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ color: 'var(--text-muted)' }}>Mobile Number:</span>
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{item.phone}</span>
+                    {isEditingContact ? (
+                      <input
+                        value={editPhone}
+                        onChange={(e) => setEditPhone(e.target.value)}
+                        style={{
+                          background: 'var(--bg-surface)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '6px',
+                          color: 'var(--text-primary)',
+                          padding: '0.25rem 0.5rem',
+                          fontSize: '0.8125rem',
+                          width: '180px',
+                        }}
+                      />
+                    ) : (
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{item.phone}</span>
+                    )}
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: 'var(--text-muted)' }}>Entity Role:</span>

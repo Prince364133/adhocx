@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Body,
   Param,
@@ -48,6 +49,16 @@ export class AdminController {
   @SwaggerResponse({ status: 200, description: 'Driver details retrieved' })
   async getDriverDetails(@Param('id') id: string) {
     return this.adminService.getDriverDetails(id);
+  }
+
+  @Patch('drivers/:id')
+  @ApiOperation({ summary: 'Update driver profile details (admin override)' })
+  @SwaggerResponse({ status: 200, description: 'Driver details updated' })
+  async updateDriver(
+    @Param('id') id: string,
+    @Body() dto: { fullName?: string; phone?: string; vehiclePlate?: string; vehicleModel?: string; vehicleType?: string },
+  ) {
+    return this.adminService.updateDriver(id, dto);
   }
 
   @Post('drivers/:id/verify')
@@ -112,6 +123,16 @@ export class AdminController {
   @SwaggerResponse({ status: 200, description: 'Vendor details retrieved' })
   async getVendorDetails(@Param('id') id: string) {
     return this.adminService.getVendorDetails(id);
+  }
+
+  @Patch('vendors/:id')
+  @ApiOperation({ summary: 'Update vendor profile details (admin override)' })
+  @SwaggerResponse({ status: 200, description: 'Vendor details updated' })
+  async updateVendor(
+    @Param('id') id: string,
+    @Body() dto: { organizationName?: string; fullName?: string; phone?: string; gstNumber?: string; address?: string },
+  ) {
+    return this.adminService.updateVendor(id, dto);
   }
 
   @Post('vendors/:id/verify')

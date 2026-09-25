@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { CreateVendorProfileDto, VendorProfileDto, VerificationStatus } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
 
@@ -13,14 +13,47 @@ export class VendorsService {
         user = await this.db.user.findUnique({ where: { id: userId } });
       }
     } catch (_) {}
-    const effectivePhone = phone || user?.phone || '';
+
+    const rawPhone = dto.phone || phone || user?.phone || '';
+    const effectivePhone = rawPhone.trim().replace(/\s+/g, '');
+    const cleanName = dto.fullName ? dto.fullName.trim() : undefined;
+
+    if (effectivePhone && user && effectivePhone !== user.phone) {
+      const existingUser = await this.db.user.findFirst({
+        where: {
+          phone: effectivePhone,
+          id: { not: userId },
+        },
+      });
+      if (existingUser) {
+        throw new ConflictException('This mobile number is already registered to another account');
+      }
+
+      try {
+        await this.db.user.update({
+          where: { id: userId },
+          data: {
+            phone: effectivePhone,
+            ...(cleanName ? { fullName: cleanName } : {}),
+            role: 'VENDOR',
+          },
+        });
+      } catch (_) {}
+    } else if (cleanName) {
+      try {
+        await this.db.user.update({
+          where: { id: userId },
+          data: { fullName: cleanName, role: 'VENDOR' },
+        });
+      } catch (_) {}
+    }
 
     const vendor = await this.db.vendor.upsert({
       where: { userId },
       create: {
         userId,
         organizationName: dto.organizationName,
-        fullName: dto.fullName || user?.fullName || 'Business Booker',
+        fullName: cleanName || user?.fullName || 'Business Booker',
         phone: effectivePhone,
         gstNumber: dto.gstNumber,
         address: dto.address,
@@ -28,33 +61,14 @@ export class VendorsService {
       },
       update: {
         organizationName: dto.organizationName,
-        fullName: dto.fullName || user?.fullName || undefined,
+        fullName: cleanName || user?.fullName || undefined,
+        phone: effectivePhone || undefined,
         gstNumber: dto.gstNumber,
         address: dto.address,
         verificationStatus: VerificationStatus.UNDER_REVIEW,
         rejectionReason: null,
       },
     });
-
-    if (dto.fullName) {
-      try {
-        if (this.db.user?.update) {
-          await this.db.user.update({
-            where: { id: userId },
-            data: { fullName: dto.fullName, role: 'VENDOR' },
-          });
-        }
-      } catch (_) {}
-    } else {
-      try {
-        if (this.db.user?.update) {
-          await this.db.user.update({
-            where: { id: userId },
-            data: { role: 'VENDOR' },
-          });
-        }
-      } catch (_) {}
-    }
 
     return {
       id: vendor.id,
