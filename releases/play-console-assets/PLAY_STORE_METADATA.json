@@ -1,0 +1,74 @@
+{
+  "appDetails": {
+    "appTitle": "AdhocX Driver: Corporate Fleet",
+    "titleCharLength": 30,
+    "shortDescription": "Drive for corporate clients. Guaranteed bookings, higher pay & timely payouts.",
+    "shortDescCharLength": 78,
+    "packageName": "com.adhocx.app",
+    "versionName": "1.0.1",
+    "versionCode": 8,
+    "defaultLanguage": "en-US",
+    "appCategory": "AUTO_AND_VEHICLES",
+    "secondaryCategory": "MAPS_AND_NAVIGATION",
+    "tags": [
+      "Driver",
+      "Corporate Cabs",
+      "Fleet",
+      "Chauffeur",
+      "Taxi Service",
+      "Commercial Driver",
+      "Rideshare"
+    ],
+    "contentRating": "Everyone (PEGI 3)",
+    "targetAudience": "18 years and above (Professional / Commercial Driver Partners)",
+    "containsAds": false,
+    "privacyPolicyUrl": "https://adhocx.com/privacy",
+    "supportEmail": "support@adhocx.com",
+    "supportWebsite": "https://adhocx.com"
+  },
+  "valuePropositions": [
+    "Exclusive corporate duties from top companies & tech parks (Cyber City, Whitefield, Powai, etc.)",
+    "Higher earnings per trip/shift compared to regular retail aggregator driving",
+    "Predictable and consistent shift rosters with zero idle passenger-search time",
+    "Guaranteed weekly payouts directly into bank accounts via IMPS/NEFT without hidden commission cuts",
+    "Digital 3-step KYC onboarding: Commercial DL, RC & Vehicle Insurance verified in 24 hours"
+  ],
+  "assets": {
+    "appIcon": "releases/play-console-assets/app_icon_512x512.png (512x512, 32-bit PNG)",
+    "featureGraphicPng": "releases/play-console-assets/feature_graphic_1024x500.png (1024x500, 24-bit PNG, no alpha)",
+    "featureGraphicJpg": "releases/play-console-assets/feature_graphic_1024x500.jpg (1024x500, JPEG)",
+    "screenshots": [
+      "releases/play-console-assets/screenshot_1_corporate_rides.png (1080x1920)",
+      "releases/play-console-assets/screenshot_2_predictable_work.png (1080x1920)",
+      "releases/play-console-assets/screenshot_3_guaranteed_payouts.png (1080x1920)",
+      "releases/play-console-assets/screenshot_4_live_dispatch.png (1080x1920)",
+      "releases/play-console-assets/screenshot_5_quick_onboarding.png (1080x1920)"
+    ]
+  },
+  "binaries": {
+    "aab": "releases/adhocx-driver-fleet-v1.0.1+8.aab",
+    "apk": "releases/adhocx-driver-fleet-v1.0.1+8.apk",
+    "latestAabAlias": "releases/adhocx-release-latest.aab",
+    "latestApkAlias": "releases/adhocx-release-latest.apk"
+  },
+  "locationPermissionsDeclaration": {
+    "appPurpose": {
+      "question": "What is the main purpose of your app?",
+      "answer": "AdhocX Driver: Corporate Fleet is an enterprise mobility app for verified commercial drivers and fleet operators. The app enables drivers to receive high-value corporate shift bookings, employee airport transfers, and scheduled tech park duties from enterprise clients. Drivers manage daily shift rosters, receive live fleet dispatches, navigate assigned routes, monitor trip earnings, and receive transparent weekly direct bank payouts.",
+      "charCount": 437,
+      "maxLimit": 500
+    },
+    "locationAccessOneFeature": {
+      "question": "Describe one location-based feature in your app that needs access to location in the background.",
+      "answer": "The core feature is Live Corporate Duty Dispatch & Shift Route Tracking. When a driver toggles Online or conducts an active duty, the app accesses background location to dispatch nearby scheduled corporate bookings and provide real-time GPS tracking to enterprise clients, even when minimized or running external navigation. A prominent disclosure modal is displayed before requesting permission. Tracking ceases immediately when the driver toggles Offline.",
+      "charCount": 457,
+      "maxLimit": 500
+    },
+    "prominentDisclosureTextInApp": "AdhocX Driver Partner collects location data to enable corporate duty dispatch matching, navigation, and real-time trip route tracking even when the app is closed or not in use (while you are Online or on an Active Duty).",
+    "videoInstructions": {
+      "duration": "<= 30 seconds",
+      "hosting": "YouTube (Unlisted or Public)",
+      "flow": "App Home -> Tap Online -> Show In-App Prominent Disclosure Modal -> Tap Enable -> OS Permission Dialog (Allow all the time) -> Driver marked On Duty / Online"
+    }
+  }
+}

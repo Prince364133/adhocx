@@ -373,15 +373,33 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
                   color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                 ),
               ),
-              const SizedBox(height: 6),
-              Text(
-                'Try searching by landmark (e.g. "Cyber City", "Airport T3", "Sector 62", "Connaught Place")',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+              if (_searchController.text.trim().isNotEmpty) ...[
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    final query = _searchController.text.trim();
+                    _selectLocation(LocationModel(
+                      title: query.split(',').first.trim(),
+                      fullAddress: query,
+                      latitude: _currentLat ?? 28.4950,
+                      longitude: _currentLng ?? 77.0895,
+                      category: 'CUSTOM',
+                    ));
+                  },
+                  icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
+                  label: Text(
+                    'Use "${_searchController.text.trim()}"',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),

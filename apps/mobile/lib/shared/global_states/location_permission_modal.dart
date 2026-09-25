@@ -65,7 +65,7 @@ class LocationPermissionModal extends StatelessWidget {
           const SizedBox(height: 8),
 
           Text(
-            'AdhocX requires background location access to match you with nearby trip requests and navigate during active trips.',
+            'AdhocX Driver Partner collects location data to enable corporate duty dispatch matching, navigation, and real-time trip route tracking even when the app is closed or not in use (while you are Online or on an Active Duty).',
             style: AppTypography.body(
               color: AppColors.textSecondaryLight,
             ),

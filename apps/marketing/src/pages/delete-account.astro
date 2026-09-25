@@ -1,0 +1,84 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": "Account & Data Deletion Request — AdhocX Technologies",
+  "url": "https://www.adhocx.com/delete-account",
+  "description": "User account and personal data deletion request portal for AdhocX Driver Partners and Enterprise users."
+};
+---
+
+<BaseLayout
+  title="Account & Data Deletion Request — AdhocX Technologies Private Limited"
+  description="Official Google Play compliant user account and personal data deletion request portal for AdhocX Driver Partners."
+  canonical="https://www.adhocx.com/delete-account"
+  activeNav=""
+  jsonLd={jsonLd}
+>
+  <section class="section-padding" style="background: var(--color-surface-muted);">
+    <div class="container" style="max-width: 800px;">
+      <div style="margin-bottom: var(--space-6);">
+        <span class="badge badge-info">Google Play User Data Compliance • DPDP Act</span>
+        <h1 class="h2-title" style="margin-top: var(--space-2); margin-bottom: var(--space-2);">Account & Personal Data Deletion Request</h1>
+        <p class="text-caption">Effective Date: January 1, 2026 | Last Updated: September 2026</p>
+      </div>
+
+      <div class="card" style="padding: var(--space-8); line-height: 1.7; color: var(--color-text);">
+        <div style="background: rgba(56,189,248,0.1); border-left: 4px solid #38BDF8; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
+          <strong>Google Play Developer Policy Notice:</strong> This web portal allows registered Driver Partners and Enterprise Users of the <strong>AdhocX Driver: Corporate Fleet</strong> mobile application (Package: <code>com.adhocx.app</code>) to submit a formal account and personal data deletion request without needing the app installed.
+        </div>
+
+        <h2 class="h4-title" style="margin-bottom: 8px; color: var(--color-primary-600);">Method 1: In-App Account Deletion (Instant)</h2>
+        <p class="body-text" style="margin-bottom: 12px;">If you still have the AdhocX application installed on your Android device:</p>
+        <ul style="margin-bottom: 24px; padding-left: 20px;">
+          <li>Open the <strong>AdhocX Driver</strong> app.</li>
+          <li>Tap the <strong>Profile</strong> tab on the bottom navigation bar.</li>
+          <li>Tap <strong>Account Settings</strong> &rarr; <strong>Request Account Deletion</strong>.</li>
+          <li>Confirm your registered phone number via OTP to trigger immediate account deactivation.</li>
+        </ul>
+
+        <h2 class="h4-title" style="margin-bottom: 8px; color: var(--color-primary-600);">Method 2: Web Deletion Request (Email / Form)</h2>
+        <p class="body-text" style="margin-bottom: 12px;">If you have uninstalled the app or are unable to log in, you can request account deletion directly from this page:</p>
+        <div style="background: rgba(239,68,68,0.1); border-left: 4px solid #EF4444; padding: 16px; border-radius: 8px; margin-bottom: 20px;">
+          Please ensure you email us from or mention your <strong>registered phone number</strong> and <strong>full legal name</strong> so our security team can verify ownership of the account.
+        </div>
+
+        <a href="mailto:adhocx.ofc@gmail.com?subject=Account%20and%20Data%20Deletion%20Request%20-%20AdhocX&body=Hello%20AdhocX%20Privacy%20Team%2C%0A%0AI%20would%20like%20to%20request%20the%20permanent%20deletion%20of%20my%20AdhocX%20account%20and%20all%20associated%20personal%20data.%0A%0AMy%20Registered%20Phone%20Number%3A%20%0AMy%20Full%20Legal%20Name%3A%20%0ARole%20(Driver%20Partner%20%2F%20Vendor)%3A%20%0A%0AThank%20you." class="btn btn-primary" style="display:inline-flex; align-items:center; gap:8px; margin-bottom:28px;">
+          &#128465; Submit Deletion Request via Email (adhocx.ofc@gmail.com)
+        </a>
+
+        <h2 class="h4-title" style="margin-bottom: 8px; color: var(--color-primary-600);">What Data is Permanently Deleted?</h2>
+        <p class="body-text" style="margin-bottom: 12px;">Upon verification of your deletion request, the following records are permanently removed from our active production databases within <strong>30 calendar days</strong>:</p>
+        <ul style="margin-bottom: 24px; padding-left: 20px;">
+          <li><strong>Profile & Contact Details:</strong> Full name, email address, residential address, emergency contacts, profile photo / selfie.</li>
+          <li><strong>Uploaded Commercial Documents:</strong> Digital copies of Commercial Driving License, Vehicle RC (Registration Certificate), Commercial Insurance, and Vehicle Fitness documents.</li>
+          <li><strong>Telemetry & Location History:</strong> Historical GPS trace logs, duty navigation routes, and device identifiers.</li>
+          <li><strong>Authentication Credentials:</strong> Password hashes, session tokens, and push notification tokens.</li>
+        </ul>
+
+        <h2 class="h4-title" style="margin-bottom: 8px; color: var(--color-primary-600);">What Data is Retained for Legal Compliance?</h2>
+        <p class="body-text" style="margin-bottom: 12px;">In accordance with the <strong>Motor Vehicles Act, 1988</strong>, the <strong>Indian Income Tax Act, 1961</strong>, and statutory audit guidelines, certain records cannot be immediately erased:</p>
+        <ul style="margin-bottom: 24px; padding-left: 20px;">
+          <li><strong>Completed Financial & Payout Records:</strong> Records of settled bank payouts, TDS deductions, and GST invoices are retained for the statutory 7-year audit requirement.</li>
+          <li><strong>Safety Incident Logs:</strong> Any ongoing police/traffic incident investigations or unresolved passenger safety reports must be maintained until formal legal closure.</li>
+        </ul>
+
+        <h2 class="h4-title" style="margin-bottom: 8px; color: var(--color-primary-600);">Contact Grievance Officer</h2>
+        <p class="body-text">
+          <strong>AdhocX Technologies Private Limited</strong><br />
+          Grievance Redressal & Data Protection Officer<br />
+          Email: <a href="mailto:adhocx.ofc@gmail.com" style="color: var(--color-primary-600); font-weight: 600;">adhocx.ofc@gmail.com</a> | <a href="mailto:support@adhocx.com" style="color: var(--color-primary-600); font-weight: 600;">support@adhocx.com</a><br />
+          Helpline: +91-9390366116<br />
+          Hyderabad, Telangana, India
+        </p>
+
+        <div style="margin-top: 24px;">
+          <a href="/privacy" style="color: var(--color-primary-600); font-weight: 600;">&larr; Back to Privacy Policy</a>
+          <a href="/terms" style="color: var(--color-primary-600); font-weight: 600; margin-left: 16px;">Terms & Conditions</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

@@ -21,7 +21,8 @@ uploads/
 *.apk
 *.aab
 *.ipa
-releases/
+releases/*
+!releases/play-console-assets/
 debug_info/
 debug-info/
 .kotlin/

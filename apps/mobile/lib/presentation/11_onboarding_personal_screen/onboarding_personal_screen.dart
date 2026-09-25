@@ -40,6 +40,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
   String _selectedGender = 'Male';
   bool _isCorporateBooking = false;
   bool _isSaving = false;
+  bool _isManualAddress = false;
 
   @override
   void initState() {
@@ -517,23 +518,65 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                     // ── 5. Location / Permanent Address ──────────────────────
                     AppTextField(
                       controller: _addressController,
-                      readOnly: true,
-                      onTap: _pickLocation,
+                      readOnly: !_isManualAddress,
+                      onTap: _isManualAddress ? null : _pickLocation,
                       label: 'Location / Residential Address *',
-                      hintText: 'Tap to select city or location from map/search',
+                      hintText: _isManualAddress
+                          ? 'Enter full residential address (Flat, Area, City)'
+                          : 'Tap to select city or location from map/search',
                       prefixIcon: const Icon(Icons.location_on_outlined, size: 20),
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.my_location_rounded, color: AppColors.primary, size: 20),
-                        tooltip: 'Select Location',
-                        onPressed: _pickLocation,
+                      suffixIcon: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_addressController.text.isNotEmpty)
+                            IconButton(
+                              icon: const Icon(Icons.clear_rounded, size: 18),
+                              tooltip: 'Clear',
+                              onPressed: () => setState(() => _addressController.clear()),
+                            ),
+                          IconButton(
+                            icon: const Icon(Icons.my_location_rounded, color: AppColors.primary, size: 20),
+                            tooltip: 'Select on Map / Search',
+                            onPressed: _pickLocation,
+                          ),
+                        ],
                       ),
                       validator: (val) {
                         if (val == null || val.trim().length < 3) {
-                          return 'Please select your residential location / city';
+                          return 'Please enter or select your residential location / city';
                         }
                         return null;
                       },
                     ),
+                    const SizedBox(height: 4),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _isManualAddress = !_isManualAddress;
+                          });
+                        },
+                        icon: Icon(
+                          _isManualAddress ? Icons.map_outlined : Icons.edit_note_rounded,
+                          size: 15,
+                          color: AppColors.primary,
+                        ),
+                        label: Text(
+                          _isManualAddress ? 'Pick from Map / Search instead' : 'Or type address manually',
+                          style: AppTypography.micro(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
                     const SizedBox(height: AppSpacing.lg),
 
                     // ── 6. Emergency Contact Details ─────────────────────────

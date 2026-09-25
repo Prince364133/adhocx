@@ -333,6 +333,10 @@ final GoRouter appRouter = GoRouter(
         AppRoutes.welcomeSuccessScreen,
         AppRoutes.waitlistGateScreen,
         AppRoutes.setPasswordScreen,
+        AppRoutes.universalLocationSearchScreen,
+        AppRoutes.universalLocationPickerScreen,
+        AppRoutes.documentDetailsScreen,
+        AppRoutes.helpSupportScreen,
       };
 
       if (allowedOnboardingRoutes.contains(currentPath)) {
@@ -364,9 +368,13 @@ final GoRouter appRouter = GoRouter(
         AppRoutes.onboardingReviewScreen,
         AppRoutes.profileScreen,
         AppRoutes.personalInfoScreen,
+        AppRoutes.editPersonalInfoScreen,
         AppRoutes.helpSupportScreen,
         AppRoutes.accountStatusScreen,
         AppRoutes.userAccountStatusScreen,
+        AppRoutes.universalLocationSearchScreen,
+        AppRoutes.universalLocationPickerScreen,
+        AppRoutes.documentDetailsScreen,
       };
 
       if (allowedUnverifiedRoutes.contains(currentPath)) {
