@@ -21,10 +21,18 @@ export class AuthController {
 
   @Post('admin/login')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Authenticate Administrator using Admin ID/Email and Password' })
-  @SwaggerResponse({ status: 200, description: 'Admin authentication successful, JWT tokens returned' })
-  async adminLogin(@Body() dto: LoginDto) {
+  @ApiOperation({ summary: 'Authenticate Administrator using Admin ID/Email and Password (with MFA challenge)' })
+  @SwaggerResponse({ status: 200, description: 'Admin authentication or MFA challenge returned' })
+  async adminLogin(@Body() dto: LoginDto & { mfaCode?: string }) {
     return this.authService.adminLogin(dto);
+  }
+
+  @Post('admin/mfa-verify')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify Admin Multi-Factor Authentication (MFA) challenge code' })
+  @SwaggerResponse({ status: 200, description: 'MFA verified, administrative JWT tokens returned' })
+  async adminMfaVerify(@Body() dto: { mfaSessionToken: string; mfaCode: string }) {
+    return this.authService.adminMfaVerify(dto);
   }
 
   @Get('admin/verify')

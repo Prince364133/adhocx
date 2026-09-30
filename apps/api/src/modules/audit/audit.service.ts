@@ -20,19 +20,25 @@ export class AuditService {
    */
   async log(data: {
     userId?: string;
+    actorRole?: string;
     action: string;
     entityType: string;
     entityId: string;
     metadata?: Record<string, unknown>;
+    ipAddress?: string;
+    userAgent?: string;
   }): Promise<void> {
     try {
       await this.db.auditLog.create({
         data: {
           actorId: data.userId,
+          actorRole: data.actorRole,
           action: data.action,
           entityName: data.entityType,
           entityId: data.entityId,
           payload: data.metadata ? (data.metadata as any) : undefined,
+          ipAddress: data.ipAddress,
+          userAgent: data.userAgent,
         },
       });
     } catch (error) {

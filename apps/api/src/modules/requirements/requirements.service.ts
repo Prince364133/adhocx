@@ -102,8 +102,28 @@ export class RequirementsService {
       totalAmount = (dto.quantity || 1) * suggestedBudget;
     } else {
       // Direct Dispatch Mode: Fixed rate per vehicle
+      const hasEscort =
+        dto.notes?.toLowerCase().includes('escort: yes') ||
+        dto.notes?.toLowerCase().includes('escort: true') ||
+        false;
+
+      const zonalQuote = this.pricingService.calculateZonalQuote({
+        pickupAddress: dto.pickupLocation.address,
+        pickupLat: dto.pickupLocation.latitude,
+        pickupLng: dto.pickupLocation.longitude,
+        dropAddress: dto.dropLocation.address,
+        dropLat: dto.dropLocation.latitude,
+        dropLng: dto.dropLocation.longitude,
+        vehicleType: dto.vehicleType,
+        hasEscort,
+      });
+
       if (!ratePerVehicle || ratePerVehicle <= 0) {
-        ratePerVehicle = this.pricingService.calculateDriverRate(dto.vehicleType, distanceKm);
+        if (zonalQuote && zonalQuote.canAutoQuote && zonalQuote.totalAmount > 0) {
+          ratePerVehicle = zonalQuote.totalAmount;
+        } else {
+          ratePerVehicle = this.pricingService.calculateDriverRate(dto.vehicleType, distanceKm);
+        }
       }
       totalAmount = (dto.quantity || 1) * ratePerVehicle;
     }
@@ -172,6 +192,49 @@ export class RequirementsService {
           notes: dto.notes,
         },
       });
+
+      // 2b. Snapshot Corporate Zonal Quote if in DIRECT_DISPATCH mode
+      if (mode === FulfillmentMode.DIRECT_DISPATCH) {
+        try {
+          const hasEscort =
+            dto.notes?.toLowerCase().includes('escort: yes') ||
+            dto.notes?.toLowerCase().includes('escort: true') ||
+            false;
+
+          const zonalQuote = this.pricingService.calculateZonalQuote({
+            pickupAddress: dto.pickupLocation.address,
+            pickupLat: dto.pickupLocation.latitude,
+            pickupLng: dto.pickupLocation.longitude,
+            dropAddress: dto.dropLocation.address,
+            dropLat: dto.dropLocation.latitude,
+            dropLng: dto.dropLocation.longitude,
+            vehicleType: dto.vehicleType,
+            hasEscort,
+          });
+
+          if (zonalQuote) {
+            await tx.zonalQuoteSnapshot.create({
+              data: {
+                requirementId: req.id,
+                rateVersion: zonalQuote.rateVersion,
+                hubId: zonalQuote.officeHub.id,
+                localityId: zonalQuote.locality.name,
+                zoneId: zonalQuote.locality.zoneId,
+                vehicleType: zonalQuote.vehicleType,
+                hasEscort: zonalQuote.hasEscort,
+                baseFarePaise: Math.round(zonalQuote.baseFare * 100),
+                escortFarePaise: Math.round(zonalQuote.escortFee * 100),
+                totalFarePaise: Math.round(zonalQuote.totalAmount * 100),
+                driverFarePaise: Math.round(zonalQuote.driverEarningEstimate * 100),
+                platformFeePaise: Math.round(zonalQuote.platformSpread * 100),
+                expiresAt: new Date(zonalQuote.expiresAt),
+              },
+            });
+          }
+        } catch (e: any) {
+          this.logger.warn(`Could not snapshot zonal quote for requirement ${req.id}: ${e.message}`);
+        }
+      }
 
       // 3. Create immutable ledger debit entry
       await tx.ledgerEntry.create({
@@ -281,6 +344,9 @@ export class RequirementsService {
         where,
         skip,
         take: limit,
+        include: {
+          zonalQuote: true,
+        },
         orderBy: { createdAt: 'desc' },
       }),
       this.db.requirement.count({ where }),
@@ -373,6 +439,7 @@ export class RequirementsService {
         skip,
         take: limit,
         include: {
+          zonalQuote: true,
           vendor: {
             include: { user: true },
           },
@@ -450,6 +517,7 @@ export class RequirementsService {
     const requirement = await this.db.requirement.findUnique({
       where: { id },
       include: {
+        zonalQuote: true,
         offers: {
           include: {
             driver: {
@@ -782,6 +850,23 @@ export class RequirementsService {
       totalAmount: Number(r.totalAmount),
       status: r.status as RequirementStatus,
       notes: r.notes || undefined,
+      zonalQuote: r.zonalQuote
+        ? {
+            id: r.zonalQuote.id,
+            rateVersion: r.zonalQuote.rateVersion,
+            hubId: r.zonalQuote.hubId,
+            localityId: r.zonalQuote.localityId,
+            zoneId: r.zonalQuote.zoneId,
+            vehicleType: r.zonalQuote.vehicleType,
+            hasEscort: r.zonalQuote.hasEscort,
+            baseFarePaise: r.zonalQuote.baseFarePaise,
+            escortFarePaise: r.zonalQuote.escortFarePaise,
+            totalFarePaise: r.zonalQuote.totalFarePaise,
+            driverFarePaise: r.zonalQuote.driverFarePaise,
+            platformFeePaise: r.zonalQuote.platformFeePaise,
+            expiresAt: r.zonalQuote.expiresAt?.toISOString?.() || r.zonalQuote.expiresAt,
+          }
+        : undefined,
       createdAt: r.createdAt.toISOString(),
       updatedAt: r.updatedAt.toISOString(),
     };

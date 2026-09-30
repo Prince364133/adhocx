@@ -374,6 +374,34 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
                                 ],
                               ),
                             ),
+                            const SizedBox(height: AppSpacing.sm),
+
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(AppRadius.md),
+                                border: Border.all(
+                                  color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.25),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.corporate_fare_rounded, color: AppColors.primary, size: 16),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Corporate Zonal 2026 Fleet • Fixed 85% Net Driver Earnings (Direct Dispatch)',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                             const SizedBox(height: AppSpacing.xl),
 
                             AppPrimaryButton(

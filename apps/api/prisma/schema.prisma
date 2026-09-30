@@ -288,6 +288,7 @@ model Requirement {
   assignments Assignment[]
   trips       Trip[]
   payments    Payment[]
+  zonalQuote  ZonalQuoteSnapshot?
 
   @@map("requirements")
 }
@@ -498,15 +499,20 @@ model AuditLog {
   id         String   @id @default(uuid()) @db.Uuid
   actorId    String?  @map("actor_id") @db.Uuid
   actorRole  String?  @map("actor_role")
-  action     String
+  action     String   @map("action")
   entityName String   @map("entity_name")
-  entityId   String?  @map("entity_id") @db.Uuid
-  payload    Json?
+  entityId   String?  @map("entity_id")
+  payload    Json?    @map("payload")
   ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
   createdAt  DateTime @default(now()) @map("created_at")
 
-  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
 
+  @@index([actorId])
+  @@index([action])
+  @@index([entityName, entityId])
+  @@index([createdAt])
   @@map("audit_logs")
 }
 
@@ -751,4 +757,97 @@ model LeadCapture {
   updatedAt            DateTime @updatedAt @map("updated_at")
 
   @@map("lead_captures")
+}
+
+// ==========================================
+// RATE CARD MASTER (Immutable Versions)
+// ==========================================
+enum RateCardAudience {
+  VENDOR
+  DRIVER
+}
+
+enum RateCardStatus {
+  DRAFT
+  ACTIVE
+  RETIRED
+}
+
+model RateCardVersion {
+  id            String           @id @default(uuid()) @db.Uuid
+  version       String           @unique
+  audience      RateCardAudience
+  status        RateCardStatus   @default(DRAFT)
+  effectiveFrom DateTime         @map("effective_from")
+  currency      String           @default("INR")
+  notes         String?
+  createdAt     DateTime         @default(now()) @map("created_at")
+  rows          RateCardRow[]
+
+  @@map("rate_card_versions")
+}
+
+model RateCardRow {
+  id                String          @id @default(uuid()) @db.Uuid
+  rateCardVersionId String          @map("rate_card_version_id") @db.Uuid
+  hubId             String          @map("hub_id")
+  zoneId            String          @map("zone_id")
+  vehicleType       String          @map("vehicle_type") @db.VarChar(50)
+  baseAmountPaise   Int             @map("base_amount_paise")
+  escortMaxPaise    Int             @default(0) @map("escort_max_paise")
+
+  rateCardVersion   RateCardVersion @relation(fields: [rateCardVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([rateCardVersionId, hubId, zoneId, vehicleType])
+  @@map("rate_card_rows")
+}
+
+// ==========================================
+// LOCALITY & HUB RESOLUTION MASTER
+// ==========================================
+enum LocalityReviewStatus {
+  VERIFIED
+  PENDING_REVIEW
+  INACTIVE
+}
+
+model LocalityMaster {
+  id           String               @id @default(uuid()) @db.Uuid
+  displayName  String               @unique @map("display_name")
+  aliases      String[]
+  zoneId       String               @map("zone_id")
+  centerLat    Decimal              @map("center_lat") @db.Decimal(10, 7)
+  centerLng    Decimal              @map("center_lng") @db.Decimal(10, 7)
+  h3IndexRes8  String?              @map("h3_index_res8")
+  reviewStatus LocalityReviewStatus @default(VERIFIED) @map("review_status")
+  notes        String?
+  createdAt    DateTime             @default(now()) @map("created_at")
+
+  @@index([zoneId])
+  @@map("locality_masters")
+}
+
+// ==========================================
+// IMMUTABLE QUOTE SNAPSHOTS
+// ==========================================
+model ZonalQuoteSnapshot {
+  id               String      @id @default(uuid()) @db.Uuid
+  requirementId    String?     @unique @map("requirement_id") @db.Uuid
+  rateVersion      String      @map("rate_version")
+  hubId            String      @map("hub_id")
+  localityId       String      @map("locality_id")
+  zoneId           String      @map("zone_id")
+  vehicleType      String      @map("vehicle_type") @db.VarChar(50)
+  hasEscort        Boolean     @default(false) @map("has_escort")
+  baseFarePaise    Int         @map("base_fare_paise")
+  escortFarePaise  Int         @default(0) @map("escort_fare_paise")
+  totalFarePaise   Int         @map("total_fare_paise")
+  driverFarePaise  Int         @map("driver_fare_paise")
+  platformFeePaise Int         @map("platform_fee_paise")
+  expiresAt        DateTime    @map("expires_at")
+  createdAt        DateTime    @default(now()) @map("created_at")
+
+  requirement      Requirement? @relation(fields: [requirementId], references: [id])
+
+  @@map("zonal_quote_snapshots")
 }

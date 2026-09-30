@@ -143,7 +143,7 @@ export class AuthService implements OnModuleInit {
   /**
    * Dedicated Administrative Authentication (Admin ID/Email + Password with strict role verification)
    */
-  async adminLogin(dto: LoginDto): Promise<AuthResponseDto> {
+  async adminLogin(dto: LoginDto & { mfaCode?: string }): Promise<any> {
     const { isEmail, value, phoneVariants } = this.normalizeIdentifier(dto.identifier);
     this.logger.log(`🛡️ [ADMIN LOGIN ATTEMPT] Identifier: ${value} (isEmail: ${isEmail})`);
 
@@ -192,7 +192,105 @@ export class AuthService implements OnModuleInit {
       throw new ForbiddenException('Access denied: Administrative account is suspended or deactivated');
     }
 
-    this.logger.log(`✅ [ADMIN LOGIN SUCCESS] Admin authenticated: ${user.id} (${user.email || user.phone})`);
+    // MULTI-FACTOR AUTHENTICATION (MFA) MANDATE (CERT-In Requirement)
+    // If mfaCode provided in request, verify immediately
+    if (dto.mfaCode) {
+      const challengeKey = `admin_mfa_code:${user.id}`;
+      const cachedCode = await this.redis.get(challengeKey);
+      if (!cachedCode || cachedCode !== dto.mfaCode.trim()) {
+        throw new UnauthorizedException('Invalid or expired administrative MFA verification code');
+      }
+      await this.redis.del(challengeKey);
+      this.logger.log(`✅ [ADMIN 2FA LOGIN SUCCESS] Admin authenticated with direct 2FA: ${user.id}`);
+      return this.generateAuthResponse(user);
+    }
+
+    // In local dev/automated test environment, bypass if explicitly configured
+    if (process.env.ADMIN_MFA_BYPASS === 'true') {
+      this.logger.warn(`⚠️ [ADMIN LOGIN] Admin MFA bypassed via ADMIN_MFA_BYPASS environment flag for user ${user.id}`);
+      return this.generateAuthResponse(user);
+    }
+
+    // Issue cryptographic 2FA challenge
+    const mfaSessionToken = crypto.randomBytes(32).toString('hex');
+    const mfaCode = crypto.randomInt(100000, 1000000).toString();
+    const challengeKey = `admin_mfa_challenge:${mfaSessionToken}`;
+
+    await this.redis.set(
+      challengeKey,
+      JSON.stringify({ userId: user.id, mfaCode, attempts: 0 }),
+      300, // 5 minutes validity
+    );
+
+    // Also cache by userId for direct mfaCode retry
+    await this.redis.set(`admin_mfa_code:${user.id}`, mfaCode, 300);
+
+    // Dispatch 2FA OTP via SMS or Email
+    try {
+      await this.notifications.sendOtp({
+        phone: user.phone,
+        email: user.email || undefined,
+        otp: mfaCode,
+        channel: user.email ? 'EMAIL' : 'SMS',
+        fullName: user.fullName || 'Administrator',
+      });
+    } catch (err: any) {
+      this.logger.warn(`Admin 2FA dispatch warning: ${err.message}`);
+    }
+
+    const maskedDestination = user.phone
+      ? user.phone.replace(/(\+\d{2})(\d{2})\d{4}(\d{4})/, '$1 $2**** $3')
+      : user.email;
+
+    this.logger.log(`🛡️ [ADMIN 2FA CHALLENGE ISSUED] Sent 2FA code to ${maskedDestination} for admin ${user.id}`);
+
+    return {
+      requiresMfa: true,
+      mfaType: user.email ? 'EMAIL_OTP' : 'SMS_OTP',
+      mfaSessionToken,
+      expiresInSeconds: 300,
+      maskedDestination,
+      message: 'Multi-factor authentication required. A 6-digit code has been sent to your administrator device.',
+    };
+  }
+
+  /**
+   * Verify Admin Multi-Factor Authentication Challenge
+   */
+  async adminMfaVerify(dto: { mfaSessionToken: string; mfaCode: string }): Promise<AuthResponseDto> {
+    if (!dto.mfaSessionToken || !dto.mfaCode) {
+      throw new BadRequestException('MFA session token and verification code are required');
+    }
+
+    const sessionRaw = await this.redis.get(`admin_mfa_challenge:${dto.mfaSessionToken}`);
+    if (!sessionRaw) {
+      throw new UnauthorizedException('MFA verification session expired or invalid. Please login again.');
+    }
+
+    const session = JSON.parse(sessionRaw);
+    if (session.attempts >= 3) {
+      await this.redis.del(`admin_mfa_challenge:${dto.mfaSessionToken}`);
+      throw new UnauthorizedException('Too many invalid attempts. Multi-factor challenge cancelled.');
+    }
+
+    if (session.mfaCode !== dto.mfaCode.trim()) {
+      session.attempts += 1;
+      await this.redis.set(`admin_mfa_challenge:${dto.mfaSessionToken}`, JSON.stringify(session), 300);
+      throw new UnauthorizedException('Invalid MFA verification code');
+    }
+
+    await this.redis.del(`admin_mfa_challenge:${dto.mfaSessionToken}`);
+    await this.redis.del(`admin_mfa_code:${session.userId}`);
+
+    const user = await this.db.user.findUnique({
+      where: { id: session.userId },
+    });
+
+    if (!user || user.status !== 'ACTIVE' || String(user.role).toUpperCase() !== 'ADMIN') {
+      throw new ForbiddenException('Invalid administrative privileges');
+    }
+
+    this.logger.log(`✅ [ADMIN 2FA SUCCESS] Admin ${user.id} completed multi-factor authentication`);
     return this.generateAuthResponse(user);
   }
 

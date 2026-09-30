@@ -47,8 +47,8 @@ export class AdminController {
   @Get('drivers/:id')
   @ApiOperation({ summary: 'Get full driver details including vehicles and KYC documents' })
   @SwaggerResponse({ status: 200, description: 'Driver details retrieved' })
-  async getDriverDetails(@Param('id') id: string) {
-    return this.adminService.getDriverDetails(id);
+  async getDriverDetails(@Param('id') id: string, @CurrentUser() user: AuthUserDto) {
+    return this.adminService.getDriverDetails(id, user.role);
   }
 
   @Patch('drivers/:id')
@@ -56,9 +56,10 @@ export class AdminController {
   @SwaggerResponse({ status: 200, description: 'Driver details updated' })
   async updateDriver(
     @Param('id') id: string,
+    @CurrentUser() admin: AuthUserDto,
     @Body() dto: { fullName?: string; phone?: string; vehiclePlate?: string; vehicleModel?: string; vehicleType?: string },
   ) {
-    return this.adminService.updateDriver(id, dto);
+    return this.adminService.updateDriver(id, admin.id, dto);
   }
 
   @Post('drivers/:id/verify')
@@ -130,9 +131,10 @@ export class AdminController {
   @SwaggerResponse({ status: 200, description: 'Vendor details updated' })
   async updateVendor(
     @Param('id') id: string,
+    @CurrentUser() admin: AuthUserDto,
     @Body() dto: { organizationName?: string; fullName?: string; phone?: string; gstNumber?: string; address?: string },
   ) {
-    return this.adminService.updateVendor(id, dto);
+    return this.adminService.updateVendor(id, admin.id, dto);
   }
 
   @Post('vendors/:id/verify')

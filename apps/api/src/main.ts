@@ -81,34 +81,41 @@ async function bootstrap() {
     maxAge: 86400,
   });
 
-  // Swagger API documentation
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('AdhocX API')
-    .setDescription(
-      'AdhocX — Ad-hoc cab aggregator platform API. ' +
-      'Connects vendors with drivers for on-demand fleet dispatch.',
-    )
-    .setVersion('1.0.0')
-    .addBearerAuth()
-    .addTag('Auth', 'Authentication and OTP verification')
-    .addTag('Vendors', 'Vendor profile and requirement management')
-    .addTag('Drivers', 'Driver profile, KYC, and availability')
-    .addTag('Requirements', 'Cab requirement lifecycle')
-    .addTag('Offers', 'Driver offer accept/decline')
-    .addTag('Trips', 'Trip lifecycle — arrive, start (OTP), complete, cancel')
-    .addTag('Payments', 'Payment tracking')
-    .build();
+  // Swagger API documentation (Disabled in production per CERT-In / OWASP API8 guidelines)
+  const nodeEnv = configService.get<string>('app.nodeEnv') || process.env.NODE_ENV || 'development';
+  const enableSwagger = configService.get<boolean>('app.enableSwagger') || process.env.ENABLE_SWAGGER === 'true' || nodeEnv !== 'production';
 
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('docs', app, document, {
-    swaggerOptions: {
-      persistAuthorization: true,
-    },
-  });
+  if (enableSwagger) {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('AdhocX API')
+      .setDescription(
+        'AdhocX — Ad-hoc cab aggregator platform API. ' +
+        'Connects vendors with drivers for on-demand fleet dispatch.',
+      )
+      .setVersion('1.0.0')
+      .addBearerAuth()
+      .addTag('Auth', 'Authentication and OTP verification')
+      .addTag('Vendors', 'Vendor profile and requirement management')
+      .addTag('Drivers', 'Driver profile, KYC, and availability')
+      .addTag('Requirements', 'Cab requirement lifecycle')
+      .addTag('Offers', 'Driver offer accept/decline')
+      .addTag('Trips', 'Trip lifecycle — arrive, start (OTP), complete, cancel')
+      .addTag('Payments', 'Payment tracking')
+      .build();
+
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('docs', app, document, {
+      swaggerOptions: {
+        persistAuthorization: true,
+      },
+    });
+    logger.log(`📄 Swagger docs enabled at http://localhost:${port}/docs`);
+  } else {
+    logger.log(`🔒 Swagger docs disabled in production environment (${nodeEnv})`);
+  }
 
   await app.listen(port);
   logger.log(`🚀 AdhocX API running on http://localhost:${port}/${apiPrefix}`);
-  logger.log(`📄 Swagger docs at http://localhost:${port}/docs`);
 }
 
 bootstrap();

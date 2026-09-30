@@ -35,6 +35,9 @@ import {
   TestPushPayload,
   InAppNotificationItem,
   AudienceEstimateResult,
+  ZonalVendorRateCardResponse,
+  ZonalQuoteRequest,
+  ZonalQuoteResponse,
 } from './types';
 
 function getApiBaseUrl(): string {
@@ -378,6 +381,15 @@ export const adminApi = {
     apiClient<SystemPolicyConfig>('/pricing/admin/policy-config', {
       method: 'PATCH',
       body: data,
+    }),
+
+  // Corporate Zonal 2026 Fleet Rate Card & Spatial Engine
+  getZonalVendorRateCard: () => apiClient<ZonalVendorRateCardResponse>('/pricing/zonal/vendor-card'),
+
+  calculateZonalQuote: (payload: ZonalQuoteRequest) =>
+    apiClient<ZonalQuoteResponse>('/pricing/zonal/quote', {
+      method: 'POST',
+      body: payload,
     }),
 
   // Operational Reports & Corridor Intelligence

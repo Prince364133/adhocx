@@ -29,12 +29,46 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
   double? _walletBalance;
   bool _isLoadingWallet = true;
   List<Map<String, dynamic>> _vehicleTiers = [];
+  bool _hasEscort = false;
+  Map<String, dynamic>? _zonalQuote;
+  bool _initializedZonal = false;
 
   @override
   void initState() {
     super.initState();
     _loadWallet();
     _loadVehicleTiers();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initializedZonal) {
+      _initializedZonal = true;
+      final draft = context.read<RequirementDraftProvider>();
+      _fetchZonalQuote(draft);
+    }
+  }
+
+  Future<void> _fetchZonalQuote(RequirementDraftProvider draft) async {
+    if (draft.fulfillmentMode != 'DIRECT_DISPATCH') return;
+    try {
+      final res = await UserService.instance.calculateZonalQuote({
+        'pickupAddress': draft.pickupLocation,
+        'dropAddress': draft.dropLocation,
+        'pickupLat': draft.pickupLat,
+        'pickupLng': draft.pickupLng,
+        'dropLat': draft.dropLat,
+        'dropLng': draft.dropLng,
+        'vehicleType': draft.vehicleType,
+        'hasEscort': _hasEscort,
+      });
+      if (mounted && res != null && res is Map<String, dynamic>) {
+        setState(() {
+          _zonalQuote = res;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadVehicleTiers() async {
@@ -49,6 +83,9 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
   }
 
   double _getRatePerVehicle(RequirementDraftProvider draft) {
+    if (_zonalQuote != null && _zonalQuote!['totalAmount'] != null) {
+      return (_zonalQuote!['totalAmount'] as num).toDouble();
+    }
     final vType = draft.vehicleType.trim().toUpperCase();
     Map<String, dynamic>? tier;
     if (_vehicleTiers.isNotEmpty) {
@@ -532,8 +569,12 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
     if (draft.passengers > 0) {
       notesParts.add('Passengers per vehicle: ${draft.passengers}');
     }
-    if (draft.additionalInfo.isNotEmpty) {
-      notesParts.add('Additional Info: ${draft.additionalInfo}');
+    if (_zonalQuote != null) {
+      final loc = _zonalQuote!['locality']?['name'] ?? 'Locality';
+      final zone = _zonalQuote!['locality']?['zoneLabel'] ?? 'Zone';
+      final hub = _zonalQuote!['officeHub']?['displayName'] ?? 'Office Hub';
+      final qId = _zonalQuote!['quoteId'] ?? '';
+      notesParts.add('Corporate Zonal 2026: $loc ↔ $hub ($zone) | Escort: ${_hasEscort ? "YES" : "NO"} | Quote ID: $qId');
     }
 
     final combinedNotes = notesParts.join(' | ');
@@ -689,6 +730,60 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                         children: [
                           _buildReviewRow(context, Icons.bolt, 'Fulfillment Model', draft.fulfillmentMode == 'DIRECT_DISPATCH' ? '⚡ Direct Timed Dispatch' : '🔨 Outstation Reverse Auction', isDark),
                           const Divider(),
+                          if (_zonalQuote != null) ...[
+                            Container(
+                              margin: const EdgeInsets.symmetric(vertical: 8),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: const [
+                                      Icon(Icons.verified, color: AppColors.primary, size: 16),
+                                      SizedBox(width: 6),
+                                      Text(
+                                        'Corporate Zonal Rate Card Applied',
+                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primary),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    '📍 ${_zonalQuote!['locality']?['name'] ?? 'Locality'} ↔ ${_zonalQuote!['officeHub']?['displayName'] ?? 'Office Hub'} (${_zonalQuote!['locality']?['zoneLabel'] ?? 'Zone'})',
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : Colors.black87),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Text(
+                                    'Guaranteed B2B Flat Pricing. Zero dynamic surge, zero per-km meter fees.',
+                                    style: TextStyle(fontSize: 10, color: AppColors.success, fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Divider(),
+                            SwitchListTile(
+                              value: _hasEscort,
+                              onChanged: (val) {
+                                setState(() => _hasEscort = val);
+                                _fetchZonalQuote(draft);
+                              },
+                              title: const Text('Security Escort Service', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                              subtitle: Text(
+                                _hasEscort
+                                    ? 'Escort included (+₹${_zonalQuote!['escortFee'] ?? 300})'
+                                    : 'Add safety guard for late-night female employee drops',
+                                style: const TextStyle(fontSize: 11),
+                              ),
+                              secondary: const Icon(Icons.security, color: AppColors.primary),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                            const Divider(),
+                          ],
                           if (draft.fulfillmentMode == 'BIDDING') ...[
                             _buildReviewRow(context, Icons.currency_rupee, 'Target Guide Budget', '₹${draft.suggestedBudget.toStringAsFixed(0)}', isDark, valueColor: AppColors.success),
                             const Divider(),

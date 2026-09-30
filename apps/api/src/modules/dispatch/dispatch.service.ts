@@ -138,6 +138,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       include: {
         vendor: true,
         offers: true,
+        zonalQuote: true,
       },
     });
 
@@ -386,6 +387,9 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
 
     // 30-second offer countdown window
     const expiresAt = new Date(Date.now() + 30 * 1000);
+    const driverOfferedRate = requirement.zonalQuote
+      ? requirement.zonalQuote.driverFarePaise / 100
+      : Number(requirement.ratePerVehicle ?? 0);
 
     const createdOffers = await Promise.all(
       selectedDriverIds.map(async (driverId) => {
@@ -394,7 +398,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
             requirementId,
             driverId,
             vehicleType: requirement.vehicleType,
-            offeredRate: requirement.ratePerVehicle ?? 0,
+            offeredRate: driverOfferedRate,
             status: OfferStatus.SENT,
             expiresAt,
           },
@@ -406,7 +410,11 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
           id: offer.id,
           requirementId,
           vehicleType: requirement.vehicleType,
-          offeredRate: Number(requirement.ratePerVehicle),
+          offeredRate: driverOfferedRate,
+          offeredEarnings: `₹${driverOfferedRate.toFixed(2)} Net Guaranteed`,
+          isZonalQuote: Boolean(requirement.zonalQuote),
+          zoneId: requirement.zonalQuote?.zoneId,
+          hubId: requirement.zonalQuote?.hubId,
           pickupAddress: requirement.pickupAddress,
           dropAddress: requirement.dropAddress,
           reportingTime: requirement.reportingTime.toISOString(),
@@ -419,15 +427,15 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
         const targetUserId = candidate?.driver?.userId || driverId;
 
         await this.notifications.sendPushToUser(targetUserId, {
-          title: '🚖 New Trip Offer Available!',
-          body: `Offer of ₹${requirement.ratePerVehicle} for ${requirement.vehicleType} pickup at ${requirement.pickupAddress}. 30s to accept!`,
+          title: requirement.zonalQuote ? '🚖 Corporate Fleet Offer (Net Guaranteed)!' : '🚖 New Trip Offer Available!',
+          body: `Guaranteed net payout of ₹${driverOfferedRate.toFixed(2)} for ${requirement.vehicleType} pickup at ${requirement.pickupAddress}. 30s to accept!`,
           type: NotificationType.TRIP_OFFER,
           data: {
             offerId: offer.id,
             id: offer.id,
             requirementId,
             vehicleType: String(requirement.vehicleType),
-            rate: String(requirement.ratePerVehicle),
+            rate: String(driverOfferedRate),
             pickupAddress: requirement.pickupAddress,
             dropAddress: requirement.dropAddress,
             expiresAt: expiresAt.toISOString(),

@@ -97,6 +97,33 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
     }
   }
 
+  bool _isHyderabadRoute() {
+    final text = '${_pickupController.text} ${_dropController.text}'.toLowerCase();
+    if (text.contains('hyderabad') ||
+        text.contains('hitec') ||
+        text.contains('kokapet') ||
+        text.contains('gachibowli') ||
+        text.contains('madhapur') ||
+        text.contains('kondapur') ||
+        text.contains('malakpet') ||
+        text.contains('secunderabad') ||
+        text.contains('banjara') ||
+        text.contains('jubilee') ||
+        text.contains('kukatpally') ||
+        text.contains('shamirpet') ||
+        text.contains('nanakramguda') ||
+        text.contains('raidurg') ||
+        text.contains('dilsukhnagar') ||
+        text.contains('miyapur')) {
+      return true;
+    }
+    if ((_pickupLat >= 17.1 && _pickupLat <= 17.6 && _pickupLng >= 78.1 && _pickupLng <= 78.7) ||
+        (_dropLat >= 17.1 && _dropLat <= 17.6 && _dropLng >= 78.1 && _dropLng <= 78.7)) {
+      return true;
+    }
+    return false;
+  }
+
   Future<void> _openLocationSearch({required bool isPickup}) async {
     final title = isPickup ? 'Select Pickup Location' : 'Select Destination';
     final initialAddress = isPickup ? _pickupController.text : _dropController.text;
@@ -316,6 +343,51 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                                     style: TextStyle(
                                       fontSize: 11,
                                       color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    // Hyderabad Corporate Zonal 2026 Detection Banner
+                    if (_isHyderabadRoute()) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      Container(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        decoration: BoxDecoration(
+                          color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: Border.all(
+                            color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.35),
+                          ),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.corporate_fare_rounded, color: AppColors.primary, size: 22),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Hyderabad Corporate Fleet Corridor',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Guaranteed B2B Zonal 2026 Flat Pricing (no surge, fixed 85% net driver earnings) will be calculated on review.',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                                     ),
                                   ),
                                 ],

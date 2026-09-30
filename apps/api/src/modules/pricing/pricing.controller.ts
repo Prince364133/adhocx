@@ -99,4 +99,37 @@ export class PricingController {
       Number(body.quantity || 1),
     );
   }
+
+  @Get('zonal/vendor-card')
+  @ApiOperation({ summary: 'Get canonical 2026 Vendor Zonal Rate Card (Hyderabad 7 Zones x 2 Hubs)' })
+  async getVendorZonalCard() {
+    return this.pricingService.getVendorZonalRateCard();
+  }
+
+  @Get('zonal/driver-card')
+  @ApiOperation({ summary: 'Get canonical 2026 Driver Guaranteed Earnings Rate Card (Hyderabad 7 Zones x 2 Hubs)' })
+  async getDriverZonalCard() {
+    return this.pricingService.getDriverZonalRateCard();
+  }
+
+  @Post('zonal/quote')
+  @ApiOperation({ summary: 'Calculate deterministic 2026 Zonal Rate Quote for Corporate Bulk Fleet' })
+  async calculateZonalQuote(
+    @Body()
+    body: {
+      pickupAddress?: string;
+      pickupLat?: number;
+      pickupLng?: number;
+      dropAddress?: string;
+      dropLat?: number;
+      dropLng?: number;
+      localityName?: string;
+      officeHub?: 'HITEC_NANAKRAMGUDA' | 'KOKAPET';
+      vehicleType?: string;
+      hasEscort?: boolean;
+    },
+  ) {
+    return this.pricingService.calculateZonalQuote(body);
+  }
 }
+

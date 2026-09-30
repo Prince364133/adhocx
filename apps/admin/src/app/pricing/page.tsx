@@ -32,8 +32,10 @@ import {
   Button,
   Drawer,
 } from '../../components/common';
+import { CorporateZonalPricingSection } from './CorporateZonalPricingSection';
 
 export default function PricingPage() {
+  const [activeSection, setActiveSection] = useState<'CORPORATE_ZONAL' | 'MARKETPLACE' | 'POLICIES'>('CORPORATE_ZONAL');
   const [rateCards, setRateCards] = useState<RateCard[]>([]);
   const [policyConfig, setPolicyConfig] = useState<SystemPolicyConfig>({
     driverMonthlyFee: 499,
@@ -292,43 +294,143 @@ export default function PricingPage() {
         liveStatus="Database Dynamic Engine Active"
       />
 
-      {/* Pricing Top Level Metrics */}
+      {/* ── View Selector Tab Bar ───────────────────────────────── */}
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: '1.25rem',
+          display: 'flex',
+          gap: '0.5rem',
+          borderBottom: '1px solid var(--border)',
+          paddingBottom: '0.25rem',
+          flexWrap: 'wrap',
         }}
       >
-        <MetricCard
-          label="Database Rate Cards"
-          value={rateCards.length}
-          subtext="Authoritative single source of truth"
-          icon={<Car size={18} color="var(--brand-primary)" />}
-          accentColor="var(--brand-primary)"
-        />
-        <MetricCard
-          label="Driver Subscription"
-          value={`₹ ${policyConfig.driverMonthlyFee}/mo`}
-          subtext={`${policyConfig.driverTrialDays}-day free trial included`}
-          icon={<Award size={18} color="#8B5CF6" />}
-          accentColor="#8B5CF6"
-        />
-        <MetricCard
-          label="Min Withdrawal Threshold"
-          value={`₹ ${policyConfig.minWithdrawalAmount}`}
-          subtext="Enforced on driver payouts"
-          icon={<Wallet size={18} color="var(--color-success)" />}
-          accentColor="var(--color-success)"
-        />
-        <MetricCard
-          label="Avg Take Rate"
-          value="10.0%"
-          subtext="Platform commission share"
-          icon={<Percent size={18} color="var(--color-warning)" />}
-          accentColor="var(--color-warning)"
-        />
+        <button
+          type="button"
+          onClick={() => setActiveSection('CORPORATE_ZONAL')}
+          style={{
+            padding: '0.75rem 1.25rem',
+            background: activeSection === 'CORPORATE_ZONAL' ? 'var(--brand-primary)' : 'var(--bg-card)',
+            color: activeSection === 'CORPORATE_ZONAL' ? '#fff' : 'var(--text-secondary)',
+            fontWeight: 800,
+            fontSize: '0.875rem',
+            borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
+            border: '1px solid var(--border)',
+            borderBottom: activeSection === 'CORPORATE_ZONAL' ? 'none' : '1px solid var(--border)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.625rem',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <span>🏢</span>
+          <span>Corporate Zonal Fleet 2026 (B2B Bulk)</span>
+          <span
+            style={{
+              fontSize: '0.7rem',
+              padding: '0.15rem 0.5rem',
+              borderRadius: 'var(--radius-xs)',
+              background: activeSection === 'CORPORATE_ZONAL' ? 'rgba(255,255,255,0.25)' : 'rgba(91, 66, 243, 0.1)',
+              color: activeSection === 'CORPORATE_ZONAL' ? '#fff' : 'var(--brand-primary)',
+              fontWeight: 800,
+            }}
+          >
+            28 CELLS
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveSection('MARKETPLACE')}
+          style={{
+            padding: '0.75rem 1.25rem',
+            background: activeSection === 'MARKETPLACE' ? 'var(--brand-primary)' : 'var(--bg-card)',
+            color: activeSection === 'MARKETPLACE' ? '#fff' : 'var(--text-secondary)',
+            fontWeight: 700,
+            fontSize: '0.875rem',
+            borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
+            border: '1px solid var(--border)',
+            borderBottom: activeSection === 'MARKETPLACE' ? 'none' : '1px solid var(--border)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <span>🚗</span>
+          <span>Marketplace Per-Km Tiers</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveSection('POLICIES')}
+          style={{
+            padding: '0.75rem 1.25rem',
+            background: activeSection === 'POLICIES' ? 'var(--brand-primary)' : 'var(--bg-card)',
+            color: activeSection === 'POLICIES' ? '#fff' : 'var(--text-secondary)',
+            fontWeight: 700,
+            fontSize: '0.875rem',
+            borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
+            border: '1px solid var(--border)',
+            borderBottom: activeSection === 'POLICIES' ? 'none' : '1px solid var(--border)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <span>⚙️</span>
+          <span>Platform Policies & Subscriptions</span>
+        </button>
       </div>
+
+      {/* ── Tab 1: Corporate Zonal Fleet 2026 ──────────────────── */}
+      {activeSection === 'CORPORATE_ZONAL' && (
+        <CorporateZonalPricingSection />
+      )}
+
+      {/* ── Tab 2 & 3: Marketplace & Platform Policy ───────────── */}
+      {activeSection !== 'CORPORATE_ZONAL' && (
+        <>
+          {/* Pricing Top Level Metrics */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+              gap: '1.25rem',
+            }}
+          >
+            <MetricCard
+              label="Database Rate Cards"
+              value={rateCards.length}
+              subtext="Authoritative single source of truth"
+              icon={<Car size={18} color="var(--brand-primary)" />}
+              accentColor="var(--brand-primary)"
+            />
+            <MetricCard
+              label="Driver Subscription"
+              value={`₹ ${policyConfig.driverMonthlyFee}/mo`}
+              subtext={`${policyConfig.driverTrialDays}-day free trial included`}
+              icon={<Award size={18} color="#8B5CF6" />}
+              accentColor="#8B5CF6"
+            />
+            <MetricCard
+              label="Min Withdrawal Threshold"
+              value={`₹ ${policyConfig.minWithdrawalAmount}`}
+              subtext="Enforced on driver payouts"
+              icon={<Wallet size={18} color="var(--color-success)" />}
+              accentColor="var(--color-success)"
+            />
+            <MetricCard
+              label="Avg Take Rate"
+              value="10.0%"
+              subtext="Platform commission share"
+              icon={<Percent size={18} color="var(--color-warning)" />}
+              accentColor="var(--color-warning)"
+            />
+          </div>
 
       {/* Policy Settings & Rate Simulator Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '1.5rem' }}>
@@ -786,6 +888,8 @@ export default function PricingPage() {
           emptySubtitle="System default rate cards will load here."
         />
       </Card>
+      </>
+      )}
 
       {/* Edit Rate Card Drawer */}
       <Drawer

@@ -66,7 +66,36 @@ export default function RequirementsPage() {
       sortable: true,
       render: (r) => (
         <div>
-          <span className="code-tag">REQ-{r.id.slice(0, 8).toUpperCase()}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <span className="code-tag">REQ-{r.id.slice(0, 8).toUpperCase()}</span>
+            {r.fulfillmentMode === 'DIRECT_DISPATCH' ? (
+              <span
+                style={{
+                  fontSize: '0.6875rem',
+                  padding: '0.1rem 0.35rem',
+                  borderRadius: 'var(--radius-xs)',
+                  background: 'rgba(91, 66, 243, 0.12)',
+                  color: 'var(--brand-primary)',
+                  fontWeight: 800,
+                }}
+              >
+                B2B Zonal 2026
+              </span>
+            ) : (
+              <span
+                style={{
+                  fontSize: '0.6875rem',
+                  padding: '0.1rem 0.35rem',
+                  borderRadius: 'var(--radius-xs)',
+                  background: 'rgba(245, 158, 11, 0.12)',
+                  color: 'var(--color-warning)',
+                  fontWeight: 700,
+                }}
+              >
+                Bidding
+              </span>
+            )}
+          </div>
           <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginTop: '0.25rem' }}>
             {r.vendorName || 'Corporate Client'}
           </div>
@@ -220,6 +249,65 @@ export default function RequirementsPage() {
                 </div>
               </div>
             </div>
+
+            {/* Corporate Zonal 2026 Breakdown */}
+            {selectedReq.fulfillmentMode === 'DIRECT_DISPATCH' && (
+              <div
+                style={{
+                  background: 'linear-gradient(135deg, rgba(91, 66, 243, 0.08) 0%, rgba(139, 92, 246, 0.05) 100%)',
+                  border: '1px solid rgba(91, 66, 243, 0.25)',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: '1.25rem',
+                  marginBottom: '1.5rem',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '1rem' }}>🏢</span>
+                    <span style={{ fontSize: '0.875rem', fontWeight: 800, color: 'var(--brand-primary)' }}>
+                      Corporate Zonal 2026 Guaranteed Pricing
+                    </span>
+                  </div>
+                  <span
+                    style={{
+                      background: 'rgba(16, 185, 129, 0.12)',
+                      color: 'var(--color-success)',
+                      fontSize: '0.7rem',
+                      fontWeight: 800,
+                      padding: '0.15rem 0.5rem',
+                      borderRadius: 'var(--radius-full)',
+                    }}
+                  >
+                    85% NET DRIVER EARNINGS
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
+                  <div style={{ background: 'var(--bg-surface-elevated)', padding: '0.75rem', borderRadius: 'var(--radius-md)' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Client Gross Fare</div>
+                    <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.15rem' }}>
+                      ₹{Number(selectedReq.vendorRate || 0).toLocaleString('en-IN')}
+                    </div>
+                  </div>
+                  <div style={{ background: 'var(--bg-surface-elevated)', padding: '0.75rem', borderRadius: 'var(--radius-md)' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--color-success)' }}>Net Driver Payout (85%)</div>
+                    <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--color-success)', marginTop: '0.15rem' }}>
+                      ₹{Math.round(Number(selectedReq.vendorRate || 0) * 0.85).toLocaleString('en-IN')}
+                    </div>
+                  </div>
+                  <div style={{ background: 'var(--bg-surface-elevated)', padding: '0.75rem', borderRadius: 'var(--radius-md)' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--brand-primary)' }}>AdhocX Take (15%)</div>
+                    <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--brand-primary)', marginTop: '0.15rem' }}>
+                      ₹{Math.round(Number(selectedReq.vendorRate || 0) * 0.15).toLocaleString('en-IN')}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.75rem' }}>
+                  🛡️ Deterministic B2B Rate: No surge, no per-km multipliers. Direct driver dispatch broadcast active.
+                </div>
+              </div>
+            )}
 
             <div style={{ marginBottom: '1.5rem' }}>
               <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>

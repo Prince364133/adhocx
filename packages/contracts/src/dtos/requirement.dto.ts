@@ -72,6 +72,7 @@ export class RequirementResponseDto {
   totalAmount!: number;
   status!: RequirementStatus;
   notes?: string;
+  zonalQuote?: any;
   createdAt!: string;
   updatedAt!: string;
 }

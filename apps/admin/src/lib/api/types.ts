@@ -121,6 +121,16 @@ export interface RequirementListItem {
   suggestedBudget?: number;
   bidsCount?: number;
   createdAt: string;
+  zonalQuote?: {
+    hubId?: string;
+    zoneId?: string;
+    localityId?: string;
+    hasEscort?: boolean;
+    baseFarePaise?: number;
+    escortFarePaise?: number;
+    totalFarePaise?: number;
+    driverFarePaise?: number;
+  };
 }
 
 export interface BidListItem {
@@ -425,6 +435,61 @@ export interface SystemPolicyConfig {
   convenienceFeePercent: number;
   gstPercent: number;
   updatedAt?: string;
+}
+
+export interface ZonalRateRow {
+  hub: string;
+  sedan: number;
+  suv: number;
+  driverSedan: number;
+  driverSuv: number;
+}
+
+export interface ZonalZoneData {
+  zoneId: string;
+  zoneName: string;
+  rates: ZonalRateRow[];
+}
+
+export interface ZonalVendorRateCardResponse {
+  version: string;
+  effectiveDate: string;
+  hubs: string[];
+  zones: ZonalZoneData[];
+  escortPricing: {
+    dayPrice: number;
+    nightPrice: number;
+    nightHours: string;
+  };
+  driverPayoutRatio: number;
+}
+
+export interface ZonalQuoteRequest {
+  pickupText: string;
+  dropText: string;
+  vehicleType: string;
+  hasEscort?: boolean;
+  pickupTime?: string;
+  pickupLat?: number;
+  pickupLng?: number;
+  dropLat?: number;
+  dropLng?: number;
+}
+
+export interface ZonalQuoteResponse {
+  canAutoQuote: boolean;
+  detectedHub?: string;
+  detectedZone?: string;
+  resolvedLocality?: string;
+  requiresReview?: boolean;
+  reviewReason?: string;
+  totalVendorFare: number;
+  baseFare: number;
+  escortCharge: number;
+  driverEarnings: number;
+  platformMargin: number;
+  currency: string;
+  breakdownSummary: string;
 }
 
 export interface CorridorAnalytics {

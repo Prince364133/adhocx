@@ -12,6 +12,7 @@ import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../requirements/requirement_draft_provider.dart';
+import 'modals/vendor_rate_card_modal.dart';
 
 class UserProfileScreen extends StatelessWidget {
   const UserProfileScreen({super.key});
@@ -46,6 +47,7 @@ class UserProfileScreen extends StatelessWidget {
         .join();
 
     final menuItems = [
+      {'icon': Icons.receipt_long_outlined, 'title': 'Corporate Rate Card & Tariffs', 'action': 'rate_card'},
       {'icon': Icons.business_outlined, 'title': 'Company Information'},
       {'icon': Icons.phone_outlined, 'title': 'Contact Information'},
       {'icon': Icons.verified_user_outlined, 'title': 'Account Status'},
@@ -167,6 +169,15 @@ class UserProfileScreen extends StatelessWidget {
                         InkWell(
                           borderRadius: BorderRadius.circular(AppRadius.lg),
                           onTap: () {
+                            if (item['action'] == 'rate_card') {
+                              showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (_) => const VendorRateCardModal(),
+                              );
+                              return;
+                            }
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text('Opened ${item['title']}')),
                             );

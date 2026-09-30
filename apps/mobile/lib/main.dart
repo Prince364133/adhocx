@@ -22,9 +22,17 @@ import './services/edge_case_manager.dart';
 import './services/local_notification_service.dart';
 import './services/fcm_service.dart';
 import './core/networking/api_client.dart';
+import './core/security/security_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Run device integrity and root/jailbreak detection check
+  try {
+    await SecurityService.instance.checkDeviceIntegrity();
+  } catch (e) {
+    AppLogger.warn('Security check initialization notice: $e', tag: 'SECURITY');
+  }
 
   // Initialize Firebase for Push Notifications
   try {

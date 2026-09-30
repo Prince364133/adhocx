@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Strictly disallow cleartext HTTP traffic across all domains -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    <!-- Explicit domain configuration for production and staging AdhocX APIs -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">adhocx.com</domain>
+        <domain includeSubdomains="true">api.adhocx.com</domain>
+        <domain includeSubdomains="true">staging-api.adhocx.com</domain>
+        <domain includeSubdomains="true">admin.adhocx.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+</network-security-config>

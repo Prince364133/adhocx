@@ -70,6 +70,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  getClient(): Redis | null {
+    return this.isConnected ? this.client : null;
+  }
+
   async get(key: string): Promise<string | null> {
     if (this.isConnected && this.client) {
       try {

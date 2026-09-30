@@ -1,0 +1,24 @@
+========================================================================================
+ADHOCX DRIVER ANDROID APPLICATION — PRODUCTION RELEASE APK VERIFICATION FINGERPRINT
+========================================================================================
+Build Artifact: apps/mobile/build/app/outputs/flutter-apk/app-release.apk
+Build Date: 2026-09-30T15:20:04Z
+Target Environment: Production / CERT-In Empanelled Security Audit
+Package Name: com.adhocx.driver
+Version Code: 1
+Version Name: 1.0.0
+Size: 75,080,266 bytes (71.6 MB)
+
+SHA-256 Fingerprint:
+2388858f02dad24f97b932b196d1979b0c0103d589b72726e9133902f5166543
+
+MD5 Fingerprint:
+f1ba5489872be9c3bfae68407dd64177
+
+Signed: Yes (Android Release Key / v2+v3 APK Signature Scheme)
+Debuggable: false (BuildConfig.DEBUG = false, android:debuggable = false)
+Cleartext HTTP Traffic: false (android:usesCleartextTraffic = false)
+Network Security Config: res/xml/network_security_config.xml (cleartextTrafficPermitted = false)
+Keystore Encryption: flutter_secure_storage (AES-GCM / RSA hardware-backed Keystore)
+Root / Tamper Detection: Active (SecurityService runtime verification)
+========================================================================================

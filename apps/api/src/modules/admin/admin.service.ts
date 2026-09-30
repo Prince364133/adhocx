@@ -84,9 +84,42 @@ export class AdminService {
   }
 
   /**
-   * Get complete driver details including vehicles for verification review.
+   * Mask sensitive PII (Aadhaar, PAN, Bank account numbers) per UIDAI & RBI guidelines
    */
-  async getDriverDetails(id: string) {
+  private maskSensitivePii(data: any): any {
+    if (!data) return data;
+    if (typeof data !== 'object') return data;
+
+    if (Array.isArray(data)) {
+      return data.map((item) => this.maskSensitivePii(item));
+    }
+
+    const copy = { ...data };
+    for (const [key, value] of Object.entries(copy)) {
+      if (typeof value === 'string') {
+        const lowerKey = key.toLowerCase();
+        if (lowerKey.includes('aadhar') || lowerKey.includes('aadhaar')) {
+          // Mask Aadhaar to XXXX-XXXX-1234
+          copy[key] = value.replace(/\d(?=\d{4})/g, 'X');
+        } else if (lowerKey.includes('bank') || lowerKey.includes('account') || lowerKey.includes('accnum')) {
+          // Mask Bank account to XXXXXXXX1234
+          copy[key] = value.replace(/\d(?=\d{4})/g, 'X');
+        } else if (lowerKey.includes('pan') && value.length >= 10) {
+          // Mask PAN to XXXXX1234X
+          copy[key] = 'XXXXX' + value.substring(5, 9) + value.slice(-1);
+        }
+      } else if (typeof value === 'object' && value !== null) {
+        copy[key] = this.maskSensitivePii(value);
+      }
+    }
+    return copy;
+  }
+
+  /**
+   * Get complete driver details including vehicles for verification review.
+   * Redacts sensitive PII (Aadhaar/Bank) for non-superadmin/finance support staff.
+   */
+  async getDriverDetails(id: string, actorRole?: string) {
     const driver = await this.db.driver.findUnique({
       where: { id },
       include: {
@@ -100,8 +133,12 @@ export class AdminService {
       throw new NotFoundException('Driver not found');
     }
 
+    const isFinanceOrSuperAdmin = actorRole === 'FINANCE_ADMIN' || actorRole === 'SUPER_ADMIN';
+    const processedKyc = isFinanceOrSuperAdmin ? driver.kycDocuments : this.maskSensitivePii(driver.kycDocuments);
+
     return {
       ...driver,
+      kycDocuments: processedKyc,
       phone: driver.phone || driver.user?.phone || '',
       fullName: driver.fullName || driver.user?.fullName || 'Driver Applicant',
     };
@@ -379,7 +416,7 @@ export class AdminService {
   /**
    * Admin direct update for Driver profile information (phone, name, vehicle details).
    */
-  async updateDriver(id: string, data: { fullName?: string; phone?: string; vehiclePlate?: string; vehicleModel?: string; vehicleType?: string }) {
+  async updateDriver(id: string, adminId: string, data: { fullName?: string; phone?: string; vehiclePlate?: string; vehicleModel?: string; vehicleType?: string }) {
     const driver = await this.db.driver.findUnique({
       where: { id },
       include: { user: true },
@@ -420,6 +457,14 @@ export class AdminService {
       include: { user: true },
     });
 
+    await this.audit.log({
+      userId: adminId,
+      action: 'ADMIN_DRIVER_UPDATED',
+      entityType: 'DRIVER',
+      entityId: id,
+      metadata: { modifiedFields: Object.keys(data) },
+    });
+
     return {
       ...updatedDriver,
       phone: updatedDriver.phone || updatedDriver.user?.phone || '',
@@ -430,7 +475,7 @@ export class AdminService {
   /**
    * Admin direct update for Vendor profile information (phone, org name, contact).
    */
-  async updateVendor(id: string, data: { organizationName?: string; fullName?: string; phone?: string; gstNumber?: string; address?: string }) {
+  async updateVendor(id: string, adminId: string, data: { organizationName?: string; fullName?: string; phone?: string; gstNumber?: string; address?: string }) {
     const vendor = await this.db.vendor.findUnique({
       where: { id },
       include: { user: true },
@@ -469,6 +514,14 @@ export class AdminService {
         ...(data.address !== undefined ? { address: data.address } : {}),
       },
       include: { user: true },
+    });
+
+    await this.audit.log({
+      userId: adminId,
+      action: 'ADMIN_VENDOR_UPDATED',
+      entityType: 'VENDOR',
+      entityId: id,
+      metadata: { modifiedFields: Object.keys(data) },
     });
 
     return {

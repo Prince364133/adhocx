@@ -348,6 +348,24 @@ class UserService {
       },
     );
   }
+
+  // Zonal Corporate B2B Rate Card
+  Future<dynamic> getVendorZonalRateCard({bool forceRefresh = false}) async {
+    try {
+      return await _api.get('/pricing/zonal/vendor-card', force: forceRefresh);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // Calculate Zonal Quote for Bulk Fleet
+  Future<dynamic> calculateZonalQuote(Map<String, dynamic> payload) async {
+    try {
+      return await _api.post('/pricing/zonal/quote', body: payload);
+    } catch (_) {
+      return null;
+    }
+  }
 }
 
 typedef VendorService = UserService;

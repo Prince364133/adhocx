@@ -1079,6 +1079,43 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                                   ),
                                 ],
                               ),
+                              if (!isBidding) ...[
+                                const SizedBox(height: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.verified_rounded, size: 14, color: AppColors.primary),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            'Corporate Zonal 2026 Flat Rate',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Text(
+                                        '85% Driver Payout Guaranteed',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: isDark ? AppColors.accentGreenLight : AppColors.success,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),

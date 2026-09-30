@@ -1,6 +1,16 @@
 import { Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import { VehicleType } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
+import {
+  OFFICE_HUBS,
+  VENDOR_ZONAL_RATE_MATRIX,
+  DRIVER_ZONAL_RATE_MATRIX,
+  LOCALITY_MASTER,
+  LOCALITY_ALIASES,
+  OfficeHubId,
+  OfficeHubDefinition,
+  LocalityDefinition,
+} from './zonal-pricing.constants';
 
 export interface VehiclePricingTierDto {
   id: string;
@@ -687,4 +697,173 @@ export class PricingService implements OnModuleInit {
       tier,
     };
   }
+
+  /**
+   * Returns the canonical 2026 Vendor Rate Card (7 Zones x 2 Hubs x 2 Vehicle Classes + Escorts)
+   */
+  getVendorZonalRateCard() {
+    return {
+      version: '2026.1',
+      title: 'New Adok Rate Card 2026 (Vendor / Corporate B2B)',
+      effectiveDate: '2026-09-25T00:00:00Z',
+      currency: 'INR',
+      hubs: OFFICE_HUBS,
+      matrix: VENDOR_ZONAL_RATE_MATRIX,
+      localities: LOCALITY_MASTER,
+      aliases: LOCALITY_ALIASES,
+      notes: [
+        'INR per vehicle for a standard one-way trip with one pickup and one drop.',
+        'Zonal and kilometre pricing are mutually exclusive.',
+        'Escort charges are additional ceilings applicable only when explicitly selected.',
+      ],
+    };
+  }
+
+  /**
+   * Returns the canonical 2026 Driver Guaranteed Earnings Rate Card (85% fixed base)
+   */
+  getDriverZonalRateCard() {
+    return {
+      version: '2026.1',
+      title: 'New Adok Rate Card 2026 (Driver Guaranteed Earnings)',
+      effectiveDate: '2026-09-25T00:00:00Z',
+      currency: 'INR',
+      hubs: OFFICE_HUBS,
+      matrix: DRIVER_ZONAL_RATE_MATRIX,
+      localities: LOCALITY_MASTER,
+      notes: [
+        'Fixed driver earnings credited directly to driver wallet upon trip completion.',
+        'No platform commission or percentage deduction is applied to these figures.',
+        'Escort fee is paid additionally as a pass-through if driver provides escort.',
+      ],
+    };
+  }
+
+  /**
+   * Match an address string or locality query to the canonical locality master.
+   */
+  resolveLocality(query: string): LocalityDefinition | null {
+    if (!query || query.trim().length === 0) return null;
+    const clean = query.trim().toLowerCase();
+
+    // Check alias first
+    const resolvedAlias = LOCALITY_ALIASES[clean];
+    const targetName = resolvedAlias ? resolvedAlias.toLowerCase() : clean;
+
+    // Exact or substring match in LOCALITY_MASTER
+    const exact = LOCALITY_MASTER.find((l) => l.name.toLowerCase() === targetName);
+    if (exact) return exact;
+
+    // Contains match
+    const partial = LOCALITY_MASTER.find((l) =>
+      clean.includes(l.name.toLowerCase()) || l.name.toLowerCase().includes(clean),
+    );
+    return partial || null;
+  }
+
+  /**
+   * Bidirectional Endpoint Resolution & Deterministic Zonal Quote Calculator
+   */
+  calculateZonalQuote(dto: {
+    pickupAddress?: string;
+    pickupLat?: number;
+    pickupLng?: number;
+    dropAddress?: string;
+    dropLat?: number;
+    dropLng?: number;
+    localityName?: string;
+    officeHub?: OfficeHubId;
+    vehicleType?: string;
+    hasEscort?: boolean;
+  }) {
+    const vType = (dto.vehicleType || 'SEDAN').trim().toUpperCase() === 'SUV' ? 'SUV' : 'SEDAN';
+    const hasEscort = Boolean(dto.hasEscort);
+
+    // 1. Resolve Office Hub (Default: HITEC_NANAKRAMGUDA)
+    let selectedHub: OfficeHubDefinition = OFFICE_HUBS[0];
+    if (dto.officeHub) {
+      const found = OFFICE_HUBS.find((h) => h.id === dto.officeHub);
+      if (found) selectedHub = found;
+    } else if (dto.pickupAddress || dto.dropAddress) {
+      const text = `${dto.pickupAddress || ''} ${dto.dropAddress || ''}`.toLowerCase();
+      if (text.includes('kokapet') || text.includes('neopolis') || text.includes('financial district kokapet')) {
+        selectedHub = OFFICE_HUBS[1];
+      }
+    }
+
+    // 2. Resolve Locality
+    let locality: LocalityDefinition | null = null;
+    if (dto.localityName) {
+      locality = this.resolveLocality(dto.localityName);
+    }
+    if (!locality && dto.pickupAddress) {
+      locality = this.resolveLocality(dto.pickupAddress);
+    }
+    if (!locality && dto.dropAddress) {
+      locality = this.resolveLocality(dto.dropAddress);
+    }
+
+    // Default fallback to Malakpet (Zone 4) if unspecified for simulation preview
+    if (!locality) {
+      locality = LOCALITY_MASTER.find((l) => l.name === 'Malakpet') || LOCALITY_MASTER[0];
+    }
+
+    const zoneId = locality.zoneId;
+    const hubId = selectedHub.id;
+
+    // Check review status (e.g. Kondapur outskirts, Pebel City, Godi Ki Khabeer)
+    const canAutoQuote = !locality.requiresReview;
+    const reviewReason = locality.requiresReview
+      ? `Locality '${locality.name}' requires operations boundary verification before quote finalization.`
+      : undefined;
+
+    // 3. Lookup Vendor & Driver Rate Matrices
+    const vendorRow = VENDOR_ZONAL_RATE_MATRIX[hubId][zoneId];
+    const driverRow = DRIVER_ZONAL_RATE_MATRIX[hubId][zoneId];
+
+    const baseFare = vType === 'SUV' ? vendorRow.suv : vendorRow.sedan;
+    const escortMax = vType === 'SUV' ? vendorRow.escortSuv : vendorRow.escortSedan;
+    const escortFee = hasEscort ? escortMax : 0;
+    const totalAmount = baseFare + escortFee;
+
+    const driverBaseEarning = vType === 'SUV' ? driverRow.suv : driverRow.sedan;
+    const platformSpread = baseFare - driverBaseEarning;
+
+    // 4. Direction determination
+    let direction: 'INBOUND_TO_OFFICE' | 'OUTBOUND_FROM_OFFICE' | 'CUSTOM' = 'INBOUND_TO_OFFICE';
+    if (dto.pickupAddress && selectedHub.displayName.toLowerCase().split(' ')[0] && dto.pickupAddress.toLowerCase().includes('hitec')) {
+      direction = 'OUTBOUND_FROM_OFFICE';
+    }
+
+    const quoteId = `zq_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+    return {
+      quoteId,
+      rateVersion: '2026.1',
+      officeHub: {
+        id: selectedHub.id,
+        displayName: selectedHub.displayName,
+      },
+      locality: {
+        name: locality.name,
+        zoneId: locality.zoneId,
+        zoneLabel: locality.zoneId.replace('_', ' '),
+        requiresReview: Boolean(locality.requiresReview),
+        notes: locality.notes,
+      },
+      direction,
+      vehicleType: vType,
+      hasEscort,
+      baseFare,
+      escortFee,
+      totalAmount,
+      driverEarningEstimate: driverBaseEarning,
+      platformSpread,
+      canAutoQuote,
+      reviewReason,
+      expiresAt,
+    };
+  }
 }
+

@@ -454,6 +454,14 @@ class DriverService {
     }
   }
 
+  Future<dynamic> getDriverZonalRateCard({bool forceRefresh = false}) async {
+    try {
+      return await _api.get('/pricing/zonal/driver-card', force: forceRefresh);
+    } catch (_) {
+      return null;
+    }
+  }
+
   // Driver Monthly Subscription & 15-Day Free Trial Engine
   Future<dynamic> getSubscriptionStatus({bool forceRefresh = false}) async {
     await _ensureDriverSession();

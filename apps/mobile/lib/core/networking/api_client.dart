@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -34,6 +35,8 @@ class ApiClient {
 
   static const String _tokenKey = 'adhocx_auth_token';
   static const String _refreshTokenKey = 'adhocx_refresh_token';
+
+  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
 
   // In-memory short-lived response cache and concurrent in-flight request deduplication
   final Map<String, _ApiCacheEntry> _responseCache = {};
@@ -99,35 +102,93 @@ class ApiClient {
   }
 
   Future<String?> getToken() async {
+    try {
+      final secureToken = await _secureStorage.read(key: _tokenKey);
+      if (secureToken != null && secureToken.isNotEmpty) {
+        return secureToken;
+      }
+    } catch (e) {
+      AppLogger.warn('Secure storage read warning: $e', tag: 'AUTH');
+    }
+
+    // Seamless migration from legacy SharedPreferences if present
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_tokenKey);
+    final legacyToken = prefs.getString(_tokenKey);
+    if (legacyToken != null && legacyToken.isNotEmpty) {
+      try {
+        await _secureStorage.write(key: _tokenKey, value: legacyToken);
+        await prefs.remove(_tokenKey);
+      } catch (_) {}
+      return legacyToken;
+    }
+    return null;
   }
 
   Future<String?> getRefreshToken() async {
+    try {
+      final secureRefresh = await _secureStorage.read(key: _refreshTokenKey);
+      if (secureRefresh != null && secureRefresh.isNotEmpty) {
+        return secureRefresh;
+      }
+    } catch (e) {
+      AppLogger.warn('Secure storage read warning: $e', tag: 'AUTH');
+    }
+
+    // Seamless migration from legacy SharedPreferences if present
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_refreshTokenKey);
+    final legacyToken = prefs.getString(_refreshTokenKey);
+    if (legacyToken != null && legacyToken.isNotEmpty) {
+      try {
+        await _secureStorage.write(key: _refreshTokenKey, value: legacyToken);
+        await prefs.remove(_refreshTokenKey);
+      } catch (_) {}
+      return legacyToken;
+    }
+    return null;
   }
 
   Future<void> setToken(String token, {String? refreshToken}) async {
+    try {
+      await _secureStorage.write(key: _tokenKey, value: token);
+      if (refreshToken != null && refreshToken.isNotEmpty) {
+        await _secureStorage.write(key: _refreshTokenKey, value: refreshToken);
+      }
+    } catch (e) {
+      AppLogger.error('Failed to write to secure storage: $e', tag: 'AUTH');
+    }
+    // Remove from unencrypted SharedPreferences if exists
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_tokenKey, token);
+    await prefs.remove(_tokenKey);
     if (refreshToken != null && refreshToken.isNotEmpty) {
-      await prefs.setString(_refreshTokenKey, refreshToken);
+      await prefs.remove(_refreshTokenKey);
     }
   }
 
   Future<void> setTokens({required String accessToken, required String refreshToken}) async {
+    try {
+      await _secureStorage.write(key: _tokenKey, value: accessToken);
+      await _secureStorage.write(key: _refreshTokenKey, value: refreshToken);
+    } catch (e) {
+      AppLogger.error('Failed to write tokens to secure storage: $e', tag: 'AUTH');
+    }
+    // Clean up cleartext SharedPreferences
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_tokenKey, accessToken);
-    await prefs.setString(_refreshTokenKey, refreshToken);
+    await prefs.remove(_tokenKey);
+    await prefs.remove(_refreshTokenKey);
   }
 
   Future<void> clearToken() async {
+    try {
+      await _secureStorage.delete(key: _tokenKey);
+      await _secureStorage.delete(key: _refreshTokenKey);
+    } catch (e) {
+      AppLogger.warn('Secure storage delete warning: $e', tag: 'AUTH');
+    }
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
     await prefs.remove(_refreshTokenKey);
     invalidateCache();
-    AppLogger.info('Cleared authentication tokens and cached sessions', tag: 'AUTH');
+    AppLogger.info('Cleared authentication tokens from secure storage and cached sessions', tag: 'AUTH');
   }
 
   Future<bool> attemptTokenRefresh() async {
