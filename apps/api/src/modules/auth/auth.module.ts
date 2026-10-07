@@ -13,7 +13,7 @@ import { AuthController } from './auth.controller';
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('auth.jwtAccessSecret') || process.env.JWT_ACCESS_SECRET,
         signOptions: {
-          expiresIn: config.get<string>('auth.jwtAccessExpiresIn') || '1h',
+          expiresIn: config.get<string>('auth.jwtAccessExpiresIn') || '7d',
         },
       }),
     }),

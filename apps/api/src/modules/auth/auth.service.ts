@@ -853,12 +853,12 @@ export class AuthService implements OnModuleInit {
 
     const accessToken = await this.jwtService.signAsync(tokenPayload, {
       secret: accessSecret,
-      expiresIn: this.configService.get<string>('auth.jwtAccessExpiresIn') || '1h',
+      expiresIn: this.configService.get<string>('auth.jwtAccessExpiresIn') || '7d',
     });
 
     const refreshToken = await this.jwtService.signAsync(tokenPayload, {
       secret: refreshSecret,
-      expiresIn: this.configService.get<string>('auth.jwtRefreshExpiresIn') || '30d',
+      expiresIn: this.configService.get<string>('auth.jwtRefreshExpiresIn') || '90d',
     });
 
     const hasPassword = Boolean(user.passwordHash);
@@ -908,7 +908,7 @@ export class AuthService implements OnModuleInit {
     return {
       accessToken,
       refreshToken,
-      expiresAt: new Date(Date.now() + 3600 * 1000).toISOString(),
+      expiresAt: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString(),
       user: {
         id: user.id,
         phone: user.phone,
@@ -1050,12 +1050,12 @@ export class AuthService implements OnModuleInit {
     const accessSecret = this.configService.get<string>('auth.jwtAccessSecret') || process.env.JWT_ACCESS_SECRET;
     const newAccessToken = await this.jwtService.signAsync(tokenPayload, {
       secret: accessSecret,
-      expiresIn: this.configService.get<string>('auth.jwtAccessExpiresIn') || '1h',
+      expiresIn: this.configService.get<string>('auth.jwtAccessExpiresIn') || '7d',
     });
 
     const newRefreshToken = await this.jwtService.signAsync(tokenPayload, {
       secret: refreshSecret,
-      expiresIn: this.configService.get<string>('auth.jwtRefreshExpiresIn') || '30d',
+      expiresIn: this.configService.get<string>('auth.jwtRefreshExpiresIn') || '90d',
     });
 
     const user = await this.db.user.findUnique({
@@ -1103,7 +1103,7 @@ export class AuthService implements OnModuleInit {
     return {
       accessToken: newAccessToken,
       refreshToken: newRefreshToken,
-      expiresAt: new Date(Date.now() + 3600 * 1000).toISOString(),
+      expiresAt: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString(),
       user: {
         id: payload.id,
         phone: user?.phone || payload.phone || undefined,

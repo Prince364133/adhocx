@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:adhocx/services/api_client.dart';
 import 'package:adhocx/services/auth_service.dart';
@@ -119,6 +120,61 @@ void main() {
         AppToast.cleanErrorMessage(networkError),
         'Unable to connect to the server. Please check your internet connection.',
       );
+    });
+
+    test('UserModel toJson serializes and round-trips correctly', () {
+      final user = UserModel(
+        id: 'usr-3',
+        phone: '+919123456789',
+        email: 'test@example.com',
+        role: 'DRIVER',
+        fullName: 'Test Driver',
+        hasPassword: true,
+        isOnboarded: true,
+        driverProfile: {'verificationStatus': 'VERIFIED'},
+      );
+
+      final json = user.toJson();
+      expect(json['id'], 'usr-3');
+      expect(json['phone'], '+919123456789');
+      expect(json['email'], 'test@example.com');
+      expect(json['role'], 'DRIVER');
+      expect(json['fullName'], 'Test Driver');
+      expect(json['hasPassword'], true);
+      expect(json['isOnboarded'], true);
+
+      final restored = UserModel.fromJson(json);
+      expect(restored.id, 'usr-3');
+      expect(restored.phone, '+919123456789');
+      expect(restored.email, 'test@example.com');
+      expect(restored.role, 'DRIVER');
+      expect(restored.fullName, 'Test Driver');
+      expect(restored.isVerified, true);
+    });
+
+    test('ApiClient.isTokenExpiring correctly identifies valid vs expired JWTs', () {
+      final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+      // Future token (valid for next 2 hours)
+      final validPayload = '{"id":"usr-1","exp":${nowSec + 7200}}';
+      final validEncoded = base64Url.encode(utf8.encode(validPayload)).replaceAll('=', '');
+      final validToken = 'eyJhbGciOiJIUzI1NiJ9.$validEncoded.mock_sig';
+      expect(ApiClient.isTokenExpiring(validToken), false);
+
+      // Expired token (expired 1 hour ago)
+      final expiredPayload = '{"id":"usr-1","exp":${nowSec - 3600}}';
+      final expiredEncoded = base64Url.encode(utf8.encode(expiredPayload)).replaceAll('=', '');
+      final expiredToken = 'eyJhbGciOiJIUzI1NiJ9.$expiredEncoded.mock_sig';
+      expect(ApiClient.isTokenExpiring(expiredToken), true);
+
+      // Token expiring in 2 minutes (within default 5 minute buffer)
+      final soonPayload = '{"id":"usr-1","exp":${nowSec + 120}}';
+      final soonEncoded = base64Url.encode(utf8.encode(soonPayload)).replaceAll('=', '');
+      final soonToken = 'eyJhbGciOiJIUzI1NiJ9.$soonEncoded.mock_sig';
+      expect(ApiClient.isTokenExpiring(soonToken), true);
+
+      // Malformed token returns false gracefully
+      expect(ApiClient.isTokenExpiring('invalid_token'), false);
     });
   });
 }

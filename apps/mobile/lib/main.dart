@@ -91,9 +91,12 @@ void main() async {
   // Initialize Auth Provider and restore session
   final authProvider = AuthProvider();
   try {
-    await authProvider.checkSession().timeout(const Duration(milliseconds: 1500));
+    // Fast local hydration first (< 5ms from disk)
+    await AuthService.instance.loadCachedUser();
+    // Network session verification and proactive refresh
+    await authProvider.checkSession().timeout(const Duration(seconds: 4));
   } catch (e) {
-    AppLogger.debug('Auth session check skipped: $e', tag: 'MAIN');
+    AppLogger.debug('Auth session network sync deferred to background: $e', tag: 'MAIN');
   }
 
   // Initialize Onboarding Provider

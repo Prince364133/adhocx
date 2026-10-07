@@ -191,6 +191,39 @@ class ApiClient {
     AppLogger.info('Cleared authentication tokens from secure storage and cached sessions', tag: 'AUTH');
   }
 
+  /// Checks whether a JWT token is expired or within the [buffer] before expiration.
+  static bool isTokenExpiring(String token, {Duration buffer = const Duration(minutes: 5)}) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return false;
+      final normalized = base64Url.normalize(parts[1]);
+      final payloadJson = utf8.decode(base64Url.decode(normalized));
+      final payload = jsonDecode(payloadJson);
+      if (payload is Map && payload['exp'] != null) {
+        final expSeconds = payload['exp'] is int
+            ? payload['exp'] as int
+            : int.tryParse(payload['exp'].toString());
+        if (expSeconds != null) {
+          final expDate = DateTime.fromMillisecondsSinceEpoch(expSeconds * 1000);
+          return DateTime.now().isAfter(expDate.subtract(buffer));
+        }
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  bool _isNonRefreshableEndpoint(String endpoint) {
+    final ep = endpoint.trim().toLowerCase();
+    return ep == '/auth/refresh' ||
+        ep.startsWith('/auth/login') ||
+        ep.startsWith('/auth/otp') ||
+        ep.startsWith('/auth/verify') ||
+        ep.startsWith('/auth/social') ||
+        ep.startsWith('/auth/register');
+  }
+
   Future<bool> attemptTokenRefresh() async {
     if (_isRefreshing && _refreshFuture != null) {
       return await _refreshFuture!;
@@ -208,6 +241,7 @@ class ApiClient {
   Future<bool> _executeTokenRefresh() async {
     final refresh = await getRefreshToken();
     if (refresh == null || refresh.isEmpty) {
+      AppLogger.warn('No refresh token found; clearing session', tag: 'AUTH');
       await clearToken();
       return false;
     }
@@ -221,7 +255,7 @@ class ApiClient {
         uri,
         headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
         body: jsonEncode({'refreshToken': refresh}),
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 15));
       sw.stop();
       AppLogger.httpRes(res.statusCode, 'POST', uri.toString(), sw.elapsed, body: res.body);
 
@@ -235,21 +269,39 @@ class ApiClient {
           AppLogger.info('JWT token successfully refreshed', tag: 'AUTH');
           return true;
         }
+      } else if (res.statusCode == 401 || res.statusCode == 403) {
+        // Refresh token is revoked or permanently expired on backend
+        AppLogger.warn('Refresh token is invalid or expired (status ${res.statusCode}); clearing session', tag: 'AUTH');
+        await clearToken();
+        return false;
+      } else {
+        // Transient server error (500, 502, etc.) - retain existing tokens
+        AppLogger.warn('Server error (${res.statusCode}) during refresh; retaining tokens for retry', tag: 'AUTH');
+        return false;
       }
     } catch (e) {
-      AppLogger.warn('Token refresh network exception: $e', tag: 'AUTH');
+      // Network timeout, socket error, offline - retain existing tokens for retry
+      AppLogger.warn('Token refresh network exception: $e (retaining session)', tag: 'AUTH');
+      return false;
     }
 
-    AppLogger.warn('Token refresh failed or token expired; clearing session', tag: 'AUTH');
-    await clearToken();
     return false;
   }
 
-  Future<Map<String, String>> _getHeaders({bool isMultipart = false}) async {
+  Future<Map<String, String>> _getHeaders({bool isMultipart = false, String? endpoint}) async {
     final headers = <String, String>{};
     if (!isMultipart) {
       headers['Content-Type'] = 'application/json';
       headers['Accept'] = 'application/json';
+    }
+
+    // Proactive refresh: if endpoint requires auth and current token is near expiry, refresh beforehand
+    if (endpoint != null && !_isNonRefreshableEndpoint(endpoint)) {
+      final existingToken = await getToken();
+      if (existingToken != null && existingToken.isNotEmpty && isTokenExpiring(existingToken)) {
+        AppLogger.info('JWT access token expiring soon; refreshing proactively before request...', tag: 'AUTH');
+        await attemptTokenRefresh();
+      }
     }
 
     final token = await getToken();
@@ -309,7 +361,7 @@ class ApiClient {
       );
     }
 
-    final headers = await _getHeaders();
+    final headers = await _getHeaders(endpoint: endpoint);
     final sw = Stopwatch()..start();
     AppLogger.httpReq('GET', uri.toString());
     final response = await http.get(uri, headers: headers).timeout(
@@ -318,10 +370,10 @@ class ApiClient {
     sw.stop();
     AppLogger.httpRes(response.statusCode, 'GET', uri.toString(), sw.elapsed, body: response.body);
 
-    if (response.statusCode == 401 && !endpoint.startsWith('/auth/')) {
+    if (response.statusCode == 401 && !_isNonRefreshableEndpoint(endpoint)) {
       final refreshed = await attemptTokenRefresh();
       if (refreshed) {
-        final retryHeaders = await _getHeaders();
+        final retryHeaders = await _getHeaders(endpoint: endpoint);
         final retrySw = Stopwatch()..start();
         AppLogger.httpReq('GET (RETRY)', uri.toString());
         final retryRes = await http.get(uri, headers: retryHeaders).timeout(const Duration(seconds: 15));
@@ -336,7 +388,7 @@ class ApiClient {
 
   Future<dynamic> post(String endpoint, {dynamic body}) async {
     final uri = Uri.parse('$baseUrl$endpoint');
-    final headers = await _getHeaders();
+    final headers = await _getHeaders(endpoint: endpoint);
     final sw = Stopwatch()..start();
     AppLogger.httpReq('POST', uri.toString(), body: body);
 
@@ -348,10 +400,10 @@ class ApiClient {
     sw.stop();
     AppLogger.httpRes(response.statusCode, 'POST', uri.toString(), sw.elapsed, body: response.body);
 
-    if (response.statusCode == 401 && !endpoint.startsWith('/auth/')) {
+    if (response.statusCode == 401 && !_isNonRefreshableEndpoint(endpoint)) {
       final refreshed = await attemptTokenRefresh();
       if (refreshed) {
-        final retryHeaders = await _getHeaders();
+        final retryHeaders = await _getHeaders(endpoint: endpoint);
         final retrySw = Stopwatch()..start();
         AppLogger.httpReq('POST (RETRY)', uri.toString(), body: body);
         final retryRes = await http.post(
@@ -374,7 +426,7 @@ class ApiClient {
 
   Future<dynamic> patch(String endpoint, {dynamic body}) async {
     final uri = Uri.parse('$baseUrl$endpoint');
-    final headers = await _getHeaders();
+    final headers = await _getHeaders(endpoint: endpoint);
     final sw = Stopwatch()..start();
     AppLogger.httpReq('PATCH', uri.toString(), body: body);
 
@@ -386,10 +438,10 @@ class ApiClient {
     sw.stop();
     AppLogger.httpRes(response.statusCode, 'PATCH', uri.toString(), sw.elapsed, body: response.body);
 
-    if (response.statusCode == 401 && !endpoint.startsWith('/auth/')) {
+    if (response.statusCode == 401 && !_isNonRefreshableEndpoint(endpoint)) {
       final refreshed = await attemptTokenRefresh();
       if (refreshed) {
-        final retryHeaders = await _getHeaders();
+        final retryHeaders = await _getHeaders(endpoint: endpoint);
         final retrySw = Stopwatch()..start();
         AppLogger.httpReq('PATCH (RETRY)', uri.toString(), body: body);
         final retryRes = await http.patch(
@@ -412,7 +464,7 @@ class ApiClient {
 
   Future<dynamic> delete(String endpoint) async {
     final uri = Uri.parse('$baseUrl$endpoint');
-    final headers = await _getHeaders();
+    final headers = await _getHeaders(endpoint: endpoint);
     final sw = Stopwatch()..start();
     AppLogger.httpReq('DELETE', uri.toString());
 
@@ -422,10 +474,10 @@ class ApiClient {
     sw.stop();
     AppLogger.httpRes(response.statusCode, 'DELETE', uri.toString(), sw.elapsed, body: response.body);
 
-    if (response.statusCode == 401 && !endpoint.startsWith('/auth/')) {
+    if (response.statusCode == 401 && !_isNonRefreshableEndpoint(endpoint)) {
       final refreshed = await attemptTokenRefresh();
       if (refreshed) {
-        final retryHeaders = await _getHeaders();
+        final retryHeaders = await _getHeaders(endpoint: endpoint);
         final retrySw = Stopwatch()..start();
         AppLogger.httpReq('DELETE (RETRY)', uri.toString());
         final retryRes = await http.delete(uri, headers: retryHeaders).timeout(const Duration(seconds: 15));
@@ -449,6 +501,13 @@ class ApiClient {
     required String fileName,
     Map<String, String>? fields,
   }) async {
+    if (!_isNonRefreshableEndpoint(endpoint)) {
+      final existingToken = await getToken();
+      if (existingToken != null && existingToken.isNotEmpty && isTokenExpiring(existingToken)) {
+        await attemptTokenRefresh();
+      }
+    }
+
     final uri = Uri.parse('$baseUrl$endpoint');
     final request = http.MultipartRequest('POST', uri);
 
@@ -479,6 +538,33 @@ class ApiClient {
     final response = await http.Response.fromStream(streamedResponse);
     sw.stop();
     AppLogger.httpRes(response.statusCode, 'MULTIPART POST', uri.toString(), sw.elapsed, body: response.body);
+
+    if (response.statusCode == 401 && !_isNonRefreshableEndpoint(endpoint)) {
+      final refreshed = await attemptTokenRefresh();
+      if (refreshed) {
+        final retryRequest = http.MultipartRequest('POST', uri);
+        final retryToken = await getToken();
+        if (retryToken != null && retryToken.isNotEmpty) {
+          retryRequest.headers['Authorization'] = 'Bearer $retryToken';
+        }
+        if (fields != null) {
+          retryRequest.fields.addAll(fields);
+        }
+        retryRequest.files.add(
+          http.MultipartFile.fromBytes(
+            fileField,
+            fileBytes,
+            filename: fileName,
+            contentType: mediaType,
+          ),
+        );
+        final retryStreamed = await retryRequest.send().timeout(const Duration(seconds: 30));
+        final retryResponse = await http.Response.fromStream(retryStreamed);
+        final retryResult = _handleResponse(retryResponse);
+        invalidateCache();
+        return retryResult;
+      }
+    }
 
     final result = _handleResponse(response);
     invalidateCache();
@@ -520,11 +606,6 @@ class ApiClient {
         return responseData['data'];
       }
       return responseData;
-    }
-
-    // Auto-clear invalid or expired token on 401 Unauthorized
-    if (response.statusCode == 401) {
-      clearToken();
     }
 
     String errorMessage = 'Request failed with status: ${response.statusCode}';

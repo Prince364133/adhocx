@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/networking/api_client.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../core/utils/app_logger.dart';
@@ -28,6 +30,21 @@ class UserModel {
     this.driverProfile,
     this.vendorProfile,
   });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'phone': phone,
+      'email': email,
+      'role': role,
+      'fullName': fullName,
+      'photoUrl': photoUrl,
+      'hasPassword': hasPassword,
+      'isOnboarded': isOnboarded,
+      'driverProfile': driverProfile,
+      'vendorProfile': vendorProfile,
+    };
+  }
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     // Handle wrapped payloads { success, data } or { user: ... }
@@ -144,6 +161,7 @@ class AuthService {
   AuthService._();
 
   final ApiClient _api = ApiClient.instance;
+  static const String _userCacheKey = 'adhocx_cached_user';
   UserModel? _currentUser;
   final ValueNotifier<UserModel?> authStateListenable = ValueNotifier<UserModel?>(null);
 
@@ -151,9 +169,42 @@ class AuthService {
 
   Future<String?> getToken() => _api.getToken();
 
+  Future<void> _persistCurrentUser(UserModel? user) async {
+    _currentUser = user;
+    authStateListenable.value = user;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (user != null) {
+        await prefs.setString(_userCacheKey, jsonEncode(user.toJson()));
+      } else {
+        await prefs.remove(_userCacheKey);
+      }
+    } catch (e) {
+      debugPrint('Failed to persist user profile: $e');
+    }
+  }
+
+  Future<UserModel?> loadCachedUser() async {
+    if (_currentUser != null) return _currentUser;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userJson = prefs.getString(_userCacheKey);
+      if (userJson != null && userJson.isNotEmpty) {
+        final decoded = jsonDecode(userJson) as Map<String, dynamic>;
+        _currentUser = UserModel.fromJson(decoded);
+        authStateListenable.value = _currentUser;
+        return _currentUser;
+      }
+    } catch (e) {
+      debugPrint('Failed to load cached user: $e');
+    }
+    return null;
+  }
+
   void setCurrentUser(UserModel? user) {
     _currentUser = user;
     authStateListenable.value = user;
+    _persistCurrentUser(user);
   }
 
   /// Password Authentication (Mobile Number / Email + Password)
@@ -419,45 +470,97 @@ class AuthService {
       final response = await _api.get('/auth/me');
       if (response is Map<String, dynamic>) {
         final data = response['data'] is Map<String, dynamic> ? response['data'] as Map<String, dynamic> : response;
-        _currentUser = UserModel.fromJson(data);
+        final user = UserModel.fromJson(data);
         _lastUserFetchTime = DateTime.now();
-        authStateListenable.value = _currentUser;
-        return _currentUser;
+        await _persistCurrentUser(user);
+        return user;
       }
     } catch (e) {
       debugPrint('fetchCurrentUser error: $e');
       if (e is ApiException && e.statusCode == 401) {
+        // Attempt token refresh once before clearing session
+        final refreshed = await _api.attemptTokenRefresh();
+        if (refreshed) {
+          try {
+            final retryResponse = await _api.get('/auth/me');
+            if (retryResponse is Map<String, dynamic>) {
+              final data = retryResponse['data'] is Map<String, dynamic> ? retryResponse['data'] as Map<String, dynamic> : retryResponse;
+              final user = UserModel.fromJson(data);
+              _lastUserFetchTime = DateTime.now();
+              await _persistCurrentUser(user);
+              return user;
+            }
+          } catch (_) {}
+        }
+        // Only if refresh token is truly expired/rejected, clear user session
         await _api.clearToken();
-        _currentUser = null;
+        await _persistCurrentUser(null);
         _lastUserFetchTime = null;
-        authStateListenable.value = null;
         return null;
       }
+      // On network errors or timeouts, DO NOT CLEAR TOKENS! Return current cached user
     }
     return _currentUser;
   }
 
   Future<bool> checkAuthSession({String? defaultRole}) async {
+    // 1. Immediately hydrate cached user profile to prevent any UI flicker
+    await loadCachedUser();
+
     final token = await _api.getToken();
-    if (token != null && token.isNotEmpty) {
-      try {
-        final user = await fetchCurrentUser(forceRefresh: true);
-        if (user != null) {
-          try {
-            FcmService.instance.registerTokenWithBackend(
-              apiBaseUrl: _api.baseUrl,
-              authToken: token,
-            );
-          } catch (_) {}
-          return true;
-        }
-      } catch (_) {
+    final refreshToken = await _api.getRefreshToken();
+
+    // If both tokens are absent, user is definitely logged out
+    if ((token == null || token.isEmpty) && (refreshToken == null || refreshToken.isEmpty)) {
+      await _persistCurrentUser(null);
+      return false;
+    }
+
+    // 2. Proactive refresh if access token is near expiry or missing
+    if (token == null || token.isEmpty || ApiClient.isTokenExpiring(token)) {
+      final refreshed = await _api.attemptTokenRefresh();
+      if (!refreshed && (token == null || token.isEmpty)) {
         await _api.clearToken();
+        await _persistCurrentUser(null);
+        return false;
       }
     }
 
-    _currentUser = null;
-    authStateListenable.value = null;
+    // 3. Sync latest user profile with backend
+    try {
+      final user = await fetchCurrentUser(forceRefresh: true);
+      if (user != null) {
+        await _persistCurrentUser(user);
+        try {
+          final activeToken = await _api.getToken();
+          if (activeToken != null) {
+            FcmService.instance.registerTokenWithBackend(
+              apiBaseUrl: _api.baseUrl,
+              authToken: activeToken,
+            );
+          }
+        } catch (_) {}
+        return true;
+      }
+    } catch (e) {
+      debugPrint('checkAuthSession fetch error: $e');
+      if (e is ApiException && e.statusCode == 401) {
+        final refreshed = await _api.attemptTokenRefresh();
+        if (!refreshed) {
+          await _api.clearToken();
+          await _persistCurrentUser(null);
+          return false;
+        }
+      }
+    }
+
+    // 4. Offline resilience: Retain session using cached profile
+    if (_currentUser != null) {
+      AppLogger.info('Retaining authenticated session using cached profile (network resilience)', tag: 'AUTH');
+      authStateListenable.value = _currentUser;
+      return true;
+    }
+
     return false;
   }
 
@@ -493,10 +596,9 @@ class AuthService {
     }
 
     await _api.clearToken();
-    _currentUser = null;
+    await _persistCurrentUser(null);
     _lastUserFetchTime = null;
     _inFlightUserFetch = null;
-    authStateListenable.value = null;
     AppLogger.info('User session and credentials completely cleared', tag: 'AUTH');
   }
 
@@ -531,10 +633,9 @@ class AuthService {
     } catch (_) {}
 
     await _api.clearToken();
-    _currentUser = null;
+    await _persistCurrentUser(null);
     _lastUserFetchTime = null;
     _inFlightUserFetch = null;
-    authStateListenable.value = null;
     AppLogger.info('All local credentials and state cleared after account deletion', tag: 'AUTH');
   }
 
@@ -545,6 +646,10 @@ class AuthService {
       final refreshToken = payload['refreshToken']?.toString();
       if (accessToken != null && accessToken.isNotEmpty) {
         await _api.setToken(accessToken, refreshToken: refreshToken);
+        if (payload['user'] is Map) {
+          final user = UserModel.fromJson(Map<String, dynamic>.from(payload['user'] as Map));
+          await _persistCurrentUser(user);
+        }
         try {
           FcmService.instance.registerTokenWithBackend(
             apiBaseUrl: _api.baseUrl,

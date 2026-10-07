@@ -27,21 +27,23 @@ class AuthProvider extends ChangeNotifier {
   String get verificationStatus => user?.verificationStatus ?? 'PENDING';
 
   Future<bool> checkSession() async {
+    if (_authService.currentUser != null) {
+      _user = _authService.currentUser;
+    }
     _isLoading = true;
     notifyListeners();
 
     try {
       final hasSession = await _authService.checkAuthSession();
-      if (hasSession) {
-        _user = _authService.currentUser;
-      }
+      _user = _authService.currentUser;
       _isLoading = false;
       notifyListeners();
       return hasSession;
     } catch (_) {
+      _user = _authService.currentUser;
       _isLoading = false;
       notifyListeners();
-      return false;
+      return _user != null;
     }
   }
 
