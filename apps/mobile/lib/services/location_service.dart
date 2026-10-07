@@ -76,10 +76,17 @@ class LocationService {
   static const String _routesBase = 'https://routes.googleapis.com/directions/v2:computeRoutes';
   static const String _recentStorageKey = 'adhocx_recent_locations_v2';
 
+  static const Map<String, String> _googleAndroidHeaders = {
+    'X-Android-Package': 'com.adhocx.app',
+    'X-Android-Cert': 'B7BB9291B31A52458392C815D6920702CB112796',
+  };
+
   /// Standard Google Maps API headers for Places & Routes (New)
   static const Map<String, String> _googleJsonHeaders = {
     'Content-Type': 'application/json',
     'X-Goog-Api-Key': googleMapsApiKey,
+    'X-Android-Package': 'com.adhocx.app',
+    'X-Android-Cert': 'B7BB9291B31A52458392C815D6920702CB112796',
   };
 
   /// Determine icon based on category or place title keywords
@@ -390,7 +397,7 @@ class LocationService {
   Future<LocationModel> reverseGeocode(double lat, double lng) async {
     try {
       final uri = Uri.parse('$_geocodeBase?latlng=$lat,$lng&key=$googleMapsApiKey');
-      final response = await http.get(uri).timeout(const Duration(milliseconds: 3500));
+      final response = await http.get(uri, headers: _googleAndroidHeaders).timeout(const Duration(milliseconds: 3500));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
