@@ -14,6 +14,7 @@ export interface DriverListItem {
   id: string;
   fullName: string;
   phone: string;
+  email?: string;
   vehiclePlate?: string;
   vehicleType?: string;
   vehicleModel?: string;
@@ -88,6 +89,7 @@ export interface VerificationItem {
   name: string;
   organizationName?: string;
   phone: string;
+  email?: string;
   verificationStatus: 'PENDING' | 'UNDER_REVIEW' | 'VERIFIED' | 'REJECTED';
   rejectionReason?: string;
   vehiclePlate?: string;
@@ -121,16 +123,8 @@ export interface RequirementListItem {
   suggestedBudget?: number;
   bidsCount?: number;
   createdAt: string;
-  zonalQuote?: {
-    hubId?: string;
-    zoneId?: string;
-    localityId?: string;
-    hasEscort?: boolean;
-    baseFarePaise?: number;
-    escortFarePaise?: number;
-    totalFarePaise?: number;
-    driverFarePaise?: number;
-  };
+  /** Stored zonal quote snapshot (admin view: includes `internal` driver payout and spread). */
+  zonalQuote?: ZonalQuoteResponse;
 }
 
 export interface BidListItem {
@@ -429,67 +423,96 @@ export interface CreateRateCardPayload {
 
 export interface SystemPolicyConfig {
   id?: string;
-  driverMonthlyFee: number;
-  driverTrialDays: number;
+  commissionPercent: number;
+  driverMonthlyFee?: number;
+  driverTrialDays?: number;
   minWithdrawalAmount: number;
-  convenienceFeePercent: number;
-  gstPercent: number;
+  convenienceFeePercent?: number;
+  gstPercent?: number;
   updatedAt?: string;
 }
 
-export interface ZonalRateRow {
-  hub: string;
-  sedan: number;
-  suv: number;
-  driverSedan: number;
-  driverSuv: number;
-}
+export type ZonalHubId = 'HITEC_NANAKRAMGUDA' | 'KOKAPET';
+export type ZonalDirection = 'INBOUND_TO_OFFICE' | 'OUTBOUND_FROM_OFFICE';
+export type ZonalLocalityStatus = 'VERIFIED' | 'PENDING_REVIEW' | 'INACTIVE';
 
-export interface ZonalZoneData {
+export interface ZonalLocality {
+  id: string;
+  name: string;
   zoneId: string;
-  zoneName: string;
-  rates: ZonalRateRow[];
+  zoneLabel: string;
+  reviewStatus: ZonalLocalityStatus;
+  bookable: boolean;
+  aliases: string[];
+  hasVerifiedPin: boolean;
+  notes?: string;
 }
 
-export interface ZonalVendorRateCardResponse {
+export interface ZonalRateCardResponse {
+  audience: 'VENDOR' | 'DRIVER';
   version: string;
-  effectiveDate: string;
-  hubs: string[];
-  zones: ZonalZoneData[];
-  escortPricing: {
-    dayPrice: number;
-    nightPrice: number;
-    nightHours: string;
-  };
-  driverPayoutRatio: number;
+  effectiveFrom: string;
+  currency: string;
+  hubs: { id: ZonalHubId; displayName: string; lat: number; lng: number }[];
+  zones: { id: string; label: string }[];
+  /** matrix[hubId][zoneId] = { sedan, suv, escortSedan?, escortSuv? } in INR */
+  matrix: Record<string, Record<string, { sedan: number; suv: number; escortSedan?: number; escortSuv?: number }>>;
+  localities: ZonalLocality[];
+  notes: string[];
 }
 
 export interface ZonalQuoteRequest {
-  pickupText: string;
-  dropText: string;
-  vehicleType: string;
-  hasEscort?: boolean;
-  pickupTime?: string;
-  pickupLat?: number;
-  pickupLng?: number;
-  dropLat?: number;
-  dropLng?: number;
+  officeHubId: ZonalHubId;
+  direction: ZonalDirection;
+  localityId: string;
+  vehicleType: 'SEDAN' | 'SUV';
+  hasEscort: boolean;
+  pickupLat: number;
+  pickupLng: number;
+  dropLat: number;
+  dropLng: number;
 }
 
 export interface ZonalQuoteResponse {
   canAutoQuote: boolean;
-  detectedHub?: string;
-  detectedZone?: string;
-  resolvedLocality?: string;
-  requiresReview?: boolean;
-  reviewReason?: string;
-  totalVendorFare: number;
-  baseFare: number;
-  escortCharge: number;
-  driverEarnings: number;
-  platformMargin: number;
-  currency: string;
-  breakdownSummary: string;
+  requiresOpsReview: boolean;
+  reasonCode?: string;
+  reason?: string;
+  quoteId?: string;
+  rateVersion?: string;
+  officeHub: { id: string; displayName: string };
+  locality: { id: string; name: string; zoneId: string; zoneLabel: string } | null;
+  direction: ZonalDirection;
+  vehicleType: string;
+  hasEscort?: boolean;
+  lineItems?: { code: string; label: string; amount: number }[];
+  baseFare?: number;
+  escortFee?: number;
+  totalAmount?: number;
+  expiresAt?: string;
+  internal?: { driverRateVersion: string; driverEarning: number; platformSpread: number; escortPayable: number };
+}
+
+export interface ZonalRateCardVersion {
+  id: string;
+  audience: 'VENDOR' | 'DRIVER';
+  version: string;
+  status: 'DRAFT' | 'ACTIVE' | 'RETIRED';
+  effectiveFrom: string;
+  publishedAt: string | null;
+  publishedBy: string | null;
+  notes: string | null;
+  rowCount: number;
+  rows: { hubId: string; zoneId: string; vehicleType: string; baseAmountPaise: number; escortMaxPaise: number }[];
+}
+
+export interface UpdateZonalLocalityRequest {
+  reviewStatus?: ZonalLocalityStatus;
+  zoneId?: string;
+  centerLat?: number;
+  centerLng?: number;
+  aliases?: string[];
+  reason: string;
 }
 
 export interface CorridorAnalytics {

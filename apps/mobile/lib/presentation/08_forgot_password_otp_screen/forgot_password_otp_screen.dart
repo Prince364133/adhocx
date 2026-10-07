@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../core/utils/app_toast.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_colors.dart';
@@ -71,7 +71,11 @@ class _ForgotPasswordOtpScreenState extends State<ForgotPasswordOtpScreen> {
   }
 
   Future<void> _verifyResetOtp() async {
-    if (_otp.length != 6 || _isVerifying) return;
+    if (_otp.length != 6) {
+      AppToast.showError('Please enter the 6-digit OTP code', context: context);
+      return;
+    }
+    if (_isVerifying) return;
 
     setState(() => _isVerifying = true);
 
@@ -85,9 +89,9 @@ class _ForgotPasswordOtpScreenState extends State<ForgotPasswordOtpScreen> {
       );
 
       if (mounted) {
-        Fluttertoast.showToast(
-          msg: 'OTP verified successfully',
-          backgroundColor: AppColors.accentGreenDark,
+        AppToast.showSuccess(
+          'OTP verified successfully',
+          context: context,
         );
 
         context.push(
@@ -98,11 +102,7 @@ class _ForgotPasswordOtpScreenState extends State<ForgotPasswordOtpScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _otp = '');
-        Fluttertoast.showToast(
-          msg: e.toString().replaceFirst('Exception: ', ''),
-          backgroundColor: AppColors.error,
-          textColor: Colors.white,
-        );
+        AppToast.showError(e, context: context);
       }
     } finally {
       if (mounted) setState(() => _isVerifying = false);

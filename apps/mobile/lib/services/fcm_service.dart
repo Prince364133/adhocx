@@ -75,7 +75,7 @@ class FcmService {
         // 4. Foreground message listener -> show heads-up local notification + in-app voice/music banner
         FirebaseMessaging.onMessage.listen((RemoteMessage message) {
           debugPrint('📬 [FCM FOREGROUND MESSAGE] ${message.notification?.title}: ${message.notification?.body}');
-          final title = message.notification?.title ?? message.data['title'] ?? '🚗 AdhocX Notification';
+          final title = message.notification?.title ?? message.data['title'] ?? 'AdhocX Notification';
           final body = message.notification?.body ?? message.data['body'] ?? 'You have a new update';
           final type = message.data['type']?.toString();
 

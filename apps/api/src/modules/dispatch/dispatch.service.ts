@@ -189,13 +189,30 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     const pickupLat = Number(requirement.pickupLat);
     const pickupLng = Number(requirement.pickupLng);
 
-    // Search nearby drivers within 100km radius sorted by proximity
-    let nearbyCandidates = await this.locationsService.findNearbyDrivers(
+    // Search nearby drivers using Uber H3 Hexagonal Disk (k=2 rings, ~3-4 km)
+    // with progressive expansion to full 100km radius if more supply is needed
+    let nearbyCandidates = await this.locationsService.findNearbyDriversByH3(
       pickupLat,
       pickupLng,
-      100,
+      2, // k=2 rings (19 hexagons)
       requirement.vehicleType as unknown as VehicleType,
     );
+
+    if (nearbyCandidates.length < 3) {
+      const radialCandidates = await this.locationsService.findNearbyDrivers(
+        pickupLat,
+        pickupLng,
+        100,
+        requirement.vehicleType as unknown as VehicleType,
+      );
+      const existingIds = new Set(nearbyCandidates.map((c) => c.driverId));
+      for (const rc of radialCandidates) {
+        if (!existingIds.has(rc.driverId)) {
+          nearbyCandidates.push(rc);
+          existingIds.add(rc.driverId);
+        }
+      }
+    }
 
     // Collect already offered driver IDs
     // During normal automated progressive waves, exclude SENT, ACCEPTED, DECLINED, EXPIRED to avoid duplicates.
@@ -222,13 +239,21 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       .filter((c) => !alreadyOfferedDriverIds.has(c.driverId))
       .map((c) => c.driverId);
 
-    // Fallback: If no candidate drivers with matching radius found, grab available active drivers
+    // Fallback: If no candidate drivers with matching radius found, grab available active drivers matching vehicle
     if (candidateIds.length === 0) {
       const activeDrivers = await this.db.driver.findMany({
         where: {
           user: { status: UserStatus.ACTIVE },
           availabilityStatus: DriverAvailability.AVAILABLE,
           id: { notIn: Array.from(alreadyOfferedDriverIds) },
+          ...(requirement.vehicleType
+            ? {
+                OR: [
+                  { vehicleType: requirement.vehicleType as any },
+                  { vehicles: { some: { vehicleType: requirement.vehicleType } } },
+                ],
+              }
+            : {}),
         },
         select: { id: true },
         take: 10,
@@ -241,6 +266,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       where: { id: { in: candidateIds } },
       include: {
         user: true,
+        vehicles: true,
         trips: {
           where: {
             status: {
@@ -274,8 +300,13 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       // 3. Driver availability status check
       if (driver.availabilityStatus !== DriverAvailability.AVAILABLE) continue;
 
-      // 4. Vehicle capability check (reject incompatible vehicles, e.g. bike for sedan)
-      if (requirement.vehicleType && driver.vehicleType && driver.vehicleType !== requirement.vehicleType) {
+      // 4. Strict vehicle capability check (reject incompatible vehicles, e.g. bike for sedan)
+      const driverVehicles = (driver as any).vehicles || [];
+      const matchesVehicle =
+        !requirement.vehicleType ||
+        driver.vehicleType === requirement.vehicleType ||
+        driverVehicles.some((v: any) => v.vehicleType === requirement.vehicleType || v.type === requirement.vehicleType);
+      if (!matchesVehicle) {
         continue;
       }
 
@@ -415,6 +446,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
           isZonalQuote: Boolean(requirement.zonalQuote),
           zoneId: requirement.zonalQuote?.zoneId,
           hubId: requirement.zonalQuote?.hubId,
+          h3PickupCell: this.locationsService.latLngToH3(pickupLat, pickupLng),
           pickupAddress: requirement.pickupAddress,
           dropAddress: requirement.dropAddress,
           reportingTime: requirement.reportingTime.toISOString(),
@@ -436,6 +468,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
             requirementId,
             vehicleType: String(requirement.vehicleType),
             rate: String(driverOfferedRate),
+            h3Cell: this.locationsService.latLngToH3(pickupLat, pickupLng),
             pickupAddress: requirement.pickupAddress,
             dropAddress: requirement.dropAddress,
             expiresAt: expiresAt.toISOString(),

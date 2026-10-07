@@ -16,7 +16,8 @@ class _VendorRateCardModalState extends State<VendorRateCardModal> {
   final TextEditingController _searchCtrl = TextEditingController();
 
   // Canonical Vendor 2026 Rate Card Matrix (matching users.pdf PRD)
-  static const Map<String, Map<String, Map<String, dynamic>>> _vendorZonalMatrix = {
+  static const Map<String, Map<String, Map<String, dynamic>>>
+      _vendorZonalMatrix = {
     'HITEC_NANAKRAMGUDA': {
       'Extra (E)': {'SEDAN': 500, 'SUV': 700, 'escort': '+₹200 / +₹300'},
       'Zone 6': {'SEDAN': 600, 'SUV': 900, 'escort': '+₹200 / +₹300'},
@@ -74,10 +75,72 @@ class _VendorRateCardModalState extends State<VendorRateCardModal> {
     super.dispose();
   }
 
+  /// Live active rate card from the server (null while loading or offline; the bundled card is shown then).
+  Map<String, dynamic>? _remoteCard;
+
   Future<void> _loadRemoteRateCard() async {
-    try {
-      await UserService.instance.getVendorZonalRateCard(forceRefresh: true);
-    } catch (_) {}
+    final card =
+        await UserService.instance.getVendorZonalRateCard(forceRefresh: true);
+    if (mounted && card != null && card['matrix'] is Map) {
+      setState(() => _remoteCard = card);
+    }
+  }
+
+  /// Rows for the selected hub: [zone label, fare for selected vehicle, escort ceiling for selected vehicle].
+  List<List<String>> _zoneRows() {
+    final card = _remoteCard;
+    if (card != null) {
+      final hubMatrix = (card['matrix'] as Map)[_selectedHub];
+      final zones =
+          (card['zones'] as List?)?.whereType<Map>().toList() ?? const [];
+      if (hubMatrix is Map && zones.isNotEmpty) {
+        return zones.map((z) {
+          final cell = hubMatrix[z['id']] as Map? ?? const {};
+          final isSuv = _selectedVehicle == 'SUV';
+          final fare = (isSuv ? cell['suv'] : cell['sedan']) as num? ?? 0;
+          final escort =
+              (isSuv ? cell['escortSuv'] : cell['escortSedan']) as num? ?? 0;
+          return [
+            '${z['label']}',
+            '₹${fare.toStringAsFixed(0)}',
+            'Escort up to +₹${escort.toStringAsFixed(0)} if selected'
+          ];
+        }).toList();
+      }
+    }
+    final hubData = _vendorZonalMatrix[_selectedHub] ??
+        _vendorZonalMatrix['HITEC_NANAKRAMGUDA']!;
+    return hubData.entries
+        .map((e) => [
+              e.key,
+              '₹${e.value[_selectedVehicle] ?? 0}',
+              'Escort ${e.value['escort'] ?? ''} if selected'
+            ])
+        .toList();
+  }
+
+  /// Locality guide entries: name, zone label and whether the record can auto-quote.
+  List<({String name, String zoneLabel, bool bookable})> _localities() {
+    final list = _remoteCard?['localities'];
+    if (list is List && list.isNotEmpty) {
+      return list
+          .whereType<Map>()
+          .map((l) => (
+                name: '${l['name']}',
+                zoneLabel: '${l['zoneLabel']}',
+                bookable: l['bookable'] == true
+              ))
+          .toList();
+    }
+    return _sampleLocalities.entries
+        .map((e) => (name: e.key, zoneLabel: e.value, bookable: true))
+        .toList();
+  }
+
+  String _fareForZoneLabel(String zoneLabel) {
+    final row = _zoneRows().firstWhere((r) => r[0] == zoneLabel,
+        orElse: () => const ['', '—', '']);
+    return row[1];
   }
 
   @override
@@ -117,12 +180,15 @@ class _VendorRateCardModalState extends State<VendorRateCardModal> {
             // Header
             Row(
               children: [
-                const Icon(Icons.receipt_long_rounded, color: AppColors.primary, size: 22),
+                const Icon(Icons.receipt_long_rounded,
+                    color: AppColors.primary, size: 22),
                 const SizedBox(width: 10),
                 Text(
                   'Corporate Zonal Rate Card (2026)',
                   style: TextStyle(
-                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight,
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                   ),
@@ -133,7 +199,9 @@ class _VendorRateCardModalState extends State<VendorRateCardModal> {
             Text(
               'Guaranteed flat rate pricing for Hyderabad employee fleet transport.',
               style: TextStyle(
-                color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
+                color: isDark
+                    ? AppColors.textMutedDark
+                    : AppColors.textSecondaryLight,
                 fontSize: 12,
               ),
             ),
@@ -144,15 +212,19 @@ class _VendorRateCardModalState extends State<VendorRateCardModal> {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () => setState(() => _selectedHub = 'HITEC_NANAKRAMGUDA'),
+                    onPressed: () =>
+                        setState(() => _selectedHub = 'HITEC_NANAKRAMGUDA'),
                     style: OutlinedButton.styleFrom(
                       backgroundColor: _selectedHub == 'HITEC_NANAKRAMGUDA'
                           ? AppColors.primary.withValues(alpha: 0.15)
                           : Colors.transparent,
                       side: BorderSide(
-                        color: _selectedHub == 'HITEC_NANAKRAMGUDA' ? AppColors.primary : Colors.grey.shade400,
+                        color: _selectedHub == 'HITEC_NANAKRAMGUDA'
+                            ? AppColors.primary
+                            : Colors.grey.shade400,
                       ),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                     child: Text(
                       'HITEC / Nanakramguda',
@@ -176,9 +248,12 @@ class _VendorRateCardModalState extends State<VendorRateCardModal> {
                           ? AppColors.primary.withValues(alpha: 0.15)
                           : Colors.transparent,
                       side: BorderSide(
-                        color: _selectedHub == 'KOKAPET' ? AppColors.primary : Colors.grey.shade400,
+                        color: _selectedHub == 'KOKAPET'
+                            ? AppColors.primary
+                            : Colors.grey.shade400,
                       ),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                     child: Text(
                       'Kokapet Hub',
@@ -203,7 +278,8 @@ class _VendorRateCardModalState extends State<VendorRateCardModal> {
                 ChoiceChip(
                   label: const Text('Sedan (4+1)'),
                   selected: _selectedVehicle == 'SEDAN',
-                  onSelected: (val) => setState(() => _selectedVehicle = 'SEDAN'),
+                  onSelected: (val) =>
+                      setState(() => _selectedVehicle = 'SEDAN'),
                   selectedColor: AppColors.primary.withValues(alpha: 0.2),
                 ),
                 const SizedBox(width: 8),
@@ -222,16 +298,23 @@ class _VendorRateCardModalState extends State<VendorRateCardModal> {
               controller: _searchCtrl,
               onChanged: (val) => setState(() => _localitySearch = val.trim()),
               decoration: InputDecoration(
-                hintText: 'Search locality (e.g. Malakpet, Shamirpet, Miyapur)...',
+                hintText:
+                    'Search locality (e.g. Malakpet, Shamirpet, Miyapur)...',
                 hintStyle: TextStyle(
                   fontSize: 12,
-                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                  color: isDark
+                      ? AppColors.textMutedDark
+                      : AppColors.textMutedLight,
                 ),
                 prefixIcon: const Icon(Icons.search, size: 18),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                  borderSide: BorderSide(
+                      color: isDark
+                          ? AppColors.borderDark
+                          : AppColors.borderLight),
                 ),
               ),
             ),
@@ -251,17 +334,20 @@ class _VendorRateCardModalState extends State<VendorRateCardModal> {
               decoration: BoxDecoration(
                 color: AppColors.primary.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+                border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.25)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.shield_outlined, color: AppColors.primary, size: 20),
+                  const Icon(Icons.shield_outlined,
+                      color: AppColors.primary, size: 20),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'Fixed B2B Contract: Zero dynamic surge, zero per-km meter fees. Escort service available for late-night employee compliance.',
                       style: TextStyle(
-                        color: isDark ? AppColors.primaryLight : AppColors.primary,
+                        color:
+                            isDark ? AppColors.primaryLight : AppColors.primary,
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
                       ),
@@ -277,9 +363,11 @@ class _VendorRateCardModalState extends State<VendorRateCardModal> {
   }
 
   Widget _buildSearchResultCard(BuildContext context, bool isDark) {
-    final matches = _sampleLocalities.entries.where(
-      (e) => e.key.toLowerCase().contains(_localitySearch.toLowerCase()),
-    );
+    final q = _localitySearch.toLowerCase();
+    final matches = _localities()
+        .where((l) => l.name.toLowerCase().contains(q))
+        .take(4)
+        .toList();
 
     if (matches.isEmpty) {
       return Container(
@@ -289,18 +377,25 @@ class _VendorRateCardModalState extends State<VendorRateCardModal> {
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(
-          'Locality not in quick list. Will resolve automatically via GPS Geofencing on booking.',
-          style: TextStyle(fontSize: 11, color: isDark ? Colors.amber.shade200 : Colors.amber.shade900),
+          'Not in the approved locality list. Unlisted places need operations review before a zonal fare is offered.',
+          style: TextStyle(
+              fontSize: 11,
+              color: isDark ? Colors.amber.shade200 : Colors.amber.shade900),
         ),
       );
     }
 
-    final entry = matches.first;
-    final hubData = _vendorZonalMatrix[_selectedHub] ?? _vendorZonalMatrix['HITEC_NANAKRAMGUDA']!;
-    final zoneRates = hubData[entry.value] ?? {'SEDAN': 800, 'SUV': 1100, 'escort': '+₹300'};
-    final fare = zoneRates[_selectedVehicle] ?? 800;
+    return Column(
+        children: matches.map((m) => _localityResultTile(m, isDark)).toList());
+  }
 
+  Widget _localityResultTile(
+      ({String name, String zoneLabel, bool bookable}) entry, bool isDark) {
+    final fare = entry.bookable
+        ? '${_fareForZoneLabel(entry.zoneLabel)} Flat'
+        : 'Ops review';
     return Container(
+      margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.primary.withValues(alpha: 0.1),
@@ -310,24 +405,31 @@ class _VendorRateCardModalState extends State<VendorRateCardModal> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '📍 ${entry.key}',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-              ),
-              Text(
-                'Assigned to ${entry.value}',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  entry.name,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 13),
                 ),
-              ),
-            ],
+                Text(
+                  entry.bookable
+                      ? 'Assigned to ${entry.zoneLabel}'
+                      : '${entry.zoneLabel} · pending pin verification',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isDark
+                        ? AppColors.textMutedDark
+                        : AppColors.textSecondaryLight,
+                  ),
+                ),
+              ],
+            ),
           ),
           Text(
-            '₹$fare Flat',
+            fare,
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w800,
@@ -340,20 +442,16 @@ class _VendorRateCardModalState extends State<VendorRateCardModal> {
   }
 
   Widget _buildRateMatrix(BuildContext context, bool isDark) {
-    final hubData = _vendorZonalMatrix[_selectedHub] ?? _vendorZonalMatrix['HITEC_NANAKRAMGUDA']!;
-    final rows = <List<String>>[];
-
-    hubData.forEach((zone, values) {
-      final fare = values[_selectedVehicle] ?? 800;
-      final escort = values['escort'] ?? '';
-      rows.add([zone, '₹$fare', 'Escort $escort']);
-    });
+    final rows = _zoneRows();
 
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight,
+        color: isDark
+            ? AppColors.surfaceElevatedDark
+            : AppColors.surfaceElevatedLight,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+        border: Border.all(
+            color: isDark ? AppColors.borderDark : AppColors.borderLight),
       ),
       child: Column(
         children: rows.asMap().entries.map((entry) {
@@ -362,7 +460,8 @@ class _VendorRateCardModalState extends State<VendorRateCardModal> {
           return Column(
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -372,7 +471,9 @@ class _VendorRateCardModalState extends State<VendorRateCardModal> {
                         Text(
                           row[0],
                           style: TextStyle(
-                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                            color: isDark
+                                ? AppColors.textPrimaryDark
+                                : AppColors.textPrimaryLight,
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                           ),
@@ -380,7 +481,9 @@ class _VendorRateCardModalState extends State<VendorRateCardModal> {
                         Text(
                           row[2],
                           style: TextStyle(
-                            color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
+                            color: isDark
+                                ? AppColors.textMutedDark
+                                : AppColors.textSecondaryLight,
                             fontSize: 10,
                           ),
                         ),

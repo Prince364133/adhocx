@@ -5,6 +5,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -55,6 +56,11 @@ export class CreateRequirementDto {
   @IsOptional()
   @IsString()
   couponCode?: string;
+
+  /** Server-stored corporate zonal quote ID (POST /pricing/zonal/quote). Prices the trip from the quote snapshot. */
+  @IsOptional()
+  @IsUUID('4', { message: 'zonalQuoteId must be a valid quote ID' })
+  zonalQuoteId?: string;
 }
 
 export class RequirementResponseDto {
@@ -72,7 +78,8 @@ export class RequirementResponseDto {
   totalAmount!: number;
   status!: RequirementStatus;
   notes?: string;
-  zonalQuote?: any;
+  /** Audience-filtered zonal quote snapshot (vendors never receive driver payout or margin). */
+  zonalQuote?: Record<string, unknown>;
   createdAt!: string;
   updatedAt!: string;
 }
@@ -121,7 +128,8 @@ export class RequirementDetailResponseDto extends RequirementResponseDto {
     vehicleType?: string;
     vehicleModel?: string;
     vehiclePlate?: string;
-    offeredRate: number;
+    /** Omitted for vendors on corporate zonal trips (driver payout is internal). */
+    offeredRate?: number;
     status: string;
     createdAt: string;
     expiresAt: string;

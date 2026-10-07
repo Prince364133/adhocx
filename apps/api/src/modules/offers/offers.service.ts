@@ -5,6 +5,7 @@ import {
   ForbiddenException,
   ConflictException,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import {
   OfferResponseDto,
@@ -23,6 +24,7 @@ import { DatabaseService } from '../../database/database.service';
 import { DispatchService } from '../dispatch/dispatch.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
+import { ZonalPricingService } from '../pricing/zonal-pricing.service';
 
 @Injectable()
 export class OffersService {
@@ -33,6 +35,7 @@ export class OffersService {
     private readonly dispatchService: DispatchService,
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
+    @Optional() private readonly zonalPricing?: ZonalPricingService,
   ) {}
 
   /**
@@ -90,7 +93,7 @@ export class OffersService {
         where,
         include: {
           requirement: {
-            include: { vendor: true },
+            include: { vendor: true, zonalQuote: true },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -127,6 +130,10 @@ export class OffersService {
         expiresAt: o.expiresAt.toISOString(),
         expiresInSeconds,
         vendorOrganizationName: o.requirement.vendor.organizationName,
+        // Driver-filtered zonal context (hub, zone, earnings line items). Never includes vendor amounts.
+        zonal: o.requirement.zonalQuote
+          ? (this.zonalPricing?.quoteView(o.requirement.zonalQuote, 'DRIVER') as Record<string, unknown>)
+          : undefined,
         createdAt: o.createdAt.toISOString(),
       };
     });
@@ -152,12 +159,6 @@ export class OffersService {
     });
     if (!driver) {
       throw new ForbiddenException('Driver profile not found');
-    }
-
-    if (driver.subscriptionStatus === 'FROZEN' || driver.subscriptionStatus === 'EXPIRED') {
-      throw new ForbiddenException(
-        'Subscription required: Your 15-day trial or monthly membership has expired. Please renew your subscription to accept offers.',
-      );
     }
 
     const offer = await this.db.offer.findUnique({

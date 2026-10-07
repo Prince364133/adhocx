@@ -13,7 +13,6 @@ import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../shared/widgets/trip_rating_bottom_sheet.dart';
 import '../../shared/widgets/app_adaptive_skeleton.dart';
-import '../opportunities_screen/driver_submit_bid_sheet.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../services/edge_case_manager.dart';
 import '../../services/permission_service.dart';
@@ -39,6 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _trustTier = 'Platinum';
   Map<String, dynamic>? _liveOffer;
   Map<String, dynamic>? _liveTrip;
+  double _platformCommissionPercent = 10.0;
   Timer? _autoRefreshTimer;
   final TextEditingController _otpController = TextEditingController();
 
@@ -60,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
         EdgeCaseManager.instance.toggleLocationPermission(false);
       }
     } catch (e) {
-      debugPrint('📍 Error requesting startup permissions: $e');
+      debugPrint('Error requesting startup permissions: $e');
     }
   }
 
@@ -98,6 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
         DriverService.instance.getOffers(forceRefresh: forceFetch).catchError((_) => []),
         DriverService.instance.getBiddingOpportunities(forceRefresh: forceFetch).catchError((_) => []),
         DriverService.instance.getTrips(forceRefresh: forceFetch).catchError((_) => []),
+        silent ? Future.value(null) : DriverService.instance.getPolicyConfig(forceRefresh: forceFetch).catchError((_) => null),
       ]);
 
       final pRaw = results[0];
@@ -119,6 +120,14 @@ class _HomeScreenState extends State<HomeScreen> {
       final trips = tRaw is List
           ? tRaw
           : (tRaw is Map && tRaw['data'] is List ? tRaw['data'] as List<dynamic> : []);
+
+      final polRaw = results[5];
+      if (polRaw is Map && polRaw['commissionPercent'] != null) {
+        final cp = double.tryParse(polRaw['commissionPercent'].toString());
+        if (cp != null && cp >= 0) {
+          _platformCommissionPercent = cp;
+        }
+      }
 
       if (mounted) {
         setState(() {
@@ -149,7 +158,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         _currentState = DriverHomeState.offline;
                       });
                       Fluttertoast.showToast(
-                        msg: '⚠️ GPS was turned off. You have been automatically set to OFFLINE.',
+                        msg: 'GPS was turned off. You have been automatically set to OFFLINE.',
                         backgroundColor: AppColors.error,
                         toastLength: Toast.LENGTH_LONG,
                       );
@@ -248,7 +257,7 @@ class _HomeScreenState extends State<HomeScreen> {
             EdgeCaseManager.instance.toggleLocationPermission(false);
             if (mounted) {
               Fluttertoast.showToast(
-                msg: '📍 Location permission and GPS are required to go online and receive trips.',
+                msg: 'Location permission and GPS are required to go online and receive trips.',
                 backgroundColor: AppColors.error,
                 toastLength: Toast.LENGTH_LONG,
               );
@@ -263,7 +272,7 @@ class _HomeScreenState extends State<HomeScreen> {
           if (!gpsOn) {
             if (mounted) {
               Fluttertoast.showToast(
-                msg: '📍 Please enable GPS / Location services on your device to go online.',
+                msg: 'Please enable GPS / Location services on your device to go online.',
                 backgroundColor: AppColors.error,
                 toastLength: Toast.LENGTH_LONG,
               );
@@ -295,7 +304,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   _currentState = DriverHomeState.offline;
                 });
                 Fluttertoast.showToast(
-                  msg: '⚠️ GPS was turned off. You have been automatically switched to OFFLINE.',
+                  msg: 'GPS was turned off. You have been automatically switched to OFFLINE.',
                   backgroundColor: AppColors.error,
                   toastLength: Toast.LENGTH_LONG,
                 );
@@ -307,7 +316,7 @@ class _HomeScreenState extends State<HomeScreen> {
           GlobalDispatchOverlayService.instance.stopRealtimeListener();
         }
         Fluttertoast.showToast(
-          msg: goOnline ? '🟢 You are now ONLINE & Available for trips' : '⚪ You are now OFFLINE',
+          msg: goOnline ? 'You are now ONLINE & Available for trips' : 'You are now OFFLINE',
           backgroundColor: goOnline ? AppColors.accentGreenDark : AppColors.slate700,
         );
         _loadLiveDriverData(silent: true);
@@ -699,7 +708,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '⚡ Live Dispatch Offer Available',
+                          'Live Dispatch Offer Available',
                           style: AppTypography.body(
                             fontWeight: FontWeight.bold,
                             color: isDark ? Colors.white : AppColors.textPrimaryLight,
@@ -873,8 +882,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // ───────────────────────────────────────────────────────────────────────────
   Widget _buildOfferAttentionState(bool isDark) {
     final offer = _liveOffer;
-    final isDirectOffer = offer != null && offer['offeredRate'] != null;
-    final isBidding = offer != null && (offer['fulfillmentMode'] == 'BIDDING' || offer['suggestedBudget'] != null);
+    final isDirectOffer = offer != null;
 
     final offerId = offer?['id'] as String?;
     final requirementId = (offer?['requirementId'] ?? offer?['id']) as String? ?? '';
@@ -885,8 +893,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final pickup = (offer?['pickupLocation']?['address'] ?? offer?['pickup'] ?? reqObj?['pickupAddress'] ?? 'Pickup Location').toString();
     final drop = (offer?['dropLocation']?['address'] ?? offer?['drop'] ?? reqObj?['dropAddress'] ?? 'Drop Location').toString();
     
-    final num rate = (offer?['offeredRate'] ?? offer?['suggestedBudget'] ?? offer?['offeredPrice'] ?? reqObj?['ratePerVehicle'] ?? 850) as num;
-    final rateStr = '₹ ${rate.toStringAsFixed(0)}';
+    final num rate = (offer?['offeredRate'] ?? offer?['offeredPrice'] ?? offer?['suggestedBudget'] ?? reqObj?['ratePerVehicle'] ?? 850) as num;
+    final rateStr = '₹ ${rate.toStringAsFixed(0)} Net';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -894,12 +902,10 @@ class _HomeScreenState extends State<HomeScreen> {
         Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
-            color: isBidding
-                ? AppColors.primary.withValues(alpha: isDark ? 0.15 : 0.08)
-                : (isDark ? AppColors.warningContainer.withValues(alpha: 0.15) : AppColors.warningContainer),
+            color: isDark ? AppColors.warningContainer.withValues(alpha: 0.15) : AppColors.warningContainer,
             borderRadius: BorderRadius.circular(AppRadius.lg),
             border: Border.all(
-              color: isBidding ? AppColors.primary : AppColors.warning,
+              color: AppColors.warning,
               width: 1.5,
             ),
           ),
@@ -911,16 +917,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Row(
                     children: [
-                      Icon(
-                        isBidding ? Icons.gavel_rounded : Icons.flash_on_rounded,
+                      const Icon(
+                        Icons.flash_on_rounded,
                         size: 16,
-                        color: isBidding ? AppColors.primaryLight : AppColors.warning,
+                        color: AppColors.warning,
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        isBidding ? 'New Outstation Bidding Trip' : 'Direct Dispatch Trip Offer',
+                      const Text(
+                        'Direct Dispatch Trip Offer',
                         style: TextStyle(
-                          color: isBidding ? AppColors.primaryLight : AppColors.warning,
+                          color: AppColors.warning,
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
                         ),
@@ -930,13 +936,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: isBidding ? AppColors.primary.withValues(alpha: 0.15) : AppColors.warning.withValues(alpha: 0.15),
+                      color: AppColors.warning.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(AppRadius.xs),
                     ),
                     child: Text(
                       rawDisplayId,
-                      style: TextStyle(
-                        color: isBidding ? AppColors.primaryLight : AppColors.warning,
+                      style: const TextStyle(
+                        color: AppColors.warning,
                         fontWeight: FontWeight.bold,
                         fontSize: 10,
                       ),
@@ -949,7 +955,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    isBidding ? 'Outstation Booking' : 'Corporate Transfer',
+                    'Corporate Transfer',
                     style: AppTypography.h3(
                       color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                       fontWeight: FontWeight.bold,
@@ -1052,7 +1058,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      isBidding ? 'Suggested Budget / Guide Price:' : 'Offered Payout:',
+                      'Guaranteed Net Payout:',
                       style: TextStyle(
                         fontSize: 12,
                         color: isDark ? AppColors.textSecondaryDark : AppColors.slate600,
@@ -1072,15 +1078,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: AppSpacing.lg),
 
-              // Action Buttons
-              if (isDirectOffer && offerId != null) ...[
+              // Action Buttons: 100% Direct Dispatch
+              if (isDirectOffer) ...[
                 Row(
                   children: [
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () async {
                           try {
-                            await DriverService.instance.declineOffer(offerId);
+                            if (offerId != null) {
+                              await DriverService.instance.declineOffer(offerId);
+                            }
                             Fluttertoast.showToast(msg: 'Offer declined');
                           } catch (_) {}
                           _loadLiveDriverData(silent: false);
@@ -1091,7 +1099,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                         ),
-                        child: const Text('DECLINE ✕', style: TextStyle(fontWeight: FontWeight.bold)),
+                        child: const Text('DECLINE', style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     ),
                     const SizedBox(width: AppSpacing.md),
@@ -1100,8 +1108,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: ElevatedButton(
                         onPressed: () async {
                           try {
-                            await DriverService.instance.acceptOffer(offerId);
-                            Fluttertoast.showToast(msg: 'Trip Accepted successfully! ✓', backgroundColor: AppColors.accentGreenDark);
+                            if (offerId != null) {
+                              await DriverService.instance.acceptOffer(offerId);
+                            }
+                            Fluttertoast.showToast(msg: 'Trip Accepted successfully!', backgroundColor: AppColors.accentGreenDark);
                             _loadLiveDriverData(silent: false);
                           } catch (e) {
                             Fluttertoast.showToast(msg: 'Accept failed: $e', backgroundColor: AppColors.error);
@@ -1114,66 +1124,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           elevation: 0,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                         ),
-                        child: const Text('ACCEPT TRIP ✓', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      ),
-                    ),
-                  ],
-                ),
-              ] else if (isBidding) ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () {
-                          showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (ctx) => DriverSubmitBidSheet(
-                              opportunity: offer,
-                              onBidSubmitted: () {
-                                Fluttertoast.showToast(msg: 'Quote submitted successfully! ✓', backgroundColor: AppColors.primary);
-                                _loadLiveDriverData(silent: false);
-                              },
-                            ),
-                          );
-                        },
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                          side: BorderSide(
-                            color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                          ),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                        ),
-                        child: const Text('Custom Quote', style: TextStyle(fontWeight: FontWeight.bold)),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      flex: 2,
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          try {
-                            await DriverService.instance.submitBid(
-                              requirementId: requirementId,
-                              bidAmount: rate.toDouble(),
-                              etaMinutes: 15,
-                            );
-                            Fluttertoast.showToast(msg: 'Quick Quote $rateStr placed! ✓', backgroundColor: AppColors.primary);
-                            _loadLiveDriverData(silent: false);
-                          } catch (e) {
-                            Fluttertoast.showToast(msg: 'Bid submission failed: $e', backgroundColor: AppColors.error);
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                        ),
-                        child: Text('QUICK BID ($rateStr) →', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        child: const Text('ACCEPT TRIP', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                       ),
                     ),
                   ],
@@ -1215,7 +1166,7 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Trip Assigned ✓',
+                'Trip Assigned',
                 style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
               ),
               Text(
@@ -1338,7 +1289,7 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                status == 'ARRIVED' ? 'Arrived at Pickup (Enter OTP)' : 'Trip in Progress 🚗',
+                status == 'ARRIVED' ? 'Arrived at Pickup (Enter OTP)' : 'Trip in Progress',
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
               ),
               Text(
@@ -1459,7 +1410,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: ElevatedButton.icon(
                     onPressed: () => _showCompleteTripModal(context, tripId, drop, payout),
                     icon: const Icon(Icons.check_circle_rounded, color: Colors.white),
-                    label: const Text('COMPLETE TRIP ✓', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    label: const Text('COMPLETE TRIP', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.accentGreenDark,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
@@ -1482,6 +1433,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
@@ -1490,21 +1442,24 @@ class _HomeScreenState extends State<HomeScreen> {
           final bottomInset = MediaQuery.of(ctx).viewInsets.bottom;
           final toll = double.tryParse(tollController.text.trim()) ?? 0.0;
           final parking = double.tryParse(parkingController.text.trim()) ?? 0.0;
-          final isBidding = (_liveTrip?['requirement']?['fulfillmentMode'] ?? _liveTrip?['fulfillmentMode']) == 'BIDDING';
-          final platformFee = isBidding ? (baseFare * 0.05).roundToDouble() : 0.0;
+          final isCorporate = (_liveTrip?['requirement']?['fulfillmentMode'] ?? _liveTrip?['fulfillmentMode']) == 'CORPORATE_DISPATCH' || _liveTrip?['localityTier'] != null;
+          final commissionPercent = _platformCommissionPercent;
+          final platformFee = isCorporate ? 0.0 : (baseFare * (commissionPercent / 100.0)).roundToDouble();
           final netPayout = (baseFare - platformFee + toll + parking).clamp(0.0, 9999999.0);
 
-          return Container(
-            padding: EdgeInsets.only(
-              left: AppSpacing.lg,
-              right: AppSpacing.lg,
-              top: AppSpacing.lg,
-              bottom: AppSpacing.lg + bottomInset,
-            ),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-            ),
+          return SafeArea(
+            top: false,
+            child: Container(
+              padding: EdgeInsets.only(
+                left: AppSpacing.lg,
+                right: AppSpacing.lg,
+                top: AppSpacing.lg,
+                bottom: AppSpacing.lg + bottomInset,
+              ),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+              ),
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1589,7 +1544,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('Platform Fee (5%)', style: TextStyle(fontSize: 12, color: AppColors.error)),
+                              Text('Platform Commission (${commissionPercent.toStringAsFixed(0)}%)', style: const TextStyle(fontSize: 12, color: AppColors.error)),
                               Text('-₹ ${platformFee.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.error)),
                             ],
                           ),
@@ -1658,17 +1613,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       child: isSubmitting
                           ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Text('CONFIRM & COMPLETE TRIP ✓', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          : const Text('CONFIRM & COMPLETE TRIP', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],
               ),
             ),
-          );
-        },
-      ),
-    );
-  }
+          ),
+        );
+      },
+    ),
+  );
+}
 
   // ───────────────────────────────────────────────────────────────────────────
   // STATE 6: COMPLETED TRIP STATE

@@ -1,16 +1,6 @@
-import { Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Optional, BadRequestException, NotFoundException } from '@nestjs/common';
 import { VehicleType } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
-import {
-  OFFICE_HUBS,
-  VENDOR_ZONAL_RATE_MATRIX,
-  DRIVER_ZONAL_RATE_MATRIX,
-  LOCALITY_MASTER,
-  LOCALITY_ALIASES,
-  OfficeHubId,
-  OfficeHubDefinition,
-  LocalityDefinition,
-} from './zonal-pricing.constants';
 
 export interface VehiclePricingTierDto {
   id: string;
@@ -32,6 +22,7 @@ export interface VehiclePricingTierDto {
 }
 
 export interface PlatformPolicyConfigDto {
+  commissionPercent: number;
   driverMonthlyFee: number;
   driverTrialDays: number;
   minWithdrawalAmount: number;
@@ -180,12 +171,13 @@ export class PricingService implements OnModuleInit {
         await this.db.systemPolicyConfig.create({
           data: {
             key: 'GLOBAL_POLICY',
+            commissionPercent: 10.00,
             driverMonthlyFee: 499.00,
             driverTrialDays: 15,
             minWithdrawalAmount: 1000.00,
           },
         });
-        this.logger.log('Seeded default Global Platform Policy Config (₹499/mo fee, 15 days trial, ₹1000 min withdrawal).');
+        this.logger.log('Seeded default Global Platform Policy Config (10% commission, ₹499/mo fee, 15 days trial, ₹1000 min withdrawal).');
       }
     } catch (err: any) {
       this.logger.warn(`Could not seed pricing tiers in DB: ${err.message}`);
@@ -219,6 +211,7 @@ export class PricingService implements OnModuleInit {
       const policy = await this.db.systemPolicyConfig.findUnique({ where: { key: 'GLOBAL_POLICY' } });
       if (policy) {
         this.policyCache = {
+          commissionPercent: Number(policy.commissionPercent ?? 10.0),
           driverMonthlyFee: Number(policy.driverMonthlyFee),
           driverTrialDays: policy.driverTrialDays,
           minWithdrawalAmount: Number(policy.minWithdrawalAmount),
@@ -420,16 +413,30 @@ export class PricingService implements OnModuleInit {
       },
     });
     if (activeTripsCount > 0) {
-      throw new Error(`Cannot delete category '${slug}' because ${activeTripsCount} active trip(s) are using it`);
+      throw new BadRequestException(`Cannot delete category '${slug}' because ${activeTripsCount} active trip(s) are using it`);
+    }
+
+    const tier = await this.db.vehiclePricingTier.findFirst({
+      where: {
+        OR: [
+          { vehicleType: slug },
+          { vehicleType: vehicleType },
+          ...(vehicleType.length === 36 ? [{ id: vehicleType }] : []),
+        ],
+      },
+    });
+    if (!tier) {
+      throw new NotFoundException(`Vehicle category '${vehicleType}' not found`);
     }
 
     await this.db.vehiclePricingTier.delete({
-      where: { vehicleType: slug },
+      where: { id: tier.id },
     });
 
+    this.memoryCache.delete(tier.vehicleType);
     this.memoryCache.delete(slug);
-    this.logger.log(`Deleted vehicle category '${slug}' from database and cache`);
-    return { success: true, message: `Vehicle category '${slug}' deleted successfully` };
+    this.logger.log(`Deleted vehicle category '${tier.vehicleType}' from database and cache`);
+    return { success: true, message: `Vehicle category '${tier.vehicleType}' deleted successfully` };
   }
 
   /**
@@ -522,7 +529,15 @@ export class PricingService implements OnModuleInit {
   }
 
   /**
-   * Get global platform policy config (monthly subscription fee, trial days, min withdrawal).
+   * Get dynamic platform commission rate (percentage, e.g. 10.0 for 10%).
+   */
+  async getPlatformCommissionRate(): Promise<number> {
+    const policy = await this.getPolicyConfig();
+    return policy.commissionPercent ?? 10.0;
+  }
+
+  /**
+   * Get global platform policy config (monthly subscription fee, trial days, min withdrawal, commission).
    */
   async getPolicyConfig(): Promise<PlatformPolicyConfigDto> {
     if (this.db) {
@@ -532,6 +547,7 @@ export class PricingService implements OnModuleInit {
         });
         if (policy) {
           this.policyCache = {
+            commissionPercent: Number(policy.commissionPercent ?? 10.0),
             driverMonthlyFee: Number(policy.driverMonthlyFee),
             driverTrialDays: policy.driverTrialDays,
             minWithdrawalAmount: Number(policy.minWithdrawalAmount),
@@ -545,6 +561,7 @@ export class PricingService implements OnModuleInit {
     }
 
     return this.policyCache || {
+      commissionPercent: 10.0,
       driverMonthlyFee: 499.00,
       driverTrialDays: 15,
       minWithdrawalAmount: 1000.00,
@@ -556,11 +573,13 @@ export class PricingService implements OnModuleInit {
    * Update global platform policy config (Admin only).
    */
   async updatePolicyConfig(dto: {
+    commissionPercent?: number;
     driverMonthlyFee?: number;
     driverTrialDays?: number;
     minWithdrawalAmount?: number;
   }): Promise<PlatformPolicyConfigDto> {
     const data: any = { updatedAt: new Date() };
+    if (dto.commissionPercent !== undefined) data.commissionPercent = Number(dto.commissionPercent);
     if (dto.driverMonthlyFee !== undefined) data.driverMonthlyFee = Number(dto.driverMonthlyFee);
     if (dto.driverTrialDays !== undefined) data.driverTrialDays = Number(dto.driverTrialDays);
     if (dto.minWithdrawalAmount !== undefined) data.minWithdrawalAmount = Number(dto.minWithdrawalAmount);
@@ -572,6 +591,7 @@ export class PricingService implements OnModuleInit {
         where: { key: 'GLOBAL_POLICY' },
         create: {
           key: 'GLOBAL_POLICY',
+          commissionPercent: data.commissionPercent ?? 10.00,
           driverMonthlyFee: data.driverMonthlyFee ?? 499.00,
           driverTrialDays: data.driverTrialDays ?? 15,
           minWithdrawalAmount: data.minWithdrawalAmount ?? 1000.00,
@@ -580,6 +600,7 @@ export class PricingService implements OnModuleInit {
       });
 
       updated = {
+        commissionPercent: Number(res.commissionPercent ?? 10.0),
         driverMonthlyFee: Number(res.driverMonthlyFee),
         driverTrialDays: res.driverTrialDays,
         minWithdrawalAmount: Number(res.minWithdrawalAmount),
@@ -596,7 +617,7 @@ export class PricingService implements OnModuleInit {
 
     this.policyCache = updated;
     this.logger.log(
-      `Platform policy config updated: fee=₹${updated.driverMonthlyFee}/mo, trial=${updated.driverTrialDays} days, minWithdrawal=₹${updated.minWithdrawalAmount}`,
+      `Platform policy config updated: commission=${updated.commissionPercent}%, fee=₹${updated.driverMonthlyFee}/mo, trial=${updated.driverTrialDays} days, minWithdrawal=₹${updated.minWithdrawalAmount}`,
     );
     return updated;
   }
@@ -697,173 +718,4 @@ export class PricingService implements OnModuleInit {
       tier,
     };
   }
-
-  /**
-   * Returns the canonical 2026 Vendor Rate Card (7 Zones x 2 Hubs x 2 Vehicle Classes + Escorts)
-   */
-  getVendorZonalRateCard() {
-    return {
-      version: '2026.1',
-      title: 'New Adok Rate Card 2026 (Vendor / Corporate B2B)',
-      effectiveDate: '2026-09-25T00:00:00Z',
-      currency: 'INR',
-      hubs: OFFICE_HUBS,
-      matrix: VENDOR_ZONAL_RATE_MATRIX,
-      localities: LOCALITY_MASTER,
-      aliases: LOCALITY_ALIASES,
-      notes: [
-        'INR per vehicle for a standard one-way trip with one pickup and one drop.',
-        'Zonal and kilometre pricing are mutually exclusive.',
-        'Escort charges are additional ceilings applicable only when explicitly selected.',
-      ],
-    };
-  }
-
-  /**
-   * Returns the canonical 2026 Driver Guaranteed Earnings Rate Card (85% fixed base)
-   */
-  getDriverZonalRateCard() {
-    return {
-      version: '2026.1',
-      title: 'New Adok Rate Card 2026 (Driver Guaranteed Earnings)',
-      effectiveDate: '2026-09-25T00:00:00Z',
-      currency: 'INR',
-      hubs: OFFICE_HUBS,
-      matrix: DRIVER_ZONAL_RATE_MATRIX,
-      localities: LOCALITY_MASTER,
-      notes: [
-        'Fixed driver earnings credited directly to driver wallet upon trip completion.',
-        'No platform commission or percentage deduction is applied to these figures.',
-        'Escort fee is paid additionally as a pass-through if driver provides escort.',
-      ],
-    };
-  }
-
-  /**
-   * Match an address string or locality query to the canonical locality master.
-   */
-  resolveLocality(query: string): LocalityDefinition | null {
-    if (!query || query.trim().length === 0) return null;
-    const clean = query.trim().toLowerCase();
-
-    // Check alias first
-    const resolvedAlias = LOCALITY_ALIASES[clean];
-    const targetName = resolvedAlias ? resolvedAlias.toLowerCase() : clean;
-
-    // Exact or substring match in LOCALITY_MASTER
-    const exact = LOCALITY_MASTER.find((l) => l.name.toLowerCase() === targetName);
-    if (exact) return exact;
-
-    // Contains match
-    const partial = LOCALITY_MASTER.find((l) =>
-      clean.includes(l.name.toLowerCase()) || l.name.toLowerCase().includes(clean),
-    );
-    return partial || null;
-  }
-
-  /**
-   * Bidirectional Endpoint Resolution & Deterministic Zonal Quote Calculator
-   */
-  calculateZonalQuote(dto: {
-    pickupAddress?: string;
-    pickupLat?: number;
-    pickupLng?: number;
-    dropAddress?: string;
-    dropLat?: number;
-    dropLng?: number;
-    localityName?: string;
-    officeHub?: OfficeHubId;
-    vehicleType?: string;
-    hasEscort?: boolean;
-  }) {
-    const vType = (dto.vehicleType || 'SEDAN').trim().toUpperCase() === 'SUV' ? 'SUV' : 'SEDAN';
-    const hasEscort = Boolean(dto.hasEscort);
-
-    // 1. Resolve Office Hub (Default: HITEC_NANAKRAMGUDA)
-    let selectedHub: OfficeHubDefinition = OFFICE_HUBS[0];
-    if (dto.officeHub) {
-      const found = OFFICE_HUBS.find((h) => h.id === dto.officeHub);
-      if (found) selectedHub = found;
-    } else if (dto.pickupAddress || dto.dropAddress) {
-      const text = `${dto.pickupAddress || ''} ${dto.dropAddress || ''}`.toLowerCase();
-      if (text.includes('kokapet') || text.includes('neopolis') || text.includes('financial district kokapet')) {
-        selectedHub = OFFICE_HUBS[1];
-      }
-    }
-
-    // 2. Resolve Locality
-    let locality: LocalityDefinition | null = null;
-    if (dto.localityName) {
-      locality = this.resolveLocality(dto.localityName);
-    }
-    if (!locality && dto.pickupAddress) {
-      locality = this.resolveLocality(dto.pickupAddress);
-    }
-    if (!locality && dto.dropAddress) {
-      locality = this.resolveLocality(dto.dropAddress);
-    }
-
-    // Default fallback to Malakpet (Zone 4) if unspecified for simulation preview
-    if (!locality) {
-      locality = LOCALITY_MASTER.find((l) => l.name === 'Malakpet') || LOCALITY_MASTER[0];
-    }
-
-    const zoneId = locality.zoneId;
-    const hubId = selectedHub.id;
-
-    // Check review status (e.g. Kondapur outskirts, Pebel City, Godi Ki Khabeer)
-    const canAutoQuote = !locality.requiresReview;
-    const reviewReason = locality.requiresReview
-      ? `Locality '${locality.name}' requires operations boundary verification before quote finalization.`
-      : undefined;
-
-    // 3. Lookup Vendor & Driver Rate Matrices
-    const vendorRow = VENDOR_ZONAL_RATE_MATRIX[hubId][zoneId];
-    const driverRow = DRIVER_ZONAL_RATE_MATRIX[hubId][zoneId];
-
-    const baseFare = vType === 'SUV' ? vendorRow.suv : vendorRow.sedan;
-    const escortMax = vType === 'SUV' ? vendorRow.escortSuv : vendorRow.escortSedan;
-    const escortFee = hasEscort ? escortMax : 0;
-    const totalAmount = baseFare + escortFee;
-
-    const driverBaseEarning = vType === 'SUV' ? driverRow.suv : driverRow.sedan;
-    const platformSpread = baseFare - driverBaseEarning;
-
-    // 4. Direction determination
-    let direction: 'INBOUND_TO_OFFICE' | 'OUTBOUND_FROM_OFFICE' | 'CUSTOM' = 'INBOUND_TO_OFFICE';
-    if (dto.pickupAddress && selectedHub.displayName.toLowerCase().split(' ')[0] && dto.pickupAddress.toLowerCase().includes('hitec')) {
-      direction = 'OUTBOUND_FROM_OFFICE';
-    }
-
-    const quoteId = `zq_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-
-    return {
-      quoteId,
-      rateVersion: '2026.1',
-      officeHub: {
-        id: selectedHub.id,
-        displayName: selectedHub.displayName,
-      },
-      locality: {
-        name: locality.name,
-        zoneId: locality.zoneId,
-        zoneLabel: locality.zoneId.replace('_', ' '),
-        requiresReview: Boolean(locality.requiresReview),
-        notes: locality.notes,
-      },
-      direction,
-      vehicleType: vType,
-      hasEscort,
-      baseFare,
-      escortFee,
-      totalAmount,
-      driverEarningEstimate: driverBaseEarning,
-      platformSpread,
-      canAutoQuote,
-      reviewReason,
-      expiresAt,
-    };
-  }
 }
-

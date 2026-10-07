@@ -38,8 +38,9 @@ export default function PricingPage() {
   const [activeSection, setActiveSection] = useState<'CORPORATE_ZONAL' | 'MARKETPLACE' | 'POLICIES'>('CORPORATE_ZONAL');
   const [rateCards, setRateCards] = useState<RateCard[]>([]);
   const [policyConfig, setPolicyConfig] = useState<SystemPolicyConfig>({
-    driverMonthlyFee: 499,
-    driverTrialDays: 15,
+    commissionPercent: 10.0,
+    driverMonthlyFee: 0,
+    driverTrialDays: 0,
     minWithdrawalAmount: 1000,
     convenienceFeePercent: 2.5,
     gstPercent: 5.0,
@@ -51,6 +52,10 @@ export default function PricingPage() {
   const [saving, setSaving] = useState(false);
   const [savingPolicy, setSavingPolicy] = useState(false);
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Delete Category State
+  const [categoryToDelete, setCategoryToDelete] = useState<RateCard | null>(null);
+  const [deletingCategory, setDeletingCategory] = useState(false);
 
   // Add Category State
   const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
@@ -130,20 +135,25 @@ export default function PricingPage() {
     }
   }
 
-  async function handleDeleteCategory(vehicleType: string) {
-    if (!confirm(`Are you sure you want to delete vehicle category '${vehicleType}'? This will remove it from the authoritative database.`)) {
-      return;
-    }
+  async function handleDeleteCategory(rc: RateCard) {
+    setCategoryToDelete(rc);
+  }
 
+  async function confirmDeleteCategory() {
+    if (!categoryToDelete) return;
+    setDeletingCategory(true);
     try {
-      await adminApi.deletePricingTier(vehicleType);
+      await adminApi.deletePricingTier(categoryToDelete.vehicleType);
       setAlert({
         type: 'success',
-        message: `Vehicle category '${vehicleType}' was deleted successfully from the database.`,
+        message: `Vehicle category '${categoryToDelete.displayName || categoryToDelete.categoryLabel || categoryToDelete.vehicleType}' was deleted successfully from the database.`,
       });
+      setCategoryToDelete(null);
       loadAllData();
     } catch (err: any) {
       setAlert({ type: 'error', message: err.message || 'Failed to delete vehicle category' });
+    } finally {
+      setDeletingCategory(false);
     }
   }
 
@@ -157,8 +167,9 @@ export default function PricingPage() {
       setRateCards(Array.isArray(tiers) ? tiers : []);
       if (policy) {
         setPolicyConfig({
-          driverMonthlyFee: Number(policy.driverMonthlyFee ?? 499),
-          driverTrialDays: Number(policy.driverTrialDays ?? 15),
+          commissionPercent: Number(policy.commissionPercent ?? 10.0),
+          driverMonthlyFee: Number(policy.driverMonthlyFee ?? 0),
+          driverTrialDays: Number(policy.driverTrialDays ?? 0),
           minWithdrawalAmount: Number(policy.minWithdrawalAmount ?? 1000),
           convenienceFeePercent: Number(policy.convenienceFeePercent ?? 2.5),
           gstPercent: Number(policy.gstPercent ?? 5.0),
@@ -175,16 +186,17 @@ export default function PricingPage() {
     setSavingPolicy(true);
     try {
       const updated = await adminApi.updatePolicyConfig({
-        driverMonthlyFee: Number(policyConfig.driverMonthlyFee),
-        driverTrialDays: Number(policyConfig.driverTrialDays),
-        minWithdrawalAmount: Number(policyConfig.minWithdrawalAmount),
-        convenienceFeePercent: Number(policyConfig.convenienceFeePercent),
-        gstPercent: Number(policyConfig.gstPercent),
+        commissionPercent: Number(policyConfig.commissionPercent ?? 10.0),
+        driverMonthlyFee: Number(policyConfig.driverMonthlyFee ?? 0),
+        driverTrialDays: Number(policyConfig.driverTrialDays ?? 0),
+        minWithdrawalAmount: Number(policyConfig.minWithdrawalAmount ?? 1000),
+        convenienceFeePercent: Number(policyConfig.convenienceFeePercent ?? 2.5),
+        gstPercent: Number(policyConfig.gstPercent ?? 5.0),
       });
       setPolicyConfig(updated);
       setAlert({
         type: 'success',
-        message: 'System policy configuration & driver subscription rates updated successfully in database!',
+        message: `Platform ride commission updated to ${updated.commissionPercent ?? policyConfig.commissionPercent}% successfully! Changes apply to all new completed trips immediately.`,
       });
     } catch (err: any) {
       setAlert({ type: 'error', message: err.message || 'Failed to update system policy configuration' });
@@ -236,7 +248,7 @@ export default function PricingPage() {
     const baseKm = Number(selectedTier.baseKm || 0);
     const perKmRate = Number(selectedTier.perKmRate || 0);
     const surge = Number(selectedTier.surgeMultiplier || 1.0);
-    const platformFeePercent = Number(selectedTier.platformFeePercent ?? selectedTier.platformFeePercentage ?? 10);
+    const platformFeePercent = Number(policyConfig.commissionPercent ?? selectedTier.platformFeePercent ?? selectedTier.platformFeePercentage ?? 10);
 
     const extraKm = Math.max(0, simDistanceKm - baseKm);
     const singleVehicleFare = Math.round((baseFare + extraKm * perKmRate) * surge);
@@ -382,7 +394,7 @@ export default function PricingPage() {
           }}
         >
           <span>⚙️</span>
-          <span>Platform Policies & Subscriptions</span>
+          <span>Platform Commission & Policies</span>
         </button>
       </div>
 
@@ -410,10 +422,10 @@ export default function PricingPage() {
               accentColor="var(--brand-primary)"
             />
             <MetricCard
-              label="Driver Subscription"
-              value={`₹ ${policyConfig.driverMonthlyFee}/mo`}
-              subtext={`${policyConfig.driverTrialDays}-day free trial included`}
-              icon={<Award size={18} color="#8B5CF6" />}
+              label="Platform Ride Commission"
+              value={`${policyConfig.commissionPercent ?? 10.0}%`}
+              subtext="Charged dynamically on every ride"
+              icon={<Percent size={18} color="#8B5CF6" />}
               accentColor="#8B5CF6"
             />
             <MetricCard
@@ -424,10 +436,10 @@ export default function PricingPage() {
               accentColor="var(--color-success)"
             />
             <MetricCard
-              label="Avg Take Rate"
-              value="10.0%"
-              subtext="Platform commission share"
-              icon={<Percent size={18} color="var(--color-warning)" />}
+              label="Driver Net Share"
+              value={`${(100 - (policyConfig.commissionPercent ?? 10.0)).toFixed(1)}%`}
+              subtext="Credited directly to driver wallet"
+              icon={<Award size={18} color="var(--color-warning)" />}
               accentColor="var(--color-warning)"
             />
           </div>
@@ -452,62 +464,68 @@ export default function PricingPage() {
             </div>
             <div>
               <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                Platform Policy & Driver Subscriptions
+                Platform Commission & Financial Policies
               </h3>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>
-                Globally enforced business rules for driver onboarding, paywalls, and settlements
+                Configure dynamic platform commission charged per ride, driver withdrawal minimums, and payment gateway fees
               </p>
             </div>
           </div>
 
           <form onSubmit={handleSavePolicy} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem', color: 'var(--text-primary)' }}>
-                  Driver Monthly Fee (₹) *
+            {/* Dynamic Platform Commission % Input */}
+            <div
+              style={{
+                padding: '1rem',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'rgba(91, 66, 243, 0.05)',
+                border: '1.5px solid rgba(91, 66, 243, 0.3)',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.375rem' }}>
+                <label style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  Platform Ride Commission (%) *
                 </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={policyConfig.driverMonthlyFee}
-                  onChange={(e) => setPolicyConfig({ ...policyConfig, driverMonthlyFee: Number(e.target.value) })}
+                <span
                   style={{
-                    width: '100%',
-                    padding: '0.625rem 0.875rem',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'var(--bg-card-elevated)',
-                    border: '1px solid var(--border-subtle)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
+                    padding: '0.2rem 0.5rem',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                    color: 'var(--color-success)',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
                   }}
-                />
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Debited monthly from wallet</span>
+                >
+                  Driver payout: {(100 - (policyConfig.commissionPercent ?? 10.0)).toFixed(1)}%
+                </span>
               </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem', color: 'var(--text-primary)' }}>
-                  Free Trial Duration (Days) *
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="90"
-                  value={policyConfig.driverTrialDays}
-                  onChange={(e) => setPolicyConfig({ ...policyConfig, driverTrialDays: Number(e.target.value) })}
-                  style={{
-                    width: '100%',
-                    padding: '0.625rem 0.875rem',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'var(--bg-card-elevated)',
-                    border: '1px solid var(--border-subtle)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                  }}
-                />
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>New driver grace period</span>
+              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <input
+                    type="number"
+                    min="0"
+                    max="50"
+                    step="0.5"
+                    value={policyConfig.commissionPercent ?? 10.0}
+                    onChange={(e) => setPolicyConfig({ ...policyConfig, commissionPercent: Number(e.target.value) })}
+                    style={{
+                      width: '100%',
+                      padding: '0.625rem 0.875rem',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: 'var(--bg-card)',
+                      border: '1.5px solid var(--brand-primary)',
+                      color: 'var(--brand-primary)',
+                      fontSize: '1.125rem',
+                      fontWeight: 800,
+                    }}
+                    required
+                  />
+                </div>
+                <div style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--brand-primary)' }}>%</div>
               </div>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.375rem', display: 'block' }}>
+                This commission is deducted on every completed ride automatically. Changes save to PostgreSQL and apply instantly.
+              </span>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -563,7 +581,7 @@ export default function PricingPage() {
                 {policyConfig.updatedAt ? `Last saved: ${new Date(policyConfig.updatedAt).toLocaleString()}` : 'Default policy loaded'}
               </span>
               <Button variant="primary" size="sm" type="submit" isLoading={savingPolicy}>
-                Save Policy Settings
+                Save Commission & Policies
               </Button>
             </div>
           </form>
@@ -852,30 +870,24 @@ export default function PricingPage() {
                   >
                     Edit Tariff
                   </Button>
-                  {!['SEDAN', 'SUV', 'HATCHBACK'].includes(rc.vehicleType) && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteCategory(rc.vehicleType);
-                      }}
-                      style={{
-                        padding: '0.45rem',
-                        borderRadius: 'var(--radius-sm)',
-                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                        border: '1px solid rgba(239, 68, 68, 0.2)',
-                        color: '#EF4444',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.15s ease',
-                      }}
-                      title={`Delete ${rc.vehicleType} category`}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  )}
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteCategory(rc);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      padding: '0.375rem 0.625rem',
+                    }}
+                    title={`Delete ${rc.displayName || rc.categoryLabel || rc.vehicleType} category`}
+                  >
+                    <Trash2 size={13} />
+                    <span>Delete</span>
+                  </Button>
                 </div>
               ),
             },
@@ -1293,6 +1305,92 @@ export default function PricingPage() {
           </div>
         </form>
       </Drawer>
+
+      {/* Delete Vehicle Category Confirmation Modal */}
+      {categoryToDelete && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '1rem',
+          }}
+          onClick={() => !deletingCategory && setCategoryToDelete(null)}
+        >
+          <div
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-lg)',
+              maxWidth: '480px',
+              width: '100%',
+              padding: '1.5rem',
+              boxShadow: 'var(--shadow-elevated)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+              <div
+                style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '50%',
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--color-danger)',
+                  flexShrink: 0,
+                }}
+              >
+                <Trash2 size={22} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  Delete Vehicle Category?
+                </h3>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Authoritative database removal
+                </div>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 1.25rem 0' }}>
+              Are you sure you want to delete{' '}
+              <strong style={{ color: 'var(--text-primary)' }}>
+                {categoryToDelete.displayName || categoryToDelete.categoryLabel || categoryToDelete.vehicleType}
+              </strong>{' '}
+              (<code style={{ color: 'var(--brand-primary)', fontFamily: 'monospace' }}>{categoryToDelete.vehicleType}</code>)?
+              <br /><br />
+              This vehicle class will be permanently removed from future fare calculations, rate cards, and requirement booking dropdowns.
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={deletingCategory}
+                onClick={() => setCategoryToDelete(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                isLoading={deletingCategory}
+                onClick={confirmDeleteCategory}
+              >
+                Delete Category
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

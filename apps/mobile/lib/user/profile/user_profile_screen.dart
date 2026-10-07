@@ -48,11 +48,11 @@ class UserProfileScreen extends StatelessWidget {
 
     final menuItems = [
       {'icon': Icons.receipt_long_outlined, 'title': 'Corporate Rate Card & Tariffs', 'action': 'rate_card'},
-      {'icon': Icons.business_outlined, 'title': 'Company Information'},
-      {'icon': Icons.phone_outlined, 'title': 'Contact Information'},
-      {'icon': Icons.verified_user_outlined, 'title': 'Account Status'},
-      {'icon': Icons.notifications_none_outlined, 'title': 'Notification Settings'},
-      {'icon': Icons.help_outline, 'title': 'Support Center'},
+      {'icon': Icons.business_outlined, 'title': 'Company Information', 'route': AppRoutes.userCompanyInformationScreen},
+      {'icon': Icons.phone_outlined, 'title': 'Contact Information', 'route': AppRoutes.userContactInformationScreen},
+      {'icon': Icons.verified_user_outlined, 'title': 'Account Status', 'route': AppRoutes.userAccountStatusScreen},
+      {'icon': Icons.notifications_none_outlined, 'title': 'Notification Settings', 'route': AppRoutes.userNotificationSettingsScreen},
+      {'icon': Icons.help_outline, 'title': 'Support Center', 'route': AppRoutes.userSupportCenterScreen},
     ];
 
     return Scaffold(
@@ -172,10 +172,16 @@ class UserProfileScreen extends StatelessWidget {
                             if (item['action'] == 'rate_card') {
                               showModalBottomSheet(
                                 context: context,
+                                useRootNavigator: true,
                                 isScrollControlled: true,
                                 backgroundColor: Colors.transparent,
                                 builder: (_) => const VendorRateCardModal(),
                               );
+                              return;
+                            }
+                            final route = item['route'] as String?;
+                            if (route != null && route.isNotEmpty) {
+                              context.push(route);
                               return;
                             }
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -314,7 +320,7 @@ class UserProfileScreen extends StatelessWidget {
                 border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
               ),
               child: Text(
-                '⚠️ This action is permanent. All your company records, requirements, payments, and credentials will be completely erased from our database.',
+                'This action is permanent. All your company records, requirements, payments, and credentials will be completely erased from our database.',
                 style: AppTypography.caption(
                   color: isDark ? const Color(0xFFFFA4A4) : const Color(0xFFC92A2A),
                 ),

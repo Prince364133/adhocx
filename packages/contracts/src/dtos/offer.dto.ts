@@ -15,6 +15,8 @@ export class OfferResponseDto {
   expiresAt!: string;
   expiresInSeconds?: number;
   vendorOrganizationName?: string;
+  /** Driver-filtered corporate zonal context (hub, zone, earnings line items). Never contains vendor amounts. */
+  zonal?: Record<string, unknown>;
   createdAt!: string;
 }
 

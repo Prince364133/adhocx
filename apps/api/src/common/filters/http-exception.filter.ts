@@ -40,11 +40,17 @@ export class HttpExceptionFilter implements ExceptionFilter {
       this.logger.error(`Unhandled Exception: ${exception.message}`, exception.stack);
     }
 
+    const displayMessage = Array.isArray(details)
+      ? details.join('. ')
+      : Array.isArray(message)
+        ? (message as string[]).join('. ')
+        : message;
+
     const errorPayload: ApiResponse = {
       success: false,
       error: {
         code,
-        message: Array.isArray(details) ? 'Validation failed' : message,
+        message: displayMessage,
         details,
       },
       timestamp: new Date().toISOString(),

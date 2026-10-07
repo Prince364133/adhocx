@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { BadgeCheck, Building2, Phone, MapPin, FileText } from 'lucide-react';
+import { BadgeCheck, Building2, Phone, MapPin, FileText, Mail } from 'lucide-react';
 import { VerificationItem } from '../../lib/api/types';
 
 interface CardProps {
@@ -159,6 +159,12 @@ export const VerificationCard: React.FC<CardProps> = ({
               <Phone size={12} />
               <span>{item.phone}</span>
             </div>
+            {item.email && (
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.1rem' }}>
+                <Mail size={12} style={{ flexShrink: 0 }} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.email}</span>
+              </div>
+            )}
           </div>
         </div>
 

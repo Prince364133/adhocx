@@ -8,6 +8,7 @@ import {
   AuthUserDto,
   UserRole,
 } from '@adhocx/contracts';
+import { CreateSupportQueryDto } from './dto/create-support-query.dto';
 import { JwtAuthGuard, RolesGuard, Roles, CurrentUser } from '../../common';
 import { DisputesService } from './disputes.service';
 
@@ -17,6 +18,21 @@ import { DisputesService } from './disputes.service';
 @Controller('disputes')
 export class DisputesController {
   constructor(private readonly disputesService: DisputesService) {}
+
+  @Post('support-query')
+  @ApiOperation({ summary: 'Submit corporate app support query or inquiry ticket' })
+  async createSupportQuery(
+    @CurrentUser() user: AuthUserDto,
+    @Body() dto: CreateSupportQueryDto,
+  ) {
+    return this.disputesService.createSupportQuery(user.id, dto);
+  }
+
+  @Get('support-query/my')
+  @ApiOperation({ summary: 'List all support queries and dispute tickets submitted by current user' })
+  async getMySupportQueries(@CurrentUser() user: AuthUserDto) {
+    return this.disputesService.getMySupportQueries(user.id);
+  }
 
   @Post()
   @ApiOperation({ summary: 'File a dispute ticket for a trip' })

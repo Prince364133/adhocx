@@ -1,29 +1,44 @@
+/**
+ * Canonical source data for the Hyderabad corporate zonal rate card (New Adok Rate Card 2026).
+ * Source of truth: users.pdf (Vendor PRD) and driver.pdf (Driver PRD), both v1.0 dated 25 Sep 2026.
+ *
+ * These constants seed the DB-backed RateCardVersion / LocalityMaster tables on first boot.
+ * At runtime, quotes are priced from the ACTIVE DB version; these values are only the
+ * fallback when no published version exists yet.
+ */
+
 export type OfficeHubId = 'HITEC_NANAKRAMGUDA' | 'KOKAPET';
 
 export type ZoneId = 'EXTRA' | 'ZONE_6' | 'ZONE_5' | 'ZONE_4' | 'ZONE_3' | 'ZONE_2' | 'ZONE_1';
 
-export interface RateRowData {
-  hubId: OfficeHubId;
-  zoneId: ZoneId;
-  zoneLabel: string;
-  sedanFare: number;
-  suvFare: number;
-  escortMaxSedan: number;
-  escortMaxSuv: number;
-}
+export type ZonalVehicleClass = 'SEDAN' | 'SUV';
 
-export interface DriverRateRowData {
-  hubId: OfficeHubId;
-  zoneId: ZoneId;
-  zoneLabel: string;
-  sedanEarning: number;
-  suvEarning: number;
-  escortPayoutSedan: number;
-  escortPayoutSuv: number;
-}
+export type TripDirection = 'INBOUND_TO_OFFICE' | 'OUTBOUND_FROM_OFFICE';
 
-// Canonical 2026 Vendor Rate Card (as defined in New Adok Rate Card 2026 & users.pdf PRD)
-export const VENDOR_ZONAL_RATE_MATRIX: Record<OfficeHubId, Record<ZoneId, { sedan: number; suv: number; escortSedan: number; escortSuv: number }>> = {
+export const ZONE_IDS: ZoneId[] = ['EXTRA', 'ZONE_6', 'ZONE_5', 'ZONE_4', 'ZONE_3', 'ZONE_2', 'ZONE_1'];
+export const HUB_IDS: OfficeHubId[] = ['HITEC_NANAKRAMGUDA', 'KOKAPET'];
+export const ZONAL_VEHICLE_CLASSES: ZonalVehicleClass[] = ['SEDAN', 'SUV'];
+
+/** Exactly 7 zones x 2 hubs x 2 vehicle classes = 28 unique rows per audience (PRD release check). */
+export const REQUIRED_RATE_ROWS = ZONE_IDS.length * HUB_IDS.length * ZONAL_VEHICLE_CLASSES.length;
+
+export const ZONE_LABELS: Record<ZoneId, string> = {
+  EXTRA: 'Extra (E)',
+  ZONE_6: 'Zone 6',
+  ZONE_5: 'Zone 5',
+  ZONE_4: 'Zone 4',
+  ZONE_3: 'Zone 3',
+  ZONE_2: 'Zone 2',
+  ZONE_1: 'Zone 1',
+};
+
+export const SEED_RATE_VERSION = '2026.1';
+export const SEED_EFFECTIVE_FROM = '2026-09-25T00:00:00.000Z';
+
+export type MatrixCell = { sedan: number; suv: number; escortSedan: number; escortSuv: number };
+
+// Vendor rate card (INR). Escort values are CEILINGS, applied only when an escort service is explicitly selected.
+export const VENDOR_ZONAL_RATE_MATRIX: Record<OfficeHubId, Record<ZoneId, MatrixCell>> = {
   HITEC_NANAKRAMGUDA: {
     EXTRA: { sedan: 500, suv: 700, escortSedan: 200, escortSuv: 300 },
     ZONE_6: { sedan: 600, suv: 900, escortSedan: 200, escortSuv: 300 },
@@ -44,59 +59,98 @@ export const VENDOR_ZONAL_RATE_MATRIX: Record<OfficeHubId, Record<ZoneId, { seda
   },
 };
 
-// Canonical 2026 Driver Guaranteed Earnings Matrix (matching driver.pdf PRD - 85% net of vendor base)
-export const DRIVER_ZONAL_RATE_MATRIX: Record<OfficeHubId, Record<ZoneId, { sedan: number; suv: number; escortSedan: number; escortSuv: number }>> = {
+// Driver earnings (INR), stored as fixed amounts per driver.pdf. They happen to equal 85% of the
+// vendor table but must never be computed as a live percentage. Escort is NOT copied into driver
+// earnings (Driver PRD D AT04): any driver escort addition needs a separately approved amount.
+export const DRIVER_ZONAL_RATE_MATRIX: Record<OfficeHubId, Record<ZoneId, { sedan: number; suv: number }>> = {
   HITEC_NANAKRAMGUDA: {
-    EXTRA: { sedan: 425, suv: 595, escortSedan: 200, escortSuv: 300 },
-    ZONE_6: { sedan: 510, suv: 765, escortSedan: 200, escortSuv: 300 },
-    ZONE_5: { sedan: 595, suv: 850, escortSedan: 300, escortSuv: 400 },
-    ZONE_4: { sedan: 680, suv: 935, escortSedan: 300, escortSuv: 400 },
-    ZONE_3: { sedan: 765, suv: 1020, escortSedan: 400, escortSuv: 500 },
-    ZONE_2: { sedan: 850, suv: 1105, escortSedan: 400, escortSuv: 500 },
-    ZONE_1: { sedan: 935, suv: 1190, escortSedan: 400, escortSuv: 500 },
+    EXTRA: { sedan: 425, suv: 595 },
+    ZONE_6: { sedan: 510, suv: 765 },
+    ZONE_5: { sedan: 595, suv: 850 },
+    ZONE_4: { sedan: 680, suv: 935 },
+    ZONE_3: { sedan: 765, suv: 1020 },
+    ZONE_2: { sedan: 850, suv: 1105 },
+    ZONE_1: { sedan: 935, suv: 1190 },
   },
   KOKAPET: {
-    EXTRA: { sedan: 510, suv: 680, escortSedan: 300, escortSuv: 400 },
-    ZONE_6: { sedan: 595, suv: 765, escortSedan: 300, escortSuv: 400 },
-    ZONE_5: { sedan: 680, suv: 935, escortSedan: 300, escortSuv: 400 },
-    ZONE_4: { sedan: 765, suv: 1020, escortSedan: 300, escortSuv: 400 },
-    ZONE_3: { sedan: 850, suv: 1105, escortSedan: 400, escortSuv: 500 },
-    ZONE_2: { sedan: 935, suv: 1190, escortSedan: 400, escortSuv: 500 },
-    ZONE_1: { sedan: 1020, suv: 1275, escortSedan: 400, escortSuv: 500 },
+    EXTRA: { sedan: 510, suv: 680 },
+    ZONE_6: { sedan: 595, suv: 765 },
+    ZONE_5: { sedan: 680, suv: 935 },
+    ZONE_4: { sedan: 765, suv: 1020 },
+    ZONE_3: { sedan: 850, suv: 1105 },
+    ZONE_2: { sedan: 935, suv: 1190 },
+    ZONE_1: { sedan: 1020, suv: 1275 },
   },
 };
+
+export interface HubGeofenceAnchor {
+  lat: number;
+  lng: number;
+  /** H3 res-8 kRing around the anchor cell. k=1 is roughly a 0.8-1.2 km radius, k=2 roughly 1.6-2 km. */
+  k: number;
+}
 
 export interface OfficeHubDefinition {
   id: OfficeHubId;
   displayName: string;
   lat: number;
   lng: number;
-  radiusKm: number;
+  /**
+   * Hub geofence = union of H3 res-8 disks around these anchors. Kept tight because the Extra zone
+   * (Gachibowli, Madhapur, Kondapur city, HITEC City) surrounds the HITEC hub. Exact hub boundaries are a
+   * PRD pre-production decision: override with the ZONAL_HUB_GEOFENCES env JSON once operations approves.
+   */
+  geofence: HubGeofenceAnchor[];
 }
 
 export const OFFICE_HUBS: OfficeHubDefinition[] = [
   {
     id: 'HITEC_NANAKRAMGUDA',
-    displayName: 'HITEC / Nanakramguda Hub',
+    displayName: 'HITEC / Nanakramguda',
     lat: 17.4435,
     lng: 78.3772,
-    radiusKm: 6.0,
+    geofence: [
+      { lat: 17.4435, lng: 78.3772, k: 1 }, // HITEC City / Cyber Towers / Raidurg cluster
+      { lat: 17.4155, lng: 78.3416, k: 1 }, // Nanakramguda Financial District cluster
+    ],
   },
   {
     id: 'KOKAPET',
-    displayName: 'Kokapet Hub',
-    lat: 17.3850,
+    displayName: 'Kokapet',
+    lat: 17.385,
     lng: 78.3245,
-    radiusKm: 5.0,
+    geofence: [{ lat: 17.385, lng: 78.3245, k: 2 }],
   },
 ];
 
 export interface LocalityDefinition {
   name: string;
   zoneId: ZoneId;
+  /** Starred in the PRD guide: identity/boundary unverified, cannot auto-quote. */
   requiresReview?: boolean;
+  /** Record exists but is not bookable at all until activated by operations. */
+  inactive?: boolean;
   notes?: string;
 }
+
+/** Stable locality ID derived from the display name, e.g. "Kondapur (outskirts)" -> LOC_KONDAPUR_OUTSKIRTS. */
+export function localityIdFor(name: string): string {
+  return (
+    'LOC_' +
+    name
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+  );
+}
+
+/** Normalises free text for exact alias/name lookup (never used for substring matching). */
+export function normaliseLocalityKey(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+/** Names removed from the master; must never be offered as bookable choices (PRD). */
+export const EXCLUDED_LOCALITY_NAMES = ['Osmig', 'Old MIG'];
 
 export const LOCALITY_MASTER: LocalityDefinition[] = [
   // Extra (E)
@@ -336,7 +390,7 @@ export const LOCALITY_MASTER: LocalityDefinition[] = [
   { name: 'Kandi', zoneId: 'ZONE_1' },
   { name: 'Keesara', zoneId: 'ZONE_1' },
   { name: 'Koheda', zoneId: 'ZONE_1' },
-  { name: 'Kondapur (outskirts)', zoneId: 'ZONE_1', requiresReview: true, notes: 'Requires exact pin verification' },
+  { name: 'Kondapur (outskirts)', zoneId: 'ZONE_1', requiresReview: true, inactive: true, notes: 'Inactive until a specific map pin is approved' },
   { name: 'Manneguda', zoneId: 'ZONE_1' },
   { name: 'Medchal', zoneId: 'ZONE_1' },
   { name: 'Muchintal', zoneId: 'ZONE_1' },

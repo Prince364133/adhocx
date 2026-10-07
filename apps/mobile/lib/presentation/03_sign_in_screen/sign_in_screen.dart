@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../core/utils/app_toast.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/onboarding_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/common/app_primary_button.dart';
@@ -28,30 +29,87 @@ class _SignInScreenState extends State<SignInScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
+  String? _inlineErrorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _identifierController.addListener(_clearInlineError);
+    _passwordController.addListener(_clearInlineError);
+  }
+
+  void _clearInlineError() {
+    if (_inlineErrorMessage != null && mounted) {
+      setState(() => _inlineErrorMessage = null);
+    }
+  }
 
   @override
   void dispose() {
+    _identifierController.removeListener(_clearInlineError);
+    _passwordController.removeListener(_clearInlineError);
     _identifierController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
   Future<void> _handlePasswordSignIn() async {
-    if (!_formKey.currentState!.validate()) return;
+    final text = _identifierController.text.trim();
+    if (text.isEmpty) {
+      _formKey.currentState?.validate();
+      const msg = 'Please enter your mobile number or email address';
+      setState(() => _inlineErrorMessage = msg);
+      AppToast.showError(msg, context: context);
+      return;
+    }
 
-    setState(() => _isLoading = true);
+    final identifierError = AppSmartIdentifierField.validate(text);
+    if (identifierError != null) {
+      _formKey.currentState?.validate();
+      setState(() => _inlineErrorMessage = identifierError);
+      AppToast.showError(identifierError, context: context);
+      return;
+    }
+
+    final password = _passwordController.text.trim();
+    if (password.isEmpty) {
+      _formKey.currentState?.validate();
+      const msg = 'Please enter your password';
+      setState(() => _inlineErrorMessage = msg);
+      AppToast.showError(msg, context: context);
+      return;
+    }
+
+    if (password.length < 4) {
+      _formKey.currentState?.validate();
+      const msg = 'Password must be at least 4 characters';
+      setState(() => _inlineErrorMessage = msg);
+      AppToast.showError(msg, context: context);
+      return;
+    }
+
+    if (!_formKey.currentState!.validate()) {
+      const msg = 'Please correct the highlighted fields';
+      setState(() => _inlineErrorMessage = msg);
+      AppToast.showError(msg, context: context);
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _inlineErrorMessage = null;
+    });
 
     try {
       final onboarding = context.read<OnboardingProvider>();
       final authService = context.read<AuthService>();
 
-      final text = _identifierController.text.trim();
       final parsed = AppSmartIdentifierField.parseIdentifier(text);
       final identifier = parsed['value'] as String;
 
       final result = await authService.loginWithPassword(
         identifier: identifier,
-        password: _passwordController.text.trim(),
+        password: password,
         role: onboarding.role,
       );
 
@@ -67,10 +125,9 @@ class _SignInScreenState extends State<SignInScreen> {
           );
         }
 
-        Fluttertoast.showToast(
-          msg: 'Welcome back, ${user.fullName ?? "Partner"}!',
-          backgroundColor: AppColors.accentGreenDark,
-          textColor: Colors.white,
+        AppToast.showSuccess(
+          'Welcome back, ${user.fullName ?? "Partner"}!',
+          context: context,
         );
 
         if (!user.hasPassword) {
@@ -87,12 +144,9 @@ class _SignInScreenState extends State<SignInScreen> {
       }
     } catch (e) {
       if (mounted) {
-        final msg = e.toString().replaceFirst('Exception: ', '').replaceFirst('ApiException: ', '');
-        Fluttertoast.showToast(
-          msg: msg,
-          backgroundColor: AppColors.error,
-          textColor: Colors.white,
-        );
+        final msg = AppToast.cleanErrorMessage(e);
+        setState(() => _inlineErrorMessage = msg);
+        AppToast.showError(msg, context: context);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -102,31 +156,29 @@ class _SignInScreenState extends State<SignInScreen> {
   Future<void> _handleOtpSignIn() async {
     final text = _identifierController.text.trim();
     if (text.isEmpty) {
-      Fluttertoast.showToast(msg: 'Enter your mobile number or email for OTP');
+      const msg = 'Please enter your mobile number or email for OTP';
+      setState(() => _inlineErrorMessage = msg);
+      AppToast.showError(msg, context: context);
       return;
     }
 
-    final parsed = AppSmartIdentifierField.parseIdentifier(text);
-    if (parsed['isEmail'] == true) {
-      final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-      if (!emailRegex.hasMatch(text)) {
-        Fluttertoast.showToast(msg: 'Enter a valid email address for OTP');
-        return;
-      }
-    } else {
-      final rawDigits = parsed['rawDigits'] as String;
-      if (rawDigits.length != 10) {
-        Fluttertoast.showToast(msg: 'Enter a valid 10-digit mobile number for OTP');
-        return;
-      }
+    final identifierError = AppSmartIdentifierField.validate(text);
+    if (identifierError != null) {
+      setState(() => _inlineErrorMessage = identifierError);
+      AppToast.showError(identifierError, context: context);
+      return;
     }
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _inlineErrorMessage = null;
+    });
 
     try {
       final authService = context.read<AuthService>();
       final onboarding = context.read<OnboardingProvider>();
 
+      final parsed = AppSmartIdentifierField.parseIdentifier(text);
       final String? phoneTarget = parsed['phone'];
       final String? emailTarget = parsed['email'];
 
@@ -141,11 +193,7 @@ class _SignInScreenState extends State<SignInScreen> {
       if (mounted) {
         final targetDisplay = phoneTarget ?? emailTarget ?? 'your address';
         final message = res is Map && res['message'] != null ? res['message'] : 'OTP sent to $targetDisplay';
-        Fluttertoast.showToast(
-          msg: message,
-          backgroundColor: AppColors.primaryDark,
-          textColor: Colors.white,
-        );
+        AppToast.showSuccess(message, context: context);
 
         context.push(
           AppRoutes.loginOtpScreen,
@@ -159,12 +207,9 @@ class _SignInScreenState extends State<SignInScreen> {
       }
     } catch (e) {
       if (mounted) {
-        final msg = e.toString().replaceFirst('Exception: ', '').replaceFirst('ApiException: ', '');
-        Fluttertoast.showToast(
-          msg: msg,
-          backgroundColor: AppColors.error,
-          textColor: Colors.white,
-        );
+        final msg = AppToast.cleanErrorMessage(e);
+        setState(() => _inlineErrorMessage = msg);
+        AppToast.showError(msg, context: context);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -192,10 +237,9 @@ class _SignInScreenState extends State<SignInScreen> {
           );
         }
 
-        Fluttertoast.showToast(
-          msg: 'Google Sign In successful! Welcome ${user.fullName ?? ""}',
-          backgroundColor: AppColors.accentGreenDark,
-          textColor: Colors.white,
+        AppToast.showSuccess(
+          'Google Sign In successful! Welcome ${user.fullName ?? ""}',
+          context: context,
         );
 
         if (!user.hasPassword) {
@@ -214,11 +258,9 @@ class _SignInScreenState extends State<SignInScreen> {
       }
     } catch (e) {
       if (mounted) {
-        Fluttertoast.showToast(
-          msg: e.toString().replaceFirst('Exception: ', '').replaceFirst('ApiException: ', ''),
-          backgroundColor: AppColors.error,
-          textColor: Colors.white,
-        );
+        final msg = AppToast.cleanErrorMessage(e);
+        setState(() => _inlineErrorMessage = msg);
+        AppToast.showError(msg, context: context);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -283,6 +325,55 @@ class _SignInScreenState extends State<SignInScreen> {
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xl),
+
+                    // ── Inline Red Alert Banner ──────────────────────────────
+                    if (_inlineErrorMessage != null) ...[
+                      Container(
+                        margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                          vertical: AppSpacing.sm + 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? AppColors.error.withValues(alpha: 0.16)
+                              : AppColors.errorContainer,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: Border.all(
+                            color: AppColors.error.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.error_outline_rounded,
+                              color: AppColors.errorText,
+                              size: 20,
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: Text(
+                                _inlineErrorMessage!,
+                                style: const TextStyle(
+                                  color: AppColors.errorText,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () => setState(() => _inlineErrorMessage = null),
+                              child: const Icon(
+                                Icons.close_rounded,
+                                color: AppColors.errorText,
+                                size: 18,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
 
                     // ── Unified Smart Identifier Input (Mobile Number or Email) ─────
                     AppSmartIdentifierField(

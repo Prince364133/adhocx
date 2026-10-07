@@ -21,6 +21,7 @@ class UserBidsBottomSheet extends StatefulWidget {
   static Future<bool?> show(BuildContext context, {required String requirementId, VoidCallback? onBidAccepted}) {
     return showModalBottomSheet<bool>(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => UserBidsBottomSheet(requirementId: requirementId, onBidAccepted: onBidAccepted),
@@ -336,13 +337,20 @@ class _UserBidsBottomSheetState extends State<UserBidsBottomSheet> {
                                       border: Border.all(color: AppColors.success.withAlpha(70)),
                                     ),
                                     child: const Center(
-                                      child: Text(
-                                        '✓ WINNING BID ACCEPTED',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.success,
-                                          fontSize: 12,
-                                        ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.check_circle_rounded, color: AppColors.success, size: 14),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'WINNING BID ACCEPTED',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.success,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   )

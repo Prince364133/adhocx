@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../core/utils/app_toast.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_colors.dart';
@@ -44,13 +44,25 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   }
 
   Future<void> _handleResetPassword() async {
-    if (!_formKey.currentState!.validate()) return;
+    final password = _passwordController.text.trim();
+    if (password.isEmpty) {
+      _formKey.currentState?.validate();
+      AppToast.showError('Please enter a new password', context: context);
+      return;
+    }
+    if (password.length < 6) {
+      _formKey.currentState?.validate();
+      AppToast.showError('Password must be at least 6 characters long', context: context);
+      return;
+    }
 
-    if (_passwordController.text != _confirmPasswordController.text) {
-      Fluttertoast.showToast(
-        msg: 'Passwords do not match',
-        backgroundColor: AppColors.error,
-      );
+    if (password != _confirmPasswordController.text.trim()) {
+      AppToast.showError('Passwords do not match', context: context);
+      return;
+    }
+
+    if (!_formKey.currentState!.validate()) {
+      AppToast.showError('Please correct the highlighted fields', context: context);
       return;
     }
 
@@ -63,25 +75,20 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       await authService.resetPassword(
         identifier: widget.phone,
         otp: otpCode,
-        newPassword: _passwordController.text.trim(),
+        newPassword: password,
       );
 
       if (mounted) {
-        Fluttertoast.showToast(
-          msg: 'Password has been reset successfully. Please sign in.',
-          backgroundColor: AppColors.accentGreenDark,
-          textColor: Colors.white,
+        AppToast.showSuccess(
+          'Password has been reset successfully. Please sign in.',
+          context: context,
         );
 
         context.go(AppRoutes.signInScreen);
       }
     } catch (e) {
       if (mounted) {
-        Fluttertoast.showToast(
-          msg: e.toString().replaceFirst('Exception: ', '').replaceFirst('ApiException: ', ''),
-          backgroundColor: AppColors.error,
-          textColor: Colors.white,
-        );
+        AppToast.showError(e, context: context);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

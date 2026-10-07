@@ -7,7 +7,6 @@ import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../shared/widgets/app_adaptive_skeleton.dart';
-import 'driver_submit_bid_sheet.dart';
 
 /// Screen 1: Nearby Opportunities List matching exact design mockup.
 class OpportunitiesScreen extends StatefulWidget {
@@ -20,6 +19,7 @@ class OpportunitiesScreen extends StatefulWidget {
 class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
   String _selectedCategory = 'All';
   List<String> _categories = ['All', 'Sedan', 'SUV', 'Hatchback'];
+  String? _driverVehicleCategory;
   bool _isLoading = true;
   bool _isOnActiveTrip = false;
   List<dynamic> _offers = [];
@@ -35,14 +35,22 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
     try {
       final results = await Future.wait([
         DriverService.instance.getOffers(forceRefresh: force),
-        DriverService.instance.getBiddingOpportunities(forceRefresh: force),
         DriverService.instance.getTrips(forceRefresh: force).catchError((_) => <dynamic>[]),
         DriverService.instance.getVehicleCategories().catchError((_) => <Map<String, dynamic>>[]),
+        DriverService.instance.getProfile(forceRefresh: force).catchError((_) => null),
       ]);
-      final directOffers = results[0];
-      final bidOpportunities = results[1];
-      final trips = results[2];
-      final dynamicTiers = results[3];
+      final directOffers = results[0] as List<dynamic>;
+      final trips = results[1] as List<dynamic>;
+      final dynamicTiers = results[2] as List<Map<String, dynamic>>;
+      final driverProfile = results[3];
+
+      String? registeredVehicle;
+      if (driverProfile is Map && driverProfile['vehicleType'] != null) {
+        final raw = driverProfile['vehicleType'].toString().trim().toUpperCase();
+        if (raw.isNotEmpty && raw != 'NULL') {
+          registeredVehicle = raw;
+        }
+      }
 
       final activeTrip = trips.firstWhere(
         (t) => t['status'] == 'IN_PROGRESS' || t['status'] == 'ARRIVED' || t['status'] == 'ASSIGNED',
@@ -68,19 +76,10 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
         return true;
       }).toList();
 
-      // Filter bidding opportunities: exclude accepted bids and requirements with existing trips
-      final filteredBidOpportunities = bidOpportunities.where((o) {
-        final reqId = (o['requirementId'] ?? o['id'])?.toString();
-        if (reqId != null && fulfilledRequirementIds.contains(reqId)) return false;
-        // If bid was already accepted, hide from opportunities
-        final myBid = o['myBid'] as Map<String, dynamic>?;
-        if (myBid != null && myBid['status'] == 'ACCEPTED') return false;
-        return true;
-      }).toList();
-
       if (mounted) {
         setState(() {
-          _offers = [...filteredDirectOffers, ...filteredBidOpportunities];
+          _offers = filteredDirectOffers;
+          _driverVehicleCategory = registeredVehicle;
           _isOnActiveTrip = activeTrip != null;
           if (dynamicTiers.isNotEmpty) {
             final catSet = <String>{'All'};
@@ -89,6 +88,15 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
               if (label.isNotEmpty) catSet.add(label);
             }
             _categories = catSet.toList();
+          }
+          if (registeredVehicle != null && registeredVehicle.isNotEmpty) {
+            // If registered vehicle exists, find matching display category name
+            for (final cat in _categories) {
+              if (cat.toUpperCase() == registeredVehicle) {
+                _selectedCategory = cat;
+                break;
+              }
+            }
           }
         });
       }
@@ -102,13 +110,23 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final filteredOps = _selectedCategory == 'All'
-        ? _offers
-        : _offers.where((o) {
-            final vType = (o['requirement']?['vehicleType'] ?? o['vehicleType'] ?? '').toString().toLowerCase();
-            final sel = _selectedCategory.toLowerCase();
-            return vType == sel || sel.contains(vType) || vType.contains(sel);
-          }).toList();
+    final filteredOps = _offers.where((o) {
+      final reqMap = o['requirement'] as Map<String, dynamic>?;
+      final vType = (reqMap?['vehicleType'] ?? o['vehicleType'] ?? o['category'] ?? '').toString().trim().toUpperCase();
+
+      // Strict matching: Only display trips matching the driver's registered vehicle category
+      if (_driverVehicleCategory != null &&
+          _driverVehicleCategory!.isNotEmpty &&
+          _driverVehicleCategory != 'DEFAULT') {
+        if (vType.isNotEmpty && vType != _driverVehicleCategory) {
+          return false;
+        }
+      }
+
+      if (_selectedCategory == 'All') return true;
+      final sel = _selectedCategory.toUpperCase();
+      return vType == sel || vType.contains(sel) || sel.contains(vType);
+    }).toList();
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -268,7 +286,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'You are currently on an active trip. Direct dispatches are paused. You can still view and bid on future scheduled trips.',
+                            'You are currently on an active trip. Direct dispatches are paused. Complete your ongoing trip to receive new direct dispatch trips.',
                             style: AppTypography.caption(
                               color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                               fontWeight: FontWeight.w500,
@@ -368,16 +386,13 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
 
   Widget _buildOpportunityCard(Map<String, dynamic> op, bool isDark) {
     final req = op['requirement'] as Map<String, dynamic>?;
-    final isBidding = op['fulfillmentMode'] == 'BIDDING' || req?['fulfillmentMode'] == 'BIDDING';
-    final title = req?['title'] as String? ?? op['title'] as String? ?? (isBidding ? 'Outstation Reverse Auction' : 'Fleet Trip Dispatch');
+    final title = req?['title'] as String? ?? op['title'] as String? ?? 'Fleet Trip Dispatch';
     final category = req?['vehicleType'] as String? ?? op['vehicleType'] as String? ?? op['category'] as String? ?? 'Sedan';
     final pickup = req?['pickupAddress'] as String? ?? op['pickup'] as String? ?? op['pickupLocation']?['address'] as String? ?? 'Pickup location';
     final drop = req?['dropAddress'] as String? ?? op['drop'] as String? ?? op['dropLocation']?['address'] as String? ?? 'Destination location';
-    final budgetVal = (op['suggestedBudget'] ?? op['offeredPrice'] ?? op['offerAmount'] ?? req?['budgetPerVehicle'] ?? 850) as num;
+    final budgetVal = (op['offeredPrice'] ?? op['offerAmount'] ?? req?['budgetPerVehicle'] ?? op['suggestedBudget'] ?? 850) as num;
     final earnings = '₹ ${budgetVal.toInt()}';
-    final hasMyBid = op['hasMyBid'] == true;
-    final myBid = op['myBid'] as Map<String, dynamic>?;
-    final opColor = isBidding ? (isDark ? Colors.indigoAccent : Colors.indigo) : AppColors.primary;
+    final opColor = AppColors.primary;
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -408,7 +423,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: Icon(
-                  isBidding ? Icons.gavel_rounded : Icons.card_travel_outlined,
+                  Icons.card_travel_outlined,
                   color: opColor,
                   size: 20,
                 ),
@@ -426,10 +441,10 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                       ),
                     ),
                     Text(
-                      isBidding ? '🔨 Reverse Auction • Driver Quotes Open' : '⚡ Direct Timed Dispatch • Available Now',
+                      'Direct Dispatch • Guaranteed Net Payout',
                       style: AppTypography.caption(
-                        color: isBidding ? (isDark ? Colors.indigoAccent : Colors.indigo) : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
-                        fontWeight: isBidding ? FontWeight.w600 : FontWeight.normal,
+                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                        fontWeight: FontWeight.normal,
                       ),
                     ),
                   ],
@@ -485,13 +500,13 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    isBidding ? 'Target Budget' : 'Est. earnings',
+                    'Guaranteed Payout',
                     style: AppTypography.caption(
                       color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                     ).copyWith(fontSize: 10),
                   ),
                   Text(
-                    earnings,
+                    '$earnings Net',
                     style: AppTypography.h3(
                       color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                       fontWeight: FontWeight.bold,
@@ -507,61 +522,20 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
             color: isDark ? AppColors.borderDark : AppColors.borderLight,
           ),
           const SizedBox(height: AppSpacing.md),
-          if (isBidding) ...[
-            if (hasMyBid)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.success.withValues(alpha: isDark ? 0.2 : 0.12),
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                ),
-                child: Center(
-                  child: Text(
-                    '✓ Your Quote Submitted: ₹${(myBid?["bidAmount"] as num?)?.toInt() ?? budgetVal.toInt()} (${myBid?["status"] ?? "PENDING"})',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: isDark ? AppColors.accentGreen : AppColors.success,
-                    ),
-                  ),
-                ),
-              )
-            else
-              GestureDetector(
-                onTap: () async {
-                  final submitted = await DriverSubmitBidSheet.show(context, opportunity: op);
-                  if (submitted == true) {
-                    _loadOffers();
-                  }
-                },
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      '🔨 SUBMIT QUOTE / BID',
-                      style: AppTypography.caption(
-                        color: isDark ? Colors.indigoAccent : Colors.indigo,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.arrow_forward,
-                      size: 16,
-                      color: isDark ? Colors.indigoAccent : Colors.indigo,
-                    ),
-                  ],
-                ),
+          GestureDetector(
+            onTap: () => context.push(AppRoutes.opportunityOfferScreen, extra: op),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: isDark ? 0.2 : 0.1),
+                borderRadius: BorderRadius.circular(AppRadius.md),
               ),
-          ] else ...[
-            GestureDetector(
-              onTap: () => context.push(AppRoutes.opportunityOfferScreen, extra: op),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'VIEW OFFER & ACCEPT',
+                    'VIEW DISPATCH & ACCEPT',
                     style: AppTypography.caption(
                       color: isDark ? AppColors.primaryLight : opColor,
                       fontWeight: FontWeight.bold,
@@ -576,7 +550,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                 ],
               ),
             ),
-          ],
+          ),
         ],
       ),
     );

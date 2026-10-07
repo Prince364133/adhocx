@@ -121,6 +121,10 @@ class _EditProfileModalState extends State<EditProfileModal> {
         'vehiclePlate': _vehicleNumCtrl.text.trim(),
         'rcNumber': _rcCtrl.text.trim(),
         'dlNumber': _dlCtrl.text.trim(),
+        'bankName': _bankNameCtrl.text.trim(),
+        'bankAccountNumber': _accountCtrl.text.trim(),
+        'bankIfsc': _ifscCtrl.text.trim().toUpperCase(),
+        'upiId': _upiCtrl.text.trim(),
       });
 
       Fluttertoast.showToast(msg: 'Profile updated successfully');

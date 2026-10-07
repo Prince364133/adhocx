@@ -32,6 +32,7 @@ class IncomingRequirementBottomSheet extends StatefulWidget {
   }) {
     return showModalBottomSheet<T>(
       context: context,
+      useRootNavigator: true,
       isDismissible: false,
       enableDrag: false,
       isScrollControlled: true,
@@ -131,7 +132,7 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
       await DriverService.instance.acceptOffer(offerId);
       HapticFeedback.heavyImpact();
       Fluttertoast.showToast(
-        msg: '🎉 Trip Accepted! Navigate to pickup.',
+        msg: 'Trip Accepted! Navigate to pickup.',
         backgroundColor: AppColors.accentGreenDark,
         toastLength: Toast.LENGTH_LONG,
       );
@@ -150,7 +151,7 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
         // Edge Case: Expired or already claimed by another driver
         if (errStr.contains('expired') || errStr.contains('fulfilled') || errStr.contains('conflict')) {
           Fluttertoast.showToast(
-            msg: '⚠️ This trip was already claimed by another partner or expired.',
+            msg: 'This trip was already claimed by another partner or expired.',
             backgroundColor: AppColors.warning,
             toastLength: Toast.LENGTH_LONG,
           );
@@ -162,7 +163,7 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
         // Edge Case: Subscription required / frozen membership
         if (errStr.contains('subscription') || errStr.contains('frozen')) {
           Fluttertoast.showToast(
-            msg: '🔒 Subscription required to accept trips. Redirecting to Wallet...',
+            msg: 'Subscription required to accept trips. Redirecting to Wallet...',
             backgroundColor: AppColors.error,
             toastLength: Toast.LENGTH_LONG,
           );

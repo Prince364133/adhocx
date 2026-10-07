@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../core/utils/app_toast.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_provider.dart';
 import '../../services/auth_service.dart';
@@ -26,63 +26,71 @@ class OnboardingReviewScreen extends StatefulWidget {
 class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
   bool _isConfirmed = true;
   bool _isSubmitting = false;
+  String? _inlineErrorMessage;
 
   Future<void> _handleSubmit() async {
     if (!_isConfirmed) {
-      Fluttertoast.showToast(
-        msg: 'Please confirm that the information is genuine.',
-        backgroundColor: AppColors.warning,
-      );
+      const msg = 'Please confirm that the information provided is genuine.';
+      setState(() => _inlineErrorMessage = msg);
+      AppToast.showWarning(msg, context: context);
       return;
     }
 
-    setState(() => _isSubmitting = true);
+    final onboarding = context.read<OnboardingProvider>();
+    final driverService = context.read<DriverService>();
+
+    // Validate all required documents are uploaded
+    final missingDocs = <String>[];
+    if (onboarding.profilePhotoUrl == null || onboarding.profilePhotoUrl!.isEmpty) {
+      missingDocs.add('Driver Profile Photo');
+    }
+    if (onboarding.drivingLicenseUrl == null) missingDocs.add('Driving License');
+    if (onboarding.rcBookUrl == null) missingDocs.add('RC Book');
+    if (onboarding.insuranceUrl == null) missingDocs.add('Insurance');
+    if (onboarding.aadharFrontUrl == null) missingDocs.add('Aadhaar Front');
+    if (onboarding.aadharBackUrl == null) missingDocs.add('Aadhaar Back');
+    if (onboarding.panCardUrl == null) missingDocs.add('PAN Card');
+
+    if (missingDocs.isNotEmpty) {
+      final msg = 'Please upload missing documents: ${missingDocs.join(", ")}';
+      setState(() => _inlineErrorMessage = msg);
+      AppToast.showError(msg, context: context);
+      return;
+    }
+
+    // Validate vehicle details
+    if (onboarding.carModel.isEmpty || onboarding.registrationNumber.isEmpty) {
+      const msg = 'Please provide vehicle model and registration number.';
+      setState(() => _inlineErrorMessage = msg);
+      AppToast.showError(msg, context: context);
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+      _inlineErrorMessage = null;
+    });
 
     try {
-      final onboarding = context.read<OnboardingProvider>();
-      final driverService = context.read<DriverService>();
-
-      // Validate all required documents are uploaded
-      final missingDocs = <String>[];
-      if (onboarding.drivingLicenseUrl == null) missingDocs.add('Driving License');
-      if (onboarding.rcBookUrl == null) missingDocs.add('RC Book');
-      if (onboarding.insuranceUrl == null) missingDocs.add('Insurance');
-      if (onboarding.vehiclePhotoUrl == null) missingDocs.add('Vehicle Photo');
-      if (onboarding.aadharFrontUrl == null) missingDocs.add('Aadhaar Front');
-      if (onboarding.aadharBackUrl == null) missingDocs.add('Aadhaar Back');
-      if (onboarding.panCardUrl == null) missingDocs.add('PAN Card');
-
-      if (missingDocs.isNotEmpty) {
-        Fluttertoast.showToast(
-          msg: 'Please upload: ${missingDocs.join(", ")}',
-          backgroundColor: AppColors.error,
-          textColor: Colors.white,
-          toastLength: Toast.LENGTH_LONG,
-        );
-        setState(() => _isSubmitting = false);
-        return;
-      }
-
-      // Validate vehicle details
-      if (onboarding.carModel.isEmpty || onboarding.registrationNumber.isEmpty) {
-        Fluttertoast.showToast(
-          msg: 'Please provide vehicle model and registration number.',
-          backgroundColor: AppColors.error,
-          textColor: Colors.white,
-        );
-        setState(() => _isSubmitting = false);
-        return;
-      }
-
+      final profileUrl = onboarding.profilePhotoUrl;
       final dlUrl = onboarding.drivingLicenseUrl!;
       final rcUrl = onboarding.rcBookUrl!;
       final insUrl = onboarding.insuranceUrl!;
-      final vehUrl = onboarding.vehiclePhotoUrl!;
+      final vehUrl = onboarding.vehiclePhotoUrl;
       final aadharFUrl = onboarding.aadharFrontUrl!;
       final aadharBUrl = onboarding.aadharBackUrl!;
       final panUrl = onboarding.panCardUrl!;
 
-      final docList = [dlUrl, rcUrl, insUrl, vehUrl, aadharFUrl, aadharBUrl, panUrl];
+      final docList = [
+        if (profileUrl != null) profileUrl,
+        dlUrl,
+        rcUrl,
+        insUrl,
+        if (vehUrl != null) vehUrl,
+        aadharFUrl,
+        aadharBUrl,
+        panUrl,
+      ];
 
       await driverService.submitKyc(
         licenseNumber: onboarding.registrationNumber.isNotEmpty
@@ -92,6 +100,7 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
         documentUrls: docList,
         phone: onboarding.phone.isNotEmpty ? onboarding.phone : null,
         fullName: onboarding.fullName.isNotEmpty ? onboarding.fullName : null,
+        profilePhotoUrl: profileUrl,
         dlFrontUrl: dlUrl,
         rcDocUrl: rcUrl,
         insuranceDocUrl: insUrl,
@@ -130,21 +139,18 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
       }
 
       if (mounted) {
-        Fluttertoast.showToast(
-          msg: 'KYC Application submitted to AdhocX!',
-          backgroundColor: AppColors.accentGreenDark,
-          textColor: Colors.white,
+        AppToast.showSuccess(
+          'KYC Application submitted to AdhocX!',
+          context: context,
         );
 
         context.go(AppRoutes.welcomeSuccessScreen);
       }
     } catch (e) {
       if (mounted) {
-        Fluttertoast.showToast(
-          msg: 'KYC submission failed: ${e.toString().replaceAll('Exception: ', '')}',
-          backgroundColor: Colors.redAccent,
-          textColor: Colors.white,
-        );
+        final cleanMsg = AppToast.cleanErrorMessage(e);
+        setState(() => _inlineErrorMessage = 'KYC submission failed: $cleanMsg');
+        AppToast.showError('KYC submission failed: $cleanMsg', context: context);
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -215,7 +221,14 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                   // ── 4-Step Progress Header ───────────────────────────────
                   AppStepperHeader(
                     currentStep: 4,
-                    onBack: () => context.pop(),
+                    totalSteps: 4,
+                    onBack: () {
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go(AppRoutes.onboardingVehicleScreen);
+                      }
+                    },
                   ),
                   const SizedBox(height: AppSpacing.xl),
 
@@ -234,7 +247,37 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                       color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.xxl),
+                  const SizedBox(height: AppSpacing.lg),
+
+                  // ── Inline Red Alert Banner ──────────────────────────────
+                  if (_inlineErrorMessage != null) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              _inlineErrorMessage!,
+                              style: AppTypography.body(
+                                color: isDark ? AppColors.errorContainer : AppColors.error,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                  ],
 
                   // ── Section 1: Personal Details Card ─────────────────────
                   AppCard(

@@ -215,7 +215,7 @@ class GlobalDispatchOverlayService {
     final rate = (offerData['offeredRate'] ?? req?['ratePerVehicle'] ?? '').toString();
     final bodyText = rate.isNotEmpty ? '₹$rate • Pickup: $pickup' : 'Pickup: $pickup';
     LocalNotificationService.instance.showIncomingRideNotification(
-      title: '🚗 New Ride Requirement Available!',
+      title: 'New Ride Requirement Available!',
       body: bodyText,
       payload: offerId,
     );
@@ -271,7 +271,7 @@ class GlobalDispatchOverlayService {
         if (type == 'TRIP_OFFER' && data != null) {
           showIncomingOffer(data);
         } else {
-          final title = payload['title']?.toString() ?? '🚗 AdhocX Notification';
+          final title = payload['title']?.toString() ?? 'AdhocX Notification';
           final body = payload['body']?.toString() ?? payload['message']?.toString() ?? 'You have a new update';
           InAppMessageService.instance.showInAppNotification(
             title: title,
@@ -312,6 +312,7 @@ class GlobalDispatchOverlayService {
 
     await showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
         decoration: BoxDecoration(

@@ -40,6 +40,7 @@ Add the following secrets:
 | `SMTP_PORT` | Email SMTP Port | `587` |
 | `SMTP_USER` | Email SMTP Username | `adhocx.ofc@gmail.com` |
 | `SMTP_PASS` | Email App Password | `xxxx xxxx xxxx xxxx` |
+| `SMTP_FROM_EMAIL` | Official Sender Email Address | `support@adhocx.com` |
 
 ---
 

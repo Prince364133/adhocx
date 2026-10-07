@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/utils/app_toast.dart';
 import '../../routes/app_routes.dart';
+import '../../services/auth_provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/driver_service.dart';
 import '../../services/onboarding_provider.dart';
@@ -33,12 +34,57 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
 
   String _category = 'Sedan';
   bool _isSubmitting = false;
+  String? _inlineErrorMessage;
   final Map<String, bool> _uploadingState = {};
   final ImagePicker _picker = ImagePicker();
 
-  List<Map<String, dynamic>> _vehicleOptions = [];
+  List<Map<String, dynamic>> _vehicleOptions = [
+    {
+      'id': 'SEDAN',
+      'label': 'Sedan',
+      'subtitle': '4 Seats • AC (Dzire, Etios, Amaze)',
+      'icon': Icons.directions_car_rounded,
+      'perKmRate': 15.0,
+      'baseFare': 400.0,
+      'baseKm': 10,
+      'driverSharePercent': 90,
+      'description': 'Comfortable 4-seater sedans',
+    },
+    {
+      'id': 'SUV',
+      'label': 'SUV',
+      'subtitle': '6-7 Seats • AC (Ertiga, Innova, Carens)',
+      'icon': Icons.airport_shuttle_rounded,
+      'perKmRate': 20.0,
+      'baseFare': 600.0,
+      'baseKm': 10,
+      'driverSharePercent': 90,
+      'description': 'Spacious 6-7 seater vehicles',
+    },
+    {
+      'id': 'HATCHBACK',
+      'label': 'Hatchback',
+      'subtitle': '4 Seats • AC (WagonR, Swift, i10)',
+      'icon': Icons.directions_car_rounded,
+      'perKmRate': 12.0,
+      'baseFare': 300.0,
+      'baseKm': 10,
+      'driverSharePercent': 90,
+      'description': 'City-friendly 4-seater hatchbacks',
+    },
+    {
+      'id': 'BUS',
+      'label': 'Bus / Mini-Coach',
+      'subtitle': '12-40 Seats (Tempo, Mini-Bus)',
+      'icon': Icons.directions_bus_rounded,
+      'perKmRate': 35.0,
+      'baseFare': 1200.0,
+      'baseKm': 15,
+      'driverSharePercent': 90,
+      'description': 'High-capacity group vehicles',
+    },
+  ];
   bool _loadingCategories = true;
-  Map<String, dynamic>? _selectedCategoryData;
 
   @override
   void initState() {
@@ -49,15 +95,55 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
     _plateController.text = onboarding.registrationNumber;
     _yearController.text = onboarding.modelYear;
     _colorController.text = onboarding.color;
+
+    _makeModelController.addListener(_clearErrorOnType);
+    _plateController.addListener(_clearErrorOnType);
+    _yearController.addListener(_clearErrorOnType);
+    _colorController.addListener(_clearErrorOnType);
+
     _loadDynamicCategories();
+    _loadExistingData();
+  }
+
+  void _clearErrorOnType() {
+    if (_inlineErrorMessage != null && mounted) {
+      setState(() => _inlineErrorMessage = null);
+    }
+  }
+
+  Future<void> _loadExistingData() async {
+    try {
+      final onboarding = context.read<OnboardingProvider>();
+      final profile = await DriverService.instance.getProfile();
+      if (!mounted) return;
+      if (_makeModelController.text.isEmpty && profile['vehicleModel'] != null) {
+        _makeModelController.text = profile['vehicleModel'].toString();
+      }
+      if (_plateController.text.isEmpty && profile['vehiclePlate'] != null) {
+        _plateController.text = profile['vehiclePlate'].toString();
+      }
+      if (profile['vehicleType'] != null && onboarding.vehicleType.isEmpty) {
+        setState(() {
+          _category = profile['vehicleType'].toString().toUpperCase();
+        });
+      }
+      if (profile['rcDocUrl'] != null && onboarding.rcBookUrl == null) {
+        onboarding.setDocumentUrl('RC_BOOK', profile['rcDocUrl'].toString());
+      }
+      if (profile['insuranceDocUrl'] != null && onboarding.insuranceUrl == null) {
+        onboarding.setDocumentUrl('INSURANCE', profile['insuranceDocUrl'].toString());
+      }
+      setState(() {});
+    } catch (_) {}
   }
 
   Future<void> _loadDynamicCategories() async {
     try {
       final tiers = await DriverService.instance.getVehicleCategories();
-      if (tiers.isNotEmpty && mounted) {
+      final activeTiers = tiers.where((t) => t['isActive'] != false).toList();
+      if (activeTiers.isNotEmpty && mounted) {
         setState(() {
-          _vehicleOptions = tiers.map((t) {
+          _vehicleOptions = activeTiers.map((t) {
             final vType = (t['vehicleType'] as String? ?? 'SEDAN').toUpperCase();
             final iconKey = t['iconKey'] as String? ?? '';
             IconData icon = Icons.directions_car_rounded;
@@ -84,7 +170,9 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
             };
           }).toList();
 
-          _syncSelectedCategoryData();
+          if (!_vehicleOptions.any((v) => v['id'] == _category) && _vehicleOptions.isNotEmpty) {
+            _category = _vehicleOptions.first['id'] as String;
+          }
         });
       }
     } catch (_) {
@@ -93,20 +181,12 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
     }
   }
 
-  void _syncSelectedCategoryData() {
-    if (_vehicleOptions.isEmpty) {
-      _selectedCategoryData = null;
-      return;
-    }
-    final match = _vehicleOptions.firstWhere(
-      (v) => v['id'] == _category || v['label'].toString().toUpperCase() == _category.toUpperCase(),
-      orElse: () => _vehicleOptions.first,
-    );
-    _selectedCategoryData = match;
-  }
-
   @override
   void dispose() {
+    _makeModelController.removeListener(_clearErrorOnType);
+    _plateController.removeListener(_clearErrorOnType);
+    _yearController.removeListener(_clearErrorOnType);
+    _colorController.removeListener(_clearErrorOnType);
     _makeModelController.dispose();
     _plateController.dispose();
     _yearController.dispose();
@@ -119,6 +199,7 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
 
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
@@ -230,7 +311,10 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
 
       if (pickedFile == null) return;
 
-      setState(() => _uploadingState[docType] = true);
+      setState(() {
+        _uploadingState[docType] = true;
+        _inlineErrorMessage = null;
+      });
 
       final bytes = await pickedFile.readAsBytes();
       final ext = pickedFile.name.split('.').last.toLowerCase();
@@ -252,19 +336,13 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
       onboarding.setDocumentUrl(docType, uploadedUrl);
 
       if (mounted) {
-        Fluttertoast.showToast(
-          msg: '$docTitle uploaded successfully',
-          backgroundColor: AppColors.accentGreenDark,
-          textColor: Colors.white,
-        );
+        AppToast.showSuccess('$docTitle uploaded successfully', context: context);
       }
     } catch (e) {
       if (mounted) {
-        Fluttertoast.showToast(
-          msg: 'Error uploading $docTitle: $e',
-          backgroundColor: AppColors.error,
-          textColor: Colors.white,
-        );
+        final cleanMsg = AppToast.cleanErrorMessage(e);
+        setState(() => _inlineErrorMessage = 'Failed to upload $docTitle: $cleanMsg');
+        AppToast.showError('Failed to upload $docTitle: $cleanMsg', context: context);
       }
     } finally {
       if (mounted) setState(() => _uploadingState[docType] = false);
@@ -272,26 +350,27 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
   }
 
   Future<void> _handleSubmit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      const msg = 'Please fill in all mandatory vehicle details correctly.';
+      setState(() => _inlineErrorMessage = msg);
+      AppToast.showError(msg, context: context);
+      return;
+    }
 
     final onboarding = context.read<OnboardingProvider>();
     final driverService = context.read<DriverService>();
 
     if (onboarding.rcBookUrl == null) {
-      Fluttertoast.showToast(
-        msg: 'Please upload Vehicle RC (Registration Certificate)',
-        backgroundColor: AppColors.error,
-        textColor: Colors.white,
-      );
+      const msg = 'Please upload your Vehicle RC (Registration Certificate) document.';
+      setState(() => _inlineErrorMessage = msg);
+      AppToast.showError(msg, context: context);
       return;
     }
 
     if (onboarding.insuranceUrl == null) {
-      Fluttertoast.showToast(
-        msg: 'Please upload Vehicle Insurance Certificate',
-        backgroundColor: AppColors.error,
-        textColor: Colors.white,
-      );
+      const msg = 'Please upload your Commercial Vehicle Insurance Certificate.';
+      setState(() => _inlineErrorMessage = msg);
+      AppToast.showError(msg, context: context);
       return;
     }
 
@@ -308,7 +387,10 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
       modelYear: year,
     );
 
-    setState(() => _isSubmitting = true);
+    setState(() {
+      _isSubmitting = true;
+      _inlineErrorMessage = null;
+    });
 
     try {
       final docList = [
@@ -326,10 +408,11 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
         licenseNumber: plate.isNotEmpty ? 'DL-$plate' : 'DL-PENDING',
         licenseExpiry: DateTime.now().add(const Duration(days: 365 * 5)),
         documentUrls: docList,
+        profilePhotoUrl: onboarding.profilePhotoUrl,
         dlFrontUrl: onboarding.drivingLicenseUrl,
         rcDocUrl: onboarding.rcBookUrl,
         insuranceDocUrl: onboarding.insuranceUrl,
-        vehiclePhotoUrl: onboarding.profilePhotoUrl,
+        vehiclePhotoUrl: onboarding.vehiclePhotoUrl,
         aadharFrontUrl: onboarding.aadharFrontUrl,
         aadharBackUrl: onboarding.aadharBackUrl,
         panDocUrl: onboarding.panCardUrl,
@@ -360,13 +443,15 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
       } catch (_) {}
 
       // 3. Refresh live session from backend to update status to UNDER_REVIEW
-      await AuthService.instance.fetchCurrentUser(forceRefresh: true);
+      final updatedUser = await AuthService.instance.fetchCurrentUser(forceRefresh: true);
+      if (updatedUser != null && mounted) {
+        context.read<AuthProvider>().setUser(updatedUser);
+      }
 
       if (mounted) {
-        Fluttertoast.showToast(
-          msg: 'Profile and vehicle submitted for Admin verification!',
-          backgroundColor: AppColors.accentGreenDark,
-          textColor: Colors.white,
+        AppToast.showSuccess(
+          'Application submitted successfully! Your documents are now under review.',
+          context: context,
         );
 
         // 4. Move to Verification Gate Wall screen
@@ -375,12 +460,9 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
     } catch (e) {
       debugPrint('Error submitting vehicle for approval: $e');
       if (mounted) {
-        Fluttertoast.showToast(
-          msg: 'Submission note: Application stored. Moving to verification.',
-          backgroundColor: AppColors.accentGreenDark,
-          textColor: Colors.white,
-        );
-        context.go(AppRoutes.waitlistGateScreen);
+        final cleanMsg = AppToast.cleanErrorMessage(e);
+        setState(() => _inlineErrorMessage = cleanMsg);
+        AppToast.showError(cleanMsg, context: context);
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -415,7 +497,13 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                           AppStepperHeader(
                             currentStep: 3,
                             totalSteps: 3,
-                            onBack: () => context.pop(),
+                            onBack: () {
+                              if (context.canPop()) {
+                                context.pop();
+                              } else {
+                                context.go(AppRoutes.onboardingDocumentsScreen);
+                              }
+                            },
                           ),
                           const SizedBox(height: AppSpacing.xl),
 
@@ -434,7 +522,37 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                               color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                             ),
                           ),
-                          const SizedBox(height: AppSpacing.xl),
+                          const SizedBox(height: AppSpacing.lg),
+
+                          // ── Inline Red Alert Banner ────────────────────────
+                          if (_inlineErrorMessage != null) ...[
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: AppColors.error.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(AppRadius.md),
+                                border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 20),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      _inlineErrorMessage!,
+                                      style: AppTypography.body(
+                                        color: isDark ? AppColors.errorContainer : AppColors.error,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                          ],
 
                           // ── Vehicle Make & Model ───────────────────────────
                           _buildTextField(
@@ -587,121 +705,19 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                                   if (val != null) {
                                     setState(() {
                                       _category = val;
-                                      _syncSelectedCategoryData();
                                     });
+                                    context.read<OnboardingProvider>().setVehicleDetails(
+                                      vehicleType: val,
+                                      carModel: _makeModelController.text.trim(),
+                                      color: _colorController.text.trim(),
+                                      registrationNumber: _plateController.text.trim(),
+                                      modelYear: _yearController.text.trim(),
+                                    );
                                   }
                                 },
                               ),
                             ),
                           ),
-
-                          // ── Authoritative Tariff & Earnings Disclosure ─────
-                          if (_selectedCategoryData != null) ...[
-                            const SizedBox(height: AppSpacing.sm),
-                            Container(
-                              padding: const EdgeInsets.all(AppSpacing.md),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: isDark ? 0.12 : 0.05),
-                                borderRadius: BorderRadius.circular(AppRadius.md),
-                                border: Border.all(
-                                  color: AppColors.primary.withValues(alpha: 0.25),
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(Icons.verified_rounded, size: 16, color: AppColors.primary),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        'Official Tariff & Revenue Share',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.primary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'Tariff Rate',
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              '₹${_selectedCategoryData!['perKmRate']}/km',
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.bold,
-                                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'Base Fare',
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              '₹${_selectedCategoryData!['baseFare']} (${_selectedCategoryData!['baseKm']} km)',
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.bold,
-                                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'You Keep',
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              '${_selectedCategoryData!['driverSharePercent']}% Payout',
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.bold,
-                                                color: AppColors.accentGreenDark,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
                           const SizedBox(height: AppSpacing.lg),
 
                           // ── Registration Number (Plate) ────────────────────

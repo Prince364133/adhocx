@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
+import '../../../core/utils/app_toast.dart';
 import '../../../services/auth_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_radius.dart';
@@ -92,8 +92,7 @@ class _AuthPhoneStepWidgetState extends State<AuthPhoneStepWidget> {
 
       if (!mounted) return;
       setState(() => _isLoading = false);
-
-      Fluttertoast.showToast(msg: 'Verification code sent to $formattedPhone');
+      AppToast.showSuccess('Verification code sent to $formattedPhone', context: context);
 
       widget.onOtpRequested(
         phone: formattedPhone,
@@ -108,10 +107,12 @@ class _AuthPhoneStepWidgetState extends State<AuthPhoneStepWidget> {
       );
     } catch (e) {
       if (!mounted) return;
+      final cleanMsg = AppToast.cleanErrorMessage(e);
       setState(() {
         _isLoading = false;
-        _errorMessage = e.toString().replaceAll('ApiException: ', '').replaceAll('Exception: ', '');
+        _errorMessage = cleanMsg;
       });
+      AppToast.showError(cleanMsg, context: context);
     }
   }
 

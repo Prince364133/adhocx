@@ -55,6 +55,7 @@ import '../user/requirements/user_draft_requirements_screen.dart';
 import '../user/requirements/user_edit_requirement_screen.dart';
 import '../user/requirements/user_bulk_posting_screen.dart';
 import '../user/requirements/user_review_bulk_posting_screen.dart';
+import '../user/requirements/models/bulk_requirement_item.dart';
 import '../user/requirements/user_requirement_details_screen.dart';
 import '../user/fulfillment/user_fulfillment_status_screen.dart';
 import '../user/fulfillment/user_fulfillment_overview_screen.dart';
@@ -363,9 +364,12 @@ final GoRouter appRouter = GoRouter(
       const allowedUnverifiedRoutes = {
         AppRoutes.waitlistGateScreen,
         AppRoutes.welcomeSuccessScreen,
+        AppRoutes.chooseRoleScreen,
         AppRoutes.onboardingPersonalScreen,
         AppRoutes.onboardingDocumentsScreen,
+        AppRoutes.onboardingVehicleScreen,
         AppRoutes.onboardingReviewScreen,
+        AppRoutes.kycUploadScreen,
         AppRoutes.profileScreen,
         AppRoutes.personalInfoScreen,
         AppRoutes.editPersonalInfoScreen,
@@ -716,7 +720,16 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.userReviewBulkPostingScreen,
-      builder: (context, state) => const UserReviewBulkPostingScreen(),
+      builder: (context, state) {
+        final rawExtra = state.extra;
+        List<BulkRequirementItem>? items;
+        if (rawExtra is List<BulkRequirementItem>) {
+          items = rawExtra;
+        } else if (rawExtra is List) {
+          items = rawExtra.whereType<BulkRequirementItem>().toList();
+        }
+        return UserReviewBulkPostingScreen(initialRequirements: items);
+      },
     ),
     GoRoute(
       path: AppRoutes.userRequirementDetailsScreen,

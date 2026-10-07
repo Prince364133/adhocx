@@ -90,6 +90,9 @@ class _RateCardModalState extends State<RateCardModal> {
   String _selectedVehicle = 'SEDAN';
   List<dynamic> _tiers = [];
 
+  /// Live active driver card from the server; the bundled driver.pdf values are the offline fallback.
+  Map<String, dynamic>? _remoteZonalCard;
+
   @override
   void initState() {
     super.initState();
@@ -105,6 +108,8 @@ class _RateCardModalState extends State<RateCardModal> {
       if (mounted) {
         setState(() {
           _tiers = results[0] is List ? results[0] as List : [];
+          final card = results[1];
+          _remoteZonalCard = card is Map<String, dynamic> && card['matrix'] is Map ? card : null;
           _isLoading = false;
         });
       }
@@ -116,22 +121,22 @@ class _RateCardModalState extends State<RateCardModal> {
   // Canonical fallback data matching driver.pdf 2026 proposal
   static const Map<String, Map<String, Map<String, dynamic>>> _defaultZonalData = {
     'HITEC_NANAKRAMGUDA': {
-      'Extra (E)': {'SEDAN': 425, 'SUV': 595, 'escort': '+₹200 / +₹300'},
-      'Zone 6': {'SEDAN': 510, 'SUV': 765, 'escort': '+₹200 / +₹300'},
-      'Zone 5': {'SEDAN': 595, 'SUV': 850, 'escort': '+₹300 / +₹400'},
-      'Zone 4': {'SEDAN': 680, 'SUV': 935, 'escort': '+₹300 / +₹400'},
-      'Zone 3': {'SEDAN': 765, 'SUV': 1020, 'escort': '+₹400 / +₹500'},
-      'Zone 2': {'SEDAN': 850, 'SUV': 1105, 'escort': '+₹400 / +₹500'},
-      'Zone 1': {'SEDAN': 935, 'SUV': 1190, 'escort': '+₹400 / +₹500'},
+      'Extra (E)': {'SEDAN': 425, 'SUV': 595},
+      'Zone 6': {'SEDAN': 510, 'SUV': 765},
+      'Zone 5': {'SEDAN': 595, 'SUV': 850},
+      'Zone 4': {'SEDAN': 680, 'SUV': 935},
+      'Zone 3': {'SEDAN': 765, 'SUV': 1020},
+      'Zone 2': {'SEDAN': 850, 'SUV': 1105},
+      'Zone 1': {'SEDAN': 935, 'SUV': 1190},
     },
     'KOKAPET': {
-      'Extra (E)': {'SEDAN': 510, 'SUV': 680, 'escort': '+₹300 / +₹400'},
-      'Zone 6': {'SEDAN': 595, 'SUV': 765, 'escort': '+₹300 / +₹400'},
-      'Zone 5': {'SEDAN': 680, 'SUV': 935, 'escort': '+₹300 / +₹400'},
-      'Zone 4': {'SEDAN': 765, 'SUV': 1020, 'escort': '+₹300 / +₹400'},
-      'Zone 3': {'SEDAN': 850, 'SUV': 1105, 'escort': '+₹400 / +₹500'},
-      'Zone 2': {'SEDAN': 935, 'SUV': 1190, 'escort': '+₹400 / +₹500'},
-      'Zone 1': {'SEDAN': 1020, 'SUV': 1275, 'escort': '+₹400 / +₹500'},
+      'Extra (E)': {'SEDAN': 510, 'SUV': 680},
+      'Zone 6': {'SEDAN': 595, 'SUV': 765},
+      'Zone 5': {'SEDAN': 680, 'SUV': 935},
+      'Zone 4': {'SEDAN': 765, 'SUV': 1020},
+      'Zone 3': {'SEDAN': 850, 'SUV': 1105},
+      'Zone 2': {'SEDAN': 935, 'SUV': 1190},
+      'Zone 1': {'SEDAN': 1020, 'SUV': 1275},
     },
   };
 
@@ -312,7 +317,7 @@ class _RateCardModalState extends State<RateCardModal> {
                         SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Fixed 85% net earnings guaranteed into driver wallet upon trip completion. Zero platform commission deducted.',
+                            'Guaranteed net payout credited to your wallet on verified OTP completion. Zero platform deductions from the listed rate card. Escort, toll or other additions are paid only when shown as a line item before you accept.',
                             style: TextStyle(color: AppColors.success, fontSize: 11, fontWeight: FontWeight.w600),
                           ),
                         ),
@@ -343,7 +348,7 @@ class _RateCardModalState extends State<RateCardModal> {
                         padding: const EdgeInsets.only(bottom: 16.0),
                         child: _slabTable(
                           context: context,
-                          title: '🚗 $label ($seating)',
+                          title: '$label ($seating)',
                           rows: [
                             ['Base Fare (Up to $baseKm km)', '₹$baseFare'],
                             ['Per Km Rate (After base km)', '₹$perKm/km'],
@@ -361,14 +366,24 @@ class _RateCardModalState extends State<RateCardModal> {
   }
 
   Widget _buildZonalTable(BuildContext context, bool isDark) {
-    final hubData = _defaultZonalData[_selectedHub] ?? _defaultZonalData['HITEC_NANAKRAMGUDA']!;
     final rows = <List<String>>[];
+    final card = _remoteZonalCard;
+    final remoteHub = card != null ? (card['matrix'] as Map)[_selectedHub] : null;
+    final zones = (card?['zones'] as List?)?.whereType<Map>().toList() ?? const [];
+    final versionNote = card != null ? 'Rate version ${card['version']}' : 'Standard one-way trip';
 
-    hubData.forEach((zone, values) {
-      final earning = values[_selectedVehicle] ?? 500;
-      final escort = values['escort'] ?? '';
-      rows.add([zone, '₹$earning Net', 'Escort $escort']);
-    });
+    if (remoteHub is Map && zones.isNotEmpty) {
+      for (final z in zones) {
+        final cell = remoteHub[z['id']] as Map? ?? const {};
+        final earning = (_selectedVehicle == 'SUV' ? cell['suv'] : cell['sedan']) as num? ?? 0;
+        rows.add(['${z['label']}', '₹${earning.toStringAsFixed(0)} Net', versionNote]);
+      }
+    } else {
+      final hubData = _defaultZonalData[_selectedHub] ?? _defaultZonalData['HITEC_NANAKRAMGUDA']!;
+      hubData.forEach((zone, values) {
+        rows.add([zone, '₹${values[_selectedVehicle] ?? 0} Net', versionNote]);
+      });
+    }
 
     return Container(
       decoration: BoxDecoration(

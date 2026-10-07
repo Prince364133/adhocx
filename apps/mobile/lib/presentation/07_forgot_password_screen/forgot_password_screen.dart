@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../core/utils/app_toast.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_colors.dart';
@@ -30,9 +30,23 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   Future<void> _handleSendOtp() async {
-    if (!_formKey.currentState!.validate()) return;
-
     final rawPhone = _phoneController.text.trim().replaceAll(RegExp(r'\D'), '');
+    if (rawPhone.isEmpty) {
+      _formKey.currentState?.validate();
+      AppToast.showError('Please enter your 10-digit mobile number', context: context);
+      return;
+    }
+    if (rawPhone.length != 10) {
+      _formKey.currentState?.validate();
+      AppToast.showError('Please enter a valid 10-digit mobile number', context: context);
+      return;
+    }
+
+    if (!_formKey.currentState!.validate()) {
+      AppToast.showError('Please enter a valid mobile number', context: context);
+      return;
+    }
+
     final fullPhone = '+91$rawPhone';
 
     setState(() => _isLoading = true);
@@ -46,10 +60,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       );
 
       if (mounted) {
-        Fluttertoast.showToast(
-          msg: res['message'] ?? 'Password reset OTP sent to $fullPhone',
-          backgroundColor: AppColors.primaryDark,
-          textColor: Colors.white,
+        AppToast.showSuccess(
+          res['message'] ?? 'Password reset OTP sent to $fullPhone',
+          context: context,
         );
 
         context.push(
@@ -59,11 +72,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       }
     } catch (e) {
       if (mounted) {
-        Fluttertoast.showToast(
-          msg: e.toString().replaceFirst('Exception: ', ''),
-          backgroundColor: AppColors.error,
-          textColor: Colors.white,
-        );
+        AppToast.showError(e, context: context);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

@@ -229,7 +229,8 @@ describe('TripsService Unit Tests', () => {
     db.$transaction.mockImplementation(async (callback: any) => {
       const tx = {
         trip: {
-          update: jest.fn().mockResolvedValue({
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+          findUnique: jest.fn().mockResolvedValue({
             id: 'trip-1',
             requirementId: 'req-1',
             assignmentId: 'asg-1',
@@ -390,5 +391,113 @@ describe('TripsService Unit Tests', () => {
         data: expect.objectContaining({ eventType: 'PASSENGER_NO_SHOW' }),
       }),
     );
+  });
+
+  describe('corporate zonal completion', () => {
+    const now = new Date();
+    const zonalTrip = (status: TripStatus) => ({
+      id: 'trip-z1',
+      driverId: 'drv-1',
+      vendorId: 'vnd-1',
+      assignmentId: 'asg-1',
+      requirementId: 'req-z1',
+      vehicleType: VehicleType.SUV,
+      pickupAddress: 'Kokapet',
+      dropAddress: 'Shamirpet',
+      driverRate: 1275,
+      status,
+      createdAt: now,
+      updatedAt: now,
+      driver: { id: 'drv-1', trustScore: 90 },
+      requirement: {
+        fulfillmentMode: 'DIRECT_DISPATCH',
+        pickupLat: 17.385,
+        pickupLng: 78.3245,
+        dropLat: 17.604,
+        dropLng: 78.5714,
+        zonalQuote: {
+          hubId: 'KOKAPET',
+          zoneId: 'ZONE_1',
+          rateVersion: '2026.1',
+          hasEscort: true,
+          baseFarePaise: 150000,
+          escortFarePaise: 50000,
+          totalFarePaise: 200000,
+          driverFarePaise: 127500,
+          platformFeePaise: 22500,
+        },
+      },
+    });
+
+    let tx: any;
+    beforeEach(() => {
+      db.driver.findUnique.mockResolvedValue({ id: 'drv-1', userId: 'usr-drv-1' });
+      tx = {
+        trip: {
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+          findUnique: jest.fn().mockResolvedValue({ ...zonalTrip(TripStatus.COMPLETED), completedAt: now, totalDriverEarnings: 1275 }),
+          count: jest.fn().mockResolvedValue(0),
+        },
+        assignment: { update: jest.fn() },
+        driver: { update: jest.fn().mockResolvedValue({ walletBalance: 1275 }) },
+        requirement: { update: jest.fn() },
+        ledgerEntry: { create: jest.fn() },
+      };
+      db.$transaction.mockImplementation(async (cb: any) => cb(tx));
+    });
+
+    it('Simulation 2 / D AT03: credits the fixed driver quote, books spread and escort payable separately', async () => {
+      db.trip.findUnique.mockResolvedValue(zonalTrip(TripStatus.IN_PROGRESS));
+
+      await service.completeTrip('trip-z1', 'usr-drv-1', { tollCharges: 150, parkingCharges: 40 } as any);
+
+      expect(tx.driver.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ walletBalance: { increment: 1275 } }) }),
+      );
+      const entries = tx.ledgerEntry.create.mock.calls.map((c: any) => c[0].data);
+      expect(entries).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ accountType: 'DRIVER', amount: 1275 }),
+          expect.objectContaining({ accountType: 'PLATFORM', referenceType: 'ZONAL_PLATFORM_SPREAD', amount: 225 }),
+          expect.objectContaining({ accountType: 'ESCORT_PAYABLE', referenceType: 'ZONAL_ESCORT_PAYABLE', amount: 500 }),
+        ]),
+      );
+      // Tolls/parking are recorded as claims for ops approval, never auto-paid on zonal trips.
+      expect(tx.trip.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ tollCharges: 0, parkingCharges: 0, totalDriverEarnings: 1275 }) }),
+      );
+      expect(db.tripEvent.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            metadata: expect.objectContaining({ pendingOpsApproval: { tollCharges: 150, parkingCharges: 40 } }),
+          }),
+        }),
+      );
+      // Vendor channel never receives the driver payout.
+      const vendorEvent = notifications.emitEvent.mock.calls.find((c: any) => c[0] === 'vendor:vnd-1' && c[1] === 'TRIP_COMPLETED');
+      expect(vendorEvent[2].totalEarnings).toBeUndefined();
+    });
+
+    it('D AT07: a concurrent duplicate completion does not credit twice', async () => {
+      db.trip.findUnique
+        .mockResolvedValueOnce(zonalTrip(TripStatus.IN_PROGRESS))
+        .mockResolvedValueOnce({ ...zonalTrip(TripStatus.COMPLETED), completedAt: now });
+      tx.trip.updateMany.mockResolvedValue({ count: 0 });
+
+      const result = await service.completeTrip('trip-z1', 'usr-drv-1', {} as any);
+
+      expect(result.status).toBe(TripStatus.COMPLETED);
+      expect(tx.driver.update).not.toHaveBeenCalled();
+      expect(tx.ledgerEntry.create).not.toHaveBeenCalled();
+    });
+
+    it('D AT07: a retried completion of an already completed trip is a no-op', async () => {
+      db.trip.findUnique.mockResolvedValue({ ...zonalTrip(TripStatus.COMPLETED), completedAt: now });
+
+      const result = await service.completeTrip('trip-z1', 'usr-drv-1', {} as any);
+
+      expect(result.status).toBe(TripStatus.COMPLETED);
+      expect(db.$transaction).not.toHaveBeenCalled();
+    });
   });
 });

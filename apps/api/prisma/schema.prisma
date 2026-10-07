@@ -142,23 +142,23 @@ enum DriverSubscriptionStatus {
 }
 
 model User {
-  id        String     @id @default(uuid()) @db.Uuid
-  phone     String     @unique
+  id           String     @id @default(uuid()) @db.Uuid
+  phone        String     @unique
   email        String?    @unique
   passwordHash String?    @map("password_hash")
   fullName     String?    @map("full_name")
-  role      UserRole   @default(DRIVER)
-  status    UserStatus @default(ACTIVE)
-  createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime   @updatedAt @map("updated_at")
+  role         UserRole   @default(DRIVER)
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
 
-  vendor          Vendor?
-  driver          Driver?
-  auditLogs       AuditLog[]
-  reviewsWritten  Review[]   @relation("ReviewsWritten")
-  reviewsReceived Review[]   @relation("ReviewsReceived")
-  filedDisputes   Dispute[]  @relation("ReporterDisputes")
-  accusedDisputes Dispute[]  @relation("AccusedDisputes")
+  vendor                 Vendor?
+  driver                 Driver?
+  auditLogs              AuditLog[]
+  reviewsWritten         Review[]                @relation("ReviewsWritten")
+  reviewsReceived        Review[]                @relation("ReviewsReceived")
+  filedDisputes          Dispute[]               @relation("ReporterDisputes")
+  accusedDisputes        Dispute[]               @relation("AccusedDisputes")
   couponRedemptions      CouponRedemption[]
   deviceTokens           DeviceToken[]
   notifications          Notification[]
@@ -192,49 +192,49 @@ model Vendor {
 }
 
 model Driver {
-  id                 String             @id @default(uuid()) @db.Uuid
-  userId             String             @unique @map("user_id") @db.Uuid
-  fullName           String             @map("full_name")
-  phone              String             @unique
-  verificationStatus VerificationStatus @default(PENDING) @map("verification_status")
-  availabilityStatus DriverAvailability @default(OFFLINE) @map("availability_status")
-  vehicleType        String?            @map("vehicle_type") @db.VarChar(50)
-  vehicleModel       String?            @map("vehicle_model")
-  vehiclePlate       String?            @map("vehicle_plate")
-  walletBalance      Decimal            @default(0.00) @map("wallet_balance") @db.Decimal(12, 2)
-  trustScore         Float              @default(100.0) @map("trust_score")
-  averageRating      Float              @default(5.0) @map("average_rating")
-  ratingCount        Int                @default(0) @map("rating_count")
-  totalTrips         Int                @default(0) @map("total_trips")
-  currentLat         Decimal?           @map("current_lat") @db.Decimal(10, 7)
-  currentLng         Decimal?           @map("current_lng") @db.Decimal(10, 7)
-  lastLocationAt     DateTime?          @map("last_location_at")
-  rejectionReason    String?            @map("rejection_reason")
-  kycDocuments       Json?              @map("kyc_documents")
-  dlFrontUrl         String?            @map("dl_front_url")
-  dlBackUrl          String?            @map("dl_back_url")
-  rcDocUrl           String?            @map("rc_doc_url")
-  insuranceDocUrl    String?            @map("insurance_doc_url")
-  vehiclePhotoUrl    String?            @map("vehicle_photo_url")
-  aadharFrontUrl     String?            @map("aadhar_front_url")
-  aadharBackUrl      String?            @map("aadhar_back_url")
-  panDocUrl          String?            @map("pan_doc_url")
+  id                 String                   @id @default(uuid()) @db.Uuid
+  userId             String                   @unique @map("user_id") @db.Uuid
+  fullName           String                   @map("full_name")
+  phone              String                   @unique
+  verificationStatus VerificationStatus       @default(PENDING) @map("verification_status")
+  availabilityStatus DriverAvailability       @default(OFFLINE) @map("availability_status")
+  vehicleType        String?                  @map("vehicle_type") @db.VarChar(50)
+  vehicleModel       String?                  @map("vehicle_model")
+  vehiclePlate       String?                  @map("vehicle_plate")
+  walletBalance      Decimal                  @default(0.00) @map("wallet_balance") @db.Decimal(12, 2)
+  trustScore         Float                    @default(100.0) @map("trust_score")
+  averageRating      Float                    @default(5.0) @map("average_rating")
+  ratingCount        Int                      @default(0) @map("rating_count")
+  totalTrips         Int                      @default(0) @map("total_trips")
+  currentLat         Decimal?                 @map("current_lat") @db.Decimal(10, 7)
+  currentLng         Decimal?                 @map("current_lng") @db.Decimal(10, 7)
+  lastLocationAt     DateTime?                @map("last_location_at")
+  rejectionReason    String?                  @map("rejection_reason")
+  kycDocuments       Json?                    @map("kyc_documents")
+  dlFrontUrl         String?                  @map("dl_front_url")
+  dlBackUrl          String?                  @map("dl_back_url")
+  rcDocUrl           String?                  @map("rc_doc_url")
+  insuranceDocUrl    String?                  @map("insurance_doc_url")
+  vehiclePhotoUrl    String?                  @map("vehicle_photo_url")
+  aadharFrontUrl     String?                  @map("aadhar_front_url")
+  aadharBackUrl      String?                  @map("aadhar_back_url")
+  panDocUrl          String?                  @map("pan_doc_url")
   subscriptionStatus DriverSubscriptionStatus @default(TRIAL_ACTIVE) @map("subscription_status")
-  trialStartDate      DateTime           @default(now()) @map("trial_start_date")
-  trialEndDate        DateTime?          @map("trial_end_date")
-  subscriptionExpiry  DateTime?          @map("subscription_expiry")
-  autoDebit           Boolean            @default(true) @map("auto_debit")
-  createdAt          DateTime           @default(now()) @map("created_at")
-  updatedAt          DateTime           @updatedAt @map("updated_at")
+  trialStartDate     DateTime                 @default(now()) @map("trial_start_date")
+  trialEndDate       DateTime?                @map("trial_end_date")
+  subscriptionExpiry DateTime?                @map("subscription_expiry")
+  autoDebit          Boolean                  @default(true) @map("auto_debit")
+  createdAt          DateTime                 @default(now()) @map("created_at")
+  updatedAt          DateTime                 @updatedAt @map("updated_at")
 
-  user                 User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                 User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
   vehicles             Vehicle[]
   offers               Offer[]
   bids                 Bid[]
   assignments          Assignment[]
   trips                Trip[]
   settlements          Settlement[]
-  reviewsReceived      Review[]                  @relation("DriverReviewsReceived")
+  reviewsReceived      Review[]                    @relation("DriverReviewsReceived")
   subscriptionPayments DriverSubscriptionPayment[]
 
   @@map("drivers")
@@ -282,7 +282,7 @@ model Requirement {
   createdAt        DateTime          @default(now()) @map("created_at")
   updatedAt        DateTime          @updatedAt @map("updated_at")
 
-  vendor      Vendor       @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  vendor      Vendor              @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   offers      Offer[]
   bids        Bid[]
   assignments Assignment[]
@@ -356,27 +356,27 @@ model Assignment {
 }
 
 model Trip {
-  id                  String      @id @default(uuid()) @db.Uuid
-  requirementId       String      @map("requirement_id") @db.Uuid
-  assignmentId        String      @unique @map("assignment_id") @db.Uuid
-  vendorId            String      @map("vendor_id") @db.Uuid
-  driverId            String      @map("driver_id") @db.Uuid
-  vehicleId           String?     @map("vehicle_id") @db.Uuid
-  vehicleType         String      @map("vehicle_type") @db.VarChar(50)
-  pickupAddress       String      @map("pickup_address")
-  dropAddress         String      @map("drop_address")
-  reportingTime       DateTime    @map("reporting_time")
-  startedAt           DateTime?   @map("started_at")
-  completedAt         DateTime?   @map("completed_at")
-  cancelledAt         DateTime?   @map("cancelled_at")
-  status              TripStatus  @default(ASSIGNED)
-  otp                 String      @default("1234")
-  driverRate          Decimal     @map("driver_rate") @db.Decimal(10, 2)
-  tollCharges         Decimal     @default(0.00) @map("toll_charges") @db.Decimal(10, 2)
-  parkingCharges      Decimal     @default(0.00) @map("parking_charges") @db.Decimal(10, 2)
-  totalDriverEarnings Decimal     @default(0.00) @map("total_driver_earnings") @db.Decimal(10, 2)
-  createdAt           DateTime    @default(now()) @map("created_at")
-  updatedAt           DateTime    @updatedAt @map("updated_at")
+  id                  String     @id @default(uuid()) @db.Uuid
+  requirementId       String     @map("requirement_id") @db.Uuid
+  assignmentId        String     @unique @map("assignment_id") @db.Uuid
+  vendorId            String     @map("vendor_id") @db.Uuid
+  driverId            String     @map("driver_id") @db.Uuid
+  vehicleId           String?    @map("vehicle_id") @db.Uuid
+  vehicleType         String     @map("vehicle_type") @db.VarChar(50)
+  pickupAddress       String     @map("pickup_address")
+  dropAddress         String     @map("drop_address")
+  reportingTime       DateTime   @map("reporting_time")
+  startedAt           DateTime?  @map("started_at")
+  completedAt         DateTime?  @map("completed_at")
+  cancelledAt         DateTime?  @map("cancelled_at")
+  status              TripStatus @default(ASSIGNED)
+  otp                 String     @default("1234")
+  driverRate          Decimal    @map("driver_rate") @db.Decimal(10, 2)
+  tollCharges         Decimal    @default(0.00) @map("toll_charges") @db.Decimal(10, 2)
+  parkingCharges      Decimal    @default(0.00) @map("parking_charges") @db.Decimal(10, 2)
+  totalDriverEarnings Decimal    @default(0.00) @map("total_driver_earnings") @db.Decimal(10, 2)
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @updatedAt @map("updated_at")
 
   requirement Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
   assignment  Assignment  @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
@@ -507,7 +507,7 @@ model AuditLog {
   userAgent  String?  @map("user_agent")
   createdAt  DateTime @default(now()) @map("created_at")
 
-  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([actorId])
   @@index([action])
@@ -566,25 +566,25 @@ enum BlogStatus {
 }
 
 model BlogPost {
-  id             String      @id @default(uuid()) @db.Uuid
+  id             String     @id @default(uuid()) @db.Uuid
   title          String
-  slug           String      @unique
-  excerpt        String      @db.Text
-  content        String      @db.Text
+  slug           String     @unique
+  excerpt        String     @db.Text
+  content        String     @db.Text
   category       String
-  tags           String[]    @default([])
-  coverImage     String?     @map("cover_image")
-  authorName     String      @default("AdhocX Team") @map("author_name")
-  authorRole     String?     @default("Fleet Operations & Mobility Research") @map("author_role")
-  status         BlogStatus  @default(DRAFT)
-  views          Int         @default(0)
-  readTime       String      @default("5 min read") @map("read_time")
-  seoTitle       String?     @map("seo_title")
-  seoDescription String?     @map("seo_description") @db.Text
-  seoKeywords    String?     @map("seo_keywords")
-  publishedAt    DateTime?   @map("published_at")
-  createdAt      DateTime    @default(now()) @map("created_at")
-  updatedAt      DateTime    @updatedAt @map("updated_at")
+  tags           String[]   @default([])
+  coverImage     String?    @map("cover_image")
+  authorName     String     @default("AdhocX Team") @map("author_name")
+  authorRole     String?    @default("Fleet Operations & Mobility Research") @map("author_role")
+  status         BlogStatus @default(DRAFT)
+  views          Int        @default(0)
+  readTime       String     @default("5 min read") @map("read_time")
+  seoTitle       String?    @map("seo_title")
+  seoDescription String?    @map("seo_description") @db.Text
+  seoKeywords    String?    @map("seo_keywords")
+  publishedAt    DateTime?  @map("published_at")
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
 
   @@index([slug])
   @@index([status, publishedAt])
@@ -612,16 +612,16 @@ enum NotificationType {
 }
 
 model DeviceToken {
-  id          String         @id @default(uuid()) @db.Uuid
-  userId      String         @map("user_id") @db.Uuid
-  token       String         @unique
-  platform    DevicePlatform @default(ANDROID)
-  deviceModel String?        @map("device_model")
-  appVersion  String?        @map("app_version")
-  isActive    Boolean        @default(true) @map("is_active")
-  lastActiveAt DateTime      @default(now()) @map("last_active_at")
-  createdAt   DateTime       @default(now()) @map("created_at")
-  updatedAt   DateTime       @updatedAt @map("updated_at")
+  id           String         @id @default(uuid()) @db.Uuid
+  userId       String         @map("user_id") @db.Uuid
+  token        String         @unique
+  platform     DevicePlatform @default(ANDROID)
+  deviceModel  String?        @map("device_model")
+  appVersion   String?        @map("app_version")
+  isActive     Boolean        @default(true) @map("is_active")
+  lastActiveAt DateTime       @default(now()) @map("last_active_at")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -673,40 +673,40 @@ model NotificationPreference {
 }
 
 model NotificationCampaign {
-  id            String    @id @default(uuid()) @db.Uuid
+  id            String   @id @default(uuid()) @db.Uuid
   title         String
   body          String
-  imageUrl      String?   @map("image_url")
-  actionUrl     String?   @map("action_url")
-  targetRole    String?   @map("target_role")
-  targetFilter  Json?     @map("target_filter")
-  totalTargeted Int       @default(0) @map("total_targeted")
-  successCount  Int       @default(0) @map("success_count")
-  failureCount  Int       @default(0) @map("failure_count")
-  status        String    @default("SENT")
-  sentBy        String?   @map("sent_by")
-  createdAt     DateTime  @default(now()) @map("created_at")
+  imageUrl      String?  @map("image_url")
+  actionUrl     String?  @map("action_url")
+  targetRole    String?  @map("target_role")
+  targetFilter  Json?    @map("target_filter")
+  totalTargeted Int      @default(0) @map("total_targeted")
+  successCount  Int      @default(0) @map("success_count")
+  failureCount  Int      @default(0) @map("failure_count")
+  status        String   @default("SENT")
+  sentBy        String?  @map("sent_by")
+  createdAt     DateTime @default(now()) @map("created_at")
 
   @@index([createdAt])
   @@map("notification_campaigns")
 }
 
 model VehiclePricingTier {
-  id                 String      @id @default(uuid()) @db.Uuid
-  vehicleType        String      @unique @map("vehicle_type") @db.VarChar(50)
-  categoryLabel      String      @map("category_label")
-  seatingCapacity    String      @map("seating_capacity")
+  id                 String   @id @default(uuid()) @db.Uuid
+  vehicleType        String   @unique @map("vehicle_type") @db.VarChar(50)
+  categoryLabel      String   @map("category_label")
+  seatingCapacity    String   @map("seating_capacity")
   description        String
-  iconKey            String?     @default("car") @map("icon_key")
-  baseFare           Decimal     @map("base_fare") @db.Decimal(10, 2)
-  baseKm             Decimal     @map("base_km") @db.Decimal(10, 2)
-  perKmRate          Decimal     @map("per_km_rate") @db.Decimal(10, 2)
-  driverSharePercent Decimal     @default(90.00) @map("driver_share_percent") @db.Decimal(5, 2)
-  platformFeePercent Decimal     @default(10.00) @map("platform_fee_percent") @db.Decimal(5, 2)
-  surgeMultiplier    Decimal     @default(1.00) @map("surge_multiplier") @db.Decimal(4, 2)
-  isActive           Boolean     @default(true) @map("is_active")
-  updatedAt          DateTime    @updatedAt @map("updated_at")
-  updatedBy          String?     @map("updated_by")
+  iconKey            String?  @default("car") @map("icon_key")
+  baseFare           Decimal  @map("base_fare") @db.Decimal(10, 2)
+  baseKm             Decimal  @map("base_km") @db.Decimal(10, 2)
+  perKmRate          Decimal  @map("per_km_rate") @db.Decimal(10, 2)
+  driverSharePercent Decimal  @default(90.00) @map("driver_share_percent") @db.Decimal(5, 2)
+  platformFeePercent Decimal  @default(10.00) @map("platform_fee_percent") @db.Decimal(5, 2)
+  surgeMultiplier    Decimal  @default(1.00) @map("surge_multiplier") @db.Decimal(4, 2)
+  isActive           Boolean  @default(true) @map("is_active")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+  updatedBy          String?  @map("updated_by")
 
   @@map("vehicle_pricing_tiers")
 }
@@ -714,6 +714,7 @@ model VehiclePricingTier {
 model SystemPolicyConfig {
   id                  String   @id @default(uuid()) @db.Uuid
   key                 String   @unique
+  commissionPercent   Decimal  @default(10.00) @map("commission_percent") @db.Decimal(5, 2)
   driverMonthlyFee    Decimal  @default(499.00) @map("driver_monthly_fee") @db.Decimal(10, 2)
   driverTrialDays     Int      @default(15) @map("driver_trial_days")
   minWithdrawalAmount Decimal  @default(1000.00) @map("min_withdrawal_amount") @db.Decimal(10, 2)
@@ -775,28 +776,32 @@ enum RateCardStatus {
 
 model RateCardVersion {
   id            String           @id @default(uuid()) @db.Uuid
-  version       String           @unique
+  version       String
   audience      RateCardAudience
   status        RateCardStatus   @default(DRAFT)
   effectiveFrom DateTime         @map("effective_from")
   currency      String           @default("INR")
   notes         String?
   createdAt     DateTime         @default(now()) @map("created_at")
+  publishedAt   DateTime?        @map("published_at")
+  publishedBy   String?          @map("published_by")
   rows          RateCardRow[]
 
+  @@unique([audience, version])
+  @@index([audience, status])
   @@map("rate_card_versions")
 }
 
 model RateCardRow {
-  id                String          @id @default(uuid()) @db.Uuid
-  rateCardVersionId String          @map("rate_card_version_id") @db.Uuid
-  hubId             String          @map("hub_id")
-  zoneId            String          @map("zone_id")
-  vehicleType       String          @map("vehicle_type") @db.VarChar(50)
-  baseAmountPaise   Int             @map("base_amount_paise")
-  escortMaxPaise    Int             @default(0) @map("escort_max_paise")
+  id                String @id @default(uuid()) @db.Uuid
+  rateCardVersionId String @map("rate_card_version_id") @db.Uuid
+  hubId             String @map("hub_id")
+  zoneId            String @map("zone_id")
+  vehicleType       String @map("vehicle_type") @db.VarChar(50)
+  baseAmountPaise   Int    @map("base_amount_paise")
+  escortMaxPaise    Int    @default(0) @map("escort_max_paise")
 
-  rateCardVersion   RateCardVersion @relation(fields: [rateCardVersionId], references: [id], onDelete: Cascade)
+  rateCardVersion RateCardVersion @relation(fields: [rateCardVersionId], references: [id], onDelete: Cascade)
 
   @@unique([rateCardVersionId, hubId, zoneId, vehicleType])
   @@map("rate_card_rows")
@@ -816,14 +821,17 @@ model LocalityMaster {
   displayName  String               @unique @map("display_name")
   aliases      String[]
   zoneId       String               @map("zone_id")
-  centerLat    Decimal              @map("center_lat") @db.Decimal(10, 7)
-  centerLng    Decimal              @map("center_lng") @db.Decimal(10, 7)
+  centerLat    Decimal?             @map("center_lat") @db.Decimal(10, 7)
+  centerLng    Decimal?             @map("center_lng") @db.Decimal(10, 7)
   h3IndexRes8  String?              @map("h3_index_res8")
   reviewStatus LocalityReviewStatus @default(VERIFIED) @map("review_status")
   notes        String?
+  version      Int                  @default(1)
   createdAt    DateTime             @default(now()) @map("created_at")
+  updatedAt    DateTime             @default(now()) @updatedAt @map("updated_at")
 
   @@index([zoneId])
+  @@index([h3IndexRes8])
   @@map("locality_masters")
 }
 
@@ -831,23 +839,33 @@ model LocalityMaster {
 // IMMUTABLE QUOTE SNAPSHOTS
 // ==========================================
 model ZonalQuoteSnapshot {
-  id               String      @id @default(uuid()) @db.Uuid
-  requirementId    String?     @unique @map("requirement_id") @db.Uuid
-  rateVersion      String      @map("rate_version")
-  hubId            String      @map("hub_id")
-  localityId       String      @map("locality_id")
-  zoneId           String      @map("zone_id")
-  vehicleType      String      @map("vehicle_type") @db.VarChar(50)
-  hasEscort        Boolean     @default(false) @map("has_escort")
-  baseFarePaise    Int         @map("base_fare_paise")
-  escortFarePaise  Int         @default(0) @map("escort_fare_paise")
-  totalFarePaise   Int         @map("total_fare_paise")
-  driverFarePaise  Int         @map("driver_fare_paise")
-  platformFeePaise Int         @map("platform_fee_paise")
-  expiresAt        DateTime    @map("expires_at")
-  createdAt        DateTime    @default(now()) @map("created_at")
+  id                String    @id @default(uuid()) @db.Uuid
+  requirementId     String?   @unique @map("requirement_id") @db.Uuid
+  requestedBy       String?   @map("requested_by") @db.Uuid
+  rateVersion       String    @map("rate_version")
+  driverRateVersion String?   @map("driver_rate_version")
+  direction         String?   @map("direction") @db.VarChar(32)
+  hubId             String    @map("hub_id")
+  localityId        String    @map("locality_id")
+  localityName      String?   @map("locality_name")
+  zoneId            String    @map("zone_id")
+  pickupLat         Decimal?  @map("pickup_lat") @db.Decimal(10, 7)
+  pickupLng         Decimal?  @map("pickup_lng") @db.Decimal(10, 7)
+  dropLat           Decimal?  @map("drop_lat") @db.Decimal(10, 7)
+  dropLng           Decimal?  @map("drop_lng") @db.Decimal(10, 7)
+  consumedAt        DateTime? @map("consumed_at")
+  vehicleType       String    @map("vehicle_type") @db.VarChar(50)
+  hasEscort         Boolean   @default(false) @map("has_escort")
+  baseFarePaise     Int       @map("base_fare_paise")
+  escortFarePaise   Int       @default(0) @map("escort_fare_paise")
+  totalFarePaise    Int       @map("total_fare_paise")
+  driverFarePaise   Int       @map("driver_fare_paise")
+  platformFeePaise  Int       @map("platform_fee_paise")
+  expiresAt         DateTime  @map("expires_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
 
-  requirement      Requirement? @relation(fields: [requirementId], references: [id])
+  requirement Requirement? @relation(fields: [requirementId], references: [id])
 
+  @@index([requestedBy, createdAt])
   @@map("zonal_quote_snapshots")
 }

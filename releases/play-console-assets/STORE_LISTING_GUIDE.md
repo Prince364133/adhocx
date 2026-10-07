@@ -186,5 +186,5 @@ Google requires a short YouTube video (set as **Unlisted** or **Public**) demons
 | **1-Hour Bank Refund SLA** | `https://www.adhocx.com/terms#refunds` | Corporate payment refund policy |
 | **Driver Partner Portal** | `https://www.adhocx.com/drivers` | Driver verification & onboarding information |
 | **Corporate Vendor Portal** | `https://www.adhocx.com/vendors` | Enterprise sourcing & booking terms |
-| **Grievance Officer Contact** | `adhocx.ofc@gmail.com` / `+91 9390366116` | Statutory DPDP & IT Rules 2021 Grievance Officer |
+| **Grievance Officer Contact** | `support@adhocx.com` / `+91 7893545818` | Statutory DPDP & IT Rules 2021 Grievance Officer |
 

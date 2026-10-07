@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../core/utils/app_toast.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_provider.dart';
 import '../../services/auth_service.dart';
@@ -43,12 +43,34 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   Future<void> _handleSignUp() async {
-    if (!_formKey.currentState!.validate()) return;
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      _formKey.currentState?.validate();
+      AppToast.showError('Please enter your full name', context: context);
+      return;
+    }
+
+    final identifierText = _identifierController.text.trim();
+    if (identifierText.isEmpty) {
+      _formKey.currentState?.validate();
+      AppToast.showError('Please enter your mobile number or email address', context: context);
+      return;
+    }
+
+    final identifierError = AppSmartIdentifierField.validate(identifierText);
+    if (identifierError != null) {
+      _formKey.currentState?.validate();
+      AppToast.showError(identifierError, context: context);
+      return;
+    }
+
     if (!_agreeToTerms) {
-      Fluttertoast.showToast(
-        msg: 'Please agree to Terms & Conditions and Privacy Policy',
-        backgroundColor: AppColors.warning,
-      );
+      AppToast.showWarning('Please agree to Terms & Conditions and Privacy Policy', context: context);
+      return;
+    }
+
+    if (!_formKey.currentState!.validate()) {
+      AppToast.showError('Please correct the highlighted fields', context: context);
       return;
     }
 
@@ -82,10 +104,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
       if (mounted) {
         final targetDisplay = phoneTarget ?? emailTarget ?? 'your address';
-        Fluttertoast.showToast(
-          msg: res['message'] ?? 'OTP sent to $targetDisplay',
-          backgroundColor: AppColors.primaryDark,
-          textColor: Colors.white,
+        AppToast.showSuccess(
+          res['message'] ?? 'OTP sent to $targetDisplay',
+          context: context,
         );
 
         context.push(
@@ -100,12 +121,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       }
     } catch (e) {
       if (mounted) {
-        final msg = e.toString().replaceFirst('Exception: ', '').replaceFirst('ApiException: ', '');
-        Fluttertoast.showToast(
-          msg: msg,
-          backgroundColor: AppColors.error,
-          textColor: Colors.white,
-        );
+        AppToast.showError(e, context: context);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -134,10 +150,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
       if (mounted) {
         context.read<AuthProvider>().setUser(result.user);
-        Fluttertoast.showToast(
-          msg: '${isGoogle ? "Google" : "Apple"} verified! Create your password to continue.',
-          backgroundColor: AppColors.accentGreenDark,
-          textColor: Colors.white,
+        AppToast.showSuccess(
+          '${isGoogle ? "Google" : "Apple"} verified! Create your password to continue.',
+          context: context,
         );
 
         if (!result.user.hasPassword) {
@@ -156,11 +171,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       }
     } catch (e) {
       if (mounted) {
-        Fluttertoast.showToast(
-          msg: e.toString().replaceFirst('Exception: ', ''),
-          backgroundColor: AppColors.error,
-          textColor: Colors.white,
-        );
+        AppToast.showError(e, context: context);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -372,12 +383,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           onTap: () {
                             final nextRole = isDriver ? 'VENDOR' : 'DRIVER';
                             onboarding.setRole(nextRole);
-                            Fluttertoast.showToast(
-                              msg: isDriver
+                            AppToast.showInfo(
+                              isDriver
                                   ? 'Switched to Business Account registration'
                                   : 'Switched to Driver Partner registration',
-                              backgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.primaryDark,
-                              textColor: Colors.white,
+                              context: context,
                             );
                           },
                           borderRadius: BorderRadius.circular(AppRadius.md),

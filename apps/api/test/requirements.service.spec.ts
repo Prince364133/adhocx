@@ -5,6 +5,7 @@ import { DispatchService } from '../src/modules/dispatch/dispatch.service';
 import { NotificationsService } from '../src/modules/notifications/notifications.service';
 import { AuditService } from '../src/modules/audit/audit.service';
 import { PricingService } from '../src/modules/pricing/pricing.service';
+import { ZonalPricingService } from '../src/modules/pricing/zonal-pricing.service';
 import {
   RequirementStatus,
   VerificationStatus,
@@ -20,6 +21,7 @@ describe('RequirementsService Unit Tests', () => {
   let pricingService: any;
   let notifications: any;
   let audit: any;
+  let zonalPricing: any;
 
   beforeEach(async () => {
     db = {
@@ -69,11 +71,20 @@ describe('RequirementsService Unit Tests', () => {
       log: jest.fn().mockResolvedValue(undefined),
     };
 
+    zonalPricing = {
+      validateQuoteForBooking: jest.fn(),
+      consumeQuote: jest.fn().mockResolvedValue(undefined),
+      quoteView: jest.fn((snap: any, viewer: string) =>
+        viewer === 'ADMIN' ? { quoteId: snap.id, internal: { driverEarning: snap.driverFarePaise / 100 } } : { quoteId: snap.id },
+      ),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RequirementsService,
         { provide: DatabaseService, useValue: db },
         { provide: DispatchService, useValue: dispatchService },
+        { provide: ZonalPricingService, useValue: zonalPricing },
         { provide: PricingService, useValue: pricingService },
         { provide: NotificationsService, useValue: notifications },
         { provide: AuditService, useValue: audit },
@@ -148,7 +159,11 @@ describe('RequirementsService Unit Tests', () => {
       status: RequirementStatus.PARTIALLY_FULFILLED,
       createdAt: now,
       updatedAt: now,
-      offers: [{ id: 'off-1' }, { id: 'off-2' }, { id: 'off-3' }],
+      offers: [
+        { id: 'off-1', createdAt: now, expiresAt: now },
+        { id: 'off-2', createdAt: now, expiresAt: now },
+        { id: 'off-3', createdAt: now, expiresAt: now },
+      ],
       bids: [],
       assignments: [
         {
@@ -227,5 +242,110 @@ describe('RequirementsService Unit Tests', () => {
     await expect(
       service.cancelRequirement('req-1', 'usr-vnd-1', { reason: 'Late cancel' }),
     ).rejects.toThrow(InvalidStateTransitionError);
+  });
+
+  describe('corporate zonal bookings', () => {
+    const now = new Date();
+    const snapshot = {
+      id: '11111111-1111-4111-8111-111111111111',
+      requirementId: null,
+      totalFarePaise: 80000,
+      driverFarePaise: 68000,
+      platformFeePaise: 12000,
+    };
+    const zonalDto: any = {
+      vehicleType: VehicleType.SEDAN,
+      quantity: 1,
+      pickupLocation: { latitude: 17.3753, longitude: 78.4983, address: 'Malakpet' },
+      dropLocation: { latitude: 17.4435, longitude: 78.3772, address: 'HITEC City' },
+      reportingTime: now.toISOString(),
+      zonalQuoteId: snapshot.id,
+    };
+
+    beforeEach(() => {
+      db.vendor.findUnique.mockResolvedValue({
+        id: 'vnd-1',
+        userId: 'usr-vnd-1',
+        verificationStatus: VerificationStatus.VERIFIED,
+        escrowBalance: 10000,
+      });
+      db.requirement.create.mockImplementation(async ({ data }: any) => ({ id: 'req-z1', ...data, createdAt: now, updatedAt: now }));
+    });
+
+    it('prices the trip from the stored quote and consumes it inside the booking transaction', async () => {
+      zonalPricing.validateQuoteForBooking.mockResolvedValue({ snapshot });
+
+      const result = await service.createRequirement('usr-vnd-1', zonalDto);
+
+      expect(db.requirement.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ ratePerVehicle: 800, totalAmount: 800 }) }),
+      );
+      expect(zonalPricing.consumeQuote).toHaveBeenCalledWith(db, snapshot.id, 'req-z1');
+      expect(db.vendor.update).toHaveBeenCalledWith(expect.objectContaining({ data: { escrowBalance: { decrement: 800 } } }));
+      expect(pricingService.calculateDriverRate).not.toHaveBeenCalled();
+      // Vendor response never carries driver payout or margin (V AT10).
+      expect(JSON.stringify(result.zonalQuote)).not.toMatch(/driver|platform|internal/i);
+    });
+
+    it('V AT06: rejects a client amount that differs from the quote (e.g. +20 platform fee) and logs it', async () => {
+      zonalPricing.validateQuoteForBooking.mockResolvedValue({ snapshot });
+
+      await expect(service.createRequirement('usr-vnd-1', { ...zonalDto, ratePerVehicle: 820 })).rejects.toThrow(
+        /does not match the quoted corporate rate/,
+      );
+      expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'ZONAL_QUOTE_AMOUNT_MISMATCH' }));
+      expect(db.requirement.create).not.toHaveBeenCalled();
+      expect(db.vendor.update).not.toHaveBeenCalled();
+    });
+
+    it('V AT08: resubmitting an already-booked quote returns the original trip without a second debit', async () => {
+      zonalPricing.validateQuoteForBooking.mockResolvedValue({ snapshot, alreadyBookedRequirementId: 'req-z1' });
+      db.requirement.findUnique.mockResolvedValue({
+        id: 'req-z1',
+        vendorId: 'vnd-1',
+        vehicleType: VehicleType.SEDAN,
+        quantity: 1,
+        assignedQuantity: 0,
+        pickupLat: 17.3753,
+        pickupLng: 78.4983,
+        pickupAddress: 'Malakpet',
+        dropLat: 17.4435,
+        dropLng: 78.3772,
+        dropAddress: 'HITEC City',
+        reportingTime: now,
+        ratePerVehicle: 800,
+        totalAmount: 800,
+        status: RequirementStatus.POSTED,
+        createdAt: now,
+        updatedAt: now,
+        zonalQuote: { ...snapshot, requirementId: 'req-z1' },
+      });
+
+      const result = await service.createRequirement('usr-vnd-1', zonalDto);
+
+      expect(result.id).toBe('req-z1');
+      expect(db.requirement.create).not.toHaveBeenCalled();
+      expect(db.vendor.update).not.toHaveBeenCalled();
+      expect(dispatchService.dispatchRequirement).not.toHaveBeenCalled();
+    });
+
+    it('rejects zonal quotes on bidding requirements', async () => {
+      await expect(
+        service.createRequirement('usr-vnd-1', { ...zonalDto, fulfillmentMode: 'BIDDING' }),
+      ).rejects.toThrow(/direct dispatch/);
+    });
+
+    it('non-zonal direct dispatch trips keep standard pricing (no implicit zonal quote)', async () => {
+      await service.createRequirement('usr-vnd-1', { ...zonalDto, zonalQuoteId: undefined });
+      expect(zonalPricing.validateQuoteForBooking).not.toHaveBeenCalled();
+      expect(pricingService.calculateDriverRate).toHaveBeenCalled();
+      expect(zonalPricing.consumeQuote).not.toHaveBeenCalled();
+    });
+
+    it('vendor-role accounts without a vendor profile cannot read other requirements', async () => {
+      db.vendor.findUnique.mockResolvedValue(null);
+      db.requirement.findUnique.mockResolvedValue({ id: 'req-x', vendorId: 'vnd-other', offers: [], bids: [], assignments: [] });
+      await expect(service.getRequirementDetails('req-x', 'usr-new', 'VENDOR')).rejects.toThrow(/Not authorized/);
+    });
   });
 });

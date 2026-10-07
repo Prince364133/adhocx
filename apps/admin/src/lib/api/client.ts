@@ -35,7 +35,10 @@ import {
   TestPushPayload,
   InAppNotificationItem,
   AudienceEstimateResult,
-  ZonalVendorRateCardResponse,
+  ZonalRateCardResponse,
+  ZonalLocality,
+  ZonalRateCardVersion,
+  UpdateZonalLocalityRequest,
   ZonalQuoteRequest,
   ZonalQuoteResponse,
 } from './types';
@@ -309,6 +312,7 @@ export const adminApi = {
         ratePerVehicle: r.ratePerVehicle ?? r.vendorRate ?? r.suggestedBudget ?? 0,
         suggestedBudget: r.suggestedBudget,
         bidsCount: r.bids?.length ?? 0,
+        zonalQuote: r.zonalQuote ?? undefined,
         createdAt: r.createdAt,
       })) as RequirementListItem[];
     });
@@ -383,12 +387,30 @@ export const adminApi = {
       body: data,
     }),
 
-  // Corporate Zonal 2026 Fleet Rate Card & Spatial Engine
-  getZonalVendorRateCard: () => apiClient<ZonalVendorRateCardResponse>('/pricing/zonal/vendor-card'),
+  // Corporate zonal rate card (Hyderabad): active cards, quote simulator, versions and locality review
+  getZonalVendorRateCard: () => apiClient<ZonalRateCardResponse>('/pricing/zonal/vendor-card'),
+
+  getZonalDriverRateCard: () => apiClient<ZonalRateCardResponse>('/pricing/zonal/driver-card'),
 
   calculateZonalQuote: (payload: ZonalQuoteRequest) =>
     apiClient<ZonalQuoteResponse>('/pricing/zonal/quote', {
       method: 'POST',
+      body: payload,
+    }),
+
+  getZonalLocalities: () => apiClient<ZonalLocality[]>('/pricing/zonal/localities'),
+
+  listZonalRateVersions: () => apiClient<ZonalRateCardVersion[]>('/pricing/zonal/admin/versions'),
+
+  publishZonalRateVersion: (id: string, reason: string) =>
+    apiClient<{ id: string; version: string; status: string; previousVersion: string | null }>(
+      `/pricing/zonal/admin/versions/${id}/publish`,
+      { method: 'POST', body: { reason } },
+    ),
+
+  updateZonalLocality: (localityId: string, payload: UpdateZonalLocalityRequest) =>
+    apiClient<ZonalLocality>(`/pricing/zonal/admin/localities/${encodeURIComponent(localityId)}`, {
+      method: 'PATCH',
       body: payload,
     }),
 

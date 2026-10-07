@@ -13,6 +13,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse as SwaggerResponse } 
 import {
   UpdateAvailabilityDto,
   UpdateDriverProfileDto,
+  UpdateBankDetailsDto,
   KycSubmissionDto,
   UploadDocumentDto,
   UploadDocumentResponseDto,
@@ -44,6 +45,16 @@ export class DriversController {
     @Body() dto: UpdateDriverProfileDto,
   ) {
     return this.driversService.updateProfile(user.id, dto);
+  }
+
+  @Patch('bank-details')
+  @Roles(UserRole.DRIVER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Update driver bank payout details' })
+  async updateBankDetails(
+    @CurrentUser() user: AuthUserDto,
+    @Body() dto: UpdateBankDetailsDto,
+  ) {
+    return this.driversService.updateBankDetails(user.id, dto);
   }
 
   @Get('trust-score')

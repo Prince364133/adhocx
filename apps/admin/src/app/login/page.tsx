@@ -62,12 +62,15 @@ function AdminLoginForm() {
       router.replace(redirectUrl);
     } catch (err: any) {
       const status = err?.status || err?.statusCode;
-      if (status === 401) {
+      const msg = err?.message || '';
+      if (msg === 'Failed to fetch' || err?.name === 'TypeError' || msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+        setErrorMessage('Unable to connect to AdhocX API server (http://localhost:7001). Please verify the backend service is active.');
+      } else if (status === 401) {
         setErrorMessage('Invalid Admin ID or Password. Please check your credentials.');
       } else if (status === 403) {
         setErrorMessage('Access Denied: This account lacks administrative privileges.');
       } else {
-        setErrorMessage(err?.message || 'Failed to authenticate. Please verify server connectivity.');
+        setErrorMessage(msg || 'Failed to authenticate. Please verify server connectivity.');
       }
     } finally {
       setIsLoading(false);

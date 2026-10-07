@@ -97,7 +97,7 @@ class _DriverScoreScreenState extends State<DriverScoreScreen> with SingleTicker
           'score': 24.2,
           'max': 25,
           'percentage': 97,
-          'title': 'Customer Star Rating (4.85 ★)',
+          'title': 'Customer Star Rating (4.85 / 5.0)',
           'description': 'Direct average passenger feedback rating',
           'status': 'EXCELLENT',
         },
@@ -482,7 +482,7 @@ class _DriverScoreScreenState extends State<DriverScoreScreen> with SingleTicker
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isRookie ? '🛡️ Rookie Protection Active' : '⚖️ Fair Dispatch Guarantee',
+                  isRookie ? 'Rookie Protection Active' : 'Fair Dispatch Guarantee',
                   style: AppTypography.body(
                     color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                     fontWeight: FontWeight.bold,

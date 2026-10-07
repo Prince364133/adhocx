@@ -43,12 +43,10 @@ class UserProfileExtendedScreen extends StatelessWidget {
 
     final menuItems = [
       {'title': 'Company Information', 'icon': Icons.business, 'route': AppRoutes.userCompanyInformationScreen},
-      {'title': 'Contact Information', 'icon': Icons.phone_outlined, 'route': ''},
-      {'title': 'Account Status', 'icon': Icons.verified_user_outlined, 'route': ''},
-      {'title': 'Documents', 'icon': Icons.description_outlined, 'route': ''},
-      {'title': 'Bank Details', 'icon': Icons.account_balance_outlined, 'route': ''},
-      {'title': 'Notification Settings', 'icon': Icons.notifications_none, 'route': ''},
-      {'title': 'Support Center', 'icon': Icons.help_outline, 'route': ''},
+      {'title': 'Contact Information', 'icon': Icons.phone_outlined, 'route': AppRoutes.userContactInformationScreen},
+      {'title': 'Account Status', 'icon': Icons.verified_user_outlined, 'route': AppRoutes.userAccountStatusScreen},
+      {'title': 'Notification Settings', 'icon': Icons.notifications_none, 'route': AppRoutes.userNotificationSettingsScreen},
+      {'title': 'Support Center', 'icon': Icons.help_outline, 'route': AppRoutes.userSupportCenterScreen},
     ];
 
     return Scaffold(

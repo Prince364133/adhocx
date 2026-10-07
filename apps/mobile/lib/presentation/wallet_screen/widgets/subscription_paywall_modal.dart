@@ -30,6 +30,7 @@ class SubscriptionPaywallModal extends StatefulWidget {
   }) {
     return showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => SubscriptionPaywallModal(
@@ -542,7 +543,7 @@ class _SubscriptionPaywallModalState extends State<SubscriptionPaywallModal> {
               const SizedBox(height: AppSpacing.sm),
               Center(
                 child: Text(
-                  '🔒 256-Bit SSL Encrypted • Instant Account Activation',
+                  '256-Bit SSL Encrypted • Instant Account Activation',
                   style: TextStyle(
                     fontSize: 11,
                     color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,

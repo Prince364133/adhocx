@@ -1136,7 +1136,7 @@ export class NotificationsService implements OnModuleInit {
         actionUrl,
         targetRole: audienceFilter?.role || 'ALL',
         targetFilter: audienceFilter ? JSON.parse(JSON.stringify(audienceFilter)) : undefined,
-        totalTargeted: users.length,
+        totalTargeted: allTokens.length,
         successCount: pushResult.successCount,
         failureCount: pushResult.failureCount,
         status: pushResult.failureCount === 0 || pushResult.successCount > 0 ? 'SENT' : 'FAILED',
@@ -1441,9 +1441,11 @@ export class NotificationsService implements OnModuleInit {
     ]);
 
     let totalSuccess = 0;
+    let totalFailure = 0;
     let totalTargeted = 0;
     campaigns.forEach((c) => {
       totalSuccess += c.successCount;
+      totalFailure += c.failureCount;
       totalTargeted += c.totalTargeted;
     });
 
@@ -1456,8 +1458,11 @@ export class NotificationsService implements OnModuleInit {
       else if (d.platform === DevicePlatform.WEB) web++;
     });
 
+    const totalAttempted = totalSuccess + totalFailure;
     const deliverySuccessRate =
-      totalTargeted > 0 ? Number(((totalSuccess / totalTargeted) * 100).toFixed(1)) : 0;
+      totalAttempted > 0
+        ? Number(((totalSuccess / totalAttempted) * 100).toFixed(1))
+        : (totalTargeted > 0 ? Number(((totalSuccess / totalTargeted) * 100).toFixed(1)) : 100.0);
 
     return {
       totalDelivered: totalSuccess || inAppCount,

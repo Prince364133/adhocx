@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import '../../core/utils/app_toast.dart';
 import '../../routes/app_routes.dart';
 import '../../services/driver_service.dart';
 import '../../services/onboarding_provider.dart';
@@ -26,12 +26,96 @@ class OnboardingDocumentsScreen extends StatefulWidget {
 class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
   final Map<String, bool> _uploadingState = {};
   final ImagePicker _picker = ImagePicker();
+  String? _inlineErrorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExistingDocuments();
+  }
+
+  Future<void> _loadExistingDocuments() async {
+    try {
+      final onboarding = context.read<OnboardingProvider>();
+      final profile = await DriverService.instance.getProfile();
+      if (!mounted || profile is! Map) return;
+
+      final vehiclePhoto = profile['vehiclePhotoUrl']?.toString();
+      final profilePhoto = profile['profilePhotoUrl']?.toString();
+      final isValidProfilePhoto = profilePhoto != null &&
+          profilePhoto.trim().isNotEmpty &&
+          profilePhoto != 'null' &&
+          profilePhoto != 'undefined' &&
+          profilePhoto != vehiclePhoto;
+
+      if (isValidProfilePhoto &&
+          (onboarding.profilePhotoUrl == null || onboarding.profilePhotoUrl!.isEmpty)) {
+        onboarding.setDocumentUrl('PROFILE_PHOTO', profilePhoto);
+      }
+      if (profile['dlFrontUrl'] != null && onboarding.drivingLicenseUrl == null) {
+        onboarding.setDocumentUrl('DRIVING_LICENSE', profile['dlFrontUrl'].toString());
+      }
+      if (profile['aadharFrontUrl'] != null && onboarding.aadharFrontUrl == null) {
+        onboarding.setDocumentUrl('AADHAR_FRONT', profile['aadharFrontUrl'].toString());
+      }
+      if (profile['aadharBackUrl'] != null && onboarding.aadharBackUrl == null) {
+        onboarding.setDocumentUrl('AADHAR_BACK', profile['aadharBackUrl'].toString());
+      }
+      if (profile['panDocUrl'] != null && onboarding.panCardUrl == null) {
+        onboarding.setDocumentUrl('PAN_CARD', profile['panDocUrl'].toString());
+      }
+      if (profile['rcDocUrl'] != null && onboarding.rcBookUrl == null) {
+        onboarding.setDocumentUrl('RC_BOOK', profile['rcDocUrl'].toString());
+      }
+      if (profile['insuranceDocUrl'] != null && onboarding.insuranceUrl == null) {
+        onboarding.setDocumentUrl('INSURANCE', profile['insuranceDocUrl'].toString());
+      }
+
+      final rawDocs = profile['documents'] ?? profile['kycDocuments'];
+      if (rawDocs is List) {
+        for (final doc in rawDocs) {
+          if (doc is Map && doc['documentType'] != null && doc['fileUrl'] != null) {
+            final docType = doc['documentType'].toString();
+            final fileUrl = doc['fileUrl'].toString();
+            if (docType == 'PROFILE_PHOTO' && fileUrl == vehiclePhoto) {
+              continue;
+            }
+            onboarding.setDocumentUrl(docType, fileUrl);
+          }
+        }
+      } else if (rawDocs is Map) {
+        for (final entry in rawDocs.values) {
+          if (entry is Map && entry['documentType'] != null && entry['fileUrl'] != null) {
+            final docType = entry['documentType'].toString();
+            final fileUrl = entry['fileUrl'].toString();
+            if (docType == 'PROFILE_PHOTO' && fileUrl == vehiclePhoto) {
+              continue;
+            }
+            onboarding.setDocumentUrl(docType, fileUrl);
+          }
+        }
+        if (rawDocs['profilePhotoUrl'] != null &&
+            (onboarding.profilePhotoUrl == null || onboarding.profilePhotoUrl!.isEmpty)) {
+          final rawPhoto = rawDocs['profilePhotoUrl'].toString();
+          if (rawPhoto.trim().isNotEmpty &&
+              rawPhoto != 'null' &&
+              rawPhoto != 'undefined' &&
+              rawPhoto != vehiclePhoto) {
+            onboarding.setDocumentUrl('PROFILE_PHOTO', rawPhoto);
+          }
+        }
+      }
+
+      setState(() {});
+    } catch (_) {}
+  }
 
   Future<void> _showImageSourcePicker(String docType, String docTitle) async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
@@ -143,7 +227,10 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
 
       if (pickedFile == null) return;
 
-      setState(() => _uploadingState[docType] = true);
+      setState(() {
+        _uploadingState[docType] = true;
+        _inlineErrorMessage = null;
+      });
 
       final bytes = await pickedFile.readAsBytes();
       final ext = pickedFile.name.split('.').last.toLowerCase();
@@ -165,19 +252,13 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
       onboarding.setDocumentUrl(docType, uploadedUrl);
 
       if (mounted) {
-        Fluttertoast.showToast(
-          msg: '$docTitle uploaded successfully',
-          backgroundColor: AppColors.accentGreenDark,
-          textColor: Colors.white,
-        );
+        AppToast.showSuccess('$docTitle uploaded successfully', context: context);
       }
     } catch (e) {
       if (mounted) {
-        Fluttertoast.showToast(
-          msg: 'Error uploading $docTitle: $e',
-          backgroundColor: AppColors.error,
-          textColor: Colors.white,
-        );
+        final cleanMsg = AppToast.cleanErrorMessage(e);
+        setState(() => _inlineErrorMessage = 'Failed to upload $docTitle: $cleanMsg');
+        AppToast.showError('Failed to upload $docTitle: $cleanMsg', context: context);
       }
     } finally {
       if (mounted) setState(() => _uploadingState[docType] = false);
@@ -187,51 +268,45 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
   void _handleContinue() {
     final onboarding = context.read<OnboardingProvider>();
 
-    if (onboarding.profilePhotoUrl == null) {
-      Fluttertoast.showToast(
-        msg: 'Please upload your Driver Profile Photo',
-        backgroundColor: AppColors.error,
-        textColor: Colors.white,
-      );
+    if (onboarding.profilePhotoUrl == null ||
+        onboarding.profilePhotoUrl!.trim().isEmpty ||
+        onboarding.profilePhotoUrl == 'null' ||
+        onboarding.profilePhotoUrl == 'undefined') {
+      const msg = 'Please upload your Driver Profile Photo before proceeding';
+      setState(() => _inlineErrorMessage = msg);
+      AppToast.showError(msg, context: context);
       return;
     }
 
     if (onboarding.drivingLicenseUrl == null) {
-      Fluttertoast.showToast(
-        msg: 'Please upload your Driving License',
-        backgroundColor: AppColors.error,
-        textColor: Colors.white,
-      );
+      const msg = 'Please upload your Driving License before proceeding';
+      setState(() => _inlineErrorMessage = msg);
+      AppToast.showError(msg, context: context);
       return;
     }
 
     if (onboarding.aadharFrontUrl == null) {
-      Fluttertoast.showToast(
-        msg: 'Please upload Aadhaar Card (Front)',
-        backgroundColor: AppColors.error,
-        textColor: Colors.white,
-      );
+      const msg = 'Please upload Aadhaar Card (Front) before proceeding';
+      setState(() => _inlineErrorMessage = msg);
+      AppToast.showError(msg, context: context);
       return;
     }
 
     if (onboarding.aadharBackUrl == null) {
-      Fluttertoast.showToast(
-        msg: 'Please upload Aadhaar Card (Back)',
-        backgroundColor: AppColors.error,
-        textColor: Colors.white,
-      );
+      const msg = 'Please upload Aadhaar Card (Back) before proceeding';
+      setState(() => _inlineErrorMessage = msg);
+      AppToast.showError(msg, context: context);
       return;
     }
 
     if (onboarding.panCardUrl == null) {
-      Fluttertoast.showToast(
-        msg: 'Please upload PAN Card (Front)',
-        backgroundColor: AppColors.error,
-        textColor: Colors.white,
-      );
+      const msg = 'Please upload PAN Card (Front) before proceeding';
+      setState(() => _inlineErrorMessage = msg);
+      AppToast.showError(msg, context: context);
       return;
     }
 
+    setState(() => _inlineErrorMessage = null);
     // Step 3 of 3: Vehicle Verification (Add Vehicle)
     context.push(AppRoutes.onboardingVehicleScreen);
   }
@@ -241,7 +316,12 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
     final onboarding = context.watch<OnboardingProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final int uploadedCount = (onboarding.profilePhotoUrl != null ? 1 : 0) +
+    final bool hasProfilePhoto = onboarding.profilePhotoUrl != null &&
+        onboarding.profilePhotoUrl!.trim().isNotEmpty &&
+        onboarding.profilePhotoUrl != 'null' &&
+        onboarding.profilePhotoUrl != 'undefined';
+
+    final int uploadedCount = (hasProfilePhoto ? 1 : 0) +
         (onboarding.drivingLicenseUrl != null ? 1 : 0) +
         (onboarding.aadharFrontUrl != null ? 1 : 0) +
         (onboarding.aadharBackUrl != null ? 1 : 0) +
@@ -268,7 +348,13 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
                         AppStepperHeader(
                           currentStep: 2,
                           totalSteps: 3,
-                          onBack: () => context.pop(),
+                          onBack: () {
+                            if (context.canPop()) {
+                              context.pop();
+                            } else {
+                              context.go(AppRoutes.waitlistGateScreen);
+                            }
+                          },
                         ),
                         const SizedBox(height: AppSpacing.xl),
 
@@ -287,14 +373,44 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
                             color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.xl),
+                        const SizedBox(height: AppSpacing.lg),
+
+                        // ── Inline Red Alert Banner ──────────────────────────
+                        if (_inlineErrorMessage != null) ...[
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: AppColors.error.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(AppRadius.md),
+                              border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 20),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    _inlineErrorMessage!,
+                                    style: AppTypography.body(
+                                      color: isDark ? AppColors.errorContainer : AppColors.error,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                        ],
 
                         // ── Document 1: Profile Photo ────────────────────────
                         AppDocumentUploadTile(
                           title: 'Driver Profile Photo *',
                           subtitle: 'Clear front-facing selfie or portrait',
                           icon: Icons.account_circle_outlined,
-                          isUploaded: onboarding.profilePhotoUrl != null,
+                          isUploaded: hasProfilePhoto,
                           isUploading: _uploadingState['PROFILE_PHOTO'] ?? false,
                           onUploadTap: () =>
                               _showImageSourcePicker('PROFILE_PHOTO', 'Driver Profile Photo'),

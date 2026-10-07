@@ -159,6 +159,7 @@ class DriverService {
     required Map<String, dynamic> vehicleDetails,
     String? phone,
     String? fullName,
+    String? profilePhotoUrl,
     String? dlFrontUrl,
     String? dlBackUrl,
     String? rcDocUrl,
@@ -178,6 +179,7 @@ class DriverService {
         'vehicle': vehicleDetails,
         if (phone != null && phone.isNotEmpty) 'phone': phone,
         if (fullName != null && fullName.isNotEmpty) 'fullName': fullName,
+        if (profilePhotoUrl != null && profilePhotoUrl.isNotEmpty) 'profilePhotoUrl': profilePhotoUrl,
         if (dlFrontUrl != null) 'dlFrontUrl': dlFrontUrl,
         if (dlBackUrl != null) 'dlBackUrl': dlBackUrl,
         if (rcDocUrl != null) 'rcDocUrl': rcDocUrl,
@@ -445,6 +447,28 @@ class DriverService {
     return res;
   }
 
+  Future<dynamic> updateBankDetails({
+    required String bankAccountName,
+    required String bankAccountNumber,
+    required String bankIfsc,
+    String? bankName,
+    String? upiId,
+  }) async {
+    await _ensureDriverSession();
+    final res = await _api.patch(
+      '/drivers/bank-details',
+      body: {
+        'bankAccountName': bankAccountName,
+        'bankAccountNumber': bankAccountNumber,
+        'bankIfsc': bankIfsc,
+        if (bankName != null && bankName.isNotEmpty) 'bankName': bankName,
+        if (upiId != null && upiId.isNotEmpty) 'upiId': upiId,
+      },
+    );
+    invalidateCache(profile: true);
+    return res;
+  }
+
   Future<List<dynamic>> getPricingTiers({bool forceRefresh = false}) async {
     try {
       final res = await _api.get('/pricing', force: forceRefresh);
@@ -457,6 +481,15 @@ class DriverService {
   Future<dynamic> getDriverZonalRateCard({bool forceRefresh = false}) async {
     try {
       return await _api.get('/pricing/zonal/driver-card', force: forceRefresh);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Global platform policy config (dynamic per-ride commission %, min withdrawal, etc.)
+  Future<dynamic> getPolicyConfig({bool forceRefresh = false}) async {
+    try {
+      return await _api.get('/pricing/policy-config', force: forceRefresh);
     } catch (_) {
       return null;
     }

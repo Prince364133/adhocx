@@ -1,13 +1,23 @@
-import { Controller, Get, Patch, Post, Delete, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Delete, Param, Body, UseGuards, Query, ParseUUIDPipe } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse as SwaggerResponse } from '@nestjs/swagger';
 import { UserRole, PricingTierDto, CreatePricingTierDto, UpdatePricingTierDto, AuthUserDto } from '@adhocx/contracts';
 import { JwtAuthGuard, RolesGuard, Roles, CurrentUser } from '../../common';
 import { PricingService } from './pricing.service';
+import { ZonalPricingService } from './zonal-pricing.service';
+import {
+  CreateRateCardVersionDto,
+  PublishRateCardVersionDto,
+  UpdateLocalityDto,
+  ZonalQuoteRequestDto,
+} from './dto/zonal.dto';
 
 @ApiTags('Pricing & Tariffs')
 @Controller('pricing')
 export class PricingController {
-  constructor(private readonly pricingService: PricingService) {}
+  constructor(
+    private readonly pricingService: PricingService,
+    private readonly zonalPricing: ZonalPricingService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Get all marketplace vehicle rate cards and pricing tiers' })
@@ -100,36 +110,88 @@ export class PricingController {
     );
   }
 
+
+  // ---------------------------------------------------------------------------
+  // Corporate zonal rate card (Hyderabad, New Adok Rate Card 2026)
+  // ---------------------------------------------------------------------------
+
   @Get('zonal/vendor-card')
-  @ApiOperation({ summary: 'Get canonical 2026 Vendor Zonal Rate Card (Hyderabad 7 Zones x 2 Hubs)' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.VENDOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Active vendor zonal rate card (28 rows) with locality guide' })
   async getVendorZonalCard() {
-    return this.pricingService.getVendorZonalRateCard();
+    return this.zonalPricing.getVendorRateCard();
   }
 
   @Get('zonal/driver-card')
-  @ApiOperation({ summary: 'Get canonical 2026 Driver Guaranteed Earnings Rate Card (Hyderabad 7 Zones x 2 Hubs)' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.DRIVER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Active driver zonal earnings card (28 rows) with locality guide' })
   async getDriverZonalCard() {
-    return this.pricingService.getDriverZonalRateCard();
+    return this.zonalPricing.getDriverRateCard();
+  }
+
+  @Get('zonal/localities')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.VENDOR, UserRole.DRIVER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Search the approved locality master (each result has a stable locality ID)' })
+  async searchZonalLocalities(@Query('q') q?: string) {
+    return this.zonalPricing.searchLocalities(q);
   }
 
   @Post('zonal/quote')
-  @ApiOperation({ summary: 'Calculate deterministic 2026 Zonal Rate Quote for Corporate Bulk Fleet' })
-  async calculateZonalQuote(
-    @Body()
-    body: {
-      pickupAddress?: string;
-      pickupLat?: number;
-      pickupLng?: number;
-      dropAddress?: string;
-      dropLat?: number;
-      dropLng?: number;
-      localityName?: string;
-      officeHub?: 'HITEC_NANAKRAMGUDA' | 'KOKAPET';
-      vehicleType?: string;
-      hasEscort?: boolean;
-    },
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.VENDOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Create a server-stored corporate zonal quote (or an operations-review result)' })
+  async createZonalQuote(@Body() dto: ZonalQuoteRequestDto, @CurrentUser() user: AuthUserDto) {
+    return this.zonalPricing.createQuote(dto, { userId: user.id, role: user.role });
+  }
+
+  @Get('zonal/admin/versions')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'List vendor and driver rate card versions (Admin only)' })
+  async listZonalVersions(@Query('audience') audience?: 'VENDOR' | 'DRIVER') {
+    return this.zonalPricing.listVersions(audience === 'VENDOR' || audience === 'DRIVER' ? audience : undefined);
+  }
+
+  @Post('zonal/admin/versions')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Create a DRAFT rate card version with all 28 rows (Admin only)' })
+  async createZonalVersion(@Body() dto: CreateRateCardVersionDto, @CurrentUser() user: AuthUserDto) {
+    return this.zonalPricing.createDraftVersion(dto, { userId: user.id, role: user.role });
+  }
+
+  @Post('zonal/admin/versions/:id/publish')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Publish a draft or roll back to a retired version (Admin only)' })
+  async publishZonalVersion(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: PublishRateCardVersionDto,
+    @CurrentUser() user: AuthUserDto,
   ) {
-    return this.pricingService.calculateZonalQuote(body);
+    return this.zonalPricing.publishVersion(id, dto.reason, { userId: user.id, role: user.role });
+  }
+
+  @Patch('zonal/admin/localities/:localityId')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Verify a locality pin, change review status, zone or aliases (Admin only, audited)' })
+  async updateZonalLocality(
+    @Param('localityId') localityId: string,
+    @Body() dto: UpdateLocalityDto,
+    @CurrentUser() user: AuthUserDto,
+  ) {
+    return this.zonalPricing.updateLocality(localityId, dto, { userId: user.id, role: user.role });
   }
 }
-

@@ -177,7 +177,7 @@ class _GlobalStateGalleryScreenState extends State<GlobalStateGalleryScreen> {
                 subtitle: 'Request location access modal',
                 icon: Icons.location_on_outlined,
                 onTap: () {
-                  showModalBottomSheet(context: context, builder: (_) => const LocationPermissionModal());
+                  showModalBottomSheet(context: context, useRootNavigator: true, builder: (_) => const LocationPermissionModal());
                 },
                 isDark: isDark,
               ),

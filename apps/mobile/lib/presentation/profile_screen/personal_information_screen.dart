@@ -53,6 +53,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),

@@ -347,7 +347,7 @@ export class AuthService implements OnModuleInit {
 
     if (!user) {
       this.logger.warn(`Login failed: user with identifier ${value} not found`);
-      throw new UnauthorizedException('Invalid mobile number/email or password');
+      throw new UnauthorizedException('No account found with this email or mobile number. Please check your credentials or sign up.');
     }
 
     if (!user.passwordHash) {
@@ -360,7 +360,7 @@ export class AuthService implements OnModuleInit {
     const isValidPassword = this.verifyPassword(dto.password, user.passwordHash);
     if (!isValidPassword) {
       this.logger.warn(`Login failed: invalid password for user ${value}`);
-      throw new UnauthorizedException('Invalid mobile number/email or password');
+      throw new UnauthorizedException('Incorrect password. Please try again or reset your password.');
     }
 
 
@@ -377,8 +377,28 @@ export class AuthService implements OnModuleInit {
       throw new BadRequestException('Either Mobile Number or Email Address is required');
     }
 
-    const { isEmail, value } = this.normalizeIdentifier(rawIdentifier);
+    const { isEmail, value, phoneVariants } = this.normalizeIdentifier(rawIdentifier);
     const channel = dto.channel || (isEmail ? 'EMAIL' : 'SMS');
+
+    // If explicit login or password recovery (isRegister === false), verify user exists
+    if (dto.isRegister === false) {
+      let existingUser: any = null;
+      try {
+        if (isEmail) {
+          existingUser = await this.db.user.findFirst({
+            where: { email: { equals: value, mode: 'insensitive' } },
+          });
+        } else {
+          existingUser = await this.db.user.findFirst({
+            where: { phone: { in: phoneVariants || [value] } },
+          });
+        }
+      } catch (_) {}
+
+      if (!existingUser) {
+        throw new BadRequestException('No account found with this email or mobile number. Please check your details or sign up.');
+      }
+    }
 
     // Rate limiting: max 5 requests per 10 minutes
     try {

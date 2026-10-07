@@ -48,6 +48,38 @@ export class VendorsService {
       } catch (_) {}
     }
 
+    // Extract extra company and contact metadata
+    const anyDto = dto as any;
+    const extraDetails: Record<string, any> = {};
+    const extraKeys = [
+      'panNumber', 'businessType', 'website', 'city', 'state', 'pincode',
+      'billingAddress', 'isBillingAddressSame', 'monthlyTrips',
+      'spocDesignation', 'alternatePhone', 'alternateEmail',
+      'emergencyContactName', 'emergencyContactPhone', 'operationalCampus'
+    ];
+    for (const k of extraKeys) {
+      if (anyDto[k] !== undefined) {
+        extraDetails[k] = anyDto[k];
+      }
+    }
+
+    // Preserve existing kycDocuments if any
+    let existingKyc: any = {};
+    try {
+      const existingVendor = await this.db.vendor.findUnique({ where: { userId } });
+      if (existingVendor?.kycDocuments && typeof existingVendor.kycDocuments === 'object') {
+        existingKyc = existingVendor.kycDocuments;
+      }
+    } catch (_) {}
+
+    const updatedKyc = {
+      ...existingKyc,
+      companyDetails: {
+        ...(existingKyc.companyDetails || {}),
+        ...extraDetails,
+      },
+    };
+
     const vendor = await this.db.vendor.upsert({
       where: { userId },
       create: {
@@ -57,6 +89,7 @@ export class VendorsService {
         phone: effectivePhone,
         gstNumber: dto.gstNumber,
         address: dto.address,
+        kycDocuments: updatedKyc,
         verificationStatus: VerificationStatus.UNDER_REVIEW,
       },
       update: {
@@ -65,6 +98,7 @@ export class VendorsService {
         phone: effectivePhone || undefined,
         gstNumber: dto.gstNumber,
         address: dto.address,
+        kycDocuments: updatedKyc,
         verificationStatus: VerificationStatus.UNDER_REVIEW,
         rejectionReason: null,
       },
@@ -81,7 +115,8 @@ export class VendorsService {
       address: vendor.address || undefined,
       createdAt: vendor.createdAt.toISOString(),
       updatedAt: vendor.updatedAt.toISOString(),
-    };
+      ...extraDetails,
+    } as any;
   }
 
   async getProfile(userId: string): Promise<VendorProfileDto> {
@@ -112,6 +147,8 @@ export class VendorsService {
       };
     }
 
+    const savedCompanyDetails = (vendor.kycDocuments as any)?.companyDetails || {};
+
     return {
       id: vendor.id,
       userId: vendor.userId,
@@ -123,6 +160,7 @@ export class VendorsService {
       address: vendor.address || undefined,
       createdAt: vendor.createdAt.toISOString(),
       updatedAt: vendor.updatedAt.toISOString(),
-    };
+      ...savedCompanyDetails,
+    } as any;
   }
 }

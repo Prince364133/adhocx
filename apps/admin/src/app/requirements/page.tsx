@@ -68,7 +68,7 @@ export default function RequirementsPage() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             <span className="code-tag">REQ-{r.id.slice(0, 8).toUpperCase()}</span>
-            {r.fulfillmentMode === 'DIRECT_DISPATCH' ? (
+            {r.zonalQuote ? (
               <span
                 style={{
                   fontSize: '0.6875rem',
@@ -250,8 +250,8 @@ export default function RequirementsPage() {
               </div>
             </div>
 
-            {/* Corporate Zonal 2026 Breakdown */}
-            {selectedReq.fulfillmentMode === 'DIRECT_DISPATCH' && (
+            {/* Corporate zonal breakdown: amounts come from the stored quote snapshot, never a live percentage. */}
+            {selectedReq.zonalQuote && (
               <div
                 style={{
                   background: 'linear-gradient(135deg, rgba(91, 66, 243, 0.08) 0%, rgba(139, 92, 246, 0.05) 100%)',
@@ -261,50 +261,33 @@ export default function RequirementsPage() {
                   marginBottom: '1.5rem',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ fontSize: '1rem' }}>🏢</span>
-                    <span style={{ fontSize: '0.875rem', fontWeight: 800, color: 'var(--brand-primary)' }}>
-                      Corporate Zonal 2026 Guaranteed Pricing
-                    </span>
-                  </div>
-                  <span
-                    style={{
-                      background: 'rgba(16, 185, 129, 0.12)',
-                      color: 'var(--color-success)',
-                      fontSize: '0.7rem',
-                      fontWeight: 800,
-                      padding: '0.15rem 0.5rem',
-                      borderRadius: 'var(--radius-full)',
-                    }}
-                  >
-                    85% NET DRIVER EARNINGS
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.875rem', fontWeight: 800, color: 'var(--brand-primary)' }}>
+                    🏢 Corporate zonal · {selectedReq.zonalQuote.locality?.name} ↔ {selectedReq.zonalQuote.officeHub?.displayName}
+                  </span>
+                  <span className="badge badge-info">
+                    {selectedReq.zonalQuote.locality?.zoneLabel} · {selectedReq.zonalQuote.vehicleType} · rate {selectedReq.zonalQuote.rateVersion}
                   </span>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
-                  <div style={{ background: 'var(--bg-surface-elevated)', padding: '0.75rem', borderRadius: 'var(--radius-md)' }}>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Client Gross Fare</div>
-                    <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.15rem' }}>
-                      ₹{Number(selectedReq.vendorRate || 0).toLocaleString('en-IN')}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem' }}>
+                  {[
+                    { label: 'Vendor fare (per vehicle)', value: selectedReq.zonalQuote.totalAmount, color: 'var(--text-primary)' },
+                    { label: 'Escort payable', value: selectedReq.zonalQuote.internal?.escortPayable, color: 'var(--text-secondary)' },
+                    { label: `Driver earnings (${selectedReq.zonalQuote.internal?.driverRateVersion ?? ''})`, value: selectedReq.zonalQuote.internal?.driverEarning, color: 'var(--color-success)' },
+                    { label: 'Platform spread', value: selectedReq.zonalQuote.internal?.platformSpread, color: 'var(--brand-primary)' },
+                  ].map((tile) => (
+                    <div key={tile.label} style={{ background: 'var(--bg-surface-elevated)', padding: '0.75rem', borderRadius: 'var(--radius-md)' }}>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{tile.label}</div>
+                      <div style={{ fontSize: '1rem', fontWeight: 800, color: tile.color, marginTop: '0.15rem' }}>
+                        ₹{Number(tile.value ?? 0).toLocaleString('en-IN')}
+                      </div>
                     </div>
-                  </div>
-                  <div style={{ background: 'var(--bg-surface-elevated)', padding: '0.75rem', borderRadius: 'var(--radius-md)' }}>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--color-success)' }}>Net Driver Payout (85%)</div>
-                    <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--color-success)', marginTop: '0.15rem' }}>
-                      ₹{Math.round(Number(selectedReq.vendorRate || 0) * 0.85).toLocaleString('en-IN')}
-                    </div>
-                  </div>
-                  <div style={{ background: 'var(--bg-surface-elevated)', padding: '0.75rem', borderRadius: 'var(--radius-md)' }}>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--brand-primary)' }}>AdhocX Take (15%)</div>
-                    <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--brand-primary)', marginTop: '0.15rem' }}>
-                      ₹{Math.round(Number(selectedReq.vendorRate || 0) * 0.15).toLocaleString('en-IN')}
-                    </div>
-                  </div>
+                  ))}
                 </div>
 
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.75rem' }}>
-                  🛡️ Deterministic B2B Rate: No surge, no per-km multipliers. Direct driver dispatch broadcast active.
+                  Fixed rate-card fare locked at booking. Direction: {selectedReq.zonalQuote.direction === 'INBOUND_TO_OFFICE' ? 'home → office' : 'office → home'}.
                 </div>
               </div>
             )}

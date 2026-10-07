@@ -12,6 +12,7 @@ import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
 import 'requirement_draft_provider.dart';
+import 'utils/office_hub_detector.dart';
 
 class UserReviewRequirementScreen extends StatefulWidget {
   const UserReviewRequirementScreen({super.key});
@@ -29,46 +30,12 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
   double? _walletBalance;
   bool _isLoadingWallet = true;
   List<Map<String, dynamic>> _vehicleTiers = [];
-  bool _hasEscort = false;
-  Map<String, dynamic>? _zonalQuote;
-  bool _initializedZonal = false;
 
   @override
   void initState() {
     super.initState();
     _loadWallet();
     _loadVehicleTiers();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!_initializedZonal) {
-      _initializedZonal = true;
-      final draft = context.read<RequirementDraftProvider>();
-      _fetchZonalQuote(draft);
-    }
-  }
-
-  Future<void> _fetchZonalQuote(RequirementDraftProvider draft) async {
-    if (draft.fulfillmentMode != 'DIRECT_DISPATCH') return;
-    try {
-      final res = await UserService.instance.calculateZonalQuote({
-        'pickupAddress': draft.pickupLocation,
-        'dropAddress': draft.dropLocation,
-        'pickupLat': draft.pickupLat,
-        'pickupLng': draft.pickupLng,
-        'dropLat': draft.dropLat,
-        'dropLng': draft.dropLng,
-        'vehicleType': draft.vehicleType,
-        'hasEscort': _hasEscort,
-      });
-      if (mounted && res != null && res is Map<String, dynamic>) {
-        setState(() {
-          _zonalQuote = res;
-        });
-      }
-    } catch (_) {}
   }
 
   Future<void> _loadVehicleTiers() async {
@@ -83,8 +50,12 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
   }
 
   double _getRatePerVehicle(RequirementDraftProvider draft) {
-    if (_zonalQuote != null && _zonalQuote!['totalAmount'] != null) {
-      return (_zonalQuote!['totalAmount'] as num).toDouble();
+    if (draft.zonalEnabled && draft.zonalQuote != null) {
+      final total = (draft.zonalQuote!['totalAmount'] as num?)?.toDouble();
+      if (total != null && total > 0) {
+        final isRoundTrip = draft.tripType.toLowerCase().contains('round') || draft.hasReturn;
+        return isRoundTrip ? (total * 2) : total;
+      }
     }
     final vType = draft.vehicleType.trim().toUpperCase();
     Map<String, dynamic>? tier;
@@ -119,7 +90,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
     }
 
     final isRoundTrip = draft.tripType.toLowerCase().contains('round') || draft.hasReturn;
-    final distance = draft.roadDistanceKm > 0 ? draft.roadDistanceKm : 15.0;
+    final distance = draft.roadDistanceKm > 0 ? draft.roadDistanceKm : 0.0;
     final effectiveKm = isRoundTrip ? (distance * 2) : distance;
     final extraKm = (effectiveKm - baseKm).clamp(0.0, double.infinity);
     return (baseFare + (extraKm * perKmRate)).roundToDouble();
@@ -176,6 +147,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
 
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
@@ -188,17 +160,19 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
             final discountAmount = (appliedTopUpCoupon?['discountAmount'] as num?)?.toDouble() ?? 0.0;
             final netPayable = (rawAmount - discountAmount).clamp(0.0, double.infinity);
 
-            return Container(
-              padding: EdgeInsets.only(
-                top: AppSpacing.lg,
-                left: AppSpacing.lg,
-                right: AppSpacing.lg,
-                bottom: MediaQuery.of(ctx).viewInsets.bottom + AppSpacing.lg,
-              ),
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-              ),
+            return SafeArea(
+              top: false,
+              child: Container(
+                padding: EdgeInsets.only(
+                  top: AppSpacing.lg,
+                  left: AppSpacing.lg,
+                  right: AppSpacing.lg,
+                  bottom: MediaQuery.of(ctx).viewInsets.bottom + AppSpacing.lg,
+                ),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+                ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -514,10 +488,11 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                   ),
                 ],
               ),
-            );
-          },
-        );
-      },
+            ),
+          );
+        },
+      );
+    },
     );
   }
 
@@ -529,6 +504,18 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
 
   Future<void> _handleConfirmAndPost() async {
     final draft = context.read<RequirementDraftProvider>();
+
+    // Corporate zonal bookings need a valid server quote.
+    if (draft.fulfillmentMode == 'DIRECT_DISPATCH' && draft.zonalEnabled) {
+      if (draft.zonalQuote == null || draft.zonalQuote!['quoteId'] == null) {
+        Fluttertoast.showToast(
+          msg: 'Corporate zonal quote is missing. Please return to Step 2 to generate quote.',
+          backgroundColor: AppColors.error,
+          textColor: Colors.white,
+        );
+        return;
+      }
+    }
 
     final ratePerVehicle = _getRatePerVehicle(draft);
     final rawTotal = draft.fulfillmentMode == 'BIDDING' ? draft.suggestedBudget : (draft.quantity * ratePerVehicle);
@@ -569,13 +556,6 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
     if (draft.passengers > 0) {
       notesParts.add('Passengers per vehicle: ${draft.passengers}');
     }
-    if (_zonalQuote != null) {
-      final loc = _zonalQuote!['locality']?['name'] ?? 'Locality';
-      final zone = _zonalQuote!['locality']?['zoneLabel'] ?? 'Zone';
-      final hub = _zonalQuote!['officeHub']?['displayName'] ?? 'Office Hub';
-      final qId = _zonalQuote!['quoteId'] ?? '';
-      notesParts.add('Corporate Zonal 2026: $loc ↔ $hub ($zone) | Escort: ${_hasEscort ? "YES" : "NO"} | Quote ID: $qId');
-    }
 
     final combinedNotes = notesParts.join(' | ');
     final couponCode = _appliedCoupon?['code'] as String?;
@@ -607,6 +587,9 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
         suggestedBudget: draft.fulfillmentMode == 'BIDDING' ? draft.suggestedBudget : null,
         notes: combinedNotes.isNotEmpty ? combinedNotes : 'Standard Booking Requirement',
         couponCode: couponCode,
+        zonalQuoteId: (draft.fulfillmentMode == 'DIRECT_DISPATCH' && draft.zonalEnabled)
+            ? (draft.zonalQuote?['quoteId'] as String?)
+            : null,
       );
 
       if (mounted) {
@@ -719,146 +702,201 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                     const SizedBox(height: AppSpacing.xs),
 
                     // Details Card Breakdown
-                    Container(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                        borderRadius: BorderRadius.circular(AppRadius.lg),
-                        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                      ),
-                      child: Column(
-                        children: [
-                          _buildReviewRow(context, Icons.bolt, 'Fulfillment Model', draft.fulfillmentMode == 'DIRECT_DISPATCH' ? '⚡ Direct Timed Dispatch' : '🔨 Outstation Reverse Auction', isDark),
-                          const Divider(),
-                          if (_zonalQuote != null) ...[
-                            Container(
-                              margin: const EdgeInsets.symmetric(vertical: 8),
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: const [
-                                      Icon(Icons.verified, color: AppColors.primary, size: 16),
-                                      SizedBox(width: 6),
-                                      Text(
-                                        'Corporate Zonal Rate Card Applied',
-                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primary),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    '📍 ${_zonalQuote!['locality']?['name'] ?? 'Locality'} ↔ ${_zonalQuote!['officeHub']?['displayName'] ?? 'Office Hub'} (${_zonalQuote!['locality']?['zoneLabel'] ?? 'Zone'})',
-                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : Colors.black87),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  const Text(
-                                    'Guaranteed B2B Flat Pricing. Zero dynamic surge, zero per-km meter fees.',
-                                    style: TextStyle(fontSize: 10, color: AppColors.success, fontWeight: FontWeight.w600),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const Divider(),
-                            SwitchListTile(
-                              value: _hasEscort,
-                              onChanged: (val) {
-                                setState(() => _hasEscort = val);
-                                _fetchZonalQuote(draft);
-                              },
-                              title: const Text('Security Escort Service', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                              subtitle: Text(
-                                _hasEscort
-                                    ? 'Escort included (+₹${_zonalQuote!['escortFee'] ?? 300})'
-                                    : 'Add safety guard for late-night female employee drops',
-                                style: const TextStyle(fontSize: 11),
-                              ),
-                              secondary: const Icon(Icons.security, color: AppColors.primary),
-                              contentPadding: EdgeInsets.zero,
-                            ),
-                            const Divider(),
-                          ],
-                          if (draft.fulfillmentMode == 'BIDDING') ...[
-                            _buildReviewRow(context, Icons.currency_rupee, 'Target Guide Budget', '₹${draft.suggestedBudget.toStringAsFixed(0)}', isDark, valueColor: AppColors.success),
-                            const Divider(),
-                            _buildReviewRow(context, Icons.timer_outlined, 'Bidding Window', '${draft.biddingWindowMinutes} Minutes', isDark),
-                            const Divider(),
-                          ] else ...[
-                            _buildReviewRow(context, Icons.currency_rupee, 'Rate per Vehicle', '₹${_getRatePerVehicle(draft).toStringAsFixed(0)}', isDark),
-                            const Divider(),
-                            _buildReviewRow(context, Icons.payments_outlined, 'Est. Total Cost', '₹${(draft.quantity * _getRatePerVehicle(draft)).toStringAsFixed(0)}', isDark, valueColor: _appliedCoupon != null ? AppColors.textMutedLight : AppColors.success),
-                            const Divider(),
-                            if (_appliedCoupon != null) ...[
-                              _buildReviewRow(context, Icons.local_offer_outlined, 'Promo Discount (${_appliedCoupon!["code"]})', '- ₹${((_appliedCoupon!["discountAmount"] as num?)?.toDouble() ?? 0).toStringAsFixed(0)}', isDark, valueColor: AppColors.success),
-                              const Divider(),
-                              _buildReviewRow(context, Icons.account_balance_wallet_outlined, 'Net Est. Amount', '₹${((_appliedCoupon!["finalAmount"] as num?)?.toDouble() ?? (draft.quantity * _getRatePerVehicle(draft))).toStringAsFixed(0)}', isDark, valueColor: AppColors.primary),
-                              const Divider(),
-                            ],
-                          ],
-                          _buildReviewRow(
-                            context,
-                            Icons.directions_car_outlined,
-                            'Vehicle Type',
-                            _getVehicleCategoryLabel(draft.vehicleType),
-                            isDark,
+                    Builder(
+                      builder: (context) {
+                        final resolvedPickup = draft.pickupLocation.isNotEmpty
+                            ? draft.pickupLocation
+                            : (draft.zonalDirection == 'OUTBOUND_FROM_OFFICE'
+                                ? OfficeHubDetector.defaultLocationForHub(draft.zonalOfficeHubId)['address'] as String
+                                : (draft.zonalLocality != null ? '${draft.zonalLocality!['name']}, Hyderabad, Telangana' : ''));
+
+                        final resolvedDrop = draft.dropLocation.isNotEmpty
+                            ? draft.dropLocation
+                            : (draft.zonalDirection == 'INBOUND_TO_OFFICE'
+                                ? OfficeHubDetector.defaultLocationForHub(draft.zonalOfficeHubId)['address'] as String
+                                : (draft.zonalLocality != null ? '${draft.zonalLocality!['name']}, Hyderabad, Telangana' : ''));
+
+                        return Container(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                            borderRadius: BorderRadius.circular(AppRadius.lg),
+                            border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                           ),
-                          const Divider(),
-                          if (draft.roadDistanceKm > 0) ...[
-                            _buildReviewRow(
-                              context,
-                              Icons.alt_route_rounded,
-                              'Road Distance & ETA',
-                              '${draft.formattedDistance.isNotEmpty ? draft.formattedDistance : "${draft.roadDistanceKm.toStringAsFixed(1)} km"}${draft.formattedEta.isNotEmpty ? " • ~${draft.formattedEta}" : ""}',
-                              isDark,
-                            ),
-                            const Divider(),
-                          ],
-                          const Divider(),
-                          _buildReviewRow(context, Icons.format_list_numbered, 'Quantity', '${draft.quantity} ${draft.quantity > 1 ? "Vehicles" : "Vehicle"}', isDark),
-                          const Divider(),
-                          _buildReviewRow(context, Icons.swap_calls, 'Trip Type', draft.tripType, isDark),
-                          const Divider(),
-                          _buildReviewRow(context, Icons.location_on_outlined, 'Pickup', draft.pickupLocation, isDark),
-                          if (draft.pickupInstructions.isNotEmpty) ...[
-                            const Divider(),
-                            _buildReviewRow(context, Icons.info_outline, 'Pickup Note', draft.pickupInstructions, isDark),
-                          ],
-                          const Divider(),
-                          _buildReviewRow(context, Icons.pin_drop_outlined, 'Destination', draft.dropLocation, isDark),
-                          if (draft.dropInstructions.isNotEmpty) ...[
-                            const Divider(),
-                            _buildReviewRow(context, Icons.info_outline, 'Drop Note', draft.dropInstructions, isDark),
-                          ],
-                          if (draft.additionalStops.isNotEmpty) ...[
-                            const Divider(),
-                            _buildReviewRow(context, Icons.alt_route, 'Intermediate Stops', draft.additionalStops.join(', '), isDark),
-                          ],
-                          const Divider(),
-                          _buildReviewRow(context, Icons.calendar_today_outlined, 'Pickup Date', draft.pickupDate, isDark),
-                          const Divider(),
-                          _buildReviewRow(context, Icons.access_time_outlined, 'Pickup Time', draft.pickupTime, isDark),
-                          if (draft.hasReturn) ...[
-                            const Divider(),
-                            _buildReviewRow(context, Icons.event_repeat, 'Return Date/Time', '${draft.returnDate ?? "-"} ${draft.returnTime ?? ""}', isDark),
-                          ],
-                          const Divider(),
-                          _buildReviewRow(context, Icons.person_outline, 'Passengers/Cab', '${draft.passengers}', isDark),
-                          if (draft.specialRequests.isNotEmpty) ...[
-                            const Divider(),
-                            _buildReviewRow(context, Icons.note_outlined, 'Preferences', draft.specialRequests, isDark),
-                          ],
-                          if (draft.additionalInfo.isNotEmpty) ...[
-                            const Divider(),
-                            _buildReviewRow(context, Icons.description_outlined, 'Additional Notes', draft.additionalInfo, isDark),
-                          ],
-                        ],
-                      ),
+                          child: Column(
+                            children: [
+                              // ── STOP 1: PICKUP LOCATION ALWAYS FIRST ──
+                              _buildReviewRow(
+                                context,
+                                Icons.trip_origin_rounded,
+                                'Pickup (Stop 1)',
+                                resolvedPickup,
+                                isDark,
+                                valueColor: AppColors.success,
+                              ),
+                              if (draft.pickupInstructions.isNotEmpty) ...[
+                                const Divider(),
+                                _buildReviewRow(context, Icons.info_outline, 'Pickup Note', draft.pickupInstructions, isDark),
+                              ],
+                              const Divider(),
+
+                              // ── STOP 2: DESTINATION LOCATION ALWAYS SECOND ──
+                              _buildReviewRow(
+                                context,
+                                Icons.pin_drop_rounded,
+                                'Destination (Stop 2)',
+                                resolvedDrop,
+                                isDark,
+                                valueColor: AppColors.error,
+                              ),
+                              if (draft.dropInstructions.isNotEmpty) ...[
+                                const Divider(),
+                                _buildReviewRow(context, Icons.info_outline, 'Drop Note', draft.dropInstructions, isDark),
+                              ],
+                              if (draft.additionalStops.isNotEmpty) ...[
+                                const Divider(),
+                                _buildReviewRow(context, Icons.alt_route, 'Intermediate Stops', draft.additionalStops.join(', '), isDark),
+                              ],
+                              const Divider(),
+
+                              // ── ROUTE DISTANCE & ESTIMATED TIME (40 KM/H AVG) ──
+                              if (draft.roadDistanceKm > 0) ...[
+                                _buildReviewRow(
+                                  context,
+                                  Icons.alt_route_rounded,
+                                  'Road Distance & ETA',
+                                  '${draft.formattedDistance.isNotEmpty ? draft.formattedDistance : "${draft.roadDistanceKm.toStringAsFixed(1)} km"}${draft.formattedEta.isNotEmpty ? " • ~${draft.formattedEta}" : ""} (40 km/h avg)',
+                                  isDark,
+                                ),
+                                const Divider(),
+                              ],
+
+                              // ── FULFILLMENT & PRICING CONFIGURATION ──
+                              _buildReviewRow(
+                                context,
+                                Icons.bolt,
+                                'Fulfillment Model',
+                                draft.fulfillmentMode == 'DIRECT_DISPATCH' ? 'Direct Timed Dispatch' : 'Outstation Reverse Auction',
+                                isDark,
+                              ),
+                              const Divider(),
+                              if (draft.fulfillmentMode == 'DIRECT_DISPATCH' && draft.zonalEnabled) ...[
+                                _buildReviewRow(
+                                  context,
+                                  Icons.verified_rounded,
+                                  'Pricing Model',
+                                  'Corporate Zonal Rate Card (Fixed Fare)',
+                                  isDark,
+                                  valueColor: AppColors.primary,
+                                ),
+                                const Divider(),
+                                _buildReviewRow(
+                                  context,
+                                  Icons.business_rounded,
+                                  'Office Hub',
+                                  draft.zonalOfficeHubId == 'KOKAPET' ? 'Kokapet Hub' : 'HITEC / Nanakramguda',
+                                  isDark,
+                                ),
+                                const Divider(),
+                                if (draft.zonalLocality != null) ...[
+                                  _buildReviewRow(
+                                    context,
+                                    Icons.location_city_rounded,
+                                    'Employee Locality',
+                                    '${draft.zonalLocality!['name']} (${draft.zonalLocality!['zoneLabel'] ?? 'Zone 4'})',
+                                    isDark,
+                                  ),
+                                  const Divider(),
+                                ],
+                                _buildReviewRow(
+                                  context,
+                                  Icons.swap_horiz_rounded,
+                                  'Direction',
+                                  draft.zonalDirection == 'OUTBOUND_FROM_OFFICE' ? 'Office → Home' : 'Home → Office',
+                                  isDark,
+                                ),
+                                const Divider(),
+                                _buildReviewRow(
+                                  context,
+                                  Icons.security_rounded,
+                                  'Security Escort',
+                                  draft.zonalHasEscort ? 'Included (+ ₹400)' : 'Not Selected',
+                                  isDark,
+                                  valueColor: draft.zonalHasEscort ? AppColors.accentPurple : null,
+                                ),
+                                const Divider(),
+                              ],
+                              if (draft.fulfillmentMode == 'BIDDING') ...[
+                                _buildReviewRow(context, Icons.currency_rupee, 'Target Guide Budget', '₹${draft.suggestedBudget.toStringAsFixed(0)}', isDark, valueColor: AppColors.success),
+                                const Divider(),
+                                _buildReviewRow(context, Icons.timer_outlined, 'Bidding Window', '${draft.biddingWindowMinutes} Minutes', isDark),
+                                const Divider(),
+                              ] else ...[
+                                if (draft.zonalEnabled && draft.zonalQuote != null) ...[
+                                  _buildReviewRow(
+                                    context,
+                                    Icons.receipt_long_outlined,
+                                    'Base Fare (${draft.zonalLocality?['zoneLabel'] ?? 'Zone'})',
+                                    '₹${draft.zonalQuote!['baseFare'] ?? 800}',
+                                    isDark,
+                                  ),
+                                  const Divider(),
+                                  if (draft.zonalHasEscort) ...[
+                                    _buildReviewRow(
+                                      context,
+                                      Icons.shield_outlined,
+                                      'Security Escort Fee',
+                                      '+ ₹${draft.zonalQuote!['escortFee'] ?? 400}',
+                                      isDark,
+                                      valueColor: AppColors.accentPurple,
+                                    ),
+                                    const Divider(),
+                                  ],
+                                ],
+                                _buildReviewRow(context, Icons.currency_rupee, 'Rate per Vehicle', '₹${_getRatePerVehicle(draft).toStringAsFixed(0)}', isDark),
+                                const Divider(),
+                                _buildReviewRow(context, Icons.payments_outlined, 'Est. Total Cost', '₹${(draft.quantity * _getRatePerVehicle(draft)).toStringAsFixed(0)}', isDark, valueColor: _appliedCoupon != null ? AppColors.textMutedLight : AppColors.success),
+                                const Divider(),
+                                if (_appliedCoupon != null) ...[
+                                  _buildReviewRow(context, Icons.local_offer_outlined, 'Promo Discount (${_appliedCoupon!["code"]})', '- ₹${((_appliedCoupon!["discountAmount"] as num?)?.toDouble() ?? 0).toStringAsFixed(0)}', isDark, valueColor: AppColors.success),
+                                  const Divider(),
+                                  _buildReviewRow(context, Icons.account_balance_wallet_outlined, 'Net Est. Amount', '₹${((_appliedCoupon!["finalAmount"] as num?)?.toDouble() ?? (draft.quantity * _getRatePerVehicle(draft))).toStringAsFixed(0)}', isDark, valueColor: AppColors.primary),
+                                  const Divider(),
+                                ],
+                              ],
+                              _buildReviewRow(
+                                context,
+                                Icons.directions_car_outlined,
+                                'Vehicle Type',
+                                _getVehicleCategoryLabel(draft.vehicleType),
+                                isDark,
+                              ),
+                              const Divider(),
+                              _buildReviewRow(context, Icons.format_list_numbered, 'Quantity', '${draft.quantity} ${draft.quantity > 1 ? "Vehicles" : "Vehicle"}', isDark),
+                              const Divider(),
+                              _buildReviewRow(context, Icons.swap_calls, 'Trip Type', draft.tripType, isDark),
+                              const Divider(),
+                              _buildReviewRow(context, Icons.calendar_today_outlined, 'Pickup Date', draft.pickupDate, isDark),
+                              const Divider(),
+                              _buildReviewRow(context, Icons.access_time_outlined, 'Pickup Time', draft.pickupTime, isDark),
+                              if (draft.hasReturn) ...[
+                                const Divider(),
+                                _buildReviewRow(context, Icons.event_repeat, 'Return Date/Time', '${draft.returnDate ?? "-"} ${draft.returnTime ?? ""}', isDark),
+                              ],
+                              const Divider(),
+                              _buildReviewRow(context, Icons.person_outline, 'Passengers/Cab', '${draft.passengers}', isDark),
+                              if (draft.specialRequests.isNotEmpty) ...[
+                                const Divider(),
+                                _buildReviewRow(context, Icons.note_outlined, 'Preferences', draft.specialRequests, isDark),
+                              ],
+                              if (draft.additionalInfo.isNotEmpty) ...[
+                                const Divider(),
+                                _buildReviewRow(context, Icons.description_outlined, 'Additional Notes', draft.additionalInfo, isDark),
+                              ],
+                            ],
+                          ),
+                        );
+                      },
                     ),
 
                     const SizedBox(height: AppSpacing.md),
@@ -1116,7 +1154,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                         Expanded(
                           flex: 2,
                           child: AppPrimaryButton(
-                            text: '⚡ Deploy Fleet Dispatch',
+                            text: 'Deploy Fleet Dispatch',
                             isLoading: _isSubmitting,
                             onPressed: _handleConfirmAndPost,
                           ),

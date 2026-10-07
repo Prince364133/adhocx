@@ -58,6 +58,7 @@ export function useVerificationCenter() {
           entityType: 'DRIVER',
           name: d.fullName || 'Driver Applicant',
           phone: d.phone || '',
+          email: d.email || '',
           verificationStatus: d.verificationStatus || 'UNDER_REVIEW',
           rejectionReason: d.rejectionReason,
           vehiclePlate: d.vehiclePlate || d.rcNumber || '',
@@ -80,6 +81,7 @@ export function useVerificationCenter() {
         name: v.fullName || v.contactPerson || 'Vendor Partner',
         organizationName: v.organizationName || v.companyName || '',
         phone: v.phone || '',
+        email: v.email || '',
         verificationStatus: v.verificationStatus || 'UNDER_REVIEW',
         rejectionReason: v.rejectionReason,
         gstNumber: v.gstNumber || '',
@@ -132,10 +134,11 @@ export function useVerificationCenter() {
         const matchesName = item.name.toLowerCase().includes(query);
         const matchesOrg = item.organizationName?.toLowerCase().includes(query) || false;
         const matchesPhone = item.phone.includes(query);
+        const matchesEmail = item.email?.toLowerCase().includes(query) || false;
         const matchesPlate = item.vehiclePlate?.toLowerCase().includes(query) || false;
         const matchesGst = item.gstNumber?.toLowerCase().includes(query) || false;
 
-        return matchesName || matchesOrg || matchesPhone || matchesPlate || matchesGst;
+        return matchesName || matchesOrg || matchesPhone || matchesEmail || matchesPlate || matchesGst;
       }
 
       return true;

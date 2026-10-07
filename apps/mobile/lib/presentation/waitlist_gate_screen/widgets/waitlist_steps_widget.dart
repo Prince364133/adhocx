@@ -16,7 +16,7 @@ class WaitlistStepsWidget extends StatelessWidget {
           state: _StepState.done,
         ),
         const _StepConnector(isActive: true),
-        const _Step(number: '2', label: 'Admin\nReview', state: _StepState.active),
+        const _Step(number: '2', label: 'Review in\nProgress', state: _StepState.active),
         const _StepConnector(isActive: false),
         _Step(
           number: '3',

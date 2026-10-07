@@ -55,12 +55,6 @@ export class BidsService {
       throw new ForbiddenException('Driver account is inactive');
     }
 
-    if (driver.subscriptionStatus === 'FROZEN' || driver.subscriptionStatus === 'EXPIRED') {
-      throw new ForbiddenException(
-        'Subscription required: Your 15-day trial or monthly membership has expired. Please renew your subscription to place bids on requirements.',
-      );
-    }
-
     if (driver.verificationStatus !== VerificationStatus.VERIFIED) {
       throw new ForbiddenException('Only VERIFIED drivers can submit bids');
     }

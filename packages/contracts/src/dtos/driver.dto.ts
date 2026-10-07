@@ -154,6 +154,11 @@ export class DriverProfileDto {
   address?: string;
   emergencyContactName?: string;
   emergencyContactPhone?: string;
+  bankAccountName?: string;
+  bankAccountNumber?: string;
+  bankIfsc?: string;
+  bankName?: string;
+  upiId?: string;
   documents?: any;
   createdAt!: string;
   updatedAt!: string;
@@ -207,6 +212,49 @@ export class UpdateDriverProfileDto {
   @IsOptional()
   @IsString()
   vehiclePlate?: string;
+
+  @IsOptional()
+  @IsString()
+  vehiclePhotoUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  bankAccountName?: string;
+
+  @IsOptional()
+  @IsString()
+  bankAccountNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  bankIfsc?: string;
+
+  @IsOptional()
+  @IsString()
+  bankName?: string;
+
+  @IsOptional()
+  @IsString()
+  upiId?: string;
+}
+
+export class UpdateBankDetailsDto {
+  @IsString()
+  bankAccountName!: string;
+
+  @IsString()
+  bankAccountNumber!: string;
+
+  @IsString()
+  bankIfsc!: string;
+
+  @IsOptional()
+  @IsString()
+  bankName?: string;
+
+  @IsOptional()
+  @IsString()
+  upiId?: string;
 }
 
 export class UploadDocumentDto {

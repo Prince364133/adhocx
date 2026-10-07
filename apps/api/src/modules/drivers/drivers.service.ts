@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, Logger, Optional } from '@nestjs/common';
 import {
   DriverProfileDto,
   DriverTrustScoreBreakdownDto,
   TrustScoreHistoryItemDto,
   UpdateAvailabilityDto,
   UpdateDriverProfileDto,
+  UpdateBankDetailsDto,
   KycSubmissionDto,
   UploadDocumentDto,
   UploadDocumentResponseDto,
@@ -17,14 +18,42 @@ import {
 import { DatabaseService } from '../../database/database.service';
 import { StorageService } from '../../common/storage/storage.service';
 import { AuditService } from '../audit/audit.service';
+import { LocationsService } from '../locations/locations.service';
 
 @Injectable()
 export class DriversService {
+  private readonly logger = new Logger(DriversService.name);
+
   constructor(
     private readonly db: DatabaseService,
     private readonly storage: StorageService,
     private readonly audit: AuditService,
+    @Optional() private readonly locations?: LocationsService,
   ) {}
+
+  private async syncSpatialIndex(driver: {
+    id: string;
+    availabilityStatus: string;
+    currentLat: unknown;
+    currentLng: unknown;
+    vehicleType?: string | null;
+  }): Promise<void> {
+    if (!this.locations) return;
+    try {
+      if (driver.availabilityStatus === DriverAvailability.OFFLINE) {
+        await this.locations.removeDriverFromAvailable(driver.id);
+      } else if (driver.currentLat !== null && driver.currentLat !== undefined && driver.currentLng !== null && driver.currentLng !== undefined) {
+        await this.locations.indexDriverLocation(
+          driver.id,
+          Number(driver.currentLat),
+          Number(driver.currentLng),
+          driver.vehicleType ?? undefined,
+        );
+      }
+    } catch (err: any) {
+      this.logger.warn(`Spatial index sync failed for driver ${driver.id}: ${err.message}`);
+    }
+  }
 
   async getProfile(userId: string): Promise<DriverProfileDto> {
     try {
@@ -80,12 +109,17 @@ export class DriversService {
         aadharFrontUrl: driver.aadharFrontUrl || undefined,
         aadharBackUrl: driver.aadharBackUrl || undefined,
         panDocUrl: driver.panDocUrl || undefined,
-        profilePhotoUrl: kyc.profilePhotoUrl || driver.vehiclePhotoUrl || undefined,
+        profilePhotoUrl: kyc.profilePhotoUrl || undefined,
         dateOfBirth: kyc.dateOfBirth || undefined,
         gender: kyc.gender || undefined,
         address: kyc.address || undefined,
         emergencyContactName: kyc.emergencyContactName || undefined,
         emergencyContactPhone: kyc.emergencyContactPhone || undefined,
+        bankAccountName: kyc.bankAccountName || driver.fullName || undefined,
+        bankAccountNumber: kyc.bankAccountNumber || undefined,
+        bankIfsc: kyc.bankIfsc || undefined,
+        bankName: kyc.bankName || undefined,
+        upiId: kyc.upiId || undefined,
         documents: (driver.kycDocuments as any) || docsList,
         createdAt: driver.createdAt.toISOString(),
         updatedAt: driver.updatedAt.toISOString(),
@@ -171,6 +205,11 @@ export class DriversService {
       ...(dto.emergencyContactName !== undefined ? { emergencyContactName: dto.emergencyContactName } : {}),
       ...(dto.emergencyContactPhone !== undefined ? { emergencyContactPhone: dto.emergencyContactPhone } : {}),
       ...(dto.profilePhotoUrl !== undefined ? { profilePhotoUrl: dto.profilePhotoUrl } : {}),
+      ...(dto.bankAccountName !== undefined ? { bankAccountName: dto.bankAccountName.trim() } : {}),
+      ...(dto.bankAccountNumber !== undefined ? { bankAccountNumber: dto.bankAccountNumber.trim() } : {}),
+      ...(dto.bankIfsc !== undefined ? { bankIfsc: dto.bankIfsc.trim().toUpperCase() } : {}),
+      ...(dto.bankName !== undefined ? { bankName: dto.bankName.trim() } : {}),
+      ...(dto.upiId !== undefined ? { upiId: dto.upiId.trim() } : {}),
     };
 
     await this.db.driver.update({
@@ -178,10 +217,39 @@ export class DriversService {
       data: {
         ...(cleanName ? { fullName: cleanName } : {}),
         ...(cleanPhone ? { phone: cleanPhone } : {}),
-        ...(dto.profilePhotoUrl ? { vehiclePhotoUrl: dto.profilePhotoUrl } : {}),
+        ...(dto.vehiclePhotoUrl ? { vehiclePhotoUrl: dto.vehiclePhotoUrl } : {}),
         ...(dto.vehicleType ? { vehicleType: dto.vehicleType.toUpperCase() } : {}),
         ...(dto.vehicleModel ? { vehicleModel: dto.vehicleModel } : {}),
         ...(dto.vehiclePlate ? { vehiclePlate: dto.vehiclePlate.toUpperCase() } : {}),
+        kycDocuments: updatedKyc,
+      },
+    });
+
+    return this.getProfile(userId);
+  }
+
+  async updateBankDetails(userId: string, dto: UpdateBankDetailsDto): Promise<DriverProfileDto> {
+    const driver = await this.db.driver.findUnique({
+      where: { userId },
+    });
+
+    if (!driver) {
+      throw new NotFoundException('Driver profile not found');
+    }
+
+    const currentKyc = (driver.kycDocuments as Record<string, any>) || {};
+    const updatedKyc = {
+      ...currentKyc,
+      bankAccountName: dto.bankAccountName.trim(),
+      bankAccountNumber: dto.bankAccountNumber.trim(),
+      bankIfsc: dto.bankIfsc.trim().toUpperCase(),
+      ...(dto.bankName !== undefined ? { bankName: dto.bankName.trim() } : {}),
+      ...(dto.upiId !== undefined ? { upiId: dto.upiId.trim() } : {}),
+    };
+
+    await this.db.driver.update({
+      where: { userId },
+      data: {
         kycDocuments: updatedKyc,
       },
     });
@@ -229,6 +297,9 @@ export class DriversService {
       },
     });
 
+    // Keep the Redis GEO / H3 dispatch index in sync with availability.
+    await this.syncSpatialIndex(updated);
+
     // If driver went OFFLINE, cancel any pending SENT offers so dispatch is not blocked
     if (dto.status === DriverAvailability.OFFLINE) {
       await this.db.offer.updateMany({
@@ -241,15 +312,17 @@ export class DriversService {
   }
 
   async submitKyc(userId: string, dto: KycSubmissionDto): Promise<DriverProfileDto> {
+    const profilePhotoUrl = dto.profilePhotoUrl;
     const dlFrontUrl = dto.dlFrontUrl || dto.documentUrls?.[0];
     const rcDocUrl = dto.rcDocUrl || dto.documentUrls?.[1];
     const insuranceDocUrl = dto.insuranceDocUrl || dto.documentUrls?.[2];
-    const vehiclePhotoUrl = dto.vehiclePhotoUrl || dto.documentUrls?.[3];
+    const vehiclePhotoUrl = dto.vehiclePhotoUrl;
     const aadharFrontUrl = dto.aadharFrontUrl || dto.documentUrls?.[4];
     const aadharBackUrl = dto.aadharBackUrl || dto.documentUrls?.[5];
     const panDocUrl = dto.panDocUrl || dto.documentUrls?.[6];
 
     const docsList = [
+      ...(profilePhotoUrl ? [{ id: 'doc_profile', documentType: 'PROFILE_PHOTO', title: 'Driver Profile Photo', fileUrl: profilePhotoUrl, verified: false, uploadedAt: new Date().toISOString() }] : []),
       ...(dlFrontUrl ? [{ id: 'doc_dl', documentType: 'DRIVING_LICENSE', title: 'Driving License', fileUrl: dlFrontUrl, verified: false, uploadedAt: new Date().toISOString() }] : []),
       ...(rcDocUrl ? [{ id: 'doc_rc', documentType: 'RC_BOOK', title: 'Vehicle RC Book', fileUrl: rcDocUrl, verified: false, uploadedAt: new Date().toISOString() }] : []),
       ...(insuranceDocUrl ? [{ id: 'doc_ins', documentType: 'INSURANCE', title: 'Vehicle Insurance', fileUrl: insuranceDocUrl, verified: false, uploadedAt: new Date().toISOString() }] : []),
@@ -311,7 +384,11 @@ export class DriversService {
             aadharFrontUrl: aadharFrontUrl || existingDriver.aadharFrontUrl,
             aadharBackUrl: aadharBackUrl || existingDriver.aadharBackUrl,
             panDocUrl: panDocUrl || existingDriver.panDocUrl,
-            kycDocuments: docsList.length > 0 ? docsList : existingDriver.kycDocuments || [],
+            kycDocuments: {
+              ...((existingDriver.kycDocuments as Record<string, any>) || {}),
+              ...(profilePhotoUrl ? { profilePhotoUrl } : {}),
+              documents: docsList.length > 0 ? docsList : (((existingDriver.kycDocuments as any)?.documents) || []),
+            },
           },
         });
 
@@ -378,7 +455,10 @@ export class DriversService {
             aadharFrontUrl,
             aadharBackUrl,
             panDocUrl,
-            kycDocuments: docsList,
+            kycDocuments: {
+              ...(profilePhotoUrl ? { profilePhotoUrl } : {}),
+              documents: docsList,
+            },
           },
         });
 

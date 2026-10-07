@@ -38,6 +38,8 @@ describe('DispatchService Unit Tests', () => {
 
     locationsService = {
       findNearbyDrivers: jest.fn().mockResolvedValue([]),
+      findNearbyDriversByH3: jest.fn().mockResolvedValue([]),
+      latLngToH3: jest.fn().mockReturnValue('8860a259bbfffff'),
     };
 
     notifications = {

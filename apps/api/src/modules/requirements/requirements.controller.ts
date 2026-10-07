@@ -61,7 +61,7 @@ export class RequirementsController {
     @Param('id') id: string,
     @CurrentUser() user: AuthUserDto,
   ) {
-    return this.requirementsService.getRequirementDetails(id, user.id);
+    return this.requirementsService.getRequirementDetails(id, user.id, user.role);
   }
 
   @Post(':id/cancel')
@@ -73,7 +73,7 @@ export class RequirementsController {
     @CurrentUser() user: AuthUserDto,
     @Body() dto: CancelRequirementDto,
   ) {
-    return this.requirementsService.cancelRequirement(id, user.id, dto);
+    return this.requirementsService.cancelRequirement(id, user.id, dto, user.role);
   }
 
   @Post(':id/retry')

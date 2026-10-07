@@ -18,7 +18,7 @@ export interface DriverSubscriptionStatusDto {
   trialDaysTotal: number;
   trialDaysRemaining: number;
   trialStartDate: string;
-  trialEndDate: string;
+  trialEndDate: string | null;
   subscriptionExpiry: string | null;
   daysRemaining: number;
   autoDebit: boolean;
@@ -48,106 +48,19 @@ export class SubscriptionsService {
       throw new NotFoundException('Driver profile not found');
     }
 
-    const policy = await this.pricing.getPolicyConfig();
-    const monthlyFee = policy.driverMonthlyFee;
-    const trialDays = policy.driverTrialDays;
-
-    const now = new Date();
-    let trialStartDate = driver.trialStartDate || driver.createdAt;
-    let trialEndDate = driver.trialEndDate;
-
-    if (!trialEndDate) {
-      trialEndDate = new Date(trialStartDate.getTime() + trialDays * 24 * 60 * 60 * 1000);
-      await this.db.driver.update({
-        where: { id: driver.id },
-        data: {
-          trialStartDate,
-          trialEndDate,
-        },
-      });
-    }
-
-    let status = driver.subscriptionStatus as string;
-    let subscriptionExpiry = driver.subscriptionExpiry;
-
-    // 1. Check if in 15-day Free Trial
-    if (status === 'TRIAL_ACTIVE') {
-      if (now <= trialEndDate) {
-        const msRemaining = trialEndDate.getTime() - now.getTime();
-        const daysRemaining = Math.max(0, Math.ceil(msRemaining / (1000 * 60 * 60 * 24)));
-
-        return {
-          status: 'TRIAL_ACTIVE',
-          canAccessPlatform: true,
-          isPaywallBlocked: false,
-          monthlyFee,
-          trialDaysTotal: trialDays,
-          trialDaysRemaining: daysRemaining,
-          trialStartDate: trialStartDate.toISOString(),
-          trialEndDate: trialEndDate.toISOString(),
-          subscriptionExpiry: null,
-          daysRemaining,
-          autoDebit: driver.autoDebit,
-          walletBalance: Number(driver.walletBalance),
-        };
-      } else {
-        // Trial has expired! Attempt auto-debit from wallet if available
-        const autoRenewed = await this.tryAutoDebitRenewal(driver.id, monthlyFee);
-        if (autoRenewed) {
-          return this.getDriverSubscriptionStatus(driverUserId);
-        } else {
-          // Freeze driver account until subscription payment
-          await this.db.driver.update({
-            where: { id: driver.id },
-            data: { subscriptionStatus: 'FROZEN' },
-          });
-          status = 'FROZEN';
-        }
-      }
-    }
-
-    // 2. Check if active paid subscription has expired
-    if (status === 'ACTIVE' && subscriptionExpiry) {
-      if (now > subscriptionExpiry) {
-        // Attempt auto-debit renewal
-        const autoRenewed = await this.tryAutoDebitRenewal(driver.id, monthlyFee);
-        if (autoRenewed) {
-          return this.getDriverSubscriptionStatus(driverUserId);
-        } else {
-          await this.db.driver.update({
-            where: { id: driver.id },
-            data: { subscriptionStatus: 'FROZEN' },
-          });
-          status = 'FROZEN';
-        }
-      }
-    }
-
-    const isCurrentActive = status === 'ACTIVE' && subscriptionExpiry && now <= subscriptionExpiry;
-    const canAccessPlatform = status === 'TRIAL_ACTIVE' || isCurrentActive;
-
-    let daysRemaining = 0;
-    if (isCurrentActive && subscriptionExpiry) {
-      daysRemaining = Math.max(0, Math.ceil((subscriptionExpiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-    }
-
-    const trialDaysRemaining = Math.max(
-      0,
-      Math.ceil((trialEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
-    );
-
+    // Subscriptions disabled: platform operates on 10% commission per ride. Drivers are never paywalled.
     return {
-      status: (status as any) || 'FROZEN',
-      canAccessPlatform: Boolean(canAccessPlatform),
-      isPaywallBlocked: !canAccessPlatform,
-      monthlyFee,
-      trialDaysTotal: trialDays,
-      trialDaysRemaining,
-      trialStartDate: trialStartDate.toISOString(),
-      trialEndDate: trialEndDate.toISOString(),
-      subscriptionExpiry: subscriptionExpiry ? subscriptionExpiry.toISOString() : null,
-      daysRemaining,
-      autoDebit: driver.autoDebit,
+      status: 'ACTIVE',
+      canAccessPlatform: true,
+      isPaywallBlocked: false,
+      monthlyFee: 0,
+      trialDaysTotal: 0,
+      trialDaysRemaining: 0,
+      trialStartDate: (driver.trialStartDate || driver.createdAt).toISOString(),
+      trialEndDate: null,
+      subscriptionExpiry: null,
+      daysRemaining: 999,
+      autoDebit: false,
       walletBalance: Number(driver.walletBalance),
     };
   }

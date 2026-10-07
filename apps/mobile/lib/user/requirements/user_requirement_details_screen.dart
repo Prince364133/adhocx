@@ -73,20 +73,33 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
 
     try {
       final effectiveId = widget.requirementId ?? _requirement?['id']?.toString();
-      if (effectiveId != null && effectiveId.isNotEmpty && !effectiveId.startsWith('REQ-LIVE')) {
+      final isUuid = effectiveId != null &&
+          RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
+              .hasMatch(effectiveId);
+
+      if (isUuid) {
         final data = await UserService.instance.getRequirement(effectiveId);
         if (mounted && data is Map) {
           setState(() => _requirement = Map<String, dynamic>.from(data));
         }
       } else {
-        // Fallback: fetch most recent requirement for current vendor
+        // Fallback: fetch most recent requirements for current vendor
         final list = await UserService.instance.getRequirements();
         if (list.isNotEmpty && mounted) {
-          final first = list.first;
-          if (first is Map && first['id'] != null) {
-            final full = await UserService.instance.getRequirement(first['id'].toString());
-            if (mounted && full is Map) {
-              setState(() => _requirement = Map<String, dynamic>.from(full));
+          final match = list.firstWhere(
+            (r) => r is Map && r['id']?.toString() == effectiveId,
+            orElse: () => list.first,
+          );
+          if (match is Map && match['id'] != null) {
+            final targetId = match['id'].toString();
+            if (RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
+                .hasMatch(targetId)) {
+              final full = await UserService.instance.getRequirement(targetId);
+              if (mounted && full is Map) {
+                setState(() => _requirement = Map<String, dynamic>.from(full));
+              }
+            } else if (mounted) {
+              setState(() => _requirement = Map<String, dynamic>.from(match));
             }
           }
         }
@@ -207,7 +220,7 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
       if (mounted) {
         messenger.showSnackBar(
           const SnackBar(
-            content: Text('⚡ Re-dispatch waves initiated! Searching for nearby verified drivers...'),
+            content: Text('Re-dispatch waves initiated. Searching for nearby verified drivers...'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -259,9 +272,9 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
   String _getOfferStatusLabel(String status) {
     switch (status) {
       case 'ACCEPTED':
-        return 'Accepted 🎉';
+        return 'Accepted';
       case 'SENT':
-        return 'Offer Sent ⏳';
+        return 'Offer Sent';
       case 'DECLINED':
         return 'Declined';
       case 'EXPIRED':
@@ -1079,7 +1092,7 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                                   ),
                                 ],
                               ),
-                              if (!isBidding) ...[
+                              if (!isBidding && req['zonalQuote'] is Map) ...[
                                 const SizedBox(height: 8),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -1090,22 +1103,27 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Row(
-                                        children: [
-                                          const Icon(Icons.verified_rounded, size: 14, color: AppColors.primary),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            'Corporate Zonal 2026 Flat Rate',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w700,
-                                              color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                      Expanded(
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.verified_rounded, size: 14, color: AppColors.primary),
+                                            const SizedBox(width: 6),
+                                            Flexible(
+                                              child: Text(
+                                                'Corporate Zonal · ${req['zonalQuote']?['locality']?['zoneLabel'] ?? ''} · ${req['zonalQuote']?['officeHub']?['displayName'] ?? ''}',
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                                ),
+                                              ),
                                             ),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
                                       Text(
-                                        '85% Driver Payout Guaranteed',
+                                        'Rate ${req['zonalQuote']?['rateVersion'] ?? ''}${req['zonalQuote']?['hasEscort'] == true ? ' · Escort' : ''}',
                                         style: TextStyle(
                                           fontSize: 10,
                                           fontWeight: FontWeight.w600,
@@ -1374,7 +1392,7 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                                             },
                                             icon: const Icon(Icons.map_outlined, size: 16),
                                             label: Text(
-                                              isInProgress ? 'Track Live Ride 🗺️' : 'Trip Details',
+                                              isInProgress ? 'Track Live Ride' : 'Trip Details',
                                               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                                             ),
                                             style: OutlinedButton.styleFrom(
@@ -1448,6 +1466,7 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                                   onPressed: () {
                                     showModalBottomSheet(
                                       context: context,
+                                      useRootNavigator: true,
                                       isScrollControlled: true,
                                       backgroundColor: Colors.transparent,
                                       builder: (ctx) => UserBidsBottomSheet(

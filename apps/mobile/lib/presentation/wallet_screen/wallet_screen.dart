@@ -3,6 +3,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import '../../services/driver_service.dart';
 import '../../shared/theme/app_colors.dart';
 
+import './widgets/bank_details_modal.dart';
 import './widgets/wallet_bank_card_widget.dart';
 import './widgets/wallet_history_widget.dart';
 import './widgets/wallet_kpi_grid_widget.dart';
@@ -105,13 +106,47 @@ class _WalletScreenState extends State<WalletScreen> {
     return months[month - 1];
   }
 
+  Future<void> _openBankDetailsModal() async {
+    final updated = await BankDetailsModal.show(
+      context,
+      initialDetails: _bankDetails,
+      onSaved: (newDetails) {
+        if (mounted) {
+          setState(() {
+            _bankDetails = Map<String, dynamic>.from(newDetails);
+          });
+        }
+      },
+    );
+
+    if (updated != null && mounted) {
+      setState(() {
+        _bankDetails = Map<String, dynamic>.from(updated);
+      });
+      _fetchWalletData();
+    }
+  }
+
   Future<void> _onWithdraw(double amount) async {
+    final accNumber = (_bankDetails['account_number'] ?? '').toString().trim();
+    final ifsc = (_bankDetails['ifsc'] ?? '').toString().trim().toUpperCase();
+    final holder = (_bankDetails['account_holder'] ?? 'Driver Partner').toString().trim();
+
+    if (accNumber.isEmpty || ifsc.isEmpty) {
+      Fluttertoast.showToast(
+        msg: 'Please add your bank account details before requesting a withdrawal',
+        backgroundColor: AppColors.warning,
+      );
+      _openBankDetailsModal();
+      return;
+    }
+
     try {
       await DriverService.instance.requestWithdrawal(
         amount: amount,
-        bankAccountName: _bankDetails['account_holder'] ?? 'Driver Partner',
-        bankAccountNumber: _bankDetails['account_number'] ?? '918273645012',
-        bankIfsc: _bankDetails['ifsc'] ?? 'HDFC0001234',
+        bankAccountName: holder,
+        bankAccountNumber: accNumber,
+        bankIfsc: ifsc,
       );
 
       setState(() => _hasPendingWithdrawal = true);
@@ -153,7 +188,10 @@ class _WalletScreenState extends State<WalletScreen> {
                           availableBalance: _availableBalance,
                         ),
                         const SizedBox(height: 16),
-                        WalletBankCardWidget(bankDetails: _bankDetails),
+                        WalletBankCardWidget(
+                          bankDetails: _bankDetails,
+                          onEdit: _openBankDetailsModal,
+                        ),
                         const SizedBox(height: 16),
                         WalletWithdrawalWidget(
                           availableBalance: _availableBalance,

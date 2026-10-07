@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../services/user_service.dart';
 import '../../shared/animations/app_bouncing_wrapper.dart';
 import '../../shared/theme/app_colors.dart';
@@ -248,7 +249,9 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
             ListTile(
               leading: const CircleAvatar(backgroundColor: AppColors.primary, child: Icon(Icons.shield, color: Colors.white)),
               title: const Text('AdhocX 24/7 Safety Desk', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-              subtitle: const Text('+91 1800 234 5678 (Toll Free)'),
+              subtitle: const Text('+91 7893545818'),
+              trailing: const Icon(Icons.call, color: AppColors.primary, size: 20),
+              onTap: () => launchUrl(Uri.parse('tel:+917893545818')),
               contentPadding: EdgeInsets.zero,
             ),
           ],
@@ -439,7 +442,7 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       const Text(
-                                        'Trip Completed Successfully! 🎉',
+                                        'Trip Completed Successfully',
                                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.success),
                                       ),
                                       const SizedBox(height: 2),
@@ -466,7 +469,7 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
                                     backgroundColor: AppColors.starAmber,
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                   ),
-                                  child: const Text('Rate ⭐', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                                  child: const Text('Rate Driver', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                                 ),
                               ],
                             ),
@@ -492,7 +495,7 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Driver has arrived at pickup spot! 🚖',
+                                        'Driver has arrived at pickup location',
                                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? AppColors.textPrimaryDark : AppColors.slate900),
                                       ),
                                       const SizedBox(height: 2),

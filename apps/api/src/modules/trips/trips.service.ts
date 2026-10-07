@@ -3,7 +3,9 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  ConflictException,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import {
   TripResponseDto,
@@ -28,6 +30,7 @@ import { DatabaseService } from '../../database/database.service';
 import { DispatchService } from '../dispatch/dispatch.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
+import { LocationsService } from '../locations/locations.service';
 
 @Injectable()
 export class TripsService {
@@ -38,6 +41,7 @@ export class TripsService {
     private readonly dispatchService: DispatchService,
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
+    @Optional() private readonly locations?: LocationsService,
   ) {}
 
   /**
@@ -328,6 +332,11 @@ export class TripsService {
       },
     });
 
+    // Keep the dispatch spatial index fresh (dispatch re-checks availability in the DB).
+    this.locations
+      ?.indexDriverLocation(trip.driverId, dto.location.latitude, dto.location.longitude, trip.vehicleType as string)
+      .catch(() => undefined);
+
     // Append to TripEvent telemetry log
     await this.db.tripEvent.create({
       data: {
@@ -362,20 +371,39 @@ export class TripsService {
   async completeTrip(id: string, driverUserId: string, dto: CompleteTripDto): Promise<TripResponseDto> {
     const trip = await this.findAndVerifyDriverTrip(id, driverUserId);
 
+    if (trip.status === TripStatus.COMPLETED) {
+      // Idempotent retry: the earning was already credited exactly once.
+      return this.mapToDto(trip);
+    }
     validateTripTransition(trip.status as TripStatus, TripStatus.COMPLETED);
 
     const isBidding = trip.requirement?.fulfillmentMode === FulfillmentMode.BIDDING;
-    const tollCharges = dto.tollCharges || 0;
-    const parkingCharges = dto.parkingCharges || 0;
-    const fareAmount = Number(trip.driverRate);
-    const commission = isBidding ? Math.round(fareAmount * 0.05) : 0; // 5% platform commission
+    const zonalQuote = (trip.requirement as any)?.zonalQuote ?? null;
+    const claimedToll = dto.tollCharges || 0;
+    const claimedParking = dto.parkingCharges || 0;
+    // Corporate zonal trips: driver earnings come only from the accepted quote snapshot. Tolls/parking are
+    // recorded as claims for operations approval and never auto-paid (Driver PRD: undefined cases).
+    const tollCharges = zonalQuote ? 0 : claimedToll;
+    const parkingCharges = zonalQuote ? 0 : claimedParking;
+    const fareAmount = zonalQuote ? zonalQuote.driverFarePaise / 100 : Number(trip.driverRate);
+
+    // Dynamic platform commission from Admin Policy Config (default 10%, configurable in Admin Panel)
+    let commissionPercent = 10.0;
+    try {
+      const policy = await this.db.systemPolicyConfig.findUnique({ where: { key: 'GLOBAL_POLICY' } });
+      if (policy && policy.commissionPercent != null) {
+        commissionPercent = Number(policy.commissionPercent);
+      }
+    } catch (_) {}
+
+    const commission = zonalQuote ? 0 : Math.round(fareAmount * (commissionPercent / 100));
     const totalDriverEarnings = fareAmount - commission + tollCharges + parkingCharges;
     const now = new Date();
 
     const updated = await this.db.$transaction(async (tx) => {
-      // 1. Update trip record
-      const updatedTrip = await tx.trip.update({
-        where: { id },
+      // 1. Claim the completion atomically: a retried or concurrent request cannot credit twice.
+      const claimed = await tx.trip.updateMany({
+        where: { id, status: trip.status },
         data: {
           status: TripStatus.COMPLETED,
           completedAt: now,
@@ -383,8 +411,17 @@ export class TripsService {
           parkingCharges,
           totalDriverEarnings,
         },
+      });
+      if (claimed.count !== 1) {
+        return null;
+      }
+      const updatedTrip = await tx.trip.findUnique({
+        where: { id },
         include: { requirement: true },
       });
+      if (!updatedTrip) {
+        throw new NotFoundException('Trip not found');
+      }
 
       // 2. Complete associated assignment
       await tx.assignment.update({
@@ -416,12 +453,12 @@ export class TripsService {
           balanceAfter: updatedDriver.walletBalance,
           referenceType: isBidding ? 'ESCROW_RELEASE' : 'TRIP_EARNINGS',
           referenceId: trip.id,
-          description: `Earnings for trip ${trip.id.slice(-6)} (Fare: ₹${fareAmount}${commission ? `, Fee: -₹${commission}` : ''}${tollCharges ? `, Toll: ₹${tollCharges}` : ''}${parkingCharges ? `, Parking: ₹${parkingCharges}` : ''})`,
+          description: `Earnings for trip ${trip.id.slice(-6)} (Fare: ₹${fareAmount}${commission ? `, Commission (${commissionPercent}%): -₹${commission}` : ''}${tollCharges ? `, Toll: ₹${tollCharges}` : ''}${parkingCharges ? `, Parking: ₹${parkingCharges}` : ''})`,
         },
       });
 
-      // 6. Record platform commission entry if in Bidding mode
-      if (isBidding && commission > 0) {
+      // 5. Record platform commission entry
+      if (commission > 0) {
         await tx.ledgerEntry.create({
           data: {
             accountType: 'PLATFORM',
@@ -431,11 +468,43 @@ export class TripsService {
             balanceAfter: commission,
             referenceType: 'PLATFORM_COMMISSION',
             referenceId: trip.id,
-            description: `Platform fee (5%) for trip ${trip.id.slice(-6)}`,
+            description: `Platform commission (${commissionPercent}%) for trip ${trip.id.slice(-6)}`,
           },
         });
       }
 
+
+      // 7. Corporate zonal trip: record platform spread and escort payable separately from driver earnings.
+      if (zonalQuote) {
+        if (zonalQuote.platformFeePaise > 0) {
+          await tx.ledgerEntry.create({
+            data: {
+              accountType: 'PLATFORM',
+              accountId: trip.vendorId,
+              entryType: 'CREDIT',
+              amount: zonalQuote.platformFeePaise / 100,
+              balanceAfter: zonalQuote.platformFeePaise / 100,
+              referenceType: 'ZONAL_PLATFORM_SPREAD',
+              referenceId: trip.id,
+              description: `Zonal spread for trip ${trip.id.slice(-6)} (${zonalQuote.hubId}/${zonalQuote.zoneId}, rate ${zonalQuote.rateVersion})`,
+            },
+          });
+        }
+        if (zonalQuote.hasEscort && zonalQuote.escortFarePaise > 0) {
+          await tx.ledgerEntry.create({
+            data: {
+              accountType: 'ESCORT_PAYABLE',
+              accountId: trip.vendorId,
+              entryType: 'CREDIT',
+              amount: zonalQuote.escortFarePaise / 100,
+              balanceAfter: zonalQuote.escortFarePaise / 100,
+              referenceType: 'ZONAL_ESCORT_PAYABLE',
+              referenceId: trip.id,
+              description: `Escort service payable for trip ${trip.id.slice(-6)} (payee settled by operations)`,
+            },
+          });
+        }
+      }
 
       // 4. Check if all trips for the parent requirement are COMPLETED
       const remainingActiveTrips = await tx.trip.count({
@@ -455,6 +524,22 @@ export class TripsService {
       return updatedTrip;
     }, { timeout: 30000, maxWait: 10000 });
 
+    if (!updated) {
+      // Duplicate completion: return the already-completed trip without a second credit.
+      const current = await this.db.trip.findUnique({ where: { id }, include: { requirement: true } });
+      if (current?.status === TripStatus.COMPLETED) {
+        return this.mapToDto(current);
+      }
+      throw new ConflictException('Trip state changed during completion. Please retry.');
+    }
+
+    // Driver is AVAILABLE again: re-index at the drop-off position for the next dispatch wave.
+    if (dto?.currentLocation?.latitude && dto?.currentLocation?.longitude) {
+      this.locations
+        ?.indexDriverLocation(updated.driverId, dto.currentLocation.latitude, dto.currentLocation.longitude, updated.vehicleType as string)
+        .catch(() => undefined);
+    }
+
     // Record completion event
     await this.db.tripEvent.create({
       data: {
@@ -466,6 +551,9 @@ export class TripsService {
           totalEarnings: totalDriverEarnings,
           tollCharges,
           parkingCharges,
+          ...(zonalQuote && (claimedToll || claimedParking)
+            ? { pendingOpsApproval: { tollCharges: claimedToll, parkingCharges: claimedParking } }
+            : {}),
         },
       },
     });
@@ -475,7 +563,7 @@ export class TripsService {
       tripId: id,
       requirementId: updated.requirementId,
       completedAt: now.toISOString(),
-      totalEarnings: totalDriverEarnings,
+      ...(zonalQuote ? {} : { totalEarnings: totalDriverEarnings }),
     });
 
     this.notifications.emitEvent(`driver:${updated.driverId}`, 'TRIP_COMPLETED', {
@@ -822,7 +910,7 @@ export class TripsService {
   private async findAndVerifyDriverTrip(tripId: string, driverUserId: string) {
     const trip = await this.db.trip.findUnique({
       where: { id: tripId },
-      include: { driver: true, requirement: true },
+      include: { driver: true, requirement: { include: { zonalQuote: true } } },
     });
     if (!trip) {
       throw new NotFoundException('Trip not found');

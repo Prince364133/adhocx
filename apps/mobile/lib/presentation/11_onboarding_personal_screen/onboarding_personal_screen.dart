@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/networking/api_client.dart';
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/app_toast.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_provider.dart';
 import '../../services/auth_service.dart';
@@ -41,6 +41,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
   bool _isCorporateBooking = false;
   bool _isSaving = false;
   bool _isManualAddress = false;
+  String? _inlineErrorMessage;
 
   @override
   void initState() {
@@ -142,24 +143,25 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
   }
 
   Future<void> _handleContinue() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      const msg = 'Please fill in all mandatory personal details correctly.';
+      setState(() => _inlineErrorMessage = msg);
+      AppToast.showError(msg, context: context);
+      return;
+    }
 
     if (_selectedDate == null) {
-      Fluttertoast.showToast(
-        msg: 'Please select your Date of Birth',
-        backgroundColor: AppColors.error,
-        textColor: Colors.white,
-      );
+      const msg = 'Please select your Date of Birth before continuing.';
+      setState(() => _inlineErrorMessage = msg);
+      AppToast.showError(msg, context: context);
       return;
     }
 
     final age = DateTime.now().difference(_selectedDate!).inDays ~/ 365;
     if (age < 18) {
-      Fluttertoast.showToast(
-        msg: 'Driver partners must be at least 18 years old to onboard',
-        backgroundColor: AppColors.error,
-        textColor: Colors.white,
-      );
+      const msg = 'Driver partners must be at least 18 years old to onboard.';
+      setState(() => _inlineErrorMessage = msg);
+      AppToast.showError(msg, context: context);
       return;
     }
 
@@ -171,13 +173,13 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
     final enteredEmergencyPhone = _emergencyPhoneController.text.trim();
 
     if (enteredAddress.isEmpty) {
-      Fluttertoast.showToast(
-        msg: 'Please select your residential location',
-        backgroundColor: AppColors.error,
-        textColor: Colors.white,
-      );
+      const msg = 'Please select your residential address/location.';
+      setState(() => _inlineErrorMessage = msg);
+      AppToast.showError(msg, context: context);
       return;
     }
+
+    setState(() => _inlineErrorMessage = null);
 
     onboarding.setPersonalDetails(
       fullName: enteredName,
@@ -216,21 +218,18 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
         }
 
         if (mounted) {
-          Fluttertoast.showToast(
-            msg: 'Business Profile submitted for verification!',
-            backgroundColor: AppColors.accentGreenDark,
-            textColor: Colors.white,
+          AppToast.showSuccess(
+            'Business Profile submitted for verification!',
+            context: context,
           );
           context.go(AppRoutes.welcomeSuccessScreen);
         }
       } catch (e) {
         AppLogger.error('Failed to create vendor profile: $e');
         if (mounted) {
-          Fluttertoast.showToast(
-            msg: 'Submission failed: ${e.toString().replaceAll('Exception: ', '')}',
-            backgroundColor: Colors.redAccent,
-            textColor: Colors.white,
-          );
+          final cleanMsg = AppToast.cleanErrorMessage(e);
+          setState(() => _inlineErrorMessage = 'Submission failed: $cleanMsg');
+          AppToast.showError('Submission failed: $cleanMsg', context: context);
         }
       } finally {
         if (mounted) setState(() => _isSaving = false);
@@ -360,7 +359,37 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                         color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.xl),
+                    const SizedBox(height: AppSpacing.lg),
+
+                    // ── Inline Red Alert Banner ──────────────────────────────
+                    if (_inlineErrorMessage != null) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _inlineErrorMessage!,
+                                style: AppTypography.body(
+                                  color: isDark ? AppColors.errorContainer : AppColors.error,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                    ],
 
                     // ── 1. Full Name ─────────────────────────────────────────
                     AppTextField(

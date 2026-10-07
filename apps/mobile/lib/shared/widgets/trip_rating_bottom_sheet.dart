@@ -32,6 +32,7 @@ class TripRatingBottomSheet extends StatefulWidget {
   }) {
     return showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => TripRatingBottomSheet(
@@ -57,19 +58,19 @@ class _TripRatingBottomSheetState extends State<TripRatingBottomSheet> {
 
   List<String> get _availableTags => widget.isReviewingDriver
       ? [
-          '✨ Clean Vehicle',
-          '⏱️ Punctual',
-          '🛡️ Safe Driving',
-          '🤝 Polite & Courteous',
-          '🗺️ Smooth Route',
-          '💼 Highly Professional',
+          'Clean Vehicle',
+          'Punctual',
+          'Safe Driving',
+          'Polite & Courteous',
+          'Smooth Route',
+          'Highly Professional',
         ]
       : [
-          '⏱️ Prompt at Pickup',
-          '🤝 Polite & Respectful',
-          '🗺️ Easy Navigation',
-          '🌟 Great Passenger',
-          '💬 Clear Communication',
+          'Prompt at Pickup',
+          'Polite & Respectful',
+          'Easy Navigation',
+          'Great Passenger',
+          'Clear Communication',
         ];
 
   @override
@@ -110,7 +111,7 @@ class _TripRatingBottomSheetState extends State<TripRatingBottomSheet> {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('🎉 Thank you! Your feedback has been submitted.'),
+            content: Text('Thank you! Your feedback has been submitted.'),
             backgroundColor: AppColors.success,
             duration: Duration(seconds: 3),
           ),

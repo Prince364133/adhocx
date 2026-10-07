@@ -57,7 +57,16 @@ export class SettlementsService {
       );
     }
 
-    const maskedAcc = dto.bankAccountNumber ? dto.bankAccountNumber.slice(-4) : 'bank';
+    const kyc = (driver.kycDocuments as Record<string, any>) || {};
+    const bankAccountName = dto.bankAccountName || kyc.bankAccountName || driver.fullName;
+    const bankAccountNumber = dto.bankAccountNumber || kyc.bankAccountNumber;
+    const bankIfsc = (dto.bankIfsc || kyc.bankIfsc || '').toUpperCase();
+
+    if (!bankAccountNumber || !bankIfsc) {
+      throw new BadRequestException('A valid bank account number and IFSC code are required for bank payout');
+    }
+
+    const maskedAcc = bankAccountNumber.slice(-4);
     const description = `Withdrawal payout to bank account ending in ${maskedAcc}`;
 
     // Create settlement inside transaction with atomic debit
@@ -76,9 +85,9 @@ export class SettlementsService {
           driverId: driver.id,
           amount: dto.amount,
           status: SettlementStatus.PENDING,
-          bankAccountName: dto.bankAccountName,
-          bankAccountNumber: dto.bankAccountNumber,
-          bankIfsc: dto.bankIfsc,
+          bankAccountName,
+          bankAccountNumber,
+          bankIfsc,
         },
       });
 

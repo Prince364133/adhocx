@@ -336,6 +336,12 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
                       <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{item.phone}</span>
                     )}
                   </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Email Address:</span>
+                    <span style={{ fontWeight: 600, color: item.email ? 'var(--text-primary)' : 'var(--text-muted)', fontSize: '0.8125rem' }}>
+                      {item.email || '—'}
+                    </span>
+                  </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: 'var(--text-muted)' }}>Entity Role:</span>
                     <span style={{ fontWeight: 600, color: 'var(--accent-primary)' }}>{item.entityType}</span>

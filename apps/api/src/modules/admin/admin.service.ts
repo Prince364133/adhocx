@@ -50,6 +50,7 @@ export class AdminService {
         { fullName: { contains: q, mode: 'insensitive' } },
         { phone: { contains: q } },
         { vehiclePlate: { contains: q, mode: 'insensitive' } },
+        { user: { email: { contains: q, mode: 'insensitive' } } },
       ];
     }
 
@@ -69,6 +70,7 @@ export class AdminService {
     const mappedItems = items.map((d: any) => ({
       ...d,
       phone: d.phone || d.user?.phone || '',
+      email: d.user?.email || (d.kycDocuments as any)?.email || undefined,
       fullName: d.fullName || d.user?.fullName || 'Driver Applicant',
     }));
 
@@ -140,6 +142,7 @@ export class AdminService {
       ...driver,
       kycDocuments: processedKyc,
       phone: driver.phone || driver.user?.phone || '',
+      email: driver.user?.email || (driver.kycDocuments as any)?.email || undefined,
       fullName: driver.fullName || driver.user?.fullName || 'Driver Applicant',
     };
   }
@@ -343,6 +346,7 @@ export class AdminService {
         { organizationName: { contains: q, mode: 'insensitive' } },
         { fullName: { contains: q, mode: 'insensitive' } },
         { phone: { contains: q } },
+        { user: { email: { contains: q, mode: 'insensitive' } } },
       ];
     }
 
@@ -368,6 +372,7 @@ export class AdminService {
       fullName: v.fullName || v.user?.fullName || 'Vendor Partner',
       contactPerson: v.fullName || v.user?.fullName || 'Vendor Partner',
       phone: v.phone || v.user?.phone || '',
+      email: v.user?.email || (v.kycDocuments as any)?.email || undefined,
       gstNumber: v.gstNumber,
       address: v.address,
       verificationStatus: v.verificationStatus,
@@ -406,6 +411,7 @@ export class AdminService {
     return {
       ...vendor,
       phone: vendor.phone || vendor.user?.phone || '',
+      email: vendor.user?.email || (vendor.kycDocuments as any)?.email || undefined,
       fullName: vendor.fullName || vendor.user?.fullName || 'Vendor Partner',
       companyName: vendor.organizationName,
       contactPerson: vendor.fullName || vendor.user?.fullName || 'Vendor Partner',
@@ -947,7 +953,7 @@ export class AdminService {
       take: 50,
     });
 
-    return disputes.map((d) => ({
+    const disputeItems = disputes.map((d) => ({
       id: d.id,
       reporterName: d.reporter?.fullName || d.reporter?.phone || 'Requester',
       reporterRole: (d.reporter?.role || 'VENDOR') as 'DRIVER' | 'VENDOR' | 'USER',
@@ -955,10 +961,80 @@ export class AdminService {
       relatedTripId: d.tripId,
       issueType: d.reason,
       description: d.description || '',
-      status: d.status as 'PENDING' | 'UNDER_REVIEW' | 'RESOLVED',
+      status: (d.status === 'OPEN' ? 'PENDING' : d.status) as 'PENDING' | 'UNDER_REVIEW' | 'RESOLVED',
       operatorNotes: d.resolutionText || undefined,
       createdAt: d.createdAt.toISOString(),
     }));
+
+    // Also include general app support inquiries from leadCapture
+    const leadWhere: any = { type: 'SUPPORT_TICKET' };
+    if (status && status !== 'ALL') {
+      if (status === 'PENDING') {
+        leadWhere.status = { in: ['NEW', 'PENDING'] };
+      } else {
+        leadWhere.status = status;
+      }
+    }
+    if (search && search.trim().length > 0) {
+      const q = search.trim();
+      leadWhere.OR = [
+        { id: { contains: q, mode: 'insensitive' } },
+        { contactName: { contains: q, mode: 'insensitive' } },
+        { companyName: { contains: q, mode: 'insensitive' } },
+        { phone: { contains: q } },
+        { fleetRequirements: { contains: q, mode: 'insensitive' } },
+        { notes: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+
+    const leadTickets = await this.db.leadCapture.findMany({
+      where: leadWhere,
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    const generalTicketItems = leadTickets.map((t) => {
+      const raw = t.notes || '';
+      let subject = t.fleetRequirements || 'General Inquiry';
+      let desc = raw;
+      let operatorNotes: string | undefined;
+
+      if (raw.startsWith('Subject: ')) {
+        const parts = raw.split('\n\n');
+        const header = parts[0].split('\n')[0];
+        subject = header.replace('Subject: ', '').trim();
+        desc = parts.slice(1).join('\n\n');
+      }
+
+      if (desc.includes('[ADMIN RESOLUTION NOTE')) {
+        const splitRes = desc.split('[ADMIN RESOLUTION NOTE');
+        desc = splitRes[0].trim();
+        operatorNotes = ('[ADMIN RESOLUTION NOTE' + splitRes[1]).replace(/\[ADMIN RESOLUTION NOTE \([^)]+\)\]:\s*/, '').trim();
+      }
+
+      const reporterLabel = t.contactName
+        ? (t.companyName ? `${t.contactName} (${t.companyName})` : t.contactName)
+        : (t.companyName || 'Corporate Client');
+
+      const mappedStatus = (t.status === 'NEW' ? 'PENDING' : t.status) as 'PENDING' | 'UNDER_REVIEW' | 'RESOLVED';
+
+      return {
+        id: t.id,
+        reporterName: reporterLabel,
+        reporterRole: 'VENDOR' as const,
+        reporterPhone: t.phone || '',
+        relatedTripId: undefined,
+        issueType: t.fleetRequirements ? `[${t.fleetRequirements}] ${subject}` : subject,
+        description: desc || t.notes || '',
+        status: mappedStatus,
+        operatorNotes,
+        createdAt: t.createdAt.toISOString(),
+      };
+    });
+
+    const allTickets = [...disputeItems, ...generalTicketItems];
+    allTickets.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return allTickets.slice(0, 50);
   }
 
   /**
@@ -966,27 +1042,62 @@ export class AdminService {
    */
   async resolveSupportTicket(id: string, adminId: string, dto: { status: 'PENDING' | 'UNDER_REVIEW' | 'RESOLVED'; notes?: string }) {
     const dispute = await this.db.dispute.findUnique({ where: { id } });
-    if (!dispute) {
-      throw new NotFoundException('Support ticket not found');
+    if (dispute) {
+      const mappedDisputeStatus = dto.status === 'PENDING' ? 'OPEN' : dto.status;
+      const updated = await this.db.dispute.update({
+        where: { id },
+        data: {
+          status: mappedDisputeStatus as any,
+          resolutionText: dto.notes,
+        },
+      });
+
+      await this.audit.log({
+        userId: adminId,
+        action: 'SUPPORT_TICKET_RESOLVED',
+        entityType: 'SUPPORT_TICKET',
+        entityId: id,
+        metadata: { status: dto.status, notes: dto.notes },
+      });
+
+      return updated;
     }
 
-    const updated = await this.db.dispute.update({
-      where: { id },
-      data: {
-        status: dto.status as any,
+    const lead = await this.db.leadCapture.findUnique({ where: { id } });
+    if (lead) {
+      const leadStatus = dto.status === 'PENDING' ? 'NEW' : dto.status;
+      let cleanNotes = lead.notes || '';
+      if (cleanNotes.includes('[ADMIN RESOLUTION NOTE')) {
+        cleanNotes = cleanNotes.split('[ADMIN RESOLUTION NOTE')[0].trim();
+      }
+      const updatedNotes = dto.notes
+        ? `${cleanNotes}\n\n[ADMIN RESOLUTION NOTE (${new Date().toLocaleDateString()})]: ${dto.notes}`
+        : cleanNotes;
+
+      const updated = await this.db.leadCapture.update({
+        where: { id },
+        data: {
+          status: leadStatus,
+          notes: updatedNotes,
+        },
+      });
+
+      await this.audit.log({
+        userId: adminId,
+        action: 'SUPPORT_TICKET_RESOLVED',
+        entityType: 'SUPPORT_TICKET',
+        entityId: id,
+        metadata: { status: dto.status, notes: dto.notes },
+      });
+
+      return {
+        id: updated.id,
+        status: dto.status,
         resolutionText: dto.notes,
-      },
-    });
+      };
+    }
 
-    await this.audit.log({
-      userId: adminId,
-      action: 'SUPPORT_TICKET_RESOLVED',
-      entityType: 'SUPPORT_TICKET',
-      entityId: id,
-      metadata: { status: dto.status, notes: dto.notes },
-    });
-
-    return updated;
+    throw new NotFoundException('Support ticket not found');
   }
 
   /**

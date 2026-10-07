@@ -529,11 +529,24 @@ class ApiClient {
 
     String errorMessage = 'Request failed with status: ${response.statusCode}';
     if (responseData is Map) {
-      if (responseData['error'] is Map && responseData['error']['message'] != null) {
-        errorMessage = responseData['error']['message'].toString();
+      if (responseData['error'] is Map) {
+        final err = responseData['error'] as Map;
+        if (err['details'] != null) {
+          final details = err['details'];
+          if (details is List && details.isNotEmpty) {
+            errorMessage = details.map((d) => d.toString()).join('. ');
+          } else if (details is String && details.isNotEmpty) {
+            errorMessage = details;
+          }
+        }
+        if ((errorMessage == 'Request failed with status: ${response.statusCode}' ||
+             errorMessage == 'Validation failed') &&
+            err['message'] != null) {
+          errorMessage = err['message'].toString();
+        }
       } else if (responseData['message'] != null) {
         final msg = responseData['message'];
-        errorMessage = msg is List ? msg.join(', ') : msg.toString();
+        errorMessage = msg is List ? msg.join('. ') : msg.toString();
       } else if (responseData['error'] is String) {
         errorMessage = responseData['error'];
       }

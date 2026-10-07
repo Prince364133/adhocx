@@ -80,6 +80,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _openModal(Widget modal) async {
     await showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => modal,
@@ -214,7 +215,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
               ),
               child: Text(
-                '⚠️ This action is permanent and cannot be undone. All your profile records, uploaded KYC documents, vehicle details, trip history, and credentials will be completely erased from our database.',
+                'This action is permanent and cannot be undone. All your profile records, uploaded KYC documents, vehicle details, trip history, and credentials will be completely erased from our database.',
                 style: AppTypography.caption(
                   color: isDark ? const Color(0xFFFFA4A4) : const Color(0xFFC92A2A),
                 ),
@@ -275,6 +276,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final themeProvider = context.read<ThemeProvider>();
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
         return _ThemeSelectorSheet(themeProvider: themeProvider);

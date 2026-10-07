@@ -112,6 +112,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                           onPressed: () {
                             showModalBottomSheet(
                               context: context,
+                              useRootNavigator: true,
                               backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                               shape: const RoundedRectangleBorder(
                                 borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -236,7 +237,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                                     ),
                                   ),
                                   const SizedBox(width: 6),
-                                  const Text('👋', style: TextStyle(fontSize: 20)),
+                                  const Icon(Icons.waving_hand_outlined, size: 20, color: AppColors.primary),
                                 ],
                               ),
                             ],

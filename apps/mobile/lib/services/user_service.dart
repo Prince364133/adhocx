@@ -35,11 +35,13 @@ class UserService {
     int? requiredQuantity,
     DateTime? scheduledPickupTime,
     String? couponCode,
+    String? zonalQuoteId,
   }) async {
     await _ensureSession();
     final effectiveQuantity = requiredQuantity ?? quantity;
     final effectiveReportingTime = scheduledPickupTime ?? reportingTime;
-    final effectiveBudget = ratePerVehicle ?? budgetPerVehicle ?? suggestedBudget;
+    // Corporate zonal trips are priced server-side from the stored quote; never send a client amount.
+    final effectiveBudget = zonalQuoteId != null ? null : (ratePerVehicle ?? budgetPerVehicle ?? suggestedBudget);
     final combinedNotes = [
       if (title != null && title.isNotEmpty) title,
       if (notes != null && notes.isNotEmpty) notes,
@@ -67,6 +69,7 @@ class UserService {
         if (suggestedBudget != null) 'suggestedBudget': suggestedBudget,
         if (combinedNotes.isNotEmpty) 'notes': combinedNotes,
         if (couponCode != null && couponCode.isNotEmpty) 'couponCode': couponCode,
+        if (zonalQuoteId != null) 'zonalQuoteId': zonalQuoteId,
       },
     );
   }
@@ -308,6 +311,65 @@ class UserService {
     return await _api.get('/vendors/profile', force: forceRefresh);
   }
 
+  Future<dynamic> updateVendorProfile(Map<String, dynamic> data) async {
+    await _ensureSession();
+    final res = await _api.post('/vendors/profile', body: data);
+    // Refresh user cached profile if available
+    try {
+      await AuthService.instance.fetchCurrentUser(forceRefresh: true);
+    } catch (_) {}
+    return res;
+  }
+
+  // Notification Preferences
+  Future<Map<String, dynamic>> getNotificationPreferences() async {
+    await _ensureSession();
+    final res = await _api.get('/notifications/preferences');
+    if (res is Map<String, dynamic>) return res;
+    if (res is Map) return Map<String, dynamic>.from(res);
+    return {};
+  }
+
+  Future<dynamic> updateNotificationPreferences(Map<String, dynamic> preferences) async {
+    await _ensureSession();
+    return await _api.patch('/notifications/preferences', body: preferences);
+  }
+
+  // Support Center & Inquiry Tickets
+  Future<dynamic> submitSupportQuery({
+    required String category,
+    required String subject,
+    required String description,
+    String? tripId,
+    String priority = 'NORMAL',
+    String? companyName,
+    String? contactPerson,
+    String? contactPhone,
+    String? contactEmail,
+  }) async {
+    await _ensureSession();
+    return await _api.post(
+      '/disputes/support-query',
+      body: {
+        'category': category,
+        'subject': subject,
+        'description': description,
+        if (tripId != null && tripId.isNotEmpty) 'tripId': tripId,
+        'priority': priority,
+        if (companyName != null && companyName.isNotEmpty) 'companyName': companyName,
+        if (contactPerson != null && contactPerson.isNotEmpty) 'contactPerson': contactPerson,
+        if (contactPhone != null && contactPhone.isNotEmpty) 'contactPhone': contactPhone,
+        if (contactEmail != null && contactEmail.isNotEmpty) 'contactEmail': contactEmail,
+      },
+    );
+  }
+
+  Future<List<dynamic>> getMySupportQueries() async {
+    await _ensureSession();
+    final res = await _api.get('/disputes/support-query/my');
+    return res is List ? res : [];
+  }
+
   // Dispute / Support Tickets
   Future<List<dynamic>> getMyDisputes() async {
     await _ensureSession();
@@ -349,25 +411,53 @@ class UserService {
     );
   }
 
-  // Zonal Corporate B2B Rate Card
-  Future<dynamic> getVendorZonalRateCard({bool forceRefresh = false}) async {
+  // Corporate zonal rate card (Hyderabad). Returns null when offline so screens can fall back.
+  Future<Map<String, dynamic>?> getVendorZonalRateCard({bool forceRefresh = false}) async {
     try {
-      return await _api.get('/pricing/zonal/vendor-card', force: forceRefresh);
+      final res = await _api.get('/pricing/zonal/vendor-card', force: forceRefresh);
+      return res is Map<String, dynamic> ? res : null;
     } catch (_) {
       return null;
     }
   }
 
-  // Calculate Zonal Quote for Bulk Fleet
-  Future<dynamic> calculateZonalQuote(Map<String, dynamic> payload) async {
-    try {
-      return await _api.post('/pricing/zonal/quote', body: payload);
-    } catch (_) {
-      return null;
+  /// Approved locality master; each result carries a stable `id`, `zoneId` and `bookable` flag.
+  Future<List<Map<String, dynamic>>> searchZonalLocalities({String? query}) async {
+    final res = await _api.get(
+      '/pricing/zonal/localities',
+      queryParameters: (query != null && query.trim().isNotEmpty) ? {'q': query.trim()} : null,
+    );
+    if (res is List) {
+      return res.whereType<Map<String, dynamic>>().toList();
     }
+    return [];
+  }
+
+  /// Creates a server-stored zonal quote. Throws [ApiException] with the server message on failure.
+  /// A 200 response with `canAutoQuote: false` means the trip needs operations review.
+  Future<Map<String, dynamic>> createZonalQuote({
+    required String officeHubId,
+    required String direction,
+    required String localityId,
+    required String vehicleType,
+    required bool hasEscort,
+    required double pickupLat,
+    required double pickupLng,
+    required double dropLat,
+    required double dropLng,
+  }) async {
+    await _ensureSession();
+    final res = await _api.post('/pricing/zonal/quote', body: {
+      'officeHubId': officeHubId,
+      'direction': direction,
+      'localityId': localityId,
+      'vehicleType': vehicleType,
+      'hasEscort': hasEscort,
+      'pickupLat': pickupLat,
+      'pickupLng': pickupLng,
+      'dropLat': dropLat,
+      'dropLng': dropLng,
+    });
+    return res is Map<String, dynamic> ? res : <String, dynamic>{};
   }
 }
-
-typedef VendorService = UserService;
-
-

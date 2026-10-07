@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 import '../../core/utils/app_logger.dart';
 import '../../routes/app_routes.dart';
@@ -214,12 +215,9 @@ class HelpSupportScreen extends StatelessWidget {
                               isDark: isDark,
                               icon: Icons.chat_bubble_outline_rounded,
                               title: 'Contact Support',
-                              subtitle: 'Chat with our support team',
+                              subtitle: 'support@adhocx.com',
                               onTap: () {
-                                Fluttertoast.showToast(
-                                  msg: 'Support chat initiated',
-                                  backgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.primaryDark,
-                                );
+                                launchUrl(Uri.parse('mailto:support@adhocx.com?subject=AdhocX%20Driver%20Support'));
                               },
                             ),
                             Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
@@ -227,13 +225,10 @@ class HelpSupportScreen extends StatelessWidget {
                               isDark: isDark,
                               icon: Icons.phone_outlined,
                               title: 'Call Support',
-                              subtitle: '+91 80 1234 5678',
+                              subtitle: '+91 7893545818',
                               badgeText: '24/7',
                               onTap: () {
-                                Fluttertoast.showToast(
-                                  msg: 'Calling +91 80 1234 5678...',
-                                  backgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.primaryDark,
-                                );
+                                launchUrl(Uri.parse('tel:+917893545818'));
                               },
                             ),
                             Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),

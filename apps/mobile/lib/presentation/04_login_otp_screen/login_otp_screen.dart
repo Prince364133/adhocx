@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../core/utils/app_toast.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_provider.dart';
 import '../../services/auth_service.dart';
@@ -78,7 +78,11 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
   }
 
   Future<void> _verifyOtp() async {
-    if (_otp.length != 6 || _isVerifying) return;
+    if (_otp.length != 6) {
+      AppToast.showError('Please enter the 6-digit OTP code', context: context);
+      return;
+    }
+    if (_isVerifying) return;
 
     setState(() => _isVerifying = true);
 
@@ -96,10 +100,9 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
       );
 
       if (mounted) {
-        Fluttertoast.showToast(
-          msg: 'OTP verified successfully!',
-          backgroundColor: AppColors.accentGreenDark,
-          textColor: Colors.white,
+        AppToast.showSuccess(
+          'OTP verified successfully!',
+          context: context,
         );
 
         final user = res.user;
@@ -127,11 +130,7 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _otp = '');
-        Fluttertoast.showToast(
-          msg: e.toString().replaceFirst('Exception: ', ''),
-          backgroundColor: AppColors.error,
-          textColor: Colors.white,
-        );
+        AppToast.showError(e, context: context);
       }
     } finally {
       if (mounted) setState(() => _isVerifying = false);
@@ -154,20 +153,15 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
       );
 
       if (mounted) {
-        Fluttertoast.showToast(
-          msg: 'New OTP sent to $target',
-          backgroundColor: AppColors.primaryDark,
-          textColor: Colors.white,
+        AppToast.showSuccess(
+          'New OTP sent to $target',
+          context: context,
         );
         _startCountdown();
       }
     } catch (e) {
       if (mounted) {
-        Fluttertoast.showToast(
-          msg: e.toString().replaceFirst('Exception: ', ''),
-          backgroundColor: AppColors.error,
-          textColor: Colors.white,
-        );
+        AppToast.showError(e, context: context);
       }
     }
   }

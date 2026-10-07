@@ -8,10 +8,9 @@ import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../shared/widgets/app_adaptive_skeleton.dart';
-import 'widgets/subscription_paywall_modal.dart';
 
 /// Screen 1: Main Earnings dashboard matching exact design mockup with live backend wallet metrics
-/// and Driver Monthly Subscription & 15-Day Free Trial Paywall integration.
+/// and 10% marketplace per-ride commission earnings engine.
 class EarningsScreen extends StatefulWidget {
   const EarningsScreen({super.key});
 
@@ -29,7 +28,6 @@ class _EarningsScreenState extends State<EarningsScreen> {
     'pendingSettlements': 0.0,
     'recentLedgerEntries': [],
   };
-  Map<String, dynamic>? _subscriptionStatus;
   int _tripsTotal = 0;
   int _tripsCompleted = 0;
   int _tripsCancelled = 0;
@@ -49,7 +47,6 @@ class _EarningsScreenState extends State<EarningsScreen> {
 
       final summary = await DriverService.instance.getWalletSummary(forceRefresh: true);
       final trips = await DriverService.instance.getTrips(forceRefresh: true);
-      final subStatus = await DriverService.instance.getSubscriptionStatus(forceRefresh: true).catchError((_) => null);
 
       int completed = 0;
       int cancelled = 0;
@@ -81,9 +78,6 @@ class _EarningsScreenState extends State<EarningsScreen> {
           if (summary is Map) {
             _walletSummary = Map<String, dynamic>.from(summary);
           }
-          if (subStatus is Map) {
-            _subscriptionStatus = Map<String, dynamic>.from(subStatus);
-          }
           _tripsTotal = trips.length;
           _tripsCompleted = completed;
           _tripsCancelled = cancelled;
@@ -101,28 +95,12 @@ class _EarningsScreenState extends State<EarningsScreen> {
     }
   }
 
-  void _openPaywall() {
-    final bal = double.tryParse((_walletSummary['walletBalance'] ?? 0).toString()) ?? 0.0;
-    SubscriptionPaywallModal.show(
-      context,
-      initialStatus: _subscriptionStatus,
-      walletBalance: bal,
-      onSubscriptionUpdated: _loadWalletData,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final balance = (_walletSummary['walletBalance'] ?? 0.0);
     final totalEarned = (_walletSummary['totalEarned'] ?? 0.0);
     final totalWithdrawn = (_walletSummary['totalWithdrawn'] ?? 0.0);
-
-    // Subscription status flags
-    final statusStr = (_subscriptionStatus?['status'] ?? 'TRIAL_ACTIVE').toString().toUpperCase();
-    final isTrial = statusStr == 'TRIAL_ACTIVE';
-    final isExpiredOrFrozen = statusStr == 'EXPIRED' || statusStr == 'FROZEN';
-    final daysLeft = _subscriptionStatus?['daysRemaining'] ?? _subscriptionStatus?['trialDaysRemaining'] ?? 15;
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -183,91 +161,6 @@ class _EarningsScreenState extends State<EarningsScreen> {
                     child: ListView(
                       padding: const EdgeInsets.all(AppSpacing.lg),
                       children: [
-                            // ── Subscription / 15-Day Free Trial Banner ───────────
-                            GestureDetector(
-                              onTap: _openPaywall,
-                              child: Container(
-                                margin: const EdgeInsets.only(bottom: AppSpacing.md),
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: isExpiredOrFrozen
-                                      ? AppColors.error.withValues(alpha: isDark ? 0.2 : 0.1)
-                                      : (isTrial
-                                          ? const Color(0xFF6366F1).withValues(alpha: isDark ? 0.2 : 0.12)
-                                          : AppColors.accentGreenDark.withValues(alpha: isDark ? 0.2 : 0.12)),
-                                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                                  border: Border.all(
-                                    color: isExpiredOrFrozen
-                                        ? AppColors.error
-                                        : (isTrial ? const Color(0xFF6366F1) : AppColors.accentGreenDark),
-                                    width: 1.2,
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      isExpiredOrFrozen
-                                          ? Icons.warning_amber_rounded
-                                          : (isTrial ? Icons.card_giftcard_rounded : Icons.verified_rounded),
-                                      size: 20,
-                                      color: isExpiredOrFrozen
-                                          ? AppColors.error
-                                          : (isTrial ? const Color(0xFF6366F1) : (isDark ? AppColors.accentGreen : AppColors.accentGreenDark)),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            isExpiredOrFrozen
-                                                ? 'Subscription Expired • Account Paywall'
-                                                : (isTrial
-                                                    ? '15-Day Free Trial Active ($daysLeft days left)'
-                                                    : 'AdhocX Pro Driver Active'),
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                              color: isExpiredOrFrozen
-                                                  ? AppColors.error
-                                                  : (isTrial
-                                                      ? const Color(0xFF4F46E5)
-                                                      : (isDark ? AppColors.accentGreen : AppColors.accentGreenDark)),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            isExpiredOrFrozen
-                                                ? 'Tap to renew subscription & accept trips'
-                                                : 'Auto-renews from wallet • Tap to manage plan',
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: isExpiredOrFrozen ? AppColors.error : const Color(0xFF4F46E5),
-                                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                                      ),
-                                      child: Text(
-                                        isExpiredOrFrozen ? 'RENEW' : 'PLAN',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-
                             // ── Available Balance Purple Hero Card ─────────────────
                             Container(
                               padding: const EdgeInsets.all(AppSpacing.xl),

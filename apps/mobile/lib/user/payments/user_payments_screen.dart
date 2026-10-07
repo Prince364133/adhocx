@@ -61,6 +61,7 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
 
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
@@ -73,13 +74,15 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
             final discountAmount = (appliedCoupon?['discountAmount'] as num?)?.toDouble() ?? 0.0;
             final netPayable = (rawAmount - discountAmount).clamp(0.0, double.infinity);
 
-            return Container(
-              padding: EdgeInsets.only(
-                top: AppSpacing.lg,
-                left: AppSpacing.lg,
-                right: AppSpacing.lg,
-                bottom: MediaQuery.of(ctx).viewInsets.bottom + AppSpacing.lg,
-              ),
+            return SafeArea(
+              top: false,
+              child: Container(
+                padding: EdgeInsets.only(
+                  top: AppSpacing.lg,
+                  left: AppSpacing.lg,
+                  right: AppSpacing.lg,
+                  bottom: MediaQuery.of(ctx).viewInsets.bottom + AppSpacing.lg,
+                ),
               decoration: BoxDecoration(
                 color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
@@ -404,10 +407,11 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
                   ),
                 ],
               ),
-            );
-          },
-        );
-      },
+            ),
+          );
+        },
+      );
+    },
     );
   }
 

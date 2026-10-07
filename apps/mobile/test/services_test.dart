@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:adhocx/services/api_client.dart';
 import 'package:adhocx/services/auth_service.dart';
+import 'package:adhocx/core/utils/app_toast.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -72,6 +73,52 @@ void main() {
       expect(client1, isNotNull);
       expect(identical(client1, client2), true);
       expect(client1.baseUrl.contains('api/v1'), true);
+    });
+
+    test('AppToast.cleanErrorMessage formats user friendly messages properly', () {
+      // 1. User does not exist error
+      final nonExistentUserException = ApiException(
+        statusCode: 401,
+        message: 'No account found with this email or mobile number. Please check your credentials or sign up.',
+      );
+      expect(
+        AppToast.cleanErrorMessage(nonExistentUserException),
+        'No account found with this email or mobile number. Please check your details or sign up.',
+      );
+
+      // 2. Generic invalid credentials
+      final invalidCredentialsException = ApiException(
+        statusCode: 401,
+        message: 'Invalid mobile number/email or password',
+      );
+      expect(
+        AppToast.cleanErrorMessage(invalidCredentialsException),
+        'Invalid email/phone or password. Please verify your details.',
+      );
+
+      // 3. Incorrect password
+      final wrongPasswordException = ApiException(
+        statusCode: 401,
+        message: 'Incorrect password. Please try again or reset your password.',
+      );
+      expect(
+        AppToast.cleanErrorMessage(wrongPasswordException),
+        'Incorrect password. Please try again or reset your password.',
+      );
+
+      // 4. Raw exception prefix stripping
+      final rawException = Exception('Please enter your mobile number or email address');
+      expect(
+        AppToast.cleanErrorMessage(rawException),
+        'Please enter your mobile number or email address',
+      );
+
+      // 5. Network error mapping
+      const networkError = 'ClientException with SocketException: Failed host lookup';
+      expect(
+        AppToast.cleanErrorMessage(networkError),
+        'Unable to connect to the server. Please check your internet connection.',
+      );
     });
   });
 }

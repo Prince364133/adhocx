@@ -9,6 +9,7 @@ import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/common/app_primary_button.dart';
+import './widgets/bank_details_modal.dart';
 
 /// Screen 3: Request Withdrawal screen with live wallet integration and ₹1,000 minimum threshold.
 class EarningsWithdrawScreen extends StatefulWidget {
@@ -23,6 +24,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
   int _selectedPreset = 1000;
   bool _isLoading = false;
   double _availableBalance = 0.0;
+  Map<String, dynamic> _bankDetails = {};
 
   @override
   void initState() {
@@ -32,7 +34,12 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
 
   Future<void> _loadBalance() async {
     try {
-      final summary = await DriverService.instance.getWalletSummary(forceRefresh: true);
+      final results = await Future.wait([
+        DriverService.instance.getWalletSummary(forceRefresh: true).catchError((_) => null),
+        DriverService.instance.getProfile(forceRefresh: true).catchError((_) => null),
+      ]);
+
+      final summary = results[0];
       if (summary is Map && mounted) {
         final bal = double.tryParse((summary['walletBalance'] ?? 0).toString()) ?? 0.0;
         setState(() {
@@ -40,6 +47,20 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
           if (bal >= 1000) {
             _amountController.text = (bal > 5000 ? 5000 : bal).toInt().toString();
           }
+        });
+      }
+
+      final profileRaw = results[1];
+      if (profileRaw is Map && mounted) {
+        final p = profileRaw['data'] is Map ? profileRaw['data'] as Map<String, dynamic> : profileRaw as Map<String, dynamic>;
+        setState(() {
+          _bankDetails = {
+            'account_holder': p['bankAccountName'] ?? p['bank_account_name'] ?? p['fullName'] ?? p['full_name'] ?? AuthService.instance.currentUser?.fullName ?? 'Driver Partner',
+            'bank_name': p['bankName'] ?? p['bank_name'] ?? '',
+            'account_number': p['bankAccountNumber'] ?? p['bank_account_number'] ?? '',
+            'ifsc': p['bankIfsc'] ?? p['bank_ifsc'] ?? '',
+            'upi_id': p['upiId'] ?? p['upi_id'] ?? '',
+          };
         });
       }
     } catch (_) {}
@@ -56,6 +77,26 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
       _selectedPreset = amount;
       _amountController.text = amount.toString();
     });
+  }
+
+  Future<void> _openBankDetailsModal() async {
+    final updated = await BankDetailsModal.show(
+      context,
+      initialDetails: _bankDetails,
+      onSaved: (newDetails) {
+        if (mounted) {
+          setState(() {
+            _bankDetails = Map<String, dynamic>.from(newDetails);
+          });
+        }
+      },
+    );
+
+    if (updated != null && mounted) {
+      setState(() {
+        _bankDetails = Map<String, dynamic>.from(updated);
+      });
+    }
   }
 
   Future<void> _handleWithdraw() async {
@@ -78,14 +119,27 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
       return;
     }
 
+    final accNumber = (_bankDetails['account_number'] ?? _bankDetails['bankAccountNumber'] ?? '').toString().trim();
+    final ifsc = (_bankDetails['ifsc'] ?? _bankDetails['bankIfsc'] ?? '').toString().trim().toUpperCase();
+    final holder = (_bankDetails['account_holder'] ?? _bankDetails['bankAccountName'] ?? AuthService.instance.currentUser?.fullName ?? 'Driver Partner').toString().trim();
+
+    if (accNumber.isEmpty || ifsc.isEmpty) {
+      Fluttertoast.showToast(
+        msg: 'Please add your bank account details before requesting a withdrawal',
+        backgroundColor: AppColors.warning,
+      );
+      _openBankDetailsModal();
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
       await DriverService.instance.requestWithdrawal(
         amount: amount,
-        bankAccountName: 'Verified Driver Account',
-        bankAccountNumber: '918273645012',
-        bankIfsc: 'HDFC0001234',
+        bankAccountName: holder,
+        bankAccountNumber: accNumber,
+        bankIfsc: ifsc,
       );
 
       if (mounted) {
@@ -113,6 +167,13 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accNumber = (_bankDetails['account_number'] ?? _bankDetails['bankAccountNumber'] ?? '').toString().trim();
+    final hasBank = accNumber.isNotEmpty;
+    final bankNameDisplay = (_bankDetails['bank_name'] ?? _bankDetails['bankName'] ?? '').toString().trim().isNotEmpty
+        ? (_bankDetails['bank_name'] ?? _bankDetails['bankName']).toString().trim()
+        : (hasBank ? 'Bank Account' : 'No Bank Account');
+    final holderDisplay = (_bankDetails['account_holder'] ?? _bankDetails['bankAccountName'] ?? AuthService.instance.currentUser?.fullName ?? 'Driver Partner').toString().trim();
+    final ifscDisplay = (_bankDetails['ifsc'] ?? _bankDetails['bankIfsc'] ?? '').toString().trim().toUpperCase();
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -316,64 +377,152 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
                       const SizedBox(height: AppSpacing.xl),
 
                       // ── "Withdraw to" Bank Account Card ────────────────────
-                      Text(
-                        'Withdraw to',
-                        style: AppTypography.caption(
-                          color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Withdraw to',
+                            style: AppTypography.caption(
+                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          InkWell(
+                            onTap: _openBankDetailsModal,
+                            borderRadius: BorderRadius.circular(4),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              child: Text(
+                                hasBank ? 'Change' : '+ Add Bank',
+                                style: TextStyle(
+                                  color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: AppSpacing.sm),
 
-                      Container(
-                        padding: const EdgeInsets.all(AppSpacing.lg),
-                        decoration: BoxDecoration(
-                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: _openBankDetailsModal,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(
-                            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                          child: Container(
+                            padding: const EdgeInsets.all(AppSpacing.lg),
+                            decoration: BoxDecoration(
+                              color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                              borderRadius: BorderRadius.circular(AppRadius.lg),
+                              border: Border.all(
+                                color: hasBank
+                                    ? (isDark ? AppColors.borderDark : AppColors.borderLight)
+                                    : (isDark ? AppColors.primaryLight.withValues(alpha: 0.5) : AppColors.primary.withValues(alpha: 0.4)),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? AppColors.surfaceElevatedDark : AppColors.bgLight,
+                                    borderRadius: BorderRadius.circular(AppRadius.md),
+                                  ),
+                                  child: Icon(
+                                    hasBank ? Icons.account_balance_outlined : Icons.add_card_rounded,
+                                    color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: hasBank
+                                      ? Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Flexible(
+                                                  child: Text(
+                                                    bankNameDisplay,
+                                                    style: AppTypography.body(
+                                                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: AppColors.accentGreenDark.withValues(alpha: 0.15),
+                                                    borderRadius: BorderRadius.circular(4),
+                                                  ),
+                                                  child: Text(
+                                                    'Active',
+                                                    style: TextStyle(
+                                                      color: AppColors.accentGreenDark,
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 3),
+                                            Text(
+                                              '•••• ${accNumber.length >= 4 ? accNumber.substring(accNumber.length - 4) : accNumber} • $holderDisplay',
+                                              style: AppTypography.caption(
+                                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            if (ifscDisplay.isNotEmpty) ...[
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                'IFSC: $ifscDisplay',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        )
+                                      : Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'No Bank Account Linked',
+                                              style: AppTypography.body(
+                                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              'Tap here to add bank account for payouts',
+                                              style: AppTypography.caption(
+                                                color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                ),
+                                const SizedBox(width: 8),
+                                Icon(
+                                  Icons.chevron_right,
+                                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: isDark ? AppColors.surfaceElevatedDark : AppColors.bgLight,
-                                borderRadius: BorderRadius.circular(AppRadius.md),
-                              ),
-                              child: Icon(
-                                Icons.account_balance_outlined,
-                                color: isDark ? AppColors.primaryLight : AppColors.primary,
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'HDFC Bank',
-                                    style: AppTypography.body(
-                                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '•••• 4321 • ${AuthService.instance.currentUser?.fullName ?? "Driver"}',
-                                    style: AppTypography.caption(
-                                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Icon(
-                              Icons.chevron_right,
-                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                            ),
-                          ],
                         ),
                       ),
                       const SizedBox(height: AppSpacing.xl),

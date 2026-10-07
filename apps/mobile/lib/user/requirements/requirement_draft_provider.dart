@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'models/cab_cart_item.dart';
+import 'models/fleet_template_model.dart';
 
 class RequirementDraftProvider extends ChangeNotifier {
   // Step 1: Category & Vehicle & Quantity & Bidding Config
@@ -42,6 +44,15 @@ class RequirementDraftProvider extends ChangeNotifier {
   int _estimatedDurationMinutes = 0;
   String _formattedEta = '';
   String _formattedDistance = '';
+
+  // Corporate Zonal Rate Card Configuration (Hyderabad 2026)
+  bool _zonalEnabled = false;
+  String _zonalOfficeHubId = 'HITEC_NANAKRAMGUDA';
+  String _zonalDirection = 'OUTBOUND_FROM_OFFICE'; // 'OUTBOUND_FROM_OFFICE' (office -> home) or 'INBOUND_TO_OFFICE' (home -> office)
+  Map<String, dynamic>? _zonalLocality;
+  bool _zonalHasEscort = false;
+  Map<String, dynamic>? _zonalQuote;
+
 
   RequirementDraftProvider() {
     _initDefaultDateTime();
@@ -101,6 +112,21 @@ class RequirementDraftProvider extends ChangeNotifier {
   int get estimatedDurationMinutes => _estimatedDurationMinutes;
   String get formattedEta => _formattedEta;
   String get formattedDistance => _formattedDistance;
+
+  // Corporate Zonal Getters
+  bool get zonalEnabled => _zonalEnabled;
+  String get zonalOfficeHubId => _zonalOfficeHubId;
+  String get zonalDirection => _zonalDirection;
+  Map<String, dynamic>? get zonalLocality => _zonalLocality;
+  bool get zonalHasEscort => _zonalHasEscort;
+  Map<String, dynamic>? get zonalQuote => _zonalQuote;
+  String? get zonalQuoteId => (_zonalEnabled && _zonalQuote != null && _zonalQuote!['canAutoQuote'] == true)
+      ? _zonalQuote!['quoteId'] as String?
+      : null;
+  double? get zonalTotalAmount => (_zonalEnabled && _zonalQuote != null && _zonalQuote!['canAutoQuote'] == true)
+      ? (_zonalQuote!['totalAmount'] as num?)?.toDouble()
+      : null;
+
 
   // Setters / Updates
   void updateStep1({
@@ -276,6 +302,14 @@ class RequirementDraftProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void clearRoadRoute() {
+    _roadDistanceKm = 0.0;
+    _estimatedDurationMinutes = 0;
+    _formattedDistance = '';
+    _formattedEta = '';
+    notifyListeners();
+  }
+
   void reset() {
     _fulfillmentMode = 'DIRECT_DISPATCH';
     _vehicleType = 'Sedan';
@@ -301,7 +335,98 @@ class RequirementDraftProvider extends ChangeNotifier {
     _estimatedDurationMinutes = 0;
     _formattedEta = '';
     _formattedDistance = '';
+    _zonalEnabled = false;
+    _zonalOfficeHubId = 'HITEC_NANAKRAMGUDA';
+    _zonalDirection = 'OUTBOUND_FROM_OFFICE';
+    _zonalLocality = null;
+    _zonalHasEscort = false;
+    _zonalQuote = null;
+    _cabs.clear();
     _initDefaultDateTime();
+    notifyListeners();
+  }
+
+  void setZonalConfig({
+    bool? enabled,
+    String? officeHubId,
+    String? direction,
+    Map<String, dynamic>? locality,
+    bool? hasEscort,
+    Map<String, dynamic>? quote,
+  }) {
+    if (enabled != null) _zonalEnabled = enabled;
+    if (officeHubId != null) _zonalOfficeHubId = officeHubId;
+    if (direction != null) _zonalDirection = direction;
+    if (locality != null) _zonalLocality = locality;
+    if (hasEscort != null) _zonalHasEscort = hasEscort;
+    if (quote != null) _zonalQuote = quote;
+    notifyListeners();
+  }
+
+  // ── Multi-Cab Cart / Booking Manifest ─────────────────────────────────────
+  final List<CabCartItem> _cabs = [];
+  String _cartName = 'Corporate Fleet Manifest';
+
+  List<CabCartItem> get cabs => List.unmodifiable(_cabs);
+  int get totalCabsCount => _cabs.length;
+  bool get hasCabs => _cabs.isNotEmpty;
+  String get cartName => _cartName;
+
+  void setCartName(String name) {
+    _cartName = name.trim().isNotEmpty ? name.trim() : 'Corporate Fleet Manifest';
+    notifyListeners();
+  }
+
+  double get cartTotalEstimatedFare =>
+      _cabs.fold(0.0, (sum, cab) => sum + cab.estimatedFare);
+
+  void addCab(CabCartItem cab) {
+    _cabs.add(cab);
+    notifyListeners();
+  }
+
+  void updateCab(int index, CabCartItem cab) {
+    if (index >= 0 && index < _cabs.length) {
+      _cabs[index] = cab;
+      notifyListeners();
+    }
+  }
+
+  void removeCab(int index) {
+    if (index >= 0 && index < _cabs.length) {
+      _cabs.removeAt(index);
+      notifyListeners();
+    }
+  }
+
+  void toggleCabExpanded(int index) {
+    if (index >= 0 && index < _cabs.length) {
+      _cabs[index].isExpanded = !_cabs[index].isExpanded;
+      notifyListeners();
+    }
+  }
+
+  void clearCart() {
+    _cabs.clear();
+    _cartName = 'Corporate Fleet Manifest';
+    notifyListeners();
+  }
+
+  /// Loads cabs from a saved template, automatically adjusting date to today
+  /// so users can run it daily with 1 click.
+  void loadCartFromTemplate(FleetTemplate template, {bool adjustToToday = true}) {
+    _cabs.clear();
+    _cartName = template.name;
+
+    final targetDate = DateTime.now();
+    for (int i = 0; i < template.cabs.length; i++) {
+      final item = template.cabs[i];
+      if (adjustToToday) {
+        _cabs.add(item.copyForDate(targetDate, index: i));
+      } else {
+        _cabs.add(item.copyWith(id: 'cab_${DateTime.now().millisecondsSinceEpoch}_$i', isExpanded: false));
+      }
+    }
     notifyListeners();
   }
 }

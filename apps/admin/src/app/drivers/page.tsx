@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { Star, X } from 'lucide-react';
+import { Star, X, Mail } from 'lucide-react';
 import { adminApi } from '../../lib/api/client';
 import { DriverListItem, DriverDetail } from '../../lib/api/types';
 import {
@@ -56,6 +56,7 @@ export default function DriversPage() {
       (d) =>
         d.fullName.toLowerCase().includes(q) ||
         d.phone.toLowerCase().includes(q) ||
+        (d.email && d.email.toLowerCase().includes(q)) ||
         (d.vehiclePlate && d.vehiclePlate.toLowerCase().includes(q))
     );
   }, [drivers, search]);
@@ -158,13 +159,22 @@ export default function DriversPage() {
               fontSize: '0.8125rem',
               fontWeight: 800,
               color: 'var(--brand-primary)',
+              flexShrink: 0,
             }}
           >
             {drv.fullName ? drv.fullName.slice(0, 2).toUpperCase() : 'DR'}
           </div>
           <div>
             <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{drv.fullName}</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{drv.phone}</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '0.15rem', marginTop: '0.15rem' }}>
+              <span>{drv.phone}</span>
+              {drv.email ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-muted)', fontSize: '0.72rem' }}>
+                  <Mail size={11} style={{ flexShrink: 0 }} />
+                  <span style={{ wordBreak: 'break-all' }}>{drv.email}</span>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       ),
@@ -276,7 +286,7 @@ export default function DriversPage() {
         onTabChange={setActiveTab}
         search={search}
         onSearchChange={setSearch}
-        searchPlaceholder="Search by driver name, phone, plate..."
+        searchPlaceholder="Search by driver name, phone, email, plate..."
       />
 
       <DataTable
@@ -293,7 +303,11 @@ export default function DriversPage() {
         isOpen={!!selectedDriver}
         onClose={() => setSelectedDriver(null)}
         title={selectedDriver ? `Driver Dossier — ${selectedDriver.fullName}` : ''}
-        subtitle={selectedDriver ? `ID: ${selectedDriver.id} • ${selectedDriver.phone}` : ''}
+        subtitle={
+          selectedDriver
+            ? `ID: ${selectedDriver.id} • ${selectedDriver.phone}${selectedDriver.email ? ` • ${selectedDriver.email}` : ''}`
+            : ''
+        }
         width="620px"
         footer={
           actionType ? (
@@ -359,6 +373,33 @@ export default function DriversPage() {
                 />
               </Card>
             )}
+
+            {/* Contact Details Card */}
+            <div
+              style={{
+                background: 'var(--bg-surface-elevated)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-lg)',
+                padding: '1rem 1.25rem',
+                marginBottom: '1.25rem',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: '1rem',
+              }}
+            >
+              <div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Phone Number</div>
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginTop: '0.25rem', fontSize: '0.875rem' }}>
+                  {selectedDriver.phone || '—'}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Email Address</div>
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginTop: '0.25rem', fontSize: '0.875rem', wordBreak: 'break-all' }}>
+                  {selectedDriver.email || '—'}
+                </div>
+              </div>
+            </div>
 
             {/* Profile Overview */}
             <div

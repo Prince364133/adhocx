@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:provider/provider.dart';
+import '../../../core/utils/app_toast.dart';
 import '../../../services/auth_provider.dart';
 import '../../../services/auth_service.dart';
 import '../../../theme/app_colors.dart';
@@ -79,14 +79,16 @@ class _AuthOtpStepWidgetState extends State<AuthOtpStepWidget> {
       await AuthService.instance.requestOtp(phone: widget.phone);
       if (!mounted) return;
       setState(() => _isLoading = false);
-      Fluttertoast.showToast(msg: 'New OTP code sent!');
+      AppToast.showSuccess('New OTP code sent!', context: context);
       _startCountdown();
     } catch (e) {
       if (!mounted) return;
+      final cleanMsg = AppToast.cleanErrorMessage(e);
       setState(() {
         _isLoading = false;
-        _errorMessage = e.toString().replaceAll('ApiException: ', '').replaceAll('Exception: ', '');
+        _errorMessage = cleanMsg;
       });
+      AppToast.showError(cleanMsg, context: context);
     }
   }
 
@@ -110,22 +112,26 @@ class _AuthOtpStepWidgetState extends State<AuthOtpStepWidget> {
       // Sync with global AuthProvider
       final authProvider = context.read<AuthProvider>();
       await authProvider.checkSession();
+      if (!mounted) return;
 
       setState(() => _isLoading = false);
 
-      Fluttertoast.showToast(
-        msg: widget.isRegister
+      AppToast.showSuccess(
+        widget.isRegister
             ? 'Account registered successfully!'
             : 'Welcome back!',
+        context: context,
       );
 
       widget.onVerificationSuccess(authResult.user);
     } catch (e) {
       if (!mounted) return;
+      final cleanMsg = AppToast.cleanErrorMessage(e);
       setState(() {
         _isLoading = false;
-        _errorMessage = e.toString().replaceAll('ApiException: ', '').replaceAll('Exception: ', '');
+        _errorMessage = cleanMsg;
       });
+      AppToast.showError(cleanMsg, context: context);
     }
   }
 

@@ -59,6 +59,7 @@ class _KycDocumentsSectionWidgetState extends State<KycDocumentsSectionWidget> {
 
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -253,13 +254,19 @@ class _DocUploadRow extends StatelessWidget {
                 ),
               ),
               if (isUploaded)
-                const Text(
-                  'Uploaded ✓',
-                  style: TextStyle(
-                    color: AppColors.success,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                  ),
+                const Row(
+                  children: [
+                    Icon(Icons.check_circle, size: 12, color: AppColors.success),
+                    SizedBox(width: 4),
+                    Text(
+                      'Uploaded',
+                      style: TextStyle(
+                        color: AppColors.success,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
             ],
           ),
