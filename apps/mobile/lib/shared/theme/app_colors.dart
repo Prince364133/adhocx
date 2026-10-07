@@ -27,22 +27,22 @@ class AppColors {
   static const Color borderLight = Color(0xFFE2E8F0); // Light border
   static const Color borderSubtleLight = Color(0xFFCBD5E1); // Emphasized border
 
-  // ── Dark Surfaces (Operational Dark Palette) ──────────────────────────────
-  static const Color bgDark = Color(0xFF0B1220); // Deepest operational dark
-  static const Color surfaceDark = Color(0xFF111827); // Standard card surface
-  static const Color surfaceElevatedDark = Color(0xFF1E293B); // Elevated panel / input
+  // ── Dark Surfaces (Pure Black OLED & Neutral Gray Architecture) ───────────
+  static const Color bgDark = Color(0xFF000000); // Pure OLED Black (#000000)
+  static const Color surfaceDark = Color(0xFF121212); // Clean dark gray card surface
+  static const Color surfaceElevatedDark = Color(0xFF1E1E1E); // Elevated panel / input container
   static const Color surfaceDarkElevated = surfaceElevatedDark;
-  static const Color borderDark = Color(0xFF1F2937); // Standard dark border
-  static const Color borderSubtleDark = Color(0xFF374151); // Subtle divider
+  static const Color borderDark = Color(0xFF262626); // Neutral dark gray border
+  static const Color borderSubtleDark = Color(0xFF333333); // Subtle dark divider
 
   // ── Typography Colors ─────────────────────────────────────────────────────
   static const Color textPrimaryLight = Color(0xFF0F172A); // Slate 900
   static const Color textSecondaryLight = Color(0xFF64748B); // Slate 500
   static const Color textMutedLight = Color(0xFF94A3B8); // Slate 400
 
-  static const Color textPrimaryDark = Color(0xFFF8FAFC); // White / Slate 50
-  static const Color textSecondaryDark = Color(0xFF94A3B8); // Slate 400
-  static const Color textMutedDark = Color(0xFF64748B); // Slate 500
+  static const Color textPrimaryDark = Color(0xFFFFFFFF); // Crisp Pure White
+  static const Color textSecondaryDark = Color(0xFFA1A1AA); // Clean Neutral Gray (Zinc/Gray 400)
+  static const Color textMutedDark = Color(0xFF71717A); // Neutral Gray (Zinc/Gray 500)
 
   // ── Semantic Feedback ────────────────────────────────────────────────────
   static const Color success = Color(0xFF16A34A); // Success 600
@@ -84,4 +84,18 @@ class AppColors {
   static const Color slate700 = Color(0xFF334155);
   static const Color slate800 = Color(0xFF1E293B);
   static const Color slate900 = Color(0xFF0F172A);
+
+  // ── Neutral Gray Scale (Modern Dark Mode) ─────────────────────────────────
+  static const Color gray50 = Color(0xFFFAFAFA);
+  static const Color gray100 = Color(0xFFF4F4F5);
+  static const Color gray200 = Color(0xFFE4E4E7);
+  static const Color gray300 = Color(0xFFD4D4D8);
+  static const Color gray400 = Color(0xFFA1A1AA);
+  static const Color gray500 = Color(0xFF71717A);
+  static const Color gray600 = Color(0xFF52525B);
+  static const Color gray700 = Color(0xFF3F3F46);
+  static const Color gray800 = Color(0xFF27272A);
+  static const Color gray900 = Color(0xFF18181B);
+  static const Color gray950 = Color(0xFF09090B);
 }
+

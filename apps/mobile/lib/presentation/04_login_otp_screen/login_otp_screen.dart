@@ -116,14 +116,16 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
         else if (!user.isOnboarded && !user.isUnderReview && !user.isVerified) {
           context.go(AppRoutes.onboardingPersonalScreen);
         }
-        // 3. Verification Gate: If user has submitted profile but is not yet verified by Admin, lock to waitlistGateScreen
-        else if (!user.isVerified) {
-          context.go(AppRoutes.waitlistGateScreen);
-        }
-        // 4. Fully Verified Users
+        // 3. Driver Verification Gate: Only drivers pending admin verification go to waitlist
         else if (user.isDriver) {
-          context.go(AppRoutes.homeScreen);
-        } else {
+          if (!user.isVerified) {
+            context.go(AppRoutes.waitlistGateScreen);
+          } else {
+            context.go(AppRoutes.homeScreen);
+          }
+        }
+        // 4. Vendors / Users: Go directly to vendor portal
+        else {
           context.go(AppRoutes.userHomeScreen);
         }
       }

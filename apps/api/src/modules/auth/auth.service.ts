@@ -363,16 +363,7 @@ export class AuthService implements OnModuleInit {
       throw new UnauthorizedException('Incorrect password. Please try again or reset your password.');
     }
 
-    if (dto.role) {
-      const requestedRole = this.mapUserRole(dto.role);
-      if (user.role !== requestedRole) {
-        throw new ForbiddenException(
-          `This account is registered as a ${user.role}. You cannot sign in as a ${requestedRole}. Under the 1-account-1-role policy, each account has only one assigned role. Please switch to your ${user.role.toLowerCase()} portal.`
-        );
-      }
-    }
-
-    this.logger.log(`✅ [LOGIN SUCCESS] User authenticated: ${user.id} (${user.fullName || user.phone})`);
+    this.logger.log(`✅ [LOGIN SUCCESS] User authenticated: ${user.id} (${user.fullName || user.phone}) as ${user.role}`);
     return this.generateAuthResponse(user);
   }
 
@@ -441,12 +432,6 @@ export class AuthService implements OnModuleInit {
 
       if (!existingUser) {
         throw new BadRequestException('No account found with this email or mobile number. Please check your details or sign up.');
-      }
-
-      if (assignedRole && existingUser.role !== assignedRole) {
-        throw new ForbiddenException(
-          `This account is registered as a ${existingUser.role}. You cannot sign in as a ${assignedRole}. Under the 1-account-1-role policy, each account has only one role. Please sign in to your ${existingUser.role.toLowerCase()} portal.`
-        );
       }
     }
 
@@ -551,13 +536,6 @@ export class AuthService implements OnModuleInit {
         if (dto.isRegister) {
           throw new ConflictException(
             `An account with this ${user.email === rawEmail ? 'email address' : 'mobile number'} is already registered as a ${user.role}. Under AdhocX's 1-account-1-role policy, an email or mobile number can only have a single role. Please sign in instead.`
-          );
-        }
-
-        // Strict role matching: account cannot access different role
-        if (dto.role && user.role !== assignedRole) {
-          throw new ForbiddenException(
-            `This account is registered as a ${user.role}. You cannot sign in as a ${assignedRole}. Under the 1-account-1-role policy, each account has only one assigned role. Please sign in to your ${user.role.toLowerCase()} portal.`
           );
         }
       } else {
@@ -720,12 +698,31 @@ export class AuthService implements OnModuleInit {
             });
           } catch (_) {}
         } else {
-          // Enforce 1-Account 1-Role policy: existing user cannot switch roles via social auth
-          if (user.role !== assignedRole) {
-            throw new ConflictException(
-              `This Google account (${email}) is already registered as a ${user.role}. Under AdhocX's 1-account-1-role policy, an email can only be associated with one account and one role (${user.role}). Please sign in to your ${user.role.toLowerCase()} portal.`
-            );
+          // Existing user authenticating via social auth: log them in as their registered role
+          if (user.role === UserRole.VENDOR && !user.vendor) {
+            try {
+              user.vendor = await this.db.vendor.create({
+                data: {
+                  userId: user.id,
+                  fullName: user.fullName || fullName || 'Vendor Partner',
+                  organizationName: fullName ? `${fullName} Mobility` : 'My Organization',
+                  verificationStatus: 'PENDING',
+                },
+              });
+            } catch (_) {}
+          } else if (user.role === UserRole.DRIVER && !user.driver) {
+            try {
+              user.driver = await this.db.driver.create({
+                data: {
+                  userId: user.id,
+                  fullName: user.fullName || fullName || 'Driver Partner',
+                  verificationStatus: 'PENDING',
+                  availabilityStatus: 'OFFLINE',
+                },
+              });
+            } catch (_) {}
           }
+          this.logger.log(`✅ [SOCIAL AUTH SUCCESS] Existing user logged in: ${user.id} (${user.email}) as ${user.role}`);
         }
         break; // Success
       } catch (dbErr: any) {

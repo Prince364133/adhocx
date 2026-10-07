@@ -69,7 +69,7 @@ class AppTheme {
       onErrorContainer: AppColors.errorContainer,
       outline: borderDark,
       outlineVariant: AppColors.borderSubtleDark,
-      inverseSurface: AppColors.slate200,
+      inverseSurface: AppColors.gray200,
       onInverseSurface: backgroundDark,
       tertiary: info,
       onTertiary: Colors.white,

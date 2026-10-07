@@ -23,13 +23,30 @@ export function useVerificationCenter() {
 
     try {
       const [drivers, vendors] = await Promise.all([
-        adminApi.getDrivers().catch(() => [] as DriverListItem[]),
-        adminApi.getVendors().catch(() => [] as VendorListItem[]),
+        adminApi.getDrivers().catch((err) => {
+          console.warn('[VerificationCenter] Failed to fetch drivers:', err?.message || err);
+          return [] as DriverListItem[];
+        }),
+        adminApi.getVendors().catch((err) => {
+          console.warn('[VerificationCenter] Failed to fetch vendors:', err?.message || err);
+          return [] as VendorListItem[];
+        }),
       ]);
 
       const normalizedDrivers: VerificationItem[] = (drivers || []).map((d: any) => {
         let docs: any[] = [];
-        if (Array.isArray(d.kycDocuments) && d.kycDocuments.length > 0) {
+        const kycDocsObj = d.kycDocuments && typeof d.kycDocuments === 'object' ? d.kycDocuments : null;
+
+        if (Array.isArray(kycDocsObj?.documents) && kycDocsObj.documents.length > 0) {
+          docs = kycDocsObj.documents.map((doc: any, idx: number) => ({
+            id: doc.id || `${d.id}_doc_${idx}`,
+            documentType: doc.documentType || doc.type || 'DOCUMENT',
+            title: doc.title || doc.documentType || `Document ${idx + 1}`,
+            fileUrl: doc.fileUrl || doc.url,
+            verified: doc.verified === true || d.verificationStatus === 'VERIFIED',
+            uploadedAt: doc.uploadedAt || d.updatedAt || d.createdAt,
+          }));
+        } else if (Array.isArray(d.kycDocuments) && d.kycDocuments.length > 0) {
           docs = d.kycDocuments.map((doc: any, idx: number) => ({
             id: `${d.id}_doc_${idx}`,
             documentType: doc.type || 'DOCUMENT',
@@ -56,9 +73,9 @@ export function useVerificationCenter() {
         return {
           id: d.id,
           entityType: 'DRIVER',
-          name: d.fullName || 'Driver Applicant',
-          phone: d.phone || '',
-          email: d.email || '',
+          name: d.fullName || d.user?.fullName || 'Driver Applicant',
+          phone: d.phone || d.user?.phone || '',
+          email: d.email || d.user?.email || '',
           verificationStatus: d.verificationStatus || 'UNDER_REVIEW',
           rejectionReason: d.rejectionReason,
           vehiclePlate: d.vehiclePlate || d.rcNumber || '',
@@ -68,33 +85,46 @@ export function useVerificationCenter() {
             latitude: d.currentLat || 0,
             longitude: d.currentLng || 0,
             address: d.currentLocationAddress,
-          } : undefined,
+          } : (kycDocsObj?.address ? {
+            latitude: 0,
+            longitude: 0,
+            address: kycDocsObj.address,
+          } : undefined),
           documents: docs,
           submittedAt: d.createdAt || new Date().toISOString(),
           updatedAt: d.updatedAt,
         };
       });
 
-      const normalizedVendors: VerificationItem[] = (vendors || []).map((v: any) => ({
-        id: v.id,
-        entityType: 'VENDOR',
-        name: v.fullName || v.contactPerson || 'Vendor Partner',
-        organizationName: v.organizationName || v.companyName || '',
-        phone: v.phone || '',
-        email: v.email || '',
-        verificationStatus: v.verificationStatus || 'UNDER_REVIEW',
-        rejectionReason: v.rejectionReason,
-        gstNumber: v.gstNumber || '',
-        address: v.address || '',
-        location: v.address ? {
-          latitude: 0,
-          longitude: 0,
-          address: v.address,
-        } : undefined,
-        documents: Array.isArray(v.documents) ? v.documents : [],
-        submittedAt: v.createdAt || new Date().toISOString(),
-        updatedAt: v.updatedAt,
-      }));
+      const normalizedVendors: VerificationItem[] = (vendors || []).map((v: any) => {
+        let vDocs: any[] = [];
+        if (Array.isArray(v.documents)) {
+          vDocs = v.documents;
+        } else if (Array.isArray(v.kycDocuments?.documents)) {
+          vDocs = v.kycDocuments.documents;
+        }
+
+        return {
+          id: v.id,
+          entityType: 'VENDOR',
+          name: v.fullName || v.contactPerson || v.user?.fullName || 'Vendor Partner',
+          organizationName: v.organizationName || v.companyName || '',
+          phone: v.phone || v.user?.phone || '',
+          email: v.email || v.user?.email || '',
+          verificationStatus: v.verificationStatus || 'UNDER_REVIEW',
+          rejectionReason: v.rejectionReason,
+          gstNumber: v.gstNumber || '',
+          address: v.address || '',
+          location: v.address ? {
+            latitude: 0,
+            longitude: 0,
+            address: v.address,
+          } : undefined,
+          documents: vDocs,
+          submittedAt: v.createdAt || new Date().toISOString(),
+          updatedAt: v.updatedAt,
+        };
+      });
 
       const combined = [...normalizedDrivers, ...normalizedVendors];
       setItems(combined);

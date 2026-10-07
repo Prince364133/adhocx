@@ -137,11 +137,11 @@ jobs:
           NEXT_PUBLIC_API_URL=https://api.adhocx.com/api/v1
           NEXT_PUBLIC_WS_URL=wss://api.adhocx.com
           POSTGRES_USER=${{ secrets.POSTGRES_USER || 'adhocx_user' }}
-          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD || 'adhocx_prod_db_sec_pass_2026!' }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD || 'adhocx_password' }}
           POSTGRES_DB=${{ secrets.POSTGRES_DB || 'adhocx' }}
-          DATABASE_URL=${{ secrets.DATABASE_URL || 'postgresql://adhocx_user:adhocx_prod_db_sec_pass_2026!@postgres:5432/adhocx?schema=public' }}
-          REDIS_URL=${{ secrets.REDIS_URL || 'rediss://red-dafi1ftbedkc739bbovg:YP3C2SCtDTlvZL2un0PgQ12OUAiSlcud@virginia-keyvalue.render.com:6379' }}
-          REDIS_TLS=true
+          DATABASE_URL=${{ secrets.DATABASE_URL || 'postgresql://adhocx_user:adhocx_password@postgres:5432/adhocx?schema=public' }}
+          REDIS_URL=${{ secrets.REDIS_URL || 'redis://redis:6379' }}
+          REDIS_TLS=${{ secrets.REDIS_TLS || 'false' }}
           JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET || '743e797761e596e86c36430b92a410064e88ae5b6918a1bf5ce781ecf4aee98a' }}
           JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET || 'ea378b0b14df7d55f663bcc0373df4bee1df1f6f1545d12d9d4927e02afd936f' }}
           RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID || 'rzp_live_TJ4cJdMCagilvq' }}

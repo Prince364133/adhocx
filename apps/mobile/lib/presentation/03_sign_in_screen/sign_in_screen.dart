@@ -11,11 +11,10 @@ import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/common/app_primary_button.dart';
-import '../../widgets/common/app_smart_identifier_field.dart';
 import '../../widgets/common/app_social_auth_button.dart';
 import '../../widgets/common/app_text_field.dart';
 
-/// Screen 3: Login / Sign In with Phone, Email & Password.
+/// Screen 3: Sign In with single Email field, Google Auth, and optional Password login.
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
 
@@ -25,8 +24,9 @@ class SignInScreen extends StatefulWidget {
 
 class _SignInScreenState extends State<SignInScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _identifierController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _showPasswordField = false;
   bool _obscurePassword = true;
   bool _isLoading = false;
   String? _inlineErrorMessage;
@@ -34,7 +34,7 @@ class _SignInScreenState extends State<SignInScreen> {
   @override
   void initState() {
     super.initState();
-    _identifierController.addListener(_clearInlineError);
+    _emailController.addListener(_clearInlineError);
     _passwordController.addListener(_clearInlineError);
   }
 
@@ -46,28 +46,82 @@ class _SignInScreenState extends State<SignInScreen> {
 
   @override
   void dispose() {
-    _identifierController.removeListener(_clearInlineError);
+    _emailController.removeListener(_clearInlineError);
     _passwordController.removeListener(_clearInlineError);
-    _identifierController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  Future<void> _handlePasswordSignIn() async {
-    final text = _identifierController.text.trim();
-    if (text.isEmpty) {
+  String? _validateEmail(String? val) {
+    if (val == null || val.trim().isEmpty) {
+      return 'Please enter your email address';
+    }
+    final email = val.trim().toLowerCase();
+    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    if (!emailRegex.hasMatch(email)) {
+      return 'Please enter a valid email address';
+    }
+    return null;
+  }
+
+  Future<void> _handleOtpSignIn() async {
+    final email = _emailController.text.trim().toLowerCase();
+    final emailError = _validateEmail(email);
+    if (emailError != null) {
       _formKey.currentState?.validate();
-      const msg = 'Please enter your mobile number or email address';
-      setState(() => _inlineErrorMessage = msg);
-      AppToast.showError(msg, context: context);
+      setState(() => _inlineErrorMessage = emailError);
+      AppToast.showError(emailError, context: context);
       return;
     }
 
-    final identifierError = AppSmartIdentifierField.validate(text);
-    if (identifierError != null) {
+    setState(() {
+      _isLoading = true;
+      _inlineErrorMessage = null;
+    });
+
+    try {
+      final authService = context.read<AuthService>();
+      final onboarding = context.read<OnboardingProvider>();
+
+      final res = await authService.requestOtp(
+        email: email,
+        channel: 'EMAIL',
+        role: onboarding.role,
+        isRegister: false,
+      );
+
+      if (mounted) {
+        final message = res is Map && res['message'] != null ? res['message'] : 'OTP sent to $email';
+        AppToast.showSuccess(message, context: context);
+
+        context.push(
+          AppRoutes.loginOtpScreen,
+          extra: {
+            'email': email,
+            'role': onboarding.role,
+            'isRegister': false,
+          },
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final msg = AppToast.cleanErrorMessage(e);
+        setState(() => _inlineErrorMessage = msg);
+        AppToast.showError(msg, context: context);
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handlePasswordSignIn() async {
+    final email = _emailController.text.trim().toLowerCase();
+    final emailError = _validateEmail(email);
+    if (emailError != null) {
       _formKey.currentState?.validate();
-      setState(() => _inlineErrorMessage = identifierError);
-      AppToast.showError(identifierError, context: context);
+      setState(() => _inlineErrorMessage = emailError);
+      AppToast.showError(emailError, context: context);
       return;
     }
 
@@ -104,11 +158,8 @@ class _SignInScreenState extends State<SignInScreen> {
       final onboarding = context.read<OnboardingProvider>();
       final authService = context.read<AuthService>();
 
-      final parsed = AppSmartIdentifierField.parseIdentifier(text);
-      final identifier = parsed['value'] as String;
-
       final result = await authService.loginWithPassword(
-        identifier: identifier,
+        identifier: email,
         password: password,
         role: onboarding.role,
       );
@@ -134,76 +185,15 @@ class _SignInScreenState extends State<SignInScreen> {
           context.go(AppRoutes.setPasswordScreen);
         } else if (!user.isOnboarded && !user.isUnderReview && !user.isVerified) {
           context.go(AppRoutes.onboardingPersonalScreen);
-        } else if (!user.isVerified) {
-          context.go(AppRoutes.waitlistGateScreen);
         } else if (user.isDriver) {
-          context.go(AppRoutes.homeScreen);
+          if (!user.isVerified) {
+            context.go(AppRoutes.waitlistGateScreen);
+          } else {
+            context.go(AppRoutes.homeScreen);
+          }
         } else {
           context.go(AppRoutes.userHomeScreen);
         }
-      }
-    } catch (e) {
-      if (mounted) {
-        final msg = AppToast.cleanErrorMessage(e);
-        setState(() => _inlineErrorMessage = msg);
-        AppToast.showError(msg, context: context);
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _handleOtpSignIn() async {
-    final text = _identifierController.text.trim();
-    if (text.isEmpty) {
-      const msg = 'Please enter your mobile number or email for OTP';
-      setState(() => _inlineErrorMessage = msg);
-      AppToast.showError(msg, context: context);
-      return;
-    }
-
-    final identifierError = AppSmartIdentifierField.validate(text);
-    if (identifierError != null) {
-      setState(() => _inlineErrorMessage = identifierError);
-      AppToast.showError(identifierError, context: context);
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-      _inlineErrorMessage = null;
-    });
-
-    try {
-      final authService = context.read<AuthService>();
-      final onboarding = context.read<OnboardingProvider>();
-
-      final parsed = AppSmartIdentifierField.parseIdentifier(text);
-      final String? phoneTarget = parsed['phone'];
-      final String? emailTarget = parsed['email'];
-
-      final res = await authService.requestOtp(
-        phone: phoneTarget,
-        email: emailTarget,
-        channel: parsed['channel'],
-        role: onboarding.role,
-        isRegister: false,
-      );
-
-      if (mounted) {
-        final targetDisplay = phoneTarget ?? emailTarget ?? 'your address';
-        final message = res is Map && res['message'] != null ? res['message'] : 'OTP sent to $targetDisplay';
-        AppToast.showSuccess(message, context: context);
-
-        context.push(
-          AppRoutes.loginOtpScreen,
-          extra: {
-            'phone': phoneTarget,
-            'email': emailTarget,
-            'role': onboarding.role,
-            'isRegister': false,
-          },
-        );
       }
     } catch (e) {
       if (mounted) {
@@ -319,7 +309,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      'Sign in with your phone or email and password',
+                      'Sign in with your email address or Google',
                       style: AppTypography.body(
                         color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                       ),
@@ -375,95 +365,106 @@ class _SignInScreenState extends State<SignInScreen> {
                       ),
                     ],
 
-                    // ── Unified Smart Identifier Input (Mobile Number or Email) ─────
-                    AppSmartIdentifierField(
-                      controller: _identifierController,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-
-                    // ── Password Input Field ─────────────────────────────────
+                    // ── Single Input Field: Email Address ────────────────────
                     AppTextField(
-                      controller: _passwordController,
-                      label: 'Password',
-                      hintText: 'Enter your password',
-                      obscureText: _obscurePassword,
+                      controller: _emailController,
+                      label: 'Email Address',
+                      hintText: 'name@example.com',
+                      keyboardType: TextInputType.emailAddress,
                       prefixIcon: Icon(
-                        Icons.lock_outline_rounded,
+                        Icons.email_outlined,
                         size: 20,
                         color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                       ),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
+                      validator: _validateEmail,
+                    ),
+
+                    // ── Optional Password Field (Toggled by user) ────────────
+                    if (_showPasswordField) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      AppTextField(
+                        controller: _passwordController,
+                        label: 'Password',
+                        hintText: 'Enter your password',
+                        obscureText: _obscurePassword,
+                        prefixIcon: Icon(
+                          Icons.lock_outline_rounded,
                           size: 20,
                           color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                         ),
-                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                      ),
-                      validator: (val) {
-                        if (val == null || val.trim().isEmpty) {
-                          return 'Please enter your password';
-                        }
-                        if (val.trim().length < 4) {
-                          return 'Password must be at least 4 characters';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-
-                    // ── Options Row: OTP Sign In & Forgot Password ───────────
-                    Wrap(
-                      alignment: WrapAlignment.spaceBetween,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      runSpacing: 4,
-                      children: [
-                        TextButton.icon(
-                          onPressed: _handleOtpSignIn,
+                        suffixIcon: IconButton(
                           icon: Icon(
-                            Icons.sms_outlined,
-                            size: 14,
-                            color: isDark ? AppColors.primaryLight : AppColors.primary,
+                            _obscurePassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            size: 20,
+                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                           ),
-                          label: Text(
-                            'Sign In with OTP',
-                            style: AppTypography.caption(
-                              color: isDark ? AppColors.primaryLight : AppColors.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
+                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                         ),
+                        validator: (val) {
+                          if (val == null || val.trim().isEmpty) {
+                            return 'Please enter your password';
+                          }
+                          if (val.trim().length < 4) {
+                            return 'Password must be at least 4 characters';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
+                    const SizedBox(height: AppSpacing.sm),
+
+                    // ── Switch between Email OTP & Password / Forgot Password ─
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
                         TextButton(
-                          onPressed: () => context.push(AppRoutes.forgotPasswordScreen),
+                          onPressed: () {
+                            setState(() {
+                              _showPasswordField = !_showPasswordField;
+                              _inlineErrorMessage = null;
+                            });
+                          },
                           style: TextButton.styleFrom(
                             padding: const EdgeInsets.symmetric(horizontal: 4),
                             minimumSize: Size.zero,
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
                           child: Text(
-                            'Forgot Password?',
+                            _showPasswordField ? 'Sign in with Email OTP instead' : 'Sign in with password instead',
                             style: AppTypography.caption(
-                              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                              color: isDark ? AppColors.primaryLight : AppColors.primary,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
+                        if (_showPasswordField)
+                          TextButton(
+                            onPressed: () => context.push(AppRoutes.forgotPasswordScreen),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: Text(
+                              'Forgot Password?',
+                              style: AppTypography.caption(
+                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                     const SizedBox(height: AppSpacing.lg),
 
-                    // ── Primary Action Button (Sign In) ──────────────────────
+                    // ── Primary Action Button ────────────────────────────────
                     AppPrimaryButton(
-                      text: 'Sign In',
+                      text: _showPasswordField ? 'Sign In' : 'Continue with Email',
                       isLoading: _isLoading,
-                      onPressed: _handlePasswordSignIn,
+                      onPressed: _showPasswordField ? _handlePasswordSignIn : _handleOtpSignIn,
                     ),
                     const SizedBox(height: AppSpacing.xl),
 
@@ -509,8 +510,6 @@ class _SignInScreenState extends State<SignInScreen> {
                         ),
                         GestureDetector(
                           onTap: () {
-                            final onboarding = context.read<OnboardingProvider>();
-                            onboarding.setRole('DRIVER');
                             context.push(AppRoutes.signUpScreen);
                           },
                           child: Text(

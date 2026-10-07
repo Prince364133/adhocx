@@ -157,7 +157,7 @@ export const VerificationCard: React.FC<CardProps> = ({
             )}
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.15rem' }}>
               <Phone size={12} />
-              <span>{item.phone}</span>
+              <span>{item.phone || 'Email contact only'}</span>
             </div>
             {item.email && (
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.1rem' }}>

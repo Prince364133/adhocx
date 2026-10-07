@@ -14,7 +14,7 @@ import '../../widgets/common/app_primary_button.dart';
 import '../../widgets/common/app_social_auth_button.dart';
 import '../../widgets/common/app_text_field.dart';
 
-/// Screen 5: Create your account (Sign Up) supporting Phone, Email & Social Auth.
+/// Screen 5: Create your account (Sign Up) with single Email field and Google Auth.
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
 
@@ -24,53 +24,35 @@ class SignUpScreen extends StatefulWidget {
 
 class _SignUpScreenState extends State<SignUpScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
-  final _referralController = TextEditingController();
 
   bool _agreeToTerms = true;
   bool _isLoading = false;
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
     _emailController.dispose();
-    _referralController.dispose();
     super.dispose();
   }
 
+  String? _validateEmail(String? val) {
+    if (val == null || val.trim().isEmpty) {
+      return 'Please enter your email address';
+    }
+    final email = val.trim().toLowerCase();
+    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    if (!emailRegex.hasMatch(email)) {
+      return 'Please enter a valid email address';
+    }
+    return null;
+  }
+
   Future<void> _handleSignUp() async {
-    final name = _nameController.text.trim();
-    if (name.isEmpty || name.length < 2) {
-      _formKey.currentState?.validate();
-      AppToast.showError('Please enter your full legal name', context: context);
-      return;
-    }
-
-    final phoneRaw = _phoneController.text.trim();
-    final digits = phoneRaw.replaceAll(RegExp(r'\D'), '');
-    if (digits.length < 10) {
-      _formKey.currentState?.validate();
-      AppToast.showError('Please enter a valid 10-digit mobile number', context: context);
-      return;
-    }
-    final formattedPhone = digits.length == 10 ? '+91$digits' : (phoneRaw.startsWith('+') ? phoneRaw : '+$digits');
-
     final emailRaw = _emailController.text.trim().toLowerCase();
-    final onboarding = context.read<OnboardingProvider>();
-    final isDriver = onboarding.isDriver;
-
-    if (!isDriver && emailRaw.isEmpty) {
+    final emailError = _validateEmail(emailRaw);
+    if (emailError != null) {
       _formKey.currentState?.validate();
-      AppToast.showError('Corporate email address is required for business accounts', context: context);
-      return;
-    }
-
-    if (emailRaw.isNotEmpty && (!emailRaw.contains('@') || !emailRaw.contains('.'))) {
-      _formKey.currentState?.validate();
-      AppToast.showError('Please enter a valid email address', context: context);
+      AppToast.showError(emailError, context: context);
       return;
     }
 
@@ -80,7 +62,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
 
     if (!_formKey.currentState!.validate()) {
-      AppToast.showError('Please correct the highlighted fields', context: context);
+      AppToast.showError('Please enter a valid email address', context: context);
       return;
     }
 
@@ -88,35 +70,30 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     try {
       final authService = context.read<AuthService>();
+      final onboarding = context.read<OnboardingProvider>();
 
       onboarding.setPersonalDetails(
-        fullName: name,
+        fullName: onboarding.fullName.isNotEmpty ? onboarding.fullName : 'Partner',
         dateOfBirth: onboarding.dateOfBirth,
         gender: onboarding.gender,
-        email: emailRaw.isNotEmpty ? emailRaw : null,
-        phone: formattedPhone,
+        email: emailRaw,
       );
 
       final res = await authService.requestOtp(
-        phone: formattedPhone,
-        email: emailRaw.isNotEmpty ? emailRaw : null,
-        channel: 'SMS',
+        email: emailRaw,
+        channel: 'EMAIL',
         role: onboarding.role,
         isRegister: true,
-        fullName: name,
       );
 
       if (mounted) {
-        AppToast.showSuccess(
-          res['message'] ?? 'OTP sent to $formattedPhone',
-          context: context,
-        );
+        final message = res is Map && res['message'] != null ? res['message'] : 'OTP sent to $emailRaw';
+        AppToast.showSuccess(message, context: context);
 
         context.push(
           AppRoutes.loginOtpScreen,
           extra: {
-            'phone': formattedPhone,
-            'email': emailRaw.isNotEmpty ? emailRaw : null,
+            'email': emailRaw,
             'role': onboarding.role,
             'isRegister': true,
           },
@@ -154,7 +131,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (mounted) {
         context.read<AuthProvider>().setUser(result.user);
         AppToast.showSuccess(
-          '${isGoogle ? "Google" : "Apple"} verified! Create your password to continue.',
+          '${isGoogle ? "Google" : "Apple"} verified! Welcome ${result.user.fullName ?? ""}',
           context: context,
         );
 
@@ -244,82 +221,20 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xl),
 
-                    // ── Form Inputs ──────────────────────────────────────────
-                    AppTextField(
-                      controller: _nameController,
-                      label: isDriver ? 'Full Legal Name *' : 'Contact Person Full Name *',
-                      hintText: 'Enter full legal name',
-                      prefixIcon: const Icon(Icons.person_outline, size: 20),
-                      validator: (val) {
-                        if (val == null || val.trim().length < 2) {
-                          return 'Enter legal full name (min 2 characters)';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-
-                    AppTextField(
-                      controller: _phoneController,
-                      label: 'Mobile Number *',
-                      hintText: '10-digit mobile number',
-                      prefixIcon: Padding(
-                        padding: const EdgeInsets.only(left: 12, right: 8),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text('🇮🇳', style: TextStyle(fontSize: 16)),
-                            const SizedBox(width: 4),
-                            Text(
-                              '+91',
-                              style: TextStyle(
-                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      keyboardType: TextInputType.phone,
-                      validator: (val) {
-                        if (val == null || val.trim().isEmpty) {
-                          return 'Enter your mobile number';
-                        }
-                        final d = val.replaceAll(RegExp(r'\D'), '');
-                        if (d.length < 10) {
-                          return 'Enter a valid 10-digit mobile number';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-
+                    // ── Single Input: Email Address ──────────────────────────
                     AppTextField(
                       controller: _emailController,
-                      label: isDriver ? 'Email Address (Optional)' : 'Corporate Email Address *',
-                      hintText: isDriver ? 'e.g. driver@example.com' : 'e.g. traveldesk@company.com',
-                      prefixIcon: const Icon(Icons.email_outlined, size: 20),
+                      label: isDriver ? 'Email Address *' : 'Corporate Email Address *',
+                      hintText: isDriver ? 'name@example.com' : 'traveldesk@company.com',
+                      prefixIcon: Icon(
+                        Icons.email_outlined,
+                        size: 20,
+                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                      ),
                       keyboardType: TextInputType.emailAddress,
-                      validator: (val) {
-                        final email = val?.trim() ?? '';
-                        if (!isDriver && email.isEmpty) {
-                          return 'Corporate email is required for business accounts';
-                        }
-                        if (email.isNotEmpty && (!email.contains('@') || !email.contains('.'))) {
-                          return 'Enter a valid email address';
-                        }
-                        return null;
-                      },
+                      validator: _validateEmail,
                     ),
-                    const SizedBox(height: AppSpacing.md),
-
-                    AppTextField(
-                      controller: _referralController,
-                      label: 'Referral Code (Optional)',
-                      hintText: 'Enter referral code',
-                    ),
-                    const SizedBox(height: AppSpacing.md),
+                    const SizedBox(height: AppSpacing.lg),
 
                     // ── Terms & Privacy Checkbox ─────────────────────────────
                     Row(
@@ -361,9 +276,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xl),
 
-                    // ── Primary Action ───────────────────────────────────────
+                    // ── Primary Action: Continue with Email ──────────────────
                     AppPrimaryButton(
-                      text: 'Sign Up',
+                      text: 'Continue with Email',
                       isLoading: _isLoading,
                       onPressed: _handleSignUp,
                     ),
@@ -388,7 +303,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     const SizedBox(height: AppSpacing.lg),
 
-                    // ── Social Sign-Up ───────────────────────────────────────
+                    // ── Social Sign-Up (Google) ──────────────────────────────
                     AppSocialAuthButton(
                       type: SocialAuthType.google,
                       onPressed: () => _handleSocialAuth(SocialAuthType.google),
@@ -454,13 +369,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: isDark ? AppColors.primaryLight : AppColors.primary,
-                                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                                    color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.12),
+                                    shape: BoxShape.circle,
                                   ),
                                   child: Icon(
-                                    isDriver ? Icons.business_center_rounded : Icons.local_taxi_rounded,
-                                    color: Colors.white,
-                                    size: 18,
+                                    isDriver ? Icons.business_center_outlined : Icons.directions_car_outlined,
+                                    size: 20,
+                                    color: isDark ? AppColors.primaryLight : AppColors.primary,
                                   ),
                                 ),
                                 const SizedBox(width: AppSpacing.md),
@@ -469,42 +384,26 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        isDriver
-                                            ? 'Sign up as a Business'
-                                            : 'Drive & Earn with AdhocX',
-                                        style: AppTypography.small(
-                                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                      Text(
-                                        isDriver
-                                            ? 'Book outstation rides & bulk corporate travel'
-                                            : 'Join as a verified driver partner',
+                                        isDriver ? 'Registering as a Corporate Business?' : 'Registering as a Driver Partner?',
                                         style: AppTypography.caption(
                                           color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        isDriver ? 'Switch to Business Account' : 'Switch to Driver Partner',
+                                        style: AppTypography.body(
+                                          color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: isDark ? AppColors.primaryLight : AppColors.primary,
-                                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                                  ),
-                                  child: Text(
-                                    isDriver ? 'Join as Business' : 'Join as Driver',
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
+                                Icon(
+                                  Icons.arrow_forward_ios_rounded,
+                                  size: 14,
+                                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                                 ),
                               ],
                             ),
