@@ -104,6 +104,18 @@ export class OffersService {
         offers = offers.filter(o => !fulfilledRequirementIds.has(o.requirementId));
       }
 
+      // Strict vehicle type filtering: A sedan driver only sees sedan offers
+      if (driver.vehicleType) {
+        const dType = driver.vehicleType.toString().toUpperCase();
+        const dNorm = dType.includes('SEDAN') ? 'SEDAN' : dType.includes('SUV') ? 'SUV' : dType.includes('HATCH') ? 'HATCHBACK' : dType;
+        offers = offers.filter((o) => {
+          const reqType = (o.requirement?.vehicleType || o.vehicleType || '').toString().toUpperCase();
+          if (!reqType) return true;
+          const rNorm = reqType.includes('SEDAN') ? 'SEDAN' : reqType.includes('SUV') ? 'SUV' : reqType.includes('HATCH') ? 'HATCHBACK' : reqType;
+          return dNorm === rNorm;
+        });
+      }
+
     const now = Date.now();
     return offers.map((o) => {
       const expiresAtMs = new Date(o.expiresAt).getTime();

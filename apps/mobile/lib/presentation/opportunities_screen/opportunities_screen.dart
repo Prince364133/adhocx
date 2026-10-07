@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../routes/app_routes.dart';
+import '../../services/auth_service.dart';
 import '../../services/driver_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
@@ -8,7 +10,9 @@ import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../shared/widgets/app_adaptive_skeleton.dart';
 
-/// Screen 1: Nearby Opportunities List matching exact design mockup.
+import '../../utils/vehicle_utils.dart';
+
+/// Screen 1: Nearby Opportunities List with strict vehicle category isolation.
 class OpportunitiesScreen extends StatefulWidget {
   const OpportunitiesScreen({super.key});
 
@@ -18,7 +22,7 @@ class OpportunitiesScreen extends StatefulWidget {
 
 class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
   String _selectedCategory = 'All';
-  List<String> _categories = ['All', 'Sedan', 'SUV', 'Hatchback'];
+  List<String> _categories = ['All'];
   String? _driverVehicleCategory;
   bool _isLoading = true;
   bool _isOnActiveTrip = false;
@@ -30,26 +34,41 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
     _loadOffers();
   }
 
+  /// Normalizes any raw vehicle string into standardized categories
+  static String normalizeVehicleCategory(String? raw) => VehicleUtils.normalizeVehicleCategory(raw);
+
   Future<void> _loadOffers({bool force = false}) async {
     setState(() => _isLoading = true);
     try {
       final results = await Future.wait([
         DriverService.instance.getOffers(forceRefresh: force),
+        DriverService.instance.getBiddingOpportunities(forceRefresh: force).catchError((_) => <dynamic>[]),
         DriverService.instance.getTrips(forceRefresh: force).catchError((_) => <dynamic>[]),
         DriverService.instance.getVehicleCategories().catchError((_) => <Map<String, dynamic>>[]),
         DriverService.instance.getProfile(forceRefresh: force).catchError((_) => null),
       ]);
       final directOffers = results[0] as List<dynamic>;
-      final trips = results[1] as List<dynamic>;
-      final dynamicTiers = results[2] as List<Map<String, dynamic>>;
-      final driverProfile = results[3];
+      final biddingOps = results[1] as List<dynamic>;
+      final trips = results[2] as List<dynamic>;
+      final dynamicTiers = results[3] as List<Map<String, dynamic>>;
+      final driverProfile = results[4];
 
-      String? registeredVehicle;
-      if (driverProfile is Map && driverProfile['vehicleType'] != null) {
-        final raw = driverProfile['vehicleType'].toString().trim().toUpperCase();
-        if (raw.isNotEmpty && raw != 'NULL') {
-          registeredVehicle = raw;
-        }
+      // 1. Resolve Driver's Registered Vehicle Category safely across all payload layers
+      String registeredVehicle = VehicleUtils.extractVehicleType(driverProfile);
+      if (registeredVehicle.isEmpty) {
+        registeredVehicle = VehicleUtils.extractVehicleType(AuthService.instance.currentUser?.driverProfile);
+      }
+      if (registeredVehicle.isEmpty) {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final stored = prefs.getString('driver_vehicle_type') ?? prefs.getString('vehicle_type');
+          if (stored != null && stored.isNotEmpty) {
+            registeredVehicle = VehicleUtils.normalizeVehicleCategory(stored);
+          }
+        } catch (_) {}
+      }
+      if (registeredVehicle.isEmpty) {
+        registeredVehicle = 'SEDAN';
       }
 
       final activeTrip = trips.firstWhere(
@@ -67,37 +86,67 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
         }
       }
 
-      // Filter direct offers: only show SENT offers for requirements the driver doesn't already have a trip for
-      final filteredDirectOffers = directOffers.where((o) {
+      // Merge direct offers & bidding opportunities, deduplicating and removing fulfilled
+      final combinedOps = <dynamic>[];
+      final seenOpIds = <String>{};
+
+      for (final o in directOffers) {
         final status = (o['status'] ?? 'SENT').toString().toUpperCase();
-        if (status != 'SENT') return false;
-        final reqId = o['requirementId']?.toString();
-        if (reqId != null && fulfilledRequirementIds.contains(reqId)) return false;
-        return true;
-      }).toList();
+        if (status != 'SENT') continue;
+        final reqId = (o['requirementId'] ?? o['id'])?.toString();
+        if (reqId != null && fulfilledRequirementIds.contains(reqId)) continue;
+        if (reqId != null && !seenOpIds.contains(reqId)) {
+          seenOpIds.add(reqId);
+          combinedOps.add(o);
+        }
+      }
+
+      for (final b in biddingOps) {
+        final reqId = (b['requirementId'] ?? b['id'])?.toString();
+        if (reqId != null && fulfilledRequirementIds.contains(reqId)) continue;
+        if (reqId != null && !seenOpIds.contains(reqId)) {
+          seenOpIds.add(reqId);
+          combinedOps.add(b);
+        }
+      }
+
+      // Build dynamic category filter pills STRICTLY for the driver's vehicle type
+      final driverNorm = normalizeVehicleCategory(registeredVehicle);
+      final catSet = <String>{'All'};
+
+      if (dynamicTiers.isNotEmpty) {
+        for (final t in dynamicTiers) {
+          final label = (t['categoryLabel'] ?? t['vehicleType'] ?? '').toString();
+          final tierTypeNorm = normalizeVehicleCategory(t['vehicleType']?.toString() ?? label);
+
+          // ONLY include categories that match the driver's vehicle!
+          // A sedan driver NEVER sees "Compact Hatchback" or "SUV" pills!
+          if (driverNorm.isEmpty || tierTypeNorm == driverNorm) {
+            if (label.isNotEmpty) catSet.add(label);
+          }
+        }
+      }
+
+      // Ensure at least the driver's vehicle category label is present
+      if (catSet.length == 1) {
+        if (driverNorm == 'SEDAN') {
+          catSet.add('Prime Sedan');
+        } else if (driverNorm == 'SUV') {
+          catSet.add('SUV 7 Seater');
+        } else if (driverNorm == 'HATCHBACK') {
+          catSet.add('Compact Hatchback');
+        } else if (driverNorm.isNotEmpty) {
+          catSet.add(driverNorm);
+        }
+      }
 
       if (mounted) {
         setState(() {
-          _offers = filteredDirectOffers;
+          _offers = combinedOps;
           _driverVehicleCategory = registeredVehicle;
           _isOnActiveTrip = activeTrip != null;
-          if (dynamicTiers.isNotEmpty) {
-            final catSet = <String>{'All'};
-            for (final t in dynamicTiers) {
-              final label = (t['categoryLabel'] ?? t['vehicleType'] ?? '').toString();
-              if (label.isNotEmpty) catSet.add(label);
-            }
-            _categories = catSet.toList();
-          }
-          if (registeredVehicle != null && registeredVehicle.isNotEmpty) {
-            // If registered vehicle exists, find matching display category name
-            for (final cat in _categories) {
-              if (cat.toUpperCase() == registeredVehicle) {
-                _selectedCategory = cat;
-                break;
-              }
-            }
-          }
+          _categories = catSet.toList();
+          _selectedCategory = 'All';
         });
       }
     } catch (_) {
@@ -109,24 +158,34 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final driverNorm = normalizeVehicleCategory(_driverVehicleCategory);
 
+    // Filter opportunities strictly matching the driver's registered vehicle category
     final filteredOps = _offers.where((o) {
       final reqMap = o['requirement'] as Map<String, dynamic>?;
-      final vType = (reqMap?['vehicleType'] ?? o['vehicleType'] ?? o['category'] ?? '').toString().trim().toUpperCase();
+      final rawVType = (reqMap?['vehicleType'] ?? o['vehicleType'] ?? o['category'] ?? '').toString();
+      final reqNorm = normalizeVehicleCategory(rawVType);
 
-      // Strict matching: Only display trips matching the driver's registered vehicle category
-      if (_driverVehicleCategory != null &&
-          _driverVehicleCategory!.isNotEmpty &&
-          _driverVehicleCategory != 'DEFAULT') {
-        if (vType.isNotEmpty && vType != _driverVehicleCategory) {
+      // CRITICAL: A sedan driver NEVER sees SUV or Hatchback opportunities!
+      if (driverNorm.isNotEmpty) {
+        if (reqNorm.isNotEmpty && reqNorm != driverNorm) {
           return false;
         }
       }
 
       if (_selectedCategory == 'All') return true;
+
+      final selNorm = normalizeVehicleCategory(_selectedCategory);
+      if (selNorm.isNotEmpty && reqNorm.isNotEmpty) {
+        return selNorm == reqNorm;
+      }
+
       final sel = _selectedCategory.toUpperCase();
-      return vType == sel || vType.contains(sel) || sel.contains(vType);
+      final rawUpper = rawVType.toUpperCase();
+      return rawUpper.contains(sel) || sel.contains(rawUpper);
     }).toList();
+
+    final driverCategoryDisplay = VehicleUtils.getDisplayLabel(driverNorm);
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -192,13 +251,34 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'Nearby trips',
-                                style: AppTypography.caption(
-                                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                                  fontWeight: FontWeight.w500,
-                                ),
+                              Row(
+                                children: [
+                                  Text(
+                                    'Nearby trips',
+                                    style: AppTypography.caption(
+                                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(AppRadius.full),
+                                    ),
+                                    child: Text(
+                                      driverCategoryDisplay,
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
+                              const SizedBox(height: 2),
                               Text(
                                 '${filteredOps.length} opportunities nearby',
                                 style: AppTypography.h3(
@@ -227,7 +307,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                       ),
                       const SizedBox(height: AppSpacing.md),
 
-                      // Vehicle Filter Chips
+                      // Vehicle Filter Chips (Strictly driver's vehicle categories)
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: Row(
@@ -314,7 +394,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                     mockBuilder: (context, index) => _buildOpportunityCard(
                       {
                         'title': 'Fleet Corporate Dispatch',
-                        'vehicleType': 'Sedan',
+                        'vehicleType': driverCategoryDisplay,
                         'pickup': 'Cyber City, Building 10, DLF Phase 2, Gurugram',
                         'drop': 'Indira Gandhi International Airport, Terminal 3, New Delhi',
                         'offeredPrice': 1450.0,
@@ -338,7 +418,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                                       ),
                                       const SizedBox(height: 12),
                                       Text(
-                                        'No active opportunities right now',
+                                        'No active $driverCategoryDisplay opportunities',
                                         style: AppTypography.h3(
                                           color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                           fontWeight: FontWeight.bold,
@@ -346,7 +426,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        'Make sure you are online and check back in a few moments',
+                                        'Make sure you are online to receive matching $driverCategoryDisplay trips.',
                                         style: AppTypography.caption(
                                           color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                                         ),
@@ -387,7 +467,15 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
   Widget _buildOpportunityCard(Map<String, dynamic> op, bool isDark) {
     final req = op['requirement'] as Map<String, dynamic>?;
     final title = req?['title'] as String? ?? op['title'] as String? ?? 'Fleet Trip Dispatch';
-    final category = req?['vehicleType'] as String? ?? op['vehicleType'] as String? ?? op['category'] as String? ?? 'Sedan';
+    final rawCat = req?['vehicleType'] as String? ?? op['vehicleType'] as String? ?? op['category'] as String? ?? 'Sedan';
+    final category = normalizeVehicleCategory(rawCat) == 'SEDAN'
+        ? 'Prime Sedan'
+        : normalizeVehicleCategory(rawCat) == 'SUV'
+            ? 'SUV 7 Seater'
+            : normalizeVehicleCategory(rawCat) == 'HATCHBACK'
+                ? 'Compact Hatchback'
+                : rawCat;
+
     final pickup = req?['pickupAddress'] as String? ?? op['pickup'] as String? ?? op['pickupLocation']?['address'] as String? ?? 'Pickup location';
     final drop = req?['dropAddress'] as String? ?? op['drop'] as String? ?? op['dropLocation']?['address'] as String? ?? 'Destination location';
     final budgetVal = (op['offeredPrice'] ?? op['offerAmount'] ?? req?['budgetPerVehicle'] ?? op['suggestedBudget'] ?? 850) as num;
@@ -500,15 +588,16 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    'Guaranteed Payout',
+                    'Net Rate',
                     style: AppTypography.caption(
                       color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                    ).copyWith(fontSize: 10),
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                   Text(
-                    '$earnings Net',
+                    earnings,
                     style: AppTypography.h3(
-                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                      color: AppColors.primary,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -517,39 +606,63 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          Divider(
-            height: 1,
-            color: isDark ? AppColors.borderDark : AppColors.borderLight,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          GestureDetector(
-            onTap: () => context.push(AppRoutes.opportunityOfferScreen, extra: op),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: isDark ? 0.2 : 0.1),
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'VIEW DISPATCH & ACCEPT',
-                    style: AppTypography.caption(
-                      color: isDark ? AppColors.primaryLight : opColor,
-                      fontWeight: FontWeight.bold,
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () {
+                    context.push(
+                      AppRoutes.opportunityDetailsScreen,
+                      extra: op,
+                    );
+                  },
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(
+                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                  child: Text(
+                    'View Details',
+                    style: TextStyle(
+                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.chevron_right,
-                    size: 16,
-                    color: isDark ? AppColors.primaryLight : opColor,
-                  ),
-                ],
+                ),
               ),
-            ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    context.push(
+                      AppRoutes.opportunityOfferScreen,
+                      extra: op,
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    elevation: 0,
+                  ),
+                  child: const Text(
+                    'Accept Offer',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

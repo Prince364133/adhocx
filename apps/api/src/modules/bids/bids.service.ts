@@ -329,12 +329,27 @@ export class BidsService {
       });
 
       // Filter out requirements the driver already has a trip for,
-      // and requirements where the driver's bid was already accepted
+      // requirements where the driver's bid was already accepted,
+      // and requirements where the vehicle type does not match the driver's vehicle (e.g. Sedan driver cannot see SUV or Hatchback)
       const filteredRequirements = requirements.filter(req => {
         // Skip if driver already has a trip for this requirement
         if (fulfilledRequirementIds.has(req.id)) return false;
         // Skip if driver's bid was already accepted (trip is being created)
         if (req.bids.length > 0 && req.bids[0].status === 'ACCEPTED') return false;
+
+        // Strict vehicle type matching: A sedan driver only sees sedan opportunities
+        if (driver.vehicleType) {
+          const dType = driver.vehicleType.toString().toUpperCase();
+          const dNorm = dType.includes('SEDAN') ? 'SEDAN' : dType.includes('SUV') ? 'SUV' : dType.includes('HATCH') ? 'HATCHBACK' : dType;
+          const reqType = (req.vehicleType || '').toString().toUpperCase();
+          if (reqType) {
+            const rNorm = reqType.includes('SEDAN') ? 'SEDAN' : reqType.includes('SUV') ? 'SUV' : reqType.includes('HATCH') ? 'HATCHBACK' : reqType;
+            if (dNorm !== rNorm) {
+              return false;
+            }
+          }
+        }
+
         return true;
       });
 

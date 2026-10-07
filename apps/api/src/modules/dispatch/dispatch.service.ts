@@ -300,12 +300,22 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       // 3. Driver availability status check
       if (driver.availabilityStatus !== DriverAvailability.AVAILABLE) continue;
 
-      // 4. Strict vehicle capability check (reject incompatible vehicles, e.g. bike for sedan)
+      // 4. Strict vehicle capability check (reject incompatible vehicles, e.g. sedan for SUV or hatchback)
       const driverVehicles = (driver as any).vehicles || [];
+      const normalizeV = (v?: string | null) => {
+        if (!v) return '';
+        const s = v.toString().toUpperCase();
+        if (s.includes('SEDAN')) return 'SEDAN';
+        if (s.includes('SUV') || s.includes('7 SEATER') || s.includes('6 SEATER')) return 'SUV';
+        if (s.includes('HATCH') || s.includes('MINI') || s.includes('COMPACT')) return 'HATCHBACK';
+        return s;
+      };
+      const reqNorm = normalizeV(requirement.vehicleType);
+      const dNorm = normalizeV(driver.vehicleType);
       const matchesVehicle =
-        !requirement.vehicleType ||
-        driver.vehicleType === requirement.vehicleType ||
-        driverVehicles.some((v: any) => v.vehicleType === requirement.vehicleType || v.type === requirement.vehicleType);
+        !reqNorm ||
+        (dNorm && dNorm === reqNorm) ||
+        driverVehicles.some((v: any) => normalizeV(v.vehicleType || v.type) === reqNorm);
       if (!matchesVehicle) {
         continue;
       }

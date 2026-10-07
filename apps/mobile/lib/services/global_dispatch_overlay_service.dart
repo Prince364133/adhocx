@@ -12,6 +12,8 @@ import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import '../utils/dispatch_sound_player.dart';
+import '../utils/vehicle_utils.dart';
+import './auth_service.dart';
 import './local_notification_service.dart';
 import './in_app_message_service.dart';
 import './permission_service.dart';
@@ -197,6 +199,17 @@ class GlobalDispatchOverlayService {
       return null;
     }
 
+    // Vehicle compatibility guard: Ensure Sedan driver does NOT receive Hatchback or SUV offers
+    final driverProf = AuthService.instance.currentUser?.driverProfile;
+    final driverV = VehicleUtils.extractVehicleType(driverProf);
+    final req = offerData['requirement'] as Map<String, dynamic>?;
+    final reqV = (req?['vehicleType'] ?? offerData['vehicleType'])?.toString();
+
+    if (!VehicleUtils.isCompatible(driverVehicle: driverV.isEmpty ? 'SEDAN' : driverV, requiredVehicle: reqV)) {
+      debugPrint('🚫 [OverlayService] Dropping incoming offer $offerId: vehicle mismatch (driver: $driverV, req: $reqV)');
+      return null;
+    }
+
     final context = rootNavigatorKey.currentContext;
     if (context == null || !context.mounted) {
       debugPrint('⚠️ [OverlayService] Root navigator context unavailable to display offer $offerId');
@@ -210,7 +223,6 @@ class GlobalDispatchOverlayService {
     DispatchSoundPlayer.playIncomingOfferAlert();
 
     // Trigger heads-up notification with sound & vibration
-    final req = offerData['requirement'] as Map<String, dynamic>?;
     final pickup = (req?['pickupLocation'] ?? offerData['pickupLocation'] ?? 'Pickup available').toString();
     final rate = (offerData['offeredRate'] ?? req?['ratePerVehicle'] ?? '').toString();
     final bodyText = rate.isNotEmpty ? '₹$rate • Pickup: $pickup' : 'Pickup: $pickup';

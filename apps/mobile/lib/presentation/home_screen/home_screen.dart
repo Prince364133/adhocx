@@ -17,6 +17,7 @@ import 'package:geolocator/geolocator.dart';
 import '../../services/edge_case_manager.dart';
 import '../../services/permission_service.dart';
 import '../../services/location_monitor_service.dart';
+import '../../utils/vehicle_utils.dart';
 
 enum DriverHomeState { offline, available, offerAttention, assignedTrip, activeTrip, completedTrip }
 
@@ -198,8 +199,27 @@ class _HomeScreenState extends State<HomeScreen> {
             return;
           }
 
-          // 3. Check for direct dispatch offers
-          final sentOffers = offers.where((o) => o['status'] == 'SENT' || o['status'] == null).toList();
+          // Resolve driver vehicle category
+          String driverVehicle = VehicleUtils.extractVehicleType(profile);
+          if (driverVehicle.isEmpty) {
+            driverVehicle = VehicleUtils.extractVehicleType(AuthService.instance.currentUser?.driverProfile);
+          }
+          if (driverVehicle.isEmpty) {
+            driverVehicle = 'SEDAN';
+          }
+
+          // 3. Check for direct dispatch offers strictly matching driver vehicle type
+          final sentOffers = offers.where((o) {
+            final st = o['status'];
+            if (st != 'SENT' && st != null) return false;
+            final reqMap = o['requirement'] as Map<String, dynamic>?;
+            final reqVType = (reqMap?['vehicleType'] ?? o['vehicleType'])?.toString();
+            return VehicleUtils.isCompatible(
+              driverVehicle: driverVehicle,
+              requiredVehicle: reqVType,
+            );
+          }).toList();
+
           if (sentOffers.isNotEmpty) {
             final activeOffer = sentOffers.first as Map<String, dynamic>;
             _liveOffer = activeOffer;
