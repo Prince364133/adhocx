@@ -109,13 +109,14 @@ export class RequirementsService {
       zonalSnapshot = snapshot;
     }
 
-    // Route distance calculation
-    const distanceKm = this.pricingService.calculateDistanceKm(
+    // Route distance & traffic ETA calculation via Google Maps
+    const roadRoute = await this.pricingService.calculateRoadDistanceAndEta(
       dto.pickupLocation.latitude,
       dto.pickupLocation.longitude,
       dto.dropLocation.latitude,
       dto.dropLocation.longitude,
     );
+    const distanceKm = roadRoute.distanceKm;
 
     let ratePerVehicle = dto.ratePerVehicle;
     let suggestedBudget = dto.suggestedBudget;

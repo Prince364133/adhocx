@@ -92,19 +92,31 @@ export class PricingController {
   }
 
   @Post('calculate')
-  @ApiOperation({ summary: 'Calculate trip fare estimate dynamically based on database rate cards' })
+  @ApiOperation({ summary: 'Calculate trip fare estimate dynamically based on Google Maps road distance & database rate cards' })
   async calculateTripFare(
     @Body()
     body: {
       vehicleType: string;
-      distanceKm: number;
+      distanceKm?: number;
       durationMinutes?: number;
+      pickupLocation?: { latitude: number; longitude: number; address?: string };
+      dropLocation?: { latitude: number; longitude: number; address?: string };
       quantity?: number;
     },
   ) {
+    if (body.pickupLocation && body.dropLocation) {
+      return this.pricingService.calculateQuote({
+        vehicleType: body.vehicleType,
+        distanceKm: body.distanceKm,
+        pickupLocation: body.pickupLocation,
+        dropLocation: body.dropLocation,
+        quantity: body.quantity,
+      });
+    }
+
     return this.pricingService.calculateTripFare(
       body.vehicleType,
-      Number(body.distanceKm),
+      Number(body.distanceKm || 10),
       Number(body.durationMinutes || 0),
       Number(body.quantity || 1),
     );

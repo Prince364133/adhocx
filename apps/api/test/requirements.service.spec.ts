@@ -57,6 +57,7 @@ describe('RequirementsService Unit Tests', () => {
 
     pricingService = {
       calculateDistanceKm: jest.fn().mockReturnValue(15),
+      calculateRoadDistanceAndEta: jest.fn().mockResolvedValue({ distanceKm: 15, durationMinutes: 30, durationSeconds: 1800, isRealRoad: true }),
       calculateDriverRate: jest.fn().mockReturnValue(800),
       calculateMinimumFare: jest.fn().mockReturnValue(800),
       calculateSurgeMultiplier: jest.fn().mockReturnValue(1.0),
@@ -175,7 +176,7 @@ describe('RequirementsService Unit Tests', () => {
       ],
     });
 
-    const result = await service.getRequirementDetails('req-1', 'usr-vnd-1');
+    const result = await service.getRequirementDetails('a0000000-0000-0000-0000-000000000001', 'usr-vnd-1');
     expect(result.remainingQuantity).toBe(3);
     expect(result.offersCount).toBe(3);
     expect(result.assignedDrivers).toHaveLength(1);
@@ -186,7 +187,7 @@ describe('RequirementsService Unit Tests', () => {
     const now = new Date();
     db.vendor.findUnique.mockResolvedValue({ id: 'vnd-1', userId: 'usr-vnd-1' });
     db.requirement.findUnique.mockResolvedValue({
-      id: 'req-1',
+      id: 'a0000000-0000-0000-0000-000000000001',
       vendorId: 'vnd-1',
       status: RequirementStatus.POSTED,
       offers: [{ id: 'off-1', driverId: 'drv-1', status: OfferStatus.SENT }],
@@ -194,7 +195,7 @@ describe('RequirementsService Unit Tests', () => {
     });
 
     db.requirement.update.mockResolvedValue({
-      id: 'req-1',
+      id: 'a0000000-0000-0000-0000-000000000001',
       vendorId: 'vnd-1',
       vehicleType: VehicleType.SEDAN,
       quantity: 1,
@@ -213,13 +214,13 @@ describe('RequirementsService Unit Tests', () => {
       updatedAt: now,
     });
 
-    const result = await service.cancelRequirement('req-1', 'usr-vnd-1', {
+    const result = await service.cancelRequirement('a0000000-0000-0000-0000-000000000001', 'usr-vnd-1', {
       reason: 'Client cancelled event',
     });
 
     expect(result.status).toBe(RequirementStatus.CANCELLED);
     expect(db.offer.updateMany).toHaveBeenCalledWith({
-      where: { requirementId: 'req-1', status: OfferStatus.SENT },
+      where: { requirementId: 'a0000000-0000-0000-0000-000000000001', status: OfferStatus.SENT },
       data: { status: OfferStatus.CANCELLED },
     });
     expect(notifications.emitEvent).toHaveBeenCalledWith(
@@ -232,7 +233,7 @@ describe('RequirementsService Unit Tests', () => {
   it('should reject cancellation if requirement is already COMPLETED', async () => {
     db.vendor.findUnique.mockResolvedValue({ id: 'vnd-1', userId: 'usr-vnd-1' });
     db.requirement.findUnique.mockResolvedValue({
-      id: 'req-1',
+      id: 'a0000000-0000-0000-0000-000000000001',
       vendorId: 'vnd-1',
       status: RequirementStatus.COMPLETED,
       offers: [],
@@ -240,7 +241,7 @@ describe('RequirementsService Unit Tests', () => {
     });
 
     await expect(
-      service.cancelRequirement('req-1', 'usr-vnd-1', { reason: 'Late cancel' }),
+      service.cancelRequirement('a0000000-0000-0000-0000-000000000001', 'usr-vnd-1', { reason: 'Late cancel' }),
     ).rejects.toThrow(InvalidStateTransitionError);
   });
 
@@ -344,8 +345,8 @@ describe('RequirementsService Unit Tests', () => {
 
     it('vendor-role accounts without a vendor profile cannot read other requirements', async () => {
       db.vendor.findUnique.mockResolvedValue(null);
-      db.requirement.findUnique.mockResolvedValue({ id: 'req-x', vendorId: 'vnd-other', offers: [], bids: [], assignments: [] });
-      await expect(service.getRequirementDetails('req-x', 'usr-new', 'VENDOR')).rejects.toThrow(/Not authorized/);
+      db.requirement.findUnique.mockResolvedValue({ id: '99999999-9999-9999-9999-999999999999', vendorId: 'vnd-other', offers: [], bids: [], assignments: [] });
+      await expect(service.getRequirementDetails('99999999-9999-9999-9999-999999999999', 'usr-new', 'VENDOR')).rejects.toThrow(/Not authorized/);
     });
   });
 });

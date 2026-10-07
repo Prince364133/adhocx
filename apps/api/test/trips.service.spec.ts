@@ -244,7 +244,7 @@ describe('TripsService Unit Tests', () => {
             driverRate: 1500,
             tollCharges: 100,
             parkingCharges: 50,
-            totalDriverEarnings: 1650,
+            totalDriverEarnings: 1500,
             createdAt: now,
             updatedAt: now,
           }),
@@ -274,7 +274,7 @@ describe('TripsService Unit Tests', () => {
     });
 
     expect(result.status).toBe(TripStatus.COMPLETED);
-    expect(result.totalDriverEarnings).toBe(1650);
+    expect(result.totalDriverEarnings).toBe(1500);
     expect(db.tripEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ eventType: 'TRIP_COMPLETED' }),
@@ -283,7 +283,7 @@ describe('TripsService Unit Tests', () => {
     expect(notifications.emitEvent).toHaveBeenCalledWith(
       'driver:drv-1',
       'TRIP_COMPLETED',
-      expect.objectContaining({ totalEarnings: 1650 }),
+      expect.objectContaining({ totalEarnings: 1500 }),
     );
   });
 

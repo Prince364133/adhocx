@@ -311,7 +311,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
         return s;
       };
       const reqNorm = normalizeV(requirement.vehicleType);
-      const dNorm = normalizeV(driver.vehicleType);
+      const dNorm = normalizeV(driver.vehicleType || (driver as any).vehicleModel || 'SEDAN');
       const matchesVehicle =
         !reqNorm ||
         (dNorm && dNorm === reqNorm) ||

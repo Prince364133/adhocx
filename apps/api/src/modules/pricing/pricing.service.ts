@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit, Optional, BadRequestException, NotFoundException } from '@nestjs/common';
 import { VehicleType } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
+import { GoogleMapsService } from '../locations/google-maps.service';
 
 export interface VehiclePricingTierDto {
   id: string;
@@ -129,7 +130,10 @@ export class PricingService implements OnModuleInit {
   private memoryCache: Map<string, VehiclePricingTierDto> = new Map();
   private policyCache: PlatformPolicyConfigDto | null = null;
 
-  constructor(@Optional() private readonly db?: DatabaseService) {}
+  constructor(
+    @Optional() private readonly db?: DatabaseService,
+    @Optional() private readonly googleMaps?: GoogleMapsService,
+  ) {}
 
   async onModuleInit() {
     await this.seedDefaultTiersIfEmpty();
@@ -716,6 +720,74 @@ export class PricingService implements OnModuleInit {
       platformFee,
       driverNetPayout,
       tier,
+    };
+  }
+
+  /**
+   * Computes the real driving road distance and traffic-aware ETA
+   * via Google Maps Routes API (with automatic road-factor fallback).
+   */
+  async calculateRoadDistanceAndEta(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): Promise<{
+    distanceKm: number;
+    durationMinutes: number;
+    durationSeconds: number;
+    routeDescription?: string;
+    encodedPolyline?: string;
+    isRealRoad: boolean;
+  }> {
+    const maps = this.googleMaps || new GoogleMapsService();
+    return maps.computeRoadRoute(
+      { latitude: lat1, longitude: lon1 },
+      { latitude: lat2, longitude: lon2 },
+    );
+  }
+
+  /**
+   * Dynamic quotation endpoint helper combining Google Maps road distance & traffic ETA
+   * with authoritative database rate cards.
+   */
+  async calculateQuote(dto: {
+    vehicleType: string;
+    distanceKm?: number;
+    pickupLocation?: { latitude: number; longitude: number };
+    dropLocation?: { latitude: number; longitude: number };
+    quantity?: number;
+  }) {
+    let distanceKm = dto.distanceKm;
+    let durationMinutes = 0;
+    let routeDescription = '';
+    let isRealRoad = false;
+
+    if (dto.pickupLocation && dto.dropLocation) {
+      const route = await this.calculateRoadDistanceAndEta(
+        dto.pickupLocation.latitude,
+        dto.pickupLocation.longitude,
+        dto.dropLocation.latitude,
+        dto.dropLocation.longitude,
+      );
+      distanceKm = route.distanceKm;
+      durationMinutes = route.durationMinutes;
+      routeDescription = route.routeDescription || '';
+      isRealRoad = route.isRealRoad;
+    }
+
+    const effectiveDistanceKm = Math.max(1, distanceKm || 10);
+    const fare = this.calculateTripFare(
+      dto.vehicleType,
+      effectiveDistanceKm,
+      durationMinutes,
+      dto.quantity || 1,
+    );
+
+    return {
+      ...fare,
+      routeDescription,
+      isRealRoad,
     };
   }
 }
