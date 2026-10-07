@@ -1,28 +1,34 @@
 import 'dart:math' as math;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import '../../services/location_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_radius.dart';
 
-class OsmMapPickerWidget extends StatefulWidget {
+class GoogleMapPickerWidget extends StatefulWidget {
   final double initialLat;
   final double initialLng;
   final Function(double lat, double lng)? onPositionChanged;
   final bool isInteractive;
+  final String label;
 
-  const OsmMapPickerWidget({
+  const GoogleMapPickerWidget({
     super.key,
     required this.initialLat,
     required this.initialLng,
     this.onPositionChanged,
     this.isInteractive = true,
+    this.label = 'Point of Interest',
   });
 
   @override
-  State<OsmMapPickerWidget> createState() => _OsmMapPickerWidgetState();
+  State<GoogleMapPickerWidget> createState() => _GoogleMapPickerWidgetState();
 }
 
-class _OsmMapPickerWidgetState extends State<OsmMapPickerWidget> {
+/// Backwards compatibility alias for existing callers
+typedef OsmMapPickerWidget = GoogleMapPickerWidget;
+
+class _GoogleMapPickerWidgetState extends State<GoogleMapPickerWidget> {
   late double _currentLat;
   late double _currentLng;
   int _zoom = 15;
@@ -35,7 +41,7 @@ class _OsmMapPickerWidgetState extends State<OsmMapPickerWidget> {
   }
 
   @override
-  void didUpdateWidget(covariant OsmMapPickerWidget oldWidget) {
+  void didUpdateWidget(covariant GoogleMapPickerWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.initialLat != widget.initialLat || oldWidget.initialLng != widget.initialLng) {
       setState(() {
@@ -45,24 +51,14 @@ class _OsmMapPickerWidgetState extends State<OsmMapPickerWidget> {
     }
   }
 
-  // Convert lat/lng to OpenStreetMap tile coordinate
-  int _lonToTileX(double lon, int z) {
-    return ((lon + 180.0) / 360.0 * (1 << z)).floor();
-  }
-
-  int _latToTileY(double lat, int z) {
-    final latRad = lat * math.pi / 180.0;
-    return ((1.0 - math.log(math.tan(latRad) + 1.0 / math.cos(latRad)) / math.pi) / 2.0 * (1 << z)).floor();
-  }
-
   void _zoomIn() {
-    if (_zoom < 18) {
+    if (_zoom < 20) {
       setState(() => _zoom++);
     }
   }
 
   void _zoomOut() {
-    if (_zoom > 5) {
+    if (_zoom > 3) {
       setState(() => _zoom--);
     }
   }
@@ -92,89 +88,90 @@ class _OsmMapPickerWidgetState extends State<OsmMapPickerWidget> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final tileX = _lonToTileX(_currentLng, _zoom);
-    final tileY = _latToTileY(_currentLat, _zoom);
+    final staticMapUrl = LocationService.getStaticMapUrl(
+      lat: _currentLat,
+      lng: _currentLng,
+      zoom: _zoom,
+      width: 600,
+      height: 380,
+      isDark: isDark,
+    );
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.lg),
       child: Stack(
         children: [
-          // Interactive Gesture Area with OpenStreetMap 3x3 Tile Grid
+          // Interactive Gesture Area with Google Maps Static API Imagery
           GestureDetector(
             onPanUpdate: _handlePanUpdate,
             onPanEnd: _handlePanEnd,
             child: Container(
               color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
-              child: GridView.builder(
-                physics: const NeverScrollableScrollPhysics(),
-                padding: EdgeInsets.zero,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  childAspectRatio: 1.0,
-                ),
-                itemCount: 9,
-                itemBuilder: (context, index) {
-                  final dx = (index % 3) - 1;
-                  final dy = (index ~/ 3) - 1;
-                  final x = tileX + dx;
-                  final y = tileY + dy;
-                  final tileUrl = 'https://tile.openstreetmap.org/$_zoom/$x/$y.png';
-
-                  return CachedNetworkImage(
-                    imageUrl: tileUrl,
-                    fit: BoxFit.cover,
-                    httpHeaders: const {
-                      'User-Agent': 'AdhocX-Flutter-App/1.0',
-                    },
-                    placeholder: (context, url) => Container(
-                      color: isDark ? AppColors.surfaceDark : AppColors.slate200,
-                      child: const Center(
-                        child: SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      ),
+              width: double.infinity,
+              height: double.infinity,
+              child: CachedNetworkImage(
+                imageUrl: staticMapUrl,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Container(
+                  color: isDark ? AppColors.surfaceDark : AppColors.slate200,
+                  child: const Center(
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     ),
-                    errorWidget: (context, url, error) => Container(
-                      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
-                      child: Center(
-                        child: Icon(
+                  ),
+                ),
+                errorWidget: (context, url, error) => Container(
+                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
                           Icons.map_outlined,
-                          size: 24,
+                          size: 32,
                           color: isDark ? AppColors.slate700 : AppColors.slate400,
                         ),
-                      ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Google Maps',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? AppColors.slate600 : AppColors.slate500,
+                          ),
+                        ),
+                      ],
                     ),
-                  );
-                },
+                  ),
+                ),
               ),
             ),
           ),
 
-          // Center Pin Marker with Ripple Effect
+          // Center Pin Marker with Label
           Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: AppColors.primary,
                     borderRadius: BorderRadius.circular(AppRadius.full),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.3),
+                        color: Colors.black.withValues(alpha: 0.35),
                         blurRadius: 6,
                         offset: const Offset(0, 2),
                       ),
                     ],
                   ),
-                  child: const Text(
-                    'Point of Interest',
-                    style: TextStyle(
+                  child: Text(
+                    widget.label,
+                    style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 10,
+                      fontSize: 11,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -182,8 +179,8 @@ class _OsmMapPickerWidgetState extends State<OsmMapPickerWidget> {
                 const SizedBox(height: 2),
                 Icon(
                   Icons.location_pin,
-                  size: 42,
-                  color: AppColors.primary,
+                  size: 44,
+                  color: const Color(0xFFEA4335), // Google Maps Pin Red
                   shadows: [
                     Shadow(
                       color: Colors.black.withValues(alpha: 0.4),
@@ -196,7 +193,7 @@ class _OsmMapPickerWidgetState extends State<OsmMapPickerWidget> {
                   width: 8,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.3),
+                    color: Colors.black.withValues(alpha: 0.35),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -204,27 +201,35 @@ class _OsmMapPickerWidgetState extends State<OsmMapPickerWidget> {
             ),
           ),
 
-          // OSM Attribution & Zoom Level Badge (Top Left)
+          // Google Maps Attribution Badge (Top Left)
           Positioned(
             top: 10,
             left: 10,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: (isDark ? AppColors.bgDark : Colors.white).withValues(alpha: 0.88),
+                color: (isDark ? AppColors.bgDark : Colors.white).withValues(alpha: 0.92),
                 borderRadius: BorderRadius.circular(AppRadius.sm),
                 border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.public, size: 12, color: AppColors.primary),
+                  const Icon(Icons.place, size: 13, color: Color(0xFFEA4335)),
                   const SizedBox(width: 4),
                   Text(
-                    'OpenStreetMap',
+                    'Google Maps',
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
+                      letterSpacing: 0.2,
                       color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                     ),
                   ),
@@ -262,7 +267,7 @@ class _OsmMapPickerWidgetState extends State<OsmMapPickerWidget> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: (isDark ? AppColors.bgDark : Colors.white).withValues(alpha: 0.88),
+                color: (isDark ? AppColors.bgDark : Colors.white).withValues(alpha: 0.92),
                 borderRadius: BorderRadius.circular(AppRadius.sm),
                 border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
               ),
@@ -294,12 +299,12 @@ class _OsmMapPickerWidgetState extends State<OsmMapPickerWidget> {
         width: 32,
         height: 32,
         decoration: BoxDecoration(
-          color: (isDark ? AppColors.surfaceDark : Colors.white).withValues(alpha: 0.92),
+          color: (isDark ? AppColors.surfaceDark : Colors.white).withValues(alpha: 0.94),
           borderRadius: BorderRadius.circular(AppRadius.sm),
           border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
+              color: Colors.black.withValues(alpha: 0.12),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),

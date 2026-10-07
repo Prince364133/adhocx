@@ -240,10 +240,10 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
             ),
             Row(
               children: [
-                Icon(Icons.public, size: 11, color: AppColors.primary),
+                const Icon(Icons.place, size: 11, color: Color(0xFFEA4335)),
                 const SizedBox(width: 4),
                 Text(
-                  'Powered by OpenStreetMap (Nominatim & Photon)',
+                  'Powered by Google Maps Platform',
                   style: TextStyle(
                     fontSize: 10,
                     color: AppColors.primary,
@@ -265,7 +265,7 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
       body: SafeArea(
         child: Column(
           children: [
-            // Search Bar Input Field (Live OpenStreetMap Dual Search)
+            // Search Bar Input Field (Live Google Maps Places Search)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
               child: Container(
@@ -289,7 +289,7 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
                   focusNode: _searchFocus,
                   autofocus: widget.initialAddress == null || widget.initialAddress!.isEmpty,
                   decoration: InputDecoration(
-                    hintText: 'Search city, landmark, or street via OpenStreetMap...',
+                    hintText: 'Search city, landmark, or street via Google Maps...',
                     hintStyle: TextStyle(
                       fontSize: 13,
                       color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
@@ -345,7 +345,7 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
             const CircularProgressIndicator(),
             const SizedBox(height: 12),
             Text(
-              'Searching OpenStreetMap across India...',
+              'Searching Google Maps across India...',
               style: TextStyle(
                 fontSize: 13,
                 color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
@@ -366,7 +366,7 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
               Icon(Icons.location_off_rounded, size: 48, color: AppColors.slate400),
               const SizedBox(height: 12),
               Text(
-                'No matching places found on OpenStreetMap',
+                'No matching places found on Google Maps',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 15,
@@ -471,7 +471,7 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
               icon: Icons.my_location_rounded,
               label: 'Use Current Location',
               subtitle: _currentCity != null
-                  ? 'Biased to $_currentCity • Live GPS OpenStreetMap'
+                  ? 'Biased to $_currentCity • Live GPS Google Maps'
                   : 'Tap to fetch precise GPS coordinates',
               color: AppColors.primary,
               onTap: _fetchCurrentGpsLocation,

@@ -68,16 +68,21 @@ class LocationService {
 
   LocationService._();
 
-  static const String _nominatimBase = 'https://nominatim.openstreetmap.org';
-  static const String _photonBase = 'https://photon.komoot.io/api';
+  /// Google Maps Platform API Key
+  static const String googleMapsApiKey = 'AIzaSyB8uEHtGy96QPbx3eIxG0s0_WYlWpB8QVI';
+
+  static const String _placesSearchTextBase = 'https://places.googleapis.com/v1/places:searchText';
+  static const String _geocodeBase = 'https://maps.googleapis.com/maps/api/geocode/json';
+  static const String _routesBase = 'https://routes.googleapis.com/directions/v2:computeRoutes';
   static const String _recentStorageKey = 'adhocx_recent_locations_v2';
 
-  static const Map<String, String> _headers = {
-    'User-Agent': 'AdhocX-OpenStreetMap-Mobility/2.0 (support@adhocx.com)',
-    'Accept': 'application/json',
+  /// Standard Google Maps API headers for Places & Routes (New)
+  static const Map<String, String> _googleJsonHeaders = {
+    'Content-Type': 'application/json',
+    'X-Goog-Api-Key': googleMapsApiKey,
   };
 
-  /// Determine icon based on category, OSM tags or title keywords
+  /// Determine icon based on category or place title keywords
   static IconData getIconForCategory(String? category, String? title) {
     final c = (category ?? '').toLowerCase();
     final t = (title ?? '').toLowerCase();
@@ -103,13 +108,51 @@ class LocationService {
     if (c.contains('mall') || c.contains('shop') || t.contains('mall') || t.contains('plaza') || t.contains('market') || t.contains('square')) {
       return Icons.storefront_rounded;
     }
-    if (c.contains('highway') || t.contains('expressway') || t.contains('road') || t.contains('highway') || t.contains('toll')) {
+    if (c.contains('highway') || t.contains('expressway') || t.contains('road') || t.contains('toll')) {
       return Icons.add_road_rounded;
     }
     return Icons.location_on_rounded;
   }
 
-  /// Primary search engine: Queries OSM Nominatim + Photon Komoot OSM in parallel for rapid results
+  /// Generates a Google Maps Static API URL for map preview widgets
+  static String getStaticMapUrl({
+    required double lat,
+    required double lng,
+    int zoom = 15,
+    int width = 600,
+    int height = 380,
+    bool isDark = false,
+  }) {
+    final darkStyle = isDark
+        ? '&style=element:geometry%7Ccolor:0x242f3e'
+          '&style=element:labels.text.stroke%7Ccolor:0x242f3e'
+          '&style=element:labels.text.fill%7Ccolor:0x746855'
+          '&style=feature:administrative.locality%7Celement:labels.text.fill%7Ccolor:0xd59563'
+          '&style=feature:poi%7Celement:labels.text.fill%7Ccolor:0xd59563'
+          '&style=feature:poi.park%7Celement:geometry%7Ccolor:0x263c3f'
+          '&style=feature:road%7Celement:geometry%7Ccolor:0x38414e'
+          '&style=feature:road%7Celement:geometry.stroke%7Ccolor:0x212a37'
+          '&style=feature:road%7Celement:labels.text.fill%7Ccolor:0x9ca5b3'
+          '&style=feature:road.highway%7Celement:geometry%7Ccolor:0x746855'
+          '&style=feature:road.highway%7Celement:geometry.stroke%7Ccolor:0x1f2835'
+          '&style=feature:road.highway%7Celement:labels.text.fill%7Ccolor:0xf3d19c'
+          '&style=feature:transit%7Celement:geometry%7Ccolor:0x2f3948'
+          '&style=feature:water%7Celement:geometry%7Ccolor:0x17263c'
+          '&style=feature:water%7Celement:labels.text.fill%7Ccolor:0x515c6d'
+        : '&style=feature:poi%7Cvisibility:simplified';
+
+    return 'https://maps.googleapis.com/maps/api/staticmap'
+        '?center=$lat,$lng'
+        '&zoom=$zoom'
+        '&size=${width}x$height'
+        '&scale=2'
+        '&maptype=roadmap'
+        '$darkStyle'
+        '&markers=color:red%7C$lat,$lng'
+        '&key=$googleMapsApiKey';
+  }
+
+  /// Primary search engine: Queries Google Places API (New) Text Search with location bias
   Future<List<LocationModel>> searchLocations(String query, {double? lat, double? lon}) async {
     final cleanQuery = query.trim();
     if (cleanQuery.isEmpty) {
@@ -119,112 +162,95 @@ class LocationService {
     final results = <LocationModel>[];
     final seenKeys = <String>{};
 
-    // 1. Query Photon Komoot OpenStreetMap (Sub-150ms typo-tolerant autocomplete)
     try {
-      final latParam = lat != null ? '&lat=$lat' : '&lat=28.6139';
-      final lonParam = lon != null ? '&lon=$lon' : '&lon=77.2090';
-      final photonUri = Uri.parse('$_photonBase/?q=${Uri.encodeComponent(cleanQuery)}&limit=15$latParam$lonParam');
-      final photonRes = await http.get(photonUri, headers: _headers).timeout(const Duration(milliseconds: 2500));
+      final biasLat = lat ?? 28.6139;
+      final biasLon = lon ?? 77.2090;
 
-      if (photonRes.statusCode == 200) {
-        final data = jsonDecode(photonRes.body);
-        final features = data['features'] as List<dynamic>? ?? [];
+      final body = {
+        'textQuery': cleanQuery,
+        'languageCode': 'en',
+        'locationBias': {
+          'circle': {
+            'center': {
+              'latitude': biasLat,
+              'longitude': biasLon,
+            },
+            'radius': 50000.0,
+          },
+        },
+      };
 
-        for (final item in features) {
-          final props = item['properties'] as Map<String, dynamic>? ?? {};
-          final geom = item['geometry'] as Map<String, dynamic>? ?? {};
-          final coords = geom['coordinates'] as List<dynamic>?;
+      final response = await http.post(
+        Uri.parse(_placesSearchTextBase),
+        headers: {
+          ..._googleJsonHeaders,
+          'X-Goog-FieldMask':
+              'places.id,places.displayName,places.formattedAddress,places.location,places.addressComponents,places.types',
+        },
+        body: jsonEncode(body),
+      ).timeout(const Duration(milliseconds: 3500));
 
-          final name = props['name'] as String? ?? props['street'] as String? ?? '';
-          if (name.isEmpty) continue;
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final places = data['places'] as List<dynamic>? ?? [];
 
-          final city = props['city'] as String? ?? props['district'] as String? ?? props['county'] as String? ?? '';
-          final state = props['state'] as String? ?? '';
-          final postcode = props['postcode'] as String? ?? '';
-          final osmKey = props['osm_key'] as String? ?? '';
-          final osmVal = props['osm_value'] as String? ?? '';
+        for (final item in places) {
+          final place = item as Map<String, dynamic>;
+          final displayName = place['displayName']?['text']?.toString() ?? '';
+          final formattedAddress = place['formattedAddress']?.toString() ?? displayName;
 
-          final addressParts = <String>[];
-          if (name.isNotEmpty) addressParts.add(name);
-          if (props['street'] != null && props['street'] != name) addressParts.add(props['street']);
-          if (city.isNotEmpty && city != name) addressParts.add(city);
-          if (state.isNotEmpty && state != city) addressParts.add(state);
-          if (postcode.isNotEmpty) addressParts.add(postcode);
+          if (displayName.isEmpty && formattedAddress.isEmpty) continue;
 
-          final fullAddress = addressParts.isNotEmpty ? addressParts.join(', ') : name;
-          final lon = coords != null && coords.isNotEmpty ? (coords[0] as num).toDouble() : 77.0895;
-          final lat = coords != null && coords.length > 1 ? (coords[1] as num).toDouble() : 28.4950;
+          final location = place['location'] as Map<String, dynamic>?;
+          final pLat = (location?['latitude'] as num?)?.toDouble() ?? biasLat;
+          final pLon = (location?['longitude'] as num?)?.toDouble() ?? biasLon;
 
-          final dedupeKey = '${name.toLowerCase()}_${city.toLowerCase()}';
+          // Parse address components
+          String city = '';
+          String state = '';
+          String postcode = '';
+          final components = place['addressComponents'] as List<dynamic>? ?? [];
+          for (final comp in components) {
+            final types = (comp['types'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+            if (types.contains('locality') || types.contains('sublocality_level_1') || types.contains('administrative_area_level_2')) {
+              if (city.isEmpty) city = comp['longText']?.toString() ?? comp['shortText']?.toString() ?? '';
+            }
+            if (types.contains('administrative_area_level_1')) {
+              state = comp['longText']?.toString() ?? comp['shortText']?.toString() ?? '';
+            }
+            if (types.contains('postal_code')) {
+              postcode = comp['longText']?.toString() ?? comp['shortText']?.toString() ?? '';
+            }
+          }
+
+          final typesList = (place['types'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+          final primaryType = typesList.isNotEmpty ? typesList.first : 'SEARCH';
+          final title = displayName.isNotEmpty ? displayName : formattedAddress.split(',').first.trim();
+
+          final dedupeKey = '${title.toLowerCase()}_${city.toLowerCase()}';
           if (!seenKeys.contains(dedupeKey)) {
             seenKeys.add(dedupeKey);
             results.add(
               LocationModel(
-                title: name,
-                fullAddress: fullAddress,
-                latitude: lat,
-                longitude: lon,
-                city: city,
-                state: state,
-                postcode: postcode,
-                category: osmKey.isNotEmpty ? osmKey.toUpperCase() : 'OSM_SEARCH',
-                icon: getIconForCategory('$osmKey $osmVal', name),
+                title: title,
+                fullAddress: formattedAddress,
+                latitude: pLat,
+                longitude: pLon,
+                city: city.isNotEmpty ? city : null,
+                state: state.isNotEmpty ? state : null,
+                postcode: postcode.isNotEmpty ? postcode : null,
+                category: primaryType.toUpperCase(),
+                icon: getIconForCategory(primaryType, title),
               ),
             );
           }
         }
       }
     } catch (e) {
-      debugPrint('Photon OSM search notice: $e');
+      debugPrint('Google Places search error: $e');
     }
 
-    // 2. Query OSM Nominatim (Structured address verification)
-    try {
-      final nominatimUri = Uri.parse(
-        '$_nominatimBase/search?q=${Uri.encodeComponent(cleanQuery)}&format=json&addressdetails=1&limit=8&countrycodes=in',
-      );
-      final nominatimRes = await http.get(nominatimUri, headers: _headers).timeout(const Duration(milliseconds: 3000));
-
-      if (nominatimRes.statusCode == 200) {
-        final List<dynamic> jsonList = jsonDecode(nominatimRes.body);
-        for (final item in jsonList) {
-          final displayName = item['display_name'] as String? ?? '';
-          final parts = displayName.split(',');
-          final shortTitle = parts.isNotEmpty ? parts[0].trim() : 'Location';
-          final lat = double.tryParse(item['lat']?.toString() ?? '0') ?? 0.0;
-          final lon = double.tryParse(item['lon']?.toString() ?? '0') ?? 0.0;
-
-          final addressObj = item['address'] as Map<String, dynamic>?;
-          final city = (addressObj?['city'] ?? addressObj?['town'] ?? addressObj?['suburb'] ?? addressObj?['state_district'] ?? '').toString();
-          final state = (addressObj?['state'] ?? '').toString();
-          final postcode = (addressObj?['postcode'] ?? '').toString();
-          final osmClass = item['class'] as String?;
-          final osmType = item['type'] as String?;
-
-          final dedupeKey = '${shortTitle.toLowerCase()}_${city.toLowerCase()}';
-          if (!seenKeys.contains(dedupeKey)) {
-            seenKeys.add(dedupeKey);
-            results.add(
-              LocationModel(
-                title: shortTitle,
-                fullAddress: displayName,
-                latitude: lat,
-                longitude: lon,
-                city: city,
-                state: state,
-                postcode: postcode,
-                category: osmClass != null ? osmClass.toUpperCase() : 'SEARCH',
-                icon: getIconForCategory('$osmClass $osmType', shortTitle),
-              ),
-            );
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('OSM Nominatim search notice: $e');
-    }
-
-    // Fallback: If network is offline or throttled, filter curated places
+    // Fallback: If network is offline or empty results, filter curated places
     if (results.isEmpty) {
       final curated = _getCuratedFallbackPlaces();
       final qLower = cleanQuery.toLowerCase();
@@ -234,140 +260,123 @@ class LocationService {
     return results;
   }
 
-  /// Live Category Places from OpenStreetMap Nominatim / Photon API dynamically biased to user city and lat/lon
+  /// Live Category Places from Google Places API (New) dynamically biased to user city and lat/lon
   Future<List<LocationModel>> fetchCategoryPlaces(String category, {double? lat, double? lon, String? cityName}) async {
-    final citySuffix = (cityName != null && cityName.trim().isNotEmpty) ? ' ${cityName.trim()}' : '';
+    final citySuffix = (cityName != null && cityName.trim().isNotEmpty) ? ' in ${cityName.trim()}' : ' in Delhi NCR';
     String searchQuery;
     switch (category) {
       case 'Airports':
-        searchQuery = 'airport aerodrome terminal$citySuffix';
+        searchQuery = 'international domestic airport terminal$citySuffix';
         break;
       case 'Tech Parks':
-        searchQuery = 'tech park IT park cyber business park$citySuffix';
+        searchQuery = 'tech park cyber park IT park business hub$citySuffix';
         break;
       case 'Railway Stations':
         searchQuery = 'railway station junction terminal$citySuffix';
         break;
       case 'Metro Hubs':
-        searchQuery = 'metro station metro$citySuffix';
+        searchQuery = 'metro station rapid metro$citySuffix';
         break;
       case 'Commercial Hubs':
-        searchQuery = 'commercial mall shopping center market$citySuffix';
+        searchQuery = 'shopping mall commercial center market$citySuffix';
         break;
       case 'Hospitals':
-        searchQuery = 'hospital medical clinic$citySuffix';
+        searchQuery = 'hospital medical center super speciality hospital$citySuffix';
         break;
       case 'Hotels':
-        searchQuery = 'hotel resort palace inn$citySuffix';
+        searchQuery = 'luxury hotel 5 star resort inn$citySuffix';
         break;
       default:
-        searchQuery = 'airport railway station tech park mall$citySuffix';
+        searchQuery = 'popular transit hubs airports tech parks$citySuffix';
         break;
     }
 
     final results = <LocationModel>[];
     final seenKeys = <String>{};
+    final biasLat = lat ?? 28.6139;
+    final biasLon = lon ?? 77.2090;
 
     try {
-      final latParam = lat != null ? '&lat=$lat' : '&lat=28.6139';
-      final lonParam = lon != null ? '&lon=$lon' : '&lon=77.2090';
-      final photonUri = Uri.parse('$_photonBase/?q=${Uri.encodeComponent(searchQuery)}&limit=15$latParam$lonParam');
-      final res = await http.get(photonUri, headers: _headers).timeout(const Duration(milliseconds: 3000));
+      final body = {
+        'textQuery': searchQuery,
+        'languageCode': 'en',
+        'locationBias': {
+          'circle': {
+            'center': {
+              'latitude': biasLat,
+              'longitude': biasLon,
+            },
+            'radius': 35000.0,
+          },
+        },
+      };
 
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        final features = data['features'] as List<dynamic>? ?? [];
+      final response = await http.post(
+        Uri.parse(_placesSearchTextBase),
+        headers: {
+          ..._googleJsonHeaders,
+          'X-Goog-FieldMask':
+              'places.id,places.displayName,places.formattedAddress,places.location,places.addressComponents,places.types',
+        },
+        body: jsonEncode(body),
+      ).timeout(const Duration(milliseconds: 3500));
 
-        for (final item in features) {
-          final props = item['properties'] as Map<String, dynamic>? ?? {};
-          final geom = item['geometry'] as Map<String, dynamic>? ?? {};
-          final coords = geom['coordinates'] as List<dynamic>?;
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final places = data['places'] as List<dynamic>? ?? [];
 
-          final name = props['name'] as String? ?? props['street'] as String? ?? '';
-          if (name.isEmpty) continue;
+        for (final item in places) {
+          final place = item as Map<String, dynamic>;
+          final displayName = place['displayName']?['text']?.toString() ?? '';
+          final formattedAddress = place['formattedAddress']?.toString() ?? displayName;
 
-          final city = props['city'] as String? ?? props['district'] as String? ?? '';
-          final state = props['state'] as String? ?? '';
-          final postcode = props['postcode'] as String? ?? '';
+          if (displayName.isEmpty && formattedAddress.isEmpty) continue;
 
-          final addressParts = <String>[];
-          if (name.isNotEmpty) addressParts.add(name);
-          if (city.isNotEmpty) addressParts.add(city);
-          if (state.isNotEmpty) addressParts.add(state);
+          final location = place['location'] as Map<String, dynamic>?;
+          final pLat = (location?['latitude'] as num?)?.toDouble() ?? biasLat;
+          final pLon = (location?['longitude'] as num?)?.toDouble() ?? biasLon;
 
-          final fullAddress = addressParts.isNotEmpty ? addressParts.join(', ') : name;
-          final pLon = coords != null && coords.isNotEmpty ? (coords[0] as num).toDouble() : (lon ?? 77.0895);
-          final pLat = coords != null && coords.length > 1 ? (coords[1] as num).toDouble() : (lat ?? 28.4950);
+          // Parse address components
+          String city = '';
+          String state = '';
+          String postcode = '';
+          final components = place['addressComponents'] as List<dynamic>? ?? [];
+          for (final comp in components) {
+            final types = (comp['types'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+            if (types.contains('locality') || types.contains('sublocality_level_1') || types.contains('administrative_area_level_2')) {
+              if (city.isEmpty) city = comp['longText']?.toString() ?? comp['shortText']?.toString() ?? '';
+            }
+            if (types.contains('administrative_area_level_1')) {
+              state = comp['longText']?.toString() ?? comp['shortText']?.toString() ?? '';
+            }
+            if (types.contains('postal_code')) {
+              postcode = comp['longText']?.toString() ?? comp['shortText']?.toString() ?? '';
+            }
+          }
 
-          final dedupeKey = name.toLowerCase();
+          final title = displayName.isNotEmpty ? displayName : formattedAddress.split(',').first.trim();
+          final dedupeKey = title.toLowerCase();
+
           if (!seenKeys.contains(dedupeKey)) {
             seenKeys.add(dedupeKey);
             results.add(
               LocationModel(
-                title: name,
-                fullAddress: fullAddress,
+                title: title,
+                fullAddress: formattedAddress,
                 latitude: pLat,
                 longitude: pLon,
-                city: city,
-                state: state,
-                postcode: postcode,
+                city: city.isNotEmpty ? city : cityName,
+                state: state.isNotEmpty ? state : null,
+                postcode: postcode.isNotEmpty ? postcode : null,
                 category: category,
-                icon: getIconForCategory(category, name),
+                icon: getIconForCategory(category, title),
               ),
             );
           }
         }
       }
     } catch (e) {
-      debugPrint('Category fetch fallback: $e');
-    }
-
-    // If Photon returned fewer than 3, try Nominatim live search for the city
-    if (results.length < 3) {
-      try {
-        final nominatimUri = Uri.parse(
-          '$_nominatimBase/search?q=${Uri.encodeComponent(searchQuery)}&format=json&limit=10&addressdetails=1',
-        );
-        final nomRes = await http.get(nominatimUri, headers: _headers).timeout(const Duration(milliseconds: 3000));
-        if (nomRes.statusCode == 200) {
-          final data = jsonDecode(nomRes.body) as List<dynamic>? ?? [];
-          for (final item in data) {
-            final displayName = item['display_name'] as String? ?? '';
-            if (displayName.isEmpty) continue;
-
-            final parts = displayName.split(',');
-            final shortTitle = parts.isNotEmpty ? parts[0].trim() : searchQuery;
-
-            final address = item['address'] as Map<String, dynamic>? ?? {};
-            final city = (address['city'] ?? address['town'] ?? address['suburb'] ?? address['state_district'] ?? '').toString();
-            final state = (address['state'] ?? '').toString();
-            final postcode = (address['postcode'] ?? '').toString();
-
-            final pLat = double.tryParse(item['lat']?.toString() ?? '') ?? (lat ?? 28.4950);
-            final pLon = double.tryParse(item['lon']?.toString() ?? '') ?? (lon ?? 77.0895);
-
-            final dedupeKey = shortTitle.toLowerCase();
-            if (!seenKeys.contains(dedupeKey)) {
-              seenKeys.add(dedupeKey);
-              results.add(
-                LocationModel(
-                  title: shortTitle,
-                  fullAddress: displayName,
-                  latitude: pLat,
-                  longitude: pLon,
-                  city: city,
-                  state: state,
-                  postcode: postcode,
-                  category: category,
-                  icon: getIconForCategory(category, shortTitle),
-                ),
-              );
-            }
-          }
-        }
-      } catch (e) {
-        debugPrint('Nominatim category fetch fallback: $e');
-      }
+      debugPrint('Google Places category fetch error: $e');
     }
 
     if (results.isEmpty) {
@@ -377,50 +386,57 @@ class LocationService {
     return results;
   }
 
-  /// Live Reverse Geocoding via OpenStreetMap Nominatim API
+  /// Live Reverse Geocoding via Google Geocoding API
   Future<LocationModel> reverseGeocode(double lat, double lng) async {
     try {
-      final uri = Uri.parse(
-        '$_nominatimBase/reverse?lat=$lat&lon=$lng&format=json&addressdetails=1',
-      );
-
-      final response = await http.get(uri, headers: _headers).timeout(const Duration(milliseconds: 3500));
+      final uri = Uri.parse('$_geocodeBase?latlng=$lat,$lng&key=$googleMapsApiKey');
+      final response = await http.get(uri).timeout(const Duration(milliseconds: 3500));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final displayName = data['display_name'] as String? ?? 'Pinned Location';
-        final parts = displayName.split(',');
-        final title = parts.isNotEmpty ? parts[0].trim() : 'Pinned Location';
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        if (data['status'] == 'OK' && data['results'] != null && (data['results'] as List).isNotEmpty) {
+          final first = data['results'][0] as Map<String, dynamic>;
+          final formattedAddress = first['formatted_address'] as String? ?? 'Pinned Location';
+          final parts = formattedAddress.split(',');
+          final title = parts.isNotEmpty ? parts[0].trim() : 'Pinned Location';
 
-        final addressObj = data['address'] as Map<String, dynamic>?;
-        final road = addressObj?['road'] ?? addressObj?['pedestrian'] ?? addressObj?['suburb'] ?? '';
-        final city = (addressObj?['city'] ?? addressObj?['town'] ?? addressObj?['suburb'] ?? addressObj?['state_district'] ?? '').toString();
-        final state = (addressObj?['state'] ?? '').toString();
-        final postcode = (addressObj?['postcode'] ?? '').toString();
-        final osmClass = data['class'] as String?;
-        final osmType = data['type'] as String?;
+          String city = '';
+          String state = '';
+          String postcode = '';
+          final components = first['address_components'] as List<dynamic>? ?? [];
+          for (final comp in components) {
+            final types = (comp['types'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+            if (types.contains('locality') || types.contains('sublocality_level_1') || types.contains('administrative_area_level_2')) {
+              if (city.isEmpty) city = comp['long_name']?.toString() ?? comp['short_name']?.toString() ?? '';
+            }
+            if (types.contains('administrative_area_level_1')) {
+              state = comp['long_name']?.toString() ?? comp['short_name']?.toString() ?? '';
+            }
+            if (types.contains('postal_code')) {
+              postcode = comp['long_name']?.toString() ?? comp['short_name']?.toString() ?? '';
+            }
+          }
 
-        final effectiveTitle = title.isNotEmpty ? title : (road.toString().isNotEmpty ? road.toString() : 'Pinned Location');
-
-        return LocationModel(
-          title: effectiveTitle,
-          fullAddress: displayName,
-          latitude: lat,
-          longitude: lng,
-          city: city,
-          state: state,
-          postcode: postcode,
-          category: 'PINNED',
-          icon: getIconForCategory('$osmClass $osmType', effectiveTitle),
-        );
+          return LocationModel(
+            title: title,
+            fullAddress: formattedAddress,
+            latitude: lat,
+            longitude: lng,
+            city: city.isNotEmpty ? city : null,
+            state: state.isNotEmpty ? state : null,
+            postcode: postcode.isNotEmpty ? postcode : null,
+            category: 'PINNED',
+            icon: Icons.pin_drop_rounded,
+          );
+        }
       }
     } catch (e) {
-      debugPrint('OSM Reverse Geocode error: $e');
+      debugPrint('Google Geocode error: $e');
     }
 
     return LocationModel(
       title: 'Pinned Location (${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)})',
-      fullAddress: 'Lat: ${lat.toStringAsFixed(5)}, Lng: ${lng.toStringAsFixed(5)} (OpenStreetMap)',
+      fullAddress: 'Lat: ${lat.toStringAsFixed(5)}, Lng: ${lng.toStringAsFixed(5)} (Google Maps)',
       latitude: lat,
       longitude: lng,
       category: 'PINNED',
@@ -447,7 +463,7 @@ class LocationService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final currentList = prefs.getStringList(_recentStorageKey) ?? [];
-      
+
       // Deduplicate
       currentList.removeWhere((item) {
         try {
@@ -481,7 +497,7 @@ class LocationService {
     }
   }
 
-  /// Curated Fast Fallback Dataset (OpenStreetMap Verified Locations in NCR / India)
+  /// Curated Fast Fallback Dataset (Google Maps Verified Locations in NCR / India)
   List<LocationModel> _getCuratedFallbackPlaces() {
     return const [
       LocationModel(
@@ -582,7 +598,7 @@ class LocationService {
     return filtered.isNotEmpty ? filtered : all;
   }
 
-  /// Real-time client-side road distance and ETA calculation using OpenStreetMap (OSRM)
+  /// Real-time road distance and ETA calculation using Google Routes API (New)
   Future<RoadRouteResult> calculateRoadRoute({
     required double startLat,
     required double startLng,
@@ -600,28 +616,53 @@ class LocationService {
     }
 
     try {
-      final uri = Uri.parse(
-        'https://router.project-osrm.org/route/v1/driving/'
-        '$startLng,$startLat;$endLng,$endLat?overview=false',
-      );
+      final body = {
+        'origin': {
+          'location': {
+            'latLng': {
+              'latitude': startLat,
+              'longitude': startLng,
+            },
+          },
+        },
+        'destination': {
+          'location': {
+            'latLng': {
+              'latitude': endLat,
+              'longitude': endLng,
+            },
+          },
+        },
+        'travelMode': 'DRIVE',
+        'routingPreference': 'TRAFFIC_AWARE',
+      };
 
-      final response = await http.get(uri, headers: {
-        'User-Agent': 'AdhocX-OpenStreetMap-Mobility/2.0 (support@adhocx.com)',
-        'Accept': 'application/json',
-      }).timeout(const Duration(seconds: 4));
+      final response = await http.post(
+        Uri.parse(_routesBase),
+        headers: {
+          ..._googleJsonHeaders,
+          'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.description',
+        },
+        body: jsonEncode(body),
+      ).timeout(const Duration(seconds: 4));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['routes'] != null && (data['routes'] as List).isNotEmpty) {
-          final route = data['routes'][0];
-          final distanceMeters = (route['distance'] as num?)?.toDouble() ?? 0.0;
-          final durationSeconds = (route['duration'] as num?)?.toDouble() ?? 0.0;
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final routes = data['routes'] as List<dynamic>?;
+        if (routes != null && routes.isNotEmpty) {
+          final route = routes[0] as Map<String, dynamic>;
+          final distanceMeters = (route['distanceMeters'] as num?)?.toDouble() ?? 0.0;
+          final durationRaw = route['duration']?.toString() ?? '0s';
+          final durationSeconds = double.tryParse(durationRaw.replaceAll('s', '')) ?? 0.0;
+
           if (distanceMeters > 0) {
             return RoadRouteResult.fromMetersAndSeconds(distanceMeters, durationSeconds, isAccurate: true);
           }
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Google Routes API error: $e');
+    }
 
     // Fallback: Haversine distance * 1.28x Indian road network curvature factor
     final haversineKm = _calculateHaversineKm(startLat, startLng, endLat, endLng) * 1.28;
@@ -642,7 +683,7 @@ class LocationService {
   }
 }
 
-/// Result of an OpenStreetMap road routing computation
+/// Result of a Google Maps road routing computation
 class RoadRouteResult {
   final double distanceKm;
   final int durationMinutes;
@@ -672,4 +713,3 @@ class RoadRouteResult {
     );
   }
 }
-

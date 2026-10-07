@@ -39,7 +39,7 @@ class RequirementDraftProvider extends ChangeNotifier {
   String _additionalInfo = '';
   List<String> _additionalStops = [];
 
-  // Road Routing Telemetry via OpenStreetMap (OSRM)
+  // Road Routing Telemetry via Google Maps (Routes API)
   double _roadDistanceKm = 0.0;
   int _estimatedDurationMinutes = 0;
   String _formattedEta = '';
