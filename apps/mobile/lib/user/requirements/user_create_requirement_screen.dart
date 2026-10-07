@@ -691,67 +691,124 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
             Expanded(
               child: draft.cabs.isEmpty
                   ? Center(
-                      child: Padding(
+                      child: SingleChildScrollView(
                         padding: const EdgeInsets.all(AppSpacing.xl),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              width: 80,
-                              height: 80,
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.1),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.add_shopping_cart_rounded, size: 40, color: AppColors.primary),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Your Fleet Manifest is Empty',
-                              style: AppTypography.h4(
-                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Add cabs with custom routes, timings, and passenger counts. All cabs will be searched in parallel.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                ElevatedButton.icon(
-                                  onPressed: _openAddCabSheet,
-                                  icon: const Icon(Icons.add_rounded, size: 20),
-                                  label: const Text('Add First Cab', style: TextStyle(fontWeight: FontWeight.bold)),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primary,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                                  ),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 420),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: 80,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                  shape: BoxShape.circle,
                                 ),
-                                const SizedBox(width: 12),
-                                OutlinedButton.icon(
-                                  onPressed: _showSavedTemplatesBottomSheet,
-                                  icon: const Icon(Icons.bookmark_rounded, size: 18),
-                                  label: const Text('Saved Templates', style: TextStyle(fontWeight: FontWeight.bold)),
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: AppColors.primary,
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                                    side: const BorderSide(color: AppColors.primary),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                                  ),
+                                child: const Icon(Icons.add_shopping_cart_rounded, size: 40, color: AppColors.primary),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Your Fleet Manifest is Empty',
+                                style: AppTypography.h4(
+                                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                              ],
-                            ),
-                          ],
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Add cabs with custom routes, timings, and passenger counts. All cabs will be searched in parallel.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                              LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final isStacked = constraints.maxWidth < 360;
+                                  if (isStacked) {
+                                    return Column(
+                                      children: [
+                                        SizedBox(
+                                          width: double.infinity,
+                                          child: ElevatedButton.icon(
+                                            onPressed: _openAddCabSheet,
+                                            icon: const Icon(Icons.add_rounded, size: 20),
+                                            label: const Text('Add First Cab', style: TextStyle(fontWeight: FontWeight.bold)),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: AppColors.primary,
+                                              foregroundColor: Colors.white,
+                                              padding: const EdgeInsets.symmetric(vertical: 14),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        SizedBox(
+                                          width: double.infinity,
+                                          child: OutlinedButton.icon(
+                                            onPressed: _showSavedTemplatesBottomSheet,
+                                            icon: const Icon(Icons.bookmark_rounded, size: 18),
+                                            label: const Text('Saved Templates', style: TextStyle(fontWeight: FontWeight.bold)),
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor: AppColors.primary,
+                                              padding: const EdgeInsets.symmetric(vertical: 14),
+                                              side: const BorderSide(color: AppColors.primary),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  }
+                                  return Row(
+                                    children: [
+                                      Expanded(
+                                        child: ElevatedButton.icon(
+                                          onPressed: _openAddCabSheet,
+                                          icon: const Icon(Icons.add_rounded, size: 18),
+                                          label: const Text(
+                                            'Add First Cab',
+                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: AppColors.primary,
+                                            foregroundColor: Colors.white,
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: OutlinedButton.icon(
+                                          onPressed: _showSavedTemplatesBottomSheet,
+                                          icon: const Icon(Icons.bookmark_rounded, size: 18),
+                                          label: const Text(
+                                            'Saved Templates',
+                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: AppColors.primary,
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
+                                            side: const BorderSide(color: AppColors.primary),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     )
