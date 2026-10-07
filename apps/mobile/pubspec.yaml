@@ -1,7 +1,7 @@
 name: adhocx
 description: AdhocX Driver Partner - Corporate Fleet & Duty Network
 publish_to: none
-version: 1.0.1+8
+version: 1.0.2+9
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
