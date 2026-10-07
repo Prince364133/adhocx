@@ -14,7 +14,6 @@ import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../theme/theme_provider.dart';
-import './modals/incentives_modal.dart';
 import './modals/rate_card_modal.dart';
 import './widgets/profile_driver_card_widget.dart';
 import '../language_selection_widget.dart';
@@ -394,8 +393,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: AppSpacing.xl),
 
-                      // ── Section 2: Earnings & Incentives ──────────────────
-                      _buildSectionTitle('EARNINGS & INCENTIVES', isDark),
+                      // ── Section 2: Earnings & Rates ──────────────────────
+                      _buildSectionTitle('EARNINGS & RATES', isDark),
                       const SizedBox(height: AppSpacing.xs),
                       _buildCardGroup(
                         isDark: isDark,
@@ -406,19 +405,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             label: 'Driver Rate Card',
                             subtitle: 'Standard base fare & distance rates',
                             onTap: () => _openModal(const RateCardModal()),
-                          ),
-                          _divider(isDark),
-                          ProfileMenuItemWidget(
-                            icon: Icons.emoji_events_outlined,
-                            iconColor: AppColors.warning,
-                            label: 'Daily Target Incentives',
-                            subtitle: 'Earn up to ₹1,500 bonus today',
-                            trailing: _buildPill(
-                              text: 'Active',
-                              color: AppColors.warning,
-                              isDark: isDark,
-                            ),
-                            onTap: () => _openModal(const IncentivesModal()),
                           ),
                         ],
                       ),
