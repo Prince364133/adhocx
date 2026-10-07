@@ -132,7 +132,7 @@ export class TripsService {
     return {
       ...baseDto,
       driverName: trip.driver.fullName,
-      driverPhone: trip.driver.phone,
+      driverPhone: trip.driver.phone || undefined,
       vehiclePlate: trip.driver.vehiclePlate || undefined,
       vendorOrganizationName: trip.requirement.vendor.organizationName,
       startOtp: (role === UserRole.VENDOR || role === UserRole.ADMIN) ? trip.otp : undefined,
@@ -186,8 +186,10 @@ export class TripsService {
     });
 
     // Send OTP SMS to vendor/passenger
-    const vendorPhone = updated.requirement.vendor.phone;
-    await this.notifications.sendTripOtp(vendorPhone, updated.otp);
+    const vendorPhone = updated.requirement.vendor.phone || updated.requirement.vendor.user?.phone;
+    if (vendorPhone) {
+      await this.notifications.sendTripOtp(vendorPhone, updated.otp);
+    }
 
     // Notify vendor in real-time
     this.notifications.emitEvent(`vendor:${updated.vendorId}`, 'TRIP_DRIVER_ARRIVED', {

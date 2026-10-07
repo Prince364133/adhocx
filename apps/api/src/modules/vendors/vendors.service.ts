@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { CreateVendorProfileDto, VendorProfileDto, VerificationStatus } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
 
@@ -13,6 +13,12 @@ export class VendorsService {
         user = await this.db.user.findUnique({ where: { id: userId } });
       }
     } catch (_) {}
+
+    if (user && user.role !== 'VENDOR' && user.role !== 'ADMIN') {
+      throw new ForbiddenException(
+        `This account is registered as a ${user.role}. Under AdhocX's 1-account-1-role policy, a driver account cannot create or switch to a vendor profile.`
+      );
+    }
 
     const rawPhone = dto.phone || phone || user?.phone || '';
     const effectivePhone = rawPhone.trim().replace(/\s+/g, '');
@@ -35,7 +41,6 @@ export class VendorsService {
           data: {
             phone: effectivePhone,
             ...(cleanName ? { fullName: cleanName } : {}),
-            role: 'VENDOR',
           },
         });
       } catch (_) {}
@@ -43,7 +48,7 @@ export class VendorsService {
       try {
         await this.db.user.update({
           where: { id: userId },
-          data: { fullName: cleanName, role: 'VENDOR' },
+          data: { fullName: cleanName },
         });
       } catch (_) {}
     }

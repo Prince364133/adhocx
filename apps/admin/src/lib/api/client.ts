@@ -590,9 +590,25 @@ export const adminApi = {
 
   // ── Administrative Authentication & Session ──
   loginAdmin: (credentials: { identifier: string; password: string }) =>
-    apiClient<{ accessToken: string; refreshToken: string; user: any }>('/auth/admin/login', {
+    apiClient<{
+      accessToken?: string;
+      refreshToken?: string;
+      user?: any;
+      requiresMfa?: boolean;
+      mfaType?: string;
+      mfaSessionToken?: string;
+      maskedDestination?: string;
+      expiresInSeconds?: number;
+      message?: string;
+    }>('/auth/admin/login', {
       method: 'POST',
       body: credentials,
+    }),
+
+  verifyAdminMfa: (dto: { mfaSessionToken: string; mfaCode: string }) =>
+    apiClient<{ accessToken: string; refreshToken: string; user: any }>('/auth/admin/mfa-verify', {
+      method: 'POST',
+      body: dto,
     }),
 
   verifyAdminSession: () =>

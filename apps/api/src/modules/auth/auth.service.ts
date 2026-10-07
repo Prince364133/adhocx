@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, BadRequestException, NotFoundException, ForbiddenException, OnModuleInit, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, NotFoundException, ForbiddenException, ConflictException, OnModuleInit, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
@@ -363,6 +363,14 @@ export class AuthService implements OnModuleInit {
       throw new UnauthorizedException('Incorrect password. Please try again or reset your password.');
     }
 
+    if (dto.role) {
+      const requestedRole = this.mapUserRole(dto.role);
+      if (user.role !== requestedRole) {
+        throw new ForbiddenException(
+          `This account is registered as a ${user.role}. You cannot sign in as a ${requestedRole}. Under the 1-account-1-role policy, each account has only one assigned role. Please switch to your ${user.role.toLowerCase()} portal.`
+        );
+      }
+    }
 
     this.logger.log(`✅ [LOGIN SUCCESS] User authenticated: ${user.id} (${user.fullName || user.phone})`);
     return this.generateAuthResponse(user);
@@ -372,15 +380,51 @@ export class AuthService implements OnModuleInit {
    * Request OTP for Phone or Email Authentication
    */
   async requestOtp(dto: RequestOtpDto): Promise<RequestOtpResponseDto> {
-    const rawIdentifier = dto.email ? dto.email.trim().toLowerCase() : dto.phone?.trim();
+    const rawPhone = dto.phone?.trim();
+    const rawEmail = dto.email?.trim().toLowerCase();
+    const rawIdentifier = rawEmail || rawPhone;
     if (!rawIdentifier) {
       throw new BadRequestException('Either Mobile Number or Email Address is required');
     }
 
     const { isEmail, value, phoneVariants } = this.normalizeIdentifier(rawIdentifier);
     const channel = dto.channel || (isEmail ? 'EMAIL' : 'SMS');
+    const assignedRole = dto.role ? this.mapUserRole(dto.role) : undefined;
 
-    // If explicit login or password recovery (isRegister === false), verify user exists
+    // Check if phone or email already exists under another role (1-Account 1-Role enforcement)
+    if (dto.isRegister === true) {
+      let existingUser: any = null;
+      let conflictField = '';
+
+      if (rawPhone) {
+        const phoneNorm = this.normalizeIdentifier(rawPhone);
+        existingUser = await this.db.user.findFirst({
+          where: { phone: { in: phoneNorm.phoneVariants || [phoneNorm.value] } },
+        });
+        if (existingUser) conflictField = 'mobile number';
+      }
+
+      if (!existingUser && rawEmail) {
+        existingUser = await this.db.user.findFirst({
+          where: { email: { equals: rawEmail, mode: 'insensitive' } },
+        });
+        if (existingUser) conflictField = 'email address';
+      }
+
+      if (existingUser) {
+        if (assignedRole && existingUser.role !== assignedRole) {
+          throw new ConflictException(
+            `This ${conflictField} is already registered to a ${existingUser.role} account. Under AdhocX's 1-account-1-role policy, an email or mobile number can only have a single role. Please sign in to your ${existingUser.role.toLowerCase()} account.`
+          );
+        } else {
+          throw new ConflictException(
+            `An account with this ${conflictField} is already registered. Please sign in instead.`
+          );
+        }
+      }
+    }
+
+    // If explicit login or password recovery (isRegister === false), verify user exists and matches role
     if (dto.isRegister === false) {
       let existingUser: any = null;
       try {
@@ -397,6 +441,12 @@ export class AuthService implements OnModuleInit {
 
       if (!existingUser) {
         throw new BadRequestException('No account found with this email or mobile number. Please check your details or sign up.');
+      }
+
+      if (assignedRole && existingUser.role !== assignedRole) {
+        throw new ForbiddenException(
+          `This account is registered as a ${existingUser.role}. You cannot sign in as a ${assignedRole}. Under the 1-account-1-role policy, each account has only one role. Please sign in to your ${existingUser.role.toLowerCase()} portal.`
+        );
       }
     }
 
@@ -451,7 +501,7 @@ export class AuthService implements OnModuleInit {
       throw new BadRequestException('Either Mobile Number or Email is required');
     }
 
-    const { isEmail, value, phoneVariants } = this.normalizeIdentifier(rawIdentifier);
+    const { isEmail, value } = this.normalizeIdentifier(rawIdentifier);
 
     let cachedOtp: string | null = null;
     try {
@@ -477,35 +527,70 @@ export class AuthService implements OnModuleInit {
     // Find or create user in live authoritative DB
     let user: any = null;
     try {
-      if (isEmail) {
+      const rawEmail = dto.email ? dto.email.trim().toLowerCase() : (isEmail ? value : undefined);
+      const rawPhone = dto.phone ? dto.phone.trim() : (!isEmail ? value : undefined);
+
+      if (rawEmail) {
         user = await this.db.user.findFirst({
-          where: { email: { equals: value, mode: 'insensitive' } },
+          where: { email: { equals: rawEmail, mode: 'insensitive' } },
           include: { vendor: true, driver: true },
         });
-      } else {
+      }
+      if (!user && rawPhone) {
+        const phoneNorm = this.normalizeIdentifier(rawPhone);
         user = await this.db.user.findFirst({
-          where: { phone: { in: phoneVariants || [value] } },
+          where: { phone: { in: phoneNorm.phoneVariants || [phoneNorm.value] } },
           include: { vendor: true, driver: true },
         });
       }
 
-      if (!user) {
-        const assignedRole = this.mapUserRole(dto.role);
-        let generatedPhone = !isEmail ? value : `+91${Math.floor(6000000000 + Math.random() * 3999999999)}`;
-        if (isEmail) {
-          let attempts = 0;
-          while (attempts < 5) {
-            const existingPhone = await this.db.user.findUnique({ where: { phone: generatedPhone } });
-            if (!existingPhone) break;
-            generatedPhone = `+91${Math.floor(6000000000 + Math.random() * 3999999999)}`;
-            attempts++;
+      const assignedRole = this.mapUserRole(dto.role);
+
+      if (user) {
+        // Enforce 1-Account 1-Role policy: cannot register existing account
+        if (dto.isRegister) {
+          throw new ConflictException(
+            `An account with this ${user.email === rawEmail ? 'email address' : 'mobile number'} is already registered as a ${user.role}. Under AdhocX's 1-account-1-role policy, an email or mobile number can only have a single role. Please sign in instead.`
+          );
+        }
+
+        // Strict role matching: account cannot access different role
+        if (dto.role && user.role !== assignedRole) {
+          throw new ForbiddenException(
+            `This account is registered as a ${user.role}. You cannot sign in as a ${assignedRole}. Under the 1-account-1-role policy, each account has only one assigned role. Please sign in to your ${user.role.toLowerCase()} portal.`
+          );
+        }
+      } else {
+        // Create new user with real phone (if provided) and real email (if provided)
+        const effectivePhone = rawPhone
+          ? this.normalizeIdentifier(rawPhone).value
+          : (!isEmail ? value : null);
+        const effectiveEmail = rawEmail || (isEmail ? value : null);
+
+        // Verify neither phone nor email is already taken by another account
+        if (effectivePhone) {
+          const existingPhoneUser = await this.db.user.findUnique({ where: { phone: effectivePhone } });
+          if (existingPhoneUser) {
+            throw new ConflictException(
+              `This mobile number is already registered to a ${existingPhoneUser.role} account. Under the 1-account-1-role policy, a mobile number can only belong to one role.`
+            );
+          }
+        }
+        if (effectiveEmail) {
+          const existingEmailUser = await this.db.user.findFirst({
+            where: { email: { equals: effectiveEmail, mode: 'insensitive' } },
+          });
+          if (existingEmailUser) {
+            throw new ConflictException(
+              `This email address is already registered to a ${existingEmailUser.role} account. Under the 1-account-1-role policy, an email can only belong to one role.`
+            );
           }
         }
 
         user = await this.db.user.create({
           data: {
-            phone: generatedPhone,
-            email: isEmail ? value : undefined,
+            phone: effectivePhone || undefined,
+            email: effectiveEmail || undefined,
             role: assignedRole,
             fullName: dto.fullName || (assignedRole === UserRole.DRIVER ? 'Driver Partner' : 'User'),
             driver:
@@ -513,7 +598,7 @@ export class AuthService implements OnModuleInit {
                 ? {
                     create: {
                       fullName: dto.fullName || 'Driver Partner',
-                      phone: generatedPhone,
+                      phone: effectivePhone || undefined,
                       verificationStatus: 'PENDING',
                       availabilityStatus: 'OFFLINE',
                     },
@@ -525,7 +610,7 @@ export class AuthService implements OnModuleInit {
                     create: {
                       fullName: dto.fullName || 'Vendor Partner',
                       organizationName: `${dto.fullName || 'AdhocX'} Mobility`,
-                      phone: generatedPhone,
+                      phone: effectivePhone || undefined,
                       verificationStatus: 'PENDING',
                     },
                   }
@@ -534,21 +619,12 @@ export class AuthService implements OnModuleInit {
           include: { vendor: true, driver: true },
         });
 
-        this.logger.log(`Created new user via OTP: ${user.id} (${user.phone})`);
-      } else if (dto.isRegister && dto.role) {
-        const assignedRole = this.mapUserRole(dto.role);
-        if (user.role !== assignedRole) {
-          try {
-            user = await this.db.user.update({
-              where: { id: user.id },
-              data: { role: assignedRole },
-              include: { vendor: true, driver: true },
-            });
-            this.logger.log(`Updated existing user role in verifyOtp to ${assignedRole}: ${user.id}`);
-          } catch (_) {}
-        }
+        this.logger.log(`Created new user via OTP: ${user.id} (${user.phone ?? user.email}) with role ${user.role}`);
       }
     } catch (dbErr: any) {
+      if (dbErr instanceof ConflictException || dbErr instanceof ForbiddenException) {
+        throw dbErr;
+      }
       this.logger.error(`Database error in verifyOtp: ${dbErr.message}`, dbErr.stack);
       throw new BadRequestException('Failed to authenticate with database.');
     }
@@ -601,29 +677,21 @@ export class AuthService implements OnModuleInit {
           include: { vendor: true, driver: true },
         });
 
-        if (!user) {
-          const assignedRole = this.mapUserRole(dto.role);
-          let generatedPhone = `+91${Math.floor(6000000000 + Math.random() * 3999999999)}`;
-          let attempts = 0;
-          while (attempts < 5) {
-            const existingPhone = await this.db.user.findUnique({ where: { phone: generatedPhone } });
-            if (!existingPhone) break;
-            generatedPhone = `+91${Math.floor(6000000000 + Math.random() * 3999999999)}`;
-            attempts++;
-          }
+        const assignedRole = this.mapUserRole(dto.role);
 
+        if (!user) {
           user = await this.db.user.create({
             data: {
               email,
-              phone: generatedPhone,
+              phone: undefined, // No fake random phone numbers generated!
               fullName: fullName || undefined,
               role: assignedRole,
               driver:
                 assignedRole === UserRole.DRIVER
                   ? {
                       create: {
-                        fullName: fullName || generatedPhone,
-                        phone: generatedPhone,
+                        fullName: fullName || 'Driver Partner',
+                        phone: undefined,
                         verificationStatus: 'PENDING',
                         availabilityStatus: 'OFFLINE',
                       },
@@ -633,9 +701,9 @@ export class AuthService implements OnModuleInit {
                 assignedRole === UserRole.VENDOR
                   ? {
                       create: {
-                        fullName: fullName || generatedPhone,
+                        fullName: fullName || 'Vendor Partner',
                         organizationName: fullName ? `${fullName} Mobility` : 'My Organization',
-                        phone: generatedPhone,
+                        phone: undefined,
                         verificationStatus: 'PENDING',
                       },
                     }
@@ -652,44 +720,18 @@ export class AuthService implements OnModuleInit {
             });
           } catch (_) {}
         } else {
-          // Backfill driver or vendor profile if requested role profile is missing
-          const assignedRole = this.mapUserRole(dto.role);
-          if (assignedRole === UserRole.DRIVER && !user.driver) {
-            try {
-              await this.db.driver.create({
-                data: {
-                  userId: user.id,
-                  fullName: user.fullName || 'Driver Partner',
-                  phone: user.phone,
-                  verificationStatus: 'PENDING',
-                  availabilityStatus: 'OFFLINE',
-                },
-              });
-              user = await this.db.user.findUnique({
-                where: { id: user.id },
-                include: { vendor: true, driver: true },
-              });
-            } catch (_) {}
-          } else if (assignedRole === UserRole.VENDOR && !user.vendor) {
-            try {
-              await this.db.vendor.create({
-                data: {
-                  userId: user.id,
-                  fullName: user.fullName || 'Vendor Partner',
-                  organizationName: `${user.fullName || 'Vendor'} Mobility`,
-                  phone: user.phone,
-                  verificationStatus: 'PENDING',
-                },
-              });
-              user = await this.db.user.findUnique({
-                where: { id: user.id },
-                include: { vendor: true, driver: true },
-              });
-            } catch (_) {}
+          // Enforce 1-Account 1-Role policy: existing user cannot switch roles via social auth
+          if (user.role !== assignedRole) {
+            throw new ConflictException(
+              `This Google account (${email}) is already registered as a ${user.role}. Under AdhocX's 1-account-1-role policy, an email can only be associated with one account and one role (${user.role}). Please sign in to your ${user.role.toLowerCase()} portal.`
+            );
           }
         }
         break; // Success
       } catch (dbErr: any) {
+        if (dbErr instanceof ConflictException || dbErr instanceof ForbiddenException) {
+          throw dbErr;
+        }
         retries++;
         this.logger.warn(`⚠️ [SOCIAL AUTH ATTEMPT ${retries}/${maxRetries} FAILED]: ${dbErr.message}`);
         if (retries >= maxRetries) {
@@ -1064,8 +1106,8 @@ export class AuthService implements OnModuleInit {
       expiresAt: new Date(Date.now() + 3600 * 1000).toISOString(),
       user: {
         id: payload.id,
-        phone: user?.phone || payload.phone,
-        email: user?.email || payload.email,
+        phone: user?.phone || payload.phone || undefined,
+        email: user?.email || payload.email || undefined,
         role: payload.role as UserRole,
         fullName: user?.fullName || undefined,
         isApproved,
@@ -1117,7 +1159,7 @@ export class AuthService implements OnModuleInit {
 
     return {
       id: user.id,
-      phone: user.phone,
+      phone: user.phone || undefined,
       email: user.email || undefined,
       role: user.role as UserRole,
       fullName: user.fullName || undefined,

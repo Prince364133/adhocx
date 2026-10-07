@@ -104,7 +104,8 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
+                    Expanded(
+                      child: Row(
                       children: [
                         IconButton(
                           padding: EdgeInsets.zero,
@@ -244,6 +245,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                           ),
                         ),
                       ],
+                      ),
                     ),
                     Row(
                       children: [

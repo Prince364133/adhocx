@@ -18,11 +18,13 @@ import 'package:adhocx/theme/app_theme.dart';
 import 'package:adhocx/user/home/user_home_screen.dart';
 import 'package:adhocx/user/profile/user_profile_screen.dart';
 
-Widget createTestApp(Widget child) {
+Widget createTestApp(Widget child, {String role = 'DRIVER'}) {
+  final onboarding = OnboardingProvider();
+  onboarding.setRole(role);
   return MultiProvider(
     providers: [
       ChangeNotifierProvider(create: (_) => AuthProvider()),
-      ChangeNotifierProvider(create: (_) => OnboardingProvider()),
+      ChangeNotifierProvider<OnboardingProvider>.value(value: onboarding),
       Provider<AuthService>(create: (_) => AuthService.instance),
       Provider<DriverService>(create: (_) => DriverService.instance),
     ],
@@ -56,7 +58,7 @@ void main() {
 
     testWidgets('Screen 5: Sign Up Screen renders user registration and Driver CTA',
         (WidgetTester tester) async {
-      await tester.pumpWidget(createTestApp(const SignUpScreen()));
+      await tester.pumpWidget(createTestApp(const SignUpScreen(), role: 'VENDOR'));
 
       expect(find.text('Create your account'), findsOneWidget);
       expect(find.text('Sign Up'), findsOneWidget);
@@ -81,34 +83,40 @@ void main() {
       expect(find.text('Driver Partner'), findsOneWidget);
     });
 
-    testWidgets('Screen 11: Personal Details Screen renders profile fields',
+    testWidgets('Screen 11: Personal Details Screen renders profile fields for drivers',
         (WidgetTester tester) async {
-      await tester.pumpWidget(createTestApp(const OnboardingPersonalScreen()));
+      await tester.pumpWidget(createTestApp(const OnboardingPersonalScreen(), role: 'DRIVER'));
 
-      expect(find.text('Complete your profile'), findsOneWidget);
-      expect(find.text('Full Name'), findsOneWidget);
-      expect(find.text('Date of Birth (Optional)'), findsOneWidget);
+      expect(find.text('Basic Details'), findsOneWidget);
+      expect(find.text('Full Legal Name *'), findsOneWidget);
       expect(find.text('Male'), findsOneWidget);
       expect(find.text('Female'), findsOneWidget);
-      expect(find.text('Booking for Company / Event?'), findsOneWidget);
+    });
+
+    testWidgets('Screen 11: Vendor Corporate Details Screen renders company fields',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(createTestApp(const OnboardingPersonalScreen(), role: 'VENDOR'));
+
+      expect(find.text('Company Legal Name *'), findsOneWidget);
+      expect(find.text('Brand / Trade Name (Optional)'), findsOneWidget);
+      expect(find.text('Company PAN *'), findsOneWidget);
+      expect(find.text('GSTIN Number'), findsOneWidget);
     });
 
     testWidgets('Screen 12: Vehicle Step 2 renders vehicle options for drivers',
         (WidgetTester tester) async {
-      await tester.pumpWidget(createTestApp(const OnboardingVehicleScreen()));
+      await tester.pumpWidget(createTestApp(const OnboardingVehicleScreen(), role: 'DRIVER'));
 
-      expect(find.text('Vehicle Information'), findsOneWidget);
-      expect(find.text('Vehicle Type'), findsOneWidget);
-      expect(find.text('Color (Optional)'), findsOneWidget);
-      expect(find.text('Registration Number (Optional)'), findsOneWidget);
+      expect(find.text('Add Vehicle Details'), findsOneWidget);
+      expect(find.text('Sedan'), findsWidgets);
     });
 
     testWidgets('Screen 15: Welcome Celebration Screen renders tailored celebration',
         (WidgetTester tester) async {
-      await tester.pumpWidget(createTestApp(const WelcomeSuccessScreen()));
+      await tester.pumpWidget(createTestApp(const WelcomeSuccessScreen(), role: 'VENDOR'));
 
       expect(find.text('Welcome to AdhocX!'), findsOneWidget);
-      expect(find.text('Start Booking & Posting Trips'), findsOneWidget);
+      expect(find.text('Go to App & Verification Status'), findsOneWidget);
     });
 
     testWidgets('User Dashboard: Home Screen renders requirements summary and post CTA',

@@ -143,7 +143,7 @@ enum DriverSubscriptionStatus {
 
 model User {
   id           String     @id @default(uuid()) @db.Uuid
-  phone        String     @unique
+  phone        String?    @unique
   email        String?    @unique
   passwordHash String?    @map("password_hash")
   fullName     String?    @map("full_name")
@@ -172,7 +172,7 @@ model Vendor {
   userId             String             @unique @map("user_id") @db.Uuid
   organizationName   String             @map("organization_name")
   fullName           String             @map("full_name")
-  phone              String
+  phone              String?
   gstNumber          String?            @map("gst_number")
   address            String?
   verificationStatus VerificationStatus @default(PENDING) @map("verification_status")
@@ -195,7 +195,7 @@ model Driver {
   id                 String                   @id @default(uuid()) @db.Uuid
   userId             String                   @unique @map("user_id") @db.Uuid
   fullName           String                   @map("full_name")
-  phone              String                   @unique
+  phone              String?                  @unique
   verificationStatus VerificationStatus       @default(PENDING) @map("verification_status")
   availabilityStatus DriverAvailability       @default(OFFLINE) @map("availability_status")
   vehicleType        String?                  @map("vehicle_type") @db.VarChar(50)

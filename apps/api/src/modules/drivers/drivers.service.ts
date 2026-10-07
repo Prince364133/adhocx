@@ -84,7 +84,7 @@ export class DriversService {
         userId: driver.userId,
         driverId,
         fullName: driver.fullName,
-        phone: driver.phone,
+        phone: driver.phone || driver.user?.phone || '',
         email: driver.user?.email || undefined,
         verificationStatus: driver.verificationStatus as VerificationStatus,
         availabilityStatus: driver.availabilityStatus as DriverAvailability,

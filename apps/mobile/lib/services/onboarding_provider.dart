@@ -16,7 +16,17 @@ class OnboardingProvider extends ChangeNotifier {
   String _emergencyContactPhone = '';
   bool _isCorporate = false;
   String _companyName = '';
+  String _brandName = '';
+  String _businessType = 'Private Limited';
   String _gstNumber = '';
+  String _panNumber = '';
+  String _city = '';
+  String _state = '';
+  String _pincode = '';
+  String _billingAddress = '';
+  String _billingEmail = '';
+  String _spocDesignation = 'Travel Desk Lead';
+  String _monthlyTrips = '26 - 100 trips / month';
 
   // Step 2 & 3: Identity and Vehicle Information (Driver)
   String _vehicleType = 'Sedan';
@@ -59,7 +69,17 @@ class OnboardingProvider extends ChangeNotifier {
   String get registrationNumber => _registrationNumber;
   String get modelYear => _modelYear;
   String get companyName => _companyName;
+  String get brandName => _brandName;
+  String get businessType => _businessType;
   String get gstNumber => _gstNumber;
+  String get panNumber => _panNumber;
+  String get city => _city;
+  String get stateName => _state;
+  String get pincode => _pincode;
+  String get billingAddress => _billingAddress;
+  String get billingEmail => _billingEmail;
+  String get spocDesignation => _spocDesignation;
+  String get monthlyTrips => _monthlyTrips;
 
   String? get profilePhotoUrl => _profilePhotoUrl ?? _selfieUrl;
   String? get drivingLicenseUrl => _drivingLicenseUrl;
@@ -146,6 +166,42 @@ class OnboardingProvider extends ChangeNotifier {
     companyName: companyName,
     isCorporate: isCorporate,
   );
+
+  void setVendorDetails({
+    String? companyName,
+    String? brandName,
+    String? businessType,
+    String? gstNumber,
+    String? panNumber,
+    String? address,
+    String? city,
+    String? state,
+    String? pincode,
+    String? billingAddress,
+    String? billingEmail,
+    String? spocName,
+    String? spocDesignation,
+    String? phone,
+    String? monthlyTrips,
+  }) {
+    if (companyName != null) _companyName = companyName;
+    if (brandName != null) _brandName = brandName;
+    if (businessType != null) _businessType = businessType;
+    if (gstNumber != null) _gstNumber = gstNumber;
+    if (panNumber != null) _panNumber = panNumber;
+    if (address != null) _address = address;
+    if (city != null) _city = city;
+    if (state != null) _state = state;
+    if (pincode != null) _pincode = pincode;
+    if (billingAddress != null) _billingAddress = billingAddress;
+    if (billingEmail != null) _billingEmail = billingEmail;
+    if (spocName != null) _fullName = spocName;
+    if (spocDesignation != null) _spocDesignation = spocDesignation;
+    if (phone != null) _phoneNumber = phone;
+    if (monthlyTrips != null) _monthlyTrips = monthlyTrips;
+    _isCorporate = true;
+    notifyListeners();
+  }
 
   void setVehicleDetails({
     required String vehicleType,

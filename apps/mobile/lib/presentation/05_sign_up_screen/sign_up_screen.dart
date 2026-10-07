@@ -11,7 +11,6 @@ import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/common/app_primary_button.dart';
-import '../../widgets/common/app_smart_identifier_field.dart';
 import '../../widgets/common/app_social_auth_button.dart';
 import '../../widgets/common/app_text_field.dart';
 
@@ -26,8 +25,8 @@ class SignUpScreen extends StatefulWidget {
 class _SignUpScreenState extends State<SignUpScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _identifierController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
   final _referralController = TextEditingController();
 
   bool _agreeToTerms = true;
@@ -36,31 +35,42 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   void dispose() {
     _nameController.dispose();
-    _identifierController.dispose();
-    _passwordController.dispose();
+    _phoneController.dispose();
+    _emailController.dispose();
     _referralController.dispose();
     super.dispose();
   }
 
   Future<void> _handleSignUp() async {
     final name = _nameController.text.trim();
-    if (name.isEmpty) {
+    if (name.isEmpty || name.length < 2) {
       _formKey.currentState?.validate();
-      AppToast.showError('Please enter your full name', context: context);
+      AppToast.showError('Please enter your full legal name', context: context);
       return;
     }
 
-    final identifierText = _identifierController.text.trim();
-    if (identifierText.isEmpty) {
+    final phoneRaw = _phoneController.text.trim();
+    final digits = phoneRaw.replaceAll(RegExp(r'\D'), '');
+    if (digits.length < 10) {
       _formKey.currentState?.validate();
-      AppToast.showError('Please enter your mobile number or email address', context: context);
+      AppToast.showError('Please enter a valid 10-digit mobile number', context: context);
+      return;
+    }
+    final formattedPhone = digits.length == 10 ? '+91$digits' : (phoneRaw.startsWith('+') ? phoneRaw : '+$digits');
+
+    final emailRaw = _emailController.text.trim().toLowerCase();
+    final onboarding = context.read<OnboardingProvider>();
+    final isDriver = onboarding.isDriver;
+
+    if (!isDriver && emailRaw.isEmpty) {
+      _formKey.currentState?.validate();
+      AppToast.showError('Corporate email address is required for business accounts', context: context);
       return;
     }
 
-    final identifierError = AppSmartIdentifierField.validate(identifierText);
-    if (identifierError != null) {
+    if (emailRaw.isNotEmpty && (!emailRaw.contains('@') || !emailRaw.contains('.'))) {
       _formKey.currentState?.validate();
-      AppToast.showError(identifierError, context: context);
+      AppToast.showError('Please enter a valid email address', context: context);
       return;
     }
 
@@ -77,43 +87,36 @@ class _SignUpScreenState extends State<SignUpScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final onboarding = context.read<OnboardingProvider>();
       final authService = context.read<AuthService>();
 
-      final text = _identifierController.text.trim();
-      final parsed = AppSmartIdentifierField.parseIdentifier(text);
-      final String? phoneTarget = parsed['phone'];
-      final String? emailTarget = parsed['email'];
-
       onboarding.setPersonalDetails(
-        fullName: _nameController.text.trim(),
+        fullName: name,
         dateOfBirth: onboarding.dateOfBirth,
         gender: onboarding.gender,
-        email: emailTarget,
-        phone: phoneTarget,
+        email: emailRaw.isNotEmpty ? emailRaw : null,
+        phone: formattedPhone,
       );
 
       final res = await authService.requestOtp(
-        phone: phoneTarget,
-        email: emailTarget,
-        channel: parsed['channel'],
+        phone: formattedPhone,
+        email: emailRaw.isNotEmpty ? emailRaw : null,
+        channel: 'SMS',
         role: onboarding.role,
         isRegister: true,
-        fullName: _nameController.text.trim(),
+        fullName: name,
       );
 
       if (mounted) {
-        final targetDisplay = phoneTarget ?? emailTarget ?? 'your address';
         AppToast.showSuccess(
-          res['message'] ?? 'OTP sent to $targetDisplay',
+          res['message'] ?? 'OTP sent to $formattedPhone',
           context: context,
         );
 
         context.push(
           AppRoutes.loginOtpScreen,
           extra: {
-            'phone': phoneTarget,
-            'email': emailTarget,
+            'phone': formattedPhone,
+            'email': emailRaw.isNotEmpty ? emailRaw : null,
             'role': onboarding.role,
             'isRegister': true,
           },
@@ -224,7 +227,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                     // ── Title & Subtitle ─────────────────────────────────────
                     Text(
-                      isDriver ? 'Sign up as Driver' : 'Sign up as Business',
+                      'Create your account',
                       style: AppTypography.h1(
                         color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         fontWeight: FontWeight.bold,
@@ -244,20 +247,70 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     // ── Form Inputs ──────────────────────────────────────────
                     AppTextField(
                       controller: _nameController,
-                      label: 'Full Name',
-                      hintText: 'Enter full name',
+                      label: isDriver ? 'Full Legal Name *' : 'Contact Person Full Name *',
+                      hintText: 'Enter full legal name',
+                      prefixIcon: const Icon(Icons.person_outline, size: 20),
                       validator: (val) {
                         if (val == null || val.trim().length < 2) {
-                          return 'Enter your legal full name';
+                          return 'Enter legal full name (min 2 characters)';
                         }
                         return null;
                       },
                     ),
                     const SizedBox(height: AppSpacing.md),
 
-                    // ── Unified Smart Identifier Input (Mobile Number or Email) ─────
-                    AppSmartIdentifierField(
-                      controller: _identifierController,
+                    AppTextField(
+                      controller: _phoneController,
+                      label: 'Mobile Number *',
+                      hintText: '10-digit mobile number',
+                      prefixIcon: Padding(
+                        padding: const EdgeInsets.only(left: 12, right: 8),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('🇮🇳', style: TextStyle(fontSize: 16)),
+                            const SizedBox(width: 4),
+                            Text(
+                              '+91',
+                              style: TextStyle(
+                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      keyboardType: TextInputType.phone,
+                      validator: (val) {
+                        if (val == null || val.trim().isEmpty) {
+                          return 'Enter your mobile number';
+                        }
+                        final d = val.replaceAll(RegExp(r'\D'), '');
+                        if (d.length < 10) {
+                          return 'Enter a valid 10-digit mobile number';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+
+                    AppTextField(
+                      controller: _emailController,
+                      label: isDriver ? 'Email Address (Optional)' : 'Corporate Email Address *',
+                      hintText: isDriver ? 'e.g. driver@example.com' : 'e.g. traveldesk@company.com',
+                      prefixIcon: const Icon(Icons.email_outlined, size: 20),
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (val) {
+                        final email = val?.trim() ?? '';
+                        if (!isDriver && email.isEmpty) {
+                          return 'Corporate email is required for business accounts';
+                        }
+                        if (email.isNotEmpty && (!email.contains('@') || !email.contains('.'))) {
+                          return 'Enter a valid email address';
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: AppSpacing.md),
 
@@ -397,33 +450,61 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               vertical: 14,
                             ),
                             child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.all(6),
+                                  padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.12),
+                                    color: isDark ? AppColors.primaryLight : AppColors.primary,
                                     borderRadius: BorderRadius.circular(AppRadius.sm),
                                   ),
                                   child: Icon(
                                     isDriver ? Icons.business_center_rounded : Icons.local_taxi_rounded,
-                                    color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                    color: Colors.white,
                                     size: 18,
                                   ),
                                 ),
-                                const SizedBox(width: AppSpacing.sm),
-                                Text(
-                                  isDriver ? 'Sign up as Business' : 'Sign up as Driver',
-                                  style: AppTypography.button(
-                                    color: isDark ? AppColors.primaryLight : AppColors.primary,
-                                    fontWeight: FontWeight.w700,
+                                const SizedBox(width: AppSpacing.md),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        isDriver
+                                            ? 'Sign up as a Business'
+                                            : 'Drive & Earn with AdhocX',
+                                        style: AppTypography.small(
+                                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      Text(
+                                        isDriver
+                                            ? 'Book outstation rides & bulk corporate travel'
+                                            : 'Join as a verified driver partner',
+                                        style: AppTypography.caption(
+                                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                const SizedBox(width: AppSpacing.xs),
-                                Icon(
-                                  Icons.arrow_forward_rounded,
-                                  size: 16,
-                                  color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                                  ),
+                                  child: Text(
+                                    isDriver ? 'Join as Business' : 'Join as Driver',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),

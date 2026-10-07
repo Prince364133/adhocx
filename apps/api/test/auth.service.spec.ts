@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { UnauthorizedException, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { AuthService } from '../src/modules/auth/auth.service';
 import { DatabaseService } from '../src/database/database.service';
 import { RedisService } from '../src/redis/redis.service';
@@ -153,5 +153,102 @@ describe('AuthService Unit Tests', () => {
     expect(user.id).toBe('usr-1');
     expect(user.driverProfile?.verificationStatus).toBe('VERIFIED');
     expect(user.driverProfile?.walletBalance).toBe(1250.50);
+  });
+
+  it('should enforce 1-Account 1-Role rule on registration when mobile is already registered with another role', async () => {
+    db.user.findFirst.mockResolvedValueOnce({
+      id: 'existing-driver',
+      phone: '+919876543210',
+      role: UserRole.DRIVER,
+    });
+
+    await expect(
+      service.requestOtp({
+        phone: '+919876543210',
+        role: 'VENDOR',
+        isRegister: true,
+      }),
+    ).rejects.toThrow(ConflictException);
+  });
+
+  it('should enforce 1-Account 1-Role rule on registration when email is already registered with another role', async () => {
+    db.user.findFirst.mockResolvedValueOnce({
+      id: 'existing-vendor',
+      email: 'vendor@company.com',
+      role: UserRole.VENDOR,
+    });
+
+    await expect(
+      service.requestOtp({
+        email: 'vendor@company.com',
+        role: 'DRIVER',
+        isRegister: true,
+      }),
+    ).rejects.toThrow(ConflictException);
+  });
+
+  it('should create user without generating fake random phone number during social auth', async () => {
+    db.user.findFirst.mockResolvedValueOnce(null); // no existing user
+    db.user.create.mockImplementationOnce(({ data }: any) => {
+      return {
+        id: 'new-social-user',
+        email: data.email,
+        phone: data.phone,
+        role: data.role,
+        fullName: data.fullName,
+      };
+    });
+
+    const res = await service.socialAuth({
+      provider: 'GOOGLE',
+      email: 'newuser@gmail.com',
+      fullName: 'New User',
+      role: 'VENDOR',
+    });
+
+    expect(res.user.email).toBe('newuser@gmail.com');
+    // Ensure phone was NOT generated with a fake random number like +916...
+    expect(res.user.phone).toBeUndefined();
+    expect(db.user.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          phone: undefined,
+        }),
+      }),
+    );
+  });
+
+  it('should reject social auth if account already exists with a different role', async () => {
+    db.user.findFirst.mockResolvedValueOnce({
+      id: 'existing-driver',
+      email: 'driver@gmail.com',
+      role: UserRole.DRIVER,
+    });
+
+    await expect(
+      service.socialAuth({
+        provider: 'GOOGLE',
+        email: 'driver@gmail.com',
+        role: 'VENDOR',
+      }),
+    ).rejects.toThrow(ConflictException);
+  });
+
+  it('should reject login if user role does not match requested role', async () => {
+    db.user.findFirst.mockResolvedValueOnce({
+      id: 'existing-driver',
+      phone: '+919876543210',
+      passwordHash: 'salt:key',
+      role: UserRole.DRIVER,
+    });
+    jest.spyOn(service as any, 'verifyPassword').mockReturnValue(true);
+
+    await expect(
+      service.login({
+        identifier: '+919876543210',
+        password: 'Password123!',
+        role: 'VENDOR',
+      }),
+    ).rejects.toThrow(ForbiddenException);
   });
 });

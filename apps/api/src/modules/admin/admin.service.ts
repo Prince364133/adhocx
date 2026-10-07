@@ -186,7 +186,7 @@ export class AdminService {
       this.notifications
         .sendKycStatusNotification({
           userId: driver.userId,
-          phone: driver.phone,
+          phone: driver.phone || undefined,
           fullName: driver.fullName,
           status: 'VERIFIED',
         })
@@ -236,7 +236,7 @@ export class AdminService {
       this.notifications
         .sendKycStatusNotification({
           userId: driver.userId,
-          phone: driver.phone,
+          phone: driver.phone || undefined,
           fullName: driver.fullName,
           status: 'REJECTED',
           reason: dto.reason,
@@ -572,7 +572,7 @@ export class AdminService {
       this.notifications
         .sendKycStatusNotification({
           userId: vendor.userId,
-          phone: vendor.phone,
+          phone: vendor.phone || undefined,
           fullName: vendor.organizationName || vendor.fullName,
           status: 'VERIFIED',
         })
@@ -616,7 +616,7 @@ export class AdminService {
       this.notifications
         .sendKycStatusNotification({
           userId: vendor.userId,
-          phone: vendor.phone,
+          phone: vendor.phone || undefined,
           fullName: vendor.organizationName || vendor.fullName,
           status: 'REJECTED',
           reason: dto.reason,
