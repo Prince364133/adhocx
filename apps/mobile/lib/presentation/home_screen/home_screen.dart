@@ -49,19 +49,22 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadLiveDriverData();
     _startAutoRefresh();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkAndRequestStartupPermissions();
+      _checkStartupPermissionStatus();
     });
   }
 
-  Future<void> _checkAndRequestStartupPermissions() async {
+  Future<void> _checkStartupPermissionStatus() async {
     try {
-      final results = await PermissionService.instance.requestAllEssentialPermissions();
-      await EdgeCaseManager.instance.initializeRealPermissions();
-      if (mounted && results['location'] != true) {
-        EdgeCaseManager.instance.toggleLocationPermission(false);
+      // Strictly READ-ONLY check: Never trigger an OS runtime permission prompt at startup!
+      // This strictly follows Google Play User Data & Prominent Disclosure policy.
+      final hasLocation = await PermissionService.instance.isLocationPermissionGranted();
+      if (!hasLocation) {
+        EdgeCaseManager.instance.showLocationDisclosureModal();
+      } else {
+        EdgeCaseManager.instance.grantLocationPermission();
       }
     } catch (e) {
-      debugPrint('Error requesting startup permissions: $e');
+      debugPrint('Error checking startup permissions: $e');
     }
   }
 
@@ -272,18 +275,16 @@ class _HomeScreenState extends State<HomeScreen> {
         final gpsEnabled = await PermissionService.instance.isLocationServiceEnabled();
 
         if (!hasLocation || !gpsEnabled) {
-          final granted = await PermissionService.instance.requestLocationPermission();
-          if (!granted) {
-            EdgeCaseManager.instance.toggleLocationPermission(false);
-            if (mounted) {
-              Fluttertoast.showToast(
-                msg: 'Location permission and GPS are required to go online and receive trips.',
-                backgroundColor: AppColors.error,
-                toastLength: Toast.LENGTH_LONG,
-              );
-            }
-            return;
+          // Present the in-app prominent disclosure modal first, DO NOT prompt OS directly
+          EdgeCaseManager.instance.showLocationDisclosureModal();
+          if (mounted) {
+            Fluttertoast.showToast(
+              msg: 'Location permission and GPS are required to go online and receive trips.',
+              backgroundColor: AppColors.warning,
+              toastLength: Toast.LENGTH_LONG,
+            );
           }
+          return;
         }
 
         currentPos = await PermissionService.instance.getCurrentPosition();

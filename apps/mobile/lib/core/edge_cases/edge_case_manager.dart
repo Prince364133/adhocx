@@ -13,14 +13,27 @@ class EdgeCaseManager extends ChangeNotifier {
   bool _isLocationAvailable = true;
   bool _isNetworkOnline = true;
   bool _isSessionValid = true;
+  bool _showLocationDisclosureModal = false;
 
   bool get isLocationPermissionGranted => _isLocationPermissionGranted;
   bool get isLocationAvailable => _isLocationAvailable;
   bool get isNetworkOnline => _isNetworkOnline;
   bool get isSessionValid => _isSessionValid;
+  bool get shouldShowLocationDisclosureModal => !_isLocationPermissionGranted && _showLocationDisclosureModal;
+
+  void showLocationDisclosureModal() {
+    _showLocationDisclosureModal = true;
+    notifyListeners();
+  }
+
+  void dismissLocationDisclosureModal() {
+    _showLocationDisclosureModal = false;
+    notifyListeners();
+  }
 
   void toggleLocationPermission([bool? value]) {
     _isLocationPermissionGranted = value ?? !_isLocationPermissionGranted;
+    _showLocationDisclosureModal = !_isLocationPermissionGranted;
     notifyListeners();
   }
 

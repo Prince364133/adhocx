@@ -13,8 +13,10 @@ class PermissionService {
   PermissionService._();
   static final PermissionService instance = PermissionService._();
 
-  /// Request all essential permissions at app launch.
-  /// Called once after login / first app open.
+  /// Request essential permissions.
+  /// NOTE: Google Play Developer Policy strictly mandates:
+  /// 1. Location permission MUST ONLY be requested after prominent disclosure affirmative consent.
+  /// 2. Camera permission MUST ONLY be requested in-context when capturing KYC selfies or vehicle photos.
   Future<Map<String, bool>> requestAllEssentialPermissions() async {
     if (kIsWeb) {
       return {'location': true, 'notification': true, 'camera': true};
@@ -22,14 +24,14 @@ class PermissionService {
 
     final results = <String, bool>{};
 
-    // 1. Location Permission (When In Use → Always for background tracking)
-    results['location'] = await requestLocationPermission();
+    // 1. Check if location is already granted (do NOT prompt without disclosure)
+    results['location'] = await isLocationPermissionGranted();
 
     // 2. Notification Permission (Android 13+ requires explicit POST_NOTIFICATIONS)
     results['notification'] = await requestNotificationPermission();
 
-    // 3. Camera Permission (for KYC selfie capture)
-    results['camera'] = await requestCameraPermission();
+    // 3. Camera Permission is deferred to KYC action (Contextual Permission)
+    results['camera'] = false;
 
     return results;
   }

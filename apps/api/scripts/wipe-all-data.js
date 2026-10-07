@@ -40,7 +40,7 @@ async function main() {
     FROM information_schema.tables 
     WHERE table_schema = 'public' 
       AND table_type = 'BASE TABLE'
-      AND table_name != '_prisma_migrations';
+      AND table_name NOT IN ('_prisma_migrations', 'spatial_ref_sys');
   `);
 
   const tablesToTruncate = tableRows.map((r) => `"${r.table_name}"`);

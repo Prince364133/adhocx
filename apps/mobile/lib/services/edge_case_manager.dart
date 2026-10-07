@@ -14,14 +14,16 @@ class EdgeCaseManager extends ChangeNotifier {
   bool _isLocationAvailable = true;
   bool _isNetworkOnline = true;
   bool _isSessionValid = true;
+  bool _showLocationDisclosureModal = false;
 
   bool get isLocationPermissionGranted => _isLocationPermissionGranted;
   bool get isLocationAvailable => _isLocationAvailable;
   bool get isNetworkOnline => _isNetworkOnline;
   bool get isSessionValid => _isSessionValid;
+  bool get shouldShowLocationDisclosureModal => !_isLocationPermissionGranted && _showLocationDisclosureModal;
 
   /// Initialize with real device permission states.
-  /// Called at app startup to determine actual permission status.
+  /// Called at app startup to determine actual permission status without prompting.
   Future<void> initializeRealPermissions() async {
     try {
       final locGranted = await PermissionService.instance.isLocationPermissionGranted();
@@ -29,21 +31,35 @@ class EdgeCaseManager extends ChangeNotifier {
 
       _isLocationPermissionGranted = locGranted;
       _isLocationAvailable = locAvailable;
+      // Show disclosure modal if location permission is not granted so user sees in-app disclosure first
+      _showLocationDisclosureModal = !locGranted;
       notifyListeners();
 
       debugPrint('🔑 [EdgeCaseManager] Permissions initialized: '
-          'locPermission=$locGranted, locAvailable=$locAvailable');
+          'locPermission=$locGranted, locAvailable=$locAvailable, showDisclosure=$_showLocationDisclosureModal');
     } catch (e) {
       debugPrint('🔑 [EdgeCaseManager] Permission check error: $e');
       // Default to true to avoid blocking the UI if permission check fails
       _isLocationPermissionGranted = true;
       _isLocationAvailable = true;
+      _showLocationDisclosureModal = false;
       notifyListeners();
     }
   }
 
+  void showLocationDisclosureModal() {
+    _showLocationDisclosureModal = true;
+    notifyListeners();
+  }
+
+  void dismissLocationDisclosureModal() {
+    _showLocationDisclosureModal = false;
+    notifyListeners();
+  }
+
   void toggleLocationPermission([bool? value]) {
     _isLocationPermissionGranted = value ?? !_isLocationPermissionGranted;
+    _showLocationDisclosureModal = !_isLocationPermissionGranted;
     notifyListeners();
   }
 
@@ -65,6 +81,7 @@ class EdgeCaseManager extends ChangeNotifier {
   void grantLocationPermission() {
     _isLocationPermissionGranted = true;
     _isLocationAvailable = true;
+    _showLocationDisclosureModal = false;
     notifyListeners();
   }
 
@@ -78,3 +95,4 @@ class EdgeCaseManager extends ChangeNotifier {
     notifyListeners();
   }
 }
+

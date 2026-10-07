@@ -44,13 +44,14 @@ class AppScaffold extends StatelessWidget {
                   ],
                 ),
 
-                // Location Permission Required Modal Overlay
-                if (!mgr.isLocationPermissionGranted)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: const LocationPermissionModal(),
+                // Location Permission Prominent Disclosure Modal Overlay (Google Play Policy Compliant)
+                if (mgr.shouldShowLocationDisclosureModal)
+                  Positioned.fill(
+                    child: Container(
+                      color: Colors.black54,
+                      alignment: Alignment.bottomCenter,
+                      child: const LocationPermissionModal(),
+                    ),
                   ),
 
                 // Session Expired Dialog Modal
