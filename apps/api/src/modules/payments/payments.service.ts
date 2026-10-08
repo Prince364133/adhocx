@@ -253,10 +253,10 @@ export class PaymentsService {
         data: {
           userId: vendorUserId,
           fullName: user?.fullName || 'User',
-          organizationName: `${user?.fullName || 'AdhocX'} Mobility`,
+          organizationName: user?.fullName || 'Corporate Partner',
           phone: user?.phone || '+919999999999',
           verificationStatus: 'VERIFIED',
-          escrowBalance: 25000.0,
+          escrowBalance: 0,
         },
       });
     }
@@ -388,7 +388,7 @@ export class PaymentsService {
         data: {
           userId: vendorUserId,
           fullName: user?.fullName || 'User',
-          organizationName: `${user?.fullName || 'AdhocX'} Mobility`,
+          organizationName: user?.fullName || 'Corporate Partner',
           phone: user?.phone || '+919999999999',
           verificationStatus: 'VERIFIED',
         },
@@ -570,7 +570,7 @@ export class PaymentsService {
         data: {
           userId: vendorUserId,
           fullName: user?.fullName || 'User',
-          organizationName: `${user?.fullName || 'AdhocX'} Mobility`,
+          organizationName: user?.fullName || 'Corporate Partner',
           phone: user?.phone || '+919999999999',
           verificationStatus: 'VERIFIED',
         },

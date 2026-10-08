@@ -529,7 +529,7 @@ export class AuthService implements OnModuleInit {
                 ? {
                     create: {
                       fullName: dto.fullName || 'Vendor Partner',
-                      organizationName: `${dto.fullName || 'AdhocX'} Mobility`,
+                      organizationName: dto.fullName || 'Corporate Partner',
                       phone: effectivePhone || undefined,
                       verificationStatus: 'PENDING',
                     },
@@ -622,7 +622,7 @@ export class AuthService implements OnModuleInit {
                   ? {
                       create: {
                         fullName: fullName || 'Vendor Partner',
-                        organizationName: fullName ? `${fullName} Mobility` : 'My Organization',
+                        organizationName: fullName || 'Corporate Partner',
                         phone: undefined,
                         verificationStatus: 'PENDING',
                       },
@@ -647,7 +647,7 @@ export class AuthService implements OnModuleInit {
                 data: {
                   userId: user.id,
                   fullName: user.fullName || fullName || 'Vendor Partner',
-                  organizationName: fullName ? `${fullName} Mobility` : 'My Organization',
+                  organizationName: user.fullName || fullName || 'Corporate Partner',
                   verificationStatus: 'PENDING',
                 },
               });
@@ -812,9 +812,7 @@ export class AuthService implements OnModuleInit {
        user.vendor.verificationStatus === 'REJECTED' ||
        user.vendor.address ||
        user.vendor.gstNumber ||
-       (user.vendor.organizationName &&
-        user.vendor.organizationName !== 'AdhocX Mobility' &&
-        user.vendor.organizationName !== 'Vendor Mobility'))
+       Boolean(user.vendor.organizationName?.trim()))
     );
 
     const hasDriverSubmission = Boolean(
@@ -1021,9 +1019,7 @@ export class AuthService implements OnModuleInit {
           user.vendor &&
           (user.vendor.verificationStatus === 'VERIFIED' ||
            user.vendor.verificationStatus === 'UNDER_REVIEW' ||
-           (user.vendor.organizationName &&
-            user.vendor.organizationName !== 'AdhocX Mobility' &&
-            user.vendor.organizationName !== 'Vendor Mobility'))
+           Boolean(user.vendor.organizationName?.trim()))
         );
       } else if (user.role === UserRole.ADMIN) {
         isApproved = true;
@@ -1081,9 +1077,7 @@ export class AuthService implements OnModuleInit {
         user.vendor &&
         (user.vendor.verificationStatus === 'VERIFIED' ||
          user.vendor.verificationStatus === 'UNDER_REVIEW' ||
-         (user.vendor.organizationName &&
-          user.vendor.organizationName !== 'AdhocX Mobility' &&
-          user.vendor.organizationName !== 'Vendor Mobility'))
+         Boolean(user.vendor.organizationName?.trim()))
       );
     } else if (user.role === UserRole.ADMIN) {
       isOnboarded = true;

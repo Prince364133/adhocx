@@ -138,7 +138,9 @@ export default function UsersPage() {
           <div>
             <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{u.companyName}</div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-              {u.contactPerson} • {u.phone}
+              {u.contactPerson && u.contactPerson !== u.companyName
+                ? `${u.contactPerson}${u.phone ? ` • ${u.phone}` : ''}`
+                : (u.phone || u.email || 'Corporate Account')}
             </div>
           </div>
         </div>
@@ -267,7 +269,11 @@ export default function UsersPage() {
         isOpen={!!selectedUser}
         onClose={() => setSelectedUser(null)}
         title={selectedUser ? selectedUser.companyName : ''}
-        subtitle={selectedUser ? `Contact: ${selectedUser.contactPerson} • ${selectedUser.phone}` : ''}
+        subtitle={
+          selectedUser
+            ? `Contact: ${selectedUser.contactPerson}${selectedUser.phone ? ` • ${selectedUser.phone}` : ''}`
+            : ''
+        }
         width="580px"
         footer={
           actionType ? (

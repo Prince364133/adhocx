@@ -73,9 +73,7 @@ class UserModel {
          vStatus == 'REJECTED' ||
          (vendorProf['address'] != null && vendorProf['address'].toString().trim().isNotEmpty) ||
          (vendorProf['organizationName'] != null &&
-          vendorProf['organizationName'].toString().trim().isNotEmpty &&
-          vendorProf['organizationName'] != 'AdhocX Mobility' &&
-          vendorProf['organizationName'] != 'Vendor Mobility'));
+          vendorProf['organizationName'].toString().trim().isNotEmpty));
 
     final bool hasDriverSubmission = driverProf != null &&
         (dStatus == 'UNDER_REVIEW' ||

@@ -143,7 +143,7 @@ export class VendorsService {
       return {
         id: `vnd_${userId}`,
         userId,
-        organizationName: user.fullName ? `${user.fullName} Enterprises` : 'Enterprise Partner',
+        organizationName: user.fullName || 'Corporate Partner',
         fullName: user.fullName || 'Business Requester',
         phone: user.phone,
         verificationStatus: VerificationStatus.PENDING,

@@ -64,7 +64,7 @@ export class RequirementsService {
         data: {
           userId: vendorUserId,
           fullName: user?.fullName || 'Corporate User',
-          organizationName: `${user?.fullName || 'AdhocX'} Corp`,
+          organizationName: user?.fullName || 'Corporate Partner',
           phone: user?.phone || '+919999999999',
           verificationStatus: VerificationStatus.VERIFIED,
         },
