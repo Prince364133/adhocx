@@ -53,8 +53,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
     if (draft.zonalEnabled && draft.zonalQuote != null) {
       final total = (draft.zonalQuote!['totalAmount'] as num?)?.toDouble();
       if (total != null && total > 0) {
-        final isRoundTrip = draft.tripType.toLowerCase().contains('round') || draft.hasReturn;
-        return isRoundTrip ? (total * 2) : total;
+        return total;
       }
     }
     final vType = draft.vehicleType.trim().toUpperCase();
@@ -89,10 +88,8 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
       }
     }
 
-    final isRoundTrip = draft.tripType.toLowerCase().contains('round') || draft.hasReturn;
     final distance = draft.roadDistanceKm > 0 ? draft.roadDistanceKm : 0.0;
-    final effectiveKm = isRoundTrip ? (distance * 2) : distance;
-    final extraKm = (effectiveKm - baseKm).clamp(0.0, double.infinity);
+    final extraKm = (distance - baseKm).clamp(0.0, double.infinity);
     return (baseFare + (extraKm * perKmRate)).roundToDouble();
   }
 
@@ -538,9 +535,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
     if (draft.specialRequests.isNotEmpty) {
       notesParts.add('Special Requests: ${draft.specialRequests}');
     }
-    if (draft.tripType.isNotEmpty) {
-      notesParts.add('Trip Type: ${draft.tripType}');
-    }
+
     if (draft.pickupInstructions.isNotEmpty) {
       notesParts.add('Pickup Instructions: ${draft.pickupInstructions}');
     }
@@ -550,9 +545,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
     if (draft.additionalStops.isNotEmpty) {
       notesParts.add('Intermediate Stops: ${draft.additionalStops.join(", ")}');
     }
-    if (draft.hasReturn && draft.returnDate != null) {
-      notesParts.add('Return Trip: ${draft.returnDate} ${draft.returnTime ?? ""}');
-    }
+
     if (draft.passengers > 0) {
       notesParts.add('Passengers per vehicle: ${draft.passengers}');
     }
@@ -820,7 +813,11 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                                   context,
                                   Icons.security_rounded,
                                   'Security Escort',
-                                  draft.zonalHasEscort ? 'Included (+ ₹400)' : 'Not Selected',
+                                  draft.zonalHasEscort
+                                      ? (draft.zonalQuote != null && draft.zonalQuote!['escortFee'] != null
+                                          ? 'Included (+ ₹${(draft.zonalQuote!['escortFee'] as num).toInt()})'
+                                          : 'Included')
+                                      : 'Not Selected',
                                   isDark,
                                   valueColor: draft.zonalHasEscort ? AppColors.accentPurple : null,
                                 ),
@@ -846,7 +843,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                                       context,
                                       Icons.shield_outlined,
                                       'Security Escort Fee',
-                                      '+ ₹${draft.zonalQuote!['escortFee'] ?? 400}',
+                                      '+ ₹${((draft.zonalQuote!['escortFee'] as num?)?.toDouble() ?? 0).toInt()}',
                                       isDark,
                                       valueColor: AppColors.accentPurple,
                                     ),
@@ -874,15 +871,9 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                               const Divider(),
                               _buildReviewRow(context, Icons.format_list_numbered, 'Quantity', '${draft.quantity} ${draft.quantity > 1 ? "Vehicles" : "Vehicle"}', isDark),
                               const Divider(),
-                              _buildReviewRow(context, Icons.swap_calls, 'Trip Type', draft.tripType, isDark),
-                              const Divider(),
                               _buildReviewRow(context, Icons.calendar_today_outlined, 'Pickup Date', draft.pickupDate, isDark),
                               const Divider(),
                               _buildReviewRow(context, Icons.access_time_outlined, 'Pickup Time', draft.pickupTime, isDark),
-                              if (draft.hasReturn) ...[
-                                const Divider(),
-                                _buildReviewRow(context, Icons.event_repeat, 'Return Date/Time', '${draft.returnDate ?? "-"} ${draft.returnTime ?? ""}', isDark),
-                              ],
                               const Divider(),
                               _buildReviewRow(context, Icons.person_outline, 'Passengers/Cab', '${draft.passengers}', isDark),
                               if (draft.specialRequests.isNotEmpty) ...[

@@ -14,7 +14,7 @@ class RequirementDraftProvider extends ChangeNotifier {
   String _biddingPreferences = 'Verified AC Commercial Vehicles';
 
   // Step 2: Locations & Route
-  String _tripType = 'One Way';
+  static const String _tripType = 'One Way';
   String _pickupAddress = '';
   double _pickupLat = 0.0;
   double _pickupLng = 0.0;
@@ -28,9 +28,6 @@ class RequirementDraftProvider extends ChangeNotifier {
   // Step 3: Date & Time Schedule
   String _pickupDate = '';
   String _pickupTime = '';
-  bool _hasReturn = false;
-  String? _returnDate;
-  String? _returnTime;
   DateTime _reportingDateTime = DateTime.now().add(const Duration(hours: 4));
 
   // Step 4 / Additional Options: Passengers & Stops & Notes
@@ -97,9 +94,9 @@ class RequirementDraftProvider extends ChangeNotifier {
 
   String get pickupDate => _pickupDate;
   String get pickupTime => _pickupTime;
-  bool get hasReturn => _hasReturn;
-  String? get returnDate => _returnDate;
-  String? get returnTime => _returnTime;
+  bool get hasReturn => false;
+  String? get returnDate => null;
+  String? get returnTime => null;
   DateTime get reportingDateTime => _reportingDateTime;
 
   int get passengers => _passengers;
@@ -181,7 +178,6 @@ class RequirementDraftProvider extends ChangeNotifier {
     if (pickupInstructions != null) _pickupInstructions = pickupInstructions;
     _dropAddress = dropLocation;
     if (dropInstructions != null) _dropInstructions = dropInstructions;
-    if (tripType != null) _tripType = tripType;
     if (pickupLat != null) _pickupLat = pickupLat;
     if (pickupLng != null) _pickupLng = pickupLng;
     if (dropLat != null) _dropLat = dropLat;
@@ -223,9 +219,6 @@ class RequirementDraftProvider extends ChangeNotifier {
   }) {
     _pickupDate = pickupDate;
     _pickupTime = pickupTime;
-    _hasReturn = hasReturn;
-    _returnDate = returnDate;
-    _returnTime = returnTime;
     if (additionalStops != null) _additionalStops = additionalStops;
     if (additionalInfo != null) _additionalInfo = additionalInfo;
     if (reportingDateTime != null) {
@@ -315,7 +308,6 @@ class RequirementDraftProvider extends ChangeNotifier {
     _vehicleType = 'Sedan';
     _quantity = 5;
     _specialRequests = '';
-    _tripType = 'One Way';
     _pickupAddress = '';
     _pickupLat = 0.0;
     _pickupLng = 0.0;
@@ -324,9 +316,6 @@ class RequirementDraftProvider extends ChangeNotifier {
     _dropLat = 0.0;
     _dropLng = 0.0;
     _dropInstructions = '';
-    _hasReturn = false;
-    _returnDate = null;
-    _returnTime = null;
     _passengers = 4;
     _selectedLuggage = null;
     _additionalInfo = '';

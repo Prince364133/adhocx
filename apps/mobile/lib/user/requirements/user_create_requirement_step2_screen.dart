@@ -22,7 +22,7 @@ class UserCreateRequirementStep2Screen extends StatefulWidget {
 }
 
 class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirementStep2Screen> {
-  late String _tripType;
+  static const String _tripType = 'One Way';
   late TextEditingController _pickupController;
   late TextEditingController _pickupInstructions;
   late TextEditingController _dropController;
@@ -63,7 +63,6 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
     super.didChangeDependencies();
     if (!_initialized) {
       final draft = context.read<RequirementDraftProvider>();
-      _tripType = draft.tripType;
       _pickupInstructions = TextEditingController(text: draft.pickupInstructions);
       _dropInstructions = TextEditingController(text: draft.dropInstructions);
 
@@ -615,7 +614,7 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
 
                     const SizedBox(height: 12),
 
-                    // 3. COMPACT OPTIONS (Trip Type + Security Escort)
+                    // 3. COMPACT OPTIONS (Security Escort)
                     _buildOptionsCard(isDark, primaryText, mutedText),
 
                     // 4. GUARANTEED FARE CARD (only when quote is available & locality is selected)
@@ -1093,58 +1092,9 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
       ),
       child: Column(
         children: [
-          // Row 1: Trip Type
+          // Row 1: Security Escort
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Trip Type',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: primaryText),
-                  ),
-                ),
-                Container(
-                  height: 30,
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.bgDark : AppColors.slate200,
-                    borderRadius: BorderRadius.circular(AppRadius.full),
-                  ),
-                  child: Row(
-                    children: ['One Way', 'Round Trip'].map((type) {
-                      final isSelected = _tripType == type;
-                      return GestureDetector(
-                        onTap: () => setState(() => _tripType = type),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: isSelected ? AppColors.primary : Colors.transparent,
-                            borderRadius: BorderRadius.circular(AppRadius.full),
-                          ),
-                          child: Text(
-                            type,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                              color: isSelected ? Colors.white : primaryText,
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          Divider(height: 1, thickness: 0.5, color: isDark ? AppColors.borderDark : AppColors.borderLight),
-
-          // Row 2: Security Escort
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             child: Row(
               children: [
                 const Icon(Icons.shield_outlined, size: 18, color: AppColors.primary),
@@ -1163,9 +1113,11 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                           color: AppColors.accentPurple.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: const Text(
-                          '+₹400',
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.accentPurple),
+                        child: Text(
+                          _zonalQuote != null && (_zonalQuote!['escortFee'] as num?) != null && (_zonalQuote!['escortFee'] as num) > 0
+                              ? '+₹${(_zonalQuote!['escortFee'] as num).toInt()}'
+                              : 'Approved ceiling',
+                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.accentPurple),
                         ),
                       ),
                     ],
@@ -1193,8 +1145,8 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
   Widget _buildZonalFareCard(bool isDark, Color primaryText, Color muted, String hubId) {
     final q = _zonalQuote!;
     final baseFare = (q['baseFare'] as num?)?.toDouble() ?? 500.0;
-    final escortCharge = _hasEscort ? 400.0 : 0.0;
-    final total = baseFare + escortCharge;
+    final escortCharge = _hasEscort ? ((q['escortFee'] as num?)?.toDouble() ?? 0.0) : 0.0;
+    final total = (q['totalAmount'] as num?)?.toDouble() ?? (baseFare + escortCharge);
     final zoneLabel = _locality?['zoneLabel'] ?? '';
 
     return Container(
@@ -1218,7 +1170,9 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                   style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.success),
                 ),
                 Text(
-                  _hasEscort ? 'Base ₹${baseFare.toStringAsFixed(0)} + ₹400 Escort' : 'Fixed corporate zonal pricing',
+                  _hasEscort
+                      ? 'Base ₹${baseFare.toStringAsFixed(0)} + ₹${escortCharge.toStringAsFixed(0)} Escort'
+                      : 'Fixed corporate zonal pricing',
                   style: TextStyle(fontSize: 10, color: muted),
                 ),
               ],

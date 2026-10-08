@@ -49,7 +49,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
   String _formattedEta = '';
 
   // Trip options
-  String _tripType = 'One Way';
+  static const String _tripType = 'One Way';
   bool _hasEscort = false;
 
   // Date and Time
@@ -121,7 +121,6 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
       _durationMinutes = item.durationMinutes;
       _formattedDistance = item.formattedDistance;
       _formattedEta = item.formattedEta;
-      _tripType = item.tripType;
       _hasEscort = item.hasEscort;
       _pickupDate = item.pickupDate;
       _pickupTime = item.pickupTime;
@@ -178,11 +177,8 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
     }
 
     if (_hasEscort) {
-      baseFare += 400.0;
-    }
-
-    if (_tripType.toLowerCase().contains('round')) {
-      baseFare *= 2;
+      // Escort ceiling according to vehicle class per PRD (Sedan: 200-400, SUV: 300-500)
+      baseFare += (_vehicleType == 'SUV' ? 400.0 : 300.0);
     }
 
     return baseFare.roundToDouble();
@@ -730,82 +726,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
 
                   const SizedBox(height: AppSpacing.lg),
 
-                  // ── 3. Trip Type & Security Escort ──────────────────────────
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Trip Type',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                        ),
-                      ),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: isDark ? AppColors.bgDark : AppColors.bgLight,
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                          border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            InkWell(
-                              onTap: () => setState(() => _tripType = 'One Way'),
-                              borderRadius: BorderRadius.circular(AppRadius.md),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                                decoration: BoxDecoration(
-                                  color: _tripType == 'One Way'
-                                      ? AppColors.primary
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(AppRadius.md),
-                                ),
-                                child: Text(
-                                  'One Way',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: _tripType == 'One Way'
-                                        ? Colors.white
-                                        : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            InkWell(
-                              onTap: () => setState(() => _tripType = 'Round Trip'),
-                              borderRadius: BorderRadius.circular(AppRadius.md),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                                decoration: BoxDecoration(
-                                  color: _tripType == 'Round Trip'
-                                      ? AppColors.primary
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(AppRadius.md),
-                                ),
-                                child: Text(
-                                  'Round Trip',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: _tripType == 'Round Trip'
-                                        ? Colors.white
-                                        : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-
-                  // Security Escort (Single compact row with text, badge, and toggle)
+                  // ── 3. Security Escort ──────────────────────────
                   InkWell(
                     onTap: () => setState(() => _hasEscort = !_hasEscort),
                     borderRadius: BorderRadius.circular(AppRadius.md),
@@ -848,7 +769,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: const Text(
-                              '+₹400',
+                              'Approved Ceiling',
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
@@ -1092,7 +1013,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
                                 const Text('Estimated Cab Fare',
                                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                                 Text(
-                                  '$_tripType${_hasEscort ? " • Security Escort" : ""}',
+                                  _hasEscort ? 'Security Escort' : 'Standard Cab Duty',
                                   style: TextStyle(
                                     fontSize: 10,
                                     color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,

@@ -17,11 +17,8 @@ class UserCreateRequirementStep3Screen extends StatefulWidget {
 }
 
 class _UserCreateRequirementStep3ScreenState extends State<UserCreateRequirementStep3Screen> {
-  late bool _hasReturn;
   late TextEditingController _dateController;
   late TextEditingController _timeController;
-  late TextEditingController _returnDateController;
-  late TextEditingController _returnTimeController;
   late TextEditingController _additionalInfoController;
   final List<String> _stops = [];
   bool _initialized = false;
@@ -31,11 +28,8 @@ class _UserCreateRequirementStep3ScreenState extends State<UserCreateRequirement
     super.didChangeDependencies();
     if (!_initialized) {
       final draft = context.read<RequirementDraftProvider>();
-      _hasReturn = draft.hasReturn;
       _dateController = TextEditingController(text: draft.pickupDate);
       _timeController = TextEditingController(text: draft.pickupTime);
-      _returnDateController = TextEditingController(text: draft.returnDate ?? '');
-      _returnTimeController = TextEditingController(text: draft.returnTime ?? '');
       _additionalInfoController = TextEditingController(text: draft.additionalInfo);
       _stops.clear();
       _stops.addAll(draft.additionalStops);
@@ -47,8 +41,6 @@ class _UserCreateRequirementStep3ScreenState extends State<UserCreateRequirement
   void dispose() {
     _dateController.dispose();
     _timeController.dispose();
-    _returnDateController.dispose();
-    _returnTimeController.dispose();
     _additionalInfoController.dispose();
     super.dispose();
   }
@@ -208,57 +200,6 @@ class _UserCreateRequirementStep3ScreenState extends State<UserCreateRequirement
 
                     const SizedBox(height: AppSpacing.lg),
 
-                    // Return (Optional) Switch Header
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Return (Optional)',
-                          style: AppTypography.h4(
-                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Switch(
-                          value: _hasReturn,
-                          activeThumbColor: AppColors.primary,
-                          onChanged: (val) => setState(() => _hasReturn = val),
-                        ),
-                      ],
-                    ),
-
-                    if (_hasReturn) ...[
-                      const SizedBox(height: 6),
-                      TextField(
-                        controller: _returnDateController,
-                        readOnly: true,
-                        onTap: () => _pickDate(context, _returnDateController),
-                        decoration: InputDecoration(
-                          hintText: 'Select return date',
-                          suffixIcon: IconButton(
-                            icon: const Icon(Icons.calendar_today_outlined),
-                            onPressed: () => _pickDate(context, _returnDateController),
-                          ),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _returnTimeController,
-                        readOnly: true,
-                        onTap: () => _pickTime(context, _returnTimeController),
-                        decoration: InputDecoration(
-                          hintText: 'Select return time',
-                          suffixIcon: IconButton(
-                            icon: const Icon(Icons.access_time_outlined),
-                            onPressed: () => _pickTime(context, _returnTimeController),
-                          ),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                        ),
-                      ),
-                    ],
-
-                    const SizedBox(height: AppSpacing.lg),
 
                     // Additional Stops (Optional)
                     Row(
@@ -373,9 +314,9 @@ class _UserCreateRequirementStep3ScreenState extends State<UserCreateRequirement
                               draft.updateStep3(
                                 pickupDate: _dateController.text.trim(),
                                 pickupTime: _timeController.text.trim(),
-                                hasReturn: _hasReturn,
-                                returnDate: _hasReturn ? _returnDateController.text.trim() : null,
-                                returnTime: _hasReturn ? _returnTimeController.text.trim() : null,
+                                hasReturn: false,
+                                returnDate: null,
+                                returnTime: null,
                                 additionalStops: _stops,
                                 additionalInfo: _additionalInfoController.text.trim(),
                               );

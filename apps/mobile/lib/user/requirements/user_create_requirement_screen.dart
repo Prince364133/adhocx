@@ -982,11 +982,6 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                                                     '${cab.passengers} pax',
                                                     isDark,
                                                   ),
-                                                  _buildMiniChip(
-                                                    Icons.repeat_rounded,
-                                                    cab.tripType,
-                                                    isDark,
-                                                  ),
                                                   if (cab.hasEscort)
                                                     _buildMiniChip(
                                                       Icons.shield_outlined,

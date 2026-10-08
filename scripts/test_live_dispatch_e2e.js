@@ -229,7 +229,7 @@ async function runVerification() {
       reportingTime: new Date(Date.now() + 7200000).toISOString(),
       suggestedBudget: 4500,
       fulfillmentMode: 'BIDDING',
-      notes: 'Delhi to Agra Outstation Roundtrip',
+      notes: 'Delhi to Agra Outstation Trip',
     }),
   });
   console.log(`✓ Bidding Requirement Created! ID: ${biddingReq.id}, Fulfillment Mode: ${biddingReq.fulfillmentMode}`);

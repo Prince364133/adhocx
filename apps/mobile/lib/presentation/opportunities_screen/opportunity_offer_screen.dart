@@ -434,7 +434,7 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    _buildMetaColumn('Trip type', 'Direct Dispatch', isDark),
+                                    _buildMetaColumn('Dispatch Mode', 'Direct Dispatch', isDark),
                                     _buildMetaColumn('Quantity', '1 Vehicle', isDark),
                                     _buildMetaColumn('Vehicle', vehicle, isDark),
                                   ],

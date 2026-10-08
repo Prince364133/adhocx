@@ -18,7 +18,7 @@ class CabCartItem {
   double dropLat;
   double dropLng;
   String dropInstructions;
-  String tripType; // 'One Way' or 'Round Trip'
+  String tripType; // 'One Way'
   bool hasEscort;
   String pickupDate; // YYYY-MM-DD
   String pickupTime; // e.g. 07:14 PM
@@ -99,11 +99,8 @@ class CabCartItem {
     if (direction.isNotEmpty) {
       notes.add(isOutbound ? 'Route: Office → Home' : 'Route: Home → Office');
     }
-    if (tripType.isNotEmpty) {
-      notes.add('Trip: $tripType');
-    }
     if (hasEscort) {
-      notes.add('Security Escort: Required (+₹400)');
+      notes.add('Security Escort: Required');
     }
     if (passengers > 0) {
       notes.add('Passengers: $passengers');

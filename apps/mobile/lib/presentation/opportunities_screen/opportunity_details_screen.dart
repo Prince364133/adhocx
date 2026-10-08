@@ -391,7 +391,7 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      'Corporate Zonal 2026 Fleet • Fixed 85% Net Driver Earnings (Direct Dispatch)',
+                                      'Corporate Zonal 2026 Fleet • Guaranteed Net Driver Earnings (Direct Dispatch)',
                                       style: TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w600,
