@@ -4,6 +4,7 @@ export interface AdminMetrics {
   pendingDriversKyc: number;
   totalVendors: number;
   verifiedVendors: number;
+  totalUsers?: number;
   activeRequirements: number;
   activeTrips: number;
   completedTrips: number;
@@ -527,17 +528,23 @@ export interface CorridorAnalytics {
 }
 
 export interface OperationalReportData {
-  period: string;
-  totalRequirements: number;
-  fulfilledRequirements: number;
-  fulfillmentRatePercent: number;
-  totalGrossBookingValue: number;
-  platformRevenue: number;
-  totalDriverPayouts: number;
-  activeDrivers: number;
-  activeVendors: number;
-  averageTripRating: number;
-  corridorAnalytics: CorridorAnalytics[];
+  period?: string;
+  totalRequirements?: number;
+  fulfilledRequirements?: number;
+  fulfillmentRate?: string;
+  fulfillmentRatePercent?: number;
+  totalGrossBookingValue?: number;
+  platformGmv?: string;
+  platformRevenue?: number;
+  totalDriverPayouts?: number;
+  activeDrivers?: number;
+  activeVendors?: number;
+  averageTripRating?: number;
+  tripCancellationRate?: string;
+  avgDriverResponse?: string;
+  categoryBreakdown?: Array<{ category: string; rate: number; demands: number }>;
+  slaHealth?: Array<{ metric: string; value: string; sla: string; desc: string }>;
+  corridorAnalytics?: CorridorAnalytics[];
 }
 
 export interface SupportTicketItem {
