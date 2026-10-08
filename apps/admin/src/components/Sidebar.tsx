@@ -89,6 +89,7 @@ export const Sidebar: React.FC = () => {
   const router = useRouter();
   const [adminUser, setAdminUser] = React.useState<any>(null);
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
+  const [isHovered, setIsHovered] = React.useState(false);
 
   React.useEffect(() => {
     const user = getStoredAdminUser();
@@ -107,44 +108,88 @@ export const Sidebar: React.FC = () => {
   };
 
   return (
-    <aside className="admin-sidebar" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+    <aside
+      className={`admin-sidebar ${isHovered ? 'is-expanded' : ''}`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        width: isHovered ? '260px' : '72px',
+        transition: 'width 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease',
+        boxShadow: isHovered
+          ? '10px 0 36px rgba(0, 0, 0, 0.16), 0 0 0 1px var(--border)'
+          : 'var(--shadow-sm)',
+        overflowX: 'hidden',
+      }}
+    >
+      {/* Brand Header */}
       <div
         style={{
-          padding: '1.25rem 1.5rem',
+          padding: isHovered ? '1.25rem 1.5rem' : '1.25rem 0',
           borderBottom: '1px solid var(--border)',
           background: 'var(--bg-surface)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: isHovered ? 'flex-start' : 'center',
+          minHeight: '64px',
+          boxSizing: 'border-box',
+          overflow: 'hidden',
         }}
       >
-        <AdhocxBrandLogo size={34} subtitle="Control Portal" />
+        {isHovered ? (
+          <AdhocxBrandLogo size={34} subtitle="Control Portal" />
+        ) : (
+          <div style={{ transform: 'scale(0.95)' }}>
+            <AdhocxBrandLogo variant="icon" size={34} />
+          </div>
+        )}
       </div>
 
+      {/* Navigation Items */}
       <nav
         style={{
-          padding: '1rem 0.75rem',
+          padding: isHovered ? '1rem 0.75rem' : '1rem 0.5rem',
           display: 'flex',
           flexDirection: 'column',
-          gap: '1.25rem',
+          gap: isHovered ? '1.25rem' : '0.85rem',
           flex: 1,
           overflowY: 'auto',
+          overflowX: 'hidden',
         }}
       >
         {navSections.map((sec, sIdx) => (
           <div key={sIdx}>
             {sec.title && (
-              <div
-                style={{
-                  fontSize: '0.6875rem',
-                  fontWeight: 700,
-                  color: 'var(--text-muted)',
-                  letterSpacing: '0.08em',
-                  padding: '0 0.75rem',
-                  marginBottom: '0.4rem',
-                }}
-              >
-                {sec.title}
-              </div>
+              isHovered ? (
+                <div
+                  style={{
+                    fontSize: '0.6875rem',
+                    fontWeight: 700,
+                    color: 'var(--text-muted)',
+                    letterSpacing: '0.08em',
+                    padding: '0 0.75rem',
+                    marginBottom: '0.4rem',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {sec.title}
+                </div>
+              ) : (
+                <div
+                  style={{
+                    height: '1px',
+                    background: 'var(--border)',
+                    margin: '0.4rem 0.5rem',
+                    opacity: 0.6,
+                  }}
+                />
+              )
             )}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               {sec.items.map((item) => {
                 const isActive =
                   pathname === item.href ||
@@ -153,11 +198,12 @@ export const Sidebar: React.FC = () => {
                   <Link
                     key={item.href}
                     href={item.href}
+                    title={item.label}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '0.55rem 0.75rem',
+                      justifyContent: isHovered ? 'space-between' : 'center',
+                      padding: isHovered ? '0.55rem 0.75rem' : '0.6rem 0',
                       borderRadius: 'var(--radius-md)',
                       fontSize: '0.84rem',
                       fontWeight: isActive ? 700 : 500,
@@ -166,12 +212,15 @@ export const Sidebar: React.FC = () => {
                       boxShadow: isActive ? 'var(--shadow-glow-purple)' : 'none',
                       transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
                       textDecoration: 'none',
+                      width: isHovered ? '100%' : '44px',
+                      margin: isHovered ? '0' : '0 auto',
+                      boxSizing: 'border-box',
                     }}
                     onMouseEnter={(e) => {
                       if (!isActive) {
                         e.currentTarget.style.backgroundColor = 'var(--bg-surface-elevated)';
                         e.currentTarget.style.color = 'var(--text-primary)';
-                        e.currentTarget.style.transform = 'translateX(2px)';
+                        if (isHovered) e.currentTarget.style.transform = 'translateX(2px)';
                       }
                     }}
                     onMouseLeave={(e) => {
@@ -182,11 +231,29 @@ export const Sidebar: React.FC = () => {
                       }
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                      <item.icon size={17} />
-                      <span>{item.label}</span>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: isHovered ? 'flex-start' : 'center',
+                        gap: isHovered ? '0.65rem' : '0',
+                        minWidth: 0,
+                      }}
+                    >
+                      <item.icon size={18} style={{ flexShrink: 0 }} />
+                      {isHovered && (
+                        <span
+                          style={{
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {item.label}
+                        </span>
+                      )}
                     </div>
-                    {item.badge && (
+                    {isHovered && item.badge && (
                       <span
                         style={{
                           fontSize: '0.6875rem',
@@ -195,6 +262,7 @@ export const Sidebar: React.FC = () => {
                           borderRadius: 'var(--radius-pill)',
                           backgroundColor: isActive ? 'rgba(255, 255, 255, 0.25)' : 'var(--brand-primary-subtle)',
                           color: isActive ? '#ffffff' : 'var(--brand-primary)',
+                          flexShrink: 0,
                         }}
                       >
                         {item.badge}
@@ -211,15 +279,26 @@ export const Sidebar: React.FC = () => {
       {/* Administrative User & Logout Footer */}
       <div
         style={{
-          padding: '1rem 1.1rem',
+          padding: isHovered ? '1rem 1.1rem' : '0.85rem 0.5rem',
           borderTop: '1px solid var(--border)',
           background: 'var(--bg-surface)',
           display: 'flex',
           flexDirection: 'column',
+          alignItems: isHovered ? 'stretch' : 'center',
           gap: '0.75rem',
+          overflow: 'hidden',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: isHovered ? 'flex-start' : 'center',
+            gap: isHovered ? '0.75rem' : '0',
+            width: '100%',
+          }}
+          title={!isHovered ? `${adminUser?.fullName || 'Administrator'} (${adminUser?.email || 'admin@adhocx.com'})` : undefined}
+        >
           <div
             style={{
               width: '36px',
@@ -238,31 +317,33 @@ export const Sidebar: React.FC = () => {
           >
             AD
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
-            <span
-              style={{
-                fontSize: '0.82rem',
-                fontWeight: 700,
-                color: 'var(--text-primary)',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              {adminUser?.fullName || 'Administrator'}
-            </span>
-            <span
-              style={{
-                fontSize: '0.72rem',
-                color: 'var(--text-muted)',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              {adminUser?.email || 'admin@adhocx.com'}
-            </span>
-          </div>
+          {isHovered && (
+            <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+              <span
+                style={{
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {adminUser?.fullName || 'Administrator'}
+              </span>
+              <span
+                style={{
+                  fontSize: '0.72rem',
+                  color: 'var(--text-muted)',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {adminUser?.email || 'admin@adhocx.com'}
+              </span>
+            </div>
+          )}
         </div>
 
         <button
@@ -270,13 +351,15 @@ export const Sidebar: React.FC = () => {
           id="sidebar-logout-btn"
           onClick={handleLogout}
           disabled={isLoggingOut}
+          title={!isHovered ? 'Log Out' : undefined}
           style={{
-            width: '100%',
+            width: isHovered ? '100%' : '38px',
+            height: isHovered ? 'auto' : '38px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '0.5rem',
-            padding: '0.6rem 0.9rem',
+            gap: isHovered ? '0.5rem' : '0',
+            padding: isHovered ? '0.6rem 0.9rem' : '0',
             borderRadius: 'var(--radius-md)',
             background: 'var(--color-danger-bg)',
             border: '1px solid var(--color-danger-border)',
@@ -296,7 +379,7 @@ export const Sidebar: React.FC = () => {
           }}
         >
           <LogOut size={16} />
-          <span>{isLoggingOut ? 'Signing Out...' : 'Log Out'}</span>
+          {isHovered && <span>{isLoggingOut ? 'Signing Out...' : 'Log Out'}</span>}
         </button>
       </div>
     </aside>

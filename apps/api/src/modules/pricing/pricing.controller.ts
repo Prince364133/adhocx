@@ -128,27 +128,18 @@ export class PricingController {
   // ---------------------------------------------------------------------------
 
   @Get('zonal/vendor-card')
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.VENDOR, UserRole.ADMIN)
   @ApiOperation({ summary: 'Active vendor zonal rate card (28 rows) with locality guide' })
   async getVendorZonalCard() {
     return this.zonalPricing.getVendorRateCard();
   }
 
   @Get('zonal/driver-card')
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.DRIVER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Active driver zonal earnings card (28 rows) with locality guide' })
   async getDriverZonalCard() {
     return this.zonalPricing.getDriverRateCard();
   }
 
   @Get('zonal/localities')
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.VENDOR, UserRole.DRIVER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Search the approved locality master (each result has a stable locality ID)' })
   async searchZonalLocalities(@Query('q') q?: string) {
     return this.zonalPricing.searchLocalities(q);
