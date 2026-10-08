@@ -11,7 +11,6 @@ import {
   AlertCircle,
   ArrowRight,
   Loader2,
-  KeyRound,
 } from 'lucide-react';
 import { AdhocxBrandLogo } from '../../components/AdhocxBrandLogo';
 import { adminApi, setAdminSession, getStoredAdminToken } from '../../lib/api/client';
@@ -24,8 +23,6 @@ function AdminLoginForm() {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [mfaChallenge, setMfaChallenge] = useState<{ mfaSessionToken: string; maskedDestination?: string } | null>(null);
-  const [mfaCode, setMfaCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -40,37 +37,6 @@ function AdminLoginForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (mfaChallenge) {
-      if (!mfaCode.trim()) {
-        setErrorMessage('Please enter the 6-digit MFA verification code.');
-        return;
-      }
-      setIsLoading(true);
-      setErrorMessage(null);
-      try {
-        const response = await adminApi.verifyAdminMfa({
-          mfaSessionToken: mfaChallenge.mfaSessionToken,
-          mfaCode: mfaCode.trim(),
-        });
-        if (!response || !response.accessToken) {
-          throw new Error('MFA verification completed but no access token was received.');
-        }
-        setAdminSession(response.accessToken, response.user);
-        router.replace(redirectUrl);
-      } catch (err: any) {
-        const status = err?.status || err?.statusCode;
-        const msg = err?.message || '';
-        if (status === 401) {
-          setErrorMessage('Invalid or expired MFA verification code. Please try again.');
-        } else {
-          setErrorMessage(msg || 'Failed to verify MFA code.');
-        }
-      } finally {
-        setIsLoading(false);
-      }
-      return;
-    }
-
     if (!identifier.trim() || !password) {
       setErrorMessage('Please enter both your Admin ID and Password');
       return;
@@ -84,14 +50,6 @@ function AdminLoginForm() {
         identifier: identifier.trim(),
         password,
       });
-
-      if (response && response.requiresMfa && response.mfaSessionToken) {
-        setMfaChallenge({
-          mfaSessionToken: response.mfaSessionToken,
-          maskedDestination: response.maskedDestination,
-        });
-        return;
-      }
 
       if (!response || !response.accessToken) {
         throw new Error('Authentication succeeded but no authorization token was received.');
@@ -191,7 +149,7 @@ function AdminLoginForm() {
               letterSpacing: '-0.02em',
             }}
           >
-            {mfaChallenge ? 'Two-Factor Verification' : 'Administrative Sign In'}
+            Administrative Sign In
           </h1>
           <p
             style={{
@@ -201,9 +159,7 @@ function AdminLoginForm() {
               lineHeight: 1.4,
             }}
           >
-            {mfaChallenge
-              ? `Enter the 6-digit verification code sent to ${mfaChallenge.maskedDestination || 'your administrator device'}.`
-              : 'Enter your authorized administrative ID and password to access operations.'}
+            Enter your authorized administrative ID and password to access operations.
           </p>
         </div>
 
@@ -234,226 +190,153 @@ function AdminLoginForm() {
 
         {/* Credentials Form */}
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {mfaChallenge ? (
-            /* MFA 6-Digit Challenge Step */
-            <div>
-              <label
-                htmlFor="admin-mfa-code"
+          {/* Admin ID / Email */}
+          <div>
+            <label
+              htmlFor="admin-identifier"
+              style={{
+                display: 'block',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                marginBottom: '0.45rem',
+                letterSpacing: '0.01em',
+              }}
+            >
+              Admin ID or Email
+            </label>
+            <div style={{ position: 'relative' }}>
+              <div
                 style={{
-                  display: 'block',
+                  position: 'absolute',
+                  left: '0.9rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--text-muted)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  pointerEvents: 'none',
+                }}
+              >
+                <Mail size={17} />
+              </div>
+              <input
+                id="admin-identifier"
+                type="text"
+                autoComplete="username"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                placeholder="admin@adhocx.com or Admin ID"
+                required
+                disabled={isLoading}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem 0.9rem 0.75rem 2.5rem',
+                  borderRadius: 'var(--radius-lg)',
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg-canvas)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.9rem',
+                  outline: 'none',
+                  transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+                  boxSizing: 'border-box',
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--brand-primary)';
+                  e.currentTarget.style.boxShadow = '0 0 0 3px var(--brand-primary-subtle)';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--border)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Admin Password */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
+              <label
+                htmlFor="admin-password"
+                style={{
                   fontSize: '0.8rem',
                   fontWeight: 700,
                   color: 'var(--text-primary)',
-                  marginBottom: '0.45rem',
                   letterSpacing: '0.01em',
                 }}
               >
-                6-Digit Security Code
+                Admin Password
               </label>
-              <div style={{ position: 'relative' }}>
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: '0.9rem',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    color: 'var(--text-muted)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    pointerEvents: 'none',
-                  }}
-                >
-                  <KeyRound size={17} />
-                </div>
-                <input
-                  id="admin-mfa-code"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={6}
-                  autoFocus
-                  autoComplete="one-time-code"
-                  value={mfaCode}
-                  onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ''))}
-                  placeholder="123456"
-                  required
-                  disabled={isLoading}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem 0.9rem 0.75rem 2.5rem',
-                    borderRadius: 'var(--radius-lg)',
-                    border: '1px solid var(--border)',
-                    background: 'var(--bg-canvas)',
-                    color: 'var(--text-primary)',
-                    fontSize: '1.1rem',
-                    fontWeight: 700,
-                    letterSpacing: '0.25em',
-                    outline: 'none',
-                    transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
-                    boxSizing: 'border-box',
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--brand-primary)';
-                    e.currentTarget.style.boxShadow = '0 0 0 3px var(--brand-primary-subtle)';
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--border)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                />
-              </div>
             </div>
-          ) : (
-            <>
-              {/* Admin ID / Email */}
-              <div>
-                <label
-                  htmlFor="admin-identifier"
-                  style={{
-                    display: 'block',
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                    color: 'var(--text-primary)',
-                    marginBottom: '0.45rem',
-                    letterSpacing: '0.01em',
-                  }}
-                >
-                  Admin ID or Email
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <div
-                    style={{
-                      position: 'absolute',
-                      left: '0.9rem',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      color: 'var(--text-muted)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      pointerEvents: 'none',
-                    }}
-                  >
-                    <Mail size={17} />
-                  </div>
-                  <input
-                    id="admin-identifier"
-                    type="text"
-                    autoComplete="username"
-                    value={identifier}
-                    onChange={(e) => setIdentifier(e.target.value)}
-                    placeholder="admin@adhocx.com or Admin ID"
-                    required
-                    disabled={isLoading}
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem 0.9rem 0.75rem 2.5rem',
-                      borderRadius: 'var(--radius-lg)',
-                      border: '1px solid var(--border)',
-                      background: 'var(--bg-canvas)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.9rem',
-                      outline: 'none',
-                      transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
-                      boxSizing: 'border-box',
-                    }}
-                    onFocus={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--brand-primary)';
-                      e.currentTarget.style.boxShadow = '0 0 0 3px var(--brand-primary-subtle)';
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--border)';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
-                  />
-                </div>
+            <div style={{ position: 'relative' }}>
+              <div
+                style={{
+                  position: 'absolute',
+                  left: '0.9rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--text-muted)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  pointerEvents: 'none',
+                }}
+              >
+                <Lock size={17} />
               </div>
-
-              {/* Admin Password */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
-                  <label
-                    htmlFor="admin-password"
-                    style={{
-                      fontSize: '0.8rem',
-                      fontWeight: 700,
-                      color: 'var(--text-primary)',
-                      letterSpacing: '0.01em',
-                    }}
-                  >
-                    Admin Password
-                  </label>
-                </div>
-                <div style={{ position: 'relative' }}>
-                  <div
-                    style={{
-                      position: 'absolute',
-                      left: '0.9rem',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      color: 'var(--text-muted)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      pointerEvents: 'none',
-                    }}
-                  >
-                    <Lock size={17} />
-                  </div>
-                  <input
-                    id="admin-password"
-                    type={showPassword ? 'text' : 'password'}
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    required
-                    disabled={isLoading}
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem 2.65rem 0.75rem 2.5rem',
-                      borderRadius: 'var(--radius-lg)',
-                      border: '1px solid var(--border)',
-                      background: 'var(--bg-canvas)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.9rem',
-                      outline: 'none',
-                      transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
-                      boxSizing: 'border-box',
-                    }}
-                    onFocus={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--brand-primary)';
-                      e.currentTarget.style.boxShadow = '0 0 0 3px var(--brand-primary-subtle)';
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--border)';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
-                  />
-                  <button
-                    type="button"
-                    id="toggle-password-visibility"
-                    onClick={() => setShowPassword(!showPassword)}
-                    tabIndex={-1}
-                    title={showPassword ? 'Hide password' : 'Show password'}
-                    style={{
-                      position: 'absolute',
-                      right: '0.75rem',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      background: 'transparent',
-                      border: 'none',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                      padding: '0.25rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                    }}
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
+              <input
+                id="admin-password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••••••"
+                required
+                disabled={isLoading}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem 2.65rem 0.75rem 2.5rem',
+                  borderRadius: 'var(--radius-lg)',
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg-canvas)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.9rem',
+                  outline: 'none',
+                  transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+                  boxSizing: 'border-box',
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--brand-primary)';
+                  e.currentTarget.style.boxShadow = '0 0 0 3px var(--brand-primary-subtle)';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--border)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              />
+              <button
+                type="button"
+                id="toggle-password-visibility"
+                onClick={() => setShowPassword(!showPassword)}
+                tabIndex={-1}
+                title={showPassword ? 'Hide password' : 'Show password'}
+                style={{
+                  position: 'absolute',
+                  right: '0.75rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: '0.25rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
 
           {/* Submit Button */}
           <button
@@ -493,38 +376,15 @@ function AdminLoginForm() {
             {isLoading ? (
               <>
                 <Loader2 size={18} className="spin-animation" />
-                <span>{mfaChallenge ? 'Verifying 2FA Code...' : 'Verifying Server Credentials...'}</span>
+                <span>Verifying Server Credentials...</span>
               </>
             ) : (
               <>
-                <span>{mfaChallenge ? 'Verify & Access Control Portal' : 'Sign In to Control Portal'}</span>
+                <span>Sign In to Control Portal</span>
                 <ArrowRight size={17} />
               </>
             )}
           </button>
-
-          {mfaChallenge && (
-            <button
-              type="button"
-              onClick={() => {
-                setMfaChallenge(null);
-                setMfaCode('');
-                setErrorMessage(null);
-              }}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--text-secondary)',
-                fontSize: '0.82rem',
-                cursor: 'pointer',
-                textAlign: 'center',
-                textDecoration: 'underline',
-                padding: '0.35rem',
-              }}
-            >
-              ← Back to ID & Password
-            </button>
-          )}
         </form>
 
         {/* Security Badge Footer */}
