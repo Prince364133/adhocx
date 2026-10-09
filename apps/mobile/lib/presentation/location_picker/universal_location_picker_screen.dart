@@ -7,12 +7,14 @@ import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
+import '../../user/requirements/utils/office_hub_detector.dart';
 
 class UniversalLocationPickerScreen extends StatefulWidget {
   final String title;
   final String? initialAddress;
   final double? initialLat;
   final double? initialLng;
+  final bool officeHubOnly;
 
   const UniversalLocationPickerScreen({
     super.key,
@@ -20,6 +22,7 @@ class UniversalLocationPickerScreen extends StatefulWidget {
     this.initialAddress,
     this.initialLat,
     this.initialLng,
+    this.officeHubOnly = false,
   });
 
   @override
@@ -186,9 +189,219 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
   }
 
   Future<void> _selectLocation(LocationModel loc) async {
+    if (widget.officeHubOnly) {
+      final detectedHub = OfficeHubDetector.detectHub(
+        lat: loc.latitude,
+        lng: loc.longitude,
+        addressText: '${loc.title} ${loc.fullAddress}',
+      );
+      if (detectedHub == null) {
+        _showNonHubLocationDialog(loc);
+        return;
+      }
+    }
     await _locationService.saveRecentLocation(loc);
     if (!mounted) return;
     context.pop(loc.toMap());
+  }
+
+  void _showNonHubLocationDialog(LocationModel loc) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.location_off_rounded, color: AppColors.error, size: 22),
+            ),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text(
+                'Outside Office Hub Area',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${loc.title} is not within our 2 official corporate office hubs:',
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildHubInfoBullet(
+              '1. HITEC / Nanakramguda Hub',
+              'Cyber Towers, Madhapur, Raidurg, Financial District, Waverock',
+              AppColors.primary,
+            ),
+            const SizedBox(height: 8),
+            _buildHubInfoBullet(
+              '2. Kokapet Hub',
+              'Kokapet SEZ, GAR Infobahn, Neopolis, Golden Mile',
+              AppColors.accentPurple,
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.bgDark : AppColors.slate100,
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+              ),
+              child: Text(
+                'Tip: If ${loc.title} is the employee\'s home or drop location, please select it under "Employee Home / Locality" in the route settings.',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontStyle: FontStyle.italic,
+                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+            ),
+            child: const Text('Got it, choose another'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHubInfoBullet(String title, String subtitle, Color color) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          margin: const EdgeInsets.only(top: 3),
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: color),
+              ),
+              Text(
+                subtitle,
+                style: const TextStyle(fontSize: 10, color: AppColors.slate500),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget? _buildHubBadge(LocationModel loc, bool isDark) {
+    if (!widget.officeHubOnly) return null;
+
+    final hubId = OfficeHubDetector.detectHub(
+      lat: loc.latitude,
+      lng: loc.longitude,
+      addressText: '${loc.title} ${loc.fullAddress}',
+    );
+
+    if (hubId == OfficeHubDetector.hitecId) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle_rounded, size: 10, color: AppColors.primary),
+            const SizedBox(width: 3),
+            Text(
+              'HITEC Hub',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.tealAccent : AppColors.primary,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (hubId == OfficeHubDetector.kokapetId) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: AppColors.accentPurple.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: AppColors.accentPurple.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle_rounded, size: 10, color: AppColors.accentPurple),
+            const SizedBox(width: 3),
+            Text(
+              'Kokapet Hub',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.purpleAccent : AppColors.accentPurple,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: AppColors.error.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.warning_amber_rounded, size: 10, color: AppColors.error),
+            SizedBox(width: 3),
+            Text(
+              'Outside Hub',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: AppColors.error,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   Future<void> _fetchCurrentGpsLocation() async {
@@ -233,6 +446,8 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
           children: [
             Text(
               widget.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: AppTypography.h3(
                 color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                 fontWeight: FontWeight.bold,
@@ -242,12 +457,16 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
               children: [
                 const Icon(Icons.place, size: 11, color: Color(0xFFEA4335)),
                 const SizedBox(width: 4),
-                Text(
-                  'Powered by Google Maps Platform',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w600,
+                Flexible(
+                  child: Text(
+                    'Powered by Google Maps Platform',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
@@ -265,6 +484,41 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
       body: SafeArea(
         child: Column(
           children: [
+            // Corporate Office Hub Warning Banner
+            if (widget.officeHubOnly)
+              Container(
+                margin: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.xs, AppSpacing.md, AppSpacing.xs),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.corporate_fare_rounded, color: AppColors.primary, size: 16),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Corporate Office Search: Pickups & drops for office hubs are restricted to HITEC City / Nanakramguda and Kokapet.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.tealAccent : AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
             // Search Bar Input Field (Live Google Maps Places Search)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
@@ -322,6 +576,48 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
                 ),
               ),
             ),
+
+            if (widget.officeHubOnly)
+              Container(
+                margin: const EdgeInsets.fromLTRB(AppSpacing.md, 0, AppSpacing.md, AppSpacing.xs),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.corporate_fare_rounded, size: 16, color: AppColors.primary),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Corporate Office Hub Validation',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
+                          Text(
+                            'Corporate pickups/drops are strictly limited to HITEC / Nanakramguda and Kokapet Hubs.',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
             // Content Body
             Expanded(
@@ -429,15 +725,25 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
               size: 20,
             ),
           ),
-          title: Text(
-            loc.title,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-              color: isSelected
-                  ? AppColors.primary
-                  : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
-            ),
+          title: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  loc.title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: isSelected
+                        ? AppColors.primary
+                        : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                  ),
+                ),
+              ),
+              if (_buildHubBadge(loc, isDark) != null) ...[
+                const SizedBox(width: 6),
+                _buildHubBadge(loc, isDark)!,
+              ],
+            ],
           ),
           subtitle: Text(
             loc.fullAddress,
@@ -525,13 +831,23 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
                     backgroundColor: isDark ? AppColors.surfaceDark : AppColors.slate200,
                     child: Icon(item.icon, size: 16, color: AppColors.primary),
                   ),
-                  title: Text(
-                    item.title,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                    ),
+                  title: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          item.title,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                          ),
+                        ),
+                      ),
+                      if (_buildHubBadge(item, isDark) != null) ...[
+                        const SizedBox(width: 6),
+                        _buildHubBadge(item, isDark)!,
+                      ],
+                    ],
                   ),
                   subtitle: Text(
                     item.fullAddress,
@@ -650,15 +966,25 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
                         size: 18,
                       ),
                     ),
-                    title: Text(
-                      place.title,
-                      style: TextStyle(
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                        fontSize: 13,
-                        color: isSelected
-                            ? AppColors.primary
-                            : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
-                      ),
+                    title: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            place.title,
+                            style: TextStyle(
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                              fontSize: 13,
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                            ),
+                          ),
+                        ),
+                        if (_buildHubBadge(place, isDark) != null) ...[
+                          const SizedBox(width: 6),
+                          _buildHubBadge(place, isDark)!,
+                        ],
+                      ],
                     ),
                     subtitle: Text(
                       place.fullAddress,

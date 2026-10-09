@@ -16,6 +16,8 @@ class SelectRouteSubBottomSheet extends StatefulWidget {
   final double initialOfficeLat;
   final double initialOfficeLng;
   final Map<String, dynamic>? initialLocality;
+  final String initialPickupInstructions;
+  final String initialDropInstructions;
 
   const SelectRouteSubBottomSheet({
     super.key,
@@ -25,6 +27,8 @@ class SelectRouteSubBottomSheet extends StatefulWidget {
     this.initialOfficeLat = 0.0,
     this.initialOfficeLng = 0.0,
     this.initialLocality,
+    this.initialPickupInstructions = '',
+    this.initialDropInstructions = '',
   });
 
   @override
@@ -38,6 +42,8 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
   late double _officeLat;
   late double _officeLng;
   Map<String, dynamic>? _locality;
+  late TextEditingController _officeGuidanceController;
+  late TextEditingController _homeGuidanceController;
 
   bool _isCalculatingRoute = false;
   double _distanceKm = 0.0;
@@ -79,9 +85,24 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
 
     _locality = widget.initialLocality;
 
+    final isOutbound = _direction == 'OUTBOUND_FROM_OFFICE';
+    _officeGuidanceController = TextEditingController(
+      text: isOutbound ? widget.initialPickupInstructions : widget.initialDropInstructions,
+    );
+    _homeGuidanceController = TextEditingController(
+      text: isOutbound ? widget.initialDropInstructions : widget.initialPickupInstructions,
+    );
+
     if (_locality != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _calculateRoute());
     }
+  }
+
+  @override
+  void dispose() {
+    _officeGuidanceController.dispose();
+    _homeGuidanceController.dispose();
+    super.dispose();
   }
 
   void _swapDirection() {
@@ -253,6 +274,7 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
                         'initialAddress': _officeAddress,
                         'initialLat': _officeLat,
                         'initialLng': _officeLng,
+                        'officeHubOnly': true,
                       },
                     );
                     if (result != null && mounted) {
@@ -264,11 +286,22 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
                       final lng = (result['longitude'] as num?)?.toDouble() ?? 78.3772;
                       final detected = OfficeHubDetector.detectHub(
                           lat: lat, lng: lng, addressText: addr);
+                      if (detected == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            backgroundColor: AppColors.error,
+                            content: Text(
+                              '"$addr" is outside approved office hubs (HITEC / Kokapet). Please choose a building inside the hub.',
+                            ),
+                          ),
+                        );
+                        return;
+                      }
                       setState(() {
                         _officeAddress = addr;
                         _officeLat = lat;
                         _officeLng = lng;
-                        _officeHubId = detected ?? OfficeHubDetector.hitecId;
+                        _officeHubId = detected;
                       });
                       _calculateRoute();
                     }
@@ -343,6 +376,14 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
       'durationMinutes': _durationMinutes,
       'formattedDistance': _formattedDistance,
       'formattedEta': _formattedEta,
+      'pickupInstructions': _isOfficePickup
+          ? _officeGuidanceController.text.trim()
+          : _homeGuidanceController.text.trim(),
+      'dropInstructions': !_isOfficePickup
+          ? _officeGuidanceController.text.trim()
+          : _homeGuidanceController.text.trim(),
+      'officeGuidance': _officeGuidanceController.text.trim(),
+      'homeGuidance': _homeGuidanceController.text.trim(),
     });
   }
 
@@ -381,18 +422,23 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Icon(Icons.alt_route_rounded, color: AppColors.primary, size: 22),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Select Route & Locations',
-                      style: AppTypography.h4(
-                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                        fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Row(
+                    children: [
+                      Icon(Icons.alt_route_rounded, color: AppColors.primary, size: 22),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Select Route & Locations',
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.h4(
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
@@ -415,11 +461,14 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Route & Direction',
-                        style: AppTypography.caption(
-                          color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                          fontWeight: FontWeight.bold,
+                      Expanded(
+                        child: Text(
+                          'Route & Direction',
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.caption(
+                            color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                       TextButton.icon(
@@ -585,13 +634,16 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Text(
-                              'PICKUP LOCATION (STOP 1)',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                                letterSpacing: 0.5,
+                            Expanded(
+                              child: Text(
+                                'PICKUP LOCATION (STOP 1)',
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                  letterSpacing: 0.5,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -659,6 +711,40 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
                             ),
                           ),
                         ),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: _isOfficePickup ? _officeGuidanceController : _homeGuidanceController,
+                          decoration: InputDecoration(
+                            isDense: true,
+                            prefixIcon: Icon(
+                              _isOfficePickup ? Icons.corporate_fare_rounded : Icons.home_work_outlined,
+                              size: 16,
+                              color: AppColors.primary,
+                            ),
+                            labelText: _isOfficePickup
+                                ? 'Office Gate / Tower / Lobby Guidance'
+                                : 'Home Flat / Colony Landmark Guidance',
+                            labelStyle: TextStyle(
+                              fontSize: 11,
+                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                            ),
+                            hintText: _isOfficePickup
+                                ? 'e.g. Building 12B, Gate 3, Ground Floor Lobby'
+                                : 'e.g. Flat 402, Sai Residency, beside SBI ATM',
+                            hintStyle: TextStyle(
+                              fontSize: 11,
+                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                              borderSide: BorderSide(
+                                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                              ),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          ),
+                          style: const TextStyle(fontSize: 12),
+                        ),
                       ],
                     ),
                   ),
@@ -693,13 +779,16 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Text(
-                              'DESTINATION LOCATION (STOP 2)',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                                letterSpacing: 0.5,
+                            Expanded(
+                              child: Text(
+                                'DESTINATION LOCATION (STOP 2)',
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                  letterSpacing: 0.5,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -767,6 +856,40 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
                             ),
                           ),
                         ),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: !_isOfficePickup ? _officeGuidanceController : _homeGuidanceController,
+                          decoration: InputDecoration(
+                            isDense: true,
+                            prefixIcon: Icon(
+                              !_isOfficePickup ? Icons.corporate_fare_rounded : Icons.home_work_outlined,
+                              size: 16,
+                              color: AppColors.accentPurple,
+                            ),
+                            labelText: !_isOfficePickup
+                                ? 'Office Gate / Tower / Lobby Guidance'
+                                : 'Home Flat / Colony Landmark Guidance',
+                            labelStyle: TextStyle(
+                              fontSize: 11,
+                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                            ),
+                            hintText: !_isOfficePickup
+                                ? 'e.g. Building 12B, Gate 3, Ground Floor Lobby'
+                                : 'e.g. Flat 402, Sai Residency, beside SBI ATM',
+                            hintStyle: TextStyle(
+                              fontSize: 11,
+                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                              borderSide: BorderSide(
+                                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                              ),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          ),
+                          style: const TextStyle(fontSize: 12),
+                        ),
                       ],
                     ),
                   ),
@@ -799,21 +922,36 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.navigation_outlined, size: 16, color: AppColors.primary),
-                              const SizedBox(width: 6),
-                              Text('Distance: $_formattedDistance',
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                            ],
+                          Flexible(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.navigation_outlined, size: 16, color: AppColors.primary),
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text('Distance: $_formattedDistance',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                ),
+                              ],
+                            ),
                           ),
-                          Row(
-                            children: [
-                              const Icon(Icons.access_time_rounded, size: 16, color: AppColors.primary),
-                              const SizedBox(width: 6),
-                              Text('ETA: $_formattedEta',
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                            ],
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.access_time_rounded, size: 16, color: AppColors.primary),
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text('ETA: $_formattedEta',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),

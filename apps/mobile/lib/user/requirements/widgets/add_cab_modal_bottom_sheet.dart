@@ -52,6 +52,8 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
   // Trip options
   static const String _tripType = 'One Way';
   bool _hasEscort = false;
+  String _pickupInstructions = '';
+  String _dropInstructions = '';
 
   // Date and Time
   String _pickupDate = '';
@@ -132,6 +134,8 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
       _formattedDistance = item.formattedDistance;
       _formattedEta = item.formattedEta;
       _hasEscort = item.hasEscort;
+      _pickupInstructions = item.pickupInstructions;
+      _dropInstructions = item.dropInstructions;
       _pickupDate = item.pickupDate;
       _pickupTime = item.pickupTime;
       _reportingDateTime = item.reportingDateTime;
@@ -260,6 +264,8 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
         initialOfficeLat: _officeLat,
         initialOfficeLng: _officeLng,
         initialLocality: _locality,
+        initialPickupInstructions: _pickupInstructions,
+        initialDropInstructions: _dropInstructions,
       ),
     );
 
@@ -282,6 +288,8 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
         _durationMinutes = (result['durationMinutes'] as num).toInt();
         _formattedDistance = result['formattedDistance'] as String;
         _formattedEta = result['formattedEta'] as String;
+        _pickupInstructions = (result['pickupInstructions'] as String?) ?? '';
+        _dropInstructions = (result['dropInstructions'] as String?) ?? '';
       });
     }
   }
@@ -389,9 +397,11 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
       pickupAddress: _pickupAddress,
       pickupLat: _pickupLat,
       pickupLng: _pickupLng,
+      pickupInstructions: _pickupInstructions,
       dropAddress: _dropAddress,
       dropLat: _dropLat,
       dropLng: _dropLng,
+      dropInstructions: _dropInstructions,
       tripType: _tripType,
       hasEscort: _hasEscort,
       pickupDate: _pickupDate,

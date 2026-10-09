@@ -11,6 +11,7 @@ import '../../shared/widgets/app_adaptive_skeleton.dart';
 import 'models/cab_cart_item.dart';
 import 'models/fleet_template_model.dart';
 import 'services/fleet_template_service.dart';
+import 'utils/office_hub_detector.dart';
 import 'widgets/batch_requirement_details_modal.dart';
 import 'widgets/saved_templates_modal.dart';
 
@@ -252,24 +253,48 @@ class _UserRequirementsListScreenState extends State<UserRequirementsListScreen>
             (it['totalAmount'] as num?)?.toDouble() ??
             800.0;
 
+        final notes = it['notes']?.toString() ?? '';
+        final direction = CabCartItem.parseDirection(notes);
+        final pickupInstructions = CabCartItem.parsePickupGuide(notes);
+        final dropInstructions = CabCartItem.parseDropGuide(notes);
+
+        final pLat = (it['pickupLocation']?['latitude'] as num?)?.toDouble() ?? 17.4435;
+        final pLng = (it['pickupLocation']?['longitude'] as num?)?.toDouble() ?? 78.3772;
+        final dLat = (it['dropLocation']?['latitude'] as num?)?.toDouble() ?? 17.3850;
+        final dLng = (it['dropLocation']?['longitude'] as num?)?.toDouble() ?? 78.4867;
+
+        final isOutbound = direction == 'OUTBOUND_FROM_OFFICE';
+        final officeAddress = isOutbound ? pickupAddress : dropAddress;
+        final officeLat = isOutbound ? pLat : dLat;
+        final officeLng = isOutbound ? pLng : dLng;
+        final localityAddress = isOutbound ? dropAddress : pickupAddress;
+
+        final detectedHub = OfficeHubDetector.detectHub(
+          lat: officeLat,
+          lng: officeLng,
+          addressText: officeAddress,
+        ) ?? OfficeHubDetector.hitecId;
+
         templateCabs.add(
           CabCartItem(
             id: 'tmpl_cab_${DateTime.now().millisecondsSinceEpoch}_$i',
             vehicleType: vehicleType,
             vehicleLabel: vehicleType == 'SUV' ? 'SUV 7 Seater' : 'Prime Sedan',
             passengers: 4,
-            direction: 'OUTBOUND_FROM_OFFICE',
-            officeHubId: 'HITEC_NANAKRAMGUDA',
-            officeAddress: pickupAddress,
-            officeLat: (it['pickupLocation']?['latitude'] as num?)?.toDouble() ?? 17.4435,
-            officeLng: (it['pickupLocation']?['longitude'] as num?)?.toDouble() ?? 78.3772,
-            localityName: dropAddress.split(',').first.trim(),
+            direction: direction,
+            officeHubId: detectedHub,
+            officeAddress: officeAddress,
+            officeLat: officeLat,
+            officeLng: officeLng,
+            localityName: localityAddress.split(',').first.trim(),
             pickupAddress: pickupAddress,
-            pickupLat: (it['pickupLocation']?['latitude'] as num?)?.toDouble() ?? 17.4435,
-            pickupLng: (it['pickupLocation']?['longitude'] as num?)?.toDouble() ?? 78.3772,
+            pickupLat: pLat,
+            pickupLng: pLng,
+            pickupInstructions: pickupInstructions,
             dropAddress: dropAddress,
-            dropLat: (it['dropLocation']?['latitude'] as num?)?.toDouble() ?? 17.3850,
-            dropLng: (it['dropLocation']?['longitude'] as num?)?.toDouble() ?? 78.4867,
+            dropLat: dLat,
+            dropLng: dLng,
+            dropInstructions: dropInstructions,
             tripType: 'One Way',
             hasEscort: false,
             pickupDate: '${reporting.year}-${reporting.month.toString().padLeft(2, '0')}-${reporting.day.toString().padLeft(2, '0')}',

@@ -675,6 +675,7 @@ final GoRouter appRouter = GoRouter(
           initialAddress: extra['initialAddress'] as String?,
           initialLat: (extra['initialLat'] as num?)?.toDouble(),
           initialLng: (extra['initialLng'] as num?)?.toDouble(),
+          officeHubOnly: extra['officeHubOnly'] as bool? ?? false,
         );
       },
     ),

@@ -47,7 +47,45 @@ class OfficeHubDetector {
         lower.contains('mumbai') ||
         lower.contains('pune');
 
-    if (!isOutsideCity) {
+    if (isOutsideCity) return null;
+
+    // Exclude explicit residential / non-hub localities of Hyderabad
+    final isExplicitNonHubLocality = lower.contains('malakpet') ||
+        lower.contains('secunderabad') ||
+        lower.contains('ameerpet') ||
+        lower.contains('dilsukhnagar') ||
+        lower.contains('lb nagar') ||
+        lower.contains('l.b. nagar') ||
+        lower.contains('charminar') ||
+        lower.contains('uppal') ||
+        lower.contains('kukatpally') ||
+        lower.contains('kphb') ||
+        lower.contains('miyapur') ||
+        lower.contains('mehdipatnam') ||
+        lower.contains('toli chowki') ||
+        lower.contains('tolichowki') ||
+        lower.contains('begumpet') ||
+        lower.contains('somajiguda') ||
+        lower.contains('panjagutta') ||
+        lower.contains('koti') ||
+        lower.contains('ecil') ||
+        lower.contains('alwal') ||
+        lower.contains('malkajgiri') ||
+        lower.contains('shamshabad') ||
+        lower.contains('rajendranagar') ||
+        lower.contains('attapur') ||
+        lower.contains('falaknuma') ||
+        lower.contains('santhosh nagar') ||
+        lower.contains('chandanagar');
+
+    if (isExplicitNonHubLocality &&
+        !lower.contains('hitec') &&
+        !lower.contains('kokapet') &&
+        !lower.contains('nanakramguda') &&
+        !lower.contains('cyber towers') &&
+        !lower.contains('mindspace')) {
+      return null;
+    }
       // 2. HITEC / Nanakramguda keywords:
       if (lower.contains('hitec') ||
           lower.contains('cyber towers') ||
@@ -68,7 +106,6 @@ class OfficeHubDetector {
           (lower.contains('hyderabad') || lower.contains('telangana') || (lat > 17.0 && lat < 18.0))) {
         return hitecId;
       }
-    }
 
     // 3. Geocoordinate check:
     // Hyderabad bounding region: 17.0 - 18.0 N, 78.0 - 79.0 E

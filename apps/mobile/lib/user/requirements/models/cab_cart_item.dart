@@ -105,6 +105,12 @@ class CabCartItem {
     if (passengers > 0) {
       notes.add('Passengers: $passengers');
     }
+    if (pickupInstructions.trim().isNotEmpty) {
+      notes.add('Pickup Guide: ${pickupInstructions.trim()}');
+    }
+    if (dropInstructions.trim().isNotEmpty) {
+      notes.add('Drop Guide: ${dropInstructions.trim()}');
+    }
     if (additionalStops.isNotEmpty) {
       notes.add('Intermediate Stops: ${additionalStops.join(', ')}');
     }
@@ -126,6 +132,26 @@ class CabCartItem {
       };
     }
     return {};
+  }
+
+  static String parsePickupGuide(String? notes) {
+    if (notes == null || notes.isEmpty) return '';
+    final match = RegExp(r'(?:Pickup Guide|Pickup Instructions):\s*([^|]+)').firstMatch(notes);
+    return match?.group(1)?.trim() ?? '';
+  }
+
+  static String parseDropGuide(String? notes) {
+    if (notes == null || notes.isEmpty) return '';
+    final match = RegExp(r'(?:Drop Guide|Drop Instructions):\s*([^|]+)').firstMatch(notes);
+    return match?.group(1)?.trim() ?? '';
+  }
+
+  static String parseDirection(String? notes) {
+    if (notes == null || notes.isEmpty) return 'OUTBOUND_FROM_OFFICE';
+    if (notes.contains('Route: Home → Office') || notes.contains('INBOUND_TO_OFFICE')) {
+      return 'INBOUND_TO_OFFICE';
+    }
+    return 'OUTBOUND_FROM_OFFICE';
   }
 
   Map<String, dynamic> toJson() => {

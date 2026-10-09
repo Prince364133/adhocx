@@ -273,9 +273,9 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
     );
     draft.updateStep2(
       pickupLocation: _pickupAddress.trim(),
-      pickupInstructions: '',
+      pickupInstructions: _pickupInstructions.text.trim(),
       dropLocation: _dropAddress.trim(),
-      dropInstructions: '',
+      dropInstructions: _dropInstructions.text.trim(),
       tripType: _tripType,
       pickupLat: _pickupLat,
       pickupLng: _pickupLng,
@@ -297,6 +297,9 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
   }
 
   void _swapLocations() {
+    final tempInstructions = _pickupInstructions.text;
+    _pickupInstructions.text = _dropInstructions.text;
+    _dropInstructions.text = tempInstructions;
     _setDirection(_direction == 'OUTBOUND_FROM_OFFICE' ? 'INBOUND_TO_OFFICE' : 'OUTBOUND_FROM_OFFICE');
   }
 
@@ -404,16 +407,27 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                     final result = await context.push<Map<String, dynamic>>(
                       AppRoutes.universalLocationSearchScreen,
                       extra: {
-                        'title': 'Search Office Address',
+                        'title': 'Search Corporate Office Building',
                         'initialAddress': initialAddress,
                         'initialLat': initialLat,
                         'initialLng': initialLng,
+                        'officeHubOnly': true,
                       },
                     );
                     if (result != null && mounted) {
                       final addr = (result['fullAddress'] as String?) ?? (result['address'] as String?) ?? (result['title'] as String?) ?? '';
                       final lat = (result['latitude'] as num?)?.toDouble() ?? 17.4435;
                       final lng = (result['longitude'] as num?)?.toDouble() ?? 78.3772;
+                      final detected = OfficeHubDetector.detectHub(lat: lat, lng: lng, addressText: addr);
+                      if (detected == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            backgroundColor: AppColors.error,
+                            content: Text('"$addr" is outside approved office hubs (HITEC / Kokapet).'),
+                          ),
+                        );
+                        return;
+                      }
                       setState(() {
                         _officeAddress = addr;
                         _officeLat = lat;
@@ -911,6 +925,24 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        const SizedBox(height: 6),
+                        TextFormField(
+                          controller: _pickupInstructions,
+                          onChanged: (_) => _syncToDraft(),
+                          decoration: InputDecoration(
+                            isDense: true,
+                            hintText: pickupIsOffice
+                                ? 'Office Gate / Tower (e.g. Bldg 12B, Gate 3)'
+                                : 'Home landmark (e.g. Flat 402, beside SBI ATM)',
+                            hintStyle: TextStyle(fontSize: 10, color: mutedText),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                              borderSide: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                            ),
+                          ),
+                          style: const TextStyle(fontSize: 11),
+                        ),
                       ],
                     ),
                   ),
@@ -1018,6 +1050,24 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 6),
+                        TextFormField(
+                          controller: _dropInstructions,
+                          onChanged: (_) => _syncToDraft(),
+                          decoration: InputDecoration(
+                            isDense: true,
+                            hintText: !pickupIsOffice
+                                ? 'Office Gate / Tower (e.g. Bldg 12B, Gate 3)'
+                                : 'Home landmark (e.g. Flat 402, beside SBI ATM)',
+                            hintStyle: TextStyle(fontSize: 10, color: mutedText),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                              borderSide: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                            ),
+                          ),
+                          style: const TextStyle(fontSize: 11),
                         ),
                       ],
                     ),
