@@ -45,7 +45,8 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
       missingDocs.add('Driver Profile Photo');
     }
     if (onboarding.drivingLicenseUrl == null) missingDocs.add('Driving License');
-    if (onboarding.rcBookUrl == null) missingDocs.add('RC Book');
+    if (onboarding.rcFrontUrl == null && onboarding.rcBookUrl == null) missingDocs.add('RC Front');
+    if (onboarding.rcBackUrl == null) missingDocs.add('RC Back');
     if (onboarding.insuranceUrl == null) missingDocs.add('Insurance');
     if (onboarding.aadharFrontUrl == null) missingDocs.add('Aadhaar Front');
     if (onboarding.aadharBackUrl == null) missingDocs.add('Aadhaar Back');
@@ -74,7 +75,8 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
     try {
       final profileUrl = onboarding.profilePhotoUrl;
       final dlUrl = onboarding.drivingLicenseUrl!;
-      final rcUrl = onboarding.rcBookUrl!;
+      final rcFUrl = onboarding.rcFrontUrl ?? onboarding.rcBookUrl;
+      final rcBUrl = onboarding.rcBackUrl;
       final insUrl = onboarding.insuranceUrl!;
       final vehUrl = onboarding.vehiclePhotoUrl;
       final aadharFUrl = onboarding.aadharFrontUrl!;
@@ -84,7 +86,8 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
       final docList = [
         if (profileUrl != null) profileUrl,
         dlUrl,
-        rcUrl,
+        if (rcFUrl != null) rcFUrl,
+        if (rcBUrl != null) rcBUrl,
         insUrl,
         if (vehUrl != null) vehUrl,
         aadharFUrl,
@@ -102,7 +105,9 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
         fullName: onboarding.fullName.isNotEmpty ? onboarding.fullName : null,
         profilePhotoUrl: profileUrl,
         dlFrontUrl: dlUrl,
-        rcDocUrl: rcUrl,
+        rcDocUrl: rcFUrl,
+        rcFrontUrl: rcFUrl,
+        rcBackUrl: rcBUrl,
         insuranceDocUrl: insUrl,
         vehiclePhotoUrl: vehUrl,
         aadharFrontUrl: aadharFUrl,
@@ -400,7 +405,9 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                             children: [
                               _buildDocThumbnail('DL', Icons.badge, onboarding.drivingLicenseUrl != null, isDark),
                               const SizedBox(width: AppSpacing.sm),
-                              _buildDocThumbnail('RC Book', Icons.description, onboarding.rcBookUrl != null, isDark),
+                              _buildDocThumbnail('RC Front', Icons.description, (onboarding.rcFrontUrl != null || onboarding.rcBookUrl != null), isDark),
+                              const SizedBox(width: AppSpacing.sm),
+                              _buildDocThumbnail('RC Back', Icons.description_outlined, onboarding.rcBackUrl != null, isDark),
                               const SizedBox(width: AppSpacing.sm),
                               _buildDocThumbnail('Insurance', Icons.verified_user, onboarding.insuranceUrl != null, isDark),
                               const SizedBox(width: AppSpacing.sm),

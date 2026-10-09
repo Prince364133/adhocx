@@ -16,6 +16,294 @@ import '../../theme/app_typography.dart';
 import '../../widgets/common/app_primary_button.dart';
 import '../../widgets/common/app_stepper_header.dart';
 
+class _VehicleSuggestion {
+  final String name;
+  final String categoryId;
+  final String categoryLabel;
+  final List<String> aliases;
+
+  const _VehicleSuggestion({
+    required this.name,
+    required this.categoryId,
+    required this.categoryLabel,
+    this.aliases = const [],
+  });
+}
+
+const List<_VehicleSuggestion> _popularVehicleModels = [
+  // ── Sedans ─────────────────────────────────────────────────────────────
+  _VehicleSuggestion(
+    name: 'Maruti Dzire',
+    categoryId: 'SEDAN',
+    categoryLabel: 'Prime Sedan',
+    aliases: ['dzire', 'swift dzire', 'maruti suzuki dzire', 'maruti', 'suzuki', 'sedan'],
+  ),
+  _VehicleSuggestion(
+    name: 'Swift Dzire',
+    categoryId: 'SEDAN',
+    categoryLabel: 'Prime Sedan',
+    aliases: ['dzire', 'swift dzire', 'swift', 'maruti', 'suzuki', 'sedan'],
+  ),
+  _VehicleSuggestion(
+    name: 'Maruti Suzuki Dzire',
+    categoryId: 'SEDAN',
+    categoryLabel: 'Prime Sedan',
+    aliases: ['dzire', 'swift dzire', 'maruti', 'suzuki', 'sedan'],
+  ),
+  _VehicleSuggestion(
+    name: 'Honda City',
+    categoryId: 'SEDAN',
+    categoryLabel: 'Prime Sedan',
+    aliases: ['city', 'honda', 'ivtec', 'sedan'],
+  ),
+  _VehicleSuggestion(
+    name: 'Honda Amaze',
+    categoryId: 'SEDAN',
+    categoryLabel: 'Prime Sedan',
+    aliases: ['amaze', 'honda', 'sedan'],
+  ),
+  _VehicleSuggestion(
+    name: 'Hyundai Aura',
+    categoryId: 'SEDAN',
+    categoryLabel: 'Prime Sedan',
+    aliases: ['aura', 'hyundai', 'cng', 'sedan'],
+  ),
+  _VehicleSuggestion(
+    name: 'Hyundai Verna',
+    categoryId: 'SEDAN',
+    categoryLabel: 'Prime Sedan',
+    aliases: ['verna', 'hyundai', 'sedan'],
+  ),
+  _VehicleSuggestion(
+    name: 'Toyota Etios',
+    categoryId: 'SEDAN',
+    categoryLabel: 'Prime Sedan',
+    aliases: ['etios', 'toyota', 'platinum', 'sedan'],
+  ),
+  _VehicleSuggestion(
+    name: 'Tata Tigor',
+    categoryId: 'SEDAN',
+    categoryLabel: 'Prime Sedan',
+    aliases: ['tigor', 'tata', 'ev', 'sedan'],
+  ),
+  _VehicleSuggestion(
+    name: 'Maruti Ciaz',
+    categoryId: 'SEDAN',
+    categoryLabel: 'Prime Sedan',
+    aliases: ['ciaz', 'maruti', 'suzuki', 'sedan'],
+  ),
+  _VehicleSuggestion(
+    name: 'Skoda Slavia',
+    categoryId: 'SEDAN',
+    categoryLabel: 'Prime Sedan',
+    aliases: ['slavia', 'skoda', 'sedan'],
+  ),
+  _VehicleSuggestion(
+    name: 'Volkswagen Virtus',
+    categoryId: 'SEDAN',
+    categoryLabel: 'Prime Sedan',
+    aliases: ['virtus', 'vw', 'volkswagen', 'sedan'],
+  ),
+
+  // ── SUVs & 6/7-Seaters ────────────────────────────────────────────────
+  _VehicleSuggestion(
+    name: 'Toyota Innova Crysta',
+    categoryId: 'SUV',
+    categoryLabel: 'SUV 7-Seater',
+    aliases: ['innova', 'crysta', 'toyota', '7 seater', 'suv'],
+  ),
+  _VehicleSuggestion(
+    name: 'Toyota Innova Hycross',
+    categoryId: 'SUV',
+    categoryLabel: 'SUV 7-Seater',
+    aliases: ['innova', 'hycross', 'toyota', '7 seater', 'suv', 'hybrid'],
+  ),
+  _VehicleSuggestion(
+    name: 'Toyota Innova',
+    categoryId: 'SUV',
+    categoryLabel: 'SUV 7-Seater',
+    aliases: ['innova', 'toyota', '7 seater', 'suv'],
+  ),
+  _VehicleSuggestion(
+    name: 'Maruti Ertiga',
+    categoryId: 'SUV',
+    categoryLabel: 'SUV 7-Seater',
+    aliases: ['ertiga', 'maruti', 'suzuki', '7 seater', 'suv', 'cng'],
+  ),
+  _VehicleSuggestion(
+    name: 'Maruti XL6',
+    categoryId: 'SUV',
+    categoryLabel: 'SUV 6-Seater',
+    aliases: ['xl6', 'maruti', 'suzuki', '6 seater', 'suv'],
+  ),
+  _VehicleSuggestion(
+    name: 'Kia Carens',
+    categoryId: 'SUV',
+    categoryLabel: 'SUV 7-Seater',
+    aliases: ['carens', 'kia', '7 seater', 'suv'],
+  ),
+  _VehicleSuggestion(
+    name: 'Mahindra Scorpio',
+    categoryId: 'SUV',
+    categoryLabel: 'SUV',
+    aliases: ['scorpio', 'mahindra', 'classic', 'suv'],
+  ),
+  _VehicleSuggestion(
+    name: 'Mahindra Scorpio-N',
+    categoryId: 'SUV',
+    categoryLabel: 'SUV',
+    aliases: ['scorpio', 'scorpio n', 'mahindra', 'suv'],
+  ),
+  _VehicleSuggestion(
+    name: 'Mahindra XUV700',
+    categoryId: 'SUV',
+    categoryLabel: 'SUV 7-Seater',
+    aliases: ['xuv', 'xuv700', 'mahindra', '7 seater', 'suv'],
+  ),
+  _VehicleSuggestion(
+    name: 'Mahindra Bolero',
+    categoryId: 'SUV',
+    categoryLabel: 'SUV',
+    aliases: ['bolero', 'mahindra', 'suv'],
+  ),
+  _VehicleSuggestion(
+    name: 'Mahindra Bolero Neo',
+    categoryId: 'SUV',
+    categoryLabel: 'SUV',
+    aliases: ['bolero', 'bolero neo', 'mahindra', 'suv'],
+  ),
+  _VehicleSuggestion(
+    name: 'Hyundai Creta',
+    categoryId: 'SUV',
+    categoryLabel: 'Compact SUV',
+    aliases: ['creta', 'hyundai', 'suv'],
+  ),
+  _VehicleSuggestion(
+    name: 'Hyundai Alcazar',
+    categoryId: 'SUV',
+    categoryLabel: 'SUV 7-Seater',
+    aliases: ['alcazar', 'hyundai', '7 seater', 'suv'],
+  ),
+  _VehicleSuggestion(
+    name: 'Kia Seltos',
+    categoryId: 'SUV',
+    categoryLabel: 'Compact SUV',
+    aliases: ['seltos', 'kia', 'suv'],
+  ),
+  _VehicleSuggestion(
+    name: 'Tata Safari',
+    categoryId: 'SUV',
+    categoryLabel: 'SUV 7-Seater',
+    aliases: ['safari', 'tata', '7 seater', 'suv'],
+  ),
+  _VehicleSuggestion(
+    name: 'Tata Harrier',
+    categoryId: 'SUV',
+    categoryLabel: 'SUV',
+    aliases: ['harrier', 'tata', 'suv'],
+  ),
+  _VehicleSuggestion(
+    name: 'Tata Nexon',
+    categoryId: 'SUV',
+    categoryLabel: 'Compact SUV',
+    aliases: ['nexon', 'tata', 'suv'],
+  ),
+  _VehicleSuggestion(
+    name: 'Toyota Fortuner',
+    categoryId: 'SUV',
+    categoryLabel: 'Premium SUV',
+    aliases: ['fortuner', 'toyota', '4x4', 'suv'],
+  ),
+  _VehicleSuggestion(
+    name: 'MG Hector',
+    categoryId: 'SUV',
+    categoryLabel: 'SUV',
+    aliases: ['hector', 'mg', 'suv'],
+  ),
+
+  // ── Hatchbacks ────────────────────────────────────────────────────────
+  _VehicleSuggestion(
+    name: 'Maruti WagonR',
+    categoryId: 'HATCHBACK',
+    categoryLabel: 'Compact Hatchback',
+    aliases: ['wagonr', 'wagon r', 'maruti', 'suzuki', 'cng', 'hatchback'],
+  ),
+  _VehicleSuggestion(
+    name: 'Maruti Swift',
+    categoryId: 'HATCHBACK',
+    categoryLabel: 'Compact Hatchback',
+    aliases: ['swift', 'maruti', 'suzuki', 'hatchback'],
+  ),
+  _VehicleSuggestion(
+    name: 'Maruti Baleno',
+    categoryId: 'HATCHBACK',
+    categoryLabel: 'Compact Hatchback',
+    aliases: ['baleno', 'maruti', 'nexa', 'hatchback'],
+  ),
+  _VehicleSuggestion(
+    name: 'Maruti Celerio',
+    categoryId: 'HATCHBACK',
+    categoryLabel: 'Compact Hatchback',
+    aliases: ['celerio', 'maruti', 'hatchback'],
+  ),
+  _VehicleSuggestion(
+    name: 'Maruti Alto K10',
+    categoryId: 'HATCHBACK',
+    categoryLabel: 'Budget Hatchback',
+    aliases: ['alto', 'alto k10', 'maruti', 'hatchback'],
+  ),
+  _VehicleSuggestion(
+    name: 'Hyundai Grand i10 Nios',
+    categoryId: 'HATCHBACK',
+    categoryLabel: 'Compact Hatchback',
+    aliases: ['i10', 'grand i10', 'nios', 'hyundai', 'hatchback'],
+  ),
+  _VehicleSuggestion(
+    name: 'Hyundai i20',
+    categoryId: 'HATCHBACK',
+    categoryLabel: 'Compact Hatchback',
+    aliases: ['i20', 'hyundai', 'hatchback'],
+  ),
+  _VehicleSuggestion(
+    name: 'Tata Tiago',
+    categoryId: 'HATCHBACK',
+    categoryLabel: 'Compact Hatchback',
+    aliases: ['tiago', 'tata', 'ev', 'hatchback'],
+  ),
+  _VehicleSuggestion(
+    name: 'Tata Altroz',
+    categoryId: 'HATCHBACK',
+    categoryLabel: 'Compact Hatchback',
+    aliases: ['altroz', 'tata', 'hatchback'],
+  ),
+
+  // ── Buses & Travellers ────────────────────────────────────────────────
+  _VehicleSuggestion(
+    name: 'Force Traveller 3350',
+    categoryId: 'TEMPO_TRAVELLER',
+    categoryLabel: 'Tempo Traveller',
+    aliases: ['traveller', 'force', 'tempo', 'van'],
+  ),
+  _VehicleSuggestion(
+    name: 'Force Traveller 4020',
+    categoryId: 'TEMPO_TRAVELLER',
+    categoryLabel: 'Tempo Traveller',
+    aliases: ['traveller', 'force', 'tempo', 'van'],
+  ),
+  _VehicleSuggestion(
+    name: 'Tata Winger',
+    categoryId: 'TEMPO_TRAVELLER',
+    categoryLabel: 'Tempo Traveller',
+    aliases: ['winger', 'tata', 'tempo'],
+  ),
+  _VehicleSuggestion(
+    name: 'Commercial Coach Bus',
+    categoryId: 'BUS',
+    categoryLabel: 'Coach Bus',
+    aliases: ['bus', 'coach', 'ashok leyland', 'volvo', 'bharatbenz'],
+  ),
+];
+
 /// Screen 12: Step 3 of 3: Vehicle Verification & Documents (Matches Add Vehicle layout).
 class OnboardingVehicleScreen extends StatefulWidget {
   const OnboardingVehicleScreen({super.key});
@@ -28,10 +316,12 @@ class OnboardingVehicleScreen extends StatefulWidget {
 class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
   final _formKey = GlobalKey<FormState>();
   final _makeModelController = TextEditingController();
+  final _makeModelFocusNode = FocusNode();
   final _plateController = TextEditingController();
   final _yearController = TextEditingController();
   final _colorController = TextEditingController();
 
+  bool _showModelDropdown = false;
   String _category = 'Sedan';
   bool _isSubmitting = false;
   String? _inlineErrorMessage;
@@ -100,6 +390,11 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
     _plateController.addListener(_clearErrorOnType);
     _yearController.addListener(_clearErrorOnType);
     _colorController.addListener(_clearErrorOnType);
+    _makeModelFocusNode.addListener(() {
+      if (mounted && _makeModelFocusNode.hasFocus) {
+        setState(() => _showModelDropdown = true);
+      }
+    });
 
     _loadDynamicCategories();
     _loadExistingData();
@@ -127,14 +422,50 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
           _category = profile['vehicleType'].toString().toUpperCase();
         });
       }
-      if (profile['rcDocUrl'] != null && onboarding.rcBookUrl == null) {
-        onboarding.setDocumentUrl('RC_BOOK', profile['rcDocUrl'].toString());
+      if (profile['rcFrontUrl'] != null && onboarding.rcFrontUrl == null) {
+        onboarding.setDocumentUrl('RC_FRONT', profile['rcFrontUrl'].toString());
+      }
+      if (profile['rcBackUrl'] != null && onboarding.rcBackUrl == null) {
+        onboarding.setDocumentUrl('RC_BACK', profile['rcBackUrl'].toString());
+      }
+      if (profile['rcDocUrl'] != null && onboarding.rcFrontUrl == null) {
+        onboarding.setDocumentUrl('RC_FRONT', profile['rcDocUrl'].toString());
       }
       if (profile['insuranceDocUrl'] != null && onboarding.insuranceUrl == null) {
         onboarding.setDocumentUrl('INSURANCE', profile['insuranceDocUrl'].toString());
       }
       setState(() {});
     } catch (_) {}
+  }
+
+  List<_VehicleSuggestion> _getFilteredVehicleSuggestions(String query) {
+    final clean = query.trim().toLowerCase();
+    if (clean.isEmpty) {
+      return _popularVehicleModels.take(8).toList();
+    }
+    return _popularVehicleModels.where((v) {
+      if (v.name.toLowerCase().contains(clean)) return true;
+      if (v.categoryLabel.toLowerCase().contains(clean)) return true;
+      return v.aliases.any((alias) =>
+          alias.toLowerCase().contains(clean) || clean.contains(alias.toLowerCase()));
+    }).toList();
+  }
+
+  void _selectVehicleModel(_VehicleSuggestion item) {
+    _makeModelController.text = item.name;
+    if (_vehicleOptions.any((v) => v['id'] == item.categoryId)) {
+      _category = item.categoryId;
+    }
+    _showModelDropdown = false;
+    _makeModelFocusNode.unfocus();
+    context.read<OnboardingProvider>().setVehicleDetails(
+      vehicleType: _category,
+      carModel: item.name,
+      color: _colorController.text.trim(),
+      registrationNumber: _plateController.text.trim(),
+      modelYear: _yearController.text.trim(),
+    );
+    setState(() {});
   }
 
   Future<void> _loadDynamicCategories() async {
@@ -187,6 +518,7 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
     _plateController.removeListener(_clearErrorOnType);
     _yearController.removeListener(_clearErrorOnType);
     _colorController.removeListener(_clearErrorOnType);
+    _makeModelFocusNode.dispose();
     _makeModelController.dispose();
     _plateController.dispose();
     _yearController.dispose();
@@ -360,8 +692,15 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
     final onboarding = context.read<OnboardingProvider>();
     final driverService = context.read<DriverService>();
 
-    if (onboarding.rcBookUrl == null) {
-      const msg = 'Please upload your Vehicle RC (Registration Certificate) document.';
+    if (onboarding.rcFrontUrl == null && onboarding.rcBookUrl == null) {
+      const msg = 'Please upload your Vehicle RC (Front) document.';
+      setState(() => _inlineErrorMessage = msg);
+      AppToast.showError(msg, context: context);
+      return;
+    }
+
+    if (onboarding.rcBackUrl == null) {
+      const msg = 'Please upload your Vehicle RC (Back) document.';
       setState(() => _inlineErrorMessage = msg);
       AppToast.showError(msg, context: context);
       return;
@@ -393,13 +732,17 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
     });
 
     try {
+      final rcFUrl = onboarding.rcFrontUrl ?? onboarding.rcBookUrl;
+      final rcBUrl = onboarding.rcBackUrl;
+
       final docList = [
         if (onboarding.profilePhotoUrl != null) onboarding.profilePhotoUrl!,
         if (onboarding.drivingLicenseUrl != null) onboarding.drivingLicenseUrl!,
         if (onboarding.aadharFrontUrl != null) onboarding.aadharFrontUrl!,
         if (onboarding.aadharBackUrl != null) onboarding.aadharBackUrl!,
         if (onboarding.panCardUrl != null) onboarding.panCardUrl!,
-        if (onboarding.rcBookUrl != null) onboarding.rcBookUrl!,
+        if (rcFUrl != null) rcFUrl,
+        if (rcBUrl != null) rcBUrl,
         if (onboarding.insuranceUrl != null) onboarding.insuranceUrl!,
       ];
 
@@ -410,7 +753,9 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
         documentUrls: docList,
         profilePhotoUrl: onboarding.profilePhotoUrl,
         dlFrontUrl: onboarding.drivingLicenseUrl,
-        rcDocUrl: onboarding.rcBookUrl,
+        rcDocUrl: rcFUrl,
+        rcFrontUrl: rcFUrl,
+        rcBackUrl: rcBUrl,
         insuranceDocUrl: onboarding.insuranceUrl,
         vehiclePhotoUrl: onboarding.vehiclePhotoUrl,
         aadharFrontUrl: onboarding.aadharFrontUrl,
@@ -554,20 +899,8 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                             const SizedBox(height: AppSpacing.md),
                           ],
 
-                          // ── Vehicle Make & Model ───────────────────────────
-                          _buildTextField(
-                            label: 'Vehicle Make & Model *',
-                            controller: _makeModelController,
-                            icon: Icons.directions_car_outlined,
-                            hint: 'e.g. Honda City, Maruti Dzire, Innova',
-                            isDark: isDark,
-                            validator: (val) {
-                              if (val == null || val.trim().length < 3) {
-                                return 'Please enter vehicle make and model';
-                              }
-                              return null;
-                            },
-                          ),
+                          // ── Vehicle Make & Model (with Suggestions Dropdown) ──
+                          _buildMakeModelAutocompleteField(isDark),
                           const SizedBox(height: AppSpacing.lg),
 
                           // ── Vehicle Category ───────────────────────────────
@@ -785,15 +1118,27 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                           ),
                           const SizedBox(height: AppSpacing.md),
 
+                          // ── Vehicle RC Front ─────────────────────────────
                           _buildUploadTile(
-                            title: 'Vehicle RC Photo (Front & Back) *',
+                            title: 'Vehicle RC Photo (Front) *',
                             isDark: isDark,
-                            isUploaded: onboarding.rcBookUrl != null,
-                            isUploading: _uploadingState['RC_BOOK'] ?? false,
-                            onTap: () => _showDocumentSourcePicker('RC_BOOK', 'Vehicle RC Photo'),
+                            isUploaded: onboarding.rcFrontUrl != null || onboarding.rcBookUrl != null,
+                            isUploading: _uploadingState['RC_FRONT'] ?? false,
+                            onTap: () => _showDocumentSourcePicker('RC_FRONT', 'Vehicle RC Photo (Front)'),
                           ),
                           const SizedBox(height: AppSpacing.md),
 
+                          // ── Vehicle RC Back ──────────────────────────────
+                          _buildUploadTile(
+                            title: 'Vehicle RC Photo (Back) *',
+                            isDark: isDark,
+                            isUploaded: onboarding.rcBackUrl != null,
+                            isUploading: _uploadingState['RC_BACK'] ?? false,
+                            onTap: () => _showDocumentSourcePicker('RC_BACK', 'Vehicle RC Photo (Back)'),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+
+                          // ── Commercial Insurance Certificate ─────────────
                           _buildUploadTile(
                             title: 'Commercial Insurance Certificate *',
                             isDark: isDark,
@@ -820,6 +1165,288 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildMakeModelAutocompleteField(bool isDark) {
+    final query = _makeModelController.text.trim();
+    final suggestions = _getFilteredVehicleSuggestions(query);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Vehicle Make & Model *',
+              style: AppTypography.caption(
+                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            if (_showModelDropdown)
+              GestureDetector(
+                onTap: () => setState(() => _showModelDropdown = false),
+                child: Text(
+                  'Close',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isDark ? AppColors.primaryLight : AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: _makeModelController,
+          focusNode: _makeModelFocusNode,
+          validator: (val) {
+            if (val == null || val.trim().length < 2) {
+              return 'Please enter vehicle make and model';
+            }
+            return null;
+          },
+          onChanged: (val) {
+            setState(() {
+              _showModelDropdown = true;
+            });
+          },
+          style: AppTypography.body(
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+          ),
+          decoration: InputDecoration(
+            hintText: 'e.g. Maruti Dzire, Honda City, Innova',
+            hintStyle: AppTypography.body(
+              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+            ),
+            prefixIcon: Icon(
+              Icons.directions_car_outlined,
+              size: 20,
+              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+            ),
+            suffixIcon: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_makeModelController.text.isNotEmpty)
+                  IconButton(
+                    icon: const Icon(Icons.clear_rounded, size: 18),
+                    onPressed: () {
+                      _makeModelController.clear();
+                      setState(() {
+                        _showModelDropdown = true;
+                      });
+                    },
+                  ),
+                IconButton(
+                  icon: Icon(
+                    _showModelDropdown
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    color: isDark ? AppColors.primaryLight : AppColors.primary,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _showModelDropdown = !_showModelDropdown;
+                    });
+                  },
+                ),
+              ],
+            ),
+            filled: true,
+            fillColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              borderSide: BorderSide(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              borderSide: BorderSide(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              borderSide: BorderSide(
+                color: isDark ? AppColors.primaryLight : AppColors.primary,
+                width: 1.5,
+              ),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          ),
+        ),
+        if (_showModelDropdown) ...[
+          const SizedBox(height: 6),
+          Container(
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.surfaceElevatedDark : Colors.white,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(
+                color: isDark ? AppColors.borderDark : AppColors.primary.withValues(alpha: 0.3),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? AppColors.surfaceDark
+                        : AppColors.primary.withValues(alpha: 0.06),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(AppRadius.md),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        query.isEmpty
+                            ? 'POPULAR SEDANS & SUVS (TAP TO SELECT)'
+                            : 'MATCHING MODELS (${suggestions.length})',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                          color: isDark ? AppColors.textMutedDark : AppColors.primary,
+                        ),
+                      ),
+                      InkWell(
+                        onTap: () => setState(() => _showModelDropdown = false),
+                        child: const Icon(Icons.close_rounded, size: 16),
+                      ),
+                    ],
+                  ),
+                ),
+                if (suggestions.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'No matching model in quick suggestions.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'You can keep typing above to enter any custom vehicle name.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 220),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      itemCount: suggestions.length,
+                      separatorBuilder: (_, __) => Divider(
+                        height: 1,
+                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      ),
+                      itemBuilder: (context, index) {
+                        final item = suggestions[index];
+                        final isSelected = _makeModelController.text.trim().toLowerCase() ==
+                            item.name.toLowerCase();
+
+                        return InkWell(
+                          onTap: () {
+                            _selectVehicleModel(item);
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? AppColors.primary.withValues(alpha: 0.15)
+                                        : (isDark
+                                            ? AppColors.surfaceDark
+                                            : AppColors.primary.withValues(alpha: 0.08)),
+                                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                                  ),
+                                  child: Icon(
+                                    item.categoryId == 'SUV'
+                                        ? Icons.airport_shuttle_rounded
+                                        : (item.categoryId == 'BUS'
+                                            ? Icons.directions_bus_rounded
+                                            : Icons.directions_car_rounded),
+                                    size: 16,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    item.name,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                      color: isSelected
+                                          ? AppColors.primary
+                                          : (isDark
+                                              ? AppColors.textPrimaryDark
+                                              : AppColors.textPrimaryLight),
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? AppColors.surfaceDark
+                                        : AppColors.slate100,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    item.categoryLabel,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? AppColors.textMutedDark : AppColors.slate700,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 

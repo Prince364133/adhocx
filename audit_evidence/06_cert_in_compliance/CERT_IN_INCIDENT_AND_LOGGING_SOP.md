@@ -118,9 +118,9 @@ Under CERT-In Direction 2(ii), any service provider or intermediary must report 
 
 ```text
 To: incident@cert-in.org.in
-Subject: CYBER INCIDENT REPORT - AdhocX Technologies Pvt Ltd - [INCIDENT-ID]
+Subject: CYBER INCIDENT REPORT - Estemporaneo Technologies Private Limited - [INCIDENT-ID]
 
-1. Name of the Organisation: AdhocX Technologies Private Limited
+1. Name of the Organisation: Estemporaneo Technologies Private Limited
 2. Date & Time of Incident Detection: [YYYY-MM-DD HH:MM:SS IST]
 3. Point of Contact (Incident Lead): [Name, Designation, Phone, Email]
 4. Nature / Type of Incident: [e.g., Unauthorized API Access / Ransomware / BOLA Data Leak]

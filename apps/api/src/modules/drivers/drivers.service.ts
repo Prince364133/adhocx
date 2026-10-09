@@ -66,9 +66,14 @@ export class DriversService {
         throw new NotFoundException('Driver profile not found');
       }
 
+      const kyc = (driver.kycDocuments as Record<string, any>) || {};
+      const rcFrontUrl = kyc.rcFrontUrl || driver.rcDocUrl || undefined;
+      const rcBackUrl = kyc.rcBackUrl || undefined;
+
       const docsList = [
         ...(driver.dlFrontUrl ? [{ id: 'doc_dl', documentType: 'DRIVING_LICENSE', title: 'Driving License', fileUrl: driver.dlFrontUrl, verified: driver.verificationStatus === 'VERIFIED', uploadedAt: driver.createdAt.toISOString() }] : []),
-        ...(driver.rcDocUrl ? [{ id: 'doc_rc', documentType: 'RC_BOOK', title: 'Vehicle RC Book', fileUrl: driver.rcDocUrl, verified: driver.verificationStatus === 'VERIFIED', uploadedAt: driver.createdAt.toISOString() }] : []),
+        ...(rcFrontUrl ? [{ id: 'doc_rc_front', documentType: 'RC_FRONT', title: 'Vehicle RC (Front)', fileUrl: rcFrontUrl, verified: driver.verificationStatus === 'VERIFIED', uploadedAt: driver.createdAt.toISOString() }] : (driver.rcDocUrl ? [{ id: 'doc_rc', documentType: 'RC_BOOK', title: 'Vehicle RC Book', fileUrl: driver.rcDocUrl, verified: driver.verificationStatus === 'VERIFIED', uploadedAt: driver.createdAt.toISOString() }] : [])),
+        ...(rcBackUrl ? [{ id: 'doc_rc_back', documentType: 'RC_BACK', title: 'Vehicle RC (Back)', fileUrl: rcBackUrl, verified: driver.verificationStatus === 'VERIFIED', uploadedAt: driver.createdAt.toISOString() }] : []),
         ...(driver.insuranceDocUrl ? [{ id: 'doc_ins', documentType: 'INSURANCE', title: 'Vehicle Insurance', fileUrl: driver.insuranceDocUrl, verified: driver.verificationStatus === 'VERIFIED', uploadedAt: driver.createdAt.toISOString() }] : []),
         ...(driver.vehiclePhotoUrl ? [{ id: 'doc_veh', documentType: 'VEHICLE_PHOTO', title: 'Vehicle Photo', fileUrl: driver.vehiclePhotoUrl, verified: driver.verificationStatus === 'VERIFIED', uploadedAt: driver.createdAt.toISOString() }] : []),
         ...(driver.aadharFrontUrl ? [{ id: 'doc_adh_f', documentType: 'AADHAR_FRONT', title: 'Aadhar Card (Front)', fileUrl: driver.aadharFrontUrl, verified: driver.verificationStatus === 'VERIFIED', uploadedAt: driver.createdAt.toISOString() }] : []),
@@ -76,7 +81,6 @@ export class DriversService {
         ...(driver.panDocUrl ? [{ id: 'doc_pan', documentType: 'PAN_CARD', title: 'PAN Card', fileUrl: driver.panDocUrl, verified: driver.verificationStatus === 'VERIFIED', uploadedAt: driver.createdAt.toISOString() }] : []),
       ];
 
-      const kyc = (driver.kycDocuments as Record<string, any>) || {};
       const driverId = 'DRV' + (driver.id.replace(/-/g, '').substring(0, 6).toUpperCase());
 
       return {
@@ -103,7 +107,9 @@ export class DriversService {
         } : undefined,
         dlFrontUrl: driver.dlFrontUrl || undefined,
         dlBackUrl: driver.dlBackUrl || undefined,
-        rcDocUrl: driver.rcDocUrl || undefined,
+        rcDocUrl: driver.rcDocUrl || rcFrontUrl,
+        rcFrontUrl,
+        rcBackUrl,
         insuranceDocUrl: driver.insuranceDocUrl || undefined,
         vehiclePhotoUrl: driver.vehiclePhotoUrl || undefined,
         aadharFrontUrl: driver.aadharFrontUrl || undefined,
@@ -314,7 +320,9 @@ export class DriversService {
   async submitKyc(userId: string, dto: KycSubmissionDto): Promise<DriverProfileDto> {
     const profilePhotoUrl = dto.profilePhotoUrl;
     const dlFrontUrl = dto.dlFrontUrl || dto.documentUrls?.[0];
-    const rcDocUrl = dto.rcDocUrl || dto.documentUrls?.[1];
+    const rcFrontUrl = dto.rcFrontUrl || dto.rcDocUrl || dto.documentUrls?.[1];
+    const rcBackUrl = dto.rcBackUrl;
+    const rcDocUrl = rcFrontUrl || dto.rcDocUrl;
     const insuranceDocUrl = dto.insuranceDocUrl || dto.documentUrls?.[2];
     const vehiclePhotoUrl = dto.vehiclePhotoUrl;
     const aadharFrontUrl = dto.aadharFrontUrl || dto.documentUrls?.[4];
@@ -324,7 +332,8 @@ export class DriversService {
     const docsList = [
       ...(profilePhotoUrl ? [{ id: 'doc_profile', documentType: 'PROFILE_PHOTO', title: 'Driver Profile Photo', fileUrl: profilePhotoUrl, verified: false, uploadedAt: new Date().toISOString() }] : []),
       ...(dlFrontUrl ? [{ id: 'doc_dl', documentType: 'DRIVING_LICENSE', title: 'Driving License', fileUrl: dlFrontUrl, verified: false, uploadedAt: new Date().toISOString() }] : []),
-      ...(rcDocUrl ? [{ id: 'doc_rc', documentType: 'RC_BOOK', title: 'Vehicle RC Book', fileUrl: rcDocUrl, verified: false, uploadedAt: new Date().toISOString() }] : []),
+      ...(rcFrontUrl ? [{ id: 'doc_rc_front', documentType: 'RC_FRONT', title: 'Vehicle RC (Front)', fileUrl: rcFrontUrl, verified: false, uploadedAt: new Date().toISOString() }] : (rcDocUrl ? [{ id: 'doc_rc', documentType: 'RC_BOOK', title: 'Vehicle RC Book', fileUrl: rcDocUrl, verified: false, uploadedAt: new Date().toISOString() }] : [])),
+      ...(rcBackUrl ? [{ id: 'doc_rc_back', documentType: 'RC_BACK', title: 'Vehicle RC (Back)', fileUrl: rcBackUrl, verified: false, uploadedAt: new Date().toISOString() }] : []),
       ...(insuranceDocUrl ? [{ id: 'doc_ins', documentType: 'INSURANCE', title: 'Vehicle Insurance', fileUrl: insuranceDocUrl, verified: false, uploadedAt: new Date().toISOString() }] : []),
       ...(vehiclePhotoUrl ? [{ id: 'doc_veh', documentType: 'VEHICLE_PHOTO', title: 'Vehicle Photo', fileUrl: vehiclePhotoUrl, verified: false, uploadedAt: new Date().toISOString() }] : []),
       ...(aadharFrontUrl ? [{ id: 'doc_adh_f', documentType: 'AADHAR_FRONT', title: 'Aadhar Card (Front)', fileUrl: aadharFrontUrl, verified: false, uploadedAt: new Date().toISOString() }] : []),
@@ -387,6 +396,8 @@ export class DriversService {
             kycDocuments: {
               ...((existingDriver.kycDocuments as Record<string, any>) || {}),
               ...(profilePhotoUrl ? { profilePhotoUrl } : {}),
+              ...(rcFrontUrl ? { rcFrontUrl } : {}),
+              ...(rcBackUrl ? { rcBackUrl } : {}),
               documents: docsList.length > 0 ? docsList : (((existingDriver.kycDocuments as any)?.documents) || []),
             },
           },
@@ -457,6 +468,8 @@ export class DriversService {
             panDocUrl,
             kycDocuments: {
               ...(profilePhotoUrl ? { profilePhotoUrl } : {}),
+              ...(rcFrontUrl ? { rcFrontUrl } : {}),
+              ...(rcBackUrl ? { rcBackUrl } : {}),
               documents: docsList,
             },
           },

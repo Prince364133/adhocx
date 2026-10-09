@@ -64,8 +64,14 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
       if (profile['panDocUrl'] != null && onboarding.panCardUrl == null) {
         onboarding.setDocumentUrl('PAN_CARD', profile['panDocUrl'].toString());
       }
-      if (profile['rcDocUrl'] != null && onboarding.rcBookUrl == null) {
-        onboarding.setDocumentUrl('RC_BOOK', profile['rcDocUrl'].toString());
+      if (profile['rcFrontUrl'] != null && onboarding.rcFrontUrl == null) {
+        onboarding.setDocumentUrl('RC_FRONT', profile['rcFrontUrl'].toString());
+      }
+      if (profile['rcBackUrl'] != null && onboarding.rcBackUrl == null) {
+        onboarding.setDocumentUrl('RC_BACK', profile['rcBackUrl'].toString());
+      }
+      if (profile['rcDocUrl'] != null && onboarding.rcFrontUrl == null) {
+        onboarding.setDocumentUrl('RC_FRONT', profile['rcDocUrl'].toString());
       }
       if (profile['insuranceDocUrl'] != null && onboarding.insuranceUrl == null) {
         onboarding.setDocumentUrl('INSURANCE', profile['insuranceDocUrl'].toString());

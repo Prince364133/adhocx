@@ -64,6 +64,14 @@ export class KycSubmissionDto {
 
   @IsOptional()
   @IsString()
+  rcFrontUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  rcBackUrl?: string;
+
+  @IsOptional()
+  @IsString()
   insuranceDocUrl?: string;
 
   @IsOptional()
@@ -141,6 +149,8 @@ export class DriverProfileDto {
   dlFrontUrl?: string;
   dlBackUrl?: string;
   rcDocUrl?: string;
+  rcFrontUrl?: string;
+  rcBackUrl?: string;
   insuranceDocUrl?: string;
   vehiclePhotoUrl?: string;
   aadharFrontUrl?: string;

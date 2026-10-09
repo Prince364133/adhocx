@@ -39,6 +39,8 @@ class OnboardingProvider extends ChangeNotifier {
   String? _profilePhotoUrl;
   String? _drivingLicenseUrl;
   String? _rcBookUrl;
+  String? _rcFrontUrl;
+  String? _rcBackUrl;
   String? _insuranceUrl;
   String? _vehiclePhotoUrl;
   String? _aadharFrontUrl;
@@ -83,7 +85,9 @@ class OnboardingProvider extends ChangeNotifier {
 
   String? get profilePhotoUrl => _profilePhotoUrl ?? _selfieUrl;
   String? get drivingLicenseUrl => _drivingLicenseUrl;
-  String? get rcBookUrl => _rcBookUrl;
+  String? get rcBookUrl => _rcFrontUrl ?? _rcBookUrl;
+  String? get rcFrontUrl => _rcFrontUrl ?? _rcBookUrl;
+  String? get rcBackUrl => _rcBackUrl;
   String? get insuranceUrl => _insuranceUrl;
   String? get vehiclePhotoUrl => _vehiclePhotoUrl;
   String? get aadharFrontUrl => _aadharFrontUrl;
@@ -94,7 +98,8 @@ class OnboardingProvider extends ChangeNotifier {
   int get uploadedDocumentsCount {
     int count = 0;
     if (_drivingLicenseUrl != null) count++;
-    if (_rcBookUrl != null) count++;
+    if (_rcFrontUrl != null || _rcBookUrl != null) count++;
+    if (_rcBackUrl != null) count++;
     if (_insuranceUrl != null) count++;
     if (_vehiclePhotoUrl != null) count++;
     if (_aadharFrontUrl != null) count++;
@@ -105,7 +110,7 @@ class OnboardingProvider extends ChangeNotifier {
 
   int get uploadedCount => uploadedDocumentsCount;
 
-  bool get areAllDocumentsUploaded => uploadedDocumentsCount >= 7;
+  bool get areAllDocumentsUploaded => uploadedDocumentsCount >= 8;
 
   // Setters
   void setRole(String role) {
@@ -237,7 +242,15 @@ class OnboardingProvider extends ChangeNotifier {
       case 'DRIVING_LICENSE':
         _drivingLicenseUrl = url;
         break;
+      case 'RC_FRONT':
+        _rcFrontUrl = url;
+        _rcBookUrl = url;
+        break;
+      case 'RC_BACK':
+        _rcBackUrl = url;
+        break;
       case 'RC_BOOK':
+        _rcFrontUrl = url;
         _rcBookUrl = url;
         break;
       case 'INSURANCE':
@@ -280,6 +293,8 @@ class OnboardingProvider extends ChangeNotifier {
     _profilePhotoUrl = null;
     _drivingLicenseUrl = null;
     _rcBookUrl = null;
+    _rcFrontUrl = null;
+    _rcBackUrl = null;
     _insuranceUrl = null;
     _vehiclePhotoUrl = null;
     _aadharFrontUrl = null;

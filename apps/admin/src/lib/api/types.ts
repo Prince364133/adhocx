@@ -38,6 +38,8 @@ export interface DriverListItem {
   dlFrontUrl?: string;
   dlBackUrl?: string;
   rcDocUrl?: string;
+  rcFrontUrl?: string;
+  rcBackUrl?: string;
   insuranceDocUrl?: string;
   vehiclePhotoUrl?: string;
   aadharFrontUrl?: string;
@@ -50,7 +52,7 @@ export interface DriverListItem {
 
 export interface DriverKycDocument {
   id: string;
-  documentType: 'DL_FRONT' | 'DL_BACK' | 'RC_BOOK' | 'INSURANCE' | 'VEHICLE_PHOTO' | 'AADHAAR' | string;
+  documentType: 'DL_FRONT' | 'DL_BACK' | 'RC_BOOK' | 'RC_FRONT' | 'RC_BACK' | 'INSURANCE' | 'VEHICLE_PHOTO' | 'AADHAAR' | string;
   title?: string;
   fileUrl: string;
   verified: boolean;

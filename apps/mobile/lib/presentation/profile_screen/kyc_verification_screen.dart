@@ -72,7 +72,8 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
 
     // Check individual document uploads from live profile
     final hasDl = _profile['dlFrontUrl'] != null && _profile['dlFrontUrl'].toString().isNotEmpty;
-    final hasRc = _profile['rcDocUrl'] != null && _profile['rcDocUrl'].toString().isNotEmpty;
+    final hasRc = (_profile['rcDocUrl'] != null && _profile['rcDocUrl'].toString().isNotEmpty) ||
+        (_profile['rcFrontUrl'] != null && _profile['rcFrontUrl'].toString().isNotEmpty);
     final hasIns = _profile['insuranceDocUrl'] != null && _profile['insuranceDocUrl'].toString().isNotEmpty;
     final hasVeh = _profile['vehiclePhotoUrl'] != null && _profile['vehiclePhotoUrl'].toString().isNotEmpty;
     final hasAadhar = (_profile['aadharFrontUrl'] != null && _profile['aadharFrontUrl'].toString().isNotEmpty) ||
