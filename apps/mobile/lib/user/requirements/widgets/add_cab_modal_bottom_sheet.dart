@@ -447,37 +447,45 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                        ),
+                        child: const Icon(Icons.local_taxi_rounded, color: AppColors.primary, size: 20),
                       ),
-                      child: const Icon(Icons.local_taxi_rounded, color: AppColors.primary, size: 20),
-                    ),
-                    const SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          isEditing ? 'Edit Cab #${widget.cabNumber}' : 'Add Cab #${widget.cabNumber}',
-                          style: AppTypography.h4(
-                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              isEditing ? 'Edit Cab #${widget.cabNumber}' : 'Add Cab #${widget.cabNumber}',
+                              style: AppTypography.h4(
+                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              'Configure vehicle, route, passengers & schedule',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
-                        Text(
-                          'Configure vehicle, route, passengers & schedule',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
@@ -614,22 +622,30 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.people_alt_outlined, size: 20, color: AppColors.primary),
-                            const SizedBox(width: 10),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('Passengers in this Cab',
-                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                                Text('Max $_currentMaxSeats seats available',
-                                    style: TextStyle(
-                                        fontSize: 11,
-                                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
-                              ],
-                            ),
-                          ],
+                        Expanded(
+                          child: Row(
+                            children: [
+                              const Icon(Icons.people_alt_outlined, size: 20, color: AppColors.primary),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Passengers in this Cab',
+                                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis),
+                                    Text('Max $_currentMaxSeats seats available',
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         Row(
                           children: [
@@ -702,23 +718,31 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.primary.withValues(alpha: 0.12),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        _direction == 'OUTBOUND_FROM_OFFICE'
-                                            ? '🏢 → 🏠 Office → Home'
-                                            : '🏠 → 🏢 Home → Office',
-                                        style: const TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.primary,
+                                    Expanded(
+                                      child: Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primary.withValues(alpha: 0.12),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            _direction == 'OUTBOUND_FROM_OFFICE'
+                                                ? '🏢 → 🏠 Office → Home'
+                                                : '🏠 → 🏢 Home → Office',
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.primary,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                         ),
                                       ),
                                     ),
+                                    const SizedBox(width: 8),
                                     TextButton(
                                       onPressed: _openSelectRouteSubSheet,
                                       style: TextButton.styleFrom(
@@ -836,31 +860,39 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
                                 : (isDark ? AppColors.slate400 : AppColors.slate500),
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            'Security Escort',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                          Expanded(
+                            child: Wrap(
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 6,
+                              runSpacing: 2,
+                              children: [
+                                Text(
+                                  'Security Escort',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.accentPurple.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text(
+                                    'Approved Ceiling',
+                                    style: TextStyle(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.accentPurple,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                            decoration: BoxDecoration(
-                              color: AppColors.accentPurple.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Text(
-                              'Approved Ceiling',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.accentPurple,
-                              ),
-                            ),
-                          ),
-                          const Spacer(),
+                          const SizedBox(width: 4),
                           Transform.scale(
                             scale: 0.8,
                             child: Switch(
@@ -900,16 +932,23 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.calendar_today_rounded, size: 18, color: AppColors.primary),
-                              const SizedBox(width: 10),
-                              Text(
-                                '$_pickupDate  •  $_pickupTime',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                              ),
-                            ],
+                          Expanded(
+                            child: Row(
+                              children: [
+                                const Icon(Icons.calendar_today_rounded, size: 18, color: AppColors.primary),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    '$_pickupDate  •  $_pickupTime',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
+                          const SizedBox(width: 8),
                           Row(
                             children: [
                               Text(
@@ -934,14 +973,19 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Additional Stops (Optional)',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                      Expanded(
+                        child: Text(
+                          'Additional Stops (Optional)',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      const SizedBox(width: 8),
                       TextButton.icon(
                         onPressed: _addStop,
                         icon: const Icon(Icons.add_location_alt_outlined, size: 16),
@@ -1086,26 +1130,35 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.currency_rupee, color: AppColors.success, size: 20),
-                            const SizedBox(width: 8),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('Estimated Cab Fare',
-                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                                Text(
-                                  _hasEscort ? 'Security Escort' : 'Standard Cab Duty',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                                  ),
+                        Expanded(
+                          child: Row(
+                            children: [
+                              const Icon(Icons.currency_rupee, color: AppColors.success, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Estimated Cab Fare',
+                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis),
+                                    Text(
+                                      _hasEscort ? 'Security Escort' : 'Standard Cab Duty',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          ],
+                              ),
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 8),
                         Text(
                           '₹${estimatedFare.toStringAsFixed(0)}',
                           style: const TextStyle(

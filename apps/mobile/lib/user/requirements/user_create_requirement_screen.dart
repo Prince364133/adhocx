@@ -855,24 +855,40 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              'Cabs in Manifest (${draft.cabs.length})',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                            Expanded(
+                              child: Text(
+                                'Cabs in Manifest (${draft.cabs.length})',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 TextButton.icon(
                                   onPressed: _showSavedTemplatesBottomSheet,
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  ),
                                   icon: const Icon(Icons.bookmarks_outlined, size: 14, color: AppColors.primary),
-                                  label: const Text('Templates', style: TextStyle(fontSize: 12, color: AppColors.primary)),
+                                  label: const Text('Templates', style: TextStyle(fontSize: 11, color: AppColors.primary)),
                                 ),
+                                const SizedBox(width: 4),
                                 TextButton(
                                   onPressed: () => draft.clearCart(),
-                                  child: const Text('Clear All', style: TextStyle(fontSize: 12, color: AppColors.error)),
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: const Text('Clear All', style: TextStyle(fontSize: 11, color: AppColors.error)),
                                 ),
                               ],
                             ),
@@ -930,13 +946,18 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                                               Row(
                                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                                 children: [
-                                                  Text(
-                                                    'Cab #${idx + 1} • ${cab.vehicleLabel}',
-                                                    style: const TextStyle(
-                                                      fontWeight: FontWeight.bold,
-                                                      fontSize: 14,
+                                                  Expanded(
+                                                    child: Text(
+                                                      'Cab #${idx + 1} • ${cab.vehicleLabel}',
+                                                      style: const TextStyle(
+                                                        fontWeight: FontWeight.bold,
+                                                        fontSize: 14,
+                                                      ),
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
                                                     ),
                                                   ),
+                                                  const SizedBox(width: 8),
                                                   Container(
                                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                                     decoration: BoxDecoration(
@@ -1018,12 +1039,16 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                                           children: [
                                             const Icon(Icons.swap_horiz_rounded, size: 16, color: AppColors.primary),
                                             const SizedBox(width: 6),
-                                            Text(
-                                              'Direction: ${cab.isOutbound ? "Office Hub → Employee Locality" : "Employee Locality → Office Hub"}',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w600,
-                                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                            Expanded(
+                                              child: Text(
+                                                'Direction: ${cab.isOutbound ? "Office Hub → Employee Locality" : "Employee Locality → Office Hub"}',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                                ),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
                                               ),
                                             ),
                                           ],
@@ -1092,38 +1117,41 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                                         const SizedBox(height: 12),
 
                                         // Action buttons (Edit, Duplicate, Remove)
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.end,
-                                          children: [
-                                            OutlinedButton.icon(
-                                              onPressed: () => _duplicateCab(cab),
-                                              icon: const Icon(Icons.copy_rounded, size: 14),
-                                              label: const Text('Clone', style: TextStyle(fontSize: 11)),
-                                              style: OutlinedButton.styleFrom(
-                                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        Align(
+                                          alignment: Alignment.centerRight,
+                                          child: Wrap(
+                                            alignment: WrapAlignment.end,
+                                            spacing: 8,
+                                            runSpacing: 6,
+                                            children: [
+                                              OutlinedButton.icon(
+                                                onPressed: () => _duplicateCab(cab),
+                                                icon: const Icon(Icons.copy_rounded, size: 14),
+                                                label: const Text('Clone', style: TextStyle(fontSize: 11)),
+                                                style: OutlinedButton.styleFrom(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                                ),
                                               ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            OutlinedButton.icon(
-                                              onPressed: () => _openEditCabSheet(idx, cab),
-                                              icon: const Icon(Icons.edit_outlined, size: 14),
-                                              label: const Text('Edit', style: TextStyle(fontSize: 11)),
-                                              style: OutlinedButton.styleFrom(
-                                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                              OutlinedButton.icon(
+                                                onPressed: () => _openEditCabSheet(idx, cab),
+                                                icon: const Icon(Icons.edit_outlined, size: 14),
+                                                label: const Text('Edit', style: TextStyle(fontSize: 11)),
+                                                style: OutlinedButton.styleFrom(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                                ),
                                               ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            OutlinedButton.icon(
-                                              onPressed: () => draft.removeCab(idx),
-                                              icon: const Icon(Icons.delete_outline, size: 14, color: AppColors.error),
-                                              label: const Text('Remove', style: TextStyle(fontSize: 11, color: AppColors.error)),
-                                              style: OutlinedButton.styleFrom(
-                                                foregroundColor: AppColors.error,
-                                                side: const BorderSide(color: AppColors.error),
-                                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                              OutlinedButton.icon(
+                                                onPressed: () => draft.removeCab(idx),
+                                                icon: const Icon(Icons.delete_outline, size: 14, color: AppColors.error),
+                                                label: const Text('Remove', style: TextStyle(fontSize: 11, color: AppColors.error)),
+                                                style: OutlinedButton.styleFrom(
+                                                  foregroundColor: AppColors.error,
+                                                  side: const BorderSide(color: AppColors.error),
+                                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                                ),
                                               ),
-                                            ),
-                                          ],
+                                            ],
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -1252,26 +1280,33 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.account_balance_wallet_outlined,
-                                size: 16,
-                                color: isInsufficient ? AppColors.error : AppColors.primary,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                _isLoadingWallet
-                                    ? 'Checking Wallet...'
-                                    : 'Wallet: ₹${(_walletBalance ?? 0.0).toStringAsFixed(0)} Available',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: isInsufficient ? AppColors.error : null,
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.account_balance_wallet_outlined,
+                                  size: 16,
+                                  color: isInsufficient ? AppColors.error : AppColors.primary,
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    _isLoadingWallet
+                                        ? 'Checking Wallet...'
+                                        : 'Wallet: ₹${(_walletBalance ?? 0.0).toStringAsFixed(0)} Available',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: isInsufficient ? AppColors.error : null,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
+                          const SizedBox(width: 8),
                           InkWell(
                             onTap: _showTopUpBottomSheet,
                             child: const Text('+ Top Up', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary)),
@@ -1339,12 +1374,16 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
         children: [
           Icon(icon, size: 11, color: color),
           const SizedBox(width: 3),
-          Text(
-            text,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: color,
+          Flexible(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

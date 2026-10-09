@@ -61,9 +61,9 @@ void main() {
       await tester.pumpWidget(createTestApp(const SignUpScreen(), role: 'VENDOR'));
 
       expect(find.text('Create your account'), findsOneWidget);
-      expect(find.text('Sign Up'), findsOneWidget);
-      expect(find.text('Drive & Earn with AdhocX'), findsOneWidget);
-      expect(find.text('Join as Driver'), findsOneWidget);
+      expect(find.text('Continue with Email'), findsOneWidget);
+      expect(find.text('Registering as a Driver Partner?'), findsOneWidget);
+      expect(find.text('Switch to Driver Partner'), findsOneWidget);
     });
 
     testWidgets('Screen 6: Set Password Screen renders password fields',
@@ -108,7 +108,7 @@ void main() {
       await tester.pumpWidget(createTestApp(const OnboardingVehicleScreen(), role: 'DRIVER'));
 
       expect(find.text('Add Vehicle Details'), findsOneWidget);
-      expect(find.text('Sedan'), findsWidgets);
+      expect(find.text('Prime Sedan'), findsWidgets);
     });
 
     testWidgets('Screen 15: Welcome Celebration Screen renders tailored celebration',
