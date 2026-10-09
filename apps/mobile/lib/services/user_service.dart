@@ -460,4 +460,20 @@ class UserService {
     });
     return res is Map<String, dynamic> ? res : <String, dynamic>{};
   }
+
+  /// Live marketplace vehicle pricing tiers (Sedan, SUV, Hatchback, Bus, etc.)
+  Future<List<Map<String, dynamic>>> getPricingTiers({bool forceRefresh = false}) async {
+    try {
+      dynamic res = await _api.get('/pricing/tiers', force: forceRefresh);
+      if (res is! List || res.isEmpty) {
+        res = await _api.get('/pricing', force: forceRefresh);
+      }
+      if (res is List && res.isNotEmpty) {
+        return List<Map<String, dynamic>>.from(
+          res.map((item) => Map<String, dynamic>.from(item as Map)),
+        );
+      }
+    } catch (_) {}
+    return [];
+  }
 }

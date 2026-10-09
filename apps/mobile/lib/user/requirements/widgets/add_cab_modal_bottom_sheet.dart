@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../routes/app_routes.dart';
+import '../../../services/driver_service.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/theme/app_radius.dart';
 import '../../../shared/theme/app_spacing.dart';
@@ -61,13 +62,15 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
   final List<String> _additionalStops = [];
   late TextEditingController _notesController;
 
-  final List<Map<String, dynamic>> _vehicleOptions = [
+  List<Map<String, dynamic>> _vehicleOptions = [
     {
       'id': 'SEDAN',
       'label': 'Prime Sedan',
       'subtitle': '4 + 1 Passengers • Ac Commercial',
       'maxSeats': 4,
-      'baseRate': 400.0,
+      'baseRate': 800.0,
+      'baseKm': 40.0,
+      'perKmRate': 14.5,
       'icon': Icons.directions_car_rounded,
     },
     {
@@ -75,30 +78,37 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
       'label': 'SUV 7 Seater',
       'subtitle': '6 + 1 Passengers • Extra Luggage',
       'maxSeats': 6,
-      'baseRate': 650.0,
+      'baseRate': 1400.0,
+      'baseKm': 40.0,
+      'perKmRate': 19.0,
       'icon': Icons.airport_shuttle_rounded,
     },
     {
       'id': 'HATCHBACK',
-      'label': 'Electric EV (Sedan)',
-      'subtitle': '4 + 1 Passengers • Green Fleet',
+      'label': 'Compact Hatchback',
+      'subtitle': '4 + 1 Passengers • City Budget',
       'maxSeats': 4,
-      'baseRate': 420.0,
+      'baseRate': 500.0,
+      'baseKm': 20.0,
+      'perKmRate': 11.0,
       'icon': Icons.electric_car_rounded,
     },
     {
       'id': 'BUS',
-      'label': 'Executive Luxury',
-      'subtitle': '4 + 1 Passengers • Premium Chauffeur',
-      'maxSeats': 4,
-      'baseRate': 750.0,
-      'icon': Icons.star_rounded,
+      'label': 'Commercial Coach Bus',
+      'subtitle': '24 - 40 Passengers • Coach Bus',
+      'maxSeats': 24,
+      'baseRate': 6500.0,
+      'baseKm': 100.0,
+      'perKmRate': 45.0,
+      'icon': Icons.directions_bus_rounded,
     },
   ];
 
   @override
   void initState() {
     super.initState();
+    _loadLivePricingTiers();
     final item = widget.existingItem;
     if (item != null) {
       _vehicleType = item.vehicleType;
@@ -149,6 +159,57 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
     }
   }
 
+  Future<void> _loadLivePricingTiers() async {
+    try {
+      final tiers = await DriverService.instance.getVehicleCategories(forceRefresh: true);
+      if (tiers.isNotEmpty && mounted) {
+        setState(() {
+          _vehicleOptions = tiers.map((t) {
+            final vType = (t['vehicleType'] as String? ?? 'SEDAN').toUpperCase();
+            final label = t['categoryLabel']?.toString() ?? vType;
+            final seating = t['seatingCapacity']?.toString() ?? '4 + 1 Passengers';
+            int maxSeats = 4;
+            if (vType == 'SUV') {
+              maxSeats = 6;
+            } else if (vType == 'BUS') {
+              maxSeats = 24;
+            } else if (vType == 'TEMPO_TRAVELLER') {
+              maxSeats = 12;
+            } else if (seating.contains('6')) {
+              maxSeats = 6;
+            } else if (seating.contains('12')) {
+              maxSeats = 12;
+            } else if (seating.contains('24')) {
+              maxSeats = 24;
+            }
+
+            IconData icon = Icons.directions_car_rounded;
+            if (vType == 'SUV') {
+              icon = Icons.airport_shuttle_rounded;
+            } else if (vType == 'BUS') {
+              icon = Icons.directions_bus_rounded;
+            } else if (vType == 'TEMPO_TRAVELLER' || vType == 'TATA_ACE' || vType == 'PICKUP_TRUCK') {
+              icon = Icons.local_shipping_rounded;
+            } else if (vType == 'HATCHBACK') {
+              icon = Icons.electric_car_rounded;
+            }
+
+            return {
+              'id': vType,
+              'label': label,
+              'subtitle': seating,
+              'maxSeats': maxSeats,
+              'baseRate': (t['baseFare'] as num?)?.toDouble() ?? 800.0,
+              'baseKm': (t['baseKm'] as num?)?.toDouble() ?? 40.0,
+              'perKmRate': (t['perKmRate'] as num?)?.toDouble() ?? 14.5,
+              'icon': icon,
+            };
+          }).toList();
+        });
+      }
+    } catch (_) {}
+  }
+
   @override
   void dispose() {
     _notesController.dispose();
@@ -166,14 +227,16 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
   double _calculateEstimatedFare() {
     final opt = _vehicleOptions.firstWhere(
       (v) => v['id'] == _vehicleType,
-      orElse: () => _vehicleOptions.first,
+      orElse: () => _vehicleOptions.isNotEmpty ? _vehicleOptions.first : <String, dynamic>{},
     );
-    double baseFare = (opt['baseRate'] as num).toDouble();
+    double baseFare = (opt['baseRate'] as num?)?.toDouble() ?? 800.0;
+    double baseKm = (opt['baseKm'] as num?)?.toDouble() ?? 40.0;
+    double perKmRate = (opt['perKmRate'] as num?)?.toDouble() ?? 14.5;
 
-    // Additional distance scaling if available
-    if (_distanceKm > 10) {
-      final extraKm = _distanceKm - 10;
-      baseFare += extraKm * (_vehicleType == 'SUV' ? 19.0 : 14.5);
+    // Additional distance scaling after base km
+    if (_distanceKm > baseKm) {
+      final extraKm = _distanceKm - baseKm;
+      baseFare += extraKm * perKmRate;
     }
 
     if (_hasEscort) {
@@ -462,7 +525,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
                             });
                           },
                           child: Container(
-                            width: 150,
+                            width: 168,
                             margin: const EdgeInsets.only(right: 10),
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
@@ -508,6 +571,26 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? AppColors.primary.withValues(alpha: 0.15)
+                                        : (isDark ? AppColors.surfaceElevatedDark : AppColors.slate100),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    '₹${(opt['baseRate'] as num?)?.toInt() ?? 800} (${(opt['baseKm'] as num?)?.toInt() ?? 40}km) · ₹${(opt['perKmRate'] as num?)?.toStringAsFixed(1) ?? '14.5'}/km',
+                                    style: TextStyle(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: isSelected
+                                          ? AppColors.primary
+                                          : (isDark ? AppColors.textPrimaryDark : AppColors.textSecondaryLight),
+                                    ),
                                   ),
                                 ),
                               ],

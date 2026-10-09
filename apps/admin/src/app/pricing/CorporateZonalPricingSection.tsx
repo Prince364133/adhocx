@@ -95,23 +95,7 @@ const CANONICAL_DRIVER_MATRIX: Record<string, Record<string, { sedan: number; su
   },
 };
 
-const CANONICAL_LOCALITIES: ZonalLocality[] = [
-  { id: 'LOC_GACHIBOWLI', name: 'Gachibowli', zoneId: 'EXTRA', zoneLabel: 'Extra (E)', reviewStatus: 'VERIFIED', bookable: true, aliases: ['Gachibowli Junction'], hasVerifiedPin: true },
-  { id: 'LOC_MADHAPUR', name: 'Madhapur', zoneId: 'EXTRA', zoneLabel: 'Extra (E)', reviewStatus: 'VERIFIED', bookable: true, aliases: ['Cyber Towers', 'Hitec City'], hasVerifiedPin: true },
-  { id: 'LOC_KONDAPUR', name: 'Kondapur', zoneId: 'EXTRA', zoneLabel: 'Extra (E)', reviewStatus: 'VERIFIED', bookable: true, aliases: ['Botanical Garden'], hasVerifiedPin: true },
-  { id: 'LOC_NANAKRAMGUDA', name: 'Nanakramguda', zoneId: 'EXTRA', zoneLabel: 'Extra (E)', reviewStatus: 'VERIFIED', bookable: true, aliases: ['Financial District', 'WaveRock'], hasVerifiedPin: true },
-  { id: 'LOC_KOKAPET', name: 'Kokapet', zoneId: 'EXTRA', zoneLabel: 'Extra (E)', reviewStatus: 'VERIFIED', bookable: true, aliases: ['Kokapet SEZ', 'Golden Mile'], hasVerifiedPin: true },
-  { id: 'LOC_JUBILEE_HILLS', name: 'Jubilee Hills', zoneId: 'ZONE_5', zoneLabel: 'Zone 5', reviewStatus: 'VERIFIED', bookable: true, aliases: ['Road No 36', 'Road No 45'], hasVerifiedPin: true },
-  { id: 'LOC_BANJARA_HILLS', name: 'Banjara Hills', zoneId: 'ZONE_5', zoneLabel: 'Zone 5', reviewStatus: 'VERIFIED', bookable: true, aliases: ['Road No 1', 'Road No 12'], hasVerifiedPin: true },
-  { id: 'LOC_KUKATPALLY', name: 'Kukatpally', zoneId: 'ZONE_5', zoneLabel: 'Zone 5', reviewStatus: 'VERIFIED', bookable: true, aliases: ['KPHB Colony', 'JNTU'], hasVerifiedPin: true },
-  { id: 'LOC_MIYAPUR', name: 'Miyapur', zoneId: 'ZONE_6', zoneLabel: 'Zone 6', reviewStatus: 'VERIFIED', bookable: true, aliases: ['Miyapur Allwyn X Roads'], hasVerifiedPin: true },
-  { id: 'LOC_BEGUMPET', name: 'Begumpet', zoneId: 'ZONE_4', zoneLabel: 'Zone 4', reviewStatus: 'VERIFIED', bookable: true, aliases: ['Prakash Nagar', 'Rasoolpura'], hasVerifiedPin: true },
-  { id: 'LOC_SECUNDERABAD', name: 'Secunderabad', zoneId: 'ZONE_3', zoneLabel: 'Zone 3', reviewStatus: 'VERIFIED', bookable: true, aliases: ['Clock Tower', 'Paradise'], hasVerifiedPin: true },
-  { id: 'LOC_MEHDIPATNAM', name: 'Mehdipatnam', zoneId: 'ZONE_4', zoneLabel: 'Zone 4', reviewStatus: 'VERIFIED', bookable: true, aliases: ['Rethi Bowli'], hasVerifiedPin: true },
-  { id: 'LOC_UPPAL', name: 'Uppal', zoneId: 'ZONE_2', zoneLabel: 'Zone 2', reviewStatus: 'VERIFIED', bookable: true, aliases: ['Uppal Ring Road', 'Nagole'], hasVerifiedPin: true },
-  { id: 'LOC_LB_NAGAR', name: 'LB Nagar', zoneId: 'ZONE_2', zoneLabel: 'Zone 2', reviewStatus: 'VERIFIED', bookable: true, aliases: ['LB Nagar X Roads'], hasVerifiedPin: true },
-  { id: 'LOC_GHATKESAR', name: 'Ghatkesar', zoneId: 'ZONE_1', zoneLabel: 'Zone 1', reviewStatus: 'VERIFIED', bookable: true, aliases: ['Outer Ring Road Exit 9'], hasVerifiedPin: true },
-];
+import { CANONICAL_LOCALITIES } from './canonical-localities';
 
 const CANONICAL_VENDOR_CARD: ZonalRateCardResponse = {
   audience: 'VENDOR',

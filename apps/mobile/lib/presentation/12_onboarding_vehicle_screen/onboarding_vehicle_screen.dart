@@ -41,47 +41,47 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
   List<Map<String, dynamic>> _vehicleOptions = [
     {
       'id': 'SEDAN',
-      'label': 'Sedan',
-      'subtitle': '4 Seats • AC (Dzire, Etios, Amaze)',
+      'label': 'Prime Sedan',
+      'subtitle': '4 + 1 Passengers • Ac Commercial',
       'icon': Icons.directions_car_rounded,
-      'perKmRate': 15.0,
-      'baseFare': 400.0,
-      'baseKm': 10,
+      'perKmRate': 14.5,
+      'baseFare': 800.0,
+      'baseKm': 40,
       'driverSharePercent': 90,
-      'description': 'Comfortable 4-seater sedans',
+      'description': 'Compact & executive 4-seater sedans (Dzire, Aura, Etios)',
     },
     {
       'id': 'SUV',
-      'label': 'SUV',
-      'subtitle': '6-7 Seats • AC (Ertiga, Innova, Carens)',
+      'label': 'SUV 7 Seater',
+      'subtitle': '6 + 1 Passengers • Extra Luggage',
       'icon': Icons.airport_shuttle_rounded,
-      'perKmRate': 20.0,
-      'baseFare': 600.0,
-      'baseKm': 10,
+      'perKmRate': 19.0,
+      'baseFare': 1400.0,
+      'baseKm': 40,
       'driverSharePercent': 90,
-      'description': 'Spacious 6-7 seater vehicles',
+      'description': '6-7 seater commercial SUVs (Innova Crysta, Ertiga, Carens)',
     },
     {
       'id': 'HATCHBACK',
-      'label': 'Hatchback',
-      'subtitle': '4 Seats • AC (WagonR, Swift, i10)',
+      'label': 'Compact Hatchback',
+      'subtitle': '4 + 1 Passengers • City Budget',
       'icon': Icons.directions_car_rounded,
-      'perKmRate': 12.0,
-      'baseFare': 300.0,
-      'baseKm': 10,
+      'perKmRate': 11.0,
+      'baseFare': 500.0,
+      'baseKm': 20,
       'driverSharePercent': 90,
-      'description': 'City-friendly 4-seater hatchbacks',
+      'description': 'Budget city runabout cabs (WagonR, Tiago, Celerio)',
     },
     {
       'id': 'BUS',
-      'label': 'Bus / Mini-Coach',
-      'subtitle': '12-40 Seats (Tempo, Mini-Bus)',
+      'label': 'Commercial Coach Bus',
+      'subtitle': '24 - 40 Passengers • Coach Bus',
       'icon': Icons.directions_bus_rounded,
-      'perKmRate': 35.0,
-      'baseFare': 1200.0,
-      'baseKm': 15,
-      'driverSharePercent': 90,
-      'description': 'High-capacity group vehicles',
+      'perKmRate': 45.0,
+      'baseFare': 6500.0,
+      'baseKm': 100,
+      'driverSharePercent': 88,
+      'description': 'High-capacity commercial coaches & mini-coaches',
     },
   ];
   bool _loadingCategories = true;
@@ -139,7 +139,7 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
 
   Future<void> _loadDynamicCategories() async {
     try {
-      final tiers = await DriverService.instance.getVehicleCategories();
+      final tiers = await DriverService.instance.getVehicleCategories(forceRefresh: true);
       final activeTiers = tiers.where((t) => t['isActive'] != false).toList();
       if (activeTiers.isNotEmpty && mounted) {
         setState(() {
@@ -162,9 +162,9 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
               'label': t['categoryLabel'] ?? vType,
               'subtitle': t['seatingCapacity'] ?? t['description'] ?? '',
               'icon': icon,
-              'perKmRate': (t['perKmRate'] as num?)?.toDouble() ?? 15.0,
-              'baseFare': (t['baseFare'] as num?)?.toDouble() ?? 400.0,
-              'baseKm': (t['baseKm'] as num?)?.toInt() ?? 10,
+              'perKmRate': (t['perKmRate'] as num?)?.toDouble() ?? 14.5,
+              'baseFare': (t['baseFare'] as num?)?.toDouble() ?? 800.0,
+              'baseKm': (t['baseKm'] as num?)?.toInt() ?? 40,
               'driverSharePercent': (t['driverSharePercent'] as num?)?.toInt() ?? 90,
               'description': t['description'] ?? '',
             };

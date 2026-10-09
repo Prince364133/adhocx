@@ -43,28 +43,30 @@ import {
   ZonalQuoteResponse,
 } from './types';
 
-function getApiBaseUrl(): string {
-  // In production (adhocx.com), use relative /api/v1 (reverse proxy handles routing)
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname.toLowerCase();
-    if (host.includes('adhocx.com')) {
-      return '/api/v1';
-    }
-  }
-
-  // Use env variable if set (handles localhost dev: points to API server on port 7001)
+export function getApiBaseUrl(): string {
+  // Use explicit environment variable if set
   if (process.env.NEXT_PUBLIC_API_URL) {
     return process.env.NEXT_PUBLIC_API_URL;
   }
 
-  // Fallback: relative path in browser, full URL on server
   if (typeof window !== 'undefined') {
     const host = window.location.hostname.toLowerCase();
-    if (host === 'localhost' || host === '127.0.0.1') {
-      return 'http://localhost:7001/api/v1';
+    const port = window.location.port;
+
+    // In production domain behind reverse proxy (admin.adhocx.com), use relative /api/v1
+    if (host.includes('adhocx.com')) {
+      return '/api/v1';
     }
+
+    // Direct port 7002 access, localhost, or direct IP access -> route to backend API on port 7001
+    if (port === '7002' || host === 'localhost' || host === '127.0.0.1' || /^(\d{1,3}\.){3}\d{1,3}$/.test(host)) {
+      const protocol = window.location.protocol;
+      return `${protocol}//${host}:7001/api/v1`;
+    }
+
     return `${window.location.origin}/api/v1`;
   }
+
   return 'https://api.adhocx.com/api/v1';
 }
 
@@ -131,7 +133,8 @@ export async function apiClient<T = unknown>(
     requestHeaders['Authorization'] = `Bearer ${activeToken}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const baseUrl = getApiBaseUrl();
+  const response = await fetch(`${baseUrl}${endpoint}`, {
     method,
     headers: requestHeaders,
     body: body ? JSON.stringify(body) : undefined,

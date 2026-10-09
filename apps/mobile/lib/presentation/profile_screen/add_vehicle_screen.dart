@@ -26,9 +26,9 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   String _category = 'SEDAN';
   bool _isSubmitting = false;
   List<Map<String, dynamic>> _categories = [
-    {'id': 'SEDAN', 'label': 'Sedan', 'perKmRate': 22.0},
-    {'id': 'SUV', 'label': 'SUV', 'perKmRate': 19.0},
-    {'id': 'HATCHBACK', 'label': 'Hatchback', 'perKmRate': 11.0},
+    {'id': 'SEDAN', 'label': 'Prime Sedan', 'perKmRate': 14.5, 'baseFare': 800.0},
+    {'id': 'SUV', 'label': 'SUV 7 Seater', 'perKmRate': 19.0, 'baseFare': 1400.0},
+    {'id': 'HATCHBACK', 'label': 'Compact Hatchback', 'perKmRate': 11.0, 'baseFare': 500.0},
   ];
 
   @override
@@ -39,14 +39,14 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
 
   Future<void> _loadCategories() async {
     try {
-      final tiers = await DriverService.instance.getVehicleCategories();
+      final tiers = await DriverService.instance.getVehicleCategories(forceRefresh: true);
       if (tiers.isNotEmpty && mounted) {
         setState(() {
           _categories = tiers.map((t) => {
             'id': (t['vehicleType'] as String? ?? 'SEDAN').toUpperCase(),
             'label': t['categoryLabel'] ?? t['vehicleType'] ?? 'Vehicle',
-            'perKmRate': (t['perKmRate'] as num?)?.toDouble() ?? 15.0,
-            'baseFare': (t['baseFare'] as num?)?.toDouble() ?? 400.0,
+            'perKmRate': (t['perKmRate'] as num?)?.toDouble() ?? 14.5,
+            'baseFare': (t['baseFare'] as num?)?.toDouble() ?? 800.0,
           }).toList();
         });
       }

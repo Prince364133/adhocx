@@ -58,8 +58,8 @@ class ApiClient {
     // 1. If running in a web browser:
     if (kIsWeb) {
       final host = Uri.base.host.toLowerCase();
-      // On any adhocx domain (app.adhocx.com, m.adhocx.com, etc.), ALWAYS use live production API
-      if (host.contains('adhocx.com')) {
+      // On any adhocx domain (app.adhocx.com, m.adhocx.com, etc.) or AWS EC2 IP, ALWAYS use live production API
+      if (host.contains('adhocx.com') || host == '3.110.42.191') {
         return 'https://api.adhocx.com/api/v1';
       }
       // If deployed on any non-local domain/IP, use current origin's /api/v1

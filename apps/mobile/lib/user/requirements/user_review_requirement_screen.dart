@@ -40,7 +40,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
 
   Future<void> _loadVehicleTiers() async {
     try {
-      final tiers = await DriverService.instance.getVehicleCategories();
+      final tiers = await DriverService.instance.getVehicleCategories(forceRefresh: true);
       if (mounted && tiers.isNotEmpty) {
         setState(() {
           _vehicleTiers = tiers;
@@ -68,14 +68,14 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
       );
     }
 
-    double baseFare = 400.0;
-    double baseKm = 10.0;
-    double perKmRate = 22.0;
+    double baseFare = 800.0;
+    double baseKm = 40.0;
+    double perKmRate = 14.5;
 
     if (tier != null) {
-      baseFare = double.tryParse(tier['baseFare']?.toString() ?? '') ?? 400.0;
-      baseKm = double.tryParse(tier['baseKm']?.toString() ?? '') ?? 10.0;
-      perKmRate = double.tryParse(tier['perKmRate']?.toString() ?? '') ?? 22.0;
+      baseFare = double.tryParse(tier['baseFare']?.toString() ?? '') ?? 800.0;
+      baseKm = double.tryParse(tier['baseKm']?.toString() ?? '') ?? 40.0;
+      perKmRate = double.tryParse(tier['perKmRate']?.toString() ?? '') ?? 14.5;
     } else {
       if (vType == 'HATCHBACK') {
         baseFare = 500.0;
@@ -85,6 +85,14 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
         baseFare = 1400.0;
         baseKm = 40.0;
         perKmRate = 19.0;
+      } else if (vType == 'BUS') {
+        baseFare = 6500.0;
+        baseKm = 100.0;
+        perKmRate = 45.0;
+      } else if (vType == 'TEMPO_TRAVELLER') {
+        baseFare = 3200.0;
+        baseKm = 80.0;
+        perKmRate = 28.0;
       }
     }
 

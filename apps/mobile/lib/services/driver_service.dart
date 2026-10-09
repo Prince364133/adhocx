@@ -49,6 +49,10 @@ class DriverService {
       _cachedTrustScore = null;
       _lastTrustScoreFetchTime = null;
     }
+    if (all) {
+      _cachedVehicleCategories = null;
+      _lastVehicleCategoriesFetchTime = null;
+    }
   }
 
   Future<void> _ensureDriverSession() async {
@@ -558,13 +562,16 @@ class DriverService {
     if (!forceRefresh &&
         _cachedVehicleCategories != null &&
         _lastVehicleCategoriesFetchTime != null &&
-        now.difference(_lastVehicleCategoriesFetchTime!).inMinutes < 10) {
+        now.difference(_lastVehicleCategoriesFetchTime!).inSeconds < 30) {
       return _cachedVehicleCategories!;
     }
 
     try {
-      final res = await _api.get('/pricing/tiers', force: forceRefresh);
-      if (res is List) {
+      dynamic res = await _api.get('/pricing/tiers', force: forceRefresh);
+      if (res is! List || res.isEmpty) {
+        res = await _api.get('/pricing', force: forceRefresh);
+      }
+      if (res is List && res.isNotEmpty) {
         _cachedVehicleCategories = List<Map<String, dynamic>>.from(
           res.map((item) => Map<String, dynamic>.from(item as Map)),
         );
