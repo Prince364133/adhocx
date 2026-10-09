@@ -26,7 +26,7 @@ class _SignInScreenState extends State<SignInScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _showPasswordField = false;
+  bool _showPasswordField = true;
   bool _obscurePassword = true;
   bool _isLoading = false;
   String? _inlineErrorMessage;
@@ -420,27 +420,35 @@ class _SignInScreenState extends State<SignInScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              _showPasswordField = !_showPasswordField;
-                              _inlineErrorMessage = null;
-                            });
-                          },
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child: Text(
-                            _showPasswordField ? 'Sign in with Email OTP instead' : 'Sign in with password instead',
-                            style: AppTypography.caption(
-                              color: isDark ? AppColors.primaryLight : AppColors.primary,
-                              fontWeight: FontWeight.w600,
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  _showPasswordField = !_showPasswordField;
+                                  _inlineErrorMessage = null;
+                                });
+                              },
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                _showPasswordField ? 'Sign in with Email OTP instead' : 'Sign in with password instead',
+                                style: AppTypography.caption(
+                                  color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ),
                         ),
-                        if (_showPasswordField)
+                        if (_showPasswordField) ...[
+                          const SizedBox(width: 8),
                           TextButton(
                             onPressed: () => context.push(AppRoutes.forgotPasswordScreen),
                             style: TextButton.styleFrom(
@@ -456,6 +464,7 @@ class _SignInScreenState extends State<SignInScreen> {
                               ),
                             ),
                           ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: AppSpacing.lg),

@@ -47,11 +47,16 @@ void main() {
       expect(find.text('Get Started'), findsOneWidget);
     });
 
-    testWidgets('Screen 3: Sign In Screen renders password login form',
+    testWidgets('Screen 3: Sign In Screen renders password login form by default',
         (WidgetTester tester) async {
       await tester.pumpWidget(createTestApp(const SignInScreen()));
 
       expect(find.text('Welcome back!'), findsOneWidget);
+      expect(find.text('Email Address'), findsOneWidget);
+      expect(find.text('Password'), findsOneWidget);
+      expect(find.text('Sign In'), findsOneWidget);
+      expect(find.text('Sign in with Email OTP instead'), findsOneWidget);
+      expect(find.text('Forgot Password?'), findsOneWidget);
       expect(find.text('Continue with Google'), findsOneWidget);
       expect(find.text("Don't have an account? "), findsOneWidget);
     });
