@@ -223,9 +223,11 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
   int get _currentMaxSeats {
     final opt = _vehicleOptions.firstWhere(
       (v) => v['id'] == _vehicleType,
-      orElse: () => _vehicleOptions.first,
+      orElse: () => _vehicleOptions.isNotEmpty
+          ? _vehicleOptions.first
+          : const <String, dynamic>{'maxSeats': 4},
     );
-    return opt['maxSeats'] as int;
+    return (opt['maxSeats'] as num?)?.toInt() ?? 4;
   }
 
   double _calculateEstimatedFare() {
@@ -271,23 +273,23 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
 
     if (result != null && mounted) {
       setState(() {
-        _direction = result['direction'] as String;
-        _officeHubId = result['officeHubId'] as String;
-        _officeAddress = result['officeAddress'] as String;
-        _officeLat = (result['officeLat'] as num).toDouble();
-        _officeLng = (result['officeLng'] as num).toDouble();
+        _direction = (result['direction'] as String?) ?? 'OUTBOUND_FROM_OFFICE';
+        _officeHubId = (result['officeHubId'] as String?) ?? OfficeHubDetector.hitecId;
+        _officeAddress = (result['officeAddress'] as String?) ?? '';
+        _officeLat = (result['officeLat'] as num?)?.toDouble() ?? 0.0;
+        _officeLng = (result['officeLng'] as num?)?.toDouble() ?? 0.0;
         _locality = result['locality'] as Map<String, dynamic>?;
-        _localityName = result['localityName'] as String;
-        _pickupAddress = result['pickupAddress'] as String;
-        _pickupLat = (result['pickupLat'] as num).toDouble();
-        _pickupLng = (result['pickupLng'] as num).toDouble();
-        _dropAddress = result['dropAddress'] as String;
-        _dropLat = (result['dropLat'] as num).toDouble();
-        _dropLng = (result['dropLng'] as num).toDouble();
-        _distanceKm = (result['distanceKm'] as num).toDouble();
-        _durationMinutes = (result['durationMinutes'] as num).toInt();
-        _formattedDistance = result['formattedDistance'] as String;
-        _formattedEta = result['formattedEta'] as String;
+        _localityName = (result['localityName'] as String?) ?? '';
+        _pickupAddress = (result['pickupAddress'] as String?) ?? '';
+        _pickupLat = (result['pickupLat'] as num?)?.toDouble() ?? 0.0;
+        _pickupLng = (result['pickupLng'] as num?)?.toDouble() ?? 0.0;
+        _dropAddress = (result['dropAddress'] as String?) ?? '';
+        _dropLat = (result['dropLat'] as num?)?.toDouble() ?? 0.0;
+        _dropLng = (result['dropLng'] as num?)?.toDouble() ?? 0.0;
+        _distanceKm = (result['distanceKm'] as num?)?.toDouble() ?? 0.0;
+        _durationMinutes = (result['durationMinutes'] as num?)?.toInt() ?? 0;
+        _formattedDistance = (result['formattedDistance'] as String?) ?? '';
+        _formattedEta = (result['formattedEta'] as String?) ?? '';
         _pickupInstructions = (result['pickupInstructions'] as String?) ?? '';
         _dropInstructions = (result['dropInstructions'] as String?) ?? '';
       });
@@ -309,9 +311,9 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
 
     if (result != null && mounted) {
       setState(() {
-        _pickupDate = result['pickupDate'] as String;
-        _pickupTime = result['pickupTime'] as String;
-        _reportingDateTime = result['reportingDateTime'] as DateTime;
+        _pickupDate = (result['pickupDate'] as String?) ?? _pickupDate;
+        _pickupTime = (result['pickupTime'] as String?) ?? _pickupTime;
+        _reportingDateTime = (result['reportingDateTime'] as DateTime?) ?? _reportingDateTime;
       });
     }
   }
@@ -428,15 +430,15 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
     final hasRouteSelected = _locality != null && _pickupAddress.isNotEmpty;
     final estimatedFare = _calculateEstimatedFare();
 
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.92,
-      ),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-      ),
-      child: Column(
+    return Material(
+      color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+      clipBehavior: Clip.antiAlias,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.92,
+        ),
+        child: Column(
         children: [
           // Drag handle
           Center(
@@ -1207,6 +1209,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

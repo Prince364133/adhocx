@@ -513,14 +513,14 @@ class _ZonalLocalityPickerSheetState extends State<ZonalLocalityPickerSheet> {
       initialChildSize: 0.85,
       maxChildSize: 0.95,
       expand: false,
-      builder: (ctx, scroll) => Container(
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-          borderRadius:
-              const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-        ),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-        child: Column(
+      builder: (ctx, scroll) => Material(
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        borderRadius:
+            const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: Column(
           children: [
             TextField(
               autofocus: true,
@@ -552,29 +552,33 @@ class _ZonalLocalityPickerSheetState extends State<ZonalLocalityPickerSheet> {
                               itemBuilder: (_, i) {
                                 final l = filtered[i];
                                 final bookable = l['bookable'] == true;
-                                return ListTile(
-                                  dense: true,
-                                  title: Text('${l['name']}'),
-                                  subtitle: Text(
-                                    bookable
-                                        ? '${l['zoneLabel']}'
-                                        : '${l['zoneLabel']} · needs operations review',
-                                    style: TextStyle(
-                                        fontSize: 11,
-                                        color: bookable
-                                            ? null
-                                            : AppColors.warning),
+                                return Material(
+                                  color: Colors.transparent,
+                                  child: ListTile(
+                                    dense: true,
+                                    title: Text('${l['name']}'),
+                                    subtitle: Text(
+                                      bookable
+                                          ? '${l['zoneLabel']}'
+                                          : '${l['zoneLabel']} · needs operations review',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: bookable
+                                              ? null
+                                              : AppColors.warning),
+                                    ),
+                                    trailing: bookable
+                                        ? null
+                                        : const Icon(Icons.support_agent,
+                                            color: AppColors.warning, size: 18),
+                                    onTap: () => Navigator.pop(context, l),
                                   ),
-                                  trailing: bookable
-                                      ? null
-                                      : const Icon(Icons.support_agent,
-                                          color: AppColors.warning, size: 18),
-                                  onTap: () => Navigator.pop(context, l),
                                 );
                               },
                             ),
             ),
           ],
+        ),
         ),
       ),
     );

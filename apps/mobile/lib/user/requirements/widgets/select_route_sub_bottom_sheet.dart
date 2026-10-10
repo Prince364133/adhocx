@@ -166,100 +166,106 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
       backgroundColor: Colors.transparent,
       builder: (ctx) {
         final isDark = Theme.of(ctx).brightness == Brightness.dark;
-        return Container(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.slate700 : AppColors.slate300,
-                    borderRadius: BorderRadius.circular(2),
+        return Material(
+          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+          clipBehavior: Clip.antiAlias,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.slate700 : AppColors.slate300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
-              ),
-              Text(
-                'Select Approved Office Hub',
-                style: AppTypography.h4(
-                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                  fontWeight: FontWeight.bold,
+                Text(
+                  'Select Approved Office Hub',
+                  style: AppTypography.h4(
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Choose one of the 2 official Hyderabad hubs or search your corporate building:',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                const SizedBox(height: 6),
+                Text(
+                  'Choose one of the 2 official Hyderabad hubs or search your corporate building:',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 14),
+                const SizedBox(height: 14),
 
-              // Hub 1: HITEC / Nanakramguda
-              ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  side: BorderSide(color: AppColors.primary.withValues(alpha: 0.3)),
-                ),
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                // Hub 1: HITEC / Nanakramguda
+                Material(
+                  color: Colors.transparent,
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      side: BorderSide(color: AppColors.primary.withValues(alpha: 0.3)),
+                    ),
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                      ),
+                      child: const Icon(Icons.business_rounded, color: AppColors.primary, size: 22),
+                    ),
+                    title: const Text('HITEC / Nanakramguda Hub',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    subtitle: const Text(
+                        'Cyber Towers, Madhapur, Raidurg, Financial District, Waverock',
+                        style: TextStyle(fontSize: 11)),
+                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                    onTap: () {
+                      final data = OfficeHubDetector.defaultLocationForHub(OfficeHubDetector.hitecId);
+                      Navigator.pop(ctx, {...data, 'hubId': OfficeHubDetector.hitecId});
+                    },
                   ),
-                  child: const Icon(Icons.business_rounded, color: AppColors.primary, size: 22),
                 ),
-                title: const Text('HITEC / Nanakramguda Hub',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                subtitle: const Text(
-                    'Cyber Towers, Madhapur, Raidurg, Financial District, Waverock',
-                    style: TextStyle(fontSize: 11)),
-                trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
-                onTap: () {
-                  final data = OfficeHubDetector.defaultLocationForHub(OfficeHubDetector.hitecId);
-                  Navigator.pop(ctx, {...data, 'hubId': OfficeHubDetector.hitecId});
-                },
-              ),
-              const SizedBox(height: 10),
+                const SizedBox(height: 10),
 
-              // Hub 2: Kokapet
-              ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  side: BorderSide(color: AppColors.accentPurple.withValues(alpha: 0.3)),
-                ),
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.accentPurple.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                // Hub 2: Kokapet
+                Material(
+                  color: Colors.transparent,
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      side: BorderSide(color: AppColors.accentPurple.withValues(alpha: 0.3)),
+                    ),
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.accentPurple.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                      ),
+                      child: const Icon(Icons.corporate_fare_rounded,
+                          color: AppColors.accentPurple, size: 22),
+                    ),
+                    title: const Text('Kokapet Hub',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    subtitle: const Text('Kokapet SEZ, GAR Infobahn, Neopolis, Golden Mile',
+                        style: TextStyle(fontSize: 11)),
+                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                    onTap: () {
+                      final data =
+                          OfficeHubDetector.defaultLocationForHub(OfficeHubDetector.kokapetId);
+                      Navigator.pop(ctx, {...data, 'hubId': OfficeHubDetector.kokapetId});
+                    },
                   ),
-                  child: const Icon(Icons.corporate_fare_rounded,
-                      color: AppColors.accentPurple, size: 22),
                 ),
-                title: const Text('Kokapet Hub',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                subtitle: const Text('Kokapet SEZ, GAR Infobahn, Neopolis, Golden Mile',
-                    style: TextStyle(fontSize: 11)),
-                trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
-                onTap: () {
-                  final data =
-                      OfficeHubDetector.defaultLocationForHub(OfficeHubDetector.kokapetId);
-                  Navigator.pop(ctx, {...data, 'hubId': OfficeHubDetector.kokapetId});
-                },
-              ),
-              const SizedBox(height: 12),
+                const SizedBox(height: 12),
 
               // Search Custom Building
               SizedBox(
@@ -317,6 +323,7 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
                 ),
               ),
             ],
+          ),
           ),
         );
       },
@@ -392,15 +399,15 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.88,
-      ),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-      ),
-      child: Column(
+    return Material(
+      color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+      clipBehavior: Clip.antiAlias,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.88,
+        ),
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           // Drag handle
@@ -981,6 +988,7 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
