@@ -438,19 +438,31 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
 
                                 if (!result.success) {
                                   setModalState(() => isProcessing = false);
-                                  final isCancelled = (result.errorMessage ?? '').toLowerCase().contains('cancel');
+                                  final isCancelled = result.isCancelled ||
+                                      (result.errorMessage ?? '').toLowerCase().contains('cancel') ||
+                                      (result.errorMessage ?? '').toLowerCase() == 'undefined' ||
+                                      (result.errorMessage ?? '').toLowerCase() == 'null';
+                                  final displayMessage = isCancelled
+                                      ? 'Payment cancelled by user'
+                                      : ((result.errorMessage == null ||
+                                              result.errorMessage!.trim().isEmpty ||
+                                              result.errorMessage!.trim().toLowerCase() == 'undefined' ||
+                                              result.errorMessage!.trim().toLowerCase() == 'null')
+                                          ? 'Payment was cancelled or failed'
+                                          : result.errorMessage!);
+
                                   await UserService.instance.recordTopUpStatus(
                                     orderId: razorpayOrderId,
                                     amount: payableAmount,
                                     status: isCancelled ? 'CANCELLED' : 'FAILED',
-                                    reason: result.errorMessage ?? 'Payment was cancelled or failed',
+                                    reason: displayMessage,
                                   ).catchError((_) => null);
 
                                   if (mounted) {
                                     _loadWallet();
                                     messenger.showSnackBar(
                                       SnackBar(
-                                        content: Text(result.errorMessage ?? 'Payment was cancelled or failed'),
+                                        content: Text(displayMessage),
                                         backgroundColor: isCancelled ? AppColors.slate700 : AppColors.error,
                                       ),
                                     );

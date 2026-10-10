@@ -577,7 +577,15 @@ export class PaymentsService {
       });
     }
 
-    const isCancelled = dto.status === 'CANCELLED' || (dto.reason && dto.reason.toLowerCase().includes('cancel'));
+    const rawReason = (dto.reason || '').trim();
+    const cleanReason =
+      !rawReason || rawReason.toLowerCase() === 'undefined' || rawReason.toLowerCase() === 'null'
+        ? (dto.status === 'CANCELLED' ? 'Cancelled by user' : 'Payment failed at gateway')
+        : rawReason;
+    const isCancelled =
+      dto.status === 'CANCELLED' ||
+      cleanReason.toLowerCase().includes('cancel') ||
+      cleanReason.toLowerCase() === 'undefined';
     const statusDesc = isCancelled ? 'Wallet Top-up (Cancelled by user)' : 'Wallet Top-up (Failed)';
     const refType = isCancelled ? 'WALLET_TOPUP_CANCELLED' : 'WALLET_TOPUP_FAILED';
     const amountVal = dto.amount || (dto.orderId && this.topUpOrders.get(dto.orderId)?.amount) || 0;
@@ -603,12 +611,12 @@ export class PaymentsService {
       metadata: {
         orderId: dto.orderId,
         amount: amountVal,
-        reason: dto.reason || (isCancelled ? 'Cancelled by user' : 'Payment failed at gateway'),
+        reason: cleanReason,
       },
     });
 
-    this.logger.log(`Recorded wallet top-up ${dto.status} for vendor ${vendor.id} (order: ${dto.orderId})`);
-    return { success: true, message: `Recorded ${dto.status} status successfully` };
+    this.logger.log(`Recorded wallet top-up ${isCancelled ? 'CANCELLED' : 'FAILED'} for vendor ${vendor.id} (order: ${dto.orderId})`);
+    return { success: true, message: `Recorded ${isCancelled ? 'CANCELLED' : 'FAILED'} status successfully` };
   }
 
   /**
@@ -630,6 +638,8 @@ export class PaymentsService {
         .replace(/via Razorpay\s*/gi, '')
         .replace(/\(order_[^)]+\)/g, '')
         .replace(/\(pay_[^)]+\)/g, '')
+        .replace(/\(undefined\)/gi, '(Cancelled by user)')
+        .replace(/undefined/gi, 'Cancelled')
         .replace(/\s+/g, ' ')
         .trim();
 

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:universal_html/html.dart' as html;
@@ -20,11 +21,76 @@ class RazorpayPaymentResult {
     this.errorMessage,
     this.errorCode,
   });
+
+  /// Returns true if the checkout was voluntarily cancelled or dismissed by the user
+  bool get isCancelled {
+    if (errorCode == Razorpay.PAYMENT_CANCELLED || errorCode == 0) return true;
+    final msg = (errorMessage ?? '').trim().toLowerCase();
+    if (msg == 'undefined' || msg == 'null') return true;
+    return msg.contains('cancel') ||
+        msg.contains('dismiss') ||
+        msg.contains('closed by user') ||
+        msg.contains('back');
+  }
 }
 
 class RazorpayCheckoutService {
   RazorpayCheckoutService._();
   static final RazorpayCheckoutService instance = RazorpayCheckoutService._();
+
+  /// Sanitizes raw error messages and error codes from Razorpay gateways across Web/Android/iOS
+  /// ensuring user-cancelled checkouts or missing/undefined payloads never leak 'undefined' to UI.
+  static String sanitizeErrorMessage(String? raw, int? code) {
+    if (code == Razorpay.PAYMENT_CANCELLED || code == 0) {
+      return 'Payment cancelled by user';
+    }
+    if (raw == null) {
+      return 'Payment was cancelled or failed';
+    }
+    var msg = raw.trim();
+    if (msg.isEmpty || msg.toLowerCase() == 'undefined' || msg.toLowerCase() == 'null') {
+      if (code == Razorpay.PAYMENT_CANCELLED || code == 0) {
+        return 'Payment cancelled by user';
+      }
+      return 'Payment was cancelled or failed';
+    }
+
+    // Parse potential JSON error payloads from Razorpay bridge: e.g. {"error": {"description": "..."}}
+    if (msg.startsWith('{') && msg.endsWith('}')) {
+      try {
+        final decoded = jsonDecode(msg);
+        if (decoded is Map) {
+          final errorObj = decoded['error'];
+          if (errorObj is Map) {
+            final desc = errorObj['description']?.toString().trim();
+            final reason = errorObj['reason']?.toString().trim();
+            final codeVal = errorObj['code']?.toString().trim();
+            if (desc != null && desc.isNotEmpty && desc.toLowerCase() != 'undefined' && desc.toLowerCase() != 'null') {
+              msg = desc;
+            } else if (reason != null && reason.isNotEmpty && reason.toLowerCase() != 'undefined' && reason.toLowerCase() != 'null') {
+              msg = reason;
+            } else if (codeVal != null && codeVal.isNotEmpty && codeVal.toLowerCase() != 'undefined' && codeVal.toLowerCase() != 'null') {
+              msg = codeVal;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (msg.toLowerCase() == 'undefined' || msg.toLowerCase() == 'null' || msg.isEmpty) {
+      return (code == Razorpay.PAYMENT_CANCELLED || code == 0)
+          ? 'Payment cancelled by user'
+          : 'Payment was cancelled or failed';
+    }
+
+    if (msg.toLowerCase().contains('cancel') ||
+        msg.toLowerCase().contains('dismiss') ||
+        msg.toLowerCase().contains('closed by user')) {
+      return 'Payment cancelled by user';
+    }
+
+    return msg;
+  }
 
   /// Initiates live Razorpay checkout dialog across Web, Android, and iOS
   Future<RazorpayPaymentResult> openCheckout({
@@ -68,11 +134,15 @@ class RazorpayCheckoutService {
             }
             messageSubscription?.cancel();
           } else if (type == 'RAZORPAY_PAYMENT_FAILURE') {
+            final rawMsg = data['errorMessage']?.toString();
+            final rawCode = data['errorCode'] is num ? (data['errorCode'] as num).toInt() : null;
+            final sanitizedMsg = sanitizeErrorMessage(rawMsg, rawCode);
             if (!completer.isCompleted) {
               completer.complete(
                 RazorpayPaymentResult(
                   success: false,
-                  errorMessage: data['errorMessage']?.toString() ?? 'Payment was cancelled or failed',
+                  errorCode: rawCode,
+                  errorMessage: sanitizedMsg,
                 ),
               );
             }
@@ -132,12 +202,13 @@ class RazorpayCheckoutService {
     }
 
     void handlePaymentError(PaymentFailureResponse response) {
+      final sanitizedMsg = sanitizeErrorMessage(response.message, response.code);
       if (!completer.isCompleted) {
         completer.complete(
           RazorpayPaymentResult(
             success: false,
             errorCode: response.code,
-            errorMessage: response.message ?? 'Payment was cancelled or failed',
+            errorMessage: sanitizedMsg,
           ),
         );
       }

@@ -355,7 +355,8 @@
                 modal: {
                   ondismiss: function() {
                     notifyAndTeardown("RAZORPAY_PAYMENT_FAILURE", {
-                      errorMessage: "Payment cancelled by user"
+                      errorMessage: "Payment cancelled by user",
+                      errorCode: 0
                     });
                   }
                 }
@@ -363,15 +364,20 @@
 
               rzpInstance = new Razorpay(options);
               rzpInstance.on("payment.failed", function(response) {
-                var msg = (response.error && (response.error.description || response.error.reason)) || "Payment failed at gateway";
+                var errObj = response && response.error;
+                var rawDesc = errObj && (errObj.description || errObj.reason || errObj.code);
+                var msg = (rawDesc && rawDesc !== "undefined" && rawDesc !== "null") ? rawDesc : "Payment failed at gateway";
                 notifyAndTeardown("RAZORPAY_PAYMENT_FAILURE", {
-                  errorMessage: msg
+                  errorMessage: msg,
+                  errorCode: (errObj && (errObj.code === "BAD_REQUEST_ERROR" ? 0 : 1)) || 1
                 });
               });
               rzpInstance.open();
             } catch (err) {
+              var errMsg = (err && err.message && err.message !== "undefined" && err.message !== "null") ? err.message : "Failed to initialize payment gateway";
               notifyAndTeardown("RAZORPAY_PAYMENT_FAILURE", {
-                errorMessage: err.message || "Failed to initialize payment gateway"
+                errorMessage: errMsg,
+                errorCode: 1
               });
             }
           }

@@ -358,7 +358,22 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                                   _loadWallet();
                                   Fluttertoast.showToast(msg: 'Wallet credited successfully!');
                                 } else {
-                                  Fluttertoast.showToast(msg: result.errorMessage ?? 'Payment was cancelled or failed');
+                                  final isCancelled = result.isCancelled ||
+                                      (result.errorMessage ?? '').toLowerCase().contains('cancel') ||
+                                      (result.errorMessage ?? '').toLowerCase() == 'undefined' ||
+                                      (result.errorMessage ?? '').toLowerCase() == 'null';
+                                  final displayMsg = isCancelled
+                                      ? 'Payment cancelled by user'
+                                      : ((result.errorMessage == null ||
+                                              result.errorMessage!.trim().isEmpty ||
+                                              result.errorMessage!.trim().toLowerCase() == 'undefined' ||
+                                              result.errorMessage!.trim().toLowerCase() == 'null')
+                                          ? 'Payment was cancelled or failed'
+                                          : result.errorMessage!);
+                                  Fluttertoast.showToast(
+                                    msg: displayMsg,
+                                    backgroundColor: isCancelled ? AppColors.slate700 : AppColors.error,
+                                  );
                                 }
                               } catch (e) {
                                 setModalState(() => isProcessing = false);

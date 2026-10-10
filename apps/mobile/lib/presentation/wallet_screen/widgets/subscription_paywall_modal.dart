@@ -169,9 +169,21 @@ class _SubscriptionPaywallModalState extends State<SubscriptionPaywallModal> {
 
         if (!result.success) {
           if (mounted) {
+            final isCancelled = result.isCancelled ||
+                (result.errorMessage ?? '').toLowerCase().contains('cancel') ||
+                (result.errorMessage ?? '').toLowerCase() == 'undefined' ||
+                (result.errorMessage ?? '').toLowerCase() == 'null';
+            final displayMsg = isCancelled
+                ? 'Payment cancelled by user'
+                : ((result.errorMessage == null ||
+                        result.errorMessage!.trim().isEmpty ||
+                        result.errorMessage!.trim().toLowerCase() == 'undefined' ||
+                        result.errorMessage!.trim().toLowerCase() == 'null')
+                    ? 'Payment was cancelled or failed'
+                    : result.errorMessage!);
             Fluttertoast.showToast(
-              msg: result.errorMessage ?? 'Payment cancelled or failed',
-              backgroundColor: AppColors.error,
+              msg: displayMsg,
+              backgroundColor: isCancelled ? AppColors.slate700 : AppColors.error,
             );
           }
           return;
