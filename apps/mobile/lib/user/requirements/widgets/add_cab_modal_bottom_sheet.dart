@@ -64,8 +64,8 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
   final List<String> _additionalStops = [];
   late TextEditingController _notesController;
 
-  List<Map<String, dynamic>> _vehicleOptions = [
-    {
+  List<Map<String, dynamic>> _vehicleOptions = <Map<String, dynamic>>[
+    <String, dynamic>{
       'id': 'SEDAN',
       'label': 'Prime Sedan',
       'subtitle': '4 + 1 Passengers • Ac Commercial',
@@ -75,7 +75,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
       'perKmRate': 14.5,
       'icon': Icons.directions_car_rounded,
     },
-    {
+    <String, dynamic>{
       'id': 'SUV',
       'label': 'SUV 7 Seater',
       'subtitle': '6 + 1 Passengers • Extra Luggage',
@@ -85,7 +85,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
       'perKmRate': 19.0,
       'icon': Icons.airport_shuttle_rounded,
     },
-    {
+    <String, dynamic>{
       'id': 'HATCHBACK',
       'label': 'Compact Hatchback',
       'subtitle': '4 + 1 Passengers • City Budget',
@@ -95,7 +95,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
       'perKmRate': 11.0,
       'icon': Icons.electric_car_rounded,
     },
-    {
+    <String, dynamic>{
       'id': 'BUS',
       'label': 'Commercial Coach Bus',
       'subtitle': '24 - 40 Passengers • Coach Bus',
@@ -220,21 +220,32 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
     super.dispose();
   }
 
+  Map<String, dynamic> _getSelectedVehicleOption() {
+    for (final v in _vehicleOptions) {
+      if (v['id'] == _vehicleType) {
+        return v;
+      }
+    }
+    if (_vehicleOptions.isNotEmpty) {
+      return _vehicleOptions.first;
+    }
+    return <String, dynamic>{
+      'id': 'SEDAN',
+      'label': 'Prime Sedan',
+      'maxSeats': 4,
+      'baseRate': 800.0,
+      'baseKm': 40.0,
+      'perKmRate': 14.5,
+    };
+  }
+
   int get _currentMaxSeats {
-    final opt = _vehicleOptions.firstWhere(
-      (v) => v['id'] == _vehicleType,
-      orElse: () => _vehicleOptions.isNotEmpty
-          ? _vehicleOptions.first
-          : const <String, dynamic>{'maxSeats': 4},
-    );
+    final opt = _getSelectedVehicleOption();
     return (opt['maxSeats'] as num?)?.toInt() ?? 4;
   }
 
   double _calculateEstimatedFare() {
-    final opt = _vehicleOptions.firstWhere(
-      (v) => v['id'] == _vehicleType,
-      orElse: () => _vehicleOptions.isNotEmpty ? _vehicleOptions.first : <String, dynamic>{},
-    );
+    final opt = _getSelectedVehicleOption();
     double baseFare = (opt['baseRate'] as num?)?.toDouble() ?? 800.0;
     double baseKm = (opt['baseKm'] as num?)?.toDouble() ?? 40.0;
     double perKmRate = (opt['perKmRate'] as num?)?.toDouble() ?? 14.5;

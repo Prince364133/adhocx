@@ -59,13 +59,21 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
     final vType = draft.vehicleType.trim().toUpperCase();
     Map<String, dynamic>? tier;
     if (_vehicleTiers.isNotEmpty) {
-      tier = _vehicleTiers.firstWhere(
-        (t) => (t['vehicleType']?.toString().toUpperCase() == vType),
-        orElse: () => _vehicleTiers.firstWhere(
-          (t) => (t['categoryLabel']?.toString().toUpperCase().contains(vType) == true),
-          orElse: () => _vehicleTiers.first,
-        ),
-      );
+      for (final t in _vehicleTiers) {
+        if (t['vehicleType']?.toString().toUpperCase() == vType) {
+          tier = t;
+          break;
+        }
+      }
+      if (tier == null) {
+        for (final t in _vehicleTiers) {
+          if (t['categoryLabel']?.toString().toUpperCase().contains(vType) == true) {
+            tier = t;
+            break;
+          }
+        }
+      }
+      tier ??= _vehicleTiers.first;
     }
 
     double baseFare = 800.0;
@@ -104,11 +112,14 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
   String _getVehicleCategoryLabel(String type) {
     final vType = type.trim().toUpperCase();
     if (_vehicleTiers.isNotEmpty) {
-      final match = _vehicleTiers.firstWhere(
-        (t) => t['vehicleType']?.toString().toUpperCase() == vType,
-        orElse: () => <String, dynamic>{},
-      );
-      if (match.isNotEmpty && match['categoryLabel'] != null) {
+      Map<String, dynamic>? match;
+      for (final t in _vehicleTiers) {
+        if (t['vehicleType']?.toString().toUpperCase() == vType) {
+          match = t;
+          break;
+        }
+      }
+      if (match != null && match['categoryLabel'] != null) {
         return match['categoryLabel'].toString();
       }
     }
