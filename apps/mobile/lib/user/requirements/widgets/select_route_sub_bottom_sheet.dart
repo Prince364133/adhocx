@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../routes/app_routes.dart';
@@ -365,6 +366,30 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
       return;
     }
 
+    double finalDistance = _distanceKm;
+    int finalDuration = _durationMinutes;
+    String finalFormattedDist = _formattedDistance;
+    String finalFormattedEta = _formattedEta;
+
+    if (finalDistance <= 0.0 && _pickupLat != 0.0 && _dropLat != 0.0) {
+      const double p = 0.017453292519943295; // pi / 180
+      final dLat = (_dropLat - _pickupLat) * p;
+      final dLon = (_dropLng - _pickupLng) * p;
+      final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+          math.cos(_pickupLat * p) *
+              math.cos(_dropLat * p) *
+              math.sin(dLon / 2) *
+              math.sin(dLon / 2);
+      final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+      final double calculatedKm = (6371.0 * c * 1.28).clamp(1.0, 500.0);
+      finalDistance = double.parse(calculatedKm.toStringAsFixed(1));
+      finalDuration = ((finalDistance / 40.0) * 60.0).round().clamp(5, 720);
+      finalFormattedDist = '${finalDistance.toStringAsFixed(1)} km';
+      finalFormattedEta = finalDuration < 60
+          ? '$finalDuration mins'
+          : '${finalDuration ~/ 60}h ${finalDuration % 60}m';
+    }
+
     Navigator.pop(context, {
       'direction': _direction,
       'officeHubId': _officeHubId,
@@ -379,10 +404,10 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
       'dropAddress': _dropAddress,
       'dropLat': _dropLat,
       'dropLng': _dropLng,
-      'distanceKm': _distanceKm,
-      'durationMinutes': _durationMinutes,
-      'formattedDistance': _formattedDistance,
-      'formattedEta': _formattedEta,
+      'distanceKm': finalDistance,
+      'durationMinutes': finalDuration,
+      'formattedDistance': finalFormattedDist,
+      'formattedEta': finalFormattedEta,
       'pickupInstructions': _isOfficePickup
           ? _officeGuidanceController.text.trim()
           : _homeGuidanceController.text.trim(),

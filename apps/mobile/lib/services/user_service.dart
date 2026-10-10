@@ -412,12 +412,25 @@ class UserService {
   }
 
   // Corporate zonal rate card (Hyderabad). Returns null when offline so screens can fall back.
+  // ── Dedicated Pricing Service Methods ─────────────────────────────────────
+
+  Map<String, dynamic>? _cachedVendorRateCard;
+  Map<String, dynamic>? get cachedVendorRateCard => _cachedVendorRateCard;
+
+  /// Corporate zonal rate card (Hyderabad). Caches in memory for instant synchronous lookup.
   Future<Map<String, dynamic>?> getVendorZonalRateCard({bool forceRefresh = false}) async {
+    if (_cachedVendorRateCard != null && !forceRefresh) {
+      return _cachedVendorRateCard;
+    }
     try {
       final res = await _api.get('/pricing/zonal/vendor-card', force: forceRefresh);
-      return res is Map<String, dynamic> ? res : null;
+      if (res is Map<String, dynamic>) {
+        _cachedVendorRateCard = res;
+        return res;
+      }
+      return _cachedVendorRateCard;
     } catch (_) {
-      return null;
+      return _cachedVendorRateCard;
     }
   }
 
@@ -475,5 +488,193 @@ class UserService {
       }
     } catch (_) {}
     return [];
+  }
+
+  /// Dynamic trip fare quotation via backend PricingService (/pricing/calculate)
+  Future<Map<String, dynamic>> calculateTripFare({
+    required String vehicleType,
+    double? distanceKm,
+    int? durationMinutes,
+    double? pickupLat,
+    double? pickupLng,
+    double? dropLat,
+    double? dropLng,
+    int quantity = 1,
+  }) async {
+    try {
+      await _ensureSession();
+      final body = <String, dynamic>{
+        'vehicleType': vehicleType,
+        if (distanceKm != null && distanceKm > 0) 'distanceKm': distanceKm,
+        if (durationMinutes != null && durationMinutes > 0) 'durationMinutes': durationMinutes,
+        if (pickupLat != null && pickupLat != 0.0 && pickupLng != null && pickupLng != 0.0)
+          'pickupLocation': {'latitude': pickupLat, 'longitude': pickupLng},
+        if (dropLat != null && dropLat != 0.0 && dropLng != null && dropLng != 0.0)
+          'dropLocation': {'latitude': dropLat, 'longitude': dropLng},
+        'quantity': quantity,
+      };
+      final res = await _api.post('/pricing/calculate', body: body);
+      return res is Map<String, dynamic> ? res : <String, dynamic>{};
+    } catch (_) {
+      return <String, dynamic>{};
+    }
+  }
+
+  /// Authoritative fare calculation engine that calls dedicated server services.
+  /// Decides real rates on calculation without any hardcoded values in UI components.
+  Future<double> calculateEstimatedFare({
+    required String vehicleType,
+    required String officeHubId,
+    required String direction,
+    Map<String, dynamic>? locality,
+    bool hasEscort = false,
+    double distanceKm = 0.0,
+    int durationMinutes = 0,
+    double pickupLat = 0.0,
+    double pickupLng = 0.0,
+    double dropLat = 0.0,
+    double dropLng = 0.0,
+    Map<String, dynamic>? existingQuote,
+  }) async {
+    // 1. If an active server quote already exists for this trip, return its exact total
+    if (existingQuote != null && existingQuote['totalAmount'] != null) {
+      final total = (existingQuote['totalAmount'] as num?)?.toDouble();
+      if (total != null && total > 0) return total.roundToDouble();
+    }
+
+    final localityId = locality?['id']?.toString();
+    // 2. If corporate locality is provided, query dedicated zonal pricing backend
+    if (localityId != null && localityId.isNotEmpty) {
+      try {
+        final quote = await createZonalQuote(
+          officeHubId: officeHubId,
+          direction: direction,
+          localityId: localityId,
+          vehicleType: vehicleType == 'SUV' ? 'SUV' : 'SEDAN',
+          hasEscort: hasEscort,
+          pickupLat: pickupLat,
+          pickupLng: pickupLng,
+          dropLat: dropLat,
+          dropLng: dropLng,
+        );
+        final total = (quote['totalAmount'] as num?)?.toDouble();
+        if (total != null && total > 0) return total.roundToDouble();
+      } catch (_) {}
+
+      // Fallback: evaluate against live server rate card
+      final card = await getVendorZonalRateCard();
+      if (card != null && card['matrix'] is Map) {
+        final hubMatrix = (card['matrix'] as Map)[officeHubId];
+        final zoneId = locality?['zoneId']?.toString();
+        if (hubMatrix is Map && zoneId != null) {
+          final cell = hubMatrix[zoneId] as Map?;
+          if (cell != null) {
+            final isSuv = vehicleType == 'SUV';
+            final base = (isSuv ? cell['suv'] : cell['sedan']) as num? ?? 500;
+            final escort = hasEscort
+                ? ((isSuv ? cell['escortSuv'] : cell['escortSedan']) as num? ?? 0)
+                : 0;
+            return (base + escort).toDouble().roundToDouble();
+          }
+        }
+      }
+    }
+
+    // 3. For custom road routes, calculate via dedicated server pricing engine
+    try {
+      final tripFare = await calculateTripFare(
+        vehicleType: vehicleType,
+        distanceKm: distanceKm > 0 ? distanceKm : 10.0,
+        durationMinutes: durationMinutes,
+        pickupLat: pickupLat,
+        pickupLng: pickupLng,
+        dropLat: dropLat,
+        dropLng: dropLng,
+      );
+      final total = (tripFare['estimatedTotal'] as num?)?.toDouble() ??
+          (tripFare['ratePerVehicle'] as num?)?.toDouble();
+      if (total != null && total > 0) {
+        final escortAdd = hasEscort ? (vehicleType == 'SUV' ? 400.0 : 300.0) : 0.0;
+        return (total + escortAdd).roundToDouble();
+      }
+    } catch (_) {}
+
+    // 4. Default fallback: live vehicle category rates from server
+    final tiers = await getPricingTiers();
+    for (final t in tiers) {
+      if (t['vehicleType'] == vehicleType) {
+        final baseFare = (t['baseFare'] as num?)?.toDouble() ?? 800.0;
+        final baseKm = (t['baseKm'] as num?)?.toDouble() ?? 40.0;
+        final perKm = (t['perKmRate'] as num?)?.toDouble() ?? 14.5;
+        double fare = baseFare;
+        if (distanceKm > baseKm) {
+          fare += (distanceKm - baseKm) * perKm;
+        } else if (distanceKm > 0) {
+          final proportional = (distanceKm * perKm) + (baseFare * 0.4);
+          final minF = baseFare * 0.6;
+          fare = proportional > minF ? proportional : minF;
+        }
+        if (hasEscort) fare += (vehicleType == 'SUV' ? 400.0 : 300.0);
+        return fare.roundToDouble();
+      }
+    }
+
+    return 800.0;
+  }
+
+  /// Fast synchronous calculation using cached server rate card and pricing tiers
+  double calculateSynchronousFare({
+    required String vehicleType,
+    required String officeHubId,
+    Map<String, dynamic>? locality,
+    bool hasEscort = false,
+    double distanceKm = 0.0,
+    List<Map<String, dynamic>>? vehicleTiers,
+    Map<String, dynamic>? existingQuote,
+  }) {
+    if (existingQuote != null && existingQuote['totalAmount'] != null) {
+      final total = (existingQuote['totalAmount'] as num?)?.toDouble();
+      if (total != null && total > 0) return total.roundToDouble();
+    }
+
+    // Check cached vendor rate card from server
+    if (locality != null && _cachedVendorRateCard != null && _cachedVendorRateCard!['matrix'] is Map) {
+      final hubMatrix = (_cachedVendorRateCard!['matrix'] as Map)[officeHubId];
+      final zoneId = locality['zoneId']?.toString();
+      if (hubMatrix is Map && zoneId != null) {
+        final cell = hubMatrix[zoneId] as Map?;
+        if (cell != null) {
+          final isSuv = vehicleType == 'SUV';
+          final base = (isSuv ? cell['suv'] : cell['sedan']) as num? ?? 500;
+          final escort = hasEscort
+              ? ((isSuv ? cell['escortSuv'] : cell['escortSedan']) as num? ?? 0)
+              : 0;
+          return (base + escort).toDouble().roundToDouble();
+        }
+      }
+    }
+
+    // Vehicle tier based calculation
+    if (vehicleTiers != null && vehicleTiers.isNotEmpty) {
+      for (final t in vehicleTiers) {
+        if (t['id'] == vehicleType || t['vehicleType'] == vehicleType) {
+          final baseFare = (t['baseRate'] ?? t['baseFare'] as num?)?.toDouble() ?? 800.0;
+          final baseKm = (t['baseKm'] as num?)?.toDouble() ?? 40.0;
+          final perKm = (t['perKmRate'] as num?)?.toDouble() ?? 14.5;
+          double fare = baseFare;
+          if (distanceKm > baseKm) {
+            fare += (distanceKm - baseKm) * perKm;
+          } else if (distanceKm > 0) {
+            final proportional = (distanceKm * perKm) + (baseFare * 0.4);
+            final minF = baseFare * 0.6;
+            fare = proportional > minF ? proportional : minF;
+          }
+          if (hasEscort) fare += (vehicleType == 'SUV' ? 400.0 : 300.0);
+          return fare.roundToDouble();
+        }
+      }
+    }
+
+    return 800.0;
   }
 }
