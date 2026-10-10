@@ -54,7 +54,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
   static const String _tripType = 'One Way';
   bool _hasEscort = false;
   Map<String, dynamic>? _zonalQuote;
-  double _estimatedFare = 800.0;
+  double _estimatedFare = 0.0;
   String _pickupInstructions = '';
   String _dropInstructions = '';
 
@@ -164,10 +164,17 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
       _pickupTime = '${displayHour.toString().padLeft(2, '0')}:$minute $period';
       _notesController = TextEditingController();
     }
-    _estimatedFare = widget.existingItem?.estimatedFare ?? 800.0;
+    final hasExistingLocation = widget.existingItem != null &&
+        widget.existingItem!.locality != null &&
+        widget.existingItem!.pickupAddress.isNotEmpty;
+    _estimatedFare = hasExistingLocation ? widget.existingItem!.estimatedFare : 0.0;
     // Preload live rate card from dedicated backend pricing service
     UserService.instance.getVendorZonalRateCard();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshLiveFare());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_locality != null && _pickupAddress.isNotEmpty) {
+        _refreshLiveFare();
+      }
+    });
   }
 
   Future<void> _loadLivePricingTiers() async {
@@ -217,7 +224,9 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
             };
           }).toList();
         });
-        _refreshLiveFare();
+        if (_locality != null && _pickupAddress.isNotEmpty) {
+          _refreshLiveFare();
+        }
       }
     } catch (_) {}
   }
@@ -255,6 +264,17 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
   /// Recalculates real fare using the dedicated pricing service.
   /// Decides real rates on calculation without any hardcoded values in UI components.
   Future<void> _refreshLiveFare() async {
+    // If no location / locality is selected, do not compute or display any fare
+    if (_locality == null || _pickupAddress.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _estimatedFare = 0.0;
+          _zonalQuote = null;
+        });
+      }
+      return;
+    }
+
     // 1. Instant responsive calculation using dedicated service cached rate card & tiers
     final syncFare = UserService.instance.calculateSynchronousFare(
       vehicleType: _vehicleType,
@@ -1199,60 +1219,138 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
                   const SizedBox(height: AppSpacing.lg),
 
                   // ── 7. Fare Summary Preview Card ────────────────────────────
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.success.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                      border: Border.all(color: AppColors.success.withValues(alpha: 0.25)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Row(
-                            children: [
-                              const Icon(Icons.currency_rupee, color: AppColors.success, size: 20),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text('Estimated Cab Fare',
-                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis),
-                                    Text(
-                                      _locality != null
-                                          ? 'Fixed Rate (${_locality?['zoneLabel'] ?? 'Corporate Zonal'}) • ${_hasEscort ? 'Escort Included' : 'No Surge'}'
-                                          : (_formattedDistance.isNotEmpty
-                                              ? '$_formattedDistance • ${_hasEscort ? 'Security Escort' : 'Standard Duty'}'
-                                              : (_hasEscort ? 'Security Escort' : 'Standard Cab Duty')),
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
+                  if (!hasRouteSelected)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(alpha: 0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.place_outlined,
+                                    color: AppColors.primary,
+                                    size: 18,
+                                  ),
                                 ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Estimated Cab Fare',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Select pickup & drop location above to view fare',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isDark ? AppColors.bgDark : AppColors.bgLight,
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                              border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                            ),
+                            child: Text(
+                              '--',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '₹${estimatedFare.toStringAsFixed(0)}',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.success,
+                        ],
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        border: Border.all(color: AppColors.success.withValues(alpha: 0.25)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Row(
+                              children: [
+                                const Icon(Icons.currency_rupee, color: AppColors.success, size: 20),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('Estimated Cab Fare',
+                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis),
+                                      Text(
+                                        _locality != null
+                                            ? 'Fixed Rate (${_locality?['zoneLabel'] ?? 'Corporate Zonal'}) • ${_hasEscort ? 'Escort Included' : 'No Surge'}'
+                                            : (_formattedDistance.isNotEmpty
+                                                ? '$_formattedDistance • ${_hasEscort ? 'Security Escort' : 'Standard Duty'}'
+                                                : (_hasEscort ? 'Security Escort' : 'Standard Cab Duty')),
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 8),
+                          Text(
+                            '₹${estimatedFare.toStringAsFixed(0)}',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.success,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
