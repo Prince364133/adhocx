@@ -29,8 +29,105 @@ export class GoogleMapsService {
   private readonly routeCache = new Map<string, { result: RoadRouteResult; expiresAt: number }>();
   private readonly CACHE_TTL_MS = 60 * 60 * 1000; // 1 Hour in-memory cache
 
+  // Driver->pickup ETA matrix: short cache (traffic changes) + circuit breaker for quota/outages
+  private readonly etaCache = new Map<string, { result: DriverEtaResult; expiresAt: number }>();
+  private readonly ETA_CACHE_TTL_MS = 2 * 60 * 1000;
+  private readonly MATRIX_TIMEOUT_MS = 1500;
+  private matrixFailures: number[] = [];
+  private circuitOpenUntil = 0;
+
   constructor() {
-    this.apiKey = process.env.GOOGLE_MAPS_API_KEY || 'AIzaSyB8uEHtGy96QPbx3eIxG0s0_WYlWpB8QVI';
+    this.apiKey = process.env.GOOGLE_MAPS_API_KEY || '';
+  }
+
+  /**
+   * Batched traffic-aware driver->pickup ETA for many drivers in ONE Routes API call.
+   * Never throws: every origin without a valid route gets the road-factor estimate.
+   * Result array is index-aligned with `origins`.
+   */
+  async computeDriverEtaMatrix(origins: LatLng[], destination: LatLng): Promise<DriverEtaResult[]> {
+    const results: (DriverEtaResult | null)[] = origins.map(() => null);
+    const keyOf = (o: LatLng) =>
+      `${Number(o.latitude).toFixed(3)},${Number(o.longitude).toFixed(3)}->${Number(destination.latitude).toFixed(3)},${Number(destination.longitude).toFixed(3)}`;
+
+    const now = Date.now();
+    const pending: number[] = [];
+    origins.forEach((o, i) => {
+      const cached = this.etaCache.get(keyOf(o));
+      if (cached && cached.expiresAt > now) results[i] = cached.result;
+      else pending.push(i);
+    });
+
+    if (pending.length > 0 && this.apiKey && now >= this.circuitOpenUntil) {
+      try {
+        const payload = JSON.stringify({
+          origins: pending.map((i) => ({
+            waypoint: { location: { latLng: { latitude: Number(origins[i].latitude), longitude: Number(origins[i].longitude) } } },
+          })),
+          destinations: [
+            { waypoint: { location: { latLng: { latitude: Number(destination.latitude), longitude: Number(destination.longitude) } } } },
+          ],
+          travelMode: 'DRIVE',
+          routingPreference: 'TRAFFIC_AWARE',
+        });
+        const elements = await this.postJson(
+          'routes.googleapis.com',
+          '/distanceMatrix/v2:computeRouteMatrix',
+          payload,
+          {
+            'X-Goog-Api-Key': this.apiKey,
+            'X-Goog-FieldMask': 'originIndex,destinationIndex,duration,distanceMeters,condition',
+          },
+          this.MATRIX_TIMEOUT_MS,
+        );
+        for (const el of Array.isArray(elements) ? elements : []) {
+          if (el?.condition && el.condition !== 'ROUTE_EXISTS') continue;
+          const idx = pending[Number(el?.originIndex ?? -1)];
+          if (idx === undefined) continue;
+          const seconds = el.duration ? parseFloat(String(el.duration).replace('s', '')) : NaN;
+          const meters = Number(el.distanceMeters);
+          if (!Number.isFinite(seconds) || !Number.isFinite(meters)) continue;
+          const result: DriverEtaResult = {
+            etaMinutes: Math.max(1, Math.round(seconds / 60)),
+            distanceKm: Number((meters / 1000).toFixed(2)),
+            isRealRoad: true,
+          };
+          results[idx] = result;
+          this.etaCache.set(keyOf(origins[idx]), { result, expiresAt: now + this.ETA_CACHE_TTL_MS });
+        }
+        this.matrixFailures = [];
+      } catch (err: any) {
+        this.recordMatrixFailure(err);
+      }
+    }
+
+    return results.map((r, i) => {
+      if (r) return r;
+      const fb = this.calculateFallbackRoadRoute(
+        Number(origins[i].latitude),
+        Number(origins[i].longitude),
+        Number(destination.latitude),
+        Number(destination.longitude),
+      );
+      return { etaMinutes: fb.durationMinutes, distanceKm: fb.distanceKm, isRealRoad: false };
+    });
+  }
+
+  isCircuitOpen(): boolean {
+    return Date.now() < this.circuitOpenUntil;
+  }
+
+  private recordMatrixFailure(err: Error): void {
+    const now = Date.now();
+    this.matrixFailures = this.matrixFailures.filter((t) => now - t < 60_000);
+    this.matrixFailures.push(now);
+    if (this.matrixFailures.length >= 5) {
+      this.circuitOpenUntil = now + 120_000;
+      this.matrixFailures = [];
+      this.logger.warn(`[GoogleMapsService] Route matrix circuit OPEN for 120s after repeated failures (${err.message})`);
+    } else {
+      this.logger.warn(`[GoogleMapsService] Route matrix failed (${err.message}); using road-factor estimate`);
+    }
   }
 
   /**
@@ -52,9 +149,13 @@ export class GoogleMapsService {
       return cached.result;
     }
 
+    if (!this.apiKey) {
+      return this.calculateFallbackRoadRoute(originLat, originLng, destLat, destLng);
+    }
+
     try {
       const payload = JSON.stringify({
-        origin: { location: { latLng: { latitude: originLat, longitude: originLng } } },
+        origin:{ location: { latLng: { latitude: originLat, longitude: originLng } } },
         destination: { location: { latLng: { latitude: destLat, longitude: destLng } } },
         travelMode: 'DRIVE',
         routingPreference: 'TRAFFIC_AWARE',
@@ -146,8 +247,26 @@ export class GoogleMapsService {
     };
   }
 
-  private postJson(hostname: string, path: string, payload: string, headers: Record<string, string>): Promise<any> {
+  private postJson(
+    hostname: string,
+    path: string,
+    payload: string,
+    headers: Record<string, string>,
+    totalTimeoutMs: number = 5000,
+  ): Promise<any> {
     return new Promise((resolve, reject) => {
+      // Hard wall-clock deadline (socket `timeout` alone only covers idle time)
+      const deadline = setTimeout(() => {
+        req.destroy(new Error(`Request exceeded ${totalTimeoutMs}ms`));
+      }, totalTimeoutMs);
+      deadline.unref();
+      const done = <T>(fn: (v: T) => void) => (v: T) => {
+        clearTimeout(deadline);
+        fn(v);
+      };
+      resolve = done(resolve);
+      reject = done(reject);
+
       const req = https.request(
         {
           hostname,

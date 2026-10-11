@@ -23,6 +23,13 @@ const STATUS_TABS = [
   { id: 'SUSPENDED', label: 'Suspended' },
 ];
 
+/** Driver is paused from new offers by the anti-cherry-picking cooldown. */
+const isCoolingDown = (drv: { cooldownUntil?: string | null }) =>
+  !!drv.cooldownUntil && new Date(drv.cooldownUntil).getTime() > Date.now();
+
+const formatTime = (iso?: string | null) =>
+  iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '';
+
 export default function DriversPage() {
   const [activeTab, setActiveTab] = useState('ALL');
   const [search, setSearch] = useState('');
@@ -140,6 +147,21 @@ export default function DriversPage() {
     }
   }
 
+  async function handleClearCooldown() {
+    if (!selectedDriver) return;
+    setActionLoading(true);
+    try {
+      await adminApi.clearDriverCooldown(selectedDriver.id);
+      setAlert({ type: 'success', message: `Cooldown lifted for ${selectedDriver.fullName}. They can receive offers again.` });
+      setSelectedDriver(null);
+      loadDrivers(activeTab);
+    } catch (err: unknown) {
+      setAlert({ type: 'error', message: err instanceof Error ? err.message : 'Failed to clear cooldown.' });
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
   const columns: Column<DriverListItem>[] = [
     {
       key: 'fullName',
@@ -216,6 +238,12 @@ export default function DriversPage() {
             <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.15rem' }}>
               <Star size={12} fill="#F59E0B" color="#F59E0B" />
               <span>{(drv.averageRating ?? 5.0).toFixed(1)} ({drv.ratingCount ?? 0}) • {drv.totalTrips ?? 0} trips</span>
+            </div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+              {(drv.acceptanceRate ?? 100).toFixed(0)}% acceptance
+              {isCoolingDown(drv) && (
+                <span style={{ color: 'var(--color-warning)', fontWeight: 700 }}> • Paused until {formatTime(drv.cooldownUntil)}</span>
+              )}
             </div>
           </div>
         );
@@ -345,6 +373,11 @@ export default function DriversPage() {
               {selectedDriver.verificationStatus === 'SUSPENDED' && (
                 <Button variant="success" size="sm" onClick={() => setActionType('REACTIVATE')}>
                   Reactivate Driver
+                </Button>
+              )}
+              {isCoolingDown(selectedDriver) && (
+                <Button variant="outline" size="sm" onClick={handleClearCooldown} isLoading={actionLoading}>
+                  Clear Cooldown ({formatTime(selectedDriver.cooldownUntil)})
                 </Button>
               )}
               <Button variant="secondary" size="sm" onClick={() => setSelectedDriver(null)}>

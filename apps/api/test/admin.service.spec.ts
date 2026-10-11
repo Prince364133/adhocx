@@ -26,6 +26,9 @@ describe('AdminService Unit Tests', () => {
         findMany: jest.fn(),
         count: jest.fn().mockResolvedValue(5),
       },
+      user: {
+        count: jest.fn().mockResolvedValue(20),
+      },
       requirement: {
         count: jest.fn().mockResolvedValue(3),
       },

@@ -18,7 +18,6 @@ import {
   VerificationStatus,
   OfferStatus,
   BidStatus,
-  TripStatus,
   FulfillmentMode,
   VehicleType,
   PaymentStatus,
@@ -31,6 +30,7 @@ import { PricingService } from '../pricing/pricing.service';
 import { ZonalPricingService } from '../pricing/zonal-pricing.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
+import { assertNoPendingReview } from '../reviews/pending-review';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -80,24 +80,8 @@ export class RequirementsService {
 
     const vendorId = vendor?.id || `vnd_${vendorUserId}`;
 
-    // Mandatory Review Gatekeeper: If user has an unreviewed completed trip, block new ride creation
-    const unreviewedTrip = this.db.trip?.findFirst
-      ? await this.db.trip.findFirst({
-          where: {
-            vendorId,
-            status: TripStatus.COMPLETED,
-            reviews: { none: { reviewerId: vendorUserId } },
-          },
-          select: { id: true },
-          orderBy: { completedAt: 'desc' },
-        })
-      : null;
-
-    if (unreviewedTrip) {
-      throw new ForbiddenException(
-        `Please submit feedback for your completed trip #${unreviewedTrip.id.substring(0, 8)} before booking a new ride.`,
-      );
-    }
+    // Mandatory review gate: customer must rate their previous ride before booking another
+    await assertNoPendingReview(this.db, vendorId, vendorUserId);
 
     const mode = dto.fulfillmentMode || FulfillmentMode.DIRECT_DISPATCH;
 
@@ -766,7 +750,55 @@ export class RequirementsService {
       RequirementStatus.CANCELLED,
     );
 
-    // Cancel in-flight sent offers if in DIRECT_DISPATCH mode
+    let refundAmount = 0;
+    let unassigned = 0;
+    const updated = await this.db.$transaction(async (tx) => {
+      // Claim the cancellation first (row lock): a concurrent accept either committed before us
+      // (status changed -> conflict, client retries with fresh state) or will see CANCELLED and fail.
+      const claimed = await tx.requirement.updateMany({
+        where: { id, status: requirement.status },
+        data: { status: RequirementStatus.CANCELLED },
+      });
+      if (claimed.count !== 1) {
+        throw new ConflictException('Requirement changed while cancelling (a driver may have just accepted). Please refresh and try again.');
+      }
+      const fresh = await tx.requirement.findUnique({ where: { id } });
+      if (!fresh) {
+        throw new NotFoundException('Requirement not found');
+      }
+
+      // Refund unfulfilled capacity from the authoritative post-lock count
+      unassigned = fresh.quantity - fresh.assignedQuantity;
+      if (unassigned > 0 && Number(fresh.totalAmount) > 0 && fresh.quantity > 0) {
+        refundAmount = Math.round((unassigned / fresh.quantity) * Number(fresh.totalAmount));
+      }
+
+      if (refundAmount > 0) {
+        const v = await tx.vendor.update({
+          where: { id: requirement.vendorId },
+          data: {
+            escrowBalance: { increment: refundAmount },
+          },
+        });
+
+        await tx.ledgerEntry.create({
+          data: {
+            accountType: 'VENDOR',
+            accountId: requirement.vendorId,
+            entryType: 'CREDIT',
+            amount: refundAmount,
+            balanceAfter: v.escrowBalance,
+            referenceType: 'REQUIREMENT_REFUND',
+            referenceId: requirement.id,
+            description: `Refund for cancelled requirement ${requirement.id.slice(-6)} (${unassigned} unfulfilled vehicles)`,
+          },
+        });
+      }
+
+      return { ...fresh, status: RequirementStatus.CANCELLED };
+    }, { timeout: 30000, maxWait: 10000 });
+
+    // Cancel in-flight sent offers if in DIRECT_DISPATCH mode (after the cancellation is committed)
     if (requirement.offers.length > 0) {
       await this.db.offer.updateMany({
         where: {
@@ -803,42 +835,6 @@ export class RequirementsService {
         });
       }
     }
-
-    // Calculate unfulfilled capacity to refund escrow funds back to vendor wallet
-    const unassigned = requirement.quantity - requirement.assignedQuantity;
-    let refundAmount = 0;
-    if (unassigned > 0 && Number(requirement.totalAmount) > 0 && requirement.quantity > 0) {
-      refundAmount = Math.round((unassigned / requirement.quantity) * Number(requirement.totalAmount));
-    }
-
-    const updated = await this.db.$transaction(async (tx) => {
-      if (refundAmount > 0) {
-        const v = await tx.vendor.update({
-          where: { id: requirement.vendorId },
-          data: {
-            escrowBalance: { increment: refundAmount },
-          },
-        });
-
-        await tx.ledgerEntry.create({
-          data: {
-            accountType: 'VENDOR',
-            accountId: requirement.vendorId,
-            entryType: 'CREDIT',
-            amount: refundAmount,
-            balanceAfter: v.escrowBalance,
-            referenceType: 'REQUIREMENT_REFUND',
-            referenceId: requirement.id,
-            description: `Refund for cancelled requirement ${requirement.id.slice(-6)} (${unassigned} unfulfilled vehicles)`,
-          },
-        });
-      }
-
-      return tx.requirement.update({
-        where: { id },
-        data: { status: RequirementStatus.CANCELLED },
-      });
-    }, { timeout: 30000, maxWait: 10000 });
 
     if (refundAmount > 0) {
       this.notifications.emitEvent(`vendor:${requirement.vendorId}`, 'WALLET_REFUNDED', {

@@ -10,7 +10,8 @@ import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
-import '../../shared/widgets/trip_rating_bottom_sheet.dart';
+import '../../core/networking/api_client.dart';
+import '../../shared/widgets/pending_review_gate.dart';
 import 'models/cab_cart_item.dart';
 import 'models/fleet_template_model.dart';
 import 'requirement_draft_provider.dart';
@@ -45,24 +46,10 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
     _checkPendingReviewOnEntry();
   }
 
-  Future<void> _checkPendingReviewOnEntry() async {
-    try {
-      final pendingTrip = await UserService.instance.getPendingReview();
-      if (pendingTrip != null && mounted) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            TripRatingBottomSheet.show(
-              context: context,
-              tripId: pendingTrip['id']?.toString() ?? '',
-              targetName: pendingTrip['driverName']?.toString() ?? 'Your Driver',
-              vehicleInfo: pendingTrip['vehiclePlate']?.toString(),
-              isReviewingDriver: true,
-              isMandatory: true,
-            );
-          }
-        });
-      }
-    } catch (_) {}
+  void _checkPendingReviewOnEntry() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) PendingReviewGate.check(context);
+    });
   }
 
   @override
@@ -554,6 +541,8 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
 
     try {
       final List<dynamic> createdRequirements = [];
+      final List<Object> deployErrors = [];
+      final Set<int> deployedIndexes = {};
       final batchId = 'BATCH_${DateTime.now().millisecondsSinceEpoch}_${draft.cabs.length}';
       final groupName = _cartNameController.text.trim().isNotEmpty
           ? _cartNameController.text.trim()
@@ -588,9 +577,11 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
               zonalQuoteId: cab.zonalQuoteId,
             );
             createdRequirements.add(res);
+            deployedIndexes.add(idx);
             completedFlags[idx] = true;
           } catch (err) {
             completedFlags[idx] = true;
+            deployErrors.add(err);
             deploymentLogs.add('Cab #${idx + 1} deployment notice: $err');
           }
         }),
@@ -603,23 +594,50 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
 
       setState(() => _isDeploying = false);
 
+      // Server-side review gate: keep the cart intact and ask for the owed rating first
+      final gateError = deployErrors.cast<Object?>().firstWhere(
+            (e) => e is ApiException && e.statusCode == 403,
+            orElse: () => null,
+          );
+      if (createdRequirements.isEmpty) {
+        if (gateError != null && mounted && PendingReviewGate.handleBookingError(context, gateError)) {
+          Fluttertoast.showToast(msg: 'Please rate your previous ride, then tap deploy again.');
+          return;
+        }
+        final reason = deployErrors.isNotEmpty && deployErrors.first is ApiException
+            ? (deployErrors.first as ApiException).message
+            : 'Please check your connection and try again.';
+        Fluttertoast.showToast(
+          msg: 'No cabs were booked. $reason',
+          backgroundColor: AppColors.error,
+          textColor: Colors.white,
+        );
+        return; // nothing booked: cart stays as it was
+      }
+
+      final totalCabs = draft.cabs.length;
+      final totalDeploys = createdRequirements.length;
       Fluttertoast.showToast(
-        msg: 'All ${draft.cabs.length} cabs deployed to parallel driver search!',
-        backgroundColor: AppColors.success,
+        msg: totalDeploys == totalCabs
+            ? 'All $totalCabs cabs deployed to parallel driver search!'
+            : '$totalDeploys of $totalCabs cabs booked. The rest are still in your cart.',
+        backgroundColor: totalDeploys == totalCabs ? AppColors.success : AppColors.warning,
         textColor: Colors.white,
       );
 
-      final totalDeploys = createdRequirements.length;
-      final firstReq = createdRequirements.isNotEmpty && createdRequirements.first is Map<String, dynamic>
+      final firstReq = createdRequirements.first is Map<String, dynamic>
           ? createdRequirements.first as Map<String, dynamic>
-          : {
-              'id': 'REQ-BATCH-${DateTime.now().millisecondsSinceEpoch}',
-              'vehicleType': 'MULTI_CAB_FLEET',
-              'quantity': totalDeploys,
-              'status': 'ACTIVE',
-            };
+          : <String, dynamic>{'vehicleType': 'MULTI_CAB_FLEET', 'quantity': totalDeploys, 'status': 'ACTIVE'};
 
-      draft.clearCart();
+      // Only remove cabs that were actually booked (highest index first keeps indexes valid)
+      if (deployedIndexes.length == totalCabs) {
+        draft.clearCart();
+      } else {
+        final sorted = deployedIndexes.toList()..sort((a, b) => b.compareTo(a));
+        for (final i in sorted) {
+          draft.removeCab(i);
+        }
+      }
 
       if (mounted) {
         context.push(

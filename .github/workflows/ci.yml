@@ -142,6 +142,20 @@ jobs:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/adhocx_test?schema=public
         run: cd apps/api && npx prisma db push
 
+      - name: Run API Unit Test Suite
+        run: cd apps/api && npx jest --ci
+
+      # Dedicated database: the simulation truncates every table it touches.
+      - name: Run 50-Ride Dispatch Simulation (real Postgres)
+        env:
+          PGPASSWORD: test_password
+          SIMULATION_DATABASE_URL: postgresql://test_user:test_password@localhost:5432/adhocx_sim?schema=public
+        run: |
+          psql -h localhost -U test_user -d adhocx_test -c 'CREATE DATABASE adhocx_sim'
+          cd apps/api
+          DATABASE_URL="$SIMULATION_DATABASE_URL" npx prisma db push --skip-generate
+          DATABASE_URL="$SIMULATION_DATABASE_URL" npm run test:sim -- --ci
+
       - name: Build API Backend
         run: pnpm --filter @adhocx/api build
 

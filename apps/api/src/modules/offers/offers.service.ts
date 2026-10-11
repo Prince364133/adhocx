@@ -25,6 +25,7 @@ import { DispatchService } from '../dispatch/dispatch.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
 import { ZonalPricingService } from '../pricing/zonal-pricing.service';
+import { DriverBehaviorService } from '../dispatch/driver-behavior.service';
 
 @Injectable()
 export class OffersService {
@@ -36,7 +37,24 @@ export class OffersService {
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
     @Optional() private readonly zonalPricing?: ZonalPricingService,
+    @Optional() private readonly behavior?: DriverBehaviorService,
   ) {}
+
+  /**
+   * Delivery receipt: the driver app displayed this offer. Expiries of offers never shown to the
+   * driver (push lost, app killed) are not held against their acceptance rate.
+   */
+  async markOfferSeen(offerId: string, driverUserId: string): Promise<{ seen: boolean }> {
+    const driver = await this.db.driver.findUnique({ where: { userId: driverUserId }, select: { id: true } });
+    if (!driver) {
+      throw new ForbiddenException('Driver profile not found');
+    }
+    const res = await this.db.offer.updateMany({
+      where: { id: offerId, driverId: driver.id, seenAt: null },
+      data: { seenAt: new Date() },
+    });
+    return { seen: res.count === 1 };
+  }
 
   /**
    * Get offers sent to a driver with status filtering and countdown computation.
@@ -116,6 +134,15 @@ export class OffersService {
         });
       }
 
+    // Listing live offers in the app counts as delivery (covers app versions without the receipt call)
+    const unseenLive = offers.filter((o) => o.status === OfferStatus.SENT && !o.seenAt).map((o) => o.id);
+    if (unseenLive.length > 0) {
+      await this.db.offer.updateMany({
+        where: { id: { in: unseenLive }, seenAt: null },
+        data: { seenAt: new Date() },
+      });
+    }
+
     const now = Date.now();
     return offers.map((o) => {
       const expiresAtMs = new Date(o.expiresAt).getTime();
@@ -189,68 +216,67 @@ export class OffersService {
     // Validate state transition: only SENT -> ACCEPTED is legal
     validateOfferTransition(offer.status as OfferStatus, OfferStatus.ACCEPTED);
 
-    // Validate expiry
+    // Validate expiry (the reaper owns the SENT -> EXPIRED transition and its accounting)
     const now = new Date();
     if (now > offer.expiresAt) {
-      await this.db.offer.update({
-        where: { id: offerId },
-        data: { status: OfferStatus.EXPIRED },
-      });
       throw new ConflictException('This offer has expired');
     }
 
     // Atomic transaction for capacity allocation and assignment creation
     const txResult = await this.db.$transaction(async (tx) => {
-      // Re-read requirement inside transaction
-      const requirement = await tx.requirement.findUnique({
-        where: { id: offer.requirementId },
+      // Claim the offer first: loses cleanly to a concurrent expiry/decline/cancel
+      const claimed = await tx.offer.updateMany({
+        where: { id: offerId, status: OfferStatus.SENT, expiresAt: { gt: new Date() } },
+        data: { status: OfferStatus.ACCEPTED, respondedAt: new Date() },
       });
+      if (claimed.count === 0) {
+        throw new ConflictException('This offer is no longer available');
+      }
 
+      // One active trip per driver. The UPDATE row-locks the driver, so a second simultaneous
+      // accept by the same driver blocks here until the first commits; its trip count (a fresh
+      // READ COMMITTED snapshot) then sees the first trip and is rejected.
+      await tx.driver.update({
+        where: { id: driver.id },
+        data: { availabilityStatus: DriverAvailability.BUSY },
+      });
+      const activeTrips = await tx.trip.count({
+        where: {
+          driverId: driver.id,
+          status: { in: [TripStatus.ASSIGNED, TripStatus.ARRIVED, TripStatus.IN_PROGRESS] },
+        },
+      });
+      if (activeTrips > 0) {
+        throw new ConflictException('You already have an active trip. Complete it before accepting another.');
+      }
+
+      // Atomic capacity reservation (row lock serializes concurrent accepts on this requirement)
+      const capacityReserved = await tx.requirement.updateMany({
+        where: {
+          id: offer.requirementId,
+          assignedQuantity: { lt: offer.requirement.quantity },
+          status: { notIn: [RequirementStatus.CANCELLED, RequirementStatus.COMPLETED] },
+        },
+        data: {
+          assignedQuantity: { increment: 1 },
+        },
+      });
+      if (capacityReserved.count === 0) {
+        throw new ConflictException('Requirement capacity is already fully fulfilled');
+      }
+
+      // Read back the authoritative post-increment state (never write a stale absolute count)
+      const requirement = await tx.requirement.findUnique({ where: { id: offer.requirementId } });
       if (!requirement) {
         throw new NotFoundException('Requirement not found');
       }
 
-      const remaining = requirement.quantity - requirement.assignedQuantity;
-      if (remaining <= 0) {
-        await tx.offer.update({
-          where: { id: offerId },
-          data: { status: OfferStatus.EXPIRED },
-        });
-        throw new ConflictException('Requirement capacity is already fully fulfilled');
+      const updatedOffer = await tx.offer.findUnique({ where: { id: offerId } });
+      if (!updatedOffer) {
+        throw new NotFoundException('Offer not found');
       }
 
-      // Atomic capacity reservation: prevents race conditions during concurrent acceptance
-      if (tx.requirement.updateMany) {
-        const capacityReserved = await tx.requirement.updateMany({
-          where: {
-            id: requirement.id,
-            assignedQuantity: { lt: requirement.quantity },
-          },
-          data: {
-            assignedQuantity: { increment: 1 },
-          },
-        });
-
-        if (capacityReserved.count === 0) {
-          await tx.offer.update({
-            where: { id: offerId },
-            data: { status: OfferStatus.EXPIRED },
-          });
-          throw new ConflictException('Requirement capacity is already fully fulfilled');
-        }
-      }
-
-      // Mark offer ACCEPTED
-      const updatedOffer = await tx.offer.update({
-        where: { id: offerId },
-        data: {
-          status: OfferStatus.ACCEPTED,
-          respondedAt: new Date(),
-        },
-      });
-
-      // Increment requirement capacity
-      const newAssigned = requirement.assignedQuantity + 1;
+      const newAssigned = requirement.assignedQuantity;
       const newStatus =
         newAssigned >= requirement.quantity
           ? RequirementStatus.FULFILLED
@@ -258,10 +284,7 @@ export class OffersService {
 
       await tx.requirement.update({
         where: { id: requirement.id },
-        data: {
-          assignedQuantity: newAssigned,
-          status: newStatus,
-        },
+        data: { status: newStatus },
       });
 
       // Create Assignment record
@@ -294,24 +317,6 @@ export class OffersService {
         },
       });
 
-      // Lock driver availability to BUSY and reward acceptance rate & trust score
-      const acceptedCount = ((driver as any).acceptedOffers || 0) + 1;
-      const declinedCount = (driver as any).declinedOffers || 0;
-      const newAR = Number(((acceptedCount / (acceptedCount + declinedCount)) * 100).toFixed(1));
-      const newTrust = Math.min(100.0, Number((driver.trustScore + 0.25).toFixed(1)));
-
-      await tx.driver.update({
-        where: { id: driver.id },
-        data: {
-          availabilityStatus: DriverAvailability.BUSY,
-          acceptedOffers: acceptedCount,
-          consecutiveDeclines: 0,
-          acceptanceRate: newAR,
-          trustScore: newTrust,
-          cooldownUntil: null,
-        } as any,
-      });
-
       return {
         updatedOffer,
         assignment,
@@ -322,8 +327,15 @@ export class OffersService {
       };
     }, { timeout: 30000, maxWait: 10000 });
 
-    // Cancel pending wave expiration timer since a driver accepted
-    this.dispatchService?.cancelWaveExpiration?.(txResult.requirement.id);
+    // Acceptance-rate window + trust reward (atomic counters, outside the booking transaction)
+    await this.behavior?.recordOutcome({
+      offerId,
+      driverId: driver.id,
+      outcome: 'ACCEPTED',
+      distanceKm: offer.distanceKm,
+      seenAt: offer.seenAt,
+      requirement: txResult.requirement,
+    });
 
     // Invalidate any other pending offers sent to this driver
     await this.db.offer.updateMany({
@@ -487,52 +499,32 @@ export class OffersService {
     // Validate state transition: only SENT -> DECLINED is legal
     validateOfferTransition(offer.status as OfferStatus, OfferStatus.DECLINED);
 
-    const updated = await this.db.offer.update({
-      where: { id: offerId },
+    if (new Date() > offer.expiresAt) {
+      throw new ConflictException('This offer has expired');
+    }
+
+    // Conditional transition: loses cleanly to a concurrent expiry/accept/cancel (no double accounting)
+    const transitioned = await this.db.offer.updateMany({
+      where: { id: offerId, status: OfferStatus.SENT },
       data: {
         status: OfferStatus.DECLINED,
         respondedAt: new Date(),
       },
     });
+    if (transitioned.count === 0) {
+      throw new ConflictException('This offer is no longer pending');
+    }
+    const updated = { ...offer, status: OfferStatus.DECLINED };
 
-    // Behavioral Feedback: If driver declined a favorable nearby trip, apply trust penalty & check cooldown
-    try {
-      const driverLat = Number(driver.currentLat ?? offer.requirement.pickupLat);
-      const driverLng = Number(driver.currentLng ?? offer.requirement.pickupLng);
-      const dist = Math.sqrt(
-        Math.pow((driverLat - Number(offer.requirement.pickupLat)) * 111, 2) +
-        Math.pow((driverLng - Number(offer.requirement.pickupLng)) * 111 * Math.cos(driverLat * (Math.PI / 180)), 2),
-      );
-
-      // Nearby favorable booking (within 5 km)
-      if (dist <= 5.0) {
-        const accepted = (driver as any).acceptedOffers || 0;
-        const declined = ((driver as any).declinedOffers || 0) + 1;
-        const consecutive = ((driver as any).consecutiveDeclines || 0) + 1;
-        const total = accepted + declined;
-        const newAR = total > 0 ? Number(((accepted / total) * 100).toFixed(1)) : 100.0;
-        const newTrust = Math.max(0.0, Number((driver.trustScore - 1.5).toFixed(1)));
-        const cooldownUntil = consecutive >= 3 ? new Date(Date.now() + 3 * 60 * 1000) : undefined;
-
-        await this.db.driver.update({
-          where: { id: driver.id },
-          data: {
-            declinedOffers: declined,
-            consecutiveDeclines: consecutive,
-            acceptanceRate: newAR,
-            trustScore: newTrust,
-            ...(cooldownUntil ? { cooldownUntil } : {}),
-          } as any,
-        });
-
-        if (cooldownUntil) {
-          this.notifications.emitEvent(`driver:${driver.id}`, 'DRIVER_COOLDOWN', {
-            cooldownMinutes: 3,
-            message: 'You have been temporarily paused for 3 minutes due to declining 3 consecutive nearby matched offers.',
-          });
-        }
-      }
-    } catch (_) {}
+    // Behavioural feedback uses the dispatch-time distance stored on the offer, not live GPS
+    await this.behavior?.recordOutcome({
+      offerId,
+      driverId: driver.id,
+      outcome: 'DECLINED',
+      distanceKm: offer.distanceKm,
+      seenAt: offer.seenAt ?? new Date(),
+      requirement: offer.requirement,
+    });
 
     await this.audit.log({
       userId: driverUserId,
@@ -545,8 +537,7 @@ export class OffersService {
       },
     });
 
-    // Cancel pending wave timer and re-trigger dispatch wave to find another candidate
-    this.dispatchService?.cancelWaveExpiration?.(offer.requirementId);
+    // Replace the declined offer (dispatch keeps live offers within budget; wave timers untouched)
     this.dispatchService.dispatchRequirement(offer.requirementId).catch((err) => {
       this.logger.warn(`Redispatch after decline failed for requirement ${offer.requirementId}: ${err.message}`);
     });

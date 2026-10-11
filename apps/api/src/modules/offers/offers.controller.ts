@@ -50,4 +50,11 @@ export class OffersController {
   ) {
     return this.offersService.declineOffer(id, user.id, dto.reason);
   }
+
+  @Post(':id/seen')
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({ summary: 'Delivery receipt: driver app displayed this offer' })
+  async markSeen(@Param('id') id: string, @CurrentUser() user: AuthUserDto) {
+    return this.offersService.markOfferSeen(id, user.id);
+  }
 }

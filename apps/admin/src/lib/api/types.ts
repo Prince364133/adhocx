@@ -27,6 +27,9 @@ export interface DriverListItem {
   averageRating?: number;
   ratingCount?: number;
   totalTrips?: number;
+  acceptanceRate?: number;
+  consecutiveDeclines?: number;
+  cooldownUntil?: string | null;
   rejectionReason?: string;
   currentLat?: number;
   currentLng?: number;

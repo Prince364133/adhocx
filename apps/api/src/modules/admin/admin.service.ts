@@ -325,6 +325,39 @@ export class AdminService {
   }
 
   /**
+   * Lift an anti-cherry-picking dispatch cooldown early and reset the decline streak.
+   */
+  async clearDriverCooldown(id: string, adminId: string) {
+    const driver = await this.db.driver.findUnique({ where: { id } });
+    if (!driver) {
+      throw new NotFoundException('Driver not found');
+    }
+
+    const updated = await this.db.driver.update({
+      where: { id },
+      data: { cooldownUntil: null, consecutiveDeclines: 0 },
+    });
+
+    this.notifications?.emitEvent(`driver:${id}`, 'DRIVER_COOLDOWN_CLEARED', {
+      message: 'Your cooldown has been lifted. You can receive new offers again.',
+    });
+
+    await this.audit.log({
+      userId: adminId,
+      action: 'ADMIN_DRIVER_COOLDOWN_CLEARED',
+      entityType: 'DRIVER',
+      entityId: id,
+      metadata: {
+        previousCooldownUntil: driver.cooldownUntil?.toISOString() ?? null,
+        previousConsecutiveDeclines: driver.consecutiveDeclines,
+      },
+    });
+
+    this.logger.log(`Driver ${id} cooldown cleared by admin ${adminId}`);
+    return updated;
+  }
+
+  /**
    * List vendors with filtering and pagination for admin review.
    */
   async listVendors(query: AdminVendorQueryDto) {
@@ -646,20 +679,20 @@ export class AdminService {
         completedTrips,
         pendingSettlements,
       ] = await Promise.all([
-        this.db.driver?.count ? this.db.driver.count() : 0,
-        this.db.driver?.count ? this.db.driver.count({ where: { verificationStatus: VerificationStatus.VERIFIED } }) : 0,
-        this.db.driver?.count ? this.db.driver.count({ where: { verificationStatus: VerificationStatus.UNDER_REVIEW } }) : 0,
-        this.db.vendor?.count ? this.db.vendor.count() : 0,
-        this.db.vendor?.count ? this.db.vendor.count({ where: { verificationStatus: VerificationStatus.VERIFIED } }) : 0,
-        this.db.user?.count ? this.db.user.count() : 0,
-        this.db.requirement?.count ? this.db.requirement.count({
+        this.db.driver.count(),
+        this.db.driver.count({ where: { verificationStatus: VerificationStatus.VERIFIED } }),
+        this.db.driver.count({ where: { verificationStatus: VerificationStatus.UNDER_REVIEW } }),
+        this.db.vendor.count(),
+        this.db.vendor.count({ where: { verificationStatus: VerificationStatus.VERIFIED } }),
+        this.db.user.count(),
+        this.db.requirement.count({
           where: { status: { in: ['POSTED', 'DISPATCHING', 'PARTIALLY_FULFILLED', 'FULFILLED', 'IN_PROGRESS'] } },
-        }) : 0,
-        this.db.trip?.count ? this.db.trip.count({
+        }),
+        this.db.trip.count({
           where: { status: { in: ['ASSIGNED', 'ARRIVED', 'IN_PROGRESS'] } },
-        }) : 0,
-        this.db.trip?.count ? this.db.trip.count({ where: { status: 'COMPLETED' } }) : 0,
-        this.db.settlement?.count ? this.db.settlement.count({ where: { status: 'PENDING' } }) : 0,
+        }),
+        this.db.trip.count({ where: { status: 'COMPLETED' } }),
+        this.db.settlement.count({ where: { status: 'PENDING' } }),
       ]);
 
       return {

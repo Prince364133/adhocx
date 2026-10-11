@@ -14,6 +14,7 @@ import '../theme/app_typography.dart';
 import '../utils/dispatch_sound_player.dart';
 import '../utils/vehicle_utils.dart';
 import './auth_service.dart';
+import './driver_service.dart';
 import './local_notification_service.dart';
 import './in_app_message_service.dart';
 import './permission_service.dart';
@@ -232,6 +233,11 @@ class GlobalDispatchOverlayService {
       payload: offerId,
     );
 
+    // Delivery receipt: the driver actually saw this offer (unseen expiries are not penalized)
+    if (offerId.isNotEmpty) {
+      unawaited(DriverService.instance.markOfferSeen(offerId));
+    }
+
     try {
       final result = await IncomingRequirementBottomSheet.show<bool>(
         context: context,
@@ -296,6 +302,22 @@ class GlobalDispatchOverlayService {
       case 'OFFER_CANCELLED':
         final offId = payload['offerId'] as String?;
         dismissCurrentOffer(offerId: offId);
+        break;
+      case 'DRIVER_COOLDOWN':
+        final minutes = payload['cooldownMinutes']?.toString() ?? '3';
+        InAppMessageService.instance.showInAppNotification(
+          title: 'Offers paused for $minutes min',
+          body: payload['message']?.toString() ??
+              'You skipped several nearby trips in a row. New offers resume automatically.',
+          data: payload,
+        );
+        break;
+      case 'DRIVER_COOLDOWN_CLEARED':
+        InAppMessageService.instance.showInAppNotification(
+          title: 'Offers resumed',
+          body: payload['message']?.toString() ?? 'You can receive new trip offers again.',
+          data: payload,
+        );
         break;
     }
   }

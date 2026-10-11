@@ -31,6 +31,8 @@ import { DispatchService } from '../dispatch/dispatch.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
 import { LocationsService } from '../locations/locations.service';
+import { findPendingReviewTrip } from '../reviews/pending-review';
+import { DispatchConfig } from '../dispatch/dispatch.config';
 
 @Injectable()
 export class TripsService {
@@ -106,32 +108,24 @@ export class TripsService {
    * Check if current user has any completed trip with a pending review.
    * Enables the mandatory review gatekeeper across mobile and web clients.
    */
-  async getPendingReview(userId: string): Promise<{ pending: boolean; trip: any | null }> {
+  async getPendingReview(userId: string): Promise<{ pending: boolean; pendingCount: number; trip: any | null }> {
+    if (!DispatchConfig.reviewGateEnabled) {
+      return { pending: false, pendingCount: 0, trip: null };
+    }
     const vendor = await this.db.vendor.findUnique({ where: { userId } });
     if (!vendor) {
-      return { pending: false, trip: null };
+      return { pending: false, pendingCount: 0, trip: null };
     }
 
-    const pendingTrip = await this.db.trip.findFirst({
-      where: {
-        vendorId: vendor.id,
-        status: TripStatus.COMPLETED,
-        reviews: {
-          none: { reviewerId: userId },
-        },
-      },
-      include: {
-        driver: { include: { user: true } },
-      },
-      orderBy: { completedAt: 'asc' },
-    });
+    const { trip: pendingTrip, count } = await findPendingReviewTrip(this.db, vendor.id, userId);
 
     if (!pendingTrip) {
-      return { pending: false, trip: null };
+      return { pending: false, pendingCount: 0, trip: null };
     }
 
     return {
       pending: true,
+      pendingCount: count,
       trip: {
         id: pendingTrip.id,
         status: pendingTrip.status,
@@ -482,11 +476,17 @@ export class TripsService {
           availabilityStatus: DriverAvailability.AVAILABLE,
           walletBalance: { increment: totalDriverEarnings },
           totalTrips: { increment: 1 },
-          trustScore: Math.min(100.0, Number(trip.driver.trustScore || 100) + 0.5),
+          // Atomic increment (an absolute write from the pre-transaction read would erase
+          // concurrent acceptance-rate penalties/rewards); clamped below.
+          trustScore: { increment: 0.5 },
           currentLat: dto?.currentLocation?.latitude ? dto.currentLocation.latitude : undefined,
           currentLng: dto?.currentLocation?.longitude ? dto.currentLocation.longitude : undefined,
           lastLocationAt: now,
         },
+      });
+      await tx.driver.updateMany({
+        where: { id: trip.driverId, trustScore: { gt: 100 } },
+        data: { trustScore: 100 },
       });
 
       // 4. Record immutable ledger entry for driver earnings
@@ -679,15 +679,24 @@ export class TripsService {
     const wasPreStart = trip.status === TripStatus.ASSIGNED || trip.status === TripStatus.ARRIVED;
 
     const updated = await this.db.$transaction(async (tx) => {
-      // 1. Cancel trip
-      const cancelledTrip = await tx.trip.update({
-        where: { id },
+      // 1. Claim the cancellation atomically: loses cleanly to a concurrent complete/cancel
+      const claimed = await tx.trip.updateMany({
+        where: { id, status: trip.status },
         data: {
           status: TripStatus.CANCELLED,
           cancelledAt: now,
         },
+      });
+      if (claimed.count !== 1) {
+        throw new ConflictException('Trip state changed. Please refresh and try again.');
+      }
+      const cancelledTrip = await tx.trip.findUnique({
+        where: { id },
         include: { requirement: true },
       });
+      if (!cancelledTrip) {
+        throw new NotFoundException('Trip not found');
+      }
 
       // 2. Cancel assignment
       await tx.assignment.update({
@@ -697,19 +706,19 @@ export class TripsService {
 
       // 3. Free driver back to AVAILABLE (penalize trust score if driver cancelled, clamped at 0.0 minimum)
       const isDriverCancel = role === UserRole.DRIVER;
-      const driverRecord = tx.driver.findUnique
-        ? await tx.driver.findUnique({ where: { id: trip.driverId } })
-        : null;
-      const currentScore = Number(driverRecord?.trustScore ?? 100);
-      const newScore = isDriverCancel ? Math.max(0.0, currentScore - 5.0) : currentScore;
-
       await tx.driver.update({
         where: { id: trip.driverId },
         data: {
           availabilityStatus: DriverAvailability.AVAILABLE,
-          trustScore: newScore,
+          ...(isDriverCancel ? { trustScore: { decrement: 5.0 } } : {}),
         },
       });
+      if (isDriverCancel) {
+        await tx.driver.updateMany({
+          where: { id: trip.driverId, trustScore: { lt: 0 } },
+          data: { trustScore: 0 },
+        });
+      }
 
       // 4. QA-07: If requirement had escrow (Bidding Mode), refund escrow to vendor and log ledger entry
       if (trip.requirement?.fulfillmentMode === FulfillmentMode.BIDDING) {
@@ -741,14 +750,22 @@ export class TripsService {
       // 5. QA-08: If cancelled before start, reopen capacity on the requirement
       if (wasPreStart) {
         const isBidding = trip.requirement?.fulfillmentMode === FulfillmentMode.BIDDING;
-        const newAssigned = Math.max(0, trip.requirement.assignedQuantity - 1);
-        await tx.requirement.update({
-          where: { id: trip.requirementId },
-          data: {
-            assignedQuantity: newAssigned,
-            status: isBidding ? RequirementStatus.POSTED : (newAssigned > 0 ? RequirementStatus.PARTIALLY_FULFILLED : RequirementStatus.DISPATCHING),
-          },
+        // Atomic decrement + read-back: never write a stale absolute count (that would erase a
+        // concurrent accept's increment and allow overbooking).
+        await tx.requirement.updateMany({
+          where: { id: trip.requirementId, assignedQuantity: { gt: 0 } },
+          data: { assignedQuantity: { decrement: 1 } },
         });
+        const reqAfter = await tx.requirement.findUnique({ where: { id: trip.requirementId } });
+        const newAssigned = reqAfter?.assignedQuantity ?? 0;
+        if (reqAfter && reqAfter.status !== RequirementStatus.CANCELLED) {
+          await tx.requirement.update({
+            where: { id: trip.requirementId },
+            data: {
+              status: isBidding ? RequirementStatus.POSTED : (newAssigned > 0 ? RequirementStatus.PARTIALLY_FULFILLED : RequirementStatus.DISPATCHING),
+            },
+          });
+        }
       }
 
       return cancelledTrip;
@@ -780,7 +797,9 @@ export class TripsService {
           reason: 'Opportunity reopened due to driver cancellation',
         });
       } else {
-        this.dispatchService.dispatchRequirement(trip.requirementId).catch((err) => {
+        // Replacement after a cancellation gets a fresh wave budget (isRetry); the cancelled
+        // driver's ACCEPTED offer still excludes them from the replacement wave.
+        this.dispatchService.dispatchRequirement(trip.requirementId, true).catch((err) => {
           this.logger.warn(`Redispatch after trip cancellation failed: ${err.message}`);
         });
       }

@@ -19,6 +19,7 @@ import { DatabaseService } from '../../database/database.service';
 import { StorageService } from '../../common/storage/storage.service';
 import { AuditService } from '../audit/audit.service';
 import { LocationsService } from '../locations/locations.service';
+import { DispatchConfig } from '../dispatch/dispatch.config';
 
 @Injectable()
 export class DriversService {
@@ -100,6 +101,11 @@ export class DriversService {
         averageRating: driver.averageRating !== undefined ? Number(driver.averageRating) : 5.0,
         ratingCount: driver.ratingCount || 0,
         totalTrips: driver.totalTrips || 0,
+        acceptanceRate: driver.acceptanceRate ?? 100,
+        cooldownUntil:
+          driver.cooldownUntil && new Date(driver.cooldownUntil).getTime() > Date.now()
+            ? new Date(driver.cooldownUntil).toISOString()
+            : undefined,
         rejectionReason: driver.rejectionReason || undefined,
         currentLocation: driver.currentLat && driver.currentLng ? {
           latitude: Number(driver.currentLat),
@@ -652,7 +658,8 @@ export class DriversService {
     // Dynamic 5 Pillar Scoring Calculation (Normalized to 100 total)
     const completionScore = Math.min(30.0, Math.max(15.0, (currentScore / 100) * 30));
     const ratingScore = Math.min(25.0, Math.max(10.0, ((avgRating - 3.0) / 2.0) * 25));
-    const acceptanceScore = Math.min(20.0, Math.max(10.0, (currentScore / 100) * 20));
+    // Real rolling acceptance rate (last 50 counted offers) maintained by DriverBehaviorService
+    const acceptanceScore = Math.min(20.0, Math.max(0.0, (Number(driver.acceptanceRate ?? 100) / 100) * 20));
     const punctualityScore = Math.min(15.0, Math.max(7.5, (currentScore / 100) * 15));
     const loyaltyScore = Math.min(10.0, Math.max(5.0, Math.min(10, totalTrips * 0.4 + 4)));
 
@@ -761,7 +768,7 @@ export class DriversService {
           max: 20,
           percentage: Number(((acceptanceScore / 20) * 100).toFixed(0)),
           title: 'Dispatch Acceptance Rate',
-          description: 'Percentage of dispatched wave opportunities accepted',
+          description: `${Number(driver.acceptanceRate ?? 100).toFixed(1)}% of your last ${DispatchConfig.arWindow} counted offers accepted`,
           status: acceptanceScore >= 18 ? 'EXCELLENT' : acceptanceScore >= 14 ? 'GOOD' : 'FAIR',
         },
         punctuality: {

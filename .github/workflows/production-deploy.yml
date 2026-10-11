@@ -168,15 +168,19 @@ jobs:
 
           echo "🚀 Pulling latest container images and launching services..."
           ssh -i ~/.ssh/id_rsa "$EC2_USER@$EC2_HOST" "
+            set -e
             cd /home/$EC2_USER/adhocx
             echo '$GITHUB_TOKEN' | docker login ghcr.io -u '$ACTOR' --password-stdin
             docker compose -f docker-compose.prod.yml pull
+
+            # Schema must be in sync BEFORE new API containers start serving traffic.
+            # A failed push aborts the deploy (old containers keep running).
+            echo 'Starting data services and syncing database schema...'
+            docker compose -f docker-compose.prod.yml up -d --wait postgres redis
+            docker compose -f docker-compose.prod.yml run --rm --no-deps -T api npx prisma db push --skip-generate
+
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
             docker compose -f docker-compose.prod.yml restart gateway
-            
-            echo 'Waiting for database to be ready...'
-            sleep 10
-            docker compose -f docker-compose.prod.yml exec -T api npx prisma db push --skip-generate || true
 
             echo 'Pruning dangling images...'
             docker image prune -f

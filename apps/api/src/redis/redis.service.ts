@@ -229,4 +229,113 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     const lockKey = `lock:${key}`;
     await this.del(lockKey);
   }
+
+  /**
+   * Owner-safe lock: returns a random token on success, null when held elsewhere.
+   * Release with releaseLockToken so a slow holder can never delete a lock it no longer owns.
+   */
+  async acquireLockToken(key: string, ttlSeconds: number = 10): Promise<string | null> {
+    const lockKey = `lock:${key}`;
+    const token = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    if (this.isConnected && this.client) {
+      try {
+        const res = await this.client.set(lockKey, token, 'EX', ttlSeconds, 'NX');
+        return res === 'OK' ? token : null;
+      } catch {
+        // fallback
+      }
+    }
+
+    const item = this.fallbackStore.get(lockKey);
+    const now = Date.now();
+    if (item && (!item.expiresAt || item.expiresAt > now)) {
+      return null;
+    }
+    this.fallbackStore.set(lockKey, { value: token, expiresAt: now + ttlSeconds * 1000 });
+    return token;
+  }
+
+  async releaseLockToken(key: string, token: string): Promise<void> {
+    const lockKey = `lock:${key}`;
+    if (this.isConnected && this.client) {
+      try {
+        await this.client.eval(
+          "if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('DEL', KEYS[1]) else return 0 end",
+          1,
+          lockKey,
+          token,
+        );
+        return;
+      } catch {
+        // fallback
+      }
+    }
+    const item = this.fallbackStore.get(lockKey);
+    if (item && item.value === token) {
+      this.fallbackStore.delete(lockKey);
+    }
+  }
+
+  // ---- Sorted-set scheduling primitives (with in-memory fallback) ----
+  private readonly fallbackZsets = new Map<string, Map<string, number>>();
+
+  async zadd(key: string, score: number, member: string): Promise<void> {
+    if (this.isConnected && this.client) {
+      try {
+        await this.client.zadd(key, score, member);
+        return;
+      } catch {
+        // fallback
+      }
+    }
+    let set = this.fallbackZsets.get(key);
+    if (!set) {
+      set = new Map();
+      this.fallbackZsets.set(key, set);
+    }
+    set.set(member, score);
+  }
+
+  async zrem(key: string, member: string): Promise<void> {
+    if (this.isConnected && this.client) {
+      try {
+        await this.client.zrem(key, member);
+        return;
+      } catch {
+        // fallback
+      }
+    }
+    this.fallbackZsets.get(key)?.delete(member);
+  }
+
+  /**
+   * Atomically pop up to `limit` members whose score <= maxScore.
+   * In Redis this is a single Lua script, so each member is claimed by exactly one API instance.
+   */
+  async zclaimDue(key: string, maxScore: number, limit: number = 100): Promise<string[]> {
+    if (this.isConnected && this.client) {
+      try {
+        const res = (await this.client.eval(
+          "local due = redis.call('ZRANGEBYSCORE', KEYS[1], '-inf', ARGV[1], 'LIMIT', 0, ARGV[2]) " +
+            "for _, m in ipairs(due) do redis.call('ZREM', KEYS[1], m) end return due",
+          1,
+          key,
+          String(maxScore),
+          String(limit),
+        )) as string[];
+        return res || [];
+      } catch {
+        // fallback
+      }
+    }
+    const set = this.fallbackZsets.get(key);
+    if (!set) return [];
+    const due = Array.from(set.entries())
+      .filter(([, score]) => score <= maxScore)
+      .sort((a, b) => a[1] - b[1])
+      .slice(0, limit)
+      .map(([member]) => member);
+    for (const m of due) set.delete(m);
+    return due;
+  }
 }

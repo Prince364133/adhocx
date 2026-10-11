@@ -211,7 +211,9 @@ model Driver {
   declinedOffers     Int                      @default(0) @map("declined_offers")
   consecutiveDeclines Int                     @default(0) @map("consecutive_declines")
   cooldownUntil      DateTime?                @map("cooldown_until")
-  currentLat         Decimal?                 @map("current_lat") @db.Decimal(10, 7)
+  cooldownLevel      Int                      @default(0) @map("cooldown_level")
+  lastCooldownAt     DateTime?                @map("last_cooldown_at")
+  currentLat        Decimal?                 @map("current_lat") @db.Decimal(10, 7)
   currentLng         Decimal?                 @map("current_lng") @db.Decimal(10, 7)
   lastLocationAt     DateTime?                @map("last_location_at")
   rejectionReason    String?                  @map("rejection_reason")
@@ -283,6 +285,7 @@ model Requirement {
   suggestedBudget  Decimal?          @map("suggested_budget") @db.Decimal(10, 2)
   totalAmount      Decimal           @map("total_amount") @db.Decimal(12, 2)
   status           RequirementStatus @default(POSTED)
+  dispatchWaves    Int               @default(0) @map("dispatch_waves")
   notes            String?
   createdAt        DateTime          @default(now()) @map("created_at")
   updatedAt        DateTime          @updatedAt @map("updated_at")
@@ -307,6 +310,14 @@ model Offer {
   status        OfferStatus @default(SENT)
   expiresAt     DateTime    @map("expires_at")
   respondedAt   DateTime?   @map("responded_at")
+  // Dispatch-time snapshot used for behaviour decisions (never recomputed from live GPS)
+  waveNumber    Int         @default(1) @map("wave_number")
+  distanceKm    Float?      @map("distance_km")
+  etaMinutes    Int?        @map("eta_minutes")
+  // Set when the driver app displayed the offer; unseen expiries are not held against the driver
+  seenAt        DateTime?   @map("seen_at")
+  // True once this offer's outcome has been counted in the driver's rolling acceptance window
+  countsForAr   Boolean     @default(false) @map("counts_for_ar")
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
 
@@ -314,6 +325,9 @@ model Offer {
   driver      Driver      @relation(fields: [driverId], references: [id], onDelete: Cascade)
   assignment  Assignment?
 
+  @@index([status, expiresAt])
+  @@index([requirementId, status])
+  @@index([driverId, countsForAr, respondedAt])
   @@map("offers")
 }
 
@@ -392,6 +406,7 @@ model Trip {
   reviews     Review[]
   disputes    Dispute[]
 
+  @@index([vendorId, status, completedAt])
   @@map("trips")
 }
 

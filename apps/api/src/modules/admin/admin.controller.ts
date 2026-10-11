@@ -110,6 +110,14 @@ export class AdminController {
     return this.adminService.reactivateDriver(id, admin.id, dto);
   }
 
+  @Post('drivers/:id/clear-cooldown')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Lift an active dispatch cooldown and reset the decline streak' })
+  @SwaggerResponse({ status: 200, description: 'Cooldown cleared' })
+  async clearDriverCooldown(@Param('id') id: string, @CurrentUser() admin: AuthUserDto) {
+    return this.adminService.clearDriverCooldown(id, admin.id);
+  }
+
   // --- Vendor Verification Workflows ---
 
   @Get('vendors')

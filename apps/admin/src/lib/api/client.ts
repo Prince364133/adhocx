@@ -236,6 +236,11 @@ export const adminApi = {
       body: { notes: notes || 'Reactivated by Admin' },
     }),
 
+  clearDriverCooldown: (id: string) =>
+    apiClient(`/admin/drivers/${id}/clear-cooldown`, {
+      method: 'POST',
+    }),
+
   // Vendors & Users
   getVendors: (status?: string) => {
     const query = status && status !== 'ALL' ? `?verificationStatus=${status}` : '';

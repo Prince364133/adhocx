@@ -5,6 +5,7 @@ import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import '../../services/user_service.dart';
 import '../../services/driver_service.dart';
+import '../../core/networking/api_client.dart';
 
 class TripRatingBottomSheet extends StatefulWidget {
   final String tripId;
@@ -20,17 +21,19 @@ class TripRatingBottomSheet extends StatefulWidget {
     required this.targetName,
     this.vehicleInfo,
     this.isReviewingDriver = true,
-    this.isMandatory = true,
+    this.isMandatory = false,
     this.onReviewSubmitted,
   });
 
+  /// [isMandatory] locks the sheet (no swipe, tap-outside or back) until the review is
+  /// submitted. Only the customer review gate passes `true`; every other caller is optional.
   static Future<void> show({
     required BuildContext context,
     required String tripId,
     required String targetName,
     String? vehicleInfo,
     bool isReviewingDriver = true,
-    bool isMandatory = true,
+    bool isMandatory = false,
     VoidCallback? onReviewSubmitted,
   }) {
     return showModalBottomSheet(
@@ -128,10 +131,21 @@ class _TripRatingBottomSheetState extends State<TripRatingBottomSheet> {
         widget.onReviewSubmitted?.call();
       }
     } catch (e) {
+      // 409: already reviewed (e.g. from another device); 400/404: trip no longer reviewable.
+      // Either way nothing is owed any more, so release the sheet instead of trapping the user.
+      if (e is ApiException && (e.statusCode == 409 || e.statusCode == 400 || e.statusCode == 404)) {
+        if (mounted) {
+          Navigator.of(context).pop();
+          widget.onReviewSubmitted?.call();
+        }
+        return;
+      }
       if (mounted) {
         setState(() {
           _isSubmitting = false;
-          _errorMessage = e.toString().replaceAll('Exception: ', '');
+          _errorMessage = e is ApiException
+              ? e.message
+              : 'Could not submit your rating. Check your connection and tap Submit to retry.';
         });
       }
     }

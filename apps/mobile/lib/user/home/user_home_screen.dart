@@ -13,7 +13,7 @@ import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/theme/theme_provider.dart';
 import '../../shared/widgets/app_primary_button.dart';
-import '../../shared/widgets/trip_rating_bottom_sheet.dart';
+import '../../shared/widgets/pending_review_gate.dart';
 import '../requirements/requirement_draft_provider.dart';
 
 class UserHomeScreen extends StatefulWidget {
@@ -23,9 +23,8 @@ class UserHomeScreen extends StatefulWidget {
   State<UserHomeScreen> createState() => _UserHomeScreenState();
 }
 
-class _UserHomeScreenState extends State<UserHomeScreen> {
+class _UserHomeScreenState extends State<UserHomeScreen> with WidgetsBindingObserver {
   bool _isLoading = true;
-  bool _hasCheckedPendingReview = false;
   Map<String, dynamic> _summary = {
     'totalRequirements': 0,
     'totalVehiclesRequired': 0,
@@ -39,35 +38,35 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadDashboardData();
   }
 
-  Future<void> _checkPendingReview() async {
-    if (_hasCheckedPendingReview) return;
-    try {
-      final pendingTrip = await UserService.instance.getPendingReview();
-      if (pendingTrip != null && mounted) {
-        _hasCheckedPendingReview = true;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            TripRatingBottomSheet.show(
-              context: context,
-              tripId: pendingTrip['id']?.toString() ?? '',
-              targetName: pendingTrip['driverName']?.toString() ?? 'Your Driver',
-              vehicleInfo: pendingTrip['vehiclePlate']?.toString(),
-              isReviewingDriver: true,
-              isMandatory: true,
-              onReviewSubmitted: () {
-                _loadDashboardData();
-              },
-            );
-          }
-        });
-      }
-    } catch (_) {}
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
-  Future<void> _loadDashboardData() async {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Trip may have completed while the app was backgrounded (or on another device)
+    if (state == AppLifecycleState.resumed && mounted) {
+      _checkPendingReview();
+    }
+  }
+
+  void _checkPendingReview() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        PendingReviewGate.check(context, onCleared: () {
+          if (mounted) _loadDashboardData(checkReviews: false);
+        });
+      }
+    });
+  }
+
+  Future<void> _loadDashboardData({bool checkReviews = true}) async {
     setState(() => _isLoading = true);
     try {
       await AuthService.instance.ensureAuthenticatedSession(role: 'VENDOR');
@@ -80,7 +79,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
           _recentRequirements = listRes;
           _isLoading = false;
         });
-        _checkPendingReview();
+        if (checkReviews) _checkPendingReview();
       }
     } catch (e) {
       debugPrint('Failed to load dashboard: $e');

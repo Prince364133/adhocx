@@ -15,6 +15,9 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
 import { RedisService } from '../../redis/redis.service';
 import { GoogleMapsService } from '../locations/google-maps.service';
+import { DispatchSchedulerService } from './dispatch-scheduler.service';
+import { DriverBehaviorService } from './driver-behavior.service';
+import { DispatchConfig } from './dispatch.config';
 
 export interface DispatchResult {
   requirementId: string;
@@ -23,11 +26,32 @@ export interface DispatchResult {
   driverIds: string[];
 }
 
+/** Grace after expiresAt before the wave job fires, so an accept at T-0.1s commits first. */
+const WAVE_FIRE_GRACE_MS = 250;
+/** ETA assumed for drivers with no GPS fix: dispatchable, but last on proximity. */
+const UNKNOWN_LOCATION_ETA_MINUTES = 60;
+
+const normalizeVehicle = (v?: string | null): string => {
+  if (!v) return '';
+  const s = v.toString().toUpperCase();
+  if (s.includes('SEDAN')) return 'SEDAN';
+  if (s.includes('SUV') || s.includes('7 SEATER') || s.includes('6 SEATER')) return 'SUV';
+  if (s.includes('HATCH') || s.includes('MINI') || s.includes('COMPACT')) return 'HATCHBACK';
+  return s;
+};
+
+/** Road-factor estimate used for Phase A ranking and whenever live routing is unavailable. */
+const estimateRoad = (aerialKm: number) => {
+  const roadDistanceKm = Number((aerialKm * 1.25).toFixed(2));
+  return { roadDistanceKm, etaMinutes: Math.max(2, Math.round((roadDistanceKm / 25) * 60)) };
+};
+
 @Injectable()
 export class DispatchService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DispatchService.name);
   private reaperInterval?: NodeJS.Timeout;
-  private readonly waveTimers = new Map<string, NodeJS.Timeout>();
+  /** Single-instance dispatch serialization when Redis is not wired (tests / degraded mode). */
+  private readonly localDispatchLocks = new Set<string>();
 
   constructor(
     protected readonly db: DatabaseService,
@@ -36,212 +60,180 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     private readonly audit: AuditService,
     @Optional() private readonly googleMapsService?: GoogleMapsService,
     @Optional() private readonly redis?: RedisService,
+    @Optional() private readonly scheduler?: DispatchSchedulerService,
+    @Optional() private readonly behavior?: DriverBehaviorService,
   ) {}
 
   onModuleInit() {
-    // Background automatic wave reaper for timed-out offers (safety sweep every 10s)
+    this.scheduler?.registerHandler((member) => this.handleScheduledJob(member));
+
+    // Safety-net sweep: exact-time jobs do the real work; this only catches anything orphaned.
     this.reaperInterval = setInterval(() => {
       this.reapExpiredOffersAndRedispatch().catch((err) => {
-        this.logger.warn(`Wave reaper tick notice: ${err.message}`);
+        this.logger.warn(`Wave sweep notice: ${err.message}`);
       });
     }, 10000);
-    this.reaperInterval.unref(); // Prevents hanging process or test teardown
+    this.reaperInterval.unref();
 
-    // Rehydrate any in-flight wave timers upon server boot/restart
     this.rehydratePendingWaveTimers().catch((err) => {
       this.logger.warn(`Wave timer rehydration notice: ${err.message}`);
     });
-  }
-
-  /**
-   * Rehydrate active wave timers upon application startup/reboot.
-   * Guarantees zero dangling or un-reaped offers after server restarts.
-   */
-  async rehydratePendingWaveTimers(): Promise<void> {
-    try {
-      const now = Date.now();
-      const activeSentOffers = await this.db.offer.findMany({
-        where: {
-          status: OfferStatus.SENT,
-          expiresAt: { gt: new Date() },
-        },
-        select: { requirementId: true, expiresAt: true },
-      });
-
-      const reqMap = new Map<string, number>();
-      for (const off of activeSentOffers) {
-        const remainingMs = Math.max(1000, new Date(off.expiresAt).getTime() - now);
-        const existing = reqMap.get(off.requirementId);
-        if (!existing || remainingMs < existing) {
-          reqMap.set(off.requirementId, remainingMs);
-        }
-      }
-
-      for (const [reqId, remainingMs] of reqMap.entries()) {
-        this.logger.log(`[Rehydrate] Restoring active wave countdown for requirement ${reqId} (${Math.round(remainingMs / 1000)}s remaining)`);
-        this.scheduleWaveExpiration(reqId, remainingMs);
-      }
-    } catch (err: any) {
-      this.logger.warn(`Failed to rehydrate wave timers on boot: ${err.message}`);
-    }
   }
 
   onModuleDestroy() {
     if (this.reaperInterval) {
       clearInterval(this.reaperInterval);
     }
-    for (const timer of this.waveTimers.values()) {
-      clearTimeout(timer);
+  }
+
+  /** Routes due scheduler jobs. Members: `wave:<reqId>:<wave>` or `redispatch:<reqId>`. */
+  async handleScheduledJob(member: string): Promise<void> {
+    const [kind, requirementId] = member.split(':');
+    if (!requirementId) return;
+    if (kind === 'wave') {
+      await this.reapExpiredOffersAndRedispatch(requirementId);
+    } else if (kind === 'redispatch') {
+      await this.dispatchRequirement(requirementId);
     }
-    this.waveTimers.clear();
   }
 
   /**
-   * Schedule deterministic wave timeout for a requirement (default 30s).
-   * Fires immediate cascading without waiting for background 10s polling.
+   * Re-register wave jobs for in-flight offers. Idempotent (same member/score), so it is safe for
+   * every instance to run at boot; with Redis the jobs already survived the restart.
    */
-  scheduleWaveExpiration(requirementId: string, delayMs: number = 30000): void {
-    this.cancelWaveExpiration(requirementId);
-    const timer = setTimeout(async () => {
-      this.waveTimers.delete(requirementId);
+  async rehydratePendingWaveTimers(): Promise<void> {
+    if (!this.scheduler) return;
+    const activeSentOffers = await this.db.offer.findMany({
+      where: { status: OfferStatus.SENT },
+      select: { requirementId: true, waveNumber: true, expiresAt: true },
+    });
+
+    const due = new Map<string, number>();
+    for (const off of activeSentOffers) {
+      const member = `wave:${off.requirementId}:${off.waveNumber}`;
+      const at = new Date(off.expiresAt).getTime() + WAVE_FIRE_GRACE_MS;
+      const existing = due.get(member);
+      if (existing === undefined || at < existing) due.set(member, at);
+    }
+    for (const [member, at] of due.entries()) {
+      await this.scheduler.schedule(member, at);
+    }
+    if (due.size > 0) {
+      this.logger.log(`[Rehydrate] Restored ${due.size} wave timer(s)`);
+    }
+  }
+
+  /**
+   * Expire lapsed offers and cascade the next wave.
+   *
+   * Exactly-once per offer: each transition is a conditional UPDATE (status still SENT), and
+   * behaviour accounting / notifications run only for rows this call actually transitioned.
+   * Safe to run concurrently on any number of instances.
+   */
+  async reapExpiredOffersAndRedispatch(
+    specificRequirementId?: string,
+  ): Promise<{ expiredCount: number; requirementsRedispatched: string[] }> {
+    const now = new Date();
+    const candidates = await this.db.offer.findMany({
+      where: {
+        status: OfferStatus.SENT,
+        expiresAt: { lte: now },
+        ...(specificRequirementId ? { requirementId: specificRequirementId } : {}),
+      },
+      include: { requirement: true },
+      take: 500,
+    });
+
+    const reaped: typeof candidates = [];
+    for (const offer of candidates) {
+      const res = await this.db.offer.updateMany({
+        where: { id: offer.id, status: OfferStatus.SENT },
+        data: { status: OfferStatus.EXPIRED, respondedAt: now },
+      });
+      if (res.count === 1) reaped.push(offer);
+    }
+
+    if (reaped.length === 0) {
+      return { expiredCount: 0, requirementsRedispatched: [] };
+    }
+    this.logger.log(`Expired ${reaped.length} dispatch offer(s)`);
+
+    for (const offer of reaped) {
+      await this.behavior?.recordOutcome({
+        offerId: offer.id,
+        driverId: offer.driverId,
+        outcome: 'EXPIRED',
+        distanceKm: offer.distanceKm,
+        seenAt: offer.seenAt,
+        requirement: offer.requirement,
+      });
+      this.notifications.emitEvent(`driver:${offer.driverId}`, 'OFFER_EXPIRED', {
+        offerId: offer.id,
+        requirementId: offer.requirementId,
+        reason: 'Offer timed out',
+      });
+    }
+
+    const requirementIds = Array.from(new Set(reaped.map((o) => o.requirementId)));
+    const redispatchedReqIds: string[] = [];
+    for (const reqId of requirementIds) {
       try {
-        this.logger.log(`[DeterministicWave] 30s window lapsed for requirement ${requirementId}. Triggering immediate cascade.`);
-        await this.reapExpiredOffersAndRedispatch(requirementId);
+        const req = await this.db.requirement.findUnique({ where: { id: reqId } });
+        if (
+          req &&
+          req.quantity > req.assignedQuantity &&
+          req.status !== RequirementStatus.COMPLETED &&
+          req.status !== RequirementStatus.CANCELLED
+        ) {
+          await this.dispatchRequirement(reqId);
+          redispatchedReqIds.push(reqId);
+        }
       } catch (err: any) {
-        this.logger.warn(`Deterministic wave cascade notice for ${requirementId}: ${err.message}`);
+        this.logger.warn(`Failed cascading wave for requirement ${reqId}: ${err.message}`);
       }
-    }, delayMs);
-    timer.unref();
-    this.waveTimers.set(requirementId, timer);
-  }
-
-  /**
-   * Cancel pending wave timeout when an offer is accepted.
-   */
-  cancelWaveExpiration(requirementId: string): void {
-    const existing = this.waveTimers.get(requirementId);
-    if (existing) {
-      clearTimeout(existing);
-      this.waveTimers.delete(requirementId);
     }
+
+    return { expiredCount: reaped.length, requirementsRedispatched: redispatchedReqIds };
   }
 
   /**
-   * Automatically reaps timed-out dispatch offers and cascades to Wave 2 for unfulfilled requirements.
-   * Multi-instance safe via distributed locking.
+   * Dispatch the next wave for a requirement. Serialized per requirement across instances; a
+   * concurrent caller is deferred (re-queued ~1.5s later) rather than dropped.
    */
-  async reapExpiredOffersAndRedispatch(specificRequirementId?: string): Promise<{ expiredCount: number; requirementsRedispatched: string[] }> {
-    const lockKey = specificRequirementId ? `wave_reaper_${specificRequirementId}` : 'wave_reaper';
+  async dispatchRequirement(requirementId: string, isRetry: boolean = false): Promise<DispatchResult> {
+    const lockKey = `dispatch:${requirementId}`;
+    let token: string | null = null;
     if (this.redis) {
-      const lockAcquired = await this.redis.acquireLock(lockKey, 12);
-      if (!lockAcquired) {
-        return { expiredCount: 0, requirementsRedispatched: [] };
-      }
+      token = await this.redis.acquireLockToken(lockKey, 20);
+    } else if (!this.localDispatchLocks.has(lockKey)) {
+      this.localDispatchLocks.add(lockKey);
+      token = 'local';
+    }
+
+    if (!token) {
+      this.logger.debug(`Dispatch for ${requirementId} already running; deferring`);
+      await this.scheduler?.schedule(`redispatch:${requirementId}`, Date.now() + 1500);
+      const current = await this.db.requirement.findUnique({ where: { id: requirementId }, select: { status: true } });
+      return {
+        requirementId,
+        offersCreated: 0,
+        status: (current?.status as RequirementStatus) ?? RequirementStatus.DISPATCHING,
+        driverIds: [],
+      };
     }
 
     try {
-      const now = new Date();
-      const expiredOffers = await this.db.offer.findMany({
-        where: {
-          status: OfferStatus.SENT,
-          expiresAt: { lt: now },
-          ...(specificRequirementId ? { requirementId: specificRequirementId } : {}),
-        },
-        include: { requirement: true },
-      });
-
-      if (expiredOffers.length === 0) {
-        return { expiredCount: 0, requirementsRedispatched: [] };
-      }
-
-      this.logger.log(`Reaping ${expiredOffers.length} expired dispatch offers`);
-
-      // 1. Mark expired in database
-      await this.db.offer.updateMany({
-        where: { id: { in: expiredOffers.map((o) => o.id) } },
-        data: { status: OfferStatus.EXPIRED },
-      });
-
-      // 2. Behavioral feedback: Update driver acceptance rate & consecutive ignores
-      for (const offer of expiredOffers) {
-        try {
-          const driver = await this.db.driver.findUnique({ where: { id: offer.driverId } });
-          if (driver) {
-            const accepted = (driver as any).acceptedOffers || 0;
-            const declined = ((driver as any).declinedOffers || 0) + 1;
-            const consecutive = ((driver as any).consecutiveDeclines || 0) + 1;
-            const total = accepted + declined;
-            const newAR = total > 0 ? Number(((accepted / total) * 100).toFixed(1)) : 100.0;
-            const newTrust = Math.max(0.0, Number((driver.trustScore - 1.0).toFixed(1)));
-            const cooldownUntil = consecutive >= 3 ? new Date(Date.now() + 3 * 60 * 1000) : undefined;
-
-            await this.db.driver.update({
-              where: { id: driver.id },
-              data: {
-                declinedOffers: declined,
-                consecutiveDeclines: consecutive,
-                acceptanceRate: newAR,
-                trustScore: newTrust,
-                ...(cooldownUntil ? { cooldownUntil } : {}),
-              } as any,
-            });
-
-            if (cooldownUntil) {
-              this.notifications.emitEvent(`driver:${driver.id}`, 'DRIVER_COOLDOWN', {
-                cooldownMinutes: 3,
-                message: '3-minute cooldown applied due to repeatedly missing nearby matching trip offers.',
-              });
-            }
-          }
-        } catch (_) {}
-      }
-
-      // 3. Notify drivers via SSE
-      for (const offer of expiredOffers) {
-        this.notifications.emitEvent(`driver:${offer.driverId}`, 'OFFER_EXPIRED', {
-          offerId: offer.id,
-          requirementId: offer.requirementId,
-          reason: 'Offer timed out',
-        });
-      }
-
-      // 3. Trigger next wave dispatch for unfulfilled requirements
-      const requirementIds = Array.from(new Set(expiredOffers.map((o) => o.requirementId)));
-      const redispatchedReqIds: string[] = [];
-
-      for (const reqId of requirementIds) {
-        try {
-          const req = await this.db.requirement.findUnique({ where: { id: reqId } });
-          if (
-            req &&
-            req.quantity > req.assignedQuantity &&
-            req.status !== RequirementStatus.COMPLETED &&
-            req.status !== RequirementStatus.CANCELLED
-          ) {
-            this.logger.log(`Cascading wave dispatch for unfulfilled requirement ${reqId}`);
-            await this.dispatchRequirement(reqId);
-            redispatchedReqIds.push(reqId);
-          }
-        } catch (err: any) {
-          this.logger.warn(`Failed cascading wave for requirement ${reqId}: ${err.message}`);
-        }
-      }
-
-      return {
-        expiredCount: expiredOffers.length,
-        requirementsRedispatched: redispatchedReqIds,
-      };
+      return await this.runDispatchWave(requirementId, isRetry);
     } finally {
       if (this.redis) {
-        await this.redis.releaseLock('wave_reaper');
+        await this.redis.releaseLockToken(lockKey, token);
+      } else {
+        this.localDispatchLocks.delete(lockKey);
       }
     }
   }
 
-  /**
-   * Dispatch available drivers for a requirement following docs/11_DISPATCH_ENGINE.md.
-   */
-  async dispatchRequirement(requirementId: string, isRetry: boolean = false): Promise<DispatchResult> {
+  private async runDispatchWave(requirementId: string, isRetry: boolean): Promise<DispatchResult> {
     this.logger.log(`Dispatch initiated for requirement ${requirementId} (isRetry: ${isRetry})`);
 
     const requirement = await this.db.requirement.findUnique({
@@ -257,15 +249,17 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       throw new NotFoundException(`Requirement ${requirementId} not found`);
     }
 
+    const noop = (status: RequirementStatus): DispatchResult => ({
+      requirementId,
+      offersCreated: 0,
+      status,
+      driverIds: [],
+    });
+
     // Guard: Bidding requirements are fulfilled via driver bids, not direct dispatch
-    if ((requirement as any).fulfillmentMode === 'BIDDING') {
+    if (requirement.fulfillmentMode === 'BIDDING') {
       this.logger.log(`Requirement ${requirementId} is in BIDDING mode, skipping direct dispatch`);
-      return {
-        requirementId,
-        offersCreated: 0,
-        status: requirement.status as RequirementStatus,
-        driverIds: [],
-      };
+      return noop(requirement.status as RequirementStatus);
     }
 
     // Guard: Can only dispatch if not already completed/cancelled
@@ -274,12 +268,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       requirement.status === RequirementStatus.CANCELLED
     ) {
       this.logger.warn(`Requirement ${requirementId} is ${requirement.status}, skipping dispatch`);
-      return {
-        requirementId,
-        offersCreated: 0,
-        status: requirement.status as RequirementStatus,
-        driverIds: [],
-      };
+      return noop(requirement.status as RequirementStatus);
     }
 
     const remaining = requirement.quantity - requirement.assignedQuantity;
@@ -289,23 +278,37 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
         where: { id: requirementId },
         data: { status: RequirementStatus.FULFILLED },
       });
-      return {
-        requirementId,
-        offersCreated: 0,
-        status: RequirementStatus.FULFILLED,
-        driverIds: [],
-      };
+      return noop(RequirementStatus.FULFILLED);
+    }
+
+    const nowMs = Date.now();
+    const liveOffers = requirement.offers.filter(
+      (o) => o.status === OfferStatus.SENT && new Date(o.expiresAt).getTime() > nowMs,
+    ).length;
+
+    // Wave budget: automatic waves are capped; a manual retry starts a fresh budget.
+    const wavesSoFar = isRetry ? 0 : requirement.dispatchWaves;
+    if (wavesSoFar >= DispatchConfig.maxWaves) {
+      if (liveOffers > 0) return noop(requirement.status as RequirementStatus);
+      return this.markSupplyExhausted(requirement, remaining, 'wave_limit');
+    }
+
+    // Keep at most remaining*2 live offers: a decline/expiry replaces offers one-for-one
+    // instead of stacking a fresh full wave on top of offers still counting down.
+    const offerBudget = remaining * 2 - liveOffers;
+    if (offerBudget <= 0) {
+      this.logger.debug(`Requirement ${requirementId} already has ${liveOffers} live offers; no new wave needed`);
+      return noop(requirement.status as RequirementStatus);
     }
 
     const pickupLat = Number(requirement.pickupLat);
     const pickupLng = Number(requirement.pickupLng);
 
-    // Search nearby drivers using Uber H3 Hexagonal Disk (k=2 rings, ~3-4 km)
-    // with progressive expansion to full 100km radius if more supply is needed
-    let nearbyCandidates = await this.locationsService.findNearbyDriversByH3(
+    // Phase A candidate retrieval: H3 k=2 disk, widening to radial search when supply is thin
+    const nearbyCandidates = await this.locationsService.findNearbyDriversByH3(
       pickupLat,
       pickupLng,
-      2, // k=2 rings (19 hexagons)
+      2,
       requirement.vehicleType as unknown as VehicleType,
     );
 
@@ -325,10 +328,8 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
-    // Collect already offered driver IDs
-    // During normal automated progressive waves, exclude SENT, ACCEPTED, DECLINED, EXPIRED to avoid duplicates.
-    // On retry waves (isRetry === true or previous status was NO_DRIVER_AVAILABLE), allow re-approaching EXPIRED/DECLINED drivers,
-    // only excluding drivers currently holding active SENT or ACCEPTED offers.
+    // Normal waves never re-approach a driver for the same requirement; retry waves may
+    // re-approach drivers who previously declined or timed out.
     const isRetryWave = isRetry || requirement.status === RequirementStatus.NO_DRIVER_AVAILABLE;
     const alreadyOfferedDriverIds = new Set(
       requirement.offers
@@ -350,7 +351,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       .filter((c) => !alreadyOfferedDriverIds.has(c.driverId))
       .map((c) => c.driverId);
 
-    // Fallback: If no candidate drivers with matching radius found, grab available active drivers matching vehicle
+    // Fallback: no spatial supply found -> any available active driver with the matching vehicle
     if (candidateIds.length === 0) {
       const activeDrivers = await this.db.driver.findMany({
         where: {
@@ -360,7 +361,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
           ...(requirement.vehicleType
             ? {
                 OR: [
-                  { vehicleType: requirement.vehicleType as any },
+                  { vehicleType: requirement.vehicleType },
                   { vehicles: { some: { vehicleType: requirement.vehicleType } } },
                 ],
               }
@@ -372,7 +373,6 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       candidateIds = activeDrivers.map((d) => d.id);
     }
 
-    // Batch fetch candidate drivers with active trips
     const candidateDrivers = await this.db.driver.findMany({
       where: { id: { in: candidateIds } },
       include: {
@@ -388,178 +388,146 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       },
     });
 
-    // Filter candidates with comprehensive eligibility checks and compute composite scores
     interface ScoredCandidate {
       driverId: string;
       driver: (typeof candidateDrivers)[0];
-      distanceKm: number;
-      roadDistanceKm: number;
+      hasLocation: boolean;
+      driverLat: number;
+      driverLng: number;
+      distanceKm: number | null;
+      roadDistanceKm: number | null;
       etaMinutes: number;
+      etaIsLive: boolean;
       trustScore: number;
       rating: number;
       compositeScore: number;
       isRookie: boolean;
     }
 
+    const reqNorm = normalizeVehicle(requirement.vehicleType);
     const eligibleCandidates: ScoredCandidate[] = [];
 
     for (const driver of candidateDrivers) {
-      // 1. Account status active
       if (driver.user?.status !== UserStatus.ACTIVE) continue;
-
-      // 2. Driver verification check
       if (driver.verificationStatus && driver.verificationStatus !== VerificationStatus.VERIFIED) continue;
-
-      // 3. Driver availability status check
       if (driver.availabilityStatus !== DriverAvailability.AVAILABLE) continue;
 
-      // 4. Temporary cooldown check (anti-cherry-picking penalty)
-      if ((driver as any).cooldownUntil && new Date((driver as any).cooldownUntil).getTime() > Date.now()) {
-        this.logger.debug(`Driver ${driver.id} in temporary decline cooldown. Skipping for this wave.`);
+      // Anti-cherry-picking cooldown (expires on its own; no job needed)
+      if (driver.cooldownUntil && new Date(driver.cooldownUntil).getTime() > nowMs) {
+        this.logger.debug(`Driver ${driver.id} in cooldown until ${driver.cooldownUntil.toISOString()}. Skipping.`);
         continue;
       }
 
-      // 5. Strict vehicle capability check (reject incompatible vehicles, e.g. sedan for SUV or hatchback)
-      const driverVehicles = (driver as any).vehicles || [];
-      const normalizeV = (v?: string | null) => {
-        if (!v) return '';
-        const s = v.toString().toUpperCase();
-        if (s.includes('SEDAN')) return 'SEDAN';
-        if (s.includes('SUV') || s.includes('7 SEATER') || s.includes('6 SEATER')) return 'SUV';
-        if (s.includes('HATCH') || s.includes('MINI') || s.includes('COMPACT')) return 'HATCHBACK';
-        return s;
-      };
-      const reqNorm = normalizeV(requirement.vehicleType);
-      const dNorm = normalizeV(driver.vehicleType || (driver as any).vehicleModel || 'SEDAN');
+      // Strict vehicle capability check (e.g. never a sedan for an SUV request)
+      const dNorm = normalizeVehicle(driver.vehicleType || driver.vehicleModel || 'SEDAN');
       const matchesVehicle =
         !reqNorm ||
-        (dNorm && dNorm === reqNorm) ||
-        driverVehicles.some((v: any) => normalizeV(v.vehicleType || v.type) === reqNorm);
-      if (!matchesVehicle) {
-        continue;
-      }
+        dNorm === reqNorm ||
+        driver.vehicles.some((v) => normalizeVehicle(v.vehicleType) === reqNorm);
+      if (!matchesVehicle) continue;
 
-      // 6. No conflicting active trips
+      // No conflicting active trips
       if (driver.trips && driver.trips.length > 0) continue;
 
-      // 7. Stale location check: driver must have reported location within last 30 minutes
+      // Stale GPS: a driver that has pinged before but not in 30 minutes is not trustworthy supply
       const lastPing = driver.lastLocationAt ? new Date(driver.lastLocationAt).getTime() : 0;
-      if (lastPing > 0 && Date.now() - lastPing > 30 * 60 * 1000) {
+      if (lastPing > 0 && nowMs - lastPing > 30 * 60 * 1000) {
         this.logger.debug(`Driver ${driver.id} location is stale (>30m). Skipping.`);
         continue;
       }
 
+      const hasLocation = driver.currentLat !== null && driver.currentLng !== null;
       const driverLat = Number(driver.currentLat ?? pickupLat);
       const driverLng = Number(driver.currentLng ?? pickupLng);
-      const aerialDistanceKm = Math.sqrt(
-        Math.pow((driverLat - pickupLat) * 111, 2) +
-        Math.pow((driverLng - pickupLng) * 111 * Math.cos(pickupLat * (Math.PI / 180)), 2),
-      );
-
-      // Two-Phase Spatial Routing: High-fidelity road distance and traffic ETA
-      let roadDistanceKm = Number((aerialDistanceKm * 1.25).toFixed(2));
-      let etaMinutes = Math.max(2, Math.round((roadDistanceKm / 25) * 60));
-
-      if (this.googleMapsService) {
-        try {
-          const route = await this.googleMapsService.computeDriverEta(
-            { latitude: driverLat, longitude: driverLng },
-            { latitude: pickupLat, longitude: pickupLng },
-          );
-          roadDistanceKm = route.distanceKm;
-          etaMinutes = route.etaMinutes;
-        } catch (_) {}
+      let distanceKm: number | null = null;
+      let roadDistanceKm: number | null = null;
+      let etaMinutes = UNKNOWN_LOCATION_ETA_MINUTES;
+      if (hasLocation) {
+        distanceKm = Math.sqrt(
+          Math.pow((driverLat - pickupLat) * 111, 2) +
+          Math.pow((driverLng - pickupLng) * 111 * Math.cos(pickupLat * (Math.PI / 180)), 2),
+        );
+        const est = estimateRoad(distanceKm);
+        roadDistanceKm = est.roadDistanceKm;
+        etaMinutes = est.etaMinutes;
       }
 
       const rawTrust = Number(driver.trustScore ?? 94.0);
       const avgRating = Number(driver.averageRating ?? 4.85);
-      const totalTrips = driver.totalTrips || 0;
-      const isRookie = totalTrips < 25;
+      const isRookie = (driver.totalTrips || 0) < 25;
 
-      // Multi-factor Scoring: Traffic-aware Road ETA Proximity (35 pts) + Trust (35 pts) + Rating (20 pts) + Rookie (10 pts) + Idle Fairness (5 pts)
-      const proximityScore = Math.max(0, 35 * (1 - Math.min(30, etaMinutes) / 30));
-      const trustScorePart = 35 * (Math.min(100, Math.max(0, rawTrust)) / 100);
-      const ratingScorePart = 20 * Math.max(0, (avgRating - 3.0) / 2.0);
-      const rookieBoost = isRookie ? 10.0 : rawTrust < 75 ? 5.0 : 0.0;
-
-      // Earning fairness & idle time weighting (up to 5 pts for drivers waiting online)
-      const lastActiveTime = driver.lastLocationAt
-        ? new Date(driver.lastLocationAt).getTime()
-        : driver.updatedAt
-          ? new Date(driver.updatedAt).getTime()
-          : Date.now();
-      const idleMinutes = Math.max(0, (Date.now() - lastActiveTime) / (60 * 1000));
-      const idleFairnessBoost = Math.min(5.0, Number((idleMinutes / 10).toFixed(2)));
-
-      const compositeScore = Number(
-        (proximityScore + trustScorePart + ratingScorePart + rookieBoost + idleFairnessBoost).toFixed(2),
-      );
-
-      eligibleCandidates.push({
+      const candidate: ScoredCandidate = {
         driverId: driver.id,
         driver,
-        distanceKm: aerialDistanceKm,
+        hasLocation,
+        driverLat,
+        driverLng,
+        distanceKm,
         roadDistanceKm,
         etaMinutes,
+        etaIsLive: false,
         trustScore: rawTrust,
         rating: avgRating,
-        compositeScore,
+        compositeScore: 0,
         isRookie,
-      });
+      };
+      candidate.compositeScore = this.computeCompositeScore(candidate, nowMs);
+      eligibleCandidates.push(candidate);
     }
 
     if (eligibleCandidates.length === 0) {
       this.logger.warn(`No eligible drivers found for requirement ${requirementId}`);
-
-      // If requirement has 0 assignments and no drivers found
-      if (requirement.assignedQuantity === 0) {
-        await this.db.requirement.update({
-          where: { id: requirementId },
-          data: { status: RequirementStatus.NO_DRIVER_AVAILABLE },
-        });
-
-        this.notifications.emitEvent(`vendor:${requirement.vendorId}`, 'REQUIREMENT_NO_DRIVERS', {
-          requirementId,
-          message: 'No eligible drivers currently available in the area.',
-        });
-      } else {
-        // Requirement is partially fulfilled (e.g. 3 of 5 filled), but no more drivers available for remaining slots
-        this.notifications.emitEvent(`vendor:${requirement.vendorId}`, 'REQUIREMENT_PARTIAL_EXHAUSTION', {
-          requirementId,
-          assignedQuantity: requirement.assignedQuantity,
-          totalQuantity: requirement.quantity,
-          remainingQuantity: remaining,
-          message: `Supply currently exhausted for remaining ${remaining} vehicle(s). System will keep monitoring for newly available drivers.`,
-        });
+      if (liveOffers > 0) {
+        // Offers are still counting down; their wave job will cascade again when they lapse.
+        return noop(requirement.status as RequirementStatus);
       }
-
-      return {
-        requirementId,
-        offersCreated: 0,
-        status: requirement.assignedQuantity > 0
-          ? (requirement.status as RequirementStatus)
-          : RequirementStatus.NO_DRIVER_AVAILABLE,
-        driverIds: [],
-      };
+      return this.markSupplyExhausted(requirement, remaining, 'no_supply');
     }
 
-    // Controlled wave oversubscription: up to remaining * 2 candidates
-    const waveLimit = Math.max(remaining, Math.min(eligibleCandidates.length, remaining * 2));
+    const waveLimit = Math.min(eligibleCandidates.length, offerBudget);
+
+    // Phase B: re-rank the best aerial candidates with live traffic road ETA (single batched call)
+    if (DispatchConfig.roadEtaEnabled && this.googleMapsService) {
+      const byScore = [...eligibleCandidates].sort((a, b) => b.compositeScore - a.compositeScore);
+      const k = Math.min(25, Math.max(DispatchConfig.roadEtaTopK, waveLimit));
+      const pool = byScore.slice(0, k);
+      const bestOutsideRookie = byScore.slice(k).find((c) => c.isRookie);
+      if (bestOutsideRookie && !pool.some((c) => c.isRookie)) pool.push(bestOutsideRookie);
+
+      const routable = pool.filter((c) => c.hasLocation);
+      if (routable.length > 0) {
+        try {
+          const etas = await this.googleMapsService.computeDriverEtaMatrix(
+            routable.map((c) => ({ latitude: c.driverLat, longitude: c.driverLng })),
+            { latitude: pickupLat, longitude: pickupLng },
+          );
+          routable.forEach((c, i) => {
+            const eta = etas[i];
+            if (!eta) return;
+            c.etaMinutes = eta.etaMinutes;
+            c.roadDistanceKm = eta.distanceKm;
+            c.etaIsLive = eta.isRealRoad;
+            c.compositeScore = this.computeCompositeScore(c, nowMs);
+          });
+        } catch (err: any) {
+          this.logger.warn(`Road ETA re-rank skipped for ${requirementId}: ${err.message}`);
+        }
+      }
+    }
 
     // Separate rookies and veterans, sort both by compositeScore descending
     const rookies = eligibleCandidates.filter((c) => c.isRookie).sort((a, b) => b.compositeScore - a.compositeScore);
     const veterans = eligibleCandidates.filter((c) => !c.isRookie).sort((a, b) => b.compositeScore - a.compositeScore);
 
-    // Reserve 15% exploration slots for rookie / recovering drivers
+    // Reserve ~15% exploration slots for rookie / recovering drivers
     const rookieQuota = Math.min(rookies.length, Math.max(rookies.length > 0 ? 1 : 0, Math.floor(waveLimit * 0.15)));
     const veteranQuota = waveLimit - rookieQuota;
 
     const selectedCandidates = [
       ...rookies.slice(0, rookieQuota),
       ...veterans.slice(0, veteranQuota),
-    ];
+    ].slice(0, waveLimit);
 
-    // If quotas didn't fill waveLimit, backfill from remaining
     if (selectedCandidates.length < waveLimit) {
       const remainingCandidates = eligibleCandidates
         .filter((c) => !selectedCandidates.some((s) => s.driverId === c.driverId))
@@ -568,15 +536,19 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     }
 
     const selectedDriverIds = selectedCandidates.map((c) => c.driverId);
+    const waveNumber = wavesSoFar + 1;
 
-    // 30-second offer countdown window
-    const expiresAt = new Date(Date.now() + 30 * 1000);
+    const offerTtlMs = DispatchConfig.offerTtlMs;
+    const expiresInSeconds = Math.round(offerTtlMs / 1000);
+    const expiresAt = new Date(Date.now() + offerTtlMs);
     const driverOfferedRate = requirement.zonalQuote
       ? requirement.zonalQuote.driverFarePaise / 100
       : Number(requirement.ratePerVehicle ?? 0);
+    const h3PickupCell = this.locationsService.latLngToH3(pickupLat, pickupLng);
 
     const createdOffers = await Promise.all(
-      selectedDriverIds.map(async (driverId) => {
+      selectedCandidates.map(async (candidate) => {
+        const driverId = candidate.driverId;
         const offer = await this.db.offer.create({
           data: {
             requirementId,
@@ -585,10 +557,12 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
             offeredRate: driverOfferedRate,
             status: OfferStatus.SENT,
             expiresAt,
+            waveNumber,
+            distanceKm: candidate.roadDistanceKm,
+            etaMinutes: candidate.hasLocation ? candidate.etaMinutes : null,
           },
         });
 
-        // Emit real-time offer event to driver channel
         this.notifications.emitEvent(`driver:${driverId}`, 'OFFER_RECEIVED', {
           offerId: offer.id,
           id: offer.id,
@@ -599,21 +573,20 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
           isZonalQuote: Boolean(requirement.zonalQuote),
           zoneId: requirement.zonalQuote?.zoneId,
           hubId: requirement.zonalQuote?.hubId,
-          h3PickupCell: this.locationsService.latLngToH3(pickupLat, pickupLng),
+          h3PickupCell,
           pickupAddress: requirement.pickupAddress,
           dropAddress: requirement.dropAddress,
           reportingTime: requirement.reportingTime.toISOString(),
           expiresAt: expiresAt.toISOString(),
-          expiresInSeconds: 30,
+          expiresInSeconds,
+          pickupEtaMinutes: candidate.hasLocation ? candidate.etaMinutes : undefined,
+          pickupDistanceKm: candidate.roadDistanceKm ?? undefined,
         });
 
-        // Send rich FCM push notification to driver device & in-app feed
-        const candidate = selectedCandidates.find((c) => c.driverId === driverId);
-        const targetUserId = candidate?.driver?.userId || driverId;
-
+        const targetUserId = candidate.driver?.userId || driverId;
         await this.notifications.sendPushToUser(targetUserId, {
           title: requirement.zonalQuote ? '🚖 Corporate Fleet Offer (Net Guaranteed)!' : '🚖 New Trip Offer Available!',
-          body: `Guaranteed net payout of ₹${driverOfferedRate.toFixed(2)} for ${requirement.vehicleType} pickup at ${requirement.pickupAddress}. 30s to accept!`,
+          body: `Guaranteed net payout of ₹${driverOfferedRate.toFixed(2)} for ${requirement.vehicleType} pickup at ${requirement.pickupAddress}. ${expiresInSeconds}s to accept!`,
           type: NotificationType.TRIP_OFFER,
           data: {
             offerId: offer.id,
@@ -621,11 +594,11 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
             requirementId,
             vehicleType: String(requirement.vehicleType),
             rate: String(driverOfferedRate),
-            h3Cell: this.locationsService.latLngToH3(pickupLat, pickupLng),
+            h3Cell: h3PickupCell,
             pickupAddress: requirement.pickupAddress,
             dropAddress: requirement.dropAddress,
             expiresAt: expiresAt.toISOString(),
-            expiresInSeconds: '30',
+            expiresInSeconds: String(expiresInSeconds),
             route: `/offers/${offer.id}`,
           },
           actionUrl: `/offers/${offer.id}`,
@@ -636,21 +609,23 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       }),
     );
 
-    // Update requirement status to DISPATCHING
     const updatedStatus = requirement.assignedQuantity > 0
       ? RequirementStatus.PARTIALLY_FULFILLED
       : RequirementStatus.DISPATCHING;
 
     await this.db.requirement.update({
       where: { id: requirementId },
-      data: { status: updatedStatus },
+      data: { status: updatedStatus, dispatchWaves: waveNumber },
     });
 
-    // Notify vendor
+    // Exact-time wave timeout (Redis sorted set, survives restarts, claimed once cluster-wide)
+    await this.scheduler?.schedule(`wave:${requirementId}:${waveNumber}`, expiresAt.getTime() + WAVE_FIRE_GRACE_MS);
+
     this.notifications.emitEvent(`vendor:${requirement.vendorId}`, 'REQUIREMENT_DISPATCHING', {
       requirementId,
       status: updatedStatus,
       offersDispatched: createdOffers.length,
+      wave: waveNumber,
     });
 
     await this.audit.log({
@@ -662,19 +637,83 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
         offersCount: createdOffers.length,
         driverIds: selectedDriverIds,
         status: updatedStatus,
+        wave: waveNumber,
+        liveEta: selectedCandidates.filter((c) => c.etaIsLive).length,
       },
     });
 
-    this.logger.log(`Created ${createdOffers.length} offers for requirement ${requirementId}`);
-
-    // Deterministic Wave Scheduling: Schedule precise 30s timer for wave cascading
-    this.scheduleWaveExpiration(requirementId, 30000);
+    this.logger.log(`Wave ${waveNumber}: created ${createdOffers.length} offers for requirement ${requirementId}`);
 
     return {
       requirementId,
       offersCreated: createdOffers.length,
       status: updatedStatus,
       driverIds: selectedDriverIds,
+    };
+  }
+
+  /**
+   * Composite score (max ~105): road-ETA proximity 35 + trust 35 + rating 20 + rookie/recovery 10 + idle 5.
+   */
+  private computeCompositeScore(
+    c: { etaMinutes: number; trustScore: number; rating: number; isRookie: boolean; driver: { lastLocationAt: Date | null; updatedAt: Date } },
+    nowMs: number,
+  ): number {
+    const proximityScore = Math.max(0, 35 * (1 - Math.min(30, c.etaMinutes) / 30));
+    const trustScorePart = 35 * (Math.min(100, Math.max(0, c.trustScore)) / 100);
+    const ratingScorePart = 20 * Math.max(0, (c.rating - 3.0) / 2.0);
+    const rookieBoost = c.isRookie ? 10.0 : c.trustScore < 75 ? 5.0 : 0.0;
+    const lastActive = c.driver.lastLocationAt
+      ? new Date(c.driver.lastLocationAt).getTime()
+      : c.driver.updatedAt
+        ? new Date(c.driver.updatedAt).getTime()
+        : nowMs;
+    const idleMinutes = Math.max(0, (nowMs - lastActive) / 60000);
+    const idleFairnessBoost = Math.min(5.0, idleMinutes / 10);
+    return Number((proximityScore + trustScorePart + ratingScorePart + rookieBoost + idleFairnessBoost).toFixed(2));
+  }
+
+  private async markSupplyExhausted(
+    requirement: { id: string; vendorId: string; assignedQuantity: number; quantity: number; status: string },
+    remaining: number,
+    reason: 'no_supply' | 'wave_limit',
+  ): Promise<DispatchResult> {
+    const message =
+      reason === 'wave_limit'
+        ? 'No driver accepted after several dispatch rounds. Tap retry to search again.'
+        : 'No eligible drivers currently available in the area.';
+
+    if (requirement.assignedQuantity === 0) {
+      await this.db.requirement.update({
+        where: { id: requirement.id },
+        data: { status: RequirementStatus.NO_DRIVER_AVAILABLE },
+      });
+      this.notifications.emitEvent(`vendor:${requirement.vendorId}`, 'REQUIREMENT_NO_DRIVERS', {
+        requirementId: requirement.id,
+        reason,
+        message,
+      });
+      return {
+        requirementId: requirement.id,
+        offersCreated: 0,
+        status: RequirementStatus.NO_DRIVER_AVAILABLE,
+        driverIds: [],
+      };
+    }
+
+    this.notifications.emitEvent(`vendor:${requirement.vendorId}`, 'REQUIREMENT_PARTIAL_EXHAUSTION', {
+      requirementId: requirement.id,
+      assignedQuantity: requirement.assignedQuantity,
+      totalQuantity: requirement.quantity,
+      remainingQuantity: remaining,
+      reason,
+      message: `Supply currently exhausted for remaining ${remaining} vehicle(s). ${message}`,
+    });
+    return {
+      requirementId: requirement.id,
+      offersCreated: 0,
+      status: requirement.status as RequirementStatus,
+      driverIds: [],
     };
   }
 }

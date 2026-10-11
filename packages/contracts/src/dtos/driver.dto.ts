@@ -144,6 +144,10 @@ export class DriverProfileDto {
   averageRating?: number;
   ratingCount?: number;
   totalTrips?: number;
+  /** Rolling acceptance rate (%) over the last 50 counted offers. */
+  acceptanceRate?: number;
+  /** ISO timestamp until which the driver receives no new offers (anti-cherry-picking pause). */
+  cooldownUntil?: string;
   rejectionReason?: string;
   currentLocation?: GeoLocationDto;
   dlFrontUrl?: string;

@@ -11,7 +11,8 @@ import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
-import '../../shared/widgets/trip_rating_bottom_sheet.dart';
+import '../../core/networking/api_client.dart';
+import '../../shared/widgets/pending_review_gate.dart';
 import 'requirement_draft_provider.dart';
 import 'utils/office_hub_detector.dart';
 
@@ -665,37 +666,27 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
     } catch (e) {
       if (mounted) {
         setState(() => _isSubmitting = false);
-        final rawMsg = e.toString().replaceAll("Exception: ", "").replaceAll("ApiException(400): ", "").replaceAll("BadRequestException: ", "");
+        final rawMsg = e is ApiException
+            ? e.message
+            : e.toString().replaceAll("Exception: ", "").replaceAll("BadRequestException: ", "");
         final isLowBalance = rawMsg.toLowerCase().contains("insufficient") || rawMsg.toLowerCase().contains("wallet") || rawMsg.toLowerCase().contains("balance");
-        final isReviewRequired = rawMsg.toLowerCase().contains("feedback") || rawMsg.toLowerCase().contains("completed trip") || rawMsg.toLowerCase().contains("review");
 
-        if (isLowBalance) {
+        // Server review gate (structured 403): draft stays intact; rate, then tap submit again
+        if (PendingReviewGate.handleBookingError(context, e)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$rawMsg Your booking details are saved.'),
+              backgroundColor: AppColors.warning,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        } else if (isLowBalance) {
           Fluttertoast.showToast(
             msg: rawMsg,
             backgroundColor: AppColors.error,
             textColor: Colors.white,
           );
           _showTopUpBottomSheet();
-        } else if (isReviewRequired) {
-          UserService.instance.getPendingReview().then((pendingTrip) {
-            if (pendingTrip != null && mounted) {
-              TripRatingBottomSheet.show(
-                context: context,
-                tripId: pendingTrip['id']?.toString() ?? '',
-                targetName: pendingTrip['driverName']?.toString() ?? 'Your Driver',
-                vehicleInfo: pendingTrip['vehiclePlate']?.toString(),
-                isReviewingDriver: true,
-                isMandatory: true,
-              );
-            }
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(rawMsg),
-              backgroundColor: AppColors.error,
-              duration: const Duration(seconds: 5),
-            ),
-          );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(

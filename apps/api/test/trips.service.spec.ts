@@ -255,6 +255,7 @@ describe('TripsService Unit Tests', () => {
         },
         driver: {
           update: jest.fn().mockResolvedValue({ id: 'drv-1', availabilityStatus: DriverAvailability.AVAILABLE }),
+          updateMany: jest.fn().mockResolvedValue({ count: 0 }),
         },
         requirement: {
           update: jest.fn().mockResolvedValue({ id: 'req-1', status: RequirementStatus.COMPLETED }),
@@ -298,10 +299,12 @@ describe('TripsService Unit Tests', () => {
       requirement: { assignedQuantity: 1 },
     });
 
+    let tx: any;
     db.$transaction.mockImplementation(async (callback: any) => {
-      const tx = {
+      tx = {
         trip: {
-          update: jest.fn().mockResolvedValue({
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+          findUnique: jest.fn().mockResolvedValue({
             id: 'trip-1',
             requirementId: 'req-1',
             assignmentId: 'asg-1',
@@ -322,8 +325,11 @@ describe('TripsService Unit Tests', () => {
         },
         driver: {
           update: jest.fn().mockResolvedValue({ id: 'drv-1', availabilityStatus: DriverAvailability.AVAILABLE }),
+          updateMany: jest.fn().mockResolvedValue({ count: 0 }),
         },
         requirement: {
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+          findUnique: jest.fn().mockResolvedValue({ id: 'req-1', assignedQuantity: 0, status: RequirementStatus.FULFILLED }),
           update: jest.fn().mockResolvedValue({ id: 'req-1', assignedQuantity: 0 }),
         },
       };
@@ -335,7 +341,15 @@ describe('TripsService Unit Tests', () => {
     });
 
     expect(result.status).toBe(TripStatus.CANCELLED);
-    expect(dispatchService.dispatchRequirement).toHaveBeenCalledWith('req-1');
+    // Atomic decrement, never an absolute stale write; driver penalty is an atomic decrement too
+    expect(tx.requirement.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { assignedQuantity: { decrement: 1 } } }),
+    );
+    expect(tx.driver.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ trustScore: { decrement: 5.0 } }) }),
+    );
+    // Replacement wave gets a fresh wave budget
+    expect(dispatchService.dispatchRequirement).toHaveBeenCalledWith('req-1', true);
     expect(db.tripEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ eventType: 'TRIP_CANCELLED' }),
@@ -439,7 +453,7 @@ describe('TripsService Unit Tests', () => {
           count: jest.fn().mockResolvedValue(0),
         },
         assignment: { update: jest.fn() },
-        driver: { update: jest.fn().mockResolvedValue({ walletBalance: 1275 }) },
+        driver: { update: jest.fn().mockResolvedValue({ walletBalance: 1275 }), updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
         requirement: { update: jest.fn() },
         ledgerEntry: { create: jest.fn() },
       };

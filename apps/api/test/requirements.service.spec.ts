@@ -6,6 +6,7 @@ import { NotificationsService } from '../src/modules/notifications/notifications
 import { AuditService } from '../src/modules/audit/audit.service';
 import { PricingService } from '../src/modules/pricing/pricing.service';
 import { ZonalPricingService } from '../src/modules/pricing/zonal-pricing.service';
+import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
 import {
   RequirementStatus,
   VerificationStatus,
@@ -50,6 +51,7 @@ describe('RequirementsService Unit Tests', () => {
       },
       trip: {
         findFirst: jest.fn().mockResolvedValue(null),
+        count: jest.fn().mockResolvedValue(0),
       },
       $transaction: jest.fn().mockImplementation(async (cb: any) => cb(db)),
     };
@@ -142,6 +144,91 @@ describe('RequirementsService Unit Tests', () => {
     expect(dispatchService.dispatchRequirement).toHaveBeenCalledWith('req-1');
   });
 
+  describe('mandatory review gate', () => {
+    const bookingDto = () => ({
+      vehicleType: VehicleType.SEDAN,
+      quantity: 1,
+      pickupLocation: { latitude: 28.6139, longitude: 77.209, address: 'CP' },
+      dropLocation: { latitude: 28.5355, longitude: 77.391, address: 'Noida' },
+      reportingTime: new Date().toISOString(),
+      ratePerVehicle: 1500,
+    });
+
+    beforeEach(() => {
+      db.vendor.findUnique.mockResolvedValue({ id: 'vnd-1', userId: 'usr-vnd-1', verificationStatus: VerificationStatus.VERIFIED });
+    });
+
+    it('blocks booking with a structured 403 naming the oldest unreviewed trip', async () => {
+      db.trip.findFirst.mockResolvedValue({ id: 'trip-old', driver: { fullName: 'Aarav', vehiclePlate: 'DL1C1234', user: null } });
+      db.trip.count.mockResolvedValue(2);
+
+      const err = await service.createRequirement('usr-vnd-1', bookingDto() as any).catch((e) => e);
+
+      expect(err.getStatus()).toBe(403);
+      expect(err.getResponse()).toEqual(
+        expect.objectContaining({
+          error: 'MANDATORY_REVIEW_PENDING',
+          details: expect.objectContaining({ tripId: 'trip-old', pendingCount: 2, driverName: 'Aarav' }),
+        }),
+      );
+      expect(db.requirement.create).not.toHaveBeenCalled();
+      expect(db.trip.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: { completedAt: 'asc' } }),
+      );
+    });
+
+    it('reaches the client as error.code + error.details through the global HttpExceptionFilter', async () => {
+      db.trip.findFirst.mockResolvedValue({ id: 'trip-old', driver: { fullName: 'Aarav', vehiclePlate: null, user: null } });
+      db.trip.count.mockResolvedValue(1);
+      const err = await service.createRequirement('usr-vnd-1', bookingDto() as any).catch((e) => e);
+
+      const json = jest.fn();
+      const res = { status: jest.fn().mockReturnValue({ json }) };
+      new HttpExceptionFilter().catch(err, { switchToHttp: () => ({ getResponse: () => res }) } as any);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(json.mock.calls[0][0]).toEqual(
+        expect.objectContaining({
+          success: false,
+          error: expect.objectContaining({
+            code: 'MANDATORY_REVIEW_PENDING',
+            details: expect.objectContaining({ tripId: 'trip-old', pendingCount: 1 }),
+          }),
+        }),
+      );
+    });
+
+    it('only considers trips completed after the gate cutoff and without an open dispute', async () => {
+      process.env.REVIEW_GATE_START_AT = '2026-10-12T00:00:00.000Z';
+      db.trip.findFirst.mockResolvedValue({ id: 'trip-x', driver: null });
+      await service.createRequirement('usr-vnd-1', bookingDto() as any).catch(() => undefined);
+
+      const where = db.trip.findFirst.mock.calls[0][0].where;
+      expect(where.completedAt).toEqual({ gte: new Date('2026-10-12T00:00:00.000Z') });
+      expect(where.reviews).toEqual({ none: { reviewerId: 'usr-vnd-1' } });
+      expect(where.disputes).toBeDefined();
+      delete process.env.REVIEW_GATE_START_AT;
+    });
+
+    it('can be disabled with REVIEW_GATE_ENABLED=false', async () => {
+      process.env.REVIEW_GATE_ENABLED = 'false';
+      db.trip.findFirst.mockResolvedValue({ id: 'trip-old', driver: null });
+      db.requirement.create.mockResolvedValue({
+        id: 'req-9', vendorId: 'vnd-1', vehicleType: VehicleType.SEDAN, quantity: 1, assignedQuantity: 0,
+        pickupLat: 1, pickupLng: 1, pickupAddress: 'a', dropLat: 1, dropLng: 1, dropAddress: 'b',
+        reportingTime: new Date(), ratePerVehicle: 1500, totalAmount: 1500, status: RequirementStatus.POSTED,
+        createdAt: new Date(), updatedAt: new Date(),
+      });
+      try {
+        const res = await service.createRequirement('usr-vnd-1', bookingDto() as any);
+        expect(res.id).toBe('req-9');
+        expect(db.trip.findFirst).not.toHaveBeenCalled();
+      } finally {
+        delete process.env.REVIEW_GATE_ENABLED;
+      }
+    });
+  });
+
   it('should return requirement details with remaining quantity and offers count', async () => {
     const now = new Date();
     db.vendor.findUnique.mockResolvedValue({ id: 'vnd-1', userId: 'usr-vnd-1' });
@@ -189,15 +276,18 @@ describe('RequirementsService Unit Tests', () => {
   it('should cancel requirement and invalidate pending SENT offers', async () => {
     const now = new Date();
     db.vendor.findUnique.mockResolvedValue({ id: 'vnd-1', userId: 'usr-vnd-1' });
-    db.requirement.findUnique.mockResolvedValue({
+    db.requirement.findUnique.mockResolvedValueOnce({
       id: 'a0000000-0000-0000-0000-000000000001',
       vendorId: 'vnd-1',
       status: RequirementStatus.POSTED,
       offers: [{ id: 'off-1', driverId: 'drv-1', status: OfferStatus.SENT }],
       bids: [],
     });
+    db.requirement.updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    db.vendor.update.mockResolvedValue({ id: 'vnd-1', escrowBalance: 1000 });
 
-    db.requirement.update.mockResolvedValue({
+    // Post-lock read-back inside the cancellation transaction
+    db.requirement.findUnique.mockResolvedValueOnce({
       id: 'a0000000-0000-0000-0000-000000000001',
       vendorId: 'vnd-1',
       vehicleType: VehicleType.SEDAN,
@@ -231,6 +321,30 @@ describe('RequirementsService Unit Tests', () => {
       'OFFER_CANCELLED',
       expect.anything(),
     );
+    // Refund computed from the post-lock read-back (1 unassigned of 1 -> full refund)
+    expect(db.vendor.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { escrowBalance: { increment: 1000 } } }),
+    );
+  });
+
+  it('cancellation loses cleanly to a concurrent accept: no refund, offers untouched', async () => {
+    db.vendor.findUnique.mockResolvedValue({ id: 'vnd-1', userId: 'usr-vnd-1' });
+    db.requirement.findUnique.mockResolvedValue({
+      id: 'a0000000-0000-0000-0000-000000000001',
+      vendorId: 'vnd-1',
+      status: RequirementStatus.DISPATCHING,
+      offers: [{ id: 'off-1', driverId: 'drv-1', status: OfferStatus.SENT }],
+      bids: [],
+    });
+    db.requirement.updateMany = jest.fn().mockResolvedValue({ count: 0 });
+    db.vendor.update.mockClear();
+    db.offer.updateMany.mockClear();
+
+    await expect(
+      service.cancelRequirement('a0000000-0000-0000-0000-000000000001', 'usr-vnd-1', { reason: 'x' }),
+    ).rejects.toThrow('Requirement changed while cancelling');
+    expect(db.vendor.update).not.toHaveBeenCalled();
+    expect(db.offer.updateMany).not.toHaveBeenCalled();
   });
 
   it('should reject cancellation if requirement is already COMPLETED', async () => {

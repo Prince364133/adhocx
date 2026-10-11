@@ -380,6 +380,14 @@ class DriverService {
     return res;
   }
 
+  /// Delivery receipt for a displayed offer. Best-effort: never throws.
+  Future<void> markOfferSeen(String offerId) async {
+    try {
+      await _ensureDriverSession();
+      await _api.post('/offers/$offerId/seen');
+    } catch (_) {}
+  }
+
   // Reviews & Rating Submission
   Future<dynamic> submitReview({
     required String tripId,
