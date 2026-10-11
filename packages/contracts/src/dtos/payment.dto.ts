@@ -65,6 +65,7 @@ export class WalletTopUpOrderResponseDto {
   keyId!: string;
   discountAmount?: number;
   finalPayableAmount?: number;
+  isFullyDiscounted?: boolean;
 }
 
 export class WalletTopUpVerifyDto {

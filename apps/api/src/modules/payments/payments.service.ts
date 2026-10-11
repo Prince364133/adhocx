@@ -288,6 +288,7 @@ export class PaymentsService {
   async createWalletTopUpOrder(vendorUserId: string, dto: WalletTopUpOrderDto): Promise<WalletTopUpOrderResponseDto> {
     let discountAmount = 0;
     let finalPayableAmount = dto.amount;
+    let couponToRedeem: any = null;
 
     if (dto.couponCode) {
       const code = dto.couponCode.trim().toUpperCase();
@@ -296,6 +297,7 @@ export class PaymentsService {
       if (coupon && coupon.isActive && now >= coupon.validFrom && now <= coupon.validUntil) {
         if (coupon.applicableTo === 'ALL' || coupon.applicableTo === 'WALLET_TOPUP') {
           if (dto.amount >= Number(coupon.minOrderAmount)) {
+            couponToRedeem = coupon;
             if (coupon.discountType === 'PERCENTAGE') {
               discountAmount = (dto.amount * Number(coupon.discountValue)) / 100;
               if (coupon.maxDiscountAmount) {
@@ -313,6 +315,86 @@ export class PaymentsService {
 
     const keyId = process.env.RAZORPAY_KEY_ID;
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+    // Handle 100% discount / free top-up bypass (Razorpay rejects 0-amount orders)
+    if (finalPayableAmount <= 0) {
+      let vendor = await this.db.vendor.findUnique({ where: { userId: vendorUserId } });
+      if (!vendor) {
+        const user = await this.db.user.findUnique({ where: { id: vendorUserId } });
+        vendor = await this.db.vendor.create({
+          data: {
+            userId: vendorUserId,
+            fullName: user?.fullName || 'User',
+            organizationName: user?.fullName || 'Corporate Partner',
+            phone: user?.phone || '+919999999999',
+            verificationStatus: 'VERIFIED',
+            escrowBalance: 0,
+          },
+        });
+      }
+
+      const freeOrderId = `order_free_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const cleanDescription = `Wallet Top-up${couponToRedeem ? ` [Promo: ${couponToRedeem.code}]` : ''}`;
+
+      await this.db.$transaction(async (tx) => {
+        const v = await tx.vendor.update({
+          where: { id: vendor.id },
+          data: {
+            escrowBalance: { increment: dto.amount },
+          },
+        });
+
+        await tx.ledgerEntry.create({
+          data: {
+            accountType: 'VENDOR',
+            accountId: vendor.id,
+            entryType: 'CREDIT',
+            amount: dto.amount,
+            balanceAfter: v.escrowBalance,
+            referenceType: 'WALLET_TOPUP',
+            referenceId: freeOrderId,
+            description: cleanDescription,
+          },
+        });
+
+        if (couponToRedeem) {
+          await tx.couponRedemption.create({
+            data: {
+              couponId: couponToRedeem.id,
+              userId: vendorUserId,
+              referenceType: 'WALLET_TOPUP',
+              referenceId: freeOrderId,
+              orderAmount: dto.amount,
+              discountAmount: discountAmount,
+              finalAmount: 0,
+            },
+          });
+
+          await tx.coupon.update({
+            where: { id: couponToRedeem.id },
+            data: { usedCount: { increment: 1 } },
+          });
+        }
+      }, { timeout: 30000, maxWait: 10000 });
+
+      this.logger.log(`Promotional 100% wallet top-up fulfilled for vendor ${vendor.id}: ₹${dto.amount} credited (coupon: ${couponToRedeem?.code})`);
+
+      return {
+        orderId: freeOrderId,
+        amount: dto.amount,
+        currency: 'INR',
+        keyId: keyId || 'rzp_free_topup',
+        discountAmount,
+        finalPayableAmount: 0,
+        isFullyDiscounted: true,
+      };
+    }
+
+    // Razorpay requires a minimum amount of 100 paise (₹1.00) for INR
+    if (finalPayableAmount > 0 && finalPayableAmount < 1) {
+      finalPayableAmount = 1;
+      discountAmount = Math.max(0, dto.amount - finalPayableAmount);
+    }
 
     if (!keyId || !keySecret || keyId.includes('Mock') || keyId.includes('AdhocXMock')) {
       throw new BadRequestException(
@@ -399,6 +481,10 @@ export class PaymentsService {
     const paymentId = anyDto.razorpayPaymentId || anyDto.razorpay_payment_id || anyDto.paymentId;
     const orderId = anyDto.razorpayOrderId || anyDto.razorpay_order_id || anyDto.orderId;
     const signature = anyDto.razorpaySignature || anyDto.razorpay_signature || anyDto.signature;
+
+    if (orderId && orderId.startsWith('order_free_')) {
+      return { success: true, newBalance: Number(vendor.escrowBalance) };
+    }
 
     if (!paymentId || !orderId || !signature) {
       throw new BadRequestException('Razorpay Payment ID, Order ID, and cryptographic Signature are strictly required for top-up verification');

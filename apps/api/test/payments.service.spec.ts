@@ -156,4 +156,58 @@ describe('PaymentsService Unit Tests', () => {
       ),
     ).rejects.toThrow(NotFoundException);
   });
+
+  it('should fulfill 100% discounted wallet top-up without calling Razorpay', async () => {
+    const now = new Date();
+    db.vendor.findUnique.mockResolvedValue({ id: 'vnd-1', userId: 'usr-vnd-1', escrowBalance: 0 });
+    db.coupon = {
+      findUnique: jest.fn().mockResolvedValue({
+        id: 'cpn-1',
+        code: 'FREE100',
+        isActive: true,
+        validFrom: new Date(now.getTime() - 10000),
+        validUntil: new Date(now.getTime() + 10000),
+        applicableTo: 'ALL',
+        minOrderAmount: 100,
+        discountType: 'PERCENTAGE',
+        discountValue: 100,
+        maxDiscountAmount: null,
+      }),
+      update: jest.fn().mockResolvedValue({}),
+    };
+    db.vendor.update = jest.fn().mockResolvedValue({ id: 'vnd-1', escrowBalance: 5000 });
+    db.ledgerEntry = { create: jest.fn().mockResolvedValue({}) };
+    db.couponRedemption = { create: jest.fn().mockResolvedValue({}) };
+    db.$transaction = jest.fn(async (cb) => cb(db));
+
+    const result = await service.createWalletTopUpOrder('usr-vnd-1', {
+      amount: 5000,
+      couponCode: 'FREE100',
+    });
+
+    expect(result.finalPayableAmount).toBe(0);
+    expect(result.isFullyDiscounted).toBe(true);
+    expect(result.orderId).toMatch(/^order_free_/);
+    expect(db.vendor.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'vnd-1' },
+        data: { escrowBalance: { increment: 5000 } },
+      }),
+    );
+  });
+
+  it('should verify order_free_ wallet top-up idempotently', async () => {
+    db.vendor.findUnique.mockResolvedValue({ id: 'vnd-1', userId: 'usr-vnd-1', escrowBalance: 5000 });
+
+    const result = await service.verifyWalletTopUp('usr-vnd-1', {
+      razorpayOrderId: 'order_free_12345',
+      razorpayPaymentId: 'pay_free_12345',
+      razorpaySignature: 'sig_free_12345',
+      amount: 5000,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.newBalance).toBe(5000);
+  });
 });
+

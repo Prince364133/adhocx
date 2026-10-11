@@ -151,6 +151,21 @@ class _SubscriptionPaywallModalState extends State<SubscriptionPaywallModal> {
         final orderId = (orderRes['orderId'] ?? orderRes['order']?['id'])?.toString();
         final keyId = (orderRes['keyId'] ?? orderRes['key'])?.toString();
         final double payableAmount = (orderRes['finalPayableAmount'] as num?)?.toDouble() ?? _finalAmount;
+        final isFullyDiscounted = orderRes['isFullyDiscounted'] == true || payableAmount <= 0;
+
+        if (isFullyDiscounted) {
+          setState(() => _isLoading = false);
+          if (mounted) {
+            Navigator.of(context).pop(true);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Subscription activated successfully!${_appliedCoupon != null ? " ($_appliedCoupon applied)" : ""}'),
+                backgroundColor: AppColors.success,
+              ),
+            );
+          }
+          return;
+        }
 
         if (orderId == null || keyId == null) {
           throw Exception('Unable to generate payment order. Please try again.');

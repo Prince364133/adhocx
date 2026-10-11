@@ -149,6 +149,7 @@ export class SubscriptionsService {
     finalPayableAmount: number;
     keyId: string;
     currency: string;
+    isFullyDiscounted?: boolean;
   }> {
     const driver = await this.db.driver.findUnique({ where: { userId: driverUserId } });
     if (!driver) {
@@ -159,11 +160,13 @@ export class SubscriptionsService {
     let originalAmount = policy.driverMonthlyFee;
     let discountAmount = 0;
 
+    let couponToRedeem: any = null;
     if (dto.couponCode) {
       const code = dto.couponCode.trim().toUpperCase();
       const coupon = await this.db.coupon.findUnique({ where: { code } });
       const now = new Date();
       if (coupon && coupon.isActive && now >= coupon.validFrom && now <= coupon.validUntil) {
+        couponToRedeem = coupon;
         if (coupon.discountType === 'PERCENTAGE') {
           discountAmount = (originalAmount * Number(coupon.discountValue)) / 100;
           if (coupon.maxDiscountAmount) {
@@ -176,9 +179,76 @@ export class SubscriptionsService {
       }
     }
 
-    const finalPayableAmount = Math.max(0, originalAmount - discountAmount);
+    let finalPayableAmount = Math.max(0, originalAmount - discountAmount);
     const keyId = process.env.RAZORPAY_KEY_ID;
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+    // Handle 100% discount / free subscription bypass (Razorpay rejects 0-amount orders)
+    if (finalPayableAmount <= 0) {
+      const freeOrderId = `order_sub_free_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const now = new Date();
+      const newExpiry = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+      await this.db.$transaction(async (tx) => {
+        await tx.driver.update({
+          where: { id: driver.id },
+          data: {
+            subscriptionStatus: 'ACTIVE',
+            subscriptionExpiry: newExpiry,
+          },
+        });
+
+        await tx.driverSubscriptionPayment.create({
+          data: {
+            driverId: driver.id,
+            amount: originalAmount,
+            finalAmount: 0,
+            paymentMethod: 'PROMOTIONAL_VOUCHER',
+            paymentRef: freeOrderId,
+            periodStart: now,
+            periodEnd: newExpiry,
+            couponCode: couponToRedeem?.code,
+          },
+        });
+
+        if (couponToRedeem) {
+          await tx.couponRedemption.create({
+            data: {
+              couponId: couponToRedeem.id,
+              userId: driverUserId,
+              referenceType: 'DRIVER_SUBSCRIPTION',
+              referenceId: freeOrderId,
+              orderAmount: originalAmount,
+              discountAmount,
+              finalAmount: 0,
+            },
+          });
+
+          await tx.coupon.update({
+            where: { id: couponToRedeem.id },
+            data: { usedCount: { increment: 1 } },
+          });
+        }
+      }, { timeout: 30000, maxWait: 10000 });
+
+      this.logger.log(`Promotional 100% driver subscription activated for driver ${driver.id}: 30 days granted (coupon: ${couponToRedeem?.code})`);
+
+      return {
+        orderId: freeOrderId,
+        amount: originalAmount,
+        discountAmount,
+        finalPayableAmount: 0,
+        keyId: keyId || 'rzp_free_sub',
+        currency: 'INR',
+        isFullyDiscounted: true,
+      };
+    }
+
+    // Razorpay requires a minimum amount of 100 paise (₹1.00) for INR
+    if (finalPayableAmount > 0 && finalPayableAmount < 1) {
+      finalPayableAmount = 1;
+      discountAmount = Math.max(0, originalAmount - finalPayableAmount);
+    }
 
     if (!keyId || !keySecret || keyId.includes('Mock') || keyId.includes('AdhocXMock')) {
       throw new BadRequestException(
@@ -259,6 +329,16 @@ export class SubscriptionsService {
     const paymentId = dto.razorpayPaymentId || dto.paymentId;
     const orderId = dto.razorpayOrderId || dto.orderId;
     const signature = dto.razorpaySignature || dto.signature;
+
+    if (orderId && orderId.startsWith('order_sub_free_')) {
+      const now = new Date();
+      const newExpiry = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      return {
+        success: true,
+        subscriptionExpiry: newExpiry.toISOString(),
+        message: 'Subscription activated successfully via promotional voucher',
+      };
+    }
 
     if (!paymentId || !orderId || !signature) {
       throw new BadRequestException('Razorpay Payment ID, Order ID, and Signature are required for subscription verification');

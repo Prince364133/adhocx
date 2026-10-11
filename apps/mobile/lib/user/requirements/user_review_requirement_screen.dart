@@ -420,6 +420,24 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                                 final razorpayOrderId = orderRes['orderId'] as String?;
                                 final keyId = orderRes['keyId'] as String?;
                                 final payableAmount = (orderRes['finalPayableAmount'] as num?)?.toDouble() ?? (appliedTopUpCoupon != null ? netPayable : rawAmount);
+                                final isFullyDiscounted = orderRes['isFullyDiscounted'] == true || payableAmount <= 0;
+
+                                if (isFullyDiscounted) {
+                                  setModalState(() => isProcessing = false);
+                                  if (ctx.mounted) {
+                                    navigator.pop();
+                                  }
+                                  if (mounted) {
+                                    messenger.showSnackBar(
+                                      SnackBar(
+                                        content: Text('₹${amount.toStringAsFixed(0)} added to wallet successfully!${couponCode != null ? " ($couponCode applied)" : ""}'),
+                                        backgroundColor: AppColors.success,
+                                      ),
+                                    );
+                                    _loadWallet();
+                                  }
+                                  return;
+                                }
 
                                 if (razorpayOrderId == null || keyId == null) {
                                   throw Exception('Unable to generate payment order. Please try again.');

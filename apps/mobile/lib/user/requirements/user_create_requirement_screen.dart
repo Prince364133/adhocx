@@ -336,6 +336,15 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                               setModalState(() => isProcessing = true);
                               try {
                                 final order = await UserService.instance.createTopUpOrder(amt);
+                                final isFullyDiscounted = order['isFullyDiscounted'] == true || ((order['finalPayableAmount'] as num?)?.toDouble() ?? amt) <= 0;
+                                if (isFullyDiscounted) {
+                                  if (ctx.mounted) {
+                                    Navigator.pop(ctx);
+                                  }
+                                  _loadWallet();
+                                  Fluttertoast.showToast(msg: 'Wallet credited successfully!');
+                                  return;
+                                }
                                 final orderId = (order['orderId'] ?? order['razorpayOrderId']) as String;
                                 final keyId = (order['keyId'] as String?) ?? 'rzp_test_ADHOCX_DEMO';
                                 if (ctx.mounted) {
