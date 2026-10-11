@@ -548,9 +548,13 @@ export class CouponsService {
     let discount = 0;
     if (coupon.discountType === CouponDiscountType.PERCENTAGE) {
       const percent = Number(coupon.discountValue);
-      discount = (amount * percent) / 100;
-      if (coupon.maxDiscountAmount) {
-        discount = Math.min(discount, Number(coupon.maxDiscountAmount));
+      if (percent >= 100) {
+        discount = amount;
+      } else {
+        discount = (amount * percent) / 100;
+        if (coupon.maxDiscountAmount) {
+          discount = Math.min(discount, Number(coupon.maxDiscountAmount));
+        }
       }
     } else {
       discount = Number(coupon.discountValue);

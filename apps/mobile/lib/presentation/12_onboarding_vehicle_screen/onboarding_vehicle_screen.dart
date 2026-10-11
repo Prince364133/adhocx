@@ -16,293 +16,7 @@ import '../../theme/app_typography.dart';
 import '../../widgets/common/app_primary_button.dart';
 import '../../widgets/common/app_stepper_header.dart';
 
-class _VehicleSuggestion {
-  final String name;
-  final String categoryId;
-  final String categoryLabel;
-  final List<String> aliases;
 
-  const _VehicleSuggestion({
-    required this.name,
-    required this.categoryId,
-    required this.categoryLabel,
-    this.aliases = const [],
-  });
-}
-
-const List<_VehicleSuggestion> _popularVehicleModels = [
-  // ── Sedans ─────────────────────────────────────────────────────────────
-  _VehicleSuggestion(
-    name: 'Maruti Dzire',
-    categoryId: 'SEDAN',
-    categoryLabel: 'Prime Sedan',
-    aliases: ['dzire', 'swift dzire', 'maruti suzuki dzire', 'maruti', 'suzuki', 'sedan'],
-  ),
-  _VehicleSuggestion(
-    name: 'Swift Dzire',
-    categoryId: 'SEDAN',
-    categoryLabel: 'Prime Sedan',
-    aliases: ['dzire', 'swift dzire', 'swift', 'maruti', 'suzuki', 'sedan'],
-  ),
-  _VehicleSuggestion(
-    name: 'Maruti Suzuki Dzire',
-    categoryId: 'SEDAN',
-    categoryLabel: 'Prime Sedan',
-    aliases: ['dzire', 'swift dzire', 'maruti', 'suzuki', 'sedan'],
-  ),
-  _VehicleSuggestion(
-    name: 'Honda City',
-    categoryId: 'SEDAN',
-    categoryLabel: 'Prime Sedan',
-    aliases: ['city', 'honda', 'ivtec', 'sedan'],
-  ),
-  _VehicleSuggestion(
-    name: 'Honda Amaze',
-    categoryId: 'SEDAN',
-    categoryLabel: 'Prime Sedan',
-    aliases: ['amaze', 'honda', 'sedan'],
-  ),
-  _VehicleSuggestion(
-    name: 'Hyundai Aura',
-    categoryId: 'SEDAN',
-    categoryLabel: 'Prime Sedan',
-    aliases: ['aura', 'hyundai', 'cng', 'sedan'],
-  ),
-  _VehicleSuggestion(
-    name: 'Hyundai Verna',
-    categoryId: 'SEDAN',
-    categoryLabel: 'Prime Sedan',
-    aliases: ['verna', 'hyundai', 'sedan'],
-  ),
-  _VehicleSuggestion(
-    name: 'Toyota Etios',
-    categoryId: 'SEDAN',
-    categoryLabel: 'Prime Sedan',
-    aliases: ['etios', 'toyota', 'platinum', 'sedan'],
-  ),
-  _VehicleSuggestion(
-    name: 'Tata Tigor',
-    categoryId: 'SEDAN',
-    categoryLabel: 'Prime Sedan',
-    aliases: ['tigor', 'tata', 'ev', 'sedan'],
-  ),
-  _VehicleSuggestion(
-    name: 'Maruti Ciaz',
-    categoryId: 'SEDAN',
-    categoryLabel: 'Prime Sedan',
-    aliases: ['ciaz', 'maruti', 'suzuki', 'sedan'],
-  ),
-  _VehicleSuggestion(
-    name: 'Skoda Slavia',
-    categoryId: 'SEDAN',
-    categoryLabel: 'Prime Sedan',
-    aliases: ['slavia', 'skoda', 'sedan'],
-  ),
-  _VehicleSuggestion(
-    name: 'Volkswagen Virtus',
-    categoryId: 'SEDAN',
-    categoryLabel: 'Prime Sedan',
-    aliases: ['virtus', 'vw', 'volkswagen', 'sedan'],
-  ),
-
-  // ── SUVs & 6/7-Seaters ────────────────────────────────────────────────
-  _VehicleSuggestion(
-    name: 'Toyota Innova Crysta',
-    categoryId: 'SUV',
-    categoryLabel: 'SUV 7-Seater',
-    aliases: ['innova', 'crysta', 'toyota', '7 seater', 'suv'],
-  ),
-  _VehicleSuggestion(
-    name: 'Toyota Innova Hycross',
-    categoryId: 'SUV',
-    categoryLabel: 'SUV 7-Seater',
-    aliases: ['innova', 'hycross', 'toyota', '7 seater', 'suv', 'hybrid'],
-  ),
-  _VehicleSuggestion(
-    name: 'Toyota Innova',
-    categoryId: 'SUV',
-    categoryLabel: 'SUV 7-Seater',
-    aliases: ['innova', 'toyota', '7 seater', 'suv'],
-  ),
-  _VehicleSuggestion(
-    name: 'Maruti Ertiga',
-    categoryId: 'SUV',
-    categoryLabel: 'SUV 7-Seater',
-    aliases: ['ertiga', 'maruti', 'suzuki', '7 seater', 'suv', 'cng'],
-  ),
-  _VehicleSuggestion(
-    name: 'Maruti XL6',
-    categoryId: 'SUV',
-    categoryLabel: 'SUV 6-Seater',
-    aliases: ['xl6', 'maruti', 'suzuki', '6 seater', 'suv'],
-  ),
-  _VehicleSuggestion(
-    name: 'Kia Carens',
-    categoryId: 'SUV',
-    categoryLabel: 'SUV 7-Seater',
-    aliases: ['carens', 'kia', '7 seater', 'suv'],
-  ),
-  _VehicleSuggestion(
-    name: 'Mahindra Scorpio',
-    categoryId: 'SUV',
-    categoryLabel: 'SUV',
-    aliases: ['scorpio', 'mahindra', 'classic', 'suv'],
-  ),
-  _VehicleSuggestion(
-    name: 'Mahindra Scorpio-N',
-    categoryId: 'SUV',
-    categoryLabel: 'SUV',
-    aliases: ['scorpio', 'scorpio n', 'mahindra', 'suv'],
-  ),
-  _VehicleSuggestion(
-    name: 'Mahindra XUV700',
-    categoryId: 'SUV',
-    categoryLabel: 'SUV 7-Seater',
-    aliases: ['xuv', 'xuv700', 'mahindra', '7 seater', 'suv'],
-  ),
-  _VehicleSuggestion(
-    name: 'Mahindra Bolero',
-    categoryId: 'SUV',
-    categoryLabel: 'SUV',
-    aliases: ['bolero', 'mahindra', 'suv'],
-  ),
-  _VehicleSuggestion(
-    name: 'Mahindra Bolero Neo',
-    categoryId: 'SUV',
-    categoryLabel: 'SUV',
-    aliases: ['bolero', 'bolero neo', 'mahindra', 'suv'],
-  ),
-  _VehicleSuggestion(
-    name: 'Hyundai Creta',
-    categoryId: 'SUV',
-    categoryLabel: 'Compact SUV',
-    aliases: ['creta', 'hyundai', 'suv'],
-  ),
-  _VehicleSuggestion(
-    name: 'Hyundai Alcazar',
-    categoryId: 'SUV',
-    categoryLabel: 'SUV 7-Seater',
-    aliases: ['alcazar', 'hyundai', '7 seater', 'suv'],
-  ),
-  _VehicleSuggestion(
-    name: 'Kia Seltos',
-    categoryId: 'SUV',
-    categoryLabel: 'Compact SUV',
-    aliases: ['seltos', 'kia', 'suv'],
-  ),
-  _VehicleSuggestion(
-    name: 'Tata Safari',
-    categoryId: 'SUV',
-    categoryLabel: 'SUV 7-Seater',
-    aliases: ['safari', 'tata', '7 seater', 'suv'],
-  ),
-  _VehicleSuggestion(
-    name: 'Tata Harrier',
-    categoryId: 'SUV',
-    categoryLabel: 'SUV',
-    aliases: ['harrier', 'tata', 'suv'],
-  ),
-  _VehicleSuggestion(
-    name: 'Tata Nexon',
-    categoryId: 'SUV',
-    categoryLabel: 'Compact SUV',
-    aliases: ['nexon', 'tata', 'suv'],
-  ),
-  _VehicleSuggestion(
-    name: 'Toyota Fortuner',
-    categoryId: 'SUV',
-    categoryLabel: 'Premium SUV',
-    aliases: ['fortuner', 'toyota', '4x4', 'suv'],
-  ),
-  _VehicleSuggestion(
-    name: 'MG Hector',
-    categoryId: 'SUV',
-    categoryLabel: 'SUV',
-    aliases: ['hector', 'mg', 'suv'],
-  ),
-
-  // ── Hatchbacks ────────────────────────────────────────────────────────
-  _VehicleSuggestion(
-    name: 'Maruti WagonR',
-    categoryId: 'HATCHBACK',
-    categoryLabel: 'Compact Hatchback',
-    aliases: ['wagonr', 'wagon r', 'maruti', 'suzuki', 'cng', 'hatchback'],
-  ),
-  _VehicleSuggestion(
-    name: 'Maruti Swift',
-    categoryId: 'HATCHBACK',
-    categoryLabel: 'Compact Hatchback',
-    aliases: ['swift', 'maruti', 'suzuki', 'hatchback'],
-  ),
-  _VehicleSuggestion(
-    name: 'Maruti Baleno',
-    categoryId: 'HATCHBACK',
-    categoryLabel: 'Compact Hatchback',
-    aliases: ['baleno', 'maruti', 'nexa', 'hatchback'],
-  ),
-  _VehicleSuggestion(
-    name: 'Maruti Celerio',
-    categoryId: 'HATCHBACK',
-    categoryLabel: 'Compact Hatchback',
-    aliases: ['celerio', 'maruti', 'hatchback'],
-  ),
-  _VehicleSuggestion(
-    name: 'Maruti Alto K10',
-    categoryId: 'HATCHBACK',
-    categoryLabel: 'Budget Hatchback',
-    aliases: ['alto', 'alto k10', 'maruti', 'hatchback'],
-  ),
-  _VehicleSuggestion(
-    name: 'Hyundai Grand i10 Nios',
-    categoryId: 'HATCHBACK',
-    categoryLabel: 'Compact Hatchback',
-    aliases: ['i10', 'grand i10', 'nios', 'hyundai', 'hatchback'],
-  ),
-  _VehicleSuggestion(
-    name: 'Hyundai i20',
-    categoryId: 'HATCHBACK',
-    categoryLabel: 'Compact Hatchback',
-    aliases: ['i20', 'hyundai', 'hatchback'],
-  ),
-  _VehicleSuggestion(
-    name: 'Tata Tiago',
-    categoryId: 'HATCHBACK',
-    categoryLabel: 'Compact Hatchback',
-    aliases: ['tiago', 'tata', 'ev', 'hatchback'],
-  ),
-  _VehicleSuggestion(
-    name: 'Tata Altroz',
-    categoryId: 'HATCHBACK',
-    categoryLabel: 'Compact Hatchback',
-    aliases: ['altroz', 'tata', 'hatchback'],
-  ),
-
-  // ── Buses & Travellers ────────────────────────────────────────────────
-  _VehicleSuggestion(
-    name: 'Force Traveller 3350',
-    categoryId: 'TEMPO_TRAVELLER',
-    categoryLabel: 'Tempo Traveller',
-    aliases: ['traveller', 'force', 'tempo', 'van'],
-  ),
-  _VehicleSuggestion(
-    name: 'Force Traveller 4020',
-    categoryId: 'TEMPO_TRAVELLER',
-    categoryLabel: 'Tempo Traveller',
-    aliases: ['traveller', 'force', 'tempo', 'van'],
-  ),
-  _VehicleSuggestion(
-    name: 'Tata Winger',
-    categoryId: 'TEMPO_TRAVELLER',
-    categoryLabel: 'Tempo Traveller',
-    aliases: ['winger', 'tata', 'tempo'],
-  ),
-  _VehicleSuggestion(
-    name: 'Commercial Coach Bus',
-    categoryId: 'BUS',
-    categoryLabel: 'Coach Bus',
-    aliases: ['bus', 'coach', 'ashok leyland', 'volvo', 'bharatbenz'],
-  ),
-];
 
 /// Screen 12: Step 3 of 3: Vehicle Verification & Documents (Matches Add Vehicle layout).
 class OnboardingVehicleScreen extends StatefulWidget {
@@ -438,29 +152,33 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
     } catch (_) {}
   }
 
-  List<_VehicleSuggestion> _getFilteredVehicleSuggestions(String query) {
+  List<Map<String, dynamic>> _getFilteredVehicleSuggestions(String query) {
     final clean = query.trim().toLowerCase();
     if (clean.isEmpty) {
-      return _popularVehicleModels.take(8).toList();
+      return _vehicleOptions;
     }
-    return _popularVehicleModels.where((v) {
-      if (v.name.toLowerCase().contains(clean)) return true;
-      if (v.categoryLabel.toLowerCase().contains(clean)) return true;
-      return v.aliases.any((alias) =>
-          alias.toLowerCase().contains(clean) || clean.contains(alias.toLowerCase()));
+    return _vehicleOptions.where((v) {
+      final label = (v['label'] as String? ?? '').toLowerCase();
+      final id = (v['id'] as String? ?? '').toLowerCase();
+      final subtitle = (v['subtitle'] as String? ?? '').toLowerCase();
+      final desc = (v['description'] as String? ?? '').toLowerCase();
+      return label.contains(clean) ||
+          id.contains(clean) ||
+          subtitle.contains(clean) ||
+          desc.contains(clean);
     }).toList();
   }
 
-  void _selectVehicleModel(_VehicleSuggestion item) {
-    _makeModelController.text = item.name;
-    if (_vehicleOptions.any((v) => v['id'] == item.categoryId)) {
-      _category = item.categoryId;
-    }
+  void _selectVehicleModel(Map<String, dynamic> item) {
+    final label = item['label'] as String? ?? item['id'] as String? ?? 'Vehicle';
+    final catId = (item['id'] as String? ?? 'SEDAN').toUpperCase();
+    _makeModelController.text = label;
+    _category = catId;
     _showModelDropdown = false;
     _makeModelFocusNode.unfocus();
     context.read<OnboardingProvider>().setVehicleDetails(
       vehicleType: _category,
-      carModel: item.name,
+      carModel: label,
       color: _colorController.text.trim(),
       registrationNumber: _plateController.text.trim(),
       modelYear: _yearController.text.trim(),
@@ -1218,7 +936,7 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
             color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
           ),
           decoration: InputDecoration(
-            hintText: 'e.g. Maruti Dzire, Honda City, Innova',
+            hintText: 'e.g. Prime Sedan, SUV 7 Seater',
             hintStyle: AppTypography.body(
               color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
             ),
@@ -1313,17 +1031,22 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        query.isEmpty
-                            ? 'POPULAR SEDANS & SUVS (TAP TO SELECT)'
-                            : 'MATCHING MODELS (${suggestions.length})',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                          color: isDark ? AppColors.textMutedDark : AppColors.primary,
+                      Expanded(
+                        child: Text(
+                          query.isEmpty
+                              ? 'ADMIN REGISTERED VEHICLES (TAP TO SELECT)'
+                              : 'MATCHING VEHICLES (${suggestions.length})',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                            color: isDark ? AppColors.textMutedDark : AppColors.primary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      const SizedBox(width: 8),
                       InkWell(
                         onTap: () => setState(() => _showModelDropdown = false),
                         child: const Icon(Icons.close_rounded, size: 16),
@@ -1338,7 +1061,7 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'No matching model in quick suggestions.',
+                          'No matching vehicle in admin fleet.',
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
@@ -1369,8 +1092,12 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                       ),
                       itemBuilder: (context, index) {
                         final item = suggestions[index];
-                        final isSelected = _makeModelController.text.trim().toLowerCase() ==
-                            item.name.toLowerCase();
+                        final label = item['label'] as String? ?? item['id'] as String? ?? 'Vehicle';
+                        final catId = (item['id'] as String? ?? 'SEDAN').toUpperCase();
+                        final subtitle = item['subtitle'] as String? ?? '';
+                        final icon = item['icon'] as IconData? ?? Icons.directions_car_rounded;
+                        final isSelected = _category == catId ||
+                            _makeModelController.text.trim().toLowerCase() == label.toLowerCase();
 
                         return InkWell(
                           onTap: () {
@@ -1391,28 +1118,39 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                                     borderRadius: BorderRadius.circular(AppRadius.sm),
                                   ),
                                   child: Icon(
-                                    item.categoryId == 'SUV'
-                                        ? Icons.airport_shuttle_rounded
-                                        : (item.categoryId == 'BUS'
-                                            ? Icons.directions_bus_rounded
-                                            : Icons.directions_car_rounded),
-                                    size: 16,
+                                    icon,
+                                    size: 18,
                                     color: AppColors.primary,
                                   ),
                                 ),
                                 const SizedBox(width: 10),
                                 Expanded(
-                                  child: Text(
-                                    item.name,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                                      color: isSelected
-                                          ? AppColors.primary
-                                          : (isDark
-                                              ? AppColors.textPrimaryDark
-                                              : AppColors.textPrimaryLight),
-                                    ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        label,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                          color: isSelected
+                                              ? AppColors.primary
+                                              : (isDark
+                                                  ? AppColors.textPrimaryDark
+                                                  : AppColors.textPrimaryLight),
+                                        ),
+                                      ),
+                                      if (subtitle.isNotEmpty)
+                                        Text(
+                                          subtitle,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                    ],
                                   ),
                                 ),
                                 Container(
@@ -1427,7 +1165,7 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                                     ),
                                   ),
                                   child: Text(
-                                    item.categoryLabel,
+                                    catId,
                                     style: TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w600,

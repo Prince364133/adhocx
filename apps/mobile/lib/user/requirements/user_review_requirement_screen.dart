@@ -11,6 +11,7 @@ import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
+import '../../shared/widgets/trip_rating_bottom_sheet.dart';
 import 'requirement_draft_provider.dart';
 import 'utils/office_hub_detector.dart';
 
@@ -220,12 +221,12 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                     controller: amountController,
                     keyboardType: TextInputType.number,
                     onChanged: (_) {
-                      if (appliedTopUpCoupon != null) {
-                        setModalState(() {
+                      setModalState(() {
+                        if (appliedTopUpCoupon != null) {
                           appliedTopUpCoupon = null;
                           topUpCouponError = null;
-                        });
-                      }
+                        }
+                      });
                     },
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.currency_rupee, color: AppColors.primary),
@@ -271,6 +272,11 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                         child: TextField(
                           controller: topUpCouponController,
                           textCapitalization: TextCapitalization.characters,
+                          onChanged: (_) {
+                            setModalState(() {
+                              if (topUpCouponError != null) topUpCouponError = null;
+                            });
+                          },
                           decoration: InputDecoration(
                             prefixIcon: const Icon(Icons.local_offer_outlined, size: 20, color: AppColors.primary),
                             hintText: 'Enter Promo / Coupon Code',
@@ -285,10 +291,14 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                       SizedBox(
                         height: 44,
                         child: OutlinedButton(
-                          onPressed: isValidatingTopUpCoupon || topUpCouponController.text.trim().isEmpty
+                          onPressed: isValidatingTopUpCoupon
                               ? null
                               : () async {
                                   final code = topUpCouponController.text.trim().toUpperCase();
+                                  if (code.isEmpty) {
+                                    setModalState(() => topUpCouponError = 'Please enter a coupon code');
+                                    return;
+                                  }
                                   final amount = double.tryParse(amountController.text.trim()) ?? 0;
                                   if (amount < 100) {
                                     setModalState(() => topUpCouponError = 'Enter at least ₹100 before applying coupon');
@@ -364,7 +374,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                               const Icon(Icons.check_circle_outline, size: 16, color: AppColors.success),
                               const SizedBox(width: 6),
                               Text(
-                                '${appliedTopUpCoupon!['code']}: ₹${discountAmount.toStringAsFixed(0)} off!',
+                                '${appliedTopUpCoupon!['code']}: ₹${discountAmount.toStringAsFixed(0)} off!${(discountAmount >= rawAmount || netPayable <= 0) ? ' (100% FREE)' : ''}',
                                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.success),
                               ),
                             ],
@@ -389,7 +399,14 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text('Net Payable:', style: TextStyle(fontSize: 12, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
-                          Text('₹ ${netPayable.toStringAsFixed(2)}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                          Text(
+                            netPayable <= 0 ? '₹ 0.00 (100% OFF / FREE)' : '₹ ${netPayable.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: netPayable <= 0 ? AppColors.success : AppColors.primary,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -420,7 +437,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                                 final razorpayOrderId = orderRes['orderId'] as String?;
                                 final keyId = orderRes['keyId'] as String?;
                                 final payableAmount = (orderRes['finalPayableAmount'] as num?)?.toDouble() ?? (appliedTopUpCoupon != null ? netPayable : rawAmount);
-                                final isFullyDiscounted = orderRes['isFullyDiscounted'] == true || payableAmount <= 0;
+                                final isFullyDiscounted = orderRes['isFullyDiscounted'] == true || payableAmount <= 0 || (appliedTopUpCoupon != null && netPayable <= 0);
 
                                 if (isFullyDiscounted) {
                                   setModalState(() => isProcessing = false);
@@ -430,7 +447,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                                   if (mounted) {
                                     messenger.showSnackBar(
                                       SnackBar(
-                                        content: Text('₹${amount.toStringAsFixed(0)} added to wallet successfully!${couponCode != null ? " ($couponCode applied)" : ""}'),
+                                        content: Text('₹${amount.toStringAsFixed(0)} added to wallet successfully!${couponCode != null ? " ($couponCode 100% discount applied)" : ""}'),
                                         backgroundColor: AppColors.success,
                                       ),
                                     );
@@ -523,13 +540,18 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                               }
                             },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
+                        backgroundColor: (appliedTopUpCoupon != null && netPayable <= 0) ? AppColors.success : AppColors.primary,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                       ),
                       child: isProcessing
                           ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : Text('PROCEED TO PAY ₹${(appliedTopUpCoupon != null ? netPayable : rawAmount).toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          : Text(
+                              appliedTopUpCoupon != null && netPayable <= 0
+                                  ? 'CLAIM 100% DISCOUNT (FREE ₹0)'
+                                  : 'PROCEED TO PAY ₹${(appliedTopUpCoupon != null ? netPayable : rawAmount).toStringAsFixed(0)}',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
                     ),
                   ),
                 ],
@@ -645,6 +667,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
         setState(() => _isSubmitting = false);
         final rawMsg = e.toString().replaceAll("Exception: ", "").replaceAll("ApiException(400): ", "").replaceAll("BadRequestException: ", "");
         final isLowBalance = rawMsg.toLowerCase().contains("insufficient") || rawMsg.toLowerCase().contains("wallet") || rawMsg.toLowerCase().contains("balance");
+        final isReviewRequired = rawMsg.toLowerCase().contains("feedback") || rawMsg.toLowerCase().contains("completed trip") || rawMsg.toLowerCase().contains("review");
 
         if (isLowBalance) {
           Fluttertoast.showToast(
@@ -653,6 +676,26 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
             textColor: Colors.white,
           );
           _showTopUpBottomSheet();
+        } else if (isReviewRequired) {
+          UserService.instance.getPendingReview().then((pendingTrip) {
+            if (pendingTrip != null && mounted) {
+              TripRatingBottomSheet.show(
+                context: context,
+                tripId: pendingTrip['id']?.toString() ?? '',
+                targetName: pendingTrip['driverName']?.toString() ?? 'Your Driver',
+                vehicleInfo: pendingTrip['vehiclePlate']?.toString(),
+                isReviewingDriver: true,
+                isMandatory: true,
+              );
+            }
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(rawMsg),
+              backgroundColor: AppColors.error,
+              duration: const Duration(seconds: 5),
+            ),
+          );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -966,6 +1009,11 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                                 child: TextField(
                                   controller: _couponController,
                                   textCapitalization: TextCapitalization.characters,
+                                  onChanged: (_) {
+                                    setState(() {
+                                      if (_couponError != null) _couponError = null;
+                                    });
+                                  },
                                   decoration: InputDecoration(
                                     hintText: 'Enter promo code (e.g. ADHOC100)',
                                     hintStyle: const TextStyle(fontSize: 12),
@@ -979,10 +1027,14 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                               SizedBox(
                                 height: 44,
                                 child: OutlinedButton(
-                                  onPressed: _isValidatingCoupon || _couponController.text.trim().isEmpty
+                                  onPressed: _isValidatingCoupon
                                       ? null
                                       : () async {
                                           final code = _couponController.text.trim().toUpperCase();
+                                          if (code.isEmpty) {
+                                            setState(() => _couponError = 'Please enter a promo code');
+                                            return;
+                                          }
                                           final baseCost = (draft.quantity * _getRatePerVehicle(draft)).toDouble();
 
                                           setState(() {

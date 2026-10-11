@@ -14,6 +14,7 @@ import { LocationsService } from '../locations/locations.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
 import { RedisService } from '../../redis/redis.service';
+import { GoogleMapsService } from '../locations/google-maps.service';
 
 export interface DispatchResult {
   requirementId: string;
@@ -26,28 +27,102 @@ export interface DispatchResult {
 export class DispatchService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DispatchService.name);
   private reaperInterval?: NodeJS.Timeout;
+  private readonly waveTimers = new Map<string, NodeJS.Timeout>();
 
   constructor(
     protected readonly db: DatabaseService,
     private readonly locationsService: LocationsService,
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
+    @Optional() private readonly googleMapsService?: GoogleMapsService,
     @Optional() private readonly redis?: RedisService,
   ) {}
 
   onModuleInit() {
-    // Background automatic wave reaper for timed-out offers (every 10s)
+    // Background automatic wave reaper for timed-out offers (safety sweep every 10s)
     this.reaperInterval = setInterval(() => {
       this.reapExpiredOffersAndRedispatch().catch((err) => {
         this.logger.warn(`Wave reaper tick notice: ${err.message}`);
       });
     }, 10000);
     this.reaperInterval.unref(); // Prevents hanging process or test teardown
+
+    // Rehydrate any in-flight wave timers upon server boot/restart
+    this.rehydratePendingWaveTimers().catch((err) => {
+      this.logger.warn(`Wave timer rehydration notice: ${err.message}`);
+    });
+  }
+
+  /**
+   * Rehydrate active wave timers upon application startup/reboot.
+   * Guarantees zero dangling or un-reaped offers after server restarts.
+   */
+  async rehydratePendingWaveTimers(): Promise<void> {
+    try {
+      const now = Date.now();
+      const activeSentOffers = await this.db.offer.findMany({
+        where: {
+          status: OfferStatus.SENT,
+          expiresAt: { gt: new Date() },
+        },
+        select: { requirementId: true, expiresAt: true },
+      });
+
+      const reqMap = new Map<string, number>();
+      for (const off of activeSentOffers) {
+        const remainingMs = Math.max(1000, new Date(off.expiresAt).getTime() - now);
+        const existing = reqMap.get(off.requirementId);
+        if (!existing || remainingMs < existing) {
+          reqMap.set(off.requirementId, remainingMs);
+        }
+      }
+
+      for (const [reqId, remainingMs] of reqMap.entries()) {
+        this.logger.log(`[Rehydrate] Restoring active wave countdown for requirement ${reqId} (${Math.round(remainingMs / 1000)}s remaining)`);
+        this.scheduleWaveExpiration(reqId, remainingMs);
+      }
+    } catch (err: any) {
+      this.logger.warn(`Failed to rehydrate wave timers on boot: ${err.message}`);
+    }
   }
 
   onModuleDestroy() {
     if (this.reaperInterval) {
       clearInterval(this.reaperInterval);
+    }
+    for (const timer of this.waveTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.waveTimers.clear();
+  }
+
+  /**
+   * Schedule deterministic wave timeout for a requirement (default 30s).
+   * Fires immediate cascading without waiting for background 10s polling.
+   */
+  scheduleWaveExpiration(requirementId: string, delayMs: number = 30000): void {
+    this.cancelWaveExpiration(requirementId);
+    const timer = setTimeout(async () => {
+      this.waveTimers.delete(requirementId);
+      try {
+        this.logger.log(`[DeterministicWave] 30s window lapsed for requirement ${requirementId}. Triggering immediate cascade.`);
+        await this.reapExpiredOffersAndRedispatch(requirementId);
+      } catch (err: any) {
+        this.logger.warn(`Deterministic wave cascade notice for ${requirementId}: ${err.message}`);
+      }
+    }, delayMs);
+    timer.unref();
+    this.waveTimers.set(requirementId, timer);
+  }
+
+  /**
+   * Cancel pending wave timeout when an offer is accepted.
+   */
+  cancelWaveExpiration(requirementId: string): void {
+    const existing = this.waveTimers.get(requirementId);
+    if (existing) {
+      clearTimeout(existing);
+      this.waveTimers.delete(requirementId);
     }
   }
 
@@ -55,9 +130,10 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
    * Automatically reaps timed-out dispatch offers and cascades to Wave 2 for unfulfilled requirements.
    * Multi-instance safe via distributed locking.
    */
-  async reapExpiredOffersAndRedispatch(): Promise<{ expiredCount: number; requirementsRedispatched: string[] }> {
+  async reapExpiredOffersAndRedispatch(specificRequirementId?: string): Promise<{ expiredCount: number; requirementsRedispatched: string[] }> {
+    const lockKey = specificRequirementId ? `wave_reaper_${specificRequirementId}` : 'wave_reaper';
     if (this.redis) {
-      const lockAcquired = await this.redis.acquireLock('wave_reaper', 12);
+      const lockAcquired = await this.redis.acquireLock(lockKey, 12);
       if (!lockAcquired) {
         return { expiredCount: 0, requirementsRedispatched: [] };
       }
@@ -69,6 +145,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
         where: {
           status: OfferStatus.SENT,
           expiresAt: { lt: now },
+          ...(specificRequirementId ? { requirementId: specificRequirementId } : {}),
         },
         include: { requirement: true },
       });
@@ -85,7 +162,41 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
         data: { status: OfferStatus.EXPIRED },
       });
 
-      // 2. Notify drivers via SSE
+      // 2. Behavioral feedback: Update driver acceptance rate & consecutive ignores
+      for (const offer of expiredOffers) {
+        try {
+          const driver = await this.db.driver.findUnique({ where: { id: offer.driverId } });
+          if (driver) {
+            const accepted = (driver as any).acceptedOffers || 0;
+            const declined = ((driver as any).declinedOffers || 0) + 1;
+            const consecutive = ((driver as any).consecutiveDeclines || 0) + 1;
+            const total = accepted + declined;
+            const newAR = total > 0 ? Number(((accepted / total) * 100).toFixed(1)) : 100.0;
+            const newTrust = Math.max(0.0, Number((driver.trustScore - 1.0).toFixed(1)));
+            const cooldownUntil = consecutive >= 3 ? new Date(Date.now() + 3 * 60 * 1000) : undefined;
+
+            await this.db.driver.update({
+              where: { id: driver.id },
+              data: {
+                declinedOffers: declined,
+                consecutiveDeclines: consecutive,
+                acceptanceRate: newAR,
+                trustScore: newTrust,
+                ...(cooldownUntil ? { cooldownUntil } : {}),
+              } as any,
+            });
+
+            if (cooldownUntil) {
+              this.notifications.emitEvent(`driver:${driver.id}`, 'DRIVER_COOLDOWN', {
+                cooldownMinutes: 3,
+                message: '3-minute cooldown applied due to repeatedly missing nearby matching trip offers.',
+              });
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 3. Notify drivers via SSE
       for (const offer of expiredOffers) {
         this.notifications.emitEvent(`driver:${offer.driverId}`, 'OFFER_EXPIRED', {
           offerId: offer.id,
@@ -282,6 +393,8 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       driverId: string;
       driver: (typeof candidateDrivers)[0];
       distanceKm: number;
+      roadDistanceKm: number;
+      etaMinutes: number;
       trustScore: number;
       rating: number;
       compositeScore: number;
@@ -300,7 +413,13 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       // 3. Driver availability status check
       if (driver.availabilityStatus !== DriverAvailability.AVAILABLE) continue;
 
-      // 4. Strict vehicle capability check (reject incompatible vehicles, e.g. sedan for SUV or hatchback)
+      // 4. Temporary cooldown check (anti-cherry-picking penalty)
+      if ((driver as any).cooldownUntil && new Date((driver as any).cooldownUntil).getTime() > Date.now()) {
+        this.logger.debug(`Driver ${driver.id} in temporary decline cooldown. Skipping for this wave.`);
+        continue;
+      }
+
+      // 5. Strict vehicle capability check (reject incompatible vehicles, e.g. sedan for SUV or hatchback)
       const driverVehicles = (driver as any).vehicles || [];
       const normalizeV = (v?: string | null) => {
         if (!v) return '';
@@ -320,23 +439,45 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
         continue;
       }
 
-      // 5. No conflicting active trips
+      // 6. No conflicting active trips
       if (driver.trips && driver.trips.length > 0) continue;
+
+      // 7. Stale location check: driver must have reported location within last 30 minutes
+      const lastPing = driver.lastLocationAt ? new Date(driver.lastLocationAt).getTime() : 0;
+      if (lastPing > 0 && Date.now() - lastPing > 30 * 60 * 1000) {
+        this.logger.debug(`Driver ${driver.id} location is stale (>30m). Skipping.`);
+        continue;
+      }
 
       const driverLat = Number(driver.currentLat ?? pickupLat);
       const driverLng = Number(driver.currentLng ?? pickupLng);
-      const distanceKm = Math.sqrt(
+      const aerialDistanceKm = Math.sqrt(
         Math.pow((driverLat - pickupLat) * 111, 2) +
         Math.pow((driverLng - pickupLng) * 111 * Math.cos(pickupLat * (Math.PI / 180)), 2),
       );
+
+      // Two-Phase Spatial Routing: High-fidelity road distance and traffic ETA
+      let roadDistanceKm = Number((aerialDistanceKm * 1.25).toFixed(2));
+      let etaMinutes = Math.max(2, Math.round((roadDistanceKm / 25) * 60));
+
+      if (this.googleMapsService) {
+        try {
+          const route = await this.googleMapsService.computeDriverEta(
+            { latitude: driverLat, longitude: driverLng },
+            { latitude: pickupLat, longitude: pickupLng },
+          );
+          roadDistanceKm = route.distanceKm;
+          etaMinutes = route.etaMinutes;
+        } catch (_) {}
+      }
 
       const rawTrust = Number(driver.trustScore ?? 94.0);
       const avgRating = Number(driver.averageRating ?? 4.85);
       const totalTrips = driver.totalTrips || 0;
       const isRookie = totalTrips < 25;
 
-      // Multi-factor Scoring: Proximity (35 pts) + Trust (35 pts) + Rating (20 pts) + Rookie (10 pts) + Idle Fairness (5 pts)
-      const proximityScore = Math.max(0, 35 * (1 - distanceKm / 100));
+      // Multi-factor Scoring: Traffic-aware Road ETA Proximity (35 pts) + Trust (35 pts) + Rating (20 pts) + Rookie (10 pts) + Idle Fairness (5 pts)
+      const proximityScore = Math.max(0, 35 * (1 - Math.min(30, etaMinutes) / 30));
       const trustScorePart = 35 * (Math.min(100, Math.max(0, rawTrust)) / 100);
       const ratingScorePart = 20 * Math.max(0, (avgRating - 3.0) / 2.0);
       const rookieBoost = isRookie ? 10.0 : rawTrust < 75 ? 5.0 : 0.0;
@@ -357,7 +498,9 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       eligibleCandidates.push({
         driverId: driver.id,
         driver,
-        distanceKm,
+        distanceKm: aerialDistanceKm,
+        roadDistanceKm,
+        etaMinutes,
         trustScore: rawTrust,
         rating: avgRating,
         compositeScore,
@@ -523,6 +666,10 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.logger.log(`Created ${createdOffers.length} offers for requirement ${requirementId}`);
+
+    // Deterministic Wave Scheduling: Schedule precise 30s timer for wave cascading
+    this.scheduleWaveExpiration(requirementId, 30000);
+
     return {
       requirementId,
       offersCreated: createdOffers.length,

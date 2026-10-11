@@ -294,10 +294,22 @@ export class OffersService {
         },
       });
 
-      // Lock driver availability to BUSY
+      // Lock driver availability to BUSY and reward acceptance rate & trust score
+      const acceptedCount = ((driver as any).acceptedOffers || 0) + 1;
+      const declinedCount = (driver as any).declinedOffers || 0;
+      const newAR = Number(((acceptedCount / (acceptedCount + declinedCount)) * 100).toFixed(1));
+      const newTrust = Math.min(100.0, Number((driver.trustScore + 0.25).toFixed(1)));
+
       await tx.driver.update({
         where: { id: driver.id },
-        data: { availabilityStatus: DriverAvailability.BUSY },
+        data: {
+          availabilityStatus: DriverAvailability.BUSY,
+          acceptedOffers: acceptedCount,
+          consecutiveDeclines: 0,
+          acceptanceRate: newAR,
+          trustScore: newTrust,
+          cooldownUntil: null,
+        } as any,
       });
 
       return {
@@ -309,6 +321,9 @@ export class OffersService {
         requirement,
       };
     }, { timeout: 30000, maxWait: 10000 });
+
+    // Cancel pending wave expiration timer since a driver accepted
+    this.dispatchService?.cancelWaveExpiration?.(txResult.requirement.id);
 
     // Invalidate any other pending offers sent to this driver
     await this.db.offer.updateMany({
@@ -480,6 +495,45 @@ export class OffersService {
       },
     });
 
+    // Behavioral Feedback: If driver declined a favorable nearby trip, apply trust penalty & check cooldown
+    try {
+      const driverLat = Number(driver.currentLat ?? offer.requirement.pickupLat);
+      const driverLng = Number(driver.currentLng ?? offer.requirement.pickupLng);
+      const dist = Math.sqrt(
+        Math.pow((driverLat - Number(offer.requirement.pickupLat)) * 111, 2) +
+        Math.pow((driverLng - Number(offer.requirement.pickupLng)) * 111 * Math.cos(driverLat * (Math.PI / 180)), 2),
+      );
+
+      // Nearby favorable booking (within 5 km)
+      if (dist <= 5.0) {
+        const accepted = (driver as any).acceptedOffers || 0;
+        const declined = ((driver as any).declinedOffers || 0) + 1;
+        const consecutive = ((driver as any).consecutiveDeclines || 0) + 1;
+        const total = accepted + declined;
+        const newAR = total > 0 ? Number(((accepted / total) * 100).toFixed(1)) : 100.0;
+        const newTrust = Math.max(0.0, Number((driver.trustScore - 1.5).toFixed(1)));
+        const cooldownUntil = consecutive >= 3 ? new Date(Date.now() + 3 * 60 * 1000) : undefined;
+
+        await this.db.driver.update({
+          where: { id: driver.id },
+          data: {
+            declinedOffers: declined,
+            consecutiveDeclines: consecutive,
+            acceptanceRate: newAR,
+            trustScore: newTrust,
+            ...(cooldownUntil ? { cooldownUntil } : {}),
+          } as any,
+        });
+
+        if (cooldownUntil) {
+          this.notifications.emitEvent(`driver:${driver.id}`, 'DRIVER_COOLDOWN', {
+            cooldownMinutes: 3,
+            message: 'You have been temporarily paused for 3 minutes due to declining 3 consecutive nearby matched offers.',
+          });
+        }
+      }
+    } catch (_) {}
+
     await this.audit.log({
       userId: driverUserId,
       action: 'OFFER_DECLINED',
@@ -491,7 +545,8 @@ export class OffersService {
       },
     });
 
-    // Re-trigger dispatch wave to find another driver for remaining slot
+    // Cancel pending wave timer and re-trigger dispatch wave to find another candidate
+    this.dispatchService?.cancelWaveExpiration?.(offer.requirementId);
     this.dispatchService.dispatchRequirement(offer.requirementId).catch((err) => {
       this.logger.warn(`Redispatch after decline failed for requirement ${offer.requirementId}: ${err.message}`);
     });

@@ -13,6 +13,7 @@ import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/theme/theme_provider.dart';
 import '../../shared/widgets/app_primary_button.dart';
+import '../../shared/widgets/trip_rating_bottom_sheet.dart';
 import '../requirements/requirement_draft_provider.dart';
 
 class UserHomeScreen extends StatefulWidget {
@@ -24,6 +25,7 @@ class UserHomeScreen extends StatefulWidget {
 
 class _UserHomeScreenState extends State<UserHomeScreen> {
   bool _isLoading = true;
+  bool _hasCheckedPendingReview = false;
   Map<String, dynamic> _summary = {
     'totalRequirements': 0,
     'totalVehiclesRequired': 0,
@@ -40,6 +42,31 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     _loadDashboardData();
   }
 
+  Future<void> _checkPendingReview() async {
+    if (_hasCheckedPendingReview) return;
+    try {
+      final pendingTrip = await UserService.instance.getPendingReview();
+      if (pendingTrip != null && mounted) {
+        _hasCheckedPendingReview = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            TripRatingBottomSheet.show(
+              context: context,
+              tripId: pendingTrip['id']?.toString() ?? '',
+              targetName: pendingTrip['driverName']?.toString() ?? 'Your Driver',
+              vehicleInfo: pendingTrip['vehiclePlate']?.toString(),
+              isReviewingDriver: true,
+              isMandatory: true,
+              onReviewSubmitted: () {
+                _loadDashboardData();
+              },
+            );
+          }
+        });
+      }
+    } catch (_) {}
+  }
+
   Future<void> _loadDashboardData() async {
     setState(() => _isLoading = true);
     try {
@@ -53,6 +80,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
           _recentRequirements = listRes;
           _isLoading = false;
         });
+        _checkPendingReview();
       }
     } catch (e) {
       debugPrint('Failed to load dashboard: $e');

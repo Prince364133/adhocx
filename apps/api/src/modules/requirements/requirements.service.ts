@@ -18,6 +18,7 @@ import {
   VerificationStatus,
   OfferStatus,
   BidStatus,
+  TripStatus,
   FulfillmentMode,
   VehicleType,
   PaymentStatus,
@@ -78,6 +79,26 @@ export class RequirementsService {
     }
 
     const vendorId = vendor?.id || `vnd_${vendorUserId}`;
+
+    // Mandatory Review Gatekeeper: If user has an unreviewed completed trip, block new ride creation
+    const unreviewedTrip = this.db.trip?.findFirst
+      ? await this.db.trip.findFirst({
+          where: {
+            vendorId,
+            status: TripStatus.COMPLETED,
+            reviews: { none: { reviewerId: vendorUserId } },
+          },
+          select: { id: true },
+          orderBy: { completedAt: 'desc' },
+        })
+      : null;
+
+    if (unreviewedTrip) {
+      throw new ForbiddenException(
+        `Please submit feedback for your completed trip #${unreviewedTrip.id.substring(0, 8)} before booking a new ride.`,
+      );
+    }
+
     const mode = dto.fulfillmentMode || FulfillmentMode.DIRECT_DISPATCH;
 
     // Corporate zonal quote (optional): validate ownership, expiry and route before any money moves.
@@ -175,9 +196,14 @@ export class RequirementsService {
           if (totalAmount >= Number(coupon.minOrderAmount)) {
             couponToRedeem = coupon;
             if (coupon.discountType === 'PERCENTAGE') {
-              discountAmount = (totalAmount * Number(coupon.discountValue)) / 100;
-              if (coupon.maxDiscountAmount) {
-                discountAmount = Math.min(discountAmount, Number(coupon.maxDiscountAmount));
+              const percent = Number(coupon.discountValue);
+              if (percent >= 100) {
+                discountAmount = totalAmount;
+              } else {
+                discountAmount = (totalAmount * percent) / 100;
+                if (coupon.maxDiscountAmount) {
+                  discountAmount = Math.min(discountAmount, Number(coupon.maxDiscountAmount));
+                }
               }
             } else {
               discountAmount = Number(coupon.discountValue);

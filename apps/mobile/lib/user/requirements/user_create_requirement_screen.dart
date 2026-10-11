@@ -10,6 +10,7 @@ import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
+import '../../shared/widgets/trip_rating_bottom_sheet.dart';
 import 'models/cab_cart_item.dart';
 import 'models/fleet_template_model.dart';
 import 'requirement_draft_provider.dart';
@@ -41,6 +42,27 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
     final draft = context.read<RequirementDraftProvider>();
     _cartNameController.text = draft.cartName;
     _loadWallet();
+    _checkPendingReviewOnEntry();
+  }
+
+  Future<void> _checkPendingReviewOnEntry() async {
+    try {
+      final pendingTrip = await UserService.instance.getPendingReview();
+      if (pendingTrip != null && mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            TripRatingBottomSheet.show(
+              context: context,
+              tripId: pendingTrip['id']?.toString() ?? '',
+              targetName: pendingTrip['driverName']?.toString() ?? 'Your Driver',
+              vehicleInfo: pendingTrip['vehiclePlate']?.toString(),
+              isReviewingDriver: true,
+              isMandatory: true,
+            );
+          }
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -160,7 +182,10 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
 
   Future<void> _applyCoupon(double totalFare) async {
     final code = _couponController.text.trim().toUpperCase();
-    if (code.isEmpty) return;
+    if (code.isEmpty) {
+      setState(() => _couponError = 'Please enter a promo code');
+      return;
+    }
 
     setState(() {
       _isValidatingCoupon = true;
@@ -1230,6 +1255,11 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                             child: TextField(
                               controller: _couponController,
                               textCapitalization: TextCapitalization.characters,
+                              onChanged: (_) {
+                                setState(() {
+                                  if (_couponError != null) _couponError = null;
+                                });
+                              },
                               decoration: InputDecoration(
                                 hintText: 'Enter promo code (e.g. ADHOC100)',
                                 hintStyle: const TextStyle(fontSize: 12),

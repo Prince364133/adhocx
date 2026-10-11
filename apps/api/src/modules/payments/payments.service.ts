@@ -286,8 +286,9 @@ export class PaymentsService {
    * Create Razorpay Order for Wallet Top-Up.
    */
   async createWalletTopUpOrder(vendorUserId: string, dto: WalletTopUpOrderDto): Promise<WalletTopUpOrderResponseDto> {
+    const rawAmount = Number(dto.amount) || 0;
     let discountAmount = 0;
-    let finalPayableAmount = dto.amount;
+    let finalPayableAmount = rawAmount;
     let couponToRedeem: any = null;
 
     if (dto.couponCode) {
@@ -296,18 +297,23 @@ export class PaymentsService {
       const now = new Date();
       if (coupon && coupon.isActive && now >= coupon.validFrom && now <= coupon.validUntil) {
         if (coupon.applicableTo === 'ALL' || coupon.applicableTo === 'WALLET_TOPUP') {
-          if (dto.amount >= Number(coupon.minOrderAmount)) {
+          if (rawAmount >= Number(coupon.minOrderAmount)) {
             couponToRedeem = coupon;
             if (coupon.discountType === 'PERCENTAGE') {
-              discountAmount = (dto.amount * Number(coupon.discountValue)) / 100;
-              if (coupon.maxDiscountAmount) {
-                discountAmount = Math.min(discountAmount, Number(coupon.maxDiscountAmount));
+              const percent = Number(coupon.discountValue);
+              if (percent >= 100) {
+                discountAmount = rawAmount;
+              } else {
+                discountAmount = (rawAmount * percent) / 100;
+                if (coupon.maxDiscountAmount) {
+                  discountAmount = Math.min(discountAmount, Number(coupon.maxDiscountAmount));
+                }
               }
             } else {
               discountAmount = Number(coupon.discountValue);
             }
-            discountAmount = Math.min(discountAmount, dto.amount);
-            finalPayableAmount = Math.max(0, dto.amount - discountAmount);
+            discountAmount = Math.min(discountAmount, rawAmount);
+            finalPayableAmount = Math.max(0, rawAmount - discountAmount);
           }
         }
       }
@@ -340,7 +346,7 @@ export class PaymentsService {
         const v = await tx.vendor.update({
           where: { id: vendor.id },
           data: {
-            escrowBalance: { increment: dto.amount },
+            escrowBalance: { increment: rawAmount },
           },
         });
 
@@ -349,7 +355,7 @@ export class PaymentsService {
             accountType: 'VENDOR',
             accountId: vendor.id,
             entryType: 'CREDIT',
-            amount: dto.amount,
+            amount: rawAmount,
             balanceAfter: v.escrowBalance,
             referenceType: 'WALLET_TOPUP',
             referenceId: freeOrderId,
@@ -364,7 +370,7 @@ export class PaymentsService {
               userId: vendorUserId,
               referenceType: 'WALLET_TOPUP',
               referenceId: freeOrderId,
-              orderAmount: dto.amount,
+              orderAmount: rawAmount,
               discountAmount: discountAmount,
               finalAmount: 0,
             },
@@ -377,11 +383,11 @@ export class PaymentsService {
         }
       }, { timeout: 30000, maxWait: 10000 });
 
-      this.logger.log(`Promotional 100% wallet top-up fulfilled for vendor ${vendor.id}: ₹${dto.amount} credited (coupon: ${couponToRedeem?.code})`);
+      this.logger.log(`Promotional 100% wallet top-up fulfilled for vendor ${vendor.id}: ₹${rawAmount} credited (coupon: ${couponToRedeem?.code})`);
 
       return {
         orderId: freeOrderId,
-        amount: dto.amount,
+        amount: rawAmount,
         currency: 'INR',
         keyId: keyId || 'rzp_free_topup',
         discountAmount,

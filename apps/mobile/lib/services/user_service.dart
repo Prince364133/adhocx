@@ -115,6 +115,19 @@ class UserService {
   }
 
   // Reviews & Ratings
+  Future<Map<String, dynamic>?> getPendingReview() async {
+    await _ensureSession();
+    try {
+      final res = await _api.get('/trips/pending-review');
+      if (res is Map<String, dynamic> && res['pending'] == true && res['trip'] != null) {
+        return res['trip'] as Map<String, dynamic>;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<dynamic> submitReview({
     required String tripId,
     required int rating,

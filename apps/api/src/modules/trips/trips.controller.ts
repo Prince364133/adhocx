@@ -36,6 +36,13 @@ export class TripsController {
     return this.tripsService.getTripsForDriver(user.id, query);
   }
 
+  @Get('pending-review')
+  @Roles(UserRole.DRIVER, UserRole.VENDOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Check if current user has an unreviewed completed trip' })
+  async getPendingReview(@CurrentUser() user: AuthUserDto) {
+    return this.tripsService.getPendingReview(user.id);
+  }
+
   @Get(':id')
   @Roles(UserRole.DRIVER, UserRole.VENDOR, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get full trip details with driver info, vehicle, and events' })

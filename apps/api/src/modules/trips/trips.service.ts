@@ -103,6 +103,50 @@ export class TripsService {
   }
 
   /**
+   * Check if current user has any completed trip with a pending review.
+   * Enables the mandatory review gatekeeper across mobile and web clients.
+   */
+  async getPendingReview(userId: string): Promise<{ pending: boolean; trip: any | null }> {
+    const vendor = await this.db.vendor.findUnique({ where: { userId } });
+    if (!vendor) {
+      return { pending: false, trip: null };
+    }
+
+    const pendingTrip = await this.db.trip.findFirst({
+      where: {
+        vendorId: vendor.id,
+        status: TripStatus.COMPLETED,
+        reviews: {
+          none: { reviewerId: userId },
+        },
+      },
+      include: {
+        driver: { include: { user: true } },
+      },
+      orderBy: { completedAt: 'asc' },
+    });
+
+    if (!pendingTrip) {
+      return { pending: false, trip: null };
+    }
+
+    return {
+      pending: true,
+      trip: {
+        id: pendingTrip.id,
+        status: pendingTrip.status,
+        driverId: pendingTrip.driverId,
+        driverName: pendingTrip.driver?.user?.fullName || pendingTrip.driver?.fullName || 'Driver Partner',
+        vehiclePlate: pendingTrip.driver?.vehiclePlate || undefined,
+        vehicleType: pendingTrip.vehicleType,
+        pickupAddress: pendingTrip.pickupAddress,
+        dropAddress: pendingTrip.dropAddress,
+        completedAt: pendingTrip.completedAt?.toISOString(),
+      },
+    };
+  }
+
+  /**
    * Get complete trip details with driver info, vehicle, and events.
    */
   async getTripById(id: string, userId: string, role?: UserRole): Promise<TripDetailResponseDto> {

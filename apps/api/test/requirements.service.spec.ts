@@ -48,6 +48,9 @@ describe('RequirementsService Unit Tests', () => {
       payment: {
         create: jest.fn().mockResolvedValue({ id: 'pay-1' }),
       },
+      trip: {
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
       $transaction: jest.fn().mockImplementation(async (cb: any) => cb(db)),
     };
 

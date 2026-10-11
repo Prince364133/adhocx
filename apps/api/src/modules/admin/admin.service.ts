@@ -646,20 +646,20 @@ export class AdminService {
         completedTrips,
         pendingSettlements,
       ] = await Promise.all([
-        this.db.driver.count(),
-        this.db.driver.count({ where: { verificationStatus: VerificationStatus.VERIFIED } }),
-        this.db.driver.count({ where: { verificationStatus: VerificationStatus.UNDER_REVIEW } }),
-        this.db.vendor.count(),
-        this.db.vendor.count({ where: { verificationStatus: VerificationStatus.VERIFIED } }),
-        this.db.user.count(),
-        this.db.requirement.count({
+        this.db.driver?.count ? this.db.driver.count() : 0,
+        this.db.driver?.count ? this.db.driver.count({ where: { verificationStatus: VerificationStatus.VERIFIED } }) : 0,
+        this.db.driver?.count ? this.db.driver.count({ where: { verificationStatus: VerificationStatus.UNDER_REVIEW } }) : 0,
+        this.db.vendor?.count ? this.db.vendor.count() : 0,
+        this.db.vendor?.count ? this.db.vendor.count({ where: { verificationStatus: VerificationStatus.VERIFIED } }) : 0,
+        this.db.user?.count ? this.db.user.count() : 0,
+        this.db.requirement?.count ? this.db.requirement.count({
           where: { status: { in: ['POSTED', 'DISPATCHING', 'PARTIALLY_FULFILLED', 'FULFILLED', 'IN_PROGRESS'] } },
-        }),
-        this.db.trip.count({
+        }) : 0,
+        this.db.trip?.count ? this.db.trip.count({
           where: { status: { in: ['ASSIGNED', 'ARRIVED', 'IN_PROGRESS'] } },
-        }),
-        this.db.trip.count({ where: { status: 'COMPLETED' } }),
-        this.db.settlement.count({ where: { status: 'PENDING' } }),
+        }) : 0,
+        this.db.trip?.count ? this.db.trip.count({ where: { status: 'COMPLETED' } }) : 0,
+        this.db.settlement?.count ? this.db.settlement.count({ where: { status: 'PENDING' } }) : 0,
       ]);
 
       return {
@@ -674,7 +674,8 @@ export class AdminService {
         completedTrips,
         pendingSettlements,
       };
-    } catch (_) {
+    } catch (err: any) {
+      this.logger.warn(`Operational metrics aggregation notice: ${err.message}`);
       return {
         totalDrivers: 0,
         verifiedDrivers: 0,

@@ -11,6 +11,7 @@ class TripRatingBottomSheet extends StatefulWidget {
   final String targetName;
   final String? vehicleInfo;
   final bool isReviewingDriver;
+  final bool isMandatory;
   final VoidCallback? onReviewSubmitted;
 
   const TripRatingBottomSheet({
@@ -19,6 +20,7 @@ class TripRatingBottomSheet extends StatefulWidget {
     required this.targetName,
     this.vehicleInfo,
     this.isReviewingDriver = true,
+    this.isMandatory = true,
     this.onReviewSubmitted,
   });
 
@@ -28,19 +30,26 @@ class TripRatingBottomSheet extends StatefulWidget {
     required String targetName,
     String? vehicleInfo,
     bool isReviewingDriver = true,
+    bool isMandatory = true,
     VoidCallback? onReviewSubmitted,
   }) {
     return showModalBottomSheet(
       context: context,
       useRootNavigator: true,
       isScrollControlled: true,
+      isDismissible: !isMandatory,
+      enableDrag: !isMandatory,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => TripRatingBottomSheet(
-        tripId: tripId,
-        targetName: targetName,
-        vehicleInfo: vehicleInfo,
-        isReviewingDriver: isReviewingDriver,
-        onReviewSubmitted: onReviewSubmitted,
+      builder: (ctx) => PopScope(
+        canPop: !isMandatory,
+        child: TripRatingBottomSheet(
+          tripId: tripId,
+          targetName: targetName,
+          vehicleInfo: vehicleInfo,
+          isReviewingDriver: isReviewingDriver,
+          isMandatory: isMandatory,
+          onReviewSubmitted: onReviewSubmitted,
+        ),
       ),
     );
   }
@@ -380,16 +389,30 @@ class _TripRatingBottomSheetState extends State<TripRatingBottomSheet> {
               ),
             ),
             const SizedBox(height: 8),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Skip for now',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+            if (!widget.isMandatory)
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  'Skip for now',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                  ),
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Text(
+                  '🔒 Mandatory feedback required before booking new rides',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),

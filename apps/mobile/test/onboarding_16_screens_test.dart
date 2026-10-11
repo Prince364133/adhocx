@@ -114,6 +114,13 @@ void main() {
 
       expect(find.text('Add Vehicle Details'), findsOneWidget);
       expect(find.text('Prime Sedan'), findsWidgets);
+
+      // Tap dropdown arrow to open the vehicle suggestions list
+      await tester.tap(find.byIcon(Icons.keyboard_arrow_down_rounded).first);
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('ADMIN REGISTERED VEHICLES (TAP TO SELECT)'), findsOneWidget);
+      expect(find.text('Swift Dzire'), findsNothing);
     });
 
     testWidgets('Screen 15: Welcome Celebration Screen renders tailored celebration',

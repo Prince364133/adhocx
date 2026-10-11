@@ -421,6 +421,7 @@ class _SubscriptionPaywallModalState extends State<SubscriptionPaywallModal> {
                           child: TextField(
                             controller: _couponController,
                             textCapitalization: TextCapitalization.characters,
+                            onChanged: (_) => setState(() {}),
                             enabled: _appliedCoupon == null,
                             style: TextStyle(
                               fontSize: 13,

@@ -44,6 +44,7 @@ describe('OffersService Unit Tests', () => {
 
     dispatchService = {
       dispatchRequirement: jest.fn().mockResolvedValue({ offersCreated: 1 }),
+      cancelWaveExpiration: jest.fn(),
     };
 
     notifications = {
