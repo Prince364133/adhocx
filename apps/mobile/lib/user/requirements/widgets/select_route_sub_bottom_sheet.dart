@@ -56,8 +56,10 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
 
   String get _localityAddress =>
       _locality != null ? '${_locality!['name']}, Hyderabad, Telangana' : '';
-  double get _localityLat => (_locality?['lat'] as num?)?.toDouble() ?? 0.0;
-  double get _localityLng => (_locality?['lng'] as num?)?.toDouble() ?? 0.0;
+  double get _localityLat =>
+      ((_locality?['lat'] ?? _locality?['centerLat'] ?? _locality?['latitude']) as num?)?.toDouble() ?? 0.0;
+  double get _localityLng =>
+      ((_locality?['lng'] ?? _locality?['centerLng'] ?? _locality?['longitude']) as num?)?.toDouble() ?? 0.0;
 
   String get _pickupAddress => _isOfficePickup ? _officeAddress : _localityAddress;
   double get _pickupLat => _isOfficePickup ? _officeLat : _localityLat;
@@ -95,6 +97,13 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
     );
 
     if (_locality != null) {
+      final locLat = _localityLat;
+      final locLng = _localityLng;
+      if (locLat == 0.0 || locLng == 0.0) {
+        _locality = Map<String, dynamic>.from(_locality!)
+          ..['lat'] = 17.3850
+          ..['lng'] = 78.4867;
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) => _calculateRoute());
     }
   }
@@ -351,10 +360,41 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
     );
 
     if (picked != null && mounted) {
+      final localityName = picked['name']?.toString() ?? '';
+      double lat = ((picked['lat'] ?? picked['centerLat'] ?? picked['latitude']) as num?)?.toDouble() ?? 0.0;
+      double lng = ((picked['lng'] ?? picked['centerLng'] ?? picked['longitude']) as num?)?.toDouble() ?? 0.0;
+
+      // Default Hyderabad city coordinates if unpinned so coordinates are never 0.0
+      if (lat == 0.0 || lng == 0.0) {
+        lat = 17.3850;
+        lng = 78.4867;
+      }
+
+      final updatedLocality = Map<String, dynamic>.from(picked)
+        ..['lat'] = lat
+        ..['lng'] = lng;
+
       setState(() {
-        _locality = picked;
+        _locality = updatedLocality;
       });
       _calculateRoute();
+
+      // Geocode in background to obtain exact road coordinates for this locality
+      if (localityName.isNotEmpty) {
+        LocationService.instance
+            .searchLocations('$localityName, Hyderabad', lat: 17.3850, lon: 78.4867)
+            .then((places) {
+          if (places.isNotEmpty && mounted) {
+            final best = places.first;
+            setState(() {
+              _locality = Map<String, dynamic>.from(_locality!)
+                ..['lat'] = best.latitude
+                ..['lng'] = best.longitude;
+            });
+            _calculateRoute();
+          }
+        }).catchError((_) {});
+      }
     }
   }
 

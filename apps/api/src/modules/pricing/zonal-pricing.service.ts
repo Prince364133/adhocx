@@ -398,6 +398,10 @@ export class ZonalPricingService implements OnModuleInit {
       aliases: l.aliases,
       hasVerifiedPin: Boolean(l.h3IndexRes8),
       notes: l.notes ?? undefined,
+      centerLat: l.centerLat !== null && l.centerLat !== undefined ? Number(l.centerLat) : undefined,
+      centerLng: l.centerLng !== null && l.centerLng !== undefined ? Number(l.centerLng) : undefined,
+      lat: l.centerLat !== null && l.centerLat !== undefined ? Number(l.centerLat) : undefined,
+      lng: l.centerLng !== null && l.centerLng !== undefined ? Number(l.centerLng) : undefined,
     };
   }
 
@@ -651,9 +655,17 @@ export class ZonalPricingService implements OnModuleInit {
     if (this.normaliseVehicleClass(booking.vehicleType) !== snapshot.vehicleType) {
       throw new BadRequestException('Vehicle category differs from the quote. Request a revised quote.');
     }
+    const snapPickupLat = Number(snapshot.pickupLat);
+    const snapPickupLng = Number(snapshot.pickupLng);
+    const snapDropLat = Number(snapshot.dropLat);
+    const snapDropLng = Number(snapshot.dropLng);
+
+    const pickupPinned = snapPickupLat !== 0 && snapPickupLng !== 0;
+    const dropPinned = snapDropLat !== 0 && snapDropLng !== 0;
+
     const moved =
-      this.distanceKm(Number(snapshot.pickupLat), Number(snapshot.pickupLng), booking.pickupLat, booking.pickupLng) > BOOKING_PIN_TOLERANCE_KM ||
-      this.distanceKm(Number(snapshot.dropLat), Number(snapshot.dropLng), booking.dropLat, booking.dropLng) > BOOKING_PIN_TOLERANCE_KM;
+      (pickupPinned && this.distanceKm(snapPickupLat, snapPickupLng, booking.pickupLat, booking.pickupLng) > BOOKING_PIN_TOLERANCE_KM) ||
+      (dropPinned && this.distanceKm(snapDropLat, snapDropLng, booking.dropLat, booking.dropLng) > BOOKING_PIN_TOLERANCE_KM);
     if (moved) {
       throw new BadRequestException('Pickup or drop differs from the quoted route. Request a revised quote.');
     }

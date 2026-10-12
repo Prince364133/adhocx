@@ -295,16 +295,29 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
     try {
       final localityId = _locality?['id']?.toString();
       if (localityId != null && localityId.isNotEmpty) {
+        final effectivePickupLat = _pickupLat != 0.0
+            ? _pickupLat
+            : (_direction == 'OUTBOUND_FROM_OFFICE' ? (_officeLat != 0.0 ? _officeLat : 17.4435) : 17.3850);
+        final effectivePickupLng = _pickupLng != 0.0
+            ? _pickupLng
+            : (_direction == 'OUTBOUND_FROM_OFFICE' ? (_officeLng != 0.0 ? _officeLng : 78.3772) : 78.4867);
+        final effectiveDropLat = _dropLat != 0.0
+            ? _dropLat
+            : (_direction == 'INBOUND_TO_OFFICE' ? (_officeLat != 0.0 ? _officeLat : 17.4435) : 17.3850);
+        final effectiveDropLng = _dropLng != 0.0
+            ? _dropLng
+            : (_direction == 'INBOUND_TO_OFFICE' ? (_officeLng != 0.0 ? _officeLng : 78.3772) : 78.4867);
+
         final quote = await UserService.instance.createZonalQuote(
           officeHubId: _officeHubId,
           direction: _direction,
           localityId: localityId,
           vehicleType: _vehicleType == 'SUV' ? 'SUV' : 'SEDAN',
           hasEscort: _hasEscort,
-          pickupLat: _pickupLat,
-          pickupLng: _pickupLng,
-          dropLat: _dropLat,
-          dropLng: _dropLng,
+          pickupLat: effectivePickupLat,
+          pickupLng: effectivePickupLng,
+          dropLat: effectiveDropLat,
+          dropLng: effectiveDropLng,
         );
         if (mounted && quote.isNotEmpty && quote['canAutoQuote'] != false) {
           setState(() {
@@ -474,6 +487,19 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
         .where((s) => s.isNotEmpty)
         .toList();
 
+    final effectivePickupLat = _pickupLat != 0.0
+        ? _pickupLat
+        : (_direction == 'OUTBOUND_FROM_OFFICE' ? (_officeLat != 0.0 ? _officeLat : 17.4435) : 17.3850);
+    final effectivePickupLng = _pickupLng != 0.0
+        ? _pickupLng
+        : (_direction == 'OUTBOUND_FROM_OFFICE' ? (_officeLng != 0.0 ? _officeLng : 78.3772) : 78.4867);
+    final effectiveDropLat = _dropLat != 0.0
+        ? _dropLat
+        : (_direction == 'INBOUND_TO_OFFICE' ? (_officeLat != 0.0 ? _officeLat : 17.4435) : 17.3850);
+    final effectiveDropLng = _dropLng != 0.0
+        ? _dropLng
+        : (_direction == 'INBOUND_TO_OFFICE' ? (_officeLng != 0.0 ? _officeLng : 78.3772) : 78.4867);
+
     final cab = CabCartItem(
       id: itemId,
       vehicleType: _vehicleType,
@@ -487,12 +513,12 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
       locality: _locality,
       localityName: _localityName,
       pickupAddress: _pickupAddress,
-      pickupLat: _pickupLat,
-      pickupLng: _pickupLng,
+      pickupLat: effectivePickupLat,
+      pickupLng: effectivePickupLng,
       pickupInstructions: _pickupInstructions,
       dropAddress: _dropAddress,
-      dropLat: _dropLat,
-      dropLng: _dropLng,
+      dropLat: effectiveDropLat,
+      dropLng: effectiveDropLng,
       dropInstructions: _dropInstructions,
       tripType: _tripType,
       hasEscort: _hasEscort,

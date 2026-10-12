@@ -333,6 +333,18 @@ describe('ZonalPricingService (corporate zonal rate card)', () => {
       expect(res.alreadyBookedRequirementId).toBeUndefined();
     });
 
+    it('tolerates booking coordinates when quote endpoint is unpinned (0, 0)', async () => {
+      const q = await quote({});
+      snapshots.get(q.quoteId).dropLat = 0;
+      snapshots.get(q.quoteId).dropLng = 0;
+      const res = await service.validateQuoteForBooking(q.quoteId, VENDOR.userId, {
+        ...booking,
+        dropLat: 17.3850,
+        dropLng: 78.4867,
+      });
+      expect(res.snapshot).toBeDefined();
+    });
+
     it('rejects another account, expired quotes, changed vehicle and moved pins', async () => {
       const q = await quote({});
       await expect(service.validateQuoteForBooking(q.quoteId, ADMIN.userId, booking)).rejects.toBeInstanceOf(ForbiddenException);
