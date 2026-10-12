@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../routes/app_routes.dart';
 import '../../services/user_service.dart';
 import '../../shared/theme/app_colors.dart';
@@ -52,15 +53,15 @@ class _UserDriverDetailsScreenState extends State<UserDriverDetailsScreen> {
     final trip = _trip ?? {};
     final driver = trip['driver'] as Map<String, dynamic>?;
     final driverUser = driver?['user'] as Map<String, dynamic>?;
-    final driverName = driverUser?['fullName'] ?? driver?['fullName'] ?? 'Assigned Driver';
-    final driverPhone = driverUser?['phone'] ?? driver?['phone'] ?? '\u2014';
-    final rating = (driver?['rating'] ?? 0).toString();
+    final driverName = (trip['driverName'] ?? driverUser?['fullName'] ?? driver?['fullName'] ?? 'Assigned Driver').toString();
+    final driverPhone = (trip['driverPhone'] ?? driverUser?['phone'] ?? driver?['phone'] ?? '\u2014').toString();
+    final rating = (driver?['averageRating'] ?? driver?['rating'] ?? 5.0).toString();
     final licenseNumber = driver?['licenseNumber'] ?? '\u2014';
-    final vehiclePlate = driver?['vehiclePlate'] ?? trip['vehiclePlate'] ?? '\u2014';
-    final vehicleModel = driver?['vehicleModel'] ?? trip['vehicleModel'] ?? '\u2014';
+    final vehiclePlate = (trip['vehiclePlate'] ?? driver?['vehiclePlate'] ?? '\u2014').toString();
+    final vehicleModel = (trip['vehicleModel'] ?? driver?['vehicleModel'] ?? trip['vehicleType'] ?? '\u2014').toString();
     final totalTrips = (driver?['totalTrips'] ?? 0).toString();
 
-    final initials = driverName.split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join().toUpperCase();
+    final initials = driverName.split(' ').where((e) => e.isNotEmpty).map((e) => e[0]).take(2).join().toUpperCase();
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -151,19 +152,41 @@ class _UserDriverDetailsScreenState extends State<UserDriverDetailsScreen> {
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.phone_outlined, color: AppColors.primary),
-                          const SizedBox(width: 10),
-                          Text(
-                            driverPhone,
-                            style: AppTypography.body(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold),
-                          ),
-                          const Spacer(),
                           IconButton(
-                            onPressed: () {},
+                            onPressed: () {
+                              final clean = driverPhone.replaceAll(RegExp(r'[^0-9+]'), '');
+                              if (clean.isNotEmpty && clean != '\u2014') {
+                                launchUrl(Uri.parse('tel:$clean'));
+                              }
+                            },
+                            icon: Icon(Icons.phone_outlined, color: AppColors.primary),
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: InkWell(
+                              onTap: () {
+                                final clean = driverPhone.replaceAll(RegExp(r'[^0-9+]'), '');
+                                if (clean.isNotEmpty && clean != '\u2014') {
+                                  launchUrl(Uri.parse('tel:$clean'));
+                                }
+                              },
+                              child: Text(
+                                driverPhone,
+                                style: AppTypography.body(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () {
+                              final clean = driverPhone.replaceAll(RegExp(r'[^0-9+]'), '');
+                              if (clean.isNotEmpty && clean != '\u2014') {
+                                launchUrl(Uri.parse('tel:$clean'));
+                              }
+                            },
                             icon: Container(
                               padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), shape: BoxShape.circle),
-                              child: Icon(Icons.chat_bubble_outline, color: AppColors.primary, size: 18),
+                              child: Icon(Icons.call, color: AppColors.primary, size: 18),
                             ),
                           ),
                         ],

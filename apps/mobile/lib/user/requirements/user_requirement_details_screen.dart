@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../routes/app_routes.dart';
 import '../../services/user_service.dart';
 import '../../shared/theme/app_colors.dart';
@@ -252,39 +253,7 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
     return '${hours}h ${mins}m';
   }
 
-  Color _getOfferStatusColor(String status) {
-    switch (status) {
-      case 'ACCEPTED':
-        return AppColors.success;
-      case 'SENT':
-        return AppColors.primary;
-      case 'DECLINED':
-        return AppColors.error;
-      case 'EXPIRED':
-        return AppColors.slate500;
-      case 'CANCELLED':
-        return AppColors.slate400;
-      default:
-        return AppColors.slate500;
-    }
-  }
 
-  String _getOfferStatusLabel(String status) {
-    switch (status) {
-      case 'ACCEPTED':
-        return 'Accepted';
-      case 'SENT':
-        return 'Offer Sent';
-      case 'DECLINED':
-        return 'Declined';
-      case 'EXPIRED':
-        return 'Expired (No Response)';
-      case 'CANCELLED':
-        return 'Cancelled';
-      default:
-        return status.replaceAll('_', ' ');
-    }
-  }
 
   Widget _buildTelemetryCell({
     required String title,
@@ -332,6 +301,20 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
     required bool isSearching,
     required bool isNoDriver,
   }) {
+    // Extract unique approached driver names
+    final uniqueDrivers = <String>[];
+    for (final o in offers) {
+      if (o is Map) {
+        final raw = o['driverName'] ?? (o['driver'] is Map ? o['driver']['fullName'] : null);
+        final name = raw?.toString().trim();
+        if (name != null && name.isNotEmpty && !uniqueDrivers.contains(name)) {
+          uniqueDrivers.add(name);
+        }
+      }
+    }
+
+    final count = uniqueDrivers.length;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -343,7 +326,7 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                 const Icon(Icons.people_alt_outlined, size: 18, color: AppColors.primary),
                 const SizedBox(width: 6),
                 Text(
-                  'Approached Drivers (${offers.length})',
+                  'Approached Drivers ($count)',
                   style: AppTypography.h4(
                     color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                     fontWeight: FontWeight.bold,
@@ -351,9 +334,9 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                 ),
               ],
             ),
-            if (offers.isNotEmpty)
+            if (count > 0)
               Text(
-                '${offers.length} Dispatched',
+                '$count Contacted',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -363,7 +346,7 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
           ],
         ),
         const SizedBox(height: 8),
-        if (offers.isEmpty)
+        if (uniqueDrivers.isEmpty)
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(AppSpacing.md),
@@ -405,163 +388,45 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
           ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: offers.length,
+            itemCount: uniqueDrivers.length,
             itemBuilder: (context, index) {
-              final o = offers[index];
-              if (o is! Map) return const SizedBox.shrink();
-
-              final driverName = o['driverName']?.toString() ?? 'Verified Partner';
-              final driverPhone = o['driverPhone']?.toString() ?? '—';
-              final rating = _parseNum(o['driverRating'], 4.9).toDouble();
-              final trustScore = _parseNum(o['driverTrustScore'], 95.0).toDouble();
-              final vehicleModel = o['vehicleModel']?.toString() ?? 'Commercial Vehicle';
-              final vehiclePlate = o['vehiclePlate']?.toString() ?? '—';
-              final offeredRate = _parseNum(o['offeredRate'], 0.0).toDouble();
-              final rawStatus = (o['status']?.toString() ?? 'SENT').toUpperCase();
-              final statusColor = _getOfferStatusColor(rawStatus);
-              final statusLabel = _getOfferStatusLabel(rawStatus);
-              final sentAt = _formatDateTime(o['createdAt']?.toString());
+              final driverName = uniqueDrivers[index];
+              final initial = driverName.isNotEmpty ? driverName[0].toUpperCase() : 'D';
 
               return Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.all(AppSpacing.md),
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
                   color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                   borderRadius: BorderRadius.circular(AppRadius.md),
-                  border: Border.all(
-                    color: rawStatus == 'ACCEPTED'
-                        ? AppColors.success.withValues(alpha: 0.6)
-                        : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                  ),
+                  border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    // Row 1: Profile + Rating + Status Chip
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 18,
-                          backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-                          child: Text(
-                            driverName.isNotEmpty ? driverName[0].toUpperCase() : 'D',
-                            style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
-                          ),
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                      child: Text(
+                        initial,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: AppColors.primary,
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Flexible(
-                                    child: Text(
-                                      driverName,
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  const Icon(Icons.verified, size: 14, color: AppColors.primary),
-                                ],
-                              ),
-                              const SizedBox(height: 2),
-                              Row(
-                                children: [
-                                  const Icon(Icons.star_rounded, size: 14, color: AppColors.starAmber),
-                                  const SizedBox(width: 2),
-                                  Text(
-                                    rating.toStringAsFixed(1),
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
-                                  ),
-                                  Text(
-                                    ' • ${trustScore.toStringAsFixed(0)}% Trust',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: statusColor.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(AppRadius.xs),
-                            border: Border.all(color: statusColor.withValues(alpha: 0.4)),
-                          ),
-                          child: Text(
-                            statusLabel,
-                            style: TextStyle(
-                              color: statusColor,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                    const Divider(height: 16),
-                    // Row 2: Vehicle details & Offered Rate
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.directions_car_rounded, size: 14, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
-                            const SizedBox(width: 6),
-                            Text(
-                              '$vehicleModel • $vehiclePlate',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                              ),
-                            ),
-                          ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        driverName,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
-                        Text(
-                          '₹ ${offeredRate.toStringAsFixed(0)}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                    const SizedBox(height: 6),
-                    // Row 3: Timestamp & Contact
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.schedule_rounded, size: 12, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Dispatched: $sentAt',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (driverPhone != '—')
-                          Text(
-                            driverPhone,
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                            ),
-                          ),
-                      ],
-                    ),
+                    const Icon(Icons.verified, size: 16, color: AppColors.primary),
                   ],
                 ),
               );
@@ -1234,9 +1099,43 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                                                   const Icon(Icons.verified, size: 14, color: AppColors.primary),
                                                 ],
                                               ),
-                                              Text(
-                                                'Phone: $driverPhone • Plate: $vehiclePlate',
-                                                style: TextStyle(fontSize: 11, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                                              Row(
+                                                children: [
+                                                  if (driverPhone != '—')
+                                                    InkWell(
+                                                      onTap: () {
+                                                        final clean = driverPhone.replaceAll(RegExp(r'[^0-9+]'), '');
+                                                        if (clean.isNotEmpty) {
+                                                          launchUrl(Uri.parse('tel:$clean'));
+                                                        }
+                                                      },
+                                                      child: Row(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        children: [
+                                                          Text(
+                                                            'Phone: $driverPhone',
+                                                            style: const TextStyle(
+                                                              fontSize: 11,
+                                                              color: AppColors.primary,
+                                                              fontWeight: FontWeight.w600,
+                                                              decoration: TextDecoration.underline,
+                                                            ),
+                                                          ),
+                                                          const SizedBox(width: 3),
+                                                          const Icon(Icons.call, size: 11, color: AppColors.primary),
+                                                        ],
+                                                      ),
+                                                    )
+                                                  else
+                                                    Text(
+                                                      'Phone: $driverPhone',
+                                                      style: TextStyle(fontSize: 11, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                                                    ),
+                                                  Text(
+                                                    ' • Plate: $vehiclePlate',
+                                                    style: TextStyle(fontSize: 11, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                                                  ),
+                                                ],
                                               ),
                                             ],
                                           ),

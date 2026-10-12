@@ -79,6 +79,11 @@ export class TripResponseDto {
   parkingCharges?: number;
   totalDriverEarnings!: number;
   currentLocation?: GeoLocationDto;
+  driverName?: string;
+  driverPhone?: string;
+  vehiclePlate?: string;
+  vehicleModel?: string;
+  driver?: any;
   createdAt!: string;
   updatedAt!: string;
 }
@@ -107,9 +112,6 @@ export class TripEventResponseDto {
 }
 
 export class TripDetailResponseDto extends TripResponseDto {
-  driverName?: string;
-  driverPhone?: string;
-  vehiclePlate?: string;
   vendorOrganizationName?: string;
   startOtp?: string;
   events?: TripEventResponseDto[];

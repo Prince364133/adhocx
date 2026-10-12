@@ -115,8 +115,8 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
           final tripId = _trip?['id']?.toString() ?? widget.tripId ?? '';
           final driver = _trip?['driver'] as Map<String, dynamic>?;
           final driverUser = driver?['user'] as Map<String, dynamic>?;
-          final driverName = driverUser?['fullName'] ?? driver?['fullName'] ?? 'Your Driver';
-          final vehiclePlate = driver?['vehiclePlate'] ?? _trip?['vehiclePlate'];
+          final driverName = _trip?['driverName']?.toString() ?? driverUser?['fullName'] ?? driver?['fullName'] ?? 'Your Driver';
+          final vehiclePlate = _trip?['vehiclePlate'] ?? driver?['vehiclePlate'];
 
           TripRatingBottomSheet.show(
             context: context,
@@ -266,6 +266,38 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
     );
   }
 
+  Future<void> _callDriver(String phone) async {
+    final cleanPhone = phone.replaceAll(RegExp(r'[^0-9+]'), '');
+    if (cleanPhone.isNotEmpty && phone != '—') {
+      final phoneUri = Uri.parse('tel:$cleanPhone');
+      try {
+        if (await canLaunchUrl(phoneUri)) {
+          await launchUrl(phoneUri);
+        } else {
+          await launchUrl(phoneUri, mode: LaunchMode.externalApplication);
+        }
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Could not open dialer for: $phone'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Driver phone number is not available. Please contact 24/7 Safety Desk.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -274,14 +306,14 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
     final trip = _trip ?? {};
     final driver = trip['driver'] as Map<String, dynamic>?;
     final driverUser = driver?['user'] as Map<String, dynamic>?;
-    final driverName = driverUser?['fullName'] ?? driver?['fullName'] ?? 'Assigned Driver';
-    final driverPhone = driver?['phone'] ?? driverUser?['phone'] ?? '—';
-    final vehiclePlate = driver?['vehiclePlate'] ?? trip['vehiclePlate'] ?? '—';
-    final vehicleModel = driver?['vehicleModel'] ?? trip['vehicleModel'] ?? trip['vehicleType'] ?? 'Commercial Fleet';
-    final rating = (driver?['averageRating'] ?? driver?['rating'] ?? 5.0).toString();
+    final driverName = (trip['driverName'] ?? driverUser?['fullName'] ?? driver?['fullName'] ?? 'Assigned Driver').toString();
+    final driverPhone = (trip['driverPhone'] ?? driver?['phone'] ?? driverUser?['phone'] ?? '—').toString();
+    final vehiclePlate = (trip['vehiclePlate'] ?? driver?['vehiclePlate'] ?? '—').toString();
+    final vehicleModel = (trip['vehicleModel'] ?? driver?['vehicleModel'] ?? trip['vehicleType'] ?? 'Commercial Fleet').toString();
+    final rating = (driver?['averageRating'] ?? driver?['rating'] ?? trip['rating'] ?? 5.0).toString();
     final status = (trip['status'] ?? 'IN_PROGRESS').toString();
     final tripCode = trip['id'] != null ? 'TRIP-${trip['id'].toString().substring(0, 8).toUpperCase()}' : 'TRIP-LIVE';
-    final otp = trip['startOtp'] ?? trip['otp'] ?? '—';
+    final otp = (trip['startOtp'] ?? trip['otp'] ?? '—').toString();
 
     final pickup = trip['pickupLocation'] as Map<String, dynamic>?;
     final drop = trip['dropLocation'] as Map<String, dynamic>?;
@@ -306,7 +338,7 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
       {'time': 'Completed', 'title': 'Dropoff & Trip Settlement', 'isDone': isCompleted, 'isCurrent': status == 'COMPLETED'},
     ];
 
-    final initials = driverName.split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join().toUpperCase();
+    final initials = driverName.split(' ').where((e) => e.isNotEmpty).map((e) => e[0]).take(2).join().toUpperCase();
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -569,22 +601,23 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
                                       ),
                                     ),
                                     if (driverPhone != '—')
-                                      Text(
-                                        'Phone: $driverPhone',
-                                        style: TextStyle(fontSize: 11, color: isDark ? AppColors.textSecondaryDark : AppColors.slate600),
+                                      InkWell(
+                                        onTap: () => _callDriver(driverPhone),
+                                        child: Text(
+                                          'Phone: $driverPhone',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: isDark ? AppColors.primary : AppColors.primaryDark,
+                                            fontWeight: FontWeight.w600,
+                                            decoration: TextDecoration.underline,
+                                          ),
+                                        ),
                                       ),
                                   ],
                                 ),
                               ),
                               AppBouncingWrapper(
-                                onTap: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Contacting Driver: $driverPhone'),
-                                      duration: const Duration(seconds: 2),
-                                    ),
-                                  );
-                                },
+                                onTap: () => _callDriver(driverPhone),
                                 child: Container(
                                   padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(

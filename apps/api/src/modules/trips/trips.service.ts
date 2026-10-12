@@ -66,7 +66,7 @@ export class TripsService {
 
     const trips = await this.db.trip.findMany({
       where,
-      include: { requirement: true },
+      include: { requirement: true, driver: { include: { user: true } } },
       skip,
       take: limit,
       orderBy: { createdAt: 'desc' },
@@ -95,7 +95,7 @@ export class TripsService {
 
     const trips = await this.db.trip.findMany({
       where,
-      include: { requirement: true },
+      include: { requirement: true, driver: { include: { user: true } } },
       skip,
       take: limit,
       orderBy: { createdAt: 'desc' },
@@ -167,13 +167,33 @@ export class TripsService {
 
     const baseDto = this.mapToDto(trip);
 
+    const driverFullName = trip.driver?.fullName || trip.driver?.user?.fullName || 'Driver Partner';
+    const driverPhoneNumber = trip.driver?.phone || trip.driver?.user?.phone || undefined;
+    const vehiclePlateNumber = trip.driver?.vehiclePlate || undefined;
+    const vehicleModelName = trip.driver?.vehicleModel || trip.vehicleType || undefined;
+
     return {
       ...baseDto,
-      driverName: trip.driver.fullName,
-      driverPhone: trip.driver.phone || undefined,
-      vehiclePlate: trip.driver.vehiclePlate || undefined,
-      vendorOrganizationName: trip.requirement.vendor.organizationName,
+      driverName: driverFullName,
+      driverPhone: driverPhoneNumber,
+      vehiclePlate: vehiclePlateNumber,
+      vehicleModel: vehicleModelName,
+      vendorOrganizationName: trip.requirement?.vendor?.organizationName,
       startOtp: (role === UserRole.VENDOR || role === UserRole.ADMIN) ? trip.otp : undefined,
+      driver: {
+        id: trip.driver?.id,
+        fullName: driverFullName,
+        phone: driverPhoneNumber,
+        vehiclePlate: vehiclePlateNumber,
+        vehicleModel: vehicleModelName,
+        vehicleType: trip.driver?.vehicleType || trip.vehicleType,
+        rating: trip.driver?.averageRating ?? 5.0,
+        trustScore: trip.driver?.trustScore ?? 100.0,
+        user: {
+          fullName: driverFullName,
+          phone: driverPhoneNumber,
+        },
+      },
       events: trip.events.map((e) => ({
         id: e.id,
         tripId: e.tripId,
@@ -990,12 +1010,21 @@ export class TripsService {
   }
 
   private mapToDto(t: any): TripResponseDto {
+    const driverFullName = t.driver?.fullName || t.driver?.user?.fullName;
+    const driverPhoneNumber = t.driver?.phone || t.driver?.user?.phone;
+    const vehiclePlateNumber = t.driver?.vehiclePlate;
+    const vehicleModelName = t.driver?.vehicleModel || t.vehicleType;
+
     return {
       id: t.id,
       requirementId: t.requirementId,
       assignmentId: t.assignmentId,
       vendorId: t.vendorId,
       driverId: t.driverId,
+      driverName: driverFullName,
+      driverPhone: driverPhoneNumber,
+      vehiclePlate: vehiclePlateNumber,
+      vehicleModel: vehicleModelName,
       vehicleId: t.vehicleId || undefined,
       vehicleType: t.vehicleType as unknown as VehicleType,
       pickupLocation: {
@@ -1019,6 +1048,24 @@ export class TripsService {
       totalDriverEarnings: Number(t.totalDriverEarnings || 0),
       createdAt: t.createdAt.toISOString(),
       updatedAt: t.updatedAt.toISOString(),
+      ...(t.driver
+        ? {
+            driver: {
+              id: t.driver.id,
+              fullName: driverFullName,
+              phone: driverPhoneNumber,
+              vehiclePlate: vehiclePlateNumber,
+              vehicleModel: vehicleModelName,
+              vehicleType: t.driver.vehicleType || t.vehicleType,
+              rating: t.driver.averageRating ?? 5.0,
+              trustScore: t.driver.trustScore ?? 100.0,
+              user: {
+                fullName: driverFullName,
+                phone: driverPhoneNumber,
+              },
+            },
+          }
+        : {}),
     };
   }
 }
