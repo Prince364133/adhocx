@@ -126,36 +126,7 @@ class _DriverScoreScreenState extends State<DriverScoreScreen> with SingleTicker
           'status': 'EXCELLENT',
         },
       },
-      'scoreHistory': [
-        {
-          'id': 'hist_1',
-          'delta': '+2.0 pts',
-          'type': 'BONUS',
-          'title': '5-Star Passenger Feedback ("Punctual & Polite")',
-          'date': 'Today, 2:30 PM',
-        },
-        {
-          'id': 'hist_2',
-          'delta': '+0.5 pts',
-          'type': 'TRIP_COMPLETE',
-          'title': 'Corporate Sedan Transfer Completed',
-          'date': 'Yesterday, 6:15 PM',
-        },
-        {
-          'id': 'hist_3',
-          'delta': '+5.0 pts',
-          'type': 'MILESTONE',
-          'title': '10-Trip Zero Cancellation Streak Milestone',
-          'date': '2 days ago',
-        },
-        {
-          'id': 'hist_4',
-          'delta': '-3.0 pts',
-          'type': 'PENALTY',
-          'title': 'Driver-Initiated Cancellation within 5m',
-          'date': '3 days ago',
-        },
-      ],
+      'scoreHistory': [],
       'improvementTips': [
         'Accept your next 3 consecutive dispatch offers to reach 96+ score.',
         'Arrive within 3 minutes of estimated pickup time to maximize Punctuality points.',
@@ -580,6 +551,48 @@ class _DriverScoreScreenState extends State<DriverScoreScreen> with SingleTicker
 
   // ── History Ledger ────────────────────────────────────────────────────────
   Widget _buildHistoryLedger(bool isDark, List<dynamic> history) {
+    if (history.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xl),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.history_toggle_off,
+                size: 36,
+                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'No Score Activity Recorded Yet',
+                style: AppTypography.body(
+                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Complete trips and maintain high ratings to build your verified score history.',
+                textAlign: TextAlign.center,
+                style: AppTypography.caption(
+                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
@@ -600,8 +613,26 @@ class _DriverScoreScreenState extends State<DriverScoreScreen> with SingleTicker
           final item = history[idx] as Map<String, dynamic>;
           final delta = item['delta']?.toString() ?? '+0.0';
           final title = item['title']?.toString() ?? 'Activity';
-          final date = item['date']?.toString() ?? '';
+          final rawDate = item['date']?.toString() ?? '';
           final isPositive = delta.startsWith('+');
+
+          String displayDate = rawDate;
+          final parsedDate = DateTime.tryParse(rawDate);
+          if (parsedDate != null) {
+            final now = DateTime.now();
+            final diff = now.difference(parsedDate.toLocal());
+            if (diff.inMinutes < 1) {
+              displayDate = 'Just now';
+            } else if (diff.inMinutes < 60) {
+              displayDate = '${diff.inMinutes}m ago';
+            } else if (diff.inHours < 24) {
+              displayDate = '${diff.inHours}h ago';
+            } else if (diff.inDays < 7) {
+              displayDate = '${diff.inDays}d ago';
+            } else {
+              displayDate = '${parsedDate.day.toString().padLeft(2, '0')}/${parsedDate.month.toString().padLeft(2, '0')}/${parsedDate.year}';
+            }
+          }
 
           return ListTile(
             leading: CircleAvatar(
@@ -624,7 +655,7 @@ class _DriverScoreScreenState extends State<DriverScoreScreen> with SingleTicker
               ),
             ),
             subtitle: Text(
-              date,
+              displayDate,
               style: AppTypography.caption(
                 color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                 fontSize: 11,

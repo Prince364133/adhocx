@@ -305,15 +305,6 @@ export class AuthService implements OnModuleInit {
       throw new UnauthorizedException('Incorrect password. Please try again or reset your password.');
     }
 
-    if (dto.role) {
-      const requestedRole = this.mapUserRole(dto.role);
-      if (requestedRole && user.role !== requestedRole) {
-        throw new ForbiddenException(
-          `This account is registered as a ${user.role}. You cannot sign in as a ${requestedRole}.`,
-        );
-      }
-    }
-
     this.logger.log(`✅ [LOGIN SUCCESS] User authenticated: ${user.id} (${user.fullName || user.phone}) as ${user.role}`);
     return this.generateAuthResponse(user);
   }
@@ -649,16 +640,6 @@ export class AuthService implements OnModuleInit {
             });
           } catch (_) {}
         } else {
-          // Reject if account exists under a different role
-          if (dto.role) {
-            const requestedRole = this.mapUserRole(dto.role);
-            if (requestedRole && user.role !== requestedRole) {
-              throw new ConflictException(
-                `This email is already registered as a ${user.role}. You cannot sign in as a ${requestedRole}.`,
-              );
-            }
-          }
-
           // Existing user authenticating via social auth: log them in as their registered role
           if (user.role === UserRole.VENDOR && !user.vendor) {
             try {

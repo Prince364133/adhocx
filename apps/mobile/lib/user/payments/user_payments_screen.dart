@@ -118,12 +118,12 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
                     controller: amountController,
                     keyboardType: TextInputType.number,
                     onChanged: (_) {
-                      setModalState(() {
-                        if (appliedCoupon != null) {
+                      if (appliedCoupon != null) {
+                        setModalState(() {
                           appliedCoupon = null;
                           couponError = null;
-                        }
-                      });
+                        });
+                      }
                     },
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.currency_rupee, color: AppColors.primary),
@@ -169,11 +169,6 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
                         child: TextField(
                           controller: couponController,
                           textCapitalization: TextCapitalization.characters,
-                          onChanged: (_) {
-                            setModalState(() {
-                              if (couponError != null) couponError = null;
-                            });
-                          },
                           decoration: InputDecoration(
                             prefixIcon: const Icon(Icons.local_offer_outlined, size: 20, color: AppColors.primary),
                             hintText: 'Enter Promo / Coupon Code',
@@ -188,14 +183,10 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
                       SizedBox(
                         height: 44,
                         child: OutlinedButton(
-                          onPressed: isValidatingCoupon
+                          onPressed: isValidatingCoupon || couponController.text.trim().isEmpty
                               ? null
                               : () async {
                                   final code = couponController.text.trim().toUpperCase();
-                                  if (code.isEmpty) {
-                                    setModalState(() => couponError = 'Please enter a coupon code');
-                                    return;
-                                  }
                                   final amount = double.tryParse(amountController.text.trim()) ?? 0;
                                   if (amount < 100) {
                                     setModalState(() => couponError = 'Enter at least ₹100 before applying coupon');
@@ -274,7 +265,7 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
                               const Icon(Icons.check_circle_outline, size: 16, color: AppColors.success),
                               const SizedBox(width: 6),
                               Text(
-                                '${appliedCoupon!['code']}: ₹${discountAmount.toStringAsFixed(0)} discount applied!${(discountAmount >= rawAmount || netPayable <= 0) ? ' (100% FREE)' : ''}',
+                                '${appliedCoupon!['code']}: ₹${discountAmount.toStringAsFixed(0)} discount applied!',
                                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.success),
                               ),
                             ],
@@ -300,14 +291,7 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text('Net Payable:', style: TextStyle(fontSize: 12, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
-                          Text(
-                            netPayable <= 0 ? '₹ 0.00 (100% OFF / FREE)' : '₹ ${netPayable.toStringAsFixed(2)}',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: netPayable <= 0 ? AppColors.success : AppColors.primary,
-                            ),
-                          ),
+                          Text('₹ ${netPayable.toStringAsFixed(2)}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary)),
                         ],
                       ),
                     ),
@@ -338,7 +322,7 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
                                 final razorpayOrderId = orderRes['orderId'] as String?;
                                 final keyId = orderRes['keyId'] as String?;
                                 final payableAmount = (orderRes['finalPayableAmount'] as num?)?.toDouble() ?? (appliedCoupon != null ? netPayable : rawAmount);
-                                final isFullyDiscounted = orderRes['isFullyDiscounted'] == true || payableAmount <= 0 || (appliedCoupon != null && netPayable <= 0);
+                                final isFullyDiscounted = orderRes['isFullyDiscounted'] == true || payableAmount <= 0;
 
                                 if (isFullyDiscounted) {
                                   setModalState(() => isProcessing = false);
@@ -348,7 +332,7 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
                                   if (mounted) {
                                     messenger.showSnackBar(
                                       SnackBar(
-                                        content: Text('₹${amount.toStringAsFixed(0)} added to wallet successfully!${couponCode != null ? " ($couponCode 100% discount applied)" : ""}'),
+                                        content: Text('₹${amount.toStringAsFixed(0)} added to wallet successfully!${couponCode != null ? " ($couponCode applied)" : ""}'),
                                         backgroundColor: AppColors.success,
                                       ),
                                     );
@@ -442,18 +426,13 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
                               }
                             },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: (appliedCoupon != null && netPayable <= 0) ? AppColors.success : AppColors.primary,
+                        backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                       ),
                       child: isProcessing
                           ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : Text(
-                              appliedCoupon != null && netPayable <= 0
-                                  ? 'CLAIM 100% DISCOUNT (FREE ₹0)'
-                                  : 'PROCEED TO PAY ₹${(appliedCoupon != null ? netPayable : rawAmount).toStringAsFixed(0)}',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            ),
+                          : Text('PROCEED TO PAY ₹${(appliedCoupon != null ? netPayable : rawAmount).toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],

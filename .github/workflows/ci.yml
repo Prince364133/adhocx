@@ -2,9 +2,9 @@ name: CI Pipeline (Quality, Security & Live Testing)
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, production]
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, production]
 
 concurrency:
   group: ci-${{ github.ref }}

@@ -153,4 +153,72 @@ describe('DriversService Unit Tests', () => {
       }),
     );
   });
+
+  it('should return empty scoreHistory for rookie driver with no activity', async () => {
+    db.driver.findUnique.mockResolvedValue({
+      id: 'drv-new',
+      userId: 'usr-new',
+      fullName: 'New Driver',
+      trustScore: 100.0,
+      averageRating: 5.0,
+      totalTrips: 0,
+      acceptanceRate: 100.0,
+      trips: [],
+      reviewsReceived: [],
+      lastCooldownAt: null,
+    });
+
+    const breakdown = await service.getTrustScoreBreakdown('usr-new');
+    expect(breakdown.isRookieProtected).toBe(true);
+    expect(breakdown.scoreHistory).toEqual([]);
+    expect(breakdown.currentScore).toBe(100.0);
+  });
+
+  it('should populate scoreHistory from real reviews, completed trips and cooldowns', async () => {
+    const now = new Date();
+    db.driver.findUnique.mockResolvedValue({
+      id: 'drv-active',
+      userId: 'usr-active',
+      fullName: 'Pro Driver',
+      trustScore: 92.5,
+      averageRating: 4.8,
+      totalTrips: 12,
+      acceptanceRate: 90.0,
+      trips: [
+        {
+          id: 'trip-1',
+          status: 'COMPLETED',
+          pickupAddress: 'Connaught Place, New Delhi',
+          dropAddress: 'Gurgaon Cyber City',
+          completedAt: new Date(now.getTime() - 3600000),
+          createdAt: new Date(now.getTime() - 7200000),
+        },
+      ],
+      reviewsReceived: [
+        {
+          id: 'rev-1',
+          rating: 5,
+          feedback: 'Smooth ride',
+          tripId: 'trip-1',
+          createdAt: new Date(now.getTime() - 1800000),
+        },
+      ],
+      lastCooldownAt: new Date(now.getTime() - 86400000),
+      cooldownLevel: 1,
+      createdAt: new Date(now.getTime() - 100000000),
+    });
+
+    const breakdown = await service.getTrustScoreBreakdown('usr-active');
+    expect(breakdown.scoreHistory.length).toBeGreaterThanOrEqual(3);
+    const revEntry = breakdown.scoreHistory.find((h) => h.id === 'rev_rev-1');
+    expect(revEntry).toBeDefined();
+    expect(revEntry?.delta).toBe('+2.0 pts');
+    expect(revEntry?.title).toContain('Smooth ride');
+
+    const tripEntry = breakdown.scoreHistory.find((h) => h.id === 'trip_trip-1');
+    expect(tripEntry).toBeDefined();
+    expect(tripEntry?.delta).toBe('+0.5 pts');
+    expect(tripEntry?.title).toContain('Connaught Place → Gurgaon Cyber City');
+  });
 });
+

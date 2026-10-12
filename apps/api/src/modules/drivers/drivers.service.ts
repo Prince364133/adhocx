@@ -626,6 +626,10 @@ export class DriversService {
           take: 20,
           orderBy: { createdAt: 'desc' },
         },
+        reviewsReceived: {
+          take: 20,
+          orderBy: { createdAt: 'desc' },
+        },
       },
     });
 
@@ -642,7 +646,7 @@ export class DriversService {
           averageRating: 5.0,
           totalTrips: 0,
         },
-        include: { user: true, trips: true },
+        include: { user: true, trips: true, reviewsReceived: true },
       });
     }
 
@@ -700,38 +704,103 @@ export class DriversService {
       ];
     }
 
-    const scoreHistory: TrustScoreHistoryItemDto[] = [
-      {
-        id: 'hist_1',
-        delta: '+2.0 pts',
-        type: 'BONUS',
-        title: '5-Star Passenger Feedback ("Punctual & Polite")',
-        date: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
-        tripId: driver.trips?.[0]?.id,
-      },
-      {
-        id: 'hist_2',
-        delta: '+0.5 pts',
-        type: 'TRIP_COMPLETE',
-        title: 'Corporate Sedan Transfer Completed',
-        date: new Date(Date.now() - 14 * 3600 * 1000).toISOString(),
-        tripId: driver.trips?.[1]?.id,
-      },
-      {
-        id: 'hist_3',
+    const scoreHistory: TrustScoreHistoryItemDto[] = [];
+
+    // 1. Live passenger reviews
+    if (driver.reviewsReceived && driver.reviewsReceived.length > 0) {
+      for (const review of driver.reviewsReceived) {
+        const rating = review.rating;
+        const feedbackSnippet = review.feedback ? ` ("${review.feedback.slice(0, 35).trim()}")` : '';
+        if (rating === 5) {
+          scoreHistory.push({
+            id: `rev_${review.id}`,
+            delta: '+2.0 pts',
+            type: 'BONUS',
+            title: `5-Star Passenger Feedback${feedbackSnippet}`,
+            date: review.createdAt.toISOString(),
+            tripId: review.tripId,
+          });
+        } else if (rating === 4) {
+          scoreHistory.push({
+            id: `rev_${review.id}`,
+            delta: '+1.0 pts',
+            type: 'BONUS',
+            title: `4-Star Passenger Feedback${feedbackSnippet}`,
+            date: review.createdAt.toISOString(),
+            tripId: review.tripId,
+          });
+        } else if (rating <= 2) {
+          scoreHistory.push({
+            id: `rev_${review.id}`,
+            delta: '-2.0 pts',
+            type: 'PENALTY',
+            title: `Low Passenger Rating (${rating} Stars)${feedbackSnippet}`,
+            date: review.createdAt.toISOString(),
+            tripId: review.tripId,
+          });
+        }
+      }
+    }
+
+    // 2. Real driver trips
+    if (driver.trips && driver.trips.length > 0) {
+      for (const trip of driver.trips) {
+        if (trip.status === 'COMPLETED') {
+          const from = trip.pickupAddress ? trip.pickupAddress.split(',')[0].trim() : 'Pickup';
+          const to = trip.dropAddress ? trip.dropAddress.split(',')[0].trim() : 'Drop';
+          scoreHistory.push({
+            id: `trip_${trip.id}`,
+            delta: '+0.5 pts',
+            type: 'TRIP_COMPLETE',
+            title: `Trip Completed: ${from} → ${to}`,
+            date: (trip.completedAt || trip.updatedAt || trip.createdAt).toISOString(),
+            tripId: trip.id,
+          });
+        } else if (trip.status === 'CANCELLED') {
+          scoreHistory.push({
+            id: `trip_${trip.id}`,
+            delta: '-3.0 pts',
+            type: 'PENALTY',
+            title: 'Trip Cancelled',
+            date: (trip.cancelledAt || trip.updatedAt || trip.createdAt).toISOString(),
+            tripId: trip.id,
+          });
+        }
+      }
+    }
+
+    // 3. Cooldown penalty if recorded
+    if (driver.lastCooldownAt) {
+      scoreHistory.push({
+        id: `cd_${driver.id}_${driver.lastCooldownAt.getTime()}`,
+        delta: `-${driver.cooldownLevel >= 2 ? '5.0' : '3.0'} pts`,
+        type: 'PENALTY',
+        title: `Dispatch Cooldown (Level ${driver.cooldownLevel + 1}) - Consecutive Skips`,
+        date: driver.lastCooldownAt.toISOString(),
+      });
+    }
+
+    // 4. Genuine Milestones
+    if (totalTrips >= 50) {
+      scoreHistory.push({
+        id: `ms_${driver.id}_50`,
         delta: '+5.0 pts',
         type: 'MILESTONE',
-        title: '10-Trip Zero Cancellation Streak Milestone',
-        date: new Date(Date.now() - 48 * 3600 * 1000).toISOString(),
-      },
-      {
-        id: 'hist_4',
-        delta: '-3.0 pts',
-        type: 'PENALTY',
-        title: 'Driver-Initiated Cancellation within 5m',
-        date: new Date(Date.now() - 72 * 3600 * 1000).toISOString(),
-      },
-    ];
+        title: '50-Trip Consistency Milestone',
+        date: (driver.trips?.[0]?.completedAt || driver.updatedAt || driver.createdAt).toISOString(),
+      });
+    } else if (totalTrips >= 10) {
+      scoreHistory.push({
+        id: `ms_${driver.id}_10`,
+        delta: '+5.0 pts',
+        type: 'MILESTONE',
+        title: '10-Trip Completion Milestone',
+        date: (driver.trips?.[0]?.completedAt || driver.updatedAt || driver.createdAt).toISOString(),
+      });
+    }
+
+    scoreHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const finalScoreHistory = scoreHistory.slice(0, 10);
 
     const improvementTips: string[] = [
       'Accept your next 3 consecutive dispatch offers to boost your Acceptance Score.',
@@ -788,7 +857,7 @@ export class DriversService {
           status: loyaltyScore >= 8.5 ? 'EXCELLENT' : loyaltyScore >= 6.5 ? 'GOOD' : 'FAIR',
         },
       },
-      scoreHistory,
+      scoreHistory: finalScoreHistory,
       improvementTips,
     };
   }
