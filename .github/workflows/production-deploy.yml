@@ -144,8 +144,8 @@ jobs:
           REDIS_TLS=${{ secrets.REDIS_TLS || 'false' }}
           JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET || '743e797761e596e86c36430b92a410064e88ae5b6918a1bf5ce781ecf4aee98a' }}
           JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET || 'ea378b0b14df7d55f663bcc0373df4bee1df1f6f1545d12d9d4927e02afd936f' }}
-          RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID || 'rzp_live_TJ4cJdMCagilvq' }}
-          RAZORPAY_KEY_SECRET=${{ secrets.RAZORPAY_KEY_SECRET || 'c5RbhL5k0DIQKTDOQot3cyei' }}
+          RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID || 'rzp_live_ToIaZDxQX0kkEi' }}
+          RAZORPAY_KEY_SECRET=${{ secrets.RAZORPAY_KEY_SECRET || '2QplnKekciVM1jolx84aBf2V' }}
           RAZORPAY_WEBHOOK_SECRET=${{ secrets.RAZORPAY_WEBHOOK_SECRET || 'rzp_webhook_secret_placeholder' }}
           RAZORPAY_WEBHOOK_URL=https://api.adhocx.com/api/v1/payments/webhooks/razorpay
           GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY || 'AQ.Ab8RN6KMmpoX5Rw278uN7G6ekxY4JmMdxoi3iDsRw0s1lbvtgA' }}
