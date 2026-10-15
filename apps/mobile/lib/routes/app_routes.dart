@@ -586,7 +586,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.earningsWithdrawalDetailsScreen,
-      builder: (context, state) => const EarningsWithdrawalDetailsScreen(),
+      builder: (context, state) => EarningsWithdrawalDetailsScreen(initialWithdrawal: state.extra),
     ),
 
     // ── Trips & Operations Detail Routes ─────────────────────────────────────

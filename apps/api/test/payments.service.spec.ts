@@ -209,5 +209,55 @@ describe('PaymentsService Unit Tests', () => {
     expect(result.success).toBe(true);
     expect(result.newBalance).toBe(5000);
   });
+
+  it('should query wallet summary filtering only VENDOR accountType', async () => {
+    db.vendor.findUnique.mockResolvedValue({ id: 'vnd-1', userId: 'usr-vnd-1', escrowBalance: 12000 });
+    db.ledgerEntry = {
+      findMany: jest.fn().mockResolvedValue([
+        { entryType: 'DEBIT', amount: 900, referenceType: 'ESCROW_HOLD' },
+      ]),
+    };
+
+    const summary = await service.getVendorWalletSummary('usr-vnd-1');
+
+    expect(db.ledgerEntry.findMany).toHaveBeenCalledWith({
+      where: { accountId: 'vnd-1', accountType: 'VENDOR' },
+    });
+    expect(summary.walletBalance).toBe(12000);
+    expect(summary.totalSpent).toBe(900);
+  });
+
+  it('should query wallet transactions filtering only VENDOR accountType', async () => {
+    const now = new Date();
+    db.vendor.findUnique.mockResolvedValue({ id: 'vnd-1', userId: 'usr-vnd-1' });
+    db.ledgerEntry = {
+      findMany: jest.fn().mockResolvedValue([
+        {
+          id: 'le-1',
+          accountType: 'VENDOR',
+          amount: 5000,
+          entryType: 'CREDIT',
+          balanceAfter: 5000,
+          referenceType: 'WALLET_TOPUP',
+          referenceId: 'order_123',
+          description: 'Wallet top-up',
+          createdAt: now,
+        },
+      ]),
+    };
+
+    const txs = await service.getVendorWalletTransactions('usr-vnd-1');
+
+    expect(db.ledgerEntry.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { accountId: 'vnd-1', accountType: 'VENDOR' },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      }),
+    );
+    expect(txs).toHaveLength(1);
+    expect(txs[0].accountType).toBe('VENDOR');
+    expect(txs[0].amount).toBe(5000);
+  });
 });
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import '../core/networking/api_client.dart';
 import 'auth_service.dart';
 
@@ -8,6 +9,27 @@ class DriverService {
   DriverService._();
 
   final ApiClient _api = ApiClient.instance;
+
+  final StreamController<Map<String, dynamic>> _tripEventsController =
+      StreamController<Map<String, dynamic>>.broadcast();
+
+  /// Stream of real-time and client-side trip lifecycle updates (STARTED, ARRIVED, COMPLETED, CANCELLED, ASSIGNED).
+  Stream<Map<String, dynamic>> get tripEventsStream => _tripEventsController.stream;
+
+  /// Globally broadcasts a trip state transition and invalidates trips & wallet caches across the app
+  void notifyTripChanged({String? tripId, String? status}) {
+    invalidateCache(trips: true);
+    _api.invalidateCache(prefix: '/trips');
+    _api.invalidateCache(prefix: '/settlements');
+    _api.invalidateCache(prefix: '/wallet');
+    if (!_tripEventsController.isClosed) {
+      _tripEventsController.add({
+        'tripId': tripId,
+        'status': status,
+        'timestamp': DateTime.now().toIso8601String(),
+      });
+    }
+  }
 
   // In-memory smart response caches with TTLs to prevent network flooding
   List<dynamic>? _cachedOffers;
@@ -42,6 +64,7 @@ class DriverService {
       _lastTripsFetchTimeByStatus.clear();
       _cachedWallet = null;
       _lastWalletFetchTime = null;
+      _api.invalidateCache(prefix: '/trips');
     }
     if (all || profile) {
       _cachedProfile = null;
@@ -223,6 +246,7 @@ class DriverService {
     await _ensureDriverSession();
     final res = await _api.post('/offers/$offerId/accept');
     invalidateCache(offers: true, trips: true);
+    notifyTripChanged(status: 'ASSIGNED');
     return res;
   }
 
@@ -299,6 +323,11 @@ class DriverService {
         now.difference(_lastTripsFetchTimeByStatus[key]!).inSeconds < 15) {
       return _cachedTripsByStatus[key]!;
     }
+    if (forceRefresh) {
+      _cachedTripsByStatus.remove(key);
+      _lastTripsFetchTimeByStatus.remove(key);
+      _api.invalidateCache(prefix: '/trips');
+    }
     await _ensureDriverSession();
     final query = status != null ? {'status': status} : null;
     final response = await _api.get('/trips', queryParameters: query, force: forceRefresh);
@@ -313,7 +342,7 @@ class DriverService {
   Future<dynamic> markArrived(String tripId) async {
     await _ensureDriverSession();
     final res = await _api.post('/trips/$tripId/arrive');
-    invalidateCache(trips: true);
+    notifyTripChanged(tripId: tripId, status: 'ARRIVED');
     return res;
   }
 
@@ -334,7 +363,7 @@ class DriverService {
         },
       },
     );
-    invalidateCache(trips: true);
+    notifyTripChanged(tripId: tripId, status: 'IN_PROGRESS');
     return res;
   }
 
@@ -376,7 +405,7 @@ class DriverService {
         },
       },
     );
-    invalidateCache(trips: true);
+    notifyTripChanged(tripId: tripId, status: 'COMPLETED');
     return res;
   }
 
@@ -448,6 +477,7 @@ class DriverService {
     required String bankAccountName,
     required String bankAccountNumber,
     required String bankIfsc,
+    String? bankName,
   }) async {
     await _ensureDriverSession();
     final res = await _api.post(
@@ -457,10 +487,28 @@ class DriverService {
         'bankAccountName': bankAccountName,
         'bankAccountNumber': bankAccountNumber,
         'bankIfsc': bankIfsc,
+        if (bankName != null && bankName.isNotEmpty) 'bankName': bankName,
       },
     );
-    invalidateCache(trips: true);
+    invalidateCache(trips: true, profile: true);
+    _cachedWallet = null;
     return res;
+  }
+
+  Future<List<dynamic>> getSettlements({bool forceRefresh = false}) async {
+    await _ensureDriverSession();
+    final response = await _api.get('/settlements', force: forceRefresh);
+    if (response is List) {
+      return response;
+    } else if (response is Map && response['data'] is List) {
+      return response['data'] as List<dynamic>;
+    }
+    return [];
+  }
+
+  Future<dynamic> getSettlementDetails(String id) async {
+    await _ensureDriverSession();
+    return await _api.get('/settlements/$id');
   }
 
   Future<dynamic> updateBankDetails({

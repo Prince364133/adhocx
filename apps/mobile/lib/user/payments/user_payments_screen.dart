@@ -39,9 +39,21 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
       ]);
 
       if (mounted) {
+        final rawList = results[1] is List ? results[1] as List<dynamic> : [];
+        final filteredList = rawList.where((item) {
+          if (item is! Map) return false;
+          final accType = item['accountType']?.toString().toUpperCase();
+          final refType = item['referenceType']?.toString().toUpperCase();
+          final desc = item['description']?.toString().toLowerCase() ?? '';
+          if (accType == 'PLATFORM' || accType == 'ESCORT_PAYABLE') return false;
+          if (refType == 'ZONAL_PLATFORM_SPREAD' || refType == 'PLATFORM_COMMISSION' || refType == 'ZONAL_ESCORT_PAYABLE') return false;
+          if (desc.startsWith('zonal spread') || desc.startsWith('platform commission')) return false;
+          return true;
+        }).toList();
+
         setState(() {
           _walletData = results[0] as Map<String, dynamic>?;
-          _transactions = results[1] is List ? results[1] as List<dynamic> : [];
+          _transactions = filteredList;
         });
       }
     } catch (e) {

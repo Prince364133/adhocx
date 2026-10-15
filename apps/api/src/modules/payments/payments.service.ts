@@ -262,7 +262,7 @@ export class PaymentsService {
     }
 
     const entries = await this.db.ledgerEntry.findMany({
-      where: { accountId: vendor.id },
+      where: { accountId: vendor.id, accountType: 'VENDOR' },
     });
 
     let totalSpent = 0;
@@ -713,7 +713,10 @@ export class PaymentsService {
     if (!vendor) return [];
 
     const entries = await this.db.ledgerEntry.findMany({
-      where: { accountId: vendor.id },
+      where: {
+        accountId: vendor.id,
+        accountType: 'VENDOR',
+      },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
@@ -742,6 +745,7 @@ export class PaymentsService {
 
       return {
         id: e.id,
+        accountType: e.accountType,
         amount: Number(e.amount),
         entryType: e.entryType,
         type: e.entryType,

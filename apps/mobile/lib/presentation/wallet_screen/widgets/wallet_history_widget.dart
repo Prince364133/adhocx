@@ -1,5 +1,7 @@
-import '../../../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import '../../../routes/app_routes.dart';
+import '../../../shared/theme/app_colors.dart';
 import '../../../widgets/status_badge_widget.dart';
 
 class WalletHistoryWidget extends StatelessWidget {
@@ -58,7 +60,17 @@ class WalletHistoryWidget extends StatelessWidget {
               final item = entry.value;
               return Column(
                 children: [
-                  _HistoryRow(item: item),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () => context.push(
+                      AppRoutes.earningsWithdrawalDetailsScreen,
+                      extra: item,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: _HistoryRow(item: item),
+                    ),
+                  ),
                   if (i < history.length - 1)
                     Divider(
                       color: isDark ? AppColors.borderDark : AppColors.borderLight,

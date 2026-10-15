@@ -135,24 +135,35 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await DriverService.instance.requestWithdrawal(
+      final bankNameStr = (_bankDetails['bank_name'] ?? _bankDetails['bankName'] ?? '').toString().trim();
+      final res = await DriverService.instance.requestWithdrawal(
         amount: amount,
         bankAccountName: holder,
         bankAccountNumber: accNumber,
         bankIfsc: ifsc,
+        bankName: bankNameStr.isNotEmpty ? bankNameStr : null,
       );
 
       if (mounted) {
         Fluttertoast.showToast(
-          msg: '₹$amount withdrawal request submitted to admin for bank transfer!',
+          msg: '₹${amount.toStringAsFixed(0)} withdrawal request submitted for bank transfer!',
           backgroundColor: AppColors.accentGreenDark,
         );
 
-        if (context.canPop()) {
-          context.pop();
-        } else {
-          context.go(AppRoutes.walletScreen);
-        }
+        context.pushReplacement(
+          AppRoutes.earningsWithdrawalDetailsScreen,
+          extra: res is Map<String, dynamic>
+              ? res
+              : {
+                  'amount': amount,
+                  'bankAccountName': holder,
+                  'bankAccountNumber': accNumber,
+                  'bankIfsc': ifsc,
+                  'bankName': bankNameStr,
+                  'status': 'PENDING',
+                  'createdAt': DateTime.now().toIso8601String(),
+                },
+        );
       }
     } catch (e) {
       Fluttertoast.showToast(

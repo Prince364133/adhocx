@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import {
@@ -9,6 +10,7 @@ import {
   SettlementResponseDto,
   AdminProcessSettlementDto,
   SettlementStatus,
+  UserRole,
 } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
 import { LedgerService } from '../ledger/ledger.service';
@@ -61,9 +63,26 @@ export class SettlementsService {
     const bankAccountName = dto.bankAccountName || kyc.bankAccountName || driver.fullName;
     const bankAccountNumber = dto.bankAccountNumber || kyc.bankAccountNumber;
     const bankIfsc = (dto.bankIfsc || kyc.bankIfsc || '').toUpperCase();
+    const bankName = dto.bankName || kyc.bankName || this.inferBankName(bankIfsc);
 
     if (!bankAccountNumber || !bankIfsc) {
       throw new BadRequestException('A valid bank account number and IFSC code are required for bank payout');
+    }
+
+    // Persist bank details into driver's profile/KYC if missing or explicitly provided
+    if (bankAccountNumber && (!kyc.bankAccountNumber || dto.bankName)) {
+      const updatedKyc = {
+        ...kyc,
+        bankAccountName,
+        bankAccountNumber,
+        bankIfsc,
+        bankName,
+      };
+      await this.db.driver.update({
+        where: { id: driver.id },
+        data: { kycDocuments: updatedKyc },
+      }).catch(() => null);
+      driver.kycDocuments = updatedKyc;
     }
 
     const maskedAcc = bankAccountNumber.slice(-4);
@@ -123,7 +142,7 @@ export class SettlementsService {
     });
 
     this.logger.log(`Withdrawal of ₹${dto.amount} requested by driver ${driver.id}`);
-    return this.mapToDto(settlement);
+    return this.mapToDto(settlement, driver);
   }
 
   /**
@@ -253,7 +272,27 @@ export class SettlementsService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return settlements.map((s) => this.mapToDto(s));
+    return settlements.map((s) => this.mapToDto(s, driver));
+  }
+
+  /**
+   * Get single settlement by ID for driver or admin.
+   */
+  async getSettlementById(id: string, userId: string, role: string): Promise<SettlementResponseDto> {
+    const settlement = await this.db.settlement.findUnique({
+      where: { id },
+      include: { driver: true },
+    });
+
+    if (!settlement) {
+      throw new NotFoundException('Settlement record not found');
+    }
+
+    if (role === UserRole.DRIVER && settlement.driver.userId !== userId) {
+      throw new ForbiddenException('You are not authorized to view this settlement');
+    }
+
+    return this.mapToDto(settlement, settlement.driver);
   }
 
   /**
@@ -276,6 +315,7 @@ export class SettlementsService {
             vehicleType: true,
             vehiclePlate: true,
             walletBalance: true,
+            kycDocuments: true,
           },
         },
       },
@@ -283,7 +323,7 @@ export class SettlementsService {
     });
 
     return settlements.map((s) => ({
-      ...this.mapToDto(s),
+      ...this.mapToDto(s, s.driver),
       driverName: s.driver?.fullName || 'Driver',
       driverPhone: s.driver?.phone || '—',
       driverVehicle: s.driver?.vehicleType ? `${s.driver.vehicleType} (${s.driver.vehiclePlate || '—'})` : '—',
@@ -291,15 +331,57 @@ export class SettlementsService {
     }));
   }
 
-  private mapToDto(s: any): SettlementResponseDto {
+  inferBankName(ifsc?: string): string {
+    if (!ifsc || ifsc.length < 4) return 'Bank Account';
+    const prefix = ifsc.substring(0, 4).toUpperCase();
+    const bankMap: Record<string, string> = {
+      HDFC: 'HDFC Bank',
+      SBIN: 'State Bank of India',
+      ICIC: 'ICICI Bank',
+      UTIB: 'Axis Bank',
+      KKBK: 'Kotak Mahindra Bank',
+      PUNB: 'Punjab National Bank',
+      BARB: 'Bank of Baroda',
+      CNRB: 'Canara Bank',
+      UBIN: 'Union Bank of India',
+      BKID: 'Bank of India',
+      IBKL: 'IDBI Bank',
+      YESB: 'Yes Bank',
+      INDB: 'IndusInd Bank',
+      FDRL: 'Federal Bank',
+      IDFB: 'IDFC First Bank',
+      SCBL: 'Standard Chartered Bank',
+      HSBC: 'HSBC Bank',
+      RBLN: 'RBL Bank',
+      BDBL: 'Bandhan Bank',
+      SIBL: 'South Indian Bank',
+      IDIB: 'Indian Bank',
+      CBIN: 'Central Bank of India',
+      UCBA: 'UCO Bank',
+      AIRP: 'Airtel Payments Bank',
+      PYTM: 'Paytm Payments Bank',
+      IPOS: 'India Post Payments Bank',
+    };
+    return bankMap[prefix] || 'Bank Account';
+  }
+
+  private mapToDto(s: any, driver?: any): SettlementResponseDto {
+    const kyc = (driver?.kycDocuments as Record<string, any>) || {};
+    const ifsc = s.bankIfsc || kyc.bankIfsc || '';
+    const bankName = kyc.bankName || (ifsc ? this.inferBankName(ifsc) : undefined);
+    const bankAccountName = s.bankAccountName || kyc.bankAccountName || driver?.fullName || undefined;
+    const rawAcc = s.bankAccountNumber || kyc.bankAccountNumber;
+    const bankAccountNumber = rawAcc ? `•••• ${rawAcc.slice(-4)}` : undefined;
+
     return {
       id: s.id,
       driverId: s.driverId,
       amount: Number(s.amount),
       status: s.status as SettlementStatus,
-      bankAccountName: s.bankAccountName || undefined,
-      bankAccountNumber: s.bankAccountNumber ? `••••${s.bankAccountNumber.slice(-4)}` : undefined,
-      bankIfsc: s.bankIfsc || undefined,
+      bankAccountName,
+      bankAccountNumber,
+      bankIfsc: ifsc || undefined,
+      bankName,
       transactionRef: s.transactionRef || undefined,
       processedAt: s.processedAt ? (s.processedAt instanceof Date ? s.processedAt.toISOString() : String(s.processedAt)) : undefined,
       createdAt: s.createdAt instanceof Date ? s.createdAt.toISOString() : String(s.createdAt),

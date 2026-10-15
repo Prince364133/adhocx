@@ -60,6 +60,17 @@ export class SettlementsController {
     return this.settlementsService.getDriverSettlements(user.id);
   }
 
+  @Get(':id')
+  @Roles(UserRole.DRIVER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get single settlement by ID' })
+  @SwaggerResponse({ status: 200, type: SettlementResponseDto })
+  async getSettlement(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUserDto,
+  ) {
+    return this.settlementsService.getSettlementById(id, user.id, user.role);
+  }
+
   @Post(':id/process')
   @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)

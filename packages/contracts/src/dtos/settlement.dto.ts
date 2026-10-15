@@ -19,6 +19,10 @@ export class WithdrawalRequestDto {
   @IsNotEmpty({ message: 'Bank IFSC code is required' })
   @IsString()
   bankIfsc!: string;
+
+  @IsOptional()
+  @IsString()
+  bankName?: string;
 }
 
 export class SettlementResponseDto {
@@ -29,6 +33,7 @@ export class SettlementResponseDto {
   bankAccountName?: string;
   bankAccountNumber?: string;
   bankIfsc?: string;
+  bankName?: string;
   transactionRef?: string;
   processedAt?: string;
   createdAt!: string;
@@ -63,8 +68,11 @@ export class LedgerEntryResponseDto {
 
 export class DriverWalletSummaryDto {
   walletBalance!: number;
+  availableBalance?: number;
   totalEarned!: number;
   totalWithdrawn!: number;
   pendingSettlements!: number;
+  hasPendingWithdrawal?: boolean;
   recentLedgerEntries!: LedgerEntryResponseDto[];
+  withdrawals?: SettlementResponseDto[];
 }

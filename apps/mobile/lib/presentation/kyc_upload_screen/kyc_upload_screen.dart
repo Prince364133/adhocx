@@ -110,6 +110,11 @@ class _KycUploadScreenState extends State<KycUploadScreen> {
       final rawVehicleType = (_formData['vehicle_type'] as String?) ?? 'SEDAN';
       final dynamicVehicleType = rawVehicleType.toUpperCase();
 
+      final bankAcc = (_formData['account_number'] as String?)?.trim();
+      final bankIfsc = (_formData['ifsc'] as String?)?.trim().toUpperCase();
+      final bankName = (_formData['bank_name'] as String?)?.trim();
+      final bankHolder = (_formData['account_holder_name'] as String?)?.trim() ?? _formData['full_name'];
+
       // 3. Authoritative Backend Update via DriverService
       await DriverService.instance.updateProfile({
         'fullName': _formData['full_name'],
@@ -124,7 +129,20 @@ class _KycUploadScreenState extends State<KycUploadScreen> {
         'rcDocUrl': rcBookPath ?? _uploadedDocs['rc_book'],
         'insuranceDocUrl': insurancePath ?? _uploadedDocs['insurance'],
         'aadharFrontUrl': aadhaarPath ?? _uploadedDocs['aadhaar_doc'],
+        if (bankAcc != null && bankAcc.isNotEmpty) 'bankAccountNumber': bankAcc,
+        if (bankIfsc != null && bankIfsc.isNotEmpty) 'bankIfsc': bankIfsc,
+        if (bankName != null && bankName.isNotEmpty) 'bankName': bankName,
+        if (bankHolder != null && bankHolder.isNotEmpty) 'bankAccountName': bankHolder,
       });
+
+      if (bankAcc != null && bankAcc.isNotEmpty && bankIfsc != null && bankIfsc.isNotEmpty) {
+        await DriverService.instance.updateBankDetails(
+          bankAccountName: bankHolder ?? 'Driver Partner',
+          bankAccountNumber: bankAcc,
+          bankIfsc: bankIfsc,
+          bankName: bankName,
+        ).catchError((_) => null);
+      }
 
       if (!mounted) return;
       setState(() => _isSubmitting = false);

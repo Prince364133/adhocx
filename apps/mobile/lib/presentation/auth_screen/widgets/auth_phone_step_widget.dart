@@ -1,4 +1,6 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/utils/app_toast.dart';
 import '../../../services/auth_service.dart';
 import '../../../theme/app_colors.dart';
@@ -37,6 +39,12 @@ class AuthPhoneStepWidget extends StatefulWidget {
 }
 
 class _AuthPhoneStepWidgetState extends State<AuthPhoneStepWidget> {
+  static const String _termsUrl = 'https://www.adhocx.com/terms/';
+  static const String _privacyUrl = 'https://www.adhocx.com/privacy/';
+
+  late final TapGestureRecognizer _termsRecognizer;
+  late final TapGestureRecognizer _privacyRecognizer;
+
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
   final _nameController = TextEditingController();
@@ -51,14 +59,32 @@ class _AuthPhoneStepWidgetState extends State<AuthPhoneStepWidget> {
   void initState() {
     super.initState();
     _role = widget.initialRole;
+    _termsRecognizer = TapGestureRecognizer()..onTap = () => _launchWebUrl(_termsUrl);
+    _privacyRecognizer = TapGestureRecognizer()..onTap = () => _launchWebUrl(_privacyUrl);
   }
 
   @override
   void dispose() {
+    _termsRecognizer.dispose();
+    _privacyRecognizer.dispose();
     _phoneController.dispose();
     _nameController.dispose();
     _companyController.dispose();
     super.dispose();
+  }
+
+  Future<void> _launchWebUrl(String url) async {
+    try {
+      final uri = Uri.parse(url);
+      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched && mounted) {
+        AppToast.showError('Could not open $url', context: context);
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.showError('Error opening link: $e', context: context);
+      }
+    }
   }
 
   void _onModeChanged(bool isRegister) {
@@ -260,10 +286,35 @@ class _AuthPhoneStepWidgetState extends State<AuthPhoneStepWidget> {
 
           // ── Terms & Privacy Footer ──────────────────────────────────────
           Center(
-            child: Text(
-              'By continuing, you agree to the AdhocX Terms of Service & Privacy Policy.',
-              style: AppTypography.caption(
-                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+            child: Text.rich(
+              TextSpan(
+                text: 'By continuing, you agree to the AdhocX ',
+                style: AppTypography.caption(
+                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                ).copyWith(height: 1.4),
+                children: [
+                  TextSpan(
+                    text: 'Terms of Service',
+                    recognizer: _termsRecognizer,
+                    style: TextStyle(
+                      color: isDark ? AppColors.primaryLight : AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                      decoration: TextDecoration.underline,
+                      decorationColor: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.6),
+                    ),
+                  ),
+                  const TextSpan(text: ' & '),
+                  TextSpan(
+                    text: 'Privacy Policy',
+                    recognizer: _privacyRecognizer,
+                    style: TextStyle(
+                      color: isDark ? AppColors.primaryLight : AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                      decoration: TextDecoration.underline,
+                      decorationColor: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.6),
+                    ),
+                  ),
+                ],
               ),
               textAlign: TextAlign.center,
             ),

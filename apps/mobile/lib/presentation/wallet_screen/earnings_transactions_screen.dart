@@ -43,15 +43,19 @@ class _EarningsTransactionsScreenState extends State<EarningsTransactionsScreen>
               : 'Recent';
 
           parsed.add({
+            'id': e['referenceId'] ?? e['id'],
+            'referenceId': e['referenceId'],
             'title': isCredit ? 'Trip Earnings' : 'Withdrawal Payout',
             'subtitle': desc,
             'date': date,
             'amount': '${isCredit ? "+" : "-"}₹${amountVal.toStringAsFixed(0)}',
+            'amountVal': amountVal,
             'isCredit': isCredit,
             'status': 'Settled',
             'category': isCredit ? 'Earnings' : 'Adjustments',
             'icon': isCredit ? Icons.account_balance_wallet_outlined : Icons.unarchive_outlined,
             'isWithdrawal': !isCredit,
+            'rawEntry': e,
           });
         }
       }
@@ -224,7 +228,10 @@ class _EarningsTransactionsScreenState extends State<EarningsTransactionsScreen>
                                           ListTile(
                                             onTap: () {
                                               if (tx['isWithdrawal'] == true) {
-                                                context.push(AppRoutes.earningsWithdrawalDetailsScreen);
+                                                context.push(
+                                                  AppRoutes.earningsWithdrawalDetailsScreen,
+                                                  extra: tx,
+                                                );
                                               }
                                             },
                                             leading: Container(

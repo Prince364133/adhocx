@@ -1,6 +1,8 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/utils/app_toast.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_provider.dart';
@@ -23,16 +25,45 @@ class SignUpScreen extends StatefulWidget {
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
+  static const String _termsUrl = 'https://www.adhocx.com/terms/';
+  static const String _privacyUrl = 'https://www.adhocx.com/privacy/';
+
+  late final TapGestureRecognizer _termsRecognizer;
+  late final TapGestureRecognizer _privacyRecognizer;
+
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
 
-  bool _agreeToTerms = true;
+  bool _agreeToTerms = false;
   bool _isLoading = false;
 
   @override
+  void initState() {
+    super.initState();
+    _termsRecognizer = TapGestureRecognizer()..onTap = () => _launchWebUrl(_termsUrl);
+    _privacyRecognizer = TapGestureRecognizer()..onTap = () => _launchWebUrl(_privacyUrl);
+  }
+
+  @override
   void dispose() {
+    _termsRecognizer.dispose();
+    _privacyRecognizer.dispose();
     _emailController.dispose();
     super.dispose();
+  }
+
+  Future<void> _launchWebUrl(String url) async {
+    try {
+      final uri = Uri.parse(url);
+      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched && mounted) {
+        AppToast.showError('Could not open $url', context: context);
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.showError('Error opening link: $e', context: context);
+      }
+    }
   }
 
   String? _validateEmail(String? val) {
@@ -57,7 +88,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
 
     if (!_agreeToTerms) {
-      AppToast.showWarning('Please agree to Terms & Conditions and Privacy Policy', context: context);
+      AppToast.showWarning('Please accept the Terms & Conditions and Privacy Policy to proceed', context: context);
       return;
     }
 
@@ -109,6 +140,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   Future<void> _handleSocialAuth(SocialAuthType type) async {
+    if (!_agreeToTerms) {
+      AppToast.showWarning('Please accept the Terms & Conditions and Privacy Policy to proceed', context: context);
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -238,37 +274,61 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                     // ── Terms & Privacy Checkbox ─────────────────────────────
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Checkbox(
-                          value: _agreeToTerms,
-                          onChanged: (val) => setState(() => _agreeToTerms = val ?? false),
-                          activeColor: isDark ? AppColors.primaryLight : AppColors.primary,
+                        SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: Checkbox(
+                            value: _agreeToTerms,
+                            onChanged: (val) => setState(() => _agreeToTerms = val ?? false),
+                            activeColor: isDark ? AppColors.primaryLight : AppColors.primary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppRadius.xs),
+                            ),
+                            side: BorderSide(
+                              color: _agreeToTerms
+                                  ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                                  : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                              width: 1.5,
+                            ),
+                          ),
                         ),
+                        const SizedBox(width: AppSpacing.sm),
                         Expanded(
-                          child: Text.rich(
-                            TextSpan(
-                              text: 'I agree to the ',
-                              style: AppTypography.caption(
-                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                          child: GestureDetector(
+                            onTap: () => setState(() => _agreeToTerms = !_agreeToTerms),
+                            behavior: HitTestBehavior.opaque,
+                            child: Text.rich(
+                              TextSpan(
+                                text: 'I accept the ',
+                                style: AppTypography.caption(
+                                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                ).copyWith(height: 1.4),
+                                children: [
+                                  TextSpan(
+                                    text: 'Terms & Conditions',
+                                    recognizer: _termsRecognizer,
+                                    style: TextStyle(
+                                      color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                      fontWeight: FontWeight.bold,
+                                      decoration: TextDecoration.underline,
+                                      decorationColor: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.6),
+                                    ),
+                                  ),
+                                  const TextSpan(text: ' and '),
+                                  TextSpan(
+                                    text: 'Privacy Policy',
+                                    recognizer: _privacyRecognizer,
+                                    style: TextStyle(
+                                      color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                      fontWeight: FontWeight.bold,
+                                      decoration: TextDecoration.underline,
+                                      decorationColor: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.6),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              children: [
-                                TextSpan(
-                                  text: 'Terms & Conditions',
-                                  style: TextStyle(
-                                    color: isDark ? AppColors.primaryLight : AppColors.primary,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const TextSpan(text: ' and '),
-                                TextSpan(
-                                  text: 'Privacy Policy',
-                                  style: TextStyle(
-                                    color: isDark ? AppColors.primaryLight : AppColors.primary,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
                             ),
                           ),
                         ),

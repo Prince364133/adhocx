@@ -285,12 +285,13 @@ export class LedgerService {
 
       const [entries, settlements] = await Promise.all([
         this.db.ledgerEntry.findMany({
-          where: { accountId: driver.id },
+          where: { accountId: driver.id, accountType: 'DRIVER' },
           orderBy: { createdAt: 'desc' },
           take: 20,
         }),
         this.db.settlement.findMany({
           where: { driverId: driver.id },
+          orderBy: { createdAt: 'desc' },
         }),
       ]);
 
@@ -322,20 +323,46 @@ export class LedgerService {
         createdAt: e.createdAt.toISOString(),
       }));
 
+      const kyc = (driver.kycDocuments as Record<string, any>) || {};
+      const withdrawals = settlements.map((s) => ({
+        id: s.id,
+        driverId: s.driverId,
+        amount: Number(s.amount),
+        status: s.status as unknown as SettlementStatus,
+        bankAccountName: s.bankAccountName || kyc.bankAccountName || driver.fullName,
+        bankAccountNumber: s.bankAccountNumber ? `•••• ${s.bankAccountNumber.slice(-4)}` : (kyc.bankAccountNumber ? `•••• ${kyc.bankAccountNumber.slice(-4)}` : undefined),
+        bankIfsc: s.bankIfsc || kyc.bankIfsc,
+        bankName: kyc.bankName,
+        transactionRef: s.transactionRef || undefined,
+        processedAt: s.processedAt ? (s.processedAt instanceof Date ? s.processedAt.toISOString() : String(s.processedAt)) : undefined,
+        createdAt: s.createdAt instanceof Date ? s.createdAt.toISOString() : String(s.createdAt),
+        updatedAt: s.updatedAt instanceof Date ? s.updatedAt.toISOString() : String(s.updatedAt),
+      }));
+
+      const hasPendingWithdrawal = settlements.some(
+        (s) => s.status === SettlementStatus.PENDING || s.status === SettlementStatus.PROCESSING,
+      );
+
       return {
         walletBalance: Number(driver.walletBalance),
+        availableBalance: Number(driver.walletBalance),
         totalEarned,
         totalWithdrawn,
         pendingSettlements,
+        hasPendingWithdrawal,
         recentLedgerEntries,
+        withdrawals,
       };
     } catch (_) {
       return {
         walletBalance: 0,
+        availableBalance: 0,
         totalEarned: 0,
         totalWithdrawn: 0,
         pendingSettlements: 0,
+        hasPendingWithdrawal: false,
         recentLedgerEntries: [],
+        withdrawals: [],
       };
     }
   }
@@ -345,7 +372,7 @@ export class LedgerService {
    */
   async getDriverLedger(driverId: string): Promise<LedgerEntryResponseDto[]> {
     const entries = await this.db.ledgerEntry.findMany({
-      where: { accountId: driverId },
+      where: { accountId: driverId, accountType: 'DRIVER' },
       orderBy: { createdAt: 'desc' },
     });
 

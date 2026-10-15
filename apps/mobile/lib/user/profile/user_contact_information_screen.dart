@@ -79,18 +79,18 @@ class _UserContactInformationScreenState extends State<UserContactInformationScr
       if (mounted) {
         setState(() {
           _spocNameController.text = (merged['fullName'] ?? user?.fullName ?? '').toString();
-          _designationController.text = (merged['spocDesignation'] ?? 'Corporate Travel Desk Lead').toString();
+          _designationController.text = (merged['spocDesignation'] ?? '').toString();
           _phoneController.text = (merged['phone'] ?? user?.phone ?? '').toString();
           _emailController.text = (user?.email ?? merged['email'] ?? '').toString();
 
           _billingEmailController.text = (merged['alternateEmail'] ?? '').toString();
           _altPhoneController.text = (merged['alternatePhone'] ?? '').toString();
 
-          _emergencyNameController.text = (merged['emergencyContactName'] ?? 'Corporate Night Operations Desk').toString();
-          _emergencyPhoneController.text = (merged['emergencyContactPhone'] ?? '+91 98765 43210').toString();
+          _emergencyNameController.text = (merged['emergencyContactName'] ?? '').toString();
+          _emergencyPhoneController.text = (merged['emergencyContactPhone'] ?? '').toString();
 
-          _branchNameController.text = (merged['operationalCampus'] ?? 'Headquarters & Cyber Hub Branch').toString();
-          _operationalAddressController.text = (merged['address'] ?? 'DLF Cyber City, Phase 2, Gurugram, Haryana - 122002').toString();
+          _branchNameController.text = (merged['operationalCampus'] ?? '').toString();
+          _operationalAddressController.text = (merged['address'] ?? '').toString();
 
           _isLoading = false;
         });

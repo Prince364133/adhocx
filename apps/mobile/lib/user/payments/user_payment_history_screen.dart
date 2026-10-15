@@ -31,7 +31,19 @@ class _UserPaymentHistoryScreenState extends State<UserPaymentHistoryScreen> {
     setState(() => _isLoading = true);
     try {
       final list = await UserService.instance.getWalletTransactions();
-      if (mounted) setState(() => _transactions = list);
+      if (mounted) {
+        final filteredList = list.where((item) {
+          if (item is! Map) return false;
+          final accType = item['accountType']?.toString().toUpperCase();
+          final refType = item['referenceType']?.toString().toUpperCase();
+          final desc = item['description']?.toString().toLowerCase() ?? '';
+          if (accType == 'PLATFORM' || accType == 'ESCORT_PAYABLE') return false;
+          if (refType == 'ZONAL_PLATFORM_SPREAD' || refType == 'PLATFORM_COMMISSION' || refType == 'ZONAL_ESCORT_PAYABLE') return false;
+          if (desc.startsWith('zonal spread') || desc.startsWith('platform commission')) return false;
+          return true;
+        }).toList();
+        setState(() => _transactions = filteredList);
+      }
     } catch (_) {
     } finally {
       if (mounted) setState(() => _isLoading = false);

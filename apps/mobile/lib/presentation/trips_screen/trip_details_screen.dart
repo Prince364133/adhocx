@@ -141,6 +141,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
       setState(() => _isActionInProgress = true);
       try {
         await DriverService.instance.startTrip(tripId, otpController.text.trim());
+        DriverService.instance.notifyTripChanged(tripId: tripId, status: 'IN_PROGRESS');
         Fluttertoast.showToast(
           msg: 'Trip started successfully!',
           backgroundColor: AppColors.accentGreenDark,
@@ -161,13 +162,14 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
     setState(() => _isActionInProgress = true);
     try {
       await DriverService.instance.completeTrip(tripId);
+      DriverService.instance.notifyTripChanged(tripId: tripId, status: 'COMPLETED');
       if (mounted) {
         Fluttertoast.showToast(
           msg: 'Trip completed! $payout credited to your wallet.',
           backgroundColor: AppColors.accentGreenDark,
         );
         if (context.canPop()) {
-          context.pop();
+          context.pop(true);
         } else {
           context.go(AppRoutes.tripsScreen);
         }

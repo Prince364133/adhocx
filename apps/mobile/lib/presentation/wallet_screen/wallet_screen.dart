@@ -59,7 +59,7 @@ class _WalletScreenState extends State<WalletScreen> {
         setState(() {
           if (profile != null) {
             _bankDetails = {
-              'account_holder': profile['fullName'] ?? profile['full_name'] ?? 'Driver Partner',
+              'account_holder': profile['bankAccountName'] ?? profile['bank_account_name'] ?? profile['fullName'] ?? profile['full_name'] ?? 'Driver Partner',
               'bank_name': profile['bankName'] ?? profile['bank_name'] ?? 'Not Provided',
               'account_number': profile['bankAccountNumber'] ?? profile['bank_account_number'] ?? '',
               'ifsc': profile['bankIfsc'] ?? profile['bank_ifsc'] ?? '',
@@ -82,10 +82,13 @@ class _WalletScreenState extends State<WalletScreen> {
                 final createdAt = DateTime.tryParse(m['createdAt'] ?? m['created_at'] ?? '') ?? DateTime.now();
                 final formattedDate = '${_monthName(createdAt.month)} ${createdAt.day}, ${createdAt.year}';
                 return {
-                  'payout_method': m['payoutMethod'] ?? m['payout_method'] ?? 'Bank Transfer',
+                  'id': m['id'],
+                  'payout_method': m['payoutMethod'] ?? m['payout_method'] ?? (m['bankName'] != null ? '${m['bankName']} Transfer' : 'Bank Transfer'),
+                  'bank_name': m['bankName'] ?? _bankDetails['bank_name'],
                   'date': formattedDate,
                   'amount': amount,
                   'status': status,
+                  'raw': m,
                 };
               }).toList();
             }
@@ -142,11 +145,13 @@ class _WalletScreenState extends State<WalletScreen> {
     }
 
     try {
+      final bankNameStr = (_bankDetails['bank_name'] ?? '').toString().trim();
       await DriverService.instance.requestWithdrawal(
         amount: amount,
         bankAccountName: holder,
         bankAccountNumber: accNumber,
         bankIfsc: ifsc,
+        bankName: bankNameStr.isNotEmpty && bankNameStr != 'Not Provided' ? bankNameStr : null,
       );
 
       setState(() => _hasPendingWithdrawal = true);

@@ -283,9 +283,25 @@ class GlobalDispatchOverlayService {
       case 'OFFER_RECEIVED':
         showIncomingOffer(payload);
         break;
+      case 'TRIP_COMPLETED':
+      case 'TRIP_STARTED':
+      case 'TRIP_ARRIVED':
+      case 'TRIP_ASSIGNED':
+      case 'TRIP_CANCELLED':
+        DriverService.instance.notifyTripChanged(
+          tripId: payload['tripId']?.toString(),
+          status: event.replaceFirst('TRIP_', ''),
+        );
+        break;
       case 'NEW_NOTIFICATION':
         final type = payload['type'];
         final data = payload['data'] as Map<String, dynamic>?;
+        if (type == 'TRIP_STATUS' || type == 'WALLET_UPDATE') {
+          DriverService.instance.notifyTripChanged(
+            tripId: data?['tripId']?.toString() ?? payload['tripId']?.toString(),
+            status: data?['status']?.toString(),
+          );
+        }
         if (type == 'TRIP_OFFER' && data != null) {
           showIncomingOffer(data);
         } else {
