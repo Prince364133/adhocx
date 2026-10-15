@@ -29,14 +29,11 @@ class OnboardingVehicleScreen extends StatefulWidget {
 
 class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _makeModelController = TextEditingController();
-  final _makeModelFocusNode = FocusNode();
   final _plateController = TextEditingController();
   final _yearController = TextEditingController();
   final _colorController = TextEditingController();
 
-  bool _showModelDropdown = false;
-  String _category = 'Sedan';
+  String _category = 'SEDAN';
   bool _isSubmitting = false;
   String? _inlineErrorMessage;
   final Map<String, bool> _uploadingState = {};
@@ -95,21 +92,15 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
     super.initState();
     final onboarding = context.read<OnboardingProvider>();
     _category = onboarding.vehicleType.isNotEmpty ? onboarding.vehicleType.toUpperCase() : 'SEDAN';
-    _makeModelController.text = onboarding.carModel;
     _plateController.text = onboarding.registrationNumber;
     _yearController.text = onboarding.modelYear;
     _colorController.text = onboarding.color;
 
-    _makeModelController.addListener(_clearErrorOnType);
     _plateController.addListener(_clearErrorOnType);
     _yearController.addListener(_clearErrorOnType);
     _colorController.addListener(_clearErrorOnType);
-    _makeModelFocusNode.addListener(() {
-      if (mounted && _makeModelFocusNode.hasFocus) {
-        setState(() => _showModelDropdown = true);
-      }
-    });
 
+    _syncCategoryToProvider(_category);
     _loadDynamicCategories();
     _loadExistingData();
   }
@@ -120,21 +111,53 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
     }
   }
 
+  String _getCategoryLabel(String categoryId) {
+    final opt = _vehicleOptions.firstWhere(
+      (v) => (v['id'] as String? ?? '').toUpperCase() == categoryId.toUpperCase(),
+      orElse: () => _vehicleOptions.isNotEmpty ? _vehicleOptions.first : {'label': categoryId},
+    );
+    return opt['label'] as String? ?? categoryId;
+  }
+
+  void _syncCategoryToProvider(String catId) {
+    final modelLabel = _getCategoryLabel(catId);
+    context.read<OnboardingProvider>().setVehicleDetails(
+      vehicleType: catId,
+      carModel: modelLabel,
+      color: _colorController.text.trim(),
+      registrationNumber: _plateController.text.trim(),
+      modelYear: _yearController.text.trim(),
+    );
+  }
+
   Future<void> _loadExistingData() async {
     try {
       final onboarding = context.read<OnboardingProvider>();
       final profile = await DriverService.instance.getProfile();
       if (!mounted) return;
-      if (_makeModelController.text.isEmpty && profile['vehicleModel'] != null) {
-        _makeModelController.text = profile['vehicleModel'].toString();
-      }
       if (_plateController.text.isEmpty && profile['vehiclePlate'] != null) {
         _plateController.text = profile['vehiclePlate'].toString();
       }
       if (profile['vehicleType'] != null && onboarding.vehicleType.isEmpty) {
+        final vType = profile['vehicleType'].toString().toUpperCase();
         setState(() {
-          _category = profile['vehicleType'].toString().toUpperCase();
+          _category = vType;
         });
+        _syncCategoryToProvider(vType);
+      } else if (profile['vehicleModel'] != null && onboarding.vehicleType.isEmpty) {
+        final vModel = profile['vehicleModel'].toString().toLowerCase();
+        final match = _vehicleOptions.firstWhere(
+          (v) => (v['label'] as String? ?? '').toLowerCase() == vModel ||
+                 (v['id'] as String? ?? '').toLowerCase() == vModel,
+          orElse: () => {},
+        );
+        if (match.isNotEmpty && match['id'] != null) {
+          final matchedCat = match['id'] as String;
+          setState(() {
+            _category = matchedCat;
+          });
+          _syncCategoryToProvider(matchedCat);
+        }
       }
       if (profile['rcFrontUrl'] != null && onboarding.rcFrontUrl == null) {
         onboarding.setDocumentUrl('RC_FRONT', profile['rcFrontUrl'].toString());
@@ -150,40 +173,6 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
       }
       setState(() {});
     } catch (_) {}
-  }
-
-  List<Map<String, dynamic>> _getFilteredVehicleSuggestions(String query) {
-    final clean = query.trim().toLowerCase();
-    if (clean.isEmpty) {
-      return _vehicleOptions;
-    }
-    return _vehicleOptions.where((v) {
-      final label = (v['label'] as String? ?? '').toLowerCase();
-      final id = (v['id'] as String? ?? '').toLowerCase();
-      final subtitle = (v['subtitle'] as String? ?? '').toLowerCase();
-      final desc = (v['description'] as String? ?? '').toLowerCase();
-      return label.contains(clean) ||
-          id.contains(clean) ||
-          subtitle.contains(clean) ||
-          desc.contains(clean);
-    }).toList();
-  }
-
-  void _selectVehicleModel(Map<String, dynamic> item) {
-    final label = item['label'] as String? ?? item['id'] as String? ?? 'Vehicle';
-    final catId = (item['id'] as String? ?? 'SEDAN').toUpperCase();
-    _makeModelController.text = label;
-    _category = catId;
-    _showModelDropdown = false;
-    _makeModelFocusNode.unfocus();
-    context.read<OnboardingProvider>().setVehicleDetails(
-      vehicleType: _category,
-      carModel: label,
-      color: _colorController.text.trim(),
-      registrationNumber: _plateController.text.trim(),
-      modelYear: _yearController.text.trim(),
-    );
-    setState(() {});
   }
 
   Future<void> _loadDynamicCategories() async {
@@ -222,6 +211,7 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
           if (!_vehicleOptions.any((v) => v['id'] == _category) && _vehicleOptions.isNotEmpty) {
             _category = _vehicleOptions.first['id'] as String;
           }
+          _syncCategoryToProvider(_category);
         });
       }
     } catch (_) {
@@ -232,12 +222,9 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
 
   @override
   void dispose() {
-    _makeModelController.removeListener(_clearErrorOnType);
     _plateController.removeListener(_clearErrorOnType);
     _yearController.removeListener(_clearErrorOnType);
     _colorController.removeListener(_clearErrorOnType);
-    _makeModelFocusNode.dispose();
-    _makeModelController.dispose();
     _plateController.dispose();
     _yearController.dispose();
     _colorController.dispose();
@@ -431,10 +418,10 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
       return;
     }
 
-    final makeModel = _makeModelController.text.trim();
     final plate = _plateController.text.trim().toUpperCase();
     final year = _yearController.text.trim();
     final color = _colorController.text.trim();
+    final makeModel = _getCategoryLabel(_category);
 
     onboarding.setVehicleDetails(
       vehicleType: _category,
@@ -617,10 +604,6 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                             const SizedBox(height: AppSpacing.md),
                           ],
 
-                          // ── Vehicle Make & Model (with Suggestions Dropdown) ──
-                          _buildMakeModelAutocompleteField(isDark),
-                          const SizedBox(height: AppSpacing.lg),
-
                           // ── Vehicle Category ───────────────────────────────
                           Text(
                             'Vehicle Category *',
@@ -757,13 +740,7 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                                     setState(() {
                                       _category = val;
                                     });
-                                    context.read<OnboardingProvider>().setVehicleDetails(
-                                      vehicleType: val,
-                                      carModel: _makeModelController.text.trim(),
-                                      color: _colorController.text.trim(),
-                                      registrationNumber: _plateController.text.trim(),
-                                      modelYear: _yearController.text.trim(),
-                                    );
+                                    _syncCategoryToProvider(val);
                                   }
                                 },
                               ),
@@ -883,308 +860,6 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildMakeModelAutocompleteField(bool isDark) {
-    final query = _makeModelController.text.trim();
-    final suggestions = _getFilteredVehicleSuggestions(query);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Vehicle Make & Model *',
-              style: AppTypography.caption(
-                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            if (_showModelDropdown)
-              GestureDetector(
-                onTap: () => setState(() => _showModelDropdown = false),
-                child: Text(
-                  'Close',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isDark ? AppColors.primaryLight : AppColors.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: _makeModelController,
-          focusNode: _makeModelFocusNode,
-          validator: (val) {
-            if (val == null || val.trim().length < 2) {
-              return 'Please enter vehicle make and model';
-            }
-            return null;
-          },
-          onChanged: (val) {
-            setState(() {
-              _showModelDropdown = true;
-            });
-          },
-          style: AppTypography.body(
-            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-          ),
-          decoration: InputDecoration(
-            hintText: 'e.g. Prime Sedan, SUV 7 Seater',
-            hintStyle: AppTypography.body(
-              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-            ),
-            prefixIcon: Icon(
-              Icons.directions_car_outlined,
-              size: 20,
-              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-            ),
-            suffixIcon: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (_makeModelController.text.isNotEmpty)
-                  IconButton(
-                    icon: const Icon(Icons.clear_rounded, size: 18),
-                    onPressed: () {
-                      _makeModelController.clear();
-                      setState(() {
-                        _showModelDropdown = true;
-                      });
-                    },
-                  ),
-                IconButton(
-                  icon: Icon(
-                    _showModelDropdown
-                        ? Icons.keyboard_arrow_up_rounded
-                        : Icons.keyboard_arrow_down_rounded,
-                    color: isDark ? AppColors.primaryLight : AppColors.primary,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _showModelDropdown = !_showModelDropdown;
-                    });
-                  },
-                ),
-              ],
-            ),
-            filled: true,
-            fillColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              borderSide: BorderSide(
-                color: isDark ? AppColors.borderDark : AppColors.borderLight,
-              ),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              borderSide: BorderSide(
-                color: isDark ? AppColors.borderDark : AppColors.borderLight,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              borderSide: BorderSide(
-                color: isDark ? AppColors.primaryLight : AppColors.primary,
-                width: 1.5,
-              ),
-            ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          ),
-        ),
-        if (_showModelDropdown) ...[
-          const SizedBox(height: 6),
-          Container(
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.surfaceElevatedDark : Colors.white,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              border: Border.all(
-                color: isDark ? AppColors.borderDark : AppColors.primary.withValues(alpha: 0.3),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? AppColors.surfaceDark
-                        : AppColors.primary.withValues(alpha: 0.06),
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(AppRadius.md),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          query.isEmpty
-                              ? 'ADMIN REGISTERED VEHICLES (TAP TO SELECT)'
-                              : 'MATCHING VEHICLES (${suggestions.length})',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                            color: isDark ? AppColors.textMutedDark : AppColors.primary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      InkWell(
-                        onTap: () => setState(() => _showModelDropdown = false),
-                        child: const Icon(Icons.close_rounded, size: 16),
-                      ),
-                    ],
-                  ),
-                ),
-                if (suggestions.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'No matching vehicle in admin fleet.',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'You can keep typing above to enter any custom vehicle name.',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                else
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 220),
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      itemCount: suggestions.length,
-                      separatorBuilder: (_, __) => Divider(
-                        height: 1,
-                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                      ),
-                      itemBuilder: (context, index) {
-                        final item = suggestions[index];
-                        final label = item['label'] as String? ?? item['id'] as String? ?? 'Vehicle';
-                        final catId = (item['id'] as String? ?? 'SEDAN').toUpperCase();
-                        final subtitle = item['subtitle'] as String? ?? '';
-                        final icon = item['icon'] as IconData? ?? Icons.directions_car_rounded;
-                        final isSelected = _category == catId ||
-                            _makeModelController.text.trim().toLowerCase() == label.toLowerCase();
-
-                        return InkWell(
-                          onTap: () {
-                            _selectVehicleModel(item);
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: isSelected
-                                        ? AppColors.primary.withValues(alpha: 0.15)
-                                        : (isDark
-                                            ? AppColors.surfaceDark
-                                            : AppColors.primary.withValues(alpha: 0.08)),
-                                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                                  ),
-                                  child: Icon(
-                                    icon,
-                                    size: 18,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        label,
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                                          color: isSelected
-                                              ? AppColors.primary
-                                              : (isDark
-                                                  ? AppColors.textPrimaryDark
-                                                  : AppColors.textPrimaryLight),
-                                        ),
-                                      ),
-                                      if (subtitle.isNotEmpty)
-                                        Text(
-                                          subtitle,
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: isDark
-                                        ? AppColors.surfaceDark
-                                        : AppColors.slate100,
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(
-                                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    catId,
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w600,
-                                      color: isDark ? AppColors.textMutedDark : AppColors.slate700,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ],
     );
   }
 

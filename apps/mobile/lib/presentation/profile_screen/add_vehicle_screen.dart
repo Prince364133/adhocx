@@ -18,7 +18,6 @@ class AddVehicleScreen extends StatefulWidget {
 }
 
 class _AddVehicleScreenState extends State<AddVehicleScreen> {
-  final _makeModelController = TextEditingController();
   final _plateController = TextEditingController();
   final _yearController = TextEditingController();
   final _colorController = TextEditingController();
@@ -55,7 +54,6 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
 
   @override
   void dispose() {
-    _makeModelController.dispose();
     _plateController.dispose();
     _yearController.dispose();
     _colorController.dispose();
@@ -140,15 +138,6 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                   child: ListView(
                     padding: const EdgeInsets.all(AppSpacing.lg),
                     children: [
-                      _buildTextField(
-                        label: 'Vehicle Make & Model',
-                        controller: _makeModelController,
-                        icon: Icons.directions_car_outlined,
-                        hint: 'e.g. Honda City, Maruti Dzire',
-                        isDark: isDark,
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-
                       Text(
                         'Vehicle Category',
                         style: AppTypography.caption(
