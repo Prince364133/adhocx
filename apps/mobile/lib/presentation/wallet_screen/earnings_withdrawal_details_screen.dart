@@ -202,7 +202,7 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
             kyc['bankAccountName'] ??
             kyc['account_holder'] ??
             AuthService.instance.currentUser?.fullName ??
-            'Driver Partner')
+            'Driver')
         .toString()
         .trim();
 
@@ -829,7 +829,7 @@ class _EarningsWithdrawalDetailsScreenState extends State<EarningsWithdrawalDeta
     final bank = (data['bankName'] ?? 'Bank Account').toString();
     final acc = (data['bankAccountNumber'] ?? '').toString();
     final maskedAcc = _maskAccountNumber(acc);
-    final holder = (data['bankAccountName'] ?? AuthService.instance.currentUser?.fullName ?? 'Driver Partner').toString();
+    final holder = (data['bankAccountName'] ?? AuthService.instance.currentUser?.fullName ?? 'Driver').toString();
     final ifsc = (data['bankIfsc'] ?? '').toString();
     final requestedOn = _formatDateTime(data['createdAt'] as String?);
 

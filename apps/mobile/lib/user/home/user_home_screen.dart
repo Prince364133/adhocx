@@ -97,17 +97,23 @@ class _UserHomeScreenState extends State<UserHomeScreen> with WidgetsBindingObse
     final currentUser = AuthService.instance.currentUser;
 
     final String displayName = () {
-      if (onboarding != null && onboarding.fullName.isNotEmpty) {
+      bool isGeneric(String? s) {
+        if (s == null) return true;
+        final l = s.trim().toLowerCase();
+        return l.isEmpty || l == 'partner' || l == 'driver partner' || l == 'vendor partner' || l == 'driver' || l == 'user';
+      }
+
+      if (onboarding != null && onboarding.fullName.isNotEmpty && !isGeneric(onboarding.fullName)) {
         return onboarding.fullName;
       }
       final userFullName = currentUser?.fullName;
-      if (userFullName != null && userFullName.isNotEmpty) {
+      if (userFullName != null && userFullName.isNotEmpty && !isGeneric(userFullName)) {
         return userFullName;
       }
       if (onboarding != null && onboarding.companyName.isNotEmpty) {
         return onboarding.companyName;
       }
-      return 'AdhocX User';
+      return 'Corporate Booker';
     }();
 
     final int totalReq = _summary['totalRequirements'] ?? _recentRequirements.length;
@@ -163,15 +169,6 @@ class _UserHomeScreenState extends State<UserHomeScreen> with WidgetsBindingObse
                                         subtitle: const Text('Booker / Corporate Fleet Account'),
                                       ),
                                       const Divider(),
-                                      ListTile(
-                                        leading: Icon(Icons.drive_eta, color: AppColors.primary),
-                                        title: const Text('Switch to Driver Partner Mode'),
-                                        subtitle: const Text('View driver operations & trip simulator'),
-                                        onTap: () {
-                                          Navigator.pop(ctx);
-                                          context.go(AppRoutes.homeScreen);
-                                        },
-                                      ),
                                       ListTile(
                                         leading: const Icon(Icons.receipt_long_outlined),
                                         title: const Text('All Requirements'),

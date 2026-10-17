@@ -23,7 +23,7 @@ class _WalletScreenState extends State<WalletScreen> {
   bool _hasPendingWithdrawal = false;
 
   Map<String, dynamic> _bankDetails = {
-    'account_holder': 'Driver Partner',
+    'account_holder': 'Driver',
     'bank_name': 'Not Provided',
     'account_number': '',
     'ifsc': '',
@@ -59,7 +59,7 @@ class _WalletScreenState extends State<WalletScreen> {
         setState(() {
           if (profile != null) {
             _bankDetails = {
-              'account_holder': profile['bankAccountName'] ?? profile['bank_account_name'] ?? profile['fullName'] ?? profile['full_name'] ?? 'Driver Partner',
+              'account_holder': profile['bankAccountName'] ?? profile['bank_account_name'] ?? profile['fullName'] ?? profile['full_name'] ?? 'Driver',
               'bank_name': profile['bankName'] ?? profile['bank_name'] ?? 'Not Provided',
               'account_number': profile['bankAccountNumber'] ?? profile['bank_account_number'] ?? '',
               'ifsc': profile['bankIfsc'] ?? profile['bank_ifsc'] ?? '',
@@ -133,7 +133,7 @@ class _WalletScreenState extends State<WalletScreen> {
   Future<void> _onWithdraw(double amount) async {
     final accNumber = (_bankDetails['account_number'] ?? '').toString().trim();
     final ifsc = (_bankDetails['ifsc'] ?? '').toString().trim().toUpperCase();
-    final holder = (_bankDetails['account_holder'] ?? 'Driver Partner').toString().trim();
+    final holder = (_bankDetails['account_holder'] ?? 'Driver').toString().trim();
 
     if (accNumber.isEmpty || ifsc.isEmpty) {
       Fluttertoast.showToast(

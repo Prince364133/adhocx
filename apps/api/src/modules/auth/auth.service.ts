@@ -305,6 +305,13 @@ export class AuthService implements OnModuleInit {
       throw new UnauthorizedException('Incorrect password. Please try again or reset your password.');
     }
 
+    if (dto.role) {
+      const expectedRole = this.mapUserRole(dto.role);
+      if (user.role !== expectedRole) {
+        throw new ForbiddenException(`Access denied: This account is registered as a ${user.role}, but login was attempted as a ${expectedRole}.`);
+      }
+    }
+
     this.logger.log(`✅ [LOGIN SUCCESS] User authenticated: ${user.id} (${user.fullName || user.phone}) as ${user.role}`);
     return this.generateAuthResponse(user);
   }
@@ -512,12 +519,12 @@ export class AuthService implements OnModuleInit {
             phone: effectivePhone || undefined,
             email: effectiveEmail || undefined,
             role: assignedRole,
-            fullName: dto.fullName || (assignedRole === UserRole.DRIVER ? 'Driver Partner' : 'User'),
+            fullName: dto.fullName || (assignedRole === UserRole.DRIVER ? 'Driver' : 'User'),
             driver:
               assignedRole === UserRole.DRIVER
                 ? {
                     create: {
-                      fullName: dto.fullName || 'Driver Partner',
+                      fullName: dto.fullName || 'Driver',
                       phone: effectivePhone || undefined,
                       verificationStatus: 'PENDING',
                       availabilityStatus: 'OFFLINE',
@@ -599,6 +606,12 @@ export class AuthService implements OnModuleInit {
 
         const assignedRole = this.mapUserRole(dto.role);
 
+        if (user && dto.role && user.role !== assignedRole) {
+          throw new ConflictException(
+            `An account with this email is already registered as a ${user.role}. Under AdhocX's 1-account-1-role policy, an email can only have a single role.`
+          );
+        }
+
         if (!user) {
           user = await this.db.user.create({
             data: {
@@ -610,7 +623,7 @@ export class AuthService implements OnModuleInit {
                 assignedRole === UserRole.DRIVER
                   ? {
                       create: {
-                        fullName: fullName || 'Driver Partner',
+                        fullName: fullName || 'Driver',
                         phone: undefined,
                         verificationStatus: 'PENDING',
                         availabilityStatus: 'OFFLINE',
@@ -657,7 +670,7 @@ export class AuthService implements OnModuleInit {
               user.driver = await this.db.driver.create({
                 data: {
                   userId: user.id,
-                  fullName: user.fullName || fullName || 'Driver Partner',
+                  fullName: user.fullName || fullName || 'Driver',
                   verificationStatus: 'PENDING',
                   availabilityStatus: 'OFFLINE',
                 },

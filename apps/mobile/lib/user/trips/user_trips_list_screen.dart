@@ -261,7 +261,7 @@ class _UserTripsListScreenState extends State<UserTripsListScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '₹${trip['fare'] ?? '850'}',
+                  '₹${trip['fare'] ?? trip['driverRate'] ?? trip['totalDriverEarnings'] ?? trip['budget'] ?? '--'}',
                   style: AppTypography.body(
                     color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                     fontWeight: FontWeight.bold,

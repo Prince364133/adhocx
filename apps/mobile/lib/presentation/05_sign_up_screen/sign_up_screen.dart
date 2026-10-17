@@ -103,8 +103,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
       final authService = context.read<AuthService>();
       final onboarding = context.read<OnboardingProvider>();
 
+      final isDriver = onboarding.role == 'DRIVER';
       onboarding.setPersonalDetails(
-        fullName: onboarding.fullName.isNotEmpty ? onboarding.fullName : 'Partner',
+        fullName: onboarding.fullName.isNotEmpty ? onboarding.fullName : (isDriver ? 'Driver' : 'User'),
         dateOfBirth: onboarding.dateOfBirth,
         gender: onboarding.gender,
         email: emailRaw,
@@ -414,7 +415,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             AppToast.showInfo(
                               isDriver
                                   ? 'Switched to Business Account registration'
-                                  : 'Switched to Driver Partner registration',
+                                  : 'Switched to Driver registration',
                               context: context,
                             );
                           },
@@ -444,14 +445,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        isDriver ? 'Registering as a Corporate Business?' : 'Registering as a Driver Partner?',
+                                        isDriver ? 'Registering as a Corporate Business?' : 'Registering as a Commercial Driver?',
                                         style: AppTypography.caption(
                                           color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                                         ),
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
-                                        isDriver ? 'Switch to Business Account' : 'Switch to Driver Partner',
+                                        isDriver ? 'Switch to Business Account' : 'Switch to Driver',
                                         style: AppTypography.body(
                                           color: isDark ? AppColors.primaryLight : AppColors.primary,
                                           fontWeight: FontWeight.w600,

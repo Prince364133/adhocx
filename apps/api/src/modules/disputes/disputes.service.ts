@@ -236,7 +236,7 @@ export class DisputesService {
   async createSupportQuery(userId: string, dto: CreateSupportQueryDto) {
     const user = await this.db.user.findUnique({
       where: { id: userId },
-      include: { vendor: true },
+      include: { vendor: true, driver: true },
     });
 
     // If tripId is provided and valid, attempt to create a dispute ticket
@@ -265,7 +265,7 @@ export class DisputesService {
             disputeId: dispute.id,
             tripId: trip.id,
             reason: dispute.reason,
-            reporterName: dispute.reporter.fullName || 'Corporate User',
+            reporterName: dispute.reporter.fullName || 'User',
           });
 
           await this.audit.log({
@@ -289,11 +289,15 @@ export class DisputesService {
       } catch (_) {}
     }
 
-    // Otherwise create general corporate support inquiry via leadCapture
-    const email = user?.email || dto.contactEmail || 'user@adhocx.com';
-    const phone = user?.phone || dto.contactPhone || '';
-    const companyName = user?.vendor?.organizationName || dto.companyName || 'Corporate Client';
-    const contactName = user?.fullName || dto.contactPerson || 'Requester';
+    // Otherwise create general support inquiry via leadCapture
+    const isDriver = (user?.role as any) === 'DRIVER' || !!user?.driver;
+    const defaultCompanyName = isDriver
+      ? 'AdhocX Driver'
+      : (user?.vendor?.organizationName || 'Corporate Client');
+    const email = user?.email || dto.contactEmail || (isDriver ? 'driver@adhocx.com' : 'user@adhocx.com');
+    const phone = user?.phone || user?.driver?.phone || dto.contactPhone || '';
+    const companyName = user?.vendor?.organizationName || dto.companyName || defaultCompanyName;
+    const contactName = user?.fullName || user?.driver?.fullName || dto.contactPerson || (isDriver ? 'Driver' : 'Requester');
 
     const formattedNotes = `Subject: ${dto.subject}\nPriority: ${dto.priority || 'NORMAL'}\n\n${dto.description}`;
 
@@ -341,7 +345,7 @@ export class DisputesService {
   async getMySupportQueries(userId: string) {
     const user = await this.db.user.findUnique({
       where: { id: userId },
-      include: { vendor: true },
+      include: { vendor: true, driver: true },
     });
 
     // 1. Get disputes filed by this user
@@ -355,6 +359,7 @@ export class DisputesService {
     const orCond: any[] = [];
     if (user?.email) orCond.push({ email: user.email });
     if (user?.phone) orCond.push({ phone: user.phone });
+    if (user?.driver?.phone) orCond.push({ phone: user.driver.phone });
     if (user?.vendor?.organizationName) orCond.push({ companyName: user.vendor.organizationName });
 
     let leadTickets: any[] = [];

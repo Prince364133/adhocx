@@ -85,6 +85,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
         ? onboarding.fullName
         : ((authUser?.fullName != null &&
                 authUser!.fullName!.isNotEmpty &&
+                authUser.fullName != 'Driver' &&
                 authUser.fullName != 'Driver Partner' &&
                 authUser.fullName != 'Google User' &&
                 authUser.fullName != 'Google Partner' &&
@@ -318,7 +319,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
         if (mounted) setState(() => _isSaving = false);
       }
     } else {
-      // ── Driver Partner Submission ──
+      // ── Driver Submission ──
       if (!_formKey.currentState!.validate()) {
         const msg = 'Please fill in all mandatory personal details correctly.';
         setState(() => _inlineErrorMessage = msg);
@@ -335,7 +336,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
 
       final age = DateTime.now().difference(_selectedDate!).inDays ~/ 365;
       if (age < 18) {
-        const msg = 'Driver partners must be at least 18 years old to onboard.';
+        const msg = 'Drivers must be at least 18 years old to onboard.';
         setState(() => _inlineErrorMessage = msg);
         AppToast.showError(msg, context: context);
         return;

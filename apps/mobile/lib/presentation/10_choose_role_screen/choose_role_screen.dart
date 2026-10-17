@@ -106,10 +106,10 @@ class _ChooseRoleScreenState extends State<ChooseRoleScreen> {
                         ),
                         const SizedBox(height: AppSpacing.lg),
 
-                        // ── Role 2: Driver Partner ─────────────────────────────────
+                        // ── Role 2: Driver ─────────────────────────────────
                         AppRoleSelectCard(
                           role: 'DRIVER',
-                          title: 'Driver Partner',
+                          title: 'Driver',
                           subtitle: 'Drive your vehicle and earn with verified rides',
                           isSelected: _selectedRole == 'DRIVER',
                           onTap: () => setState(() => _selectedRole = 'DRIVER'),

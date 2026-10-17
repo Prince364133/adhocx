@@ -15,7 +15,7 @@
 Built with the **Astra** tech stack, this web app is engineered for:
 * **Sub-second Core Web Vitals (LCP < 1.0s, FID < 40ms, CLS = 0)**
 * **Peak SEO Rankings & Bot / Search Engine Crawlability** (Pure server-rendered semantic HTML with zero unnecessary client JS)
-* **High-Converting Funnels** for both **Driver-Partners** and **Corporate Transport Users**
+* **High-Converting Funnels** for both **Commercial Drivers** and **Corporate Transport Users**
 * **Consistent Brand Identity** strictly following the AdhocX Design System (`04_DESIGN_SYSTEM.md` & `05_UI_UX_GUIDELINES.md`)
 
 ---
@@ -61,7 +61,7 @@ apps/marketing/
 │   │   ├── safety/                <- Safety, Verification & Trust Standards
 │   │   ├── pricing/               <- Transparent pricing & commission models
 │   │   ├── contact/               <- Inquiries & Partner support
-│   │   └── legal/                 <- Terms, Privacy Policy, Driver Partner Agreement
+│   │   └── legal/                 <- Terms, Privacy Policy, Commercial Driver Agreement
 │   └── styles/                    <- tokens.css, global.css, typography.css
 ├── astra.config.mjs               <- Astra build & server configuration
 ├── package.json                   <- Dependencies & build scripts
@@ -80,7 +80,7 @@ To rapidly scale driver supply and ensure high initial retention, the marketing 
   * Zero platform commissions during introductory period.
   * Instant weekly/daily bank payouts via UPI & IMPS.
   * Transparent trip allocations with fixed guaranteed rates.
-  * 24/7 dedicated driver partner on-road support.
+  * 24/7 dedicated driver on-road support.
 
 ---
 

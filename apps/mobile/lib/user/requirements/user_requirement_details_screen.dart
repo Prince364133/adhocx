@@ -1413,7 +1413,7 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                                 final b = bids[index];
                                 if (b is! Map) return const SizedBox.shrink();
                                 final bidAmount = _parseNum(b['bidAmount']).toDouble();
-                                final driverName = b['driverName']?.toString() ?? 'Driver Partner';
+                                final driverName = b['driverName']?.toString() ?? 'Driver';
                                 final rating = _parseNum(b['driverRating'], 4.9).toDouble();
                                 final eta = b['etaMinutes']?.toString() ?? '15';
 

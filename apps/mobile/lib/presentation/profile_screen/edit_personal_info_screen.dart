@@ -36,6 +36,7 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
     if (n == null) return true;
     final lower = n.trim().toLowerCase();
     return lower.isEmpty ||
+        lower == 'driver' ||
         lower == 'driver partner' ||
         lower == 'google partner' ||
         lower == 'google user' ||

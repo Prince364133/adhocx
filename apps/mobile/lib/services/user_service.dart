@@ -310,6 +310,19 @@ class UserService {
     return await _api.get('/trips/$tripId');
   }
 
+  Future<List<dynamic>> getTripMessages(String tripId) async {
+    await _ensureSession();
+    final res = await _api.get('/trips/$tripId/messages', force: true);
+    if (res is List) return res;
+    if (res is Map && res['data'] is List) return res['data'] as List<dynamic>;
+    return [];
+  }
+
+  Future<dynamic> sendTripMessage(String tripId, String text) async {
+    await _ensureSession();
+    return await _api.post('/trips/$tripId/messages', body: {'text': text});
+  }
+
   Future<dynamic> cancelTrip(String tripId, {String? reason}) async {
     await _ensureSession();
     return await _api.post(

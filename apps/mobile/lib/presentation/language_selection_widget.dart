@@ -1,60 +1,83 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../services/language_service.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_radius.dart';
+import '../theme/app_spacing.dart';
 
-class LanguageProvider extends ChangeNotifier {
-  Locale _currentLocale = const Locale('en');
-
-  Locale get currentLocale => _currentLocale;
-
-  // Load saved language on startup
-  Future<void> loadSavedLanguage() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedLang = prefs.getString('app_language') ?? 'en';
-    _currentLocale = Locale(savedLang);
-    notifyListeners();
-  }
-
-  // Change language and save to local storage
-  Future<void> setLanguage(String languageCode) async {
-    _currentLocale = Locale(languageCode);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('app_language', languageCode);
-    notifyListeners(); // This tells MaterialApp to rebuild!
-  }
-}
+export '../services/language_service.dart' show LanguageProvider, AppLanguageService, TranslationContextExtension, StringTranslationExtension;
 
 class LanguageSelectionWidget extends StatelessWidget {
   const LanguageSelectionWidget({super.key});
 
-  static const _languages = <String, String>{
-    'en': 'English',
-    'hi': 'हिन्दी',
-  };
-
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<LanguageProvider>();
-    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colorScheme.outline),
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
       ),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: _languages.entries.map((entry) {
-          final selected = provider.currentLocale.languageCode == entry.key;
-          return ChoiceChip(
-            label: Text(entry.value),
-            selected: selected,
-            onSelected: (_) => provider.setLanguage(entry.key),
-          );
-        }).toList(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.translate_rounded,
+                size: 18,
+                color: isDark ? AppColors.primaryLight : AppColors.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                context.tr('Select Language'),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: AppLanguageService.supportedLanguages.map((lang) {
+              final isSelected = provider.currentLocale.languageCode == lang.code;
+              return ChoiceChip(
+                label: Text(
+                  '${lang.nativeName} (${lang.englishName})',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    color: isSelected
+                        ? Colors.white
+                        : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                  ),
+                ),
+                selected: isSelected,
+                selectedColor: AppColors.primary,
+                backgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                  side: BorderSide(
+                    color: isSelected
+                        ? AppColors.primary
+                        : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                  ),
+                ),
+                onSelected: (_) => provider.setLanguage(lang.code),
+              );
+            }).toList(),
+          ),
+        ],
       ),
     );
   }

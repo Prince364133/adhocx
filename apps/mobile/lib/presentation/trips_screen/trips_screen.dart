@@ -298,7 +298,17 @@ class _TripsScreenState extends State<TripsScreen>
                 req['dropLocation']?['address'] ??
                 'Drop Location';
             final vehicle = req['vehicleType']?.toString() ?? 'Sedan';
-            final payout = '₹${trip['driverEarnings'] ?? trip['fare'] ?? '850'}';
+            final rawAmount = trip['driverRate'] ??
+                trip['driverEarnings'] ??
+                trip['totalDriverEarnings'] ??
+                trip['fare'] ??
+                req['ratePerVehicle'] ??
+                req['budget'] ??
+                req['suggestedBudget'];
+            final num parsedPayout = rawAmount != null
+                ? ((rawAmount is num) ? rawAmount : (num.tryParse(rawAmount.toString()) ?? 0))
+                : 0;
+            final payout = parsedPayout > 0 ? '₹${parsedPayout.toStringAsFixed(0)}' : '₹--';
             final status = (trip['status'] ?? 'ASSIGNED').toString().toUpperCase();
             final title = '${vehicle.toUpperCase()} Booking';
             final time = trip['reportingTime'] != null
@@ -984,7 +994,16 @@ class _TripsScreenState extends State<TripsScreen>
                 req['dropLocation']?['address'] ??
                 'Drop Location';
             final vehicle = req['vehicleType']?.toString() ?? 'Sedan';
-            final payout = '₹${trip['driverEarnings'] ?? trip['fare'] ?? '850'}';
+            final rawAmount = trip['totalDriverEarnings'] ??
+                trip['driverRate'] ??
+                trip['driverEarnings'] ??
+                trip['fare'] ??
+                req['ratePerVehicle'] ??
+                req['budget'];
+            final num parsedPayout = rawAmount != null
+                ? ((rawAmount is num) ? rawAmount : (num.tryParse(rawAmount.toString()) ?? 0))
+                : 0;
+            final payout = parsedPayout > 0 ? '₹${parsedPayout.toStringAsFixed(0)}' : '₹--';
             final time = trip['completedAt'] != null
                 ? trip['completedAt'].toString().split('T').first
                 : 'Completed';

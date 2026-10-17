@@ -43,7 +43,7 @@
 - **Result:** First 5 requests succeed; subsequent requests are rejected with `HTTP 429 Too Many Requests` with `Retry-After: 600`.
 
 ### API5:2023 Broken Function Level Authorization — PASS
-- **Test:** Vendor partner or driver partner attempts administrative approval endpoint (`POST /api/v1/admin/drivers/:id/verify`).
+- **Test:** Vendor partner or driver attempts administrative approval endpoint (`POST /api/v1/admin/drivers/:id/verify`).
 - **Result:** `RolesGuard` strictly inspects `user.role === 'ADMIN'`. Returns `HTTP 403 Forbidden`.
 
 ### API6:2023 Unrestricted Access to Sensitive Business Flows — PASS

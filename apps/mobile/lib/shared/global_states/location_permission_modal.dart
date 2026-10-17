@@ -103,7 +103,7 @@ class _LocationPermissionModalState extends State<LocationPermissionModal> {
 
               // Introduction
               Text(
-                'AdhocX Driver Partner accesses and collects your device\'s precise location data to deliver core corporate fleet and passenger transport features:',
+                'AdhocX Driver accesses and collects your device\'s precise location data to deliver core corporate fleet and passenger transport features:',
                 style: AppTypography.body(
                   color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                 ),
@@ -172,7 +172,7 @@ class _LocationPermissionModalState extends State<LocationPermissionModal> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'AdhocX Driver Partner collects location data to enable duty dispatch matching, turn-by-turn navigation, and live trip tracking even when the app is closed or not in use (while you are Online or on an Active Duty).',
+                            'AdhocX Driver collects location data to enable duty dispatch matching, turn-by-turn navigation, and live trip tracking even when the app is closed or not in use (while you are Online or on an Active Duty).',
                             style: AppTypography.caption(
                               color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                             ),

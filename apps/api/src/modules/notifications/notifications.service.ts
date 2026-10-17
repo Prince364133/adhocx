@@ -66,7 +66,7 @@ export interface PushSendResult {
 
 function otpEmailTemplate(otp: string, fullName?: string): string {
   const digits = otp.split('');
-  const recipient = fullName ? fullName.trim() : 'Partner';
+  const recipient = fullName ? fullName.trim() : 'User';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -169,7 +169,7 @@ function otpEmailTemplate(otp: string, fullName?: string): string {
 }
 
 function kycApprovedEmailTemplate(fullName: string): string {
-  const recipient = fullName ? fullName.trim() : 'Partner';
+  const recipient = fullName ? fullName.trim() : 'User';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -237,7 +237,7 @@ function kycApprovedEmailTemplate(fullName: string): string {
 }
 
 function kycDeclinedEmailTemplate(fullName: string, reason: string): string {
-  const recipient = fullName ? fullName.trim() : 'Partner';
+  const recipient = fullName ? fullName.trim() : 'User';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -305,7 +305,7 @@ function kycDeclinedEmailTemplate(fullName: string, reason: string): string {
 }
 
 function welcomeEmailTemplate(fullName: string, role: string): string {
-  const recipient = fullName ? fullName.trim() : 'Partner';
+  const recipient = fullName ? fullName.trim() : (role === 'DRIVER' ? 'Driver' : 'User');
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -1530,7 +1530,7 @@ export class NotificationsService implements OnModuleInit {
    */
   async sendKycStatusNotification(payload: SendKycNotificationPayload): Promise<{ success: boolean }> {
     const { userId, phone, email, fullName, status, reason } = payload;
-    const name = fullName || 'Partner';
+    const name = fullName || 'User';
 
     if (email) {
       if (status === 'VERIFIED') {
@@ -1577,7 +1577,7 @@ export class NotificationsService implements OnModuleInit {
    */
   async sendWelcomeNotification(payload: SendWelcomeNotificationPayload): Promise<{ success: boolean }> {
     const { userId, phone, email, fullName, role } = payload;
-    const name = fullName || 'Partner';
+    const name = fullName || (role === 'DRIVER' ? 'Driver' : 'User');
 
     if (email) {
       this.sendEmail(email, '🌟 Welcome to AdhocX!', welcomeEmailTemplate(name, role)).catch((err) => {
@@ -1594,7 +1594,7 @@ export class NotificationsService implements OnModuleInit {
       });
     }
 
-    const recipient = email || phone || 'Partner';
+    const recipient = email || phone || 'User';
     this.logger.log(`🌟 [WELCOME] ${recipient} — ${name} as ${role}`);
 
     return { success: true };

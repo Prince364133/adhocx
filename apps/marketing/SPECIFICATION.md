@@ -22,7 +22,7 @@ The AdhocX Marketing Web App serves as the top-of-funnel discovery and conversio
 | URL Route | Page Name | Primary Objective | Target Audience | Primary CTA |
 |---|---|---|---|---|
 | `/` | **Global Home Landing** | Introduce AdhocX B2B fulfillment & dual-sided marketplace | All Visitors | "Book Corporate Cabs" / "Drive with Us" |
-| `/drivers` | **Driver Partner Portal** | Drive driver signups & app downloads with Milestone Campaign | Commercial Drivers | "Download Driver App & Claim ₹2,000 Bonus" |
+| `/drivers` | **Driver Portal** | Drive driver signups & app downloads with Milestone Campaign | Commercial Drivers | "Download Driver App & Claim ₹2,000 Bonus" |
 | `/drivers/calculator` | **Driver Earnings Simulator** | Show potential weekly & monthly earnings + milestone bonuses | Prospective Drivers | "Start Onboarding" |
 | `/enterprise` | **Corporate & User Portal** | Convert corporate transport users looking to source commercial cabs | Corporate Logistics & HR | "Schedule Enterprise Demo / Get Started" |
 | `/safety` | **Trust & Safety Standards** | Showcase driver background checks, GPS tracking, vehicle audits | All / Risk Teams | "Read Safety Charter" |
@@ -40,7 +40,7 @@ The AdhocX Marketing Web App serves as the top-of-funnel discovery and conversio
   * Subheadline: *"Say goodbye to chaotic WhatsApp and Telegram cab sourcing. AdhocX instantly matches corporate transport requirements with verified commercial cabs and drivers."*
   * Dual Action CTAs:
     * Primary (Blue `#2563EB`): `Get Corporate Fleet Access`
-    * Secondary (Neutral Outlined): `Become a Driver Partner (Earn ₹2,000 Bonus)`
+    * Secondary (Neutral Outlined): `Drive with AdhocX (Earn ₹2,000 Bonus)`
 * **Operational Proof Banner:** Live fulfillment stats (e.g., 99.4% On-Time SLA, 15-Minute Dispatch Guarantee, 100% Commercial Fleet).
 * **Pain Point vs Solution Grid:** Comparison between traditional manual sourcing (calls, delays, no audit trail) vs AdhocX automated fulfillment (reverse-auction matching, real-time telemetry, automated GST billing).
 * **How It Works (3 Steps):**
@@ -113,7 +113,7 @@ Every Astra page includes dynamic SEO metadata via `<SeoHead />`:
 ### 4.3 Schema.org JSON-LD Structured Data
 * **Organization Schema:** Name, Logo, Address, Contact, Social Profiles.
 * **WebSite Schema:** SearchAction targeting site search.
-* **JobPosting Schema (for Driver Portal):** Allows Google for Jobs to index "Commercial Cab Driver Partner with ₹2,000 Signing Bonus".
+* **JobPosting Schema (for Driver Portal):** Allows Google for Jobs to index "Commercial Cab Driver with ₹2,000 Signing Bonus".
 * **FAQPage Schema:** Rich accordion FAQs on driver & enterprise pages to capture Google Rich Snippets.
 * **BreadcrumbList Schema:** Clean site hierarchy navigation.
 

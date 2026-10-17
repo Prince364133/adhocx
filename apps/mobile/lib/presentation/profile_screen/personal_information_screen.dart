@@ -6,13 +6,14 @@ import 'package:provider/provider.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
 import '../../services/driver_service.dart';
+import '../../services/language_service.dart';
 import '../../services/onboarding_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 
-/// Screen 1: Personal Information screen bound to authoritative live backend data.
+/// Screen: Personal Information and Account Status screen bound to live backend data.
 class PersonalInformationScreen extends StatefulWidget {
   const PersonalInformationScreen({super.key});
 
@@ -25,6 +26,11 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
   bool _isLoading = true;
   bool _isUploadingPhoto = false;
   final ImagePicker _picker = ImagePicker();
+
+  static const _months = [
+    '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
 
   @override
   void initState() {
@@ -49,6 +55,18 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     }
   }
 
+  String _formatDate(String? isoDate) {
+    if (isoDate == null || isoDate.isEmpty) return '—';
+    try {
+      final dt = DateTime.parse(isoDate).toLocal();
+      final day = dt.day.toString().padLeft(2, '0');
+      final month = (dt.month >= 1 && dt.month <= 12) ? _months[dt.month] : '';
+      return '$day $month ${dt.year}';
+    } catch (_) {
+      return isoDate;
+    }
+  }
+
   Future<void> _pickAndUploadPhoto() async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
@@ -65,7 +83,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Upload Profile Photo',
+                context.tr('Upload Profile Photo'),
                 style: AppTypography.h3(
                   color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                   fontWeight: FontWeight.bold,
@@ -75,7 +93,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
               ListTile(
                 leading: const Icon(Icons.photo_camera_outlined, color: AppColors.primary),
                 title: Text(
-                  'Take a Photo',
+                  context.tr('Take a Photo'),
                   style: TextStyle(
                     color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                   ),
@@ -88,7 +106,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
               ListTile(
                 leading: const Icon(Icons.photo_library_outlined, color: AppColors.primary),
                 title: Text(
-                  'Choose from Gallery',
+                  context.tr('Choose from Gallery'),
                   style: TextStyle(
                     color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                   ),
@@ -125,7 +143,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
       );
 
       Fluttertoast.showToast(
-        msg: 'Profile photo uploaded successfully!',
+        msg: context.tr('Profile photo uploaded successfully!'),
         backgroundColor: AppColors.accentGreenDark,
       );
 
@@ -160,7 +178,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     bool isFakeName(String? s) {
       if (s == null) return true;
       final l = s.trim().toLowerCase();
-      return l.isEmpty || l == 'driver partner' || l == 'google partner' || l == 'google user' || l == 'apple user' || l == 'user';
+      return l.isEmpty || l == 'driver' || l == 'driver partner' || l == 'google partner' || l == 'google user' || l == 'apple user' || l == 'user';
     }
 
     bool isFakeEmail(String? s) {
@@ -169,11 +187,11 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
       return l.isEmpty || l == 'user.google@gmail.com' || l == 'test@example.com' || l == '—';
     }
 
-    // Real profile fields prioritized from backend response, with live session fallbacks
+    // Profile field fallbacks
     final rawName = _profile?['fullName'] ?? onboarding.fullName;
     final name = (rawName != null && !isFakeName(rawName.toString()))
         ? rawName.toString().trim()
-        : (user?.fullName != null && !isFakeName(user!.fullName) ? user.fullName! : 'Not provided');
+        : (user?.fullName != null && !isFakeName(user!.fullName) ? user.fullName! : context.tr('Not provided'));
 
     final rawPhone = _profile?['phone'] ?? onboarding.phoneNumber;
     final phone = (rawPhone != null && rawPhone.toString().trim().isNotEmpty)
@@ -190,17 +208,17 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
         ? rawDob.toString().trim()
         : (onboarding.dateOfBirth != null
             ? '${onboarding.dateOfBirth!.day}/${onboarding.dateOfBirth!.month}/${onboarding.dateOfBirth!.year}'
-            : 'Not provided');
+            : context.tr('Not provided'));
 
     final rawGender = _profile?['gender'];
     final gender = (rawGender != null && rawGender.toString().trim().isNotEmpty)
-        ? rawGender.toString().trim()
-        : (onboarding.gender.isNotEmpty ? onboarding.gender : 'Not specified');
+        ? context.tr(rawGender.toString().trim())
+        : (onboarding.gender.isNotEmpty ? context.tr(onboarding.gender) : context.tr('Not specified'));
 
     final rawAddress = _profile?['address'];
     final address = (rawAddress != null && rawAddress.toString().trim().isNotEmpty)
         ? rawAddress.toString().trim()
-        : 'Not provided';
+        : context.tr('Not provided');
 
     final emergencyName = _profile?['emergencyContactName']?.toString().trim();
     final emergencyPhone = _profile?['emergencyContactPhone']?.toString().trim();
@@ -214,7 +232,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     } else if (emergencyPhone != null && emergencyPhone.isNotEmpty) {
       emergencyContact = emergencyPhone;
     } else {
-      emergencyContact = 'Not provided';
+      emergencyContact = context.tr('Not provided');
     }
 
     final driverId = _profile?['driverId']?.toString() ??
@@ -225,7 +243,13 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                 : 'DRV-PENDING'));
 
     final profilePhotoUrl = _profile?['profilePhotoUrl']?.toString() ?? user?.photoUrl;
-    final verificationStatus = _profile?['verificationStatus']?.toString().toUpperCase() ?? user?.verificationStatus ?? 'PENDING';
+    final rawVerification = (_profile?['verificationStatus'] ?? user?.driverProfile?['verificationStatus'] ?? 'PENDING').toString().toUpperCase();
+    final isVerified = rawVerification == 'VERIFIED' || rawVerification == 'APPROVED';
+    final verificationStatus = rawVerification == 'VERIFIED' ? context.tr('VERIFIED') : (rawVerification == 'UNDER_REVIEW' ? context.tr('UNDER_REVIEW') : context.tr('PENDING'));
+    final statusLabel = isVerified ? context.tr('Active Driver') : (rawVerification == 'UNDER_REVIEW' ? context.tr('Under Review') : context.tr('Pending Verification'));
+    final createdAt = _formatDate((_profile?['createdAt'] ?? user?.driverProfile?['createdAt'])?.toString());
+    final totalTrips = (_profile?['totalTrips'] ?? _profile?['total_trips'] ?? 0).toString();
+    final averageRating = (_profile?['averageRating'] ?? _profile?['rating'] ?? '5.0').toString();
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -267,7 +291,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Personal Information',
+                          context.tr('Personal Information'),
                           style: AppTypography.h3(
                             color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             fontWeight: FontWeight.bold,
@@ -277,7 +301,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                       TextButton(
                         onPressed: _navigateToEdit,
                         child: Text(
-                          'Edit',
+                          context.tr('Edit'),
                           style: AppTypography.body(
                             color: isDark ? AppColors.primaryLight : AppColors.primary,
                             fontWeight: FontWeight.bold,
@@ -400,17 +424,17 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                                                   vertical: 2,
                                                 ),
                                                 decoration: BoxDecoration(
-                                                  color: verificationStatus == 'VERIFIED'
+                                                  color: isVerified
                                                       ? AppColors.accentGreenDark.withValues(alpha: isDark ? 0.2 : 0.12)
                                                       : Colors.amber.withValues(alpha: isDark ? 0.2 : 0.12),
                                                   borderRadius: BorderRadius.circular(AppRadius.full),
                                                 ),
                                                 child: Text(
-                                                  verificationStatus == 'VERIFIED'
-                                                      ? 'Verified'
-                                                      : (verificationStatus == 'UNDER_REVIEW' ? 'In Review' : 'Pending'),
+                                                  isVerified
+                                                      ? context.tr('Verified')
+                                                      : (rawVerification == 'UNDER_REVIEW' ? context.tr('In Review') : context.tr('Pending')),
                                                   style: AppTypography.caption(
-                                                    color: verificationStatus == 'VERIFIED'
+                                                    color: isVerified
                                                         ? (isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark)
                                                         : Colors.amber.shade700,
                                                     fontWeight: FontWeight.bold,
@@ -421,7 +445,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
-                                            'Driver ID: $driverId',
+                                            '${context.tr('Driver ID')}: $driverId',
                                             style: AppTypography.caption(
                                               color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                                             ),
@@ -446,28 +470,28 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                                               ),
                                             ],
                                           ),
-                                           if (email != null && email.isNotEmpty) ...[
-                                             const SizedBox(height: 4),
-                                             Row(
-                                               children: [
-                                                 Icon(
-                                                   Icons.email_outlined,
-                                                   size: 14,
-                                                   color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                                                 ),
-                                                 const SizedBox(width: 6),
-                                                 Expanded(
-                                                   child: Text(
-                                                     email,
-                                                     style: AppTypography.caption(
-                                                       color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                                                     ),
-                                                     overflow: TextOverflow.ellipsis,
-                                                   ),
-                                                 ),
-                                               ],
-                                             ),
-                                           ],
+                                          if (email != null && email.isNotEmpty) ...[
+                                            const SizedBox(height: 4),
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.email_outlined,
+                                                  size: 14,
+                                                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Expanded(
+                                                  child: Text(
+                                                    email,
+                                                    style: AppTypography.caption(
+                                                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                                    ),
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
                                         ],
                                       ),
                                     ),
@@ -476,9 +500,212 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                               ),
                               const SizedBox(height: AppSpacing.xl),
 
+                              // ── Account Status Banner (Moved into Personal Information) ───
+                              Container(
+                                padding: const EdgeInsets.all(AppSpacing.xl),
+                                decoration: BoxDecoration(
+                                  color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: isDark ? 0.15 : 0.08),
+                                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                                  border: Border.all(
+                                    color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.25),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 46,
+                                      height: 46,
+                                      decoration: BoxDecoration(
+                                        color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(AppRadius.md),
+                                      ),
+                                      child: Icon(
+                                        Icons.work_outline_rounded,
+                                        color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                statusLabel,
+                                                style: AppTypography.h3(
+                                                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              Container(
+                                                width: 10,
+                                                height: 10,
+                                                decoration: BoxDecoration(
+                                                  color: isVerified
+                                                      ? (isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark)
+                                                      : AppColors.warning,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            isVerified
+                                                ? context.tr('Your account is active and in good standing')
+                                                : '${context.tr('Your account verification is')} $verificationStatus',
+                                            style: AppTypography.caption(
+                                              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.md),
+
+                              // ── Account Metrics Card ───────────────────────────────
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                                  border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                                ),
+                                child: Column(
+                                  children: [
+                                    _buildMetricTile(
+                                      isDark: isDark,
+                                      label: context.tr('Verification Status'),
+                                      valueWidget: Row(
+                                        children: [
+                                          Text(
+                                            verificationStatus,
+                                            style: AppTypography.body(
+                                              color: isVerified
+                                                  ? (isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark)
+                                                  : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          if (isVerified) ...[
+                                            const SizedBox(width: 4),
+                                            Icon(
+                                              Icons.check_circle_rounded,
+                                              size: 16,
+                                              color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                    Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                                    _buildMetricTile(
+                                      isDark: isDark,
+                                      label: context.tr('Account Created'),
+                                      valueWidget: Text(
+                                        createdAt,
+                                        style: AppTypography.body(
+                                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                    Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                                    _buildMetricTile(
+                                      isDark: isDark,
+                                      label: context.tr('Total Trips Completed'),
+                                      valueWidget: Text(
+                                        totalTrips,
+                                        style: AppTypography.body(
+                                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                                    _buildMetricTile(
+                                      isDark: isDark,
+                                      label: context.tr('Customer Rating'),
+                                      valueWidget: Row(
+                                        children: [
+                                          Text(
+                                            averageRating,
+                                            style: AppTypography.body(
+                                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: (isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark).withValues(alpha: isDark ? 0.2 : 0.12),
+                                              borderRadius: BorderRadius.circular(AppRadius.xs),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  Icons.star_rounded,
+                                                  size: 13,
+                                                  color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
+                                                ),
+                                                const SizedBox(width: 2),
+                                                Text(
+                                                  averageRating,
+                                                  style: AppTypography.caption(
+                                                    color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.md),
+
+                              // ── View Account Policies Tile ─────────────────────────
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                                  border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                                ),
+                                child: ListTile(
+                                  onTap: () {
+                                    // Terms & conditions or policy modal
+                                  },
+                                  leading: Icon(
+                                    Icons.article_outlined,
+                                    color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                  ),
+                                  title: Text(
+                                    context.tr('View Account Policies'),
+                                    style: AppTypography.body(
+                                      color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  trailing: Icon(
+                                    Icons.chevron_right,
+                                    color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.xl),
+
                               // ── Personal Details Section Title ─────────────────────
                               Text(
-                                'Personal Details',
+                                context.tr('Personal Details'),
                                 style: AppTypography.body(
                                   color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                   fontWeight: FontWeight.bold,
@@ -499,7 +726,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                                   children: [
                                     _buildDetailTile(
                                       icon: Icons.person_outline,
-                                      label: 'Full Name',
+                                      label: context.tr('Full Name'),
                                       value: name,
                                       isDark: isDark,
                                       onTap: _navigateToEdit,
@@ -507,7 +734,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                                     Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                                     _buildDetailTile(
                                       icon: Icons.cake_outlined,
-                                      label: 'Date of Birth',
+                                      label: context.tr('Date of Birth'),
                                       value: dob,
                                       isDark: isDark,
                                       onTap: _navigateToEdit,
@@ -515,7 +742,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                                     Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                                     _buildDetailTile(
                                       icon: Icons.alternate_email,
-                                      label: 'Gender',
+                                      label: context.tr('Gender'),
                                       value: gender,
                                       isDark: isDark,
                                       onTap: _navigateToEdit,
@@ -523,7 +750,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                                     Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                                     _buildDetailTile(
                                       icon: Icons.location_on_outlined,
-                                      label: 'Address',
+                                      label: context.tr('Address'),
                                       value: address,
                                       isDark: isDark,
                                       onTap: _navigateToEdit,
@@ -531,7 +758,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                                     Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                                     _buildDetailTile(
                                       icon: Icons.emergency_outlined,
-                                      label: 'Emergency Contact',
+                                      label: context.tr('Emergency Contact'),
                                       value: emergencyContact,
                                       isDark: isDark,
                                       onTap: _navigateToEdit,
@@ -547,6 +774,29 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildMetricTile({
+    required bool isDark,
+    required String label,
+    required Widget valueWidget,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: AppTypography.body(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+          ),
+          valueWidget,
+        ],
       ),
     );
   }

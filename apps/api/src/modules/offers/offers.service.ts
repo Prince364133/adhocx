@@ -26,6 +26,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
 import { ZonalPricingService } from '../pricing/zonal-pricing.service';
 import { DriverBehaviorService } from '../dispatch/driver-behavior.service';
+import { GoogleMapsService } from '../locations/google-maps.service';
 
 @Injectable()
 export class OffersService {
@@ -38,6 +39,7 @@ export class OffersService {
     private readonly audit: AuditService,
     @Optional() private readonly zonalPricing?: ZonalPricingService,
     @Optional() private readonly behavior?: DriverBehaviorService,
+    @Optional() private readonly googleMapsService?: GoogleMapsService,
   ) {}
 
   /**
@@ -73,7 +75,7 @@ export class OffersService {
           driver = await this.db.driver.create({
             data: {
               userId: driverUserId,
-              fullName: user.fullName || 'Driver Partner',
+              fullName: user.fullName || 'Driver',
               phone: user.phone || '',
               verificationStatus: VerificationStatus.VERIFIED,
               availabilityStatus: DriverAvailability.AVAILABLE,
@@ -144,38 +146,59 @@ export class OffersService {
     }
 
     const now = Date.now();
-    return offers.map((o) => {
-      const expiresAtMs = new Date(o.expiresAt).getTime();
-      const expiresInSeconds = Math.max(0, Math.floor((expiresAtMs - now) / 1000));
+    const maps = this.googleMapsService || new GoogleMapsService();
+    return Promise.all(
+      offers.map(async (o) => {
+        const expiresAtMs = new Date(o.expiresAt).getTime();
+        const expiresInSeconds = Math.max(0, Math.floor((expiresAtMs - now) / 1000));
+        const pLat = Number(o.requirement.pickupLat);
+        const pLng = Number(o.requirement.pickupLng);
+        const dLat = Number(o.requirement.dropLat);
+        const dLng = Number(o.requirement.dropLng);
+        const tripRoute = await maps.computeRoadRoute(
+          { latitude: pLat, longitude: pLng },
+          { latitude: dLat, longitude: dLng },
+        );
+        const hasEscort = Boolean(o.requirement.zonalQuote?.hasEscort);
 
-      return {
-        id: o.id,
-        requirementId: o.requirementId,
-        driverId: o.driverId,
-        vehicleType: o.vehicleType as unknown as VehicleType,
-        pickupLocation: {
-          latitude: Number(o.requirement.pickupLat),
-          longitude: Number(o.requirement.pickupLng),
-          address: o.requirement.pickupAddress,
-        },
-        dropLocation: {
-          latitude: Number(o.requirement.dropLat),
-          longitude: Number(o.requirement.dropLng),
-          address: o.requirement.dropAddress,
-        },
-        reportingTime: o.requirement.reportingTime.toISOString(),
-        offeredRate: Number(o.offeredRate),
-        status: o.status as OfferStatus,
-        expiresAt: o.expiresAt.toISOString(),
-        expiresInSeconds,
-        vendorOrganizationName: o.requirement.vendor.organizationName,
-        // Driver-filtered zonal context (hub, zone, earnings line items). Never includes vendor amounts.
-        zonal: o.requirement.zonalQuote
-          ? (this.zonalPricing?.quoteView(o.requirement.zonalQuote, 'DRIVER') as Record<string, unknown>)
-          : undefined,
-        createdAt: o.createdAt.toISOString(),
-      };
-    });
+        return {
+          id: o.id,
+          requirementId: o.requirementId,
+          driverId: o.driverId,
+          vehicleType: o.vehicleType as unknown as VehicleType,
+          pickupLocation: {
+            latitude: pLat,
+            longitude: pLng,
+            address: o.requirement.pickupAddress,
+          },
+          dropLocation: {
+            latitude: dLat,
+            longitude: dLng,
+            address: o.requirement.dropAddress,
+          },
+          pickupLat: pLat,
+          pickupLng: pLng,
+          dropLat: dLat,
+          dropLng: dLng,
+          distanceKm: tripRoute.distanceKm,
+          tripDistanceKm: tripRoute.distanceKm,
+          tripEtaMinutes: tripRoute.durationMinutes,
+          hasEscort,
+          escortRequired: hasEscort,
+          reportingTime: o.requirement.reportingTime.toISOString(),
+          offeredRate: Number(o.offeredRate),
+          status: o.status as OfferStatus,
+          expiresAt: o.expiresAt.toISOString(),
+          expiresInSeconds,
+          vendorOrganizationName: o.requirement.vendor.organizationName,
+          // Driver-filtered zonal context (hub, zone, earnings line items). Never includes vendor amounts.
+          zonal: o.requirement.zonalQuote
+            ? (this.zonalPricing?.quoteView(o.requirement.zonalQuote, 'DRIVER') as Record<string, unknown>)
+            : undefined,
+          createdAt: o.createdAt.toISOString(),
+        };
+      }),
+    );
     } catch (_) {
       return [];
     }
@@ -372,7 +395,7 @@ export class OffersService {
           this.notifications.emitEvent(`driver:${po.driverId}`, 'OFFER_EXPIRED', {
             offerId: po.id,
             requirementId: txResult.requirement.id,
-            reason: 'Requirement fully fulfilled by other partners',
+            reason: 'Requirement fully fulfilled by other drivers',
           });
         }
       }

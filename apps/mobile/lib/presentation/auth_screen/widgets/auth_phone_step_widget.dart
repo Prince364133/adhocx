@@ -185,7 +185,7 @@ class _AuthPhoneStepWidgetState extends State<AuthPhoneStepWidget> {
                   items: const [
                     SegmentItem(
                       value: 'DRIVER',
-                      label: 'Driver Partner',
+                      label: 'Driver',
                       icon: Icons.local_taxi_rounded,
                     ),
                     SegmentItem(

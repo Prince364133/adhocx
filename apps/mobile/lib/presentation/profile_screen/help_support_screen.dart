@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:provider/provider.dart';
 import '../../core/utils/app_logger.dart';
 import '../../routes/app_routes.dart';
-import '../../services/auth_provider.dart';
-import '../../services/onboarding_provider.dart';
+import '../../services/auth_service.dart';
+import '../../services/language_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
@@ -16,65 +14,31 @@ import '../../theme/app_typography.dart';
 class HelpSupportScreen extends StatelessWidget {
   const HelpSupportScreen({super.key});
 
-  void _handleLogout(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final authProvider = context.read<AuthProvider>();
-    final onboardingProvider = context.read<OnboardingProvider>();
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
-        title: Text(
-          'Sign Out',
-          style: AppTypography.h3(
-            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: Text(
-          'Are you sure you want to sign out of your account?',
-          style: AppTypography.body(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(
-              'Cancel',
-              style: AppTypography.body(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.of(ctx).pop();
-              try {
-                AppLogger.info('Sign out from Help & Support screen', tag: 'AUTH');
-                await authProvider.logout();
-                onboardingProvider.reset();
-              } catch (e) {
-                AppLogger.error('Error during sign out: $e', tag: 'AUTH', error: e);
-              }
-              if (context.mounted) {
-                Fluttertoast.showToast(
-                  msg: 'Signed out successfully',
-                  backgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.textPrimaryLight,
-                );
-                context.go(AppRoutes.signInScreen);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-              ),
-            ),
-            child: const Text('Logout', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+  Future<void> _launchContactEmail() async {
+    final user = AuthService.instance.currentUser;
+    final driverName = user?.fullName ?? 'Driver';
+    final phone = user?.phone ?? '';
+    final emailUri = Uri(
+      scheme: 'mailto',
+      path: 'support@adhocx.com',
+      query:
+          'subject=${Uri.encodeComponent('AdhocX Driver Support Request')}&body=${Uri.encodeComponent('Hi AdhocX Support Team,\n\nI need assistance with my driver account.\n\nDriver Name: $driverName\nPhone: $phone\n\nIssue Details:\n')}',
     );
+
+    try {
+      await launchUrl(emailUri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      AppLogger.error('Failed to open email client: $e', tag: 'SUPPORT');
+    }
+  }
+
+  Future<void> _launchPhoneCall() async {
+    final telUri = Uri(scheme: 'tel', path: '+917893545818');
+    try {
+      await launchUrl(telUri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      AppLogger.error('Failed to open phone dialer: $e', tag: 'SUPPORT');
+    }
   }
 
   @override
@@ -118,7 +82,7 @@ class HelpSupportScreen extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'Help & Support',
+                        context.tr('Help & Support'),
                         style: AppTypography.h3(
                           color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                           fontWeight: FontWeight.bold,
@@ -155,7 +119,7 @@ class HelpSupportScreen extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'How can we help you?',
+                                    context.tr('How can we help you?'),
                                     style: AppTypography.h3(
                                       color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                       fontWeight: FontWeight.bold,
@@ -163,7 +127,7 @@ class HelpSupportScreen extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    "We're here to support you 24/7",
+                                    context.tr("We're here to support you 24/7"),
                                     style: AppTypography.body(
                                       color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                                     ),
@@ -190,102 +154,55 @@ class HelpSupportScreen extends StatelessWidget {
                       const SizedBox(height: AppSpacing.xl),
 
                       // ── Options List Card ──────────────────────────────────
-                      Container(
-                        decoration: BoxDecoration(
-                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                      Material(
+                        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                        clipBehavior: Clip.antiAlias,
+                        shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                          side: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                         ),
                         child: Column(
                           children: [
                             _buildOptionTile(
                               isDark: isDark,
                               icon: Icons.help_outline_rounded,
-                              title: 'Help Center',
-                              subtitle: 'FAQs and guides',
+                              title: context.tr('Help Center'),
+                              subtitle: context.tr('FAQs and guides'),
                               onTap: () {
-                                Fluttertoast.showToast(
-                                  msg: 'Help Center opened',
-                                  backgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.primaryDark,
-                                );
+                                context.push(AppRoutes.faqScreen);
                               },
                             ),
                             Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                             _buildOptionTile(
                               isDark: isDark,
                               icon: Icons.chat_bubble_outline_rounded,
-                              title: 'Contact Support',
+                              title: context.tr('Contact Support'),
                               subtitle: 'support@adhocx.com',
-                              onTap: () {
-                                launchUrl(Uri.parse('mailto:support@adhocx.com?subject=AdhocX%20Driver%20Support'));
-                              },
+                              onTap: _launchContactEmail,
                             ),
                             Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                             _buildOptionTile(
                               isDark: isDark,
                               icon: Icons.phone_outlined,
-                              title: 'Call Support',
+                              title: context.tr('Call Support'),
                               subtitle: '+91 7893545818',
                               badgeText: '24/7',
-                              onTap: () {
-                                launchUrl(Uri.parse('tel:+917893545818'));
-                              },
+                              onTap: _launchPhoneCall,
                             ),
                             Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
                             _buildOptionTile(
                               isDark: isDark,
                               icon: Icons.report_problem_outlined,
-                              title: 'Report an Issue',
-                              subtitle: 'Something not working?',
+                              title: context.tr('Report an Issue'),
+                              subtitle: context.tr('Something not working?'),
                               onTap: () {
-                                Fluttertoast.showToast(
-                                  msg: 'Report issue form opened',
-                                  backgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.primaryDark,
-                                );
-                              },
-                            ),
-                            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                            _buildOptionTile(
-                              isDark: isDark,
-                              icon: Icons.rate_review_outlined,
-                              title: 'App Feedback',
-                              subtitle: 'Share your feedback',
-                              onTap: () {
-                                Fluttertoast.showToast(
-                                  msg: 'Feedback form opened',
-                                  backgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.primaryDark,
-                                );
+                                context.push(AppRoutes.reportIssueScreen);
                               },
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(height: AppSpacing.xl),
-
-                      // ── Logout Red Action Button ───────────────────────────
-                      Container(
-                        decoration: BoxDecoration(
-                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                          borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(
-                            color: AppColors.error.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: ListTile(
-                          onTap: () => _handleLogout(context),
-                          leading: Icon(
-                            Icons.logout_rounded,
-                            color: AppColors.error,
-                          ),
-                          title: Text(
-                            'Logout',
-                            style: AppTypography.body(
-                              color: AppColors.error,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 ),

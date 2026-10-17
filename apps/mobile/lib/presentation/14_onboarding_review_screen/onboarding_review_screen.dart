@@ -303,7 +303,7 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                         Text(
                           onboarding.fullName.isNotEmpty
                               ? onboarding.fullName
-                              : 'Partner Account',
+                              : 'Driver Account',
                           style: AppTypography.h3(
                             color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             fontWeight: FontWeight.bold,

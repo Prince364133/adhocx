@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
@@ -167,6 +168,16 @@ class MyApp extends StatelessWidget {
         return MaterialApp.router(
           title: 'AdhocX',
           locale: languageProvider.currentLocale,
+          supportedLocales: const [
+            Locale('en', ''),
+            Locale('hi', ''),
+            Locale('te', ''),
+          ],
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: themeProvider.themeMode,

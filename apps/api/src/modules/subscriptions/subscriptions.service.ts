@@ -104,7 +104,7 @@ export class SubscriptionsService {
             balanceAfter: updated.walletBalance,
             referenceType: 'SUBSCRIPTION_FEE',
             referenceId: `sub_${driver.id}_${Date.now()}`,
-            description: `Driver Partner Pro Monthly Subscription (30 Days renewal via wallet auto-debit)`,
+            description: `Driver Pro Monthly Subscription (30 Days renewal via wallet auto-debit)`,
           },
         });
 
@@ -425,7 +425,7 @@ export class SubscriptionsService {
     return {
       success: true,
       subscriptionExpiry: newExpiry.toISOString(),
-      message: 'Driver Partner Pro subscription activated successfully for 30 days',
+      message: 'Driver Pro subscription activated successfully for 30 days',
     };
   }
 
@@ -493,7 +493,7 @@ export class SubscriptionsService {
           balanceAfter: updated.walletBalance,
           referenceType: 'SUBSCRIPTION_FEE',
           referenceId: `sub_manual_${driver.id}_${Date.now()}`,
-          description: `Driver Partner Pro Monthly Subscription (Renewed via wallet balance)`,
+          description: `Driver Pro Monthly Subscription (Renewed via wallet balance)`,
         },
       });
 

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../routes/app_routes.dart';
 import '../../services/user_service.dart';
 import '../../shared/theme/app_colors.dart';
@@ -77,6 +79,35 @@ class _UserTripDetailsScreenState extends State<UserTripDetailsScreen> {
     }
   }
 
+  void _callDriver(String phone) async {
+    final clean = phone.replaceAll(RegExp(r'[^\d+]'), '');
+    if (clean.isEmpty) {
+      Fluttertoast.showToast(msg: 'Driver contact phone not available');
+      return;
+    }
+    final uri = Uri.parse('tel:$clean');
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        await launchUrl(uri);
+      }
+    } catch (_) {
+      Fluttertoast.showToast(msg: 'Unable to open phone dialer');
+    }
+  }
+
+  void _openChatWithDriver(Map<String, dynamic> trip, String driverName, String driverPhone) {
+    context.push(AppRoutes.tripChatScreen, extra: {
+      'tripId': trip['id'] ?? trip['tripId'],
+      'otherPartyName': driverName,
+      'otherPartyPhone': driverPhone,
+      'otherPartyRole': 'DRIVER',
+      'status': trip['status'] ?? 'IN_PROGRESS',
+      'trip': trip,
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -86,6 +117,7 @@ class _UserTripDetailsScreenState extends State<UserTripDetailsScreen> {
     final driver = trip['driver'] as Map<String, dynamic>?;
     final driverUser = driver?['user'] as Map<String, dynamic>?;
     final driverName = driverUser?['fullName'] ?? driver?['fullName'] ?? 'Assigned Driver';
+    final driverPhone = driver?['phone'] ?? driverUser?['phone'] ?? trip['driverPhone'] ?? '';
     final vehiclePlate = driver?['vehiclePlate'] ?? trip['vehiclePlate'] ?? '—';
     final vehicleModel = driver?['vehicleModel'] ?? trip['vehicleModel'] ?? trip['vehicleType'] ?? 'Commercial Fleet';
     final tripCode = trip['tripCode'] ?? trip['id'] ?? '—';
@@ -247,6 +279,16 @@ class _UserTripDetailsScreenState extends State<UserTripDetailsScreen> {
                                       Text('$vehiclePlate • $vehicleModel', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontSize: 10)),
                                     ],
                                   ),
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.phone_outlined, size: 20, color: isDark ? AppColors.primaryLight : AppColors.primary),
+                                  tooltip: 'Call Driver',
+                                  onPressed: () => _callDriver(driverPhone),
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.chat_bubble_outline_rounded, size: 20, color: isDark ? AppColors.primaryLight : AppColors.primary),
+                                  tooltip: 'Chat with Driver',
+                                  onPressed: () => _openChatWithDriver(trip, driverName, driverPhone),
                                 ),
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.end,

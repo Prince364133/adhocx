@@ -138,5 +138,5 @@ The AdhocX Marketing Web App bridges high-converting promotional storytelling wi
 * **Columns:**
   * **Brand Column:** AdhocX logo, brief company mission, copyright, social links (LinkedIn, Twitter, YouTube).
   * **Product & Solutions:** Corporate Cab Fulfillment, Scheduled Shift Transport, Spot Adhoc Fleet, Reverse-Auction Engine.
-  * **Driver Partners:** Driver Onboarding, ₹2,000 Bonus Terms, Rate Card, Driver Support, Driver Safety.
+  * **Commercial Drivers:** Driver Onboarding, ₹2,000 Bonus Terms, Rate Card, Driver Support, Driver Safety.
   * **Compliance & Legal:** Terms of Service, Privacy Policy, Driver Agreement, Safety Guidelines, GST Invoicing.

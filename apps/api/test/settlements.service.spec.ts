@@ -18,6 +18,7 @@ describe('SettlementsService Unit Tests', () => {
     db = {
       driver: {
         findUnique: jest.fn(),
+        update: jest.fn().mockResolvedValue({}),
       },
       settlement: {
         findUnique: jest.fn(),

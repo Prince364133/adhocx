@@ -50,7 +50,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _driverProfile = Map<String, dynamic>.from(profileRes);
           }
           final user = AuthService.instance.currentUser;
-          _driverProfile['name'] = _driverProfile['fullName'] ?? _driverProfile['full_name'] ?? user?.fullName ?? 'Driver Partner';
+          _driverProfile['name'] = _driverProfile['fullName'] ?? _driverProfile['full_name'] ?? user?.fullName ?? 'Driver';
           _driverProfile['phone'] = _driverProfile['phone'] ?? user?.phone ?? '';
 
           final veh = _driverProfile['vehicle'] ?? (_driverProfile['vehicles'] is List && (_driverProfile['vehicles'] as List).isNotEmpty ? _driverProfile['vehicles'][0] : null);
@@ -199,7 +199,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Are you sure you want to permanently delete your AdhocX driver partner account?',
+              'Are you sure you want to permanently delete your AdhocX driver account?',
               style: AppTypography.body(
                 color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                 fontWeight: FontWeight.w600,
@@ -283,6 +283,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  void _showLanguageSelector() {
+    final languageProvider = context.read<LanguageProvider>();
+    showModalBottomSheet(
+      context: context,
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return _LanguageSelectorSheet(languageProvider: languageProvider);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -297,7 +309,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ? _driverProfile['name'].toString()
           : (onboarding.fullName.isNotEmpty
               ? onboarding.fullName
-              : (AuthService.instance.currentUser?.fullName?.isNotEmpty == true ? AuthService.instance.currentUser!.fullName! : 'Driver Partner')),
+              : (AuthService.instance.currentUser?.fullName?.isNotEmpty == true ? AuthService.instance.currentUser!.fullName! : 'Driver')),
       'phone': (_driverProfile['phone'] != null && _driverProfile['phone'].toString().isNotEmpty)
           ? _driverProfile['phone'].toString()
           : (onboarding.phoneNumber.isNotEmpty
@@ -349,28 +361,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         isDark: isDark,
                         children: [
                           ProfileMenuItemWidget(
-                            icon: Icons.person_outline_rounded,
-                            iconColor: AppColors.primary,
-                            label: 'Personal Information',
-                            subtitle: 'Name, contact & profile details',
-                            onTap: () => context.push(AppRoutes.personalInfoScreen),
-                          ),
-                          _divider(isDark),
-                          ProfileMenuItemWidget(
                             icon: Icons.directions_car_outlined,
                             iconColor: AppColors.info,
-                            label: 'Vehicle Details',
-                            subtitle: 'Car model, plate & specifications',
+                            label: context.tr('Vehicle Details'),
+                            subtitle: context.tr('Car model, plate & specifications'),
                             onTap: () => context.push(AppRoutes.myVehicleScreen),
                           ),
                           _divider(isDark),
                           ProfileMenuItemWidget(
                             icon: Icons.verified_user_outlined,
                             iconColor: AppColors.success,
-                            label: 'KYC & Verification',
-                            subtitle: 'Driving license, RC & Aadhaar card',
+                            label: context.tr('KYC & Verification'),
+                            subtitle: context.tr('Driving license, RC & Aadhaar card'),
                             trailing: _buildPill(
-                              text: 'Verified',
+                              text: context.tr('Verified'),
                               color: AppColors.accentGreen,
                               isDark: isDark,
                             ),
@@ -380,14 +384,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ProfileMenuItemWidget(
                             icon: Icons.shield_outlined,
                             iconColor: AppColors.warning,
-                            label: 'Account Status & Tier',
-                            subtitle: 'Active partner • Gold Level',
+                            label: context.tr('Account Status & Tier'),
+                            subtitle: '${context.tr('Active Driver')} • ${context.tr('Gold Level')}',
                             trailing: _buildPill(
-                              text: 'Gold Tier',
+                              text: context.tr('Gold Tier'),
                               color: AppColors.warning,
                               isDark: isDark,
                             ),
-                            onTap: () => context.push(AppRoutes.accountStatusScreen),
+                            onTap: () => context.push(AppRoutes.personalInfoScreen),
                           ),
                         ],
                       ),
@@ -402,8 +406,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ProfileMenuItemWidget(
                             icon: Icons.receipt_long_outlined,
                             iconColor: AppColors.primary,
-                            label: 'Driver Rate Card',
-                            subtitle: 'Standard base fare & distance rates',
+                            label: context.tr('Driver Rate Card'),
+                            subtitle: context.tr('Standard base fare & distance rates'),
                             onTap: () => _openModal(const RateCardModal()),
                           ),
                         ],
@@ -419,29 +423,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ProfileMenuItemWidget(
                             icon: Icons.notifications_none_rounded,
                             iconColor: AppColors.accentPurple,
-                            label: 'Notifications Feed',
-                            subtitle: 'Dispatch updates & payment alerts',
+                            label: context.tr('Notifications Feed'),
+                            subtitle: context.tr('Dispatch updates & payment alerts'),
                             onTap: () => context.push(AppRoutes.notificationsFeedScreen),
                           ),
                           _divider(isDark),
                           ProfileMenuItemWidget(
                             icon: Icons.language_rounded,
                             iconColor: AppColors.info,
-                            label: 'App Language',
-                            subtitle: 'Select your preferred dialect',
+                            label: context.tr('App Language'),
+                            subtitle: context.tr('Select your preferred dialect'),
                             trailing: _buildPill(
-                              text: currentLang,
+                              text: languageProvider.currentLanguageLabel,
                               color: AppColors.primary,
                               isDark: isDark,
                             ),
-                            onTap: () => setState(() => _showLanguageSwitcher = !_showLanguageSwitcher),
+                            onTap: _showLanguageSelector,
                           ),
                           _divider(isDark),
                           ProfileMenuItemWidget(
                             icon: _themeIcon(themeProvider.themeMode),
                             iconColor: AppColors.success,
-                            label: 'App Theme',
-                            subtitle: 'Light, dark, or system default',
+                            label: context.tr('App Theme'),
+                            subtitle: context.tr('Light, dark, or system default'),
                             trailing: _buildPill(
                               text: themeProvider.themeModeLabel,
                               color: AppColors.accentGreen,
@@ -453,11 +457,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: AppSpacing.xl),
 
-                      if (_showLanguageSwitcher) ...[
-                        const LanguageSelectionWidget(),
-                        const SizedBox(height: AppSpacing.xl),
-                      ],
-
                       // ── Section 4: Support & Security ─────────────────────
                       _buildSectionTitle('SUPPORT & SECURITY', isDark),
                       const SizedBox(height: AppSpacing.xs),
@@ -467,16 +466,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ProfileMenuItemWidget(
                             icon: Icons.headset_mic_outlined,
                             iconColor: AppColors.primaryLight,
-                            label: 'Help & 24/7 Support',
-                            subtitle: 'Driver helpline & incident support',
+                            label: context.tr('Help & 24/7 Support'),
+                            subtitle: context.tr('Driver helpline & incident support'),
                             onTap: () => context.push(AppRoutes.helpSupportScreen),
                           ),
                           _divider(isDark),
                           ProfileMenuItemWidget(
                             icon: Icons.delete_forever_outlined,
                             iconColor: AppColors.error,
-                            label: 'Delete Account',
-                            subtitle: 'Permanently remove account & all data',
+                            label: context.tr('Delete Account'),
+                            subtitle: context.tr('Permanently remove account & all data'),
                             onTap: _confirmDeleteAccount,
                           ),
                         ],
@@ -485,21 +484,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                       // ── Sign Out Button ────────────────────────────────────
                       _buildSignOutButton(isDark),
-                      const SizedBox(height: AppSpacing.sm),
-                      Center(
-                        child: TextButton.icon(
-                          onPressed: _confirmDeleteAccount,
-                          icon: const Icon(Icons.delete_forever_rounded, size: 16, color: AppColors.error),
-                          label: const Text(
-                            'Delete Account Permanently',
-                            style: TextStyle(
-                              color: AppColors.error,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
 
                       const SizedBox(height: AppSpacing.xl),
 
@@ -508,7 +492,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: Column(
                           children: [
                             Text(
-                              'AdhocX Driver Partner • Enterprise Edition',
+                              'AdhocX Driver • Enterprise Edition',
                               style: AppTypography.caption(
                                 color: isDark
                                     ? AppColors.textMutedDark
@@ -925,4 +909,140 @@ class _ThemeOption {
     required this.label,
     required this.subtitle,
   });
+}
+
+class _LanguageSelectorSheet extends StatelessWidget {
+  final LanguageProvider languageProvider;
+
+  const _LanguageSelectorSheet({required this.languageProvider});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final currentCode = languageProvider.currentLocale.languageCode;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                ),
+              ),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.translate_rounded,
+                      color: isDark ? AppColors.primaryLight : AppColors.primary,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      context.tr('Select Language'),
+                      style: AppTypography.h3(
+                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: Icon(
+                    Icons.close_rounded,
+                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                    size: 20,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            ...AppLanguageService.supportedLanguages.map((lang) {
+              final isSelected = currentCode == lang.code;
+              return Container(
+                margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? AppColors.primary.withValues(alpha: isDark ? 0.2 : 0.1)
+                      : (isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  border: Border.all(
+                    color: isSelected
+                        ? AppColors.primary
+                        : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                    width: isSelected ? 1.5 : 1,
+                  ),
+                ),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 2),
+                  leading: CircleAvatar(
+                    backgroundColor: isSelected
+                        ? AppColors.primary
+                        : (isDark ? AppColors.surfaceDark : AppColors.surfaceElevatedLight),
+                    radius: 18,
+                    child: Text(
+                      lang.code.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                      ),
+                    ),
+                  ),
+                  title: Text(
+                    lang.nativeName,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                    ),
+                  ),
+                  subtitle: Text(
+                    lang.englishName,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                    ),
+                  ),
+                  trailing: isSelected
+                      ? const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 22)
+                      : null,
+                  onTap: () {
+                    languageProvider.setLanguage(lang.code);
+                    Navigator.of(context).pop();
+                  },
+                ),
+              );
+            }),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+        ),
+      ),
+    );
+  }
 }

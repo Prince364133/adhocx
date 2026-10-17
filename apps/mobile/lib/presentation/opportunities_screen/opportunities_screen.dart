@@ -478,8 +478,18 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
 
     final pickup = req?['pickupAddress'] as String? ?? op['pickup'] as String? ?? op['pickupLocation']?['address'] as String? ?? 'Pickup location';
     final drop = req?['dropAddress'] as String? ?? op['drop'] as String? ?? op['dropLocation']?['address'] as String? ?? 'Destination location';
-    final budgetVal = (op['offeredPrice'] ?? op['offerAmount'] ?? req?['budgetPerVehicle'] ?? op['suggestedBudget'] ?? 850) as num;
-    final earnings = '₹ ${budgetVal.toInt()}';
+    final rawBudget = op['offeredPrice'] ??
+        op['offerAmount'] ??
+        op['offeredRate'] ??
+        op['driverRate'] ??
+        req?['ratePerVehicle'] ??
+        req?['budgetPerVehicle'] ??
+        req?['suggestedBudget'] ??
+        op['suggestedBudget'];
+    final num budgetVal = rawBudget != null
+        ? ((rawBudget is num) ? rawBudget : (num.tryParse(rawBudget.toString()) ?? 0))
+        : 0;
+    final earnings = budgetVal > 0 ? '₹ ${budgetVal.toInt()}' : '₹ --';
     final opColor = AppColors.primary;
 
     return Container(

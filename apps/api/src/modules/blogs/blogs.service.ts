@@ -91,7 +91,7 @@ Traditional Broker Model:
 [Enterprise] ---> [Broker Tier 1] ---> [Broker Tier 2] ---> [Driver] (40% Markup)
 
 AdhocX Direct Reverse Bidding:
-[Enterprise] <=======================> [Verified Driver Partner] (Direct True Rate)
+[Enterprise] <=======================> [Verified Commercial Driver] (Direct True Rate)
 \`\`\`
 
 ---
@@ -144,7 +144,7 @@ At AdhocX, we engineered an **Automated Double-Entry Settlement Ledger** directl
 
 - **1-Hour Bank Payouts:** The moment a corporate trip is marked completed and digital trip telemetry is verified, the net earnings are dispatched directly to the driver's linked bank account (IMPS/UPI).
 - **Zero Hidden Commission Deductions:** Drivers see the exact breakdown of fare, platform convenience fee, and incentives before accepting any trip.
-- **₹2,000 Milestone Bonus:** To celebrate dedication, every driver partner who completes 100 verified trips on the AdhocX platform receives a flat ₹2,000 direct bank cash bonus.
+- **₹2,000 Milestone Bonus:** To celebrate dedication, every driver who completes 100 verified trips on the AdhocX platform receives a flat ₹2,000 direct bank cash bonus.
 
 \`\`\`
 [Trip Completion Verified] 
@@ -167,7 +167,7 @@ Unlike consumer rideshare apps that leave drivers stranded in distant industrial
 
 ---
 
-## Join the AdhocX Driver Partner Network Today
+## Join the AdhocX Driver Network Today
 
 If you own a commercial vehicle in Hyderabad or Telangana, take control of your financial independence with daily liquidity, transparent fares, and genuine milestone rewards.
         `,
@@ -179,9 +179,9 @@ If you own a commercial vehicle in Hyderabad or Telangana, take control of your 
         status: BlogStatus.PUBLISHED,
         views: 512,
         readTime: '5 min read',
-        seoTitle: 'Commercial Driver Payouts & ₹2,000 Bonus Program | AdhocX Partner Hub',
+        seoTitle: 'Commercial Driver Payouts & ₹2,000 Bonus Program | AdhocX Driver Hub',
         seoDescription: 'Discover how AdhocX 1-hour bank settlements and the ₹2,000 100-ride milestone bonus empower commercial cab drivers with daily financial liquidity.',
-        seoKeywords: 'driver bonus hyderabad, instant cab driver payout, commercial taxi partner program, adhocx driver earnings',
+        seoKeywords: 'driver bonus hyderabad, instant cab driver payout, commercial taxi driver program, adhocx driver earnings',
         publishedAt: new Date('2026-09-05T14:30:00Z'),
         createdAt: new Date('2026-09-05T12:00:00Z'),
         updatedAt: new Date('2026-09-05T14:30:00Z'),

@@ -73,7 +73,8 @@ class _UserPaymentStatusScreenState extends State<UserPaymentStatusScreen>
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final data = widget.paymentData ?? {};
-    final amount = data['amount'] != null ? '₹ ${(data['amount']).toString()}' : '₹ 850.00';
+    final rawAmount = data['amount'] ?? data['finalAmount'] ?? data['totalAmount'];
+    final amount = rawAmount != null ? '₹ $rawAmount' : '₹ 0.00';
     final txnId = data['transactionId'] ?? data['id'] ?? 'TXN-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
     final tripTitle = data['title'] ?? data['tripName'] ?? 'Ride Payment';
     final method = data['method'] ?? 'Online / Wallet';

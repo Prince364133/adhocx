@@ -205,7 +205,7 @@ async function runVerification() {
       parkingCharges: 0,
     }),
   });
-  console.log(`✓ Trip Completed! Status: ${completedTrip.status}, Final Fare: ₹${completedTrip.finalFare || completedTrip.fareAmount || 850}`);
+  console.log(`✓ Trip Completed! Status: ${completedTrip.status}, Final Fare: ₹${completedTrip.finalFare || completedTrip.fareAmount || completedTrip.driverRate || completedTrip.totalDriverEarnings || 0}`);
 
   // 6. TEST CASE 2: Outstation Reverse Auction Bidding Flow
   console.log('\n[STEP 5] --- TEST CASE 2: Reverse Auction Bidding Flow ---');

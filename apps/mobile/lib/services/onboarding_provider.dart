@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 /// State management provider for the 4-step Driver and Vendor Onboarding Flow.
 class OnboardingProvider extends ChangeNotifier {
-  // Role: 'DRIVER' (Driver Partner by default) or 'VENDOR' / 'USER' (Customer/Booker)
+  // Role: 'DRIVER' (Driver by default) or 'VENDOR' / 'USER' (Customer/Booker)
   String _role = 'DRIVER'; 
 
   // Step 1: Personal Details

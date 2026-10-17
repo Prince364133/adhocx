@@ -546,6 +546,17 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       : Number(requirement.ratePerVehicle ?? 0);
     const h3PickupCell = this.locationsService.latLngToH3(pickupLat, pickupLng);
 
+    const dropLat = Number(requirement.dropLat || 0);
+    const dropLng = Number(requirement.dropLng || 0);
+
+    // Compute real road driving distance and traffic ETA between pickup and dropoff
+    const maps = this.googleMapsService || new GoogleMapsService();
+    const tripRoute = await maps.computeRoadRoute(
+      { latitude: pickupLat, longitude: pickupLng },
+      { latitude: dropLat, longitude: dropLng },
+    );
+    const hasEscort = Boolean(requirement.zonalQuote?.hasEscort);
+
     const createdOffers = await Promise.all(
       selectedCandidates.map(async (candidate) => {
         const driverId = candidate.driverId;
@@ -576,6 +587,25 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
           h3PickupCell,
           pickupAddress: requirement.pickupAddress,
           dropAddress: requirement.dropAddress,
+          pickupLocation: {
+            latitude: pickupLat,
+            longitude: pickupLng,
+            address: requirement.pickupAddress,
+          },
+          dropLocation: {
+            latitude: dropLat,
+            longitude: dropLng,
+            address: requirement.dropAddress,
+          },
+          pickupLat,
+          pickupLng,
+          dropLat,
+          dropLng,
+          distanceKm: tripRoute.distanceKm,
+          tripDistanceKm: tripRoute.distanceKm,
+          tripEtaMinutes: tripRoute.durationMinutes,
+          hasEscort,
+          escortRequired: hasEscort,
           reportingTime: requirement.reportingTime.toISOString(),
           expiresAt: expiresAt.toISOString(),
           expiresInSeconds,
@@ -585,8 +615,10 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
 
         const targetUserId = candidate.driver?.userId || driverId;
         await this.notifications.sendPushToUser(targetUserId, {
-          title: requirement.zonalQuote ? '🚖 Corporate Fleet Offer (Net Guaranteed)!' : '🚖 New Trip Offer Available!',
-          body: `Guaranteed net payout of ₹${driverOfferedRate.toFixed(2)} for ${requirement.vehicleType} pickup at ${requirement.pickupAddress}. ${expiresInSeconds}s to accept!`,
+          title: requirement.zonalQuote
+            ? (hasEscort ? '🚖 Corporate Fleet Offer (Escort Required)!' : '🚖 Corporate Fleet Offer (Net Guaranteed)!')
+            : '🚖 New Trip Offer Available!',
+          body: `Guaranteed net payout of ₹${driverOfferedRate.toFixed(2)} for ${requirement.vehicleType} pickup at ${requirement.pickupAddress} (${tripRoute.distanceKm} km). ${expiresInSeconds}s to accept!`,
           type: NotificationType.TRIP_OFFER,
           data: {
             offerId: offer.id,
@@ -597,6 +629,11 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
             h3Cell: h3PickupCell,
             pickupAddress: requirement.pickupAddress,
             dropAddress: requirement.dropAddress,
+            distanceKm: String(tripRoute.distanceKm),
+            tripDistanceKm: String(tripRoute.distanceKm),
+            tripEtaMinutes: String(tripRoute.durationMinutes),
+            hasEscort: String(hasEscort),
+            escortRequired: String(hasEscort),
             expiresAt: expiresAt.toISOString(),
             expiresInSeconds: String(expiresInSeconds),
             route: `/offers/${offer.id}`,

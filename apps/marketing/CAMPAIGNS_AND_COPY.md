@@ -10,11 +10,11 @@
 ## 1. Core Brand Positioning
 
 * **Tagline:** Automated B2B Fleet Fulfillment on Demand
-* **Value Proposition:** AdhocX eliminates the friction of sourcing commercial cabs and drivers for corporate transportation. By replacing unorganized WhatsApp and Telegram groups with automated dispatching, verified drivers, and real-time visibility, AdhocX guarantees operational reliability and transparent pricing for both corporate users and driver-partners.
+* **Value Proposition:** AdhocX eliminates the friction of sourcing commercial cabs and drivers for corporate transportation. By replacing unorganized WhatsApp and Telegram groups with automated dispatching, verified drivers, and real-time visibility, AdhocX guarantees operational reliability and transparent pricing for both corporate users and commercial drivers.
 
 ---
 
-## 2. Driver Partner Acquisition Campaign
+## 2. Driver Acquisition Campaign
 
 ### 2.1 Campaign Title: "The Century Milestone — Complete 100 Rides, Earn ₹2,000 Bonus"
 
@@ -79,7 +79,7 @@ Corporate Transport Desks, Admin Heads, Facility Managers, Travel Desk Officers,
 ```text
 [Header]
 Company: AdhocX
-Nav: Corporate Solutions | Driver Partners | Milestone Bonus | Safety | Pricing
+Nav: Corporate Solutions | Commercial Drivers | Milestone Bonus | Safety | Pricing
 Actions: Partner Login | Book Fleet
 
 [Hero]
@@ -87,7 +87,7 @@ Supertitle: NEXT-GENERATION CORPORATE FLEET LOGISTICS
 Main Title: Reliable Corporate Cab Fulfillment, Digitized & Guaranteed.
 Description: Seamlessly fulfill scheduled employee transport, executive airport transfers, and sudden bulk vehicle requirements with India's most dependable commercial mobility network.
 Primary Button: Request Corporate Demo
-Secondary Button: Join as Driver Partner (Earn ₹2,000 Bonus)
+Secondary Button: Drive with AdhocX (Earn ₹2,000 Bonus)
 
 [Proof Bar]
 Metric 1: 99.4% On-Time SLA
@@ -102,7 +102,7 @@ Title: Built for High-Volume Enterprise Transportation
 3. Live Ops Dashboard: Monitor every vehicle, passenger OTP verification, and transit route in real time.
 4. Automated Billing & Auditing: Download itemized GST invoices mapped to your corporate cost centers.
 
-[Section: Driver Partner Banner]
+[Section: Driver Banner]
 Title: Drive Smarter. Earn Higher.
 Description: Commercial drivers earn up to ₹65,000/month with scheduled corporate trips and unlock a ₹2,000 bonus on their first 100 completed trips.
 CTA: Claim Your Bonus & Start Driving

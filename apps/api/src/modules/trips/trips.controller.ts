@@ -65,6 +65,27 @@ export class TripsController {
     return this.tripsService.getTripEvents(id, user.id, user.role);
   }
 
+  @Get(':id/messages')
+  @Roles(UserRole.DRIVER, UserRole.VENDOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get chat message history for trip' })
+  async getTripMessages(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUserDto,
+  ) {
+    return this.tripsService.getTripMessages(id, user.id, user.role);
+  }
+
+  @Post(':id/messages')
+  @Roles(UserRole.DRIVER, UserRole.VENDOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Send a chat message for this trip between driver and vendor/user' })
+  async sendTripMessage(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUserDto,
+    @Body() body: { text: string },
+  ) {
+    return this.tripsService.sendTripMessage(id, user.id, user.role, body?.text);
+  }
+
   @Post([':id/arrive', ':id/arrived'])
   @Roles(UserRole.DRIVER)
   @ApiOperation({ summary: 'Mark driver arrival at pickup location' })

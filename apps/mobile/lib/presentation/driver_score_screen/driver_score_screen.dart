@@ -253,15 +253,15 @@ class _DriverScoreScreenState extends State<DriverScoreScreen> with SingleTicker
     switch (tier) {
       case 'PLATINUM':
         tierColor = const Color(0xFF818CF8); // Indigo / Platinum
-        tierLabel = 'PLATINUM PARTNER';
+        tierLabel = 'PLATINUM DRIVER';
         break;
       case 'GOLD':
         tierColor = const Color(0xFFF59E0B); // Amber / Gold
-        tierLabel = 'GOLD PARTNER';
+        tierLabel = 'GOLD DRIVER';
         break;
       case 'SILVER':
         tierColor = const Color(0xFF94A3B8); // Slate / Silver
-        tierLabel = 'SILVER PARTNER';
+        tierLabel = 'SILVER DRIVER';
         break;
       default:
         tierColor = const Color(0xFFD97706);
@@ -462,7 +462,7 @@ class _DriverScoreScreenState extends State<DriverScoreScreen> with SingleTicker
                 const SizedBox(height: 4),
                 Text(
                   isRookie
-                      ? 'As a new partner, you receive a protected 85.0 score baseline and guaranteed allocation in dispatch waves for your first 25 trips.'
+                      ? 'As a new driver, you receive a protected 85.0 score baseline and guaranteed allocation in dispatch waves for your first 25 trips.'
                       : 'Scores are calculated on a rolling 50-trip window. Past mistakes drop off quickly, and consecutive clean trips earn rapid recovery multipliers.',
                   style: AppTypography.caption(
                     color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,

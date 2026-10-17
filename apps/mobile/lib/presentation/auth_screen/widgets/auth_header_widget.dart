@@ -61,7 +61,7 @@ class AuthHeaderWidget extends StatelessWidget {
 
         // Portal Heading
         Text(
-          isDriver ? 'AdhocX Driver Partner' : 'AdhocX User Portal',
+          isDriver ? 'AdhocX Driver' : 'AdhocX User Portal',
           style: AppTypography.h2(
             color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
           ),

@@ -75,6 +75,8 @@ export class TripResponseDto {
   cancelledAt?: string;
   status!: TripStatus;
   driverRate!: number;
+  fare?: number;
+  driverEarnings?: number;
   tollCharges?: number;
   parkingCharges?: number;
   totalDriverEarnings!: number;
@@ -113,7 +115,28 @@ export class TripEventResponseDto {
 
 export class TripDetailResponseDto extends TripResponseDto {
   vendorOrganizationName?: string;
+  vendorName?: string;
+  vendorPhone?: string;
+  requesterName?: string;
+  vendor?: any;
+  distanceKm?: number;
+  durationMinutes?: number;
   startOtp?: string;
   events?: TripEventResponseDto[];
 }
+
+export class TripChatMessageDto {
+  id!: string;
+  tripId!: string;
+  senderId!: string;
+  senderName!: string;
+  senderRole!: string;
+  text!: string;
+  createdAt!: string;
+}
+
+export class SendTripChatMessageDto {
+  text!: string;
+}
+
 

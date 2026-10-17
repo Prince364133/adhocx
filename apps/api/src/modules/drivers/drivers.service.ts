@@ -143,7 +143,7 @@ export class DriversService {
         id: `drv_${userId}`,
         userId,
         driverId: `DRV${userId.substring(0, 6).toUpperCase()}`,
-        fullName: user?.fullName || 'Driver Partner',
+        fullName: user?.fullName || 'Driver',
         phone: user?.phone || '',
         email: user?.email || undefined,
         verificationStatus: VerificationStatus.PENDING,
@@ -281,7 +281,7 @@ export class DriversService {
       driver = await this.db.driver.create({
         data: {
           userId,
-          fullName: user.fullName || 'Driver Partner',
+          fullName: user.fullName || 'Driver',
           phone: user.phone || '',
           verificationStatus: VerificationStatus.VERIFIED,
           availabilityStatus: dto.status,
@@ -458,7 +458,7 @@ export class DriversService {
         const newDriver = await this.db.driver.create({
           data: {
             userId,
-            fullName: cleanName || user.fullName || 'Driver Partner',
+            fullName: cleanName || user.fullName || 'Driver',
             phone: cleanPhone || user.phone,
             verificationStatus: VerificationStatus.UNDER_REVIEW,
             availabilityStatus: DriverAvailability.OFFLINE,
@@ -530,7 +530,7 @@ export class DriversService {
     return {
       id: `drv_${userId}`,
       userId,
-      fullName: user?.fullName || 'Driver Partner',
+      fullName: user?.fullName || 'Driver',
       phone: user?.phone || '',
       verificationStatus: VerificationStatus.UNDER_REVIEW,
       availabilityStatus: DriverAvailability.OFFLINE,
@@ -640,7 +640,7 @@ export class DriversService {
       driver = await this.db.driver.create({
         data: {
           userId,
-          fullName: user.fullName || 'Driver Partner',
+          fullName: user.fullName || 'Driver',
           phone: user.phone || '',
           trustScore: 100.0,
           averageRating: 5.0,

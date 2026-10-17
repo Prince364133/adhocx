@@ -39,6 +39,15 @@ class AuthLanguageSwitcherWidget extends StatelessWidget {
             ),
           ),
         ),
+        PopupMenuItem(
+          value: 'te',
+          child: Text(
+            'తెలుగు',
+            style: TextStyle(
+              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+            ),
+          ),
+        ),
       ],
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

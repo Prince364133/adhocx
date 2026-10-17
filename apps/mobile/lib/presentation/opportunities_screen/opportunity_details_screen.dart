@@ -72,8 +72,18 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
     final drop = offer['dropLocation'] as Map<String, dynamic>?;
     final pickupAddr = (pickup?['address'] ?? offer['pickup'] ?? 'Pickup Location').toString();
     final dropAddr = (drop?['address'] ?? offer['drop'] ?? 'Drop Location').toString();
-    final payout = offer['payoutAmount'] ?? offer['offeredRate'] ?? offer['suggestedBudget'] ?? offer['fare'] ?? 850;
     final requirement = offer['requirement'] as Map<String, dynamic>?;
+    final rawPayout = offer['payoutAmount'] ??
+        offer['offeredRate'] ??
+        offer['suggestedBudget'] ??
+        offer['fare'] ??
+        offer['driverRate'] ??
+        requirement?['ratePerVehicle'] ??
+        requirement?['budgetPerVehicle'];
+    final num payoutVal = rawPayout != null
+        ? ((rawPayout is num) ? rawPayout : (num.tryParse(rawPayout.toString()) ?? 0))
+        : 0;
+    final payout = payoutVal > 0 ? payoutVal : (rawPayout ?? 0);
     final rawId = (requirement?['id'] ?? offer['id'] ?? offer['requirementId'] ?? '').toString();
     final reqCode = rawId.length > 8 ? 'REQ-${rawId.substring(0, 8).toUpperCase()}' : rawId;
 

@@ -159,6 +159,55 @@ class LocationService {
         '&key=$googleMapsApiKey';
   }
 
+  /// Generates a Google Maps Static API URL for a complete route connecting pickup, drop, and driver
+  static String getStaticRouteMapUrl({
+    required double pickupLat,
+    required double pickupLng,
+    required double dropLat,
+    required double dropLng,
+    double? driverLat,
+    double? driverLng,
+    int width = 640,
+    int height = 360,
+    bool isDark = false,
+  }) {
+    final darkStyle = isDark
+        ? '&style=element:geometry%7Ccolor:0x242f3e'
+          '&style=element:labels.text.stroke%7Ccolor:0x242f3e'
+          '&style=element:labels.text.fill%7Ccolor:0x746855'
+          '&style=feature:administrative.locality%7Celement:labels.text.fill%7Ccolor:0xd59563'
+          '&style=feature:poi%7Celement:labels.text.fill%7Ccolor:0xd59563'
+          '&style=feature:poi.park%7Celement:geometry%7Ccolor:0x263c3f'
+          '&style=feature:road%7Celement:geometry%7Ccolor:0x38414e'
+          '&style=feature:road%7Celement:geometry.stroke%7Ccolor:0x212a37'
+          '&style=feature:road%7Celement:labels.text.fill%7Ccolor:0x9ca5b3'
+          '&style=feature:road.highway%7Celement:geometry%7Ccolor:0x746855'
+          '&style=feature:road.highway%7Celement:geometry.stroke%7Ccolor:0x1f2835'
+          '&style=feature:road.highway%7Celement:labels.text.fill%7Ccolor:0xf3d19c'
+          '&style=feature:transit%7Celement:geometry%7Ccolor:0x2f3948'
+          '&style=feature:water%7Celement:geometry%7Ccolor:0x17263c'
+          '&style=feature:water%7Celement:labels.text.fill%7Ccolor:0x515c6d'
+        : '&style=feature:poi%7Cvisibility:simplified';
+
+    String driverMarker = '';
+    if (driverLat != null && driverLng != null && driverLat != 0.0 && driverLng != 0.0) {
+      driverMarker = '&markers=color:blue%7Clabel:C%7C$driverLat,$driverLng';
+    }
+
+    final pathParam = '&path=color:0x2563ebff%7Cweight:5%7C$pickupLat,$pickupLng%7C$dropLat,$dropLng';
+
+    return 'https://maps.googleapis.com/maps/api/staticmap'
+        '?size=${width}x$height'
+        '&scale=2'
+        '&maptype=roadmap'
+        '$darkStyle'
+        '&markers=color:green%7Clabel:P%7C$pickupLat,$pickupLng'
+        '&markers=color:red%7Clabel:D%7C$dropLat,$dropLng'
+        '$driverMarker'
+        '$pathParam'
+        '&key=$googleMapsApiKey';
+  }
+
   /// Primary search engine: Queries Google Places API (New) Text Search with location bias
   Future<List<LocationModel>> searchLocations(String query, {double? lat, double? lon}) async {
     final cleanQuery = query.trim();
@@ -675,6 +724,26 @@ class LocationService {
     final haversineKm = _calculateHaversineKm(startLat, startLng, endLat, endLng) * 1.28;
     final fallbackMins = (haversineKm * 2.2).round().clamp(5, 600);
     return RoadRouteResult.fromMetersAndSeconds(haversineKm * 1000.0, fallbackMins * 60.0, isAccurate: false);
+  }
+
+  static double estimateRoadDistanceKm(double lat1, double lon1, double lat2, double lon2) {
+    if (lat1 == 0.0 || lon1 == 0.0 || lat2 == 0.0 || lon2 == 0.0 || (lat1 == lat2 && lon1 == lon2)) {
+      return 0.0;
+    }
+    const double p = 0.017453292519943295; // Math.PI / 180
+    final dLat = (lat2 - lat1) * p;
+    final dLon = (lon2 - lon1) * p;
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(lat1 * p) * math.cos(lat2 * p) * math.sin(dLon / 2) * math.sin(dLon / 2);
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    const double earthRadiusKm = 6371.0;
+    final directKm = earthRadiusKm * c;
+    return (directKm * 1.28 * 10).round() / 10.0;
+  }
+
+  static int estimateRoadEtaMinutes(double distanceKm) {
+    if (distanceKm <= 0) return 0;
+    return (distanceKm * 2.2).round().clamp(5, 600);
   }
 
   double _calculateHaversineKm(double lat1, double lon1, double lat2, double lon2) {

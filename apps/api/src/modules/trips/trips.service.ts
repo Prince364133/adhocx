@@ -130,7 +130,7 @@ export class TripsService {
         id: pendingTrip.id,
         status: pendingTrip.status,
         driverId: pendingTrip.driverId,
-        driverName: pendingTrip.driver?.user?.fullName || pendingTrip.driver?.fullName || 'Driver Partner',
+        driverName: pendingTrip.driver?.user?.fullName || pendingTrip.driver?.fullName || 'Driver',
         vehiclePlate: pendingTrip.driver?.vehiclePlate || undefined,
         vehicleType: pendingTrip.vehicleType,
         pickupAddress: pendingTrip.pickupAddress,
@@ -147,7 +147,8 @@ export class TripsService {
     const trip = await this.db.trip.findUnique({
       where: { id },
       include: {
-        requirement: { include: { vendor: true } },
+        requirement: { include: { vendor: { include: { user: true } } } },
+        vendor: { include: { user: true } },
         driver: { include: { user: true } },
         events: { orderBy: { createdAt: 'asc' } },
       },
@@ -167,10 +168,15 @@ export class TripsService {
 
     const baseDto = this.mapToDto(trip);
 
-    const driverFullName = trip.driver?.fullName || trip.driver?.user?.fullName || 'Driver Partner';
+    const driverFullName = trip.driver?.fullName || trip.driver?.user?.fullName || 'Driver';
     const driverPhoneNumber = trip.driver?.phone || trip.driver?.user?.phone || undefined;
     const vehiclePlateNumber = trip.driver?.vehiclePlate || undefined;
     const vehicleModelName = trip.driver?.vehicleModel || trip.vehicleType || undefined;
+
+    const vendorRecord = trip.requirement?.vendor || (trip as any).vendor;
+    const vendorFullName = vendorRecord?.fullName || vendorRecord?.user?.fullName || vendorRecord?.organizationName || 'User';
+    const vendorPhoneNumber = vendorRecord?.phone || vendorRecord?.user?.phone || undefined;
+    const vendorOrgName = vendorRecord?.organizationName || undefined;
 
     return {
       ...baseDto,
@@ -178,7 +184,16 @@ export class TripsService {
       driverPhone: driverPhoneNumber,
       vehiclePlate: vehiclePlateNumber,
       vehicleModel: vehicleModelName,
-      vendorOrganizationName: trip.requirement?.vendor?.organizationName,
+      vendorOrganizationName: vendorOrgName,
+      vendorName: vendorFullName,
+      vendorPhone: vendorPhoneNumber,
+      requesterName: vendorFullName,
+      vendor: {
+        id: trip.vendorId,
+        organizationName: vendorOrgName,
+        fullName: vendorFullName,
+        phone: vendorPhoneNumber,
+      },
       startOtp: (role === UserRole.VENDOR || role === UserRole.ADMIN) ? trip.otp : undefined,
       driver: {
         id: trip.driver?.id,
@@ -212,6 +227,128 @@ export class TripsService {
   async getTripEvents(id: string, userId: string, role?: UserRole): Promise<TripEventResponseDto[]> {
     const detail = await this.getTripById(id, userId, role);
     return detail.events || [];
+  }
+
+  /**
+   * Get chat messages between driver and vendor/user for a specific trip.
+   */
+  async getTripMessages(tripId: string, userId: string, role?: UserRole): Promise<any[]> {
+    const trip = await this.db.trip.findUnique({
+      where: { id: tripId },
+      include: {
+        driver: true,
+        requirement: { include: { vendor: true } },
+      },
+    });
+
+    if (!trip) {
+      throw new NotFoundException('Trip not found');
+    }
+
+    if (role === UserRole.DRIVER && trip.driver.userId !== userId) {
+      throw new ForbiddenException('Not authorized to access messages for this trip');
+    }
+    if (role === UserRole.VENDOR && trip.requirement?.vendor?.userId !== userId) {
+      throw new ForbiddenException('Not authorized to access messages for this trip');
+    }
+
+    const events = await this.db.tripEvent.findMany({
+      where: {
+        tripId,
+        eventType: 'CHAT_MESSAGE',
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return events.map((e) => {
+      const meta = (e.metadata as any) || {};
+      return {
+        id: e.id,
+        tripId: e.tripId,
+        senderId: meta.senderId || '',
+        senderName: meta.senderName || (meta.senderRole === 'DRIVER' ? 'Driver' : 'User'),
+        senderRole: meta.senderRole || '',
+        text: meta.text || '',
+        createdAt: e.createdAt.toISOString(),
+      };
+    });
+  }
+
+  /**
+   * Send a chat message for a trip between driver and vendor/user.
+   */
+  async sendTripMessage(tripId: string, userId: string, role: UserRole | undefined, text: string): Promise<any> {
+    const cleanText = (text || '').trim();
+    if (!cleanText) {
+      throw new BadRequestException('Message text cannot be empty');
+    }
+
+    const trip = await this.db.trip.findUnique({
+      where: { id: tripId },
+      include: {
+        driver: { include: { user: true } },
+        requirement: { include: { vendor: { include: { user: true } } } },
+      },
+    });
+
+    if (!trip) {
+      throw new NotFoundException('Trip not found');
+    }
+
+    if (role === UserRole.DRIVER && trip.driver.userId !== userId) {
+      throw new ForbiddenException('Not authorized to send messages for this trip');
+    }
+    if (role === UserRole.VENDOR && trip.requirement?.vendor?.userId !== userId) {
+      throw new ForbiddenException('Not authorized to send messages for this trip');
+    }
+
+    const senderUser = await this.db.user.findUnique({ where: { id: userId } });
+    const senderName = senderUser?.fullName || (role === UserRole.DRIVER ? (trip.driver?.fullName || 'Driver') : (trip.requirement?.vendor?.fullName || 'User'));
+
+    const event = await this.db.tripEvent.create({
+      data: {
+        tripId,
+        eventType: 'CHAT_MESSAGE',
+        metadata: {
+          senderId: userId,
+          senderName,
+          senderRole: role || 'USER',
+          text: cleanText,
+        },
+      },
+    });
+
+    const messagePayload = {
+      id: event.id,
+      tripId,
+      senderId: userId,
+      senderName,
+      senderRole: role || 'USER',
+      text: cleanText,
+      createdAt: event.createdAt.toISOString(),
+    };
+
+    // Emit real-time socket event on trip channel
+    this.notifications.emitEvent(`trip:${tripId}`, 'CHAT_MESSAGE', messagePayload);
+
+    // Notify the other party via push notification
+    const recipientUserId = role === UserRole.DRIVER
+      ? trip.requirement?.vendor?.userId
+      : trip.driver?.userId;
+
+    if (recipientUserId) {
+      this.notifications.sendPushToUser(recipientUserId, {
+        title: `Message from ${senderName}`,
+        body: cleanText,
+        data: {
+          type: 'TRIP_CHAT_MESSAGE',
+          tripId,
+          senderId: userId,
+        },
+      }).catch(() => {});
+    }
+
+    return messagePayload;
   }
 
   /**
@@ -1043,6 +1180,8 @@ export class TripsService {
       cancelledAt: t.cancelledAt?.toISOString(),
       status: t.status as TripStatus,
       driverRate: Number(t.driverRate),
+      fare: Number(t.driverRate),
+      driverEarnings: Number(t.totalDriverEarnings || t.driverRate),
       tollCharges: t.tollCharges ? Number(t.tollCharges) : undefined,
       parkingCharges: t.parkingCharges ? Number(t.parkingCharges) : undefined,
       totalDriverEarnings: Number(t.totalDriverEarnings || 0),
@@ -1066,6 +1205,6 @@ export class TripsService {
             },
           }
         : {}),
-    };
+    } as any;
   }
 }

@@ -472,6 +472,19 @@ class DriverService {
     return await _api.get('/trips/$tripId');
   }
 
+  Future<List<dynamic>> getTripMessages(String tripId) async {
+    await _ensureDriverSession();
+    final res = await _api.get('/trips/$tripId/messages', force: true);
+    if (res is List) return res;
+    if (res is Map && res['data'] is List) return res['data'] as List<dynamic>;
+    return [];
+  }
+
+  Future<dynamic> sendTripMessage(String tripId, String text) async {
+    await _ensureDriverSession();
+    return await _api.post('/trips/$tripId/messages', body: {'text': text});
+  }
+
   Future<dynamic> requestWithdrawal({
     required double amount,
     required String bankAccountName,
@@ -642,5 +655,44 @@ class DriverService {
 
     return _cachedVehicleCategories ?? [];
   }
+
+  /// Submit an operational issue or support ticket to admin
+  Future<dynamic> submitSupportQuery({
+    required String category,
+    required String subject,
+    required String description,
+    String? tripId,
+    String priority = 'NORMAL',
+    String? contactPerson,
+    String? contactPhone,
+    String? contactEmail,
+  }) async {
+    final user = AuthService.instance.currentUser;
+    final driverName = user?.fullName ?? contactPerson ?? 'Driver';
+    final phone = user?.phone ?? contactPhone ?? '';
+    final email = user?.email ?? contactEmail ?? 'driver@adhocx.com';
+
+    return await _api.post(
+      '/disputes/support-query',
+      body: {
+        'category': category,
+        'subject': subject,
+        'description': description,
+        if (tripId != null && tripId.isNotEmpty) 'tripId': tripId,
+        'priority': priority,
+        'companyName': 'AdhocX Driver',
+        'contactPerson': driverName,
+        'contactPhone': phone,
+        'contactEmail': email,
+      },
+    );
+  }
+
+  /// Fetch support queries and reported issues filed by this driver
+  Future<List<dynamic>> getMySupportQueries() async {
+    final res = await _api.get('/disputes/support-query/my');
+    return res is List ? res : [];
+  }
 }
+
 

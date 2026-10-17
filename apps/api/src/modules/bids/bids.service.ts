@@ -288,7 +288,7 @@ export class BidsService {
           driver = await this.db.driver.create({
             data: {
               userId: driverUserId,
-              fullName: user.fullName || 'Driver Partner',
+              fullName: user.fullName || 'Driver',
               phone: user.phone || '',
               verificationStatus: VerificationStatus.VERIFIED,
               availabilityStatus: DriverAvailability.AVAILABLE,

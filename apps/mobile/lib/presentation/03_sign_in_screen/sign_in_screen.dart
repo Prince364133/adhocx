@@ -177,7 +177,7 @@ class _SignInScreenState extends State<SignInScreen> {
         }
 
         AppToast.showSuccess(
-          'Welcome back, ${user.fullName ?? "Partner"}!',
+          'Welcome back, ${user.fullName ?? (user.isDriver ? "Driver" : "User")}!',
           context: context,
         );
 

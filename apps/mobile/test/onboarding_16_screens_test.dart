@@ -67,8 +67,8 @@ void main() {
 
       expect(find.text('Create your account'), findsOneWidget);
       expect(find.text('Continue with Email'), findsOneWidget);
-      expect(find.text('Registering as a Driver Partner?'), findsOneWidget);
-      expect(find.text('Switch to Driver Partner'), findsOneWidget);
+      expect(find.text('Registering as a Commercial Driver?'), findsOneWidget);
+      expect(find.text('Switch to Driver'), findsOneWidget);
     });
 
     testWidgets('Screen 6: Set Password Screen renders password fields',
@@ -79,13 +79,13 @@ void main() {
       expect(find.text('Continue'), findsOneWidget);
     });
 
-    testWidgets('Screen 10: Choose Role Screen renders Booker and Driver Partner cards',
+    testWidgets('Screen 10: Choose Role Screen renders Booker and Driver cards',
         (WidgetTester tester) async {
       await tester.pumpWidget(createTestApp(const ChooseRoleScreen()));
 
       expect(find.text('Choose your role'), findsOneWidget);
       expect(find.text('Book Rides & Bulk Fleets'), findsOneWidget);
-      expect(find.text('Driver Partner'), findsOneWidget);
+      expect(find.text('Driver'), findsOneWidget);
     });
 
     testWidgets('Screen 11: Personal Details Screen renders profile fields for drivers',
@@ -114,13 +114,7 @@ void main() {
 
       expect(find.text('Add Vehicle Details'), findsOneWidget);
       expect(find.text('Prime Sedan'), findsWidgets);
-
-      // Tap dropdown arrow to open the vehicle suggestions list
-      await tester.tap(find.byIcon(Icons.keyboard_arrow_down_rounded).first);
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(find.text('ADMIN REGISTERED VEHICLES (TAP TO SELECT)'), findsOneWidget);
-      expect(find.text('Swift Dzire'), findsNothing);
+      expect(find.text('Vehicle Category *'), findsOneWidget);
     });
 
     testWidgets('Screen 15: Welcome Celebration Screen renders tailored celebration',

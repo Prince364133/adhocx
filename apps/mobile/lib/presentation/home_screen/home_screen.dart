@@ -32,7 +32,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   DriverHomeState _currentState = DriverHomeState.offline;
   bool _isLoading = true;
-  String _driverName = 'Driver Partner';
+  String _driverName = 'Driver';
   double _todayEarnings = 0.0;
   int _todayTripsCount = 0;
   double _trustScore = 100.0;
@@ -140,7 +140,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _driverName = profile['fullName'] as String? ??
                 user?['name'] as String? ??
                 user?['fullName'] as String? ??
-                'Driver Partner';
+                'Driver';
             final num? scoreNum = profile['trustScore'] as num? ??
                 profile['trust_score'] as num? ??
                 profile['currentScore'] as num?;
@@ -710,44 +710,88 @@ class _HomeScreenState extends State<HomeScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (_liveOffer != null) ...[
-          GestureDetector(
-            onTap: () => GlobalDispatchOverlayService.instance.showIncomingOffer(_liveOffer!),
-            child: Container(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              margin: const EdgeInsets.only(bottom: AppSpacing.md),
-              decoration: BoxDecoration(
-                color: AppColors.accentGreenDark.withValues(alpha: isDark ? 0.2 : 0.12),
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                border: Border.all(color: AppColors.accentGreenDark, width: 1.5),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.notifications_active, color: AppColors.accentGreenDark),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Live Dispatch Offer Available',
-                          style: AppTypography.body(
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : AppColors.textPrimaryLight,
-                          ),
-                        ),
-                        Text(
-                          'Tap to view route & accept guaranteed fare',
-                          style: AppTypography.caption(
-                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                          ),
-                        ),
-                      ],
-                    ),
+          Builder(
+            builder: (context) {
+              final bool offerHasEscort = _liveOffer?['hasEscort'] == true ||
+                  _liveOffer?['escortRequired'] == true ||
+                  _liveOffer?['requirement']?['hasEscort'] == true ||
+                  _liveOffer?['requirement']?['escortRequired'] == true ||
+                  _liveOffer?['zonal']?['hasEscort'] == true ||
+                  (_liveOffer?['notes']?.toString().toLowerCase().contains('escort') ?? false) ||
+                  (_liveOffer?['requirement']?['notes']?.toString().toLowerCase().contains('escort') ?? false);
+
+              return GestureDetector(
+                onTap: () => GlobalDispatchOverlayService.instance.showIncomingOffer(_liveOffer!),
+                child: Container(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentGreenDark.withValues(alpha: isDark ? 0.2 : 0.12),
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                    border: Border.all(color: AppColors.accentGreenDark, width: 1.5),
                   ),
-                  const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.accentGreenDark),
-                ],
-              ),
-            ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.notifications_active, color: AppColors.accentGreenDark),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  'Live Dispatch Offer Available',
+                                  style: AppTypography.body(
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                                  ),
+                                ),
+                                if (offerHasEscort) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.purple.withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                                      border: Border.all(color: Colors.purple.withValues(alpha: 0.6)),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.shield_outlined, size: 10, color: Colors.purple),
+                                        SizedBox(width: 3),
+                                        Text(
+                                          'ESCORT',
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w900,
+                                            color: Colors.purple,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            Text(
+                              offerHasEscort
+                                  ? 'Tap to view route & accept guaranteed fare • Escort included'
+                                  : 'Tap to view route & accept guaranteed fare',
+                              style: AppTypography.caption(
+                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.accentGreenDark),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         ],
         Container(
@@ -914,8 +958,17 @@ class _HomeScreenState extends State<HomeScreen> {
     final pickup = (offer?['pickupLocation']?['address'] ?? offer?['pickup'] ?? reqObj?['pickupAddress'] ?? 'Pickup Location').toString();
     final drop = (offer?['dropLocation']?['address'] ?? offer?['drop'] ?? reqObj?['dropAddress'] ?? 'Drop Location').toString();
     
-    final num rate = (offer?['offeredRate'] ?? offer?['offeredPrice'] ?? offer?['suggestedBudget'] ?? reqObj?['ratePerVehicle'] ?? 850) as num;
-    final rateStr = '₹ ${rate.toStringAsFixed(0)} Net';
+    final rawRate = offer?['offeredRate'] ??
+        offer?['suggestedBudget'] ??
+        offer?['offeredPrice'] ??
+        offer?['driverRate'] ??
+        reqObj?['ratePerVehicle'] ??
+        reqObj?['budget'] ??
+        reqObj?['suggestedBudget'];
+    final num rate = rawRate != null
+        ? ((rawRate is num) ? rawRate : (num.tryParse(rawRate.toString()) ?? 0))
+        : 0;
+    final rateStr = rate > 0 ? '₹ ${rate.toStringAsFixed(0)} Net' : '₹ Net';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1295,7 +1348,17 @@ class _HomeScreenState extends State<HomeScreen> {
     final tripId = trip?['id'] as String? ?? '';
     final status = (trip?['status'] as String? ?? 'IN_PROGRESS');
     final drop = (trip?['dropLocation']?['address'] ?? trip?['dropAddress'] ?? 'Destination').toString();
-    final payout = (trip?['driverRate'] ?? trip?['fare'] ?? trip?['rate'] ?? '850').toString();
+    final rawPayout = trip?['driverRate'] ??
+        trip?['totalDriverEarnings'] ??
+        trip?['driverEarnings'] ??
+        trip?['fare'] ??
+        trip?['rate'];
+    final num? parsedPayout = rawPayout != null
+        ? ((rawPayout is num) ? rawPayout : num.tryParse(rawPayout.toString()))
+        : null;
+    final payout = (parsedPayout != null && parsedPayout > 0)
+        ? parsedPayout.toStringAsFixed(0)
+        : (rawPayout?.toString() ?? '--');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

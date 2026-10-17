@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../services/language_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_radius.dart';
 import '../../../theme/app_spacing.dart';
@@ -20,7 +21,7 @@ class ProfileDriverCardWidget extends StatelessWidget {
 
     final name = (profile['name'] != null && profile['name'].toString().trim().isNotEmpty)
         ? profile['name'].toString().trim()
-        : 'Driver Partner';
+        : 'Driver';
     final initial = name.isNotEmpty ? name[0].toUpperCase() : 'D';
 
     final phone = (profile['phone'] != null && profile['phone'].toString().trim().isNotEmpty)
@@ -160,7 +161,7 @@ class ProfileDriverCardWidget extends StatelessWidget {
                                       ),
                                       const SizedBox(width: 3),
                                       Text(
-                                        'Verified',
+                                        context.tr('Verified'),
                                         style: AppTypography.micro(
                                           color: AppColors.accentGreen,
                                           fontWeight: FontWeight.bold,
@@ -251,7 +252,7 @@ class ProfileDriverCardWidget extends StatelessWidget {
                         icon: Icons.star_rounded,
                         iconColor: AppColors.warning,
                         value: rating,
-                        label: 'Rating',
+                        label: context.tr('Rating'),
                         isDark: isDark,
                       ),
                       _statDivider(isDark),
@@ -259,7 +260,7 @@ class ProfileDriverCardWidget extends StatelessWidget {
                         icon: Icons.local_taxi_rounded,
                         iconColor: AppColors.primary,
                         value: totalTrips,
-                        label: 'Trips',
+                        label: context.tr('Trips'),
                         isDark: isDark,
                       ),
                       _statDivider(isDark),
@@ -267,7 +268,7 @@ class ProfileDriverCardWidget extends StatelessWidget {
                         icon: Icons.check_circle_rounded,
                         iconColor: AppColors.accentGreen,
                         value: acceptanceRate,
-                        label: 'Acceptance',
+                        label: context.tr('Acceptance'),
                         isDark: isDark,
                       ),
                     ],

@@ -55,7 +55,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
         final p = profileRaw['data'] is Map ? profileRaw['data'] as Map<String, dynamic> : profileRaw as Map<String, dynamic>;
         setState(() {
           _bankDetails = {
-            'account_holder': p['bankAccountName'] ?? p['bank_account_name'] ?? p['fullName'] ?? p['full_name'] ?? AuthService.instance.currentUser?.fullName ?? 'Driver Partner',
+            'account_holder': p['bankAccountName'] ?? p['bank_account_name'] ?? p['fullName'] ?? p['full_name'] ?? AuthService.instance.currentUser?.fullName ?? 'Driver',
             'bank_name': p['bankName'] ?? p['bank_name'] ?? '',
             'account_number': p['bankAccountNumber'] ?? p['bank_account_number'] ?? '',
             'ifsc': p['bankIfsc'] ?? p['bank_ifsc'] ?? '',
@@ -121,7 +121,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
 
     final accNumber = (_bankDetails['account_number'] ?? _bankDetails['bankAccountNumber'] ?? '').toString().trim();
     final ifsc = (_bankDetails['ifsc'] ?? _bankDetails['bankIfsc'] ?? '').toString().trim().toUpperCase();
-    final holder = (_bankDetails['account_holder'] ?? _bankDetails['bankAccountName'] ?? AuthService.instance.currentUser?.fullName ?? 'Driver Partner').toString().trim();
+    final holder = (_bankDetails['account_holder'] ?? _bankDetails['bankAccountName'] ?? AuthService.instance.currentUser?.fullName ?? 'Driver').toString().trim();
 
     if (accNumber.isEmpty || ifsc.isEmpty) {
       Fluttertoast.showToast(
@@ -183,7 +183,7 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
     final bankNameDisplay = (_bankDetails['bank_name'] ?? _bankDetails['bankName'] ?? '').toString().trim().isNotEmpty
         ? (_bankDetails['bank_name'] ?? _bankDetails['bankName']).toString().trim()
         : (hasBank ? 'Bank Account' : 'No Bank Account');
-    final holderDisplay = (_bankDetails['account_holder'] ?? _bankDetails['bankAccountName'] ?? AuthService.instance.currentUser?.fullName ?? 'Driver Partner').toString().trim();
+    final holderDisplay = (_bankDetails['account_holder'] ?? _bankDetails['bankAccountName'] ?? AuthService.instance.currentUser?.fullName ?? 'Driver').toString().trim();
     final ifscDisplay = (_bankDetails['ifsc'] ?? _bankDetails['bankIfsc'] ?? '').toString().trim().toUpperCase();
 
     return Scaffold(

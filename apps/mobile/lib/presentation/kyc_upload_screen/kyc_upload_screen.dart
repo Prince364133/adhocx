@@ -137,7 +137,7 @@ class _KycUploadScreenState extends State<KycUploadScreen> {
 
       if (bankAcc != null && bankAcc.isNotEmpty && bankIfsc != null && bankIfsc.isNotEmpty) {
         await DriverService.instance.updateBankDetails(
-          bankAccountName: bankHolder ?? 'Driver Partner',
+          bankAccountName: bankHolder ?? 'Driver',
           bankAccountNumber: bankAcc,
           bankIfsc: bankIfsc,
           bankName: bankName,

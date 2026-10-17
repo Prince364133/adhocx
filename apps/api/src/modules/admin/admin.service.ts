@@ -1056,10 +1056,15 @@ export class AdminService {
 
       const mappedStatus = (t.status === 'NEW' ? 'PENDING' : t.status) as 'PENDING' | 'UNDER_REVIEW' | 'RESOLVED';
 
+      const isDriver =
+        (t.companyName && t.companyName.toLowerCase().includes('driver')) ||
+        (t.contactName && t.contactName.toLowerCase().includes('driver')) ||
+        (t.notes && t.notes.toLowerCase().includes('driver'));
+
       return {
         id: t.id,
         reporterName: reporterLabel,
-        reporterRole: 'VENDOR' as const,
+        reporterRole: (isDriver ? 'DRIVER' : 'VENDOR') as 'DRIVER' | 'VENDOR',
         reporterPhone: t.phone || '',
         relatedTripId: undefined,
         issueType: t.fleetRequirements ? `[${t.fleetRequirements}] ${subject}` : subject,

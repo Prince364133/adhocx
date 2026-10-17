@@ -23,16 +23,18 @@ import '../presentation/notifications_screen/notifications_feed_screen.dart';
 import '../presentation/opportunities_screen/opportunities_screen.dart';
 import '../presentation/opportunities_screen/opportunity_details_screen.dart';
 import '../presentation/opportunities_screen/opportunity_offer_screen.dart';
-import '../presentation/profile_screen/account_status_screen.dart';
 import '../presentation/profile_screen/add_vehicle_screen.dart';
 import '../presentation/profile_screen/document_details_screen.dart';
 import '../presentation/profile_screen/edit_personal_info_screen.dart';
+import '../presentation/profile_screen/driver_faq_screen.dart';
+import '../presentation/profile_screen/driver_report_issue_screen.dart';
 import '../presentation/profile_screen/help_support_screen.dart';
 import '../presentation/profile_screen/kyc_verification_screen.dart';
 import '../presentation/profile_screen/my_vehicle_screen.dart';
 import '../presentation/profile_screen/personal_information_screen.dart';
 import '../presentation/profile_screen/profile_screen.dart';
 import '../presentation/trips_screen/trip_details_screen.dart';
+import '../presentation/trips_screen/trip_chat_screen.dart';
 import '../presentation/trips_screen/trips_screen.dart';
 import '../presentation/waitlist_gate_screen/waitlist_gate_screen.dart';
 import '../presentation/wallet_screen/earnings_screen.dart';
@@ -130,6 +132,10 @@ class AppRoutes {
   static const String accountStatusScreen = '/profile/account-status';
   static const String notificationsSettingsScreen = notificationsFeedScreen;
   static const String helpSupportScreen = '/profile/support';
+  static const String faqScreen = '/profile/support/faq';
+  static const String driverFaqScreen = faqScreen;
+  static const String reportIssueScreen = '/profile/support/report-issue';
+  static const String driverReportIssueScreen = reportIssueScreen;
   static const String appSettingsScreen = profileScreen;
 
   // 4 Earnings & Financial Screens
@@ -139,6 +145,7 @@ class AppRoutes {
 
   // Trips & Operations Detail Screens
   static const String tripDetailsScreen = '/trips/details';
+  static const String tripChatScreen = '/trips/chat';
 
   // Opportunities & Trip Dispatch Detail Screens
   static const String opportunityDetailsScreen = '/opportunities/details';
@@ -560,7 +567,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.accountStatusScreen,
-      builder: (context, state) => const AccountStatusScreen(),
+      redirect: (context, state) => AppRoutes.personalInfoScreen,
     ),
     GoRoute(
       path: '/profile/notifications',
@@ -569,6 +576,17 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.helpSupportScreen,
       builder: (context, state) => const HelpSupportScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.faqScreen,
+      builder: (context, state) => const DriverFaqScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.reportIssueScreen,
+      builder: (context, state) {
+        final tripId = state.uri.queryParameters['tripId'];
+        return DriverReportIssueScreen(initialTripId: tripId);
+      },
     ),
     GoRoute(
       path: '/profile/settings',
@@ -593,6 +611,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.tripDetailsScreen,
       builder: (context, state) => TripDetailsScreen(initialTrip: state.extra),
+    ),
+    GoRoute(
+      path: AppRoutes.tripChatScreen,
+      builder: (context, state) => TripChatScreen(params: state.extra),
     ),
 
     // ── Opportunities & Trip Dispatch Detail Routes ─────────────────────────

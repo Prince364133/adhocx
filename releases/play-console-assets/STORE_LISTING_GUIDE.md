@@ -15,7 +15,7 @@
 | **App Category** | `Auto & Vehicles` (Alternative: `Maps & Navigation` or `Business`) | - |
 | **Tags** | `Driver`, `Fleet Management`, `Corporate Cabs`, `Chauffeur`, `Taxi Service`, `Commercial Driver` | Up to 5 tags |
 | **Content Rating** | `Everyone / PEGI 3` | Via IARC questionnaire |
-| **Target Audience** | `18 and over` (Professional Commercial Driver Partners) | - |
+| **Target Audience** | `18 and over` (Professional Commercial Drivers) | - |
 | **Contains Ads** | `No` | - |
 | **Privacy Policy URL** | `https://adhocx.com/privacy` | Required |
 | **Developer Contact** | `support@adhocx.com` • `https://adhocx.com` | - |
@@ -31,7 +31,7 @@ Drive for corporate clients. Guaranteed bookings, higher pay & timely payouts.
 
 ### Full Description (Max 4,000 characters)
 ```text
-AdhocX Driver Partner is the premier platform connecting verified professional commercial drivers and fleet owners directly with India's leading corporations, tech parks, and enterprise businesses. 
+AdhocX Driver is the premier platform connecting verified professional commercial drivers and fleet owners directly with India's leading corporations, tech parks, and enterprise businesses. 
 
 Say goodbye to low retail fares, uncompensated waiting times, and arbitrary ride cancellations. With AdhocX, professional drivers gain access to predictable, high-value corporate duties, scheduled employee transfers, dedicated airport chauffeur routes, and guaranteed shift earnings.
 
@@ -148,7 +148,7 @@ Google requires a short YouTube video (set as **Unlisted** or **Public**) demons
 | Timestamp | Action on Screen | Audio / Visual Cue |
 | :--- | :--- | :--- |
 | **0:00 - 0:08** | Driver opens the AdhocX Driver app on the Home screen and taps the **"Go Online"** toggle switch. | Tapping Online triggers the background location requirement check. |
-| **0:08 - 0:16** | The in-app **Prominent Disclosure Modal** appears before any OS prompt: *"AdhocX Driver Partner collects location data to enable corporate duty dispatch matching, navigation, and real-time trip route tracking even when the app is closed or not in use (while you are Online or on an Active Duty)."* | Google reviewer verifies the explicit phrase "even when the app is closed or not in use". |
+| **0:08 - 0:16** | The in-app **Prominent Disclosure Modal** appears before any OS prompt: *"AdhocX Driver collects location data to enable corporate duty dispatch matching, navigation, and real-time trip route tracking even when the app is closed or not in use (while you are Online or on an Active Duty)."* | Google reviewer verifies the explicit phrase "even when the app is closed or not in use". |
 | **0:16 - 0:22** | Driver taps **"ENABLE LOCATION SERVICES"**. The Android runtime dialog appears; driver selects **"Allow all the time"** (or "While using the app" -> "Change to Allow all the time in settings"). | Demonstrates explicit user consent flow. |
 | **0:22 - 0:30** | The driver status pill changes to green **"ON DUTY / ONLINE"**, a mock corporate duty notification appears, and the app is minimized to show ongoing status bar tracking notification. | Demonstrates why background tracking is essential while navigating or waiting for scheduled dispatches. |
 
@@ -184,7 +184,7 @@ Google requires a short YouTube video (set as **Unlisted** or **Public**) demons
 | **Account & Data Deletion URL** | `https://www.adhocx.com/delete-account` | Mandatory Google Play User Data web deletion portal |
 | **Terms of Service URL** | `https://www.adhocx.com/terms` | Driver Master Agreement & Commercial Terms |
 | **1-Hour Bank Refund SLA** | `https://www.adhocx.com/terms#refunds` | Corporate payment refund policy |
-| **Driver Partner Portal** | `https://www.adhocx.com/drivers` | Driver verification & onboarding information |
+| **Driver Portal** | `https://www.adhocx.com/drivers` | Driver verification & onboarding information |
 | **Corporate Vendor Portal** | `https://www.adhocx.com/vendors` | Enterprise sourcing & booking terms |
 | **Grievance Officer Contact** | `support@adhocx.com` / `+91 7893545818` | Statutory DPDP & IT Rules 2021 Grievance Officer |
 

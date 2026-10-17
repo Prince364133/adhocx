@@ -261,7 +261,16 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                           final vehicle = req?['vehicleType'] as String? ?? 'Sedan';
                           final pickup = req?['pickupAddress'] as String? ?? _activeOffer?['pickup'] as String? ?? 'Pickup address';
                           final drop = req?['dropAddress'] as String? ?? _activeOffer?['drop'] as String? ?? 'Drop address';
-                          final earnings = '₹ ${(_activeOffer?['offeredPrice'] ?? req?['budgetPerVehicle'] ?? 850)}';
+                          final rawEarn = _activeOffer?['offeredPrice'] ??
+                              _activeOffer?['offeredRate'] ??
+                              _activeOffer?['suggestedBudget'] ??
+                              _activeOffer?['driverRate'] ??
+                              req?['ratePerVehicle'] ??
+                              req?['budgetPerVehicle'];
+                          final num parsedEarn = rawEarn != null
+                              ? ((rawEarn is num) ? rawEarn : (num.tryParse(rawEarn.toString()) ?? 0))
+                              : 0;
+                          final earnings = parsedEarn > 0 ? '₹ ${parsedEarn.toStringAsFixed(0)}' : '₹ --';
 
                           return Container(
                             padding: const EdgeInsets.all(AppSpacing.lg),

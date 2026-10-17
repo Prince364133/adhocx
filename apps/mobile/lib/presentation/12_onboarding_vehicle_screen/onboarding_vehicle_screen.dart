@@ -100,9 +100,13 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
     _yearController.addListener(_clearErrorOnType);
     _colorController.addListener(_clearErrorOnType);
 
-    _syncCategoryToProvider(_category);
-    _loadDynamicCategories();
-    _loadExistingData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _syncCategoryToProvider(_category);
+        _loadDynamicCategories();
+        _loadExistingData();
+      }
+    });
   }
 
   void _clearErrorOnType() {
