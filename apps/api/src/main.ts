@@ -17,8 +17,10 @@ async function bootstrap() {
   const port = configService.get<number>('app.port') || 3000;
   const apiPrefix = configService.get<string>('app.apiPrefix') || 'api/v1';
 
-  // Global prefix
-  app.setGlobalPrefix(apiPrefix);
+  // Global prefix (with direct exclusion for static uploads access)
+  app.setGlobalPrefix(apiPrefix, {
+    exclude: ['uploads/:filename', 'uploads'],
+  });
 
   // Global validation pipe — enforces DTO validation
   app.useGlobalPipes(
