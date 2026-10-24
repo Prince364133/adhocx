@@ -15,6 +15,7 @@ class DriverScoreScreen extends StatefulWidget {
 
 class _DriverScoreScreenState extends State<DriverScoreScreen> with SingleTickerProviderStateMixin {
   bool _isLoading = true;
+  String? _errorMessage;
   Map<String, dynamic>? _scoreData;
   late AnimationController _animController;
   late Animation<double> _scoreAnimation;
@@ -41,6 +42,7 @@ class _DriverScoreScreenState extends State<DriverScoreScreen> with SingleTicker
   Future<void> _fetchScoreDetails() async {
     setState(() {
       _isLoading = true;
+      _errorMessage = null;
     });
 
     try {
@@ -49,102 +51,39 @@ class _DriverScoreScreenState extends State<DriverScoreScreen> with SingleTicker
         final data = res['data'] is Map<String, dynamic> ? res['data'] as Map<String, dynamic> : res;
         final targetScore = ((data['currentScore'] ?? data['trustScore'] ?? 100.0) as num).toDouble();
 
-        setState(() {
-          _scoreData = data;
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _scoreData = data;
+            _isLoading = false;
+            _errorMessage = null;
+          });
 
-        _scoreAnimation = Tween<double>(begin: 0, end: targetScore).animate(
-          CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
-        );
-        _animController.forward(from: 0);
+          _scoreAnimation = Tween<double>(begin: 0, end: targetScore).animate(
+            CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
+          );
+          _animController.forward(from: 0);
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = 'Performance score details could not be retrieved.';
+          });
+        }
       }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _scoreData = _buildFallbackData();
-      });
-      _scoreAnimation = Tween<double>(begin: 0, end: 100.0).animate(
-        CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
-      );
-      _animController.forward(from: 0);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Unable to load performance score. Please check your connection and try again.';
+        });
+      }
     }
-  }
-
-  Map<String, dynamic> _buildFallbackData() {
-    return {
-      'currentScore': 100.0,
-      'maxScore': 100,
-      'tier': 'PLATINUM',
-      'tierBenefits': [
-        'Priority Wave 1 Dispatch Allocation',
-        'Lowest Platform Service Fee (8% vs 15%)',
-        'Instant Zero-Fee Wallet Payouts',
-        'VIP Corporate & Airport Ride Access',
-      ],
-      'isRookieProtected': false,
-      'rookieTripsRemaining': 0,
-      'metrics': {
-        'completionRate': {
-          'score': 28.5,
-          'max': 30,
-          'percentage': 95,
-          'title': 'Trip Completion & Non-Cancellation',
-          'description': 'Calculated over rolling 50 trips with zero unexcused cancellations',
-          'status': 'EXCELLENT',
-        },
-        'customerRating': {
-          'score': 24.2,
-          'max': 25,
-          'percentage': 97,
-          'title': 'Customer Star Rating (4.85 / 5.0)',
-          'description': 'Direct average passenger feedback rating',
-          'status': 'EXCELLENT',
-        },
-        'acceptanceRate': {
-          'score': 18.0,
-          'max': 20,
-          'percentage': 90,
-          'title': 'Dispatch Acceptance Rate',
-          'description': 'Percentage of dispatched wave opportunities accepted',
-          'status': 'GOOD',
-        },
-        'punctuality': {
-          'score': 14.0,
-          'max': 15,
-          'percentage': 93,
-          'title': 'On-Time Arrival & ETA Accuracy',
-          'description': 'Arriving at pickup location within estimated OTP arrival window',
-          'status': 'EXCELLENT',
-        },
-        'loyaltyStreak': {
-          'score': 9.3,
-          'max': 10,
-          'percentage': 93,
-          'title': 'Clean Streak & Loyalty Bonus',
-          'description': 'Bonus points for active days without disputes or safety violations',
-          'status': 'EXCELLENT',
-        },
-      },
-      'scoreHistory': [],
-      'improvementTips': [
-        'Accept your next 3 consecutive dispatch offers to reach 96+ score.',
-        'Arrive within 3 minutes of estimated pickup time to maximize Punctuality points.',
-        'Complete 5 more rides this week to unlock the +5.0 Weekly Consistency Milestone.',
-      ],
-    };
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final data = _scoreData ?? _buildFallbackData();
-    final tier = (data['tier'] as String?)?.toUpperCase() ?? 'PLATINUM';
-    final tierBenefits = (data['tierBenefits'] as List<dynamic>?) ?? [];
-    final metrics = (data['metrics'] as Map<String, dynamic>?) ?? {};
-    final scoreHistory = (data['scoreHistory'] as List<dynamic>?) ?? [];
-    final tips = (data['improvementTips'] as List<dynamic>?) ?? [];
-    final isRookie = data['isRookieProtected'] == true;
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -170,70 +109,120 @@ class _DriverScoreScreenState extends State<DriverScoreScreen> with SingleTicker
       body: SafeArea(
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : RefreshIndicator(
-                onRefresh: _fetchScoreDetails,
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 520),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // ── 1. Hero Score Radial Gauge Card ───────────────
-                        _buildHeroScoreCard(isDark, tier, isRookie),
+            : _scoreData == null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.xl),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.cloud_off_outlined,
+                            size: 56,
+                            color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          Text(
+                            _errorMessage ?? 'Unable to load performance score.',
+                            textAlign: TextAlign.center,
+                            style: AppTypography.body(
+                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+                          ElevatedButton.icon(
+                            onPressed: _fetchScoreDetails,
+                            icon: const Icon(Icons.refresh, size: 18),
+                            label: const Text('Try Again'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: _fetchScoreDetails,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 520),
+                          child: Builder(
+                            builder: (context) {
+                              final data = _scoreData!;
+                              final tier = (data['tier'] as String?)?.toUpperCase() ?? 'SILVER';
+                              final tierBenefits = (data['tierBenefits'] as List<dynamic>?) ?? [];
+                              final metrics = (data['metrics'] as Map<String, dynamic>?) ?? {};
+                              final scoreHistory = (data['scoreHistory'] as List<dynamic>?) ?? [];
+                              final tips = (data['improvementTips'] as List<dynamic>?) ?? [];
+                              final isRookie = data['isRookieProtected'] == true;
+                              final rookieRemaining = (data['rookieTripsRemaining'] as num?)?.toInt() ?? 0;
 
-                        const SizedBox(height: AppSpacing.lg),
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  // ── 1. Hero Score Radial Gauge Card ───────────────
+                                  _buildHeroScoreCard(isDark, tier, isRookie),
 
-                        // ── 2. Tier Privileges & Benefits ─────────────────
-                        _buildTierBenefitsCard(isDark, tier, tierBenefits),
+                                  const SizedBox(height: AppSpacing.lg),
 
-                        const SizedBox(height: AppSpacing.lg),
+                                  // ── 2. Tier Privileges & Benefits ─────────────────
+                                  if (tierBenefits.isNotEmpty) ...[
+                                    _buildTierBenefitsCard(isDark, tier, isRookie, tierBenefits),
+                                    const SizedBox(height: AppSpacing.lg),
+                                  ],
 
-                        // ── 3. Rookie & Fair Opportunity Protection ────────
-                        _buildFairOpportunityCard(isDark, isRookie),
+                                  // ── 3. Rookie & Fair Opportunity Protection ────────
+                                  _buildFairOpportunityCard(isDark, isRookie, rookieRemaining),
 
-                        const SizedBox(height: AppSpacing.xl),
+                                  const SizedBox(height: AppSpacing.xl),
 
-                        // ── 4. 5-Pillar Score Breakdown ───────────────────
-                        _buildSectionHeader(
-                          title: 'Score Factors Breakdown',
-                          subtitle: 'Your score out of 100 points based on rolling performance',
-                          isDark: isDark,
+                                  // ── 4. 5-Pillar Score Breakdown ───────────────────
+                                  _buildSectionHeader(
+                                    title: 'Score Factors Breakdown',
+                                    subtitle: 'Your score out of 100 points based on rolling performance',
+                                    isDark: isDark,
+                                  ),
+                                  const SizedBox(height: AppSpacing.md),
+                                  ...metrics.entries.map((e) => _buildMetricTile(isDark, e.value as Map<String, dynamic>)),
+
+                                  const SizedBox(height: AppSpacing.xl),
+
+                                  // ── 5. Score Ledger & History (+ / - Events) ──────
+                                  _buildSectionHeader(
+                                    title: 'Point Activity History',
+                                    subtitle: 'Live record of points added (+) or deducted (-)',
+                                    isDark: isDark,
+                                  ),
+                                  const SizedBox(height: AppSpacing.md),
+                                  _buildHistoryLedger(isDark, scoreHistory),
+
+                                  if (tips.isNotEmpty) ...[
+                                    const SizedBox(height: AppSpacing.xl),
+                                    // ── 6. Score Improvement Tips ─────────────────────
+                                    _buildSectionHeader(
+                                      title: 'How to Boost Your Score',
+                                      subtitle: 'Actionable tips to reach Platinum tier & priority dispatch',
+                                      isDark: isDark,
+                                    ),
+                                    const SizedBox(height: AppSpacing.md),
+                                    _buildTipsCard(isDark, tips),
+                                  ],
+
+                                  const SizedBox(height: AppSpacing.xxl),
+                                ],
+                              );
+                            },
+                          ),
                         ),
-                        const SizedBox(height: AppSpacing.md),
-                        ...metrics.entries.map((e) => _buildMetricTile(isDark, e.value as Map<String, dynamic>)),
-
-                        const SizedBox(height: AppSpacing.xl),
-
-                        // ── 5. Score Ledger & History (+ / - Events) ──────
-                        _buildSectionHeader(
-                          title: 'Point Activity History',
-                          subtitle: 'Live record of points added (+) or deducted (-)',
-                          isDark: isDark,
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        _buildHistoryLedger(isDark, scoreHistory),
-
-                        const SizedBox(height: AppSpacing.xl),
-
-                        // ── 6. Score Improvement Tips ─────────────────────
-                        _buildSectionHeader(
-                          title: 'How to Boost Your Score',
-                          subtitle: 'Actionable tips to reach Platinum tier & priority dispatch',
-                          isDark: isDark,
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        _buildTipsCard(isDark, tips),
-
-                        const SizedBox(height: AppSpacing.xxl),
-                      ],
+                      ),
                     ),
                   ),
-                ),
-              ),
-            ),
       ),
     );
   }
@@ -243,22 +232,27 @@ class _DriverScoreScreenState extends State<DriverScoreScreen> with SingleTicker
     Color tierColor;
     String tierLabel;
 
-    switch (tier) {
-      case 'PLATINUM':
-        tierColor = const Color(0xFF818CF8); // Indigo / Platinum
-        tierLabel = 'PLATINUM DRIVER';
-        break;
-      case 'GOLD':
-        tierColor = const Color(0xFFF59E0B); // Amber / Gold
-        tierLabel = 'GOLD DRIVER';
-        break;
-      case 'SILVER':
-        tierColor = const Color(0xFF94A3B8); // Slate / Silver
-        tierLabel = 'SILVER DRIVER';
-        break;
-      default:
-        tierColor = const Color(0xFFD97706);
-        tierLabel = 'PROBATION RECOVERY';
+    if (isRookie) {
+      tierColor = AppColors.accentGreen;
+      tierLabel = 'ROOKIE DRIVER (PROTECTED)';
+    } else {
+      switch (tier) {
+        case 'PLATINUM':
+          tierColor = const Color(0xFF818CF8); // Indigo / Platinum
+          tierLabel = 'PLATINUM DRIVER';
+          break;
+        case 'GOLD':
+          tierColor = const Color(0xFFF59E0B); // Amber / Gold
+          tierLabel = 'GOLD DRIVER';
+          break;
+        case 'SILVER':
+          tierColor = const Color(0xFF94A3B8); // Slate / Silver
+          tierLabel = 'SILVER DRIVER';
+          break;
+        default:
+          tierColor = const Color(0xFFD97706);
+          tierLabel = 'PROBATION RECOVERY';
+      }
     }
 
     return Container(
@@ -358,11 +352,15 @@ class _DriverScoreScreenState extends State<DriverScoreScreen> with SingleTicker
           const SizedBox(height: AppSpacing.lg),
 
           Text(
-            tier == 'PLATINUM'
-                ? 'Outstanding Performance! You are in the top 5% of all drivers.'
-                : tier == 'GOLD'
-                    ? 'Great standing! You qualify for Wave 1 priority dispatches.'
-                    : 'Good standing. Keep completing clean rides to reach Gold tier.',
+            isRookie
+                ? 'Welcome to adhocx! You are protected by the rookie baseline for your first 25 trips.'
+                : tier == 'PLATINUM'
+                    ? 'Outstanding performance! You qualify for Wave 1 priority dispatches.'
+                    : tier == 'GOLD'
+                        ? 'Great standing! You qualify for Wave 1 priority dispatches.'
+                        : tier == 'SILVER'
+                            ? 'Good standing. Keep completing clean rides to reach Gold tier.'
+                            : 'Complete clean rides to restore your driver score.',
             textAlign: TextAlign.center,
             style: AppTypography.body(
               color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
@@ -375,7 +373,7 @@ class _DriverScoreScreenState extends State<DriverScoreScreen> with SingleTicker
   }
 
   // ── Tier Benefits Card ────────────────────────────────────────────────────
-  Widget _buildTierBenefitsCard(bool isDark, String tier, List<dynamic> benefits) {
+  Widget _buildTierBenefitsCard(bool isDark, String tier, bool isRookie, List<dynamic> benefits) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
@@ -393,7 +391,7 @@ class _DriverScoreScreenState extends State<DriverScoreScreen> with SingleTicker
               const Icon(Icons.stars_rounded, color: Color(0xFF6366F1), size: 22),
               const SizedBox(width: 8),
               Text(
-                '$tier Tier Privileges',
+                isRookie ? 'Rookie Protected Privileges' : '$tier Tier Privileges',
                 style: AppTypography.h4(
                   color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                   fontWeight: FontWeight.bold,
@@ -426,7 +424,7 @@ class _DriverScoreScreenState extends State<DriverScoreScreen> with SingleTicker
   }
 
   // ── Fair Opportunity & Rookie Protection Card ─────────────────────────────
-  Widget _buildFairOpportunityCard(bool isDark, bool isRookie) {
+  Widget _buildFairOpportunityCard(bool isDark, bool isRookie, int rookieRemaining) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
@@ -455,8 +453,8 @@ class _DriverScoreScreenState extends State<DriverScoreScreen> with SingleTicker
                 const SizedBox(height: 4),
                 Text(
                   isRookie
-                      ? 'As a new driver, you receive a protected 85.0 score baseline and guaranteed allocation in dispatch waves for your first 25 trips.'
-                      : 'Scores are calculated on a rolling 50-trip window. Past mistakes drop off quickly, and consecutive clean trips earn rapid recovery multipliers.',
+                      ? 'As a new driver, your score has a protected 85.0 floor for your first 25 trips ($rookieRemaining remaining). Early learning will not penalize your dispatch queue.'
+                      : 'Scores are evaluated on your rolling completed trips. Past cancellations drop off quickly as you maintain consecutive clean trips.',
                   style: AppTypography.caption(
                     color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                     fontSize: 12,
@@ -483,7 +481,7 @@ class _DriverScoreScreenState extends State<DriverScoreScreen> with SingleTicker
         ? AppColors.accentGreen
         : status == 'GOOD'
             ? const Color(0xFF6366F1)
-            : const Color(0xFFF59E0B);
+            : const Color(0xFF94A3B8);
 
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),

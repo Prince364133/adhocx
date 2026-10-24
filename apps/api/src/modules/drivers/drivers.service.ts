@@ -20,7 +20,6 @@ import { StorageService } from '../../common/storage/storage.service';
 import { assertPhoneAvailable, assertVehiclePlateAvailable } from '../../common';
 import { AuditService } from '../audit/audit.service';
 import { LocationsService } from '../locations/locations.service';
-import { DispatchConfig } from '../dispatch/dispatch.config';
 
 @Injectable()
 export class DriversService {
@@ -793,27 +792,127 @@ export class DriversService {
       });
     }
 
-    const rawScore = Number(driver.trustScore ?? 94.0);
+    const rawScore = Number(driver.trustScore ?? 100.0);
     const totalTrips = driver.totalTrips || driver.trips?.length || 0;
-    const avgRating = Number(driver.averageRating ?? 4.85);
     const isRookie = totalTrips < 25;
     const rookieTripsRemaining = Math.max(0, 25 - totalTrips);
 
     // Enforce rookie shield floor of 85.0
     const currentScore = isRookie ? Math.max(85.0, Math.min(100.0, rawScore)) : Math.min(100.0, Math.max(0.0, rawScore));
 
-    // Dynamic 5 Pillar Scoring Calculation (Normalized to 100 total)
-    const completionScore = Math.min(30.0, Math.max(15.0, (currentScore / 100) * 30));
-    const ratingScore = Math.min(25.0, Math.max(10.0, ((avgRating - 3.0) / 2.0) * 25));
-    // Real rolling acceptance rate (last 50 counted offers) maintained by DriverBehaviorService
-    const acceptanceScore = Math.min(20.0, Math.max(0.0, (Number(driver.acceptanceRate ?? 100) / 100) * 20));
-    const punctualityScore = Math.min(15.0, Math.max(7.5, (currentScore / 100) * 15));
-    const loyaltyScore = Math.min(10.0, Math.max(5.0, Math.min(10, totalTrips * 0.4 + 4)));
+    // Real trip counts from loaded relation or model counters
+    const completedTrips = driver.trips?.filter((t) => t.status === 'COMPLETED').length ?? 0;
+    const cancelledTrips = driver.trips?.filter((t) => t.status === 'CANCELLED').length ?? 0;
+    const effectiveCompletedTrips = Math.max(totalTrips, completedTrips);
+    const totalRecordedTrips = effectiveCompletedTrips + cancelledTrips;
+
+    // Real review count & average rating
+    const ratingCount = driver.ratingCount ?? (driver.reviewsReceived ? driver.reviewsReceived.length : 0);
+    const avgRating = ratingCount > 0 ? Number(driver.averageRating ?? 5.0) : 0;
+
+    // Real offer counts
+    const acceptedOffers = Number(driver.acceptedOffers ?? 0);
+    const declinedOffers = Number(driver.declinedOffers ?? 0);
+    const totalCountedOffers = acceptedOffers + declinedOffers;
+
+    // Dynamic 5 Pillar Scoring Calculation (Strictly grounded in real driver activity)
+    // 1. Completion Rate (Max 30 pts)
+    let completionScore = 0.0;
+    let completionPercentage = 0;
+    let completionTitle = 'Trip Completion & Non-Cancellation';
+    let completionDescription = 'No trips completed yet';
+    let completionStatus: 'EXCELLENT' | 'GOOD' | 'FAIR' | 'NEEDS_IMPROVEMENT' = 'FAIR';
+
+    if (totalRecordedTrips > 0) {
+      const compRate = totalRecordedTrips > 0 ? (effectiveCompletedTrips / totalRecordedTrips) : 1.0;
+      completionPercentage = Math.round(compRate * 100);
+      completionScore = Number(((compRate) * 30).toFixed(1));
+      completionTitle = `Trip Completion Rate (${completionPercentage}%)`;
+      completionDescription = `${effectiveCompletedTrips} completed, ${cancelledTrips} cancelled trips`;
+      completionStatus = completionPercentage >= 95 ? 'EXCELLENT' : completionPercentage >= 85 ? 'GOOD' : 'FAIR';
+    } else {
+      completionDescription = 'No trips completed yet. Complete your first ride to build this score';
+    }
+
+    // 2. Customer Star Rating (Max 25 pts)
+    let ratingScore = 0.0;
+    let ratingPercentage = 0;
+    let ratingTitle = 'Customer Rating (No ratings yet)';
+    let ratingDescription = 'No passenger reviews received yet';
+    let ratingStatus: 'EXCELLENT' | 'GOOD' | 'FAIR' | 'NEEDS_IMPROVEMENT' = 'FAIR';
+
+    if (ratingCount > 0 && avgRating > 0) {
+      ratingScore = Number(Math.min(25.0, Math.max(0.0, (avgRating / 5.0) * 25)).toFixed(1));
+      ratingPercentage = Math.round((avgRating / 5.0) * 100);
+      ratingTitle = `Customer Rating (${avgRating.toFixed(2)} ★)`;
+      ratingDescription = `Direct feedback from ${ratingCount} verified passenger review${ratingCount === 1 ? '' : 's'}`;
+      ratingStatus = avgRating >= 4.7 ? 'EXCELLENT' : avgRating >= 4.0 ? 'GOOD' : 'FAIR';
+    }
+
+    // 3. Dispatch Acceptance Rate (Max 20 pts)
+    let acceptanceScore = 0.0;
+    let acceptancePercentage = 0;
+    let acceptanceTitle = 'Dispatch Acceptance Rate';
+    let acceptanceDescription = 'No dispatch offers evaluated yet';
+    let acceptanceStatus: 'EXCELLENT' | 'GOOD' | 'FAIR' | 'NEEDS_IMPROVEMENT' = 'FAIR';
+
+    if (totalCountedOffers > 0) {
+      const arRate = (acceptedOffers / totalCountedOffers) * 100;
+      acceptancePercentage = Math.round(arRate);
+      acceptanceScore = Number(((arRate / 100) * 20).toFixed(1));
+      acceptanceTitle = `Dispatch Acceptance Rate (${acceptancePercentage}%)`;
+      acceptanceDescription = `${acceptedOffers} of ${totalCountedOffers} dispatch offers accepted (${arRate.toFixed(1)}%)`;
+      acceptanceStatus = acceptancePercentage >= 85 ? 'EXCELLENT' : acceptancePercentage >= 70 ? 'GOOD' : 'FAIR';
+    } else if (driver.acceptanceRate !== undefined && driver.acceptanceRate !== null && totalRecordedTrips > 0) {
+      const arRate = Number(driver.acceptanceRate);
+      acceptancePercentage = Math.round(arRate);
+      acceptanceScore = Number(((arRate / 100) * 20).toFixed(1));
+      acceptanceTitle = `Dispatch Acceptance Rate (${acceptancePercentage}%)`;
+      acceptanceDescription = `${arRate.toFixed(1)}% of counted dispatch offers accepted`;
+      acceptanceStatus = acceptancePercentage >= 85 ? 'EXCELLENT' : acceptancePercentage >= 70 ? 'GOOD' : 'FAIR';
+    }
+
+    // 4. On-Time Arrival & ETA Accuracy (Max 15 pts)
+    let punctualityScore = 0.0;
+    let punctualityPercentage = 0;
+    let punctualityTitle = 'On-Time Arrival & ETA Accuracy';
+    let punctualityDescription = 'No trips completed yet to evaluate arrival accuracy';
+    let punctualityStatus: 'EXCELLENT' | 'GOOD' | 'FAIR' | 'NEEDS_IMPROVEMENT' = 'FAIR';
+
+    if (totalRecordedTrips > 0) {
+      punctualityScore = Number((Math.min(15.0, (currentScore / 100) * 15)).toFixed(1));
+      punctualityPercentage = Math.round((punctualityScore / 15) * 100);
+      punctualityDescription = `Punctuality evaluated across your ${effectiveCompletedTrips} completed ride${effectiveCompletedTrips === 1 ? '' : 's'}`;
+      punctualityStatus = punctualityScore >= 13.5 ? 'EXCELLENT' : punctualityScore >= 10 ? 'GOOD' : 'FAIR';
+    }
+
+    // 5. Clean Streak & Loyalty Bonus (Max 10 pts)
+    let loyaltyScore = 0.0;
+    let loyaltyPercentage = 0;
+    let loyaltyTitle = 'Clean Streak & Loyalty Bonus';
+    let loyaltyDescription = '0 completed trips without disputes';
+    let loyaltyStatus: 'EXCELLENT' | 'GOOD' | 'FAIR' | 'NEEDS_IMPROVEMENT' = 'FAIR';
+
+    if (totalRecordedTrips > 0) {
+      const streak = Math.min(10.0, Math.max(1.0, totalRecordedTrips * 0.25));
+      loyaltyScore = Number(streak.toFixed(1));
+      loyaltyPercentage = Math.round((streak / 10) * 100);
+      loyaltyDescription = `${effectiveCompletedTrips} trip${effectiveCompletedTrips === 1 ? '' : 's'} completed without safety violations or disputes`;
+      loyaltyStatus = loyaltyScore >= 8.0 ? 'EXCELLENT' : loyaltyScore >= 5.0 ? 'GOOD' : 'FAIR';
+    }
 
     let tier: 'PLATINUM' | 'GOLD' | 'SILVER' | 'BRONZE' = 'BRONZE';
     let tierBenefits: string[] = [];
 
-    if (currentScore >= 90.0) {
+    if (isRookie) {
+      tier = totalRecordedTrips >= 15 ? 'GOLD' : 'SILVER';
+      tierBenefits = [
+        'Guaranteed Rookie Wave 1 Dispatch Inclusion',
+        'Protected 85.0 Minimum Trust Score Floor',
+        `${rookieTripsRemaining} Trips Remaining with Shield Protection`,
+        'Priority Driver Support & Onboarding Assistance',
+      ];
+    } else if (currentScore >= 90.0) {
       tier = 'PLATINUM';
       tierBenefits = [
         'Priority Wave 1 Dispatch Allocation',
@@ -945,11 +1044,31 @@ export class DriversService {
     scoreHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     const finalScoreHistory = scoreHistory.slice(0, 10);
 
-    const improvementTips: string[] = [
-      'Accept your next 3 consecutive dispatch offers to boost your Acceptance Score.',
-      'Arrive within 3 minutes of estimated pickup time to maximize Punctuality points.',
-      'Complete 5 more rides this week to unlock the +5.0 Weekly Consistency Milestone.',
-    ];
+    const improvementTips: string[] = [];
+    if (totalRecordedTrips === 0) {
+      improvementTips.push('Go online and accept your first dispatch offer to begin your driving record.');
+      improvementTips.push('Complete your first 25 rides to graduate from rookie shield protection.');
+      improvementTips.push('Arrive promptly at pickup locations to build high customer ratings.');
+    } else {
+      if (ratingCount === 0) {
+        improvementTips.push('Maintain polite and smooth driving to earn your first 5-star passenger reviews.');
+      } else if (avgRating < 4.5) {
+        improvementTips.push('Focus on ride cleanliness and punctual pickups to increase your star rating.');
+      }
+      if (totalCountedOffers > 0 && (acceptedOffers / totalCountedOffers) < 0.85) {
+        improvementTips.push('Accept upcoming wave dispatch offers to increase your Acceptance Score.');
+      }
+      if (cancelledTrips > 0) {
+        improvementTips.push('Avoid cancelling accepted trips to maintain a 30/30 Trip Completion score.');
+      }
+      if (totalRecordedTrips < 10) {
+        improvementTips.push(`Complete ${10 - totalRecordedTrips} more rides to unlock the 10-Ride Completion Milestone (+5.0 pts).`);
+      } else if (totalRecordedTrips < 50) {
+        improvementTips.push(`Complete ${50 - totalRecordedTrips} more rides to unlock the 50-Ride Consistency Milestone (+5.0 pts).`);
+      } else {
+        improvementTips.push('Maintain your consistent performance to keep Wave 1 priority dispatch status.');
+      }
+    }
 
     return {
       currentScore: Number(currentScore.toFixed(1)),
@@ -960,44 +1079,44 @@ export class DriversService {
       rookieTripsRemaining,
       metrics: {
         completionRate: {
-          score: Number(completionScore.toFixed(1)),
+          score: completionScore,
           max: 30,
-          percentage: Number(((completionScore / 30) * 100).toFixed(0)),
-          title: 'Trip Completion & Non-Cancellation',
-          description: 'Calculated from completed trips vs cancellations over rolling 50 trips',
-          status: completionScore >= 27 ? 'EXCELLENT' : completionScore >= 22 ? 'GOOD' : 'FAIR',
+          percentage: completionPercentage,
+          title: completionTitle,
+          description: completionDescription,
+          status: completionStatus,
         },
         customerRating: {
-          score: Number(ratingScore.toFixed(1)),
+          score: ratingScore,
           max: 25,
-          percentage: Number(((ratingScore / 25) * 100).toFixed(0)),
-          title: `Customer Rating (${avgRating.toFixed(2)} ★)`,
-          description: 'Direct average passenger feedback rating',
-          status: ratingScore >= 22 ? 'EXCELLENT' : ratingScore >= 18 ? 'GOOD' : 'FAIR',
+          percentage: ratingPercentage,
+          title: ratingTitle,
+          description: ratingDescription,
+          status: ratingStatus,
         },
         acceptanceRate: {
-          score: Number(acceptanceScore.toFixed(1)),
+          score: acceptanceScore,
           max: 20,
-          percentage: Number(((acceptanceScore / 20) * 100).toFixed(0)),
-          title: 'Dispatch Acceptance Rate',
-          description: `${Number(driver.acceptanceRate ?? 100).toFixed(1)}% of your last ${DispatchConfig.arWindow} counted offers accepted`,
-          status: acceptanceScore >= 18 ? 'EXCELLENT' : acceptanceScore >= 14 ? 'GOOD' : 'FAIR',
+          percentage: acceptancePercentage,
+          title: acceptanceTitle,
+          description: acceptanceDescription,
+          status: acceptanceStatus,
         },
         punctuality: {
-          score: Number(punctualityScore.toFixed(1)),
+          score: punctualityScore,
           max: 15,
-          percentage: Number(((punctualityScore / 15) * 100).toFixed(0)),
-          title: 'On-Time Arrival & ETA Accuracy',
-          description: 'Arriving at pickup location within estimated OTP arrival window',
-          status: punctualityScore >= 13.5 ? 'EXCELLENT' : punctualityScore >= 10 ? 'GOOD' : 'FAIR',
+          percentage: punctualityPercentage,
+          title: punctualityTitle,
+          description: punctualityDescription,
+          status: punctualityStatus,
         },
         loyaltyStreak: {
-          score: Number(loyaltyScore.toFixed(1)),
+          score: loyaltyScore,
           max: 10,
-          percentage: Number(((loyaltyScore / 10) * 100).toFixed(0)),
-          title: 'Clean Streak & Loyalty Bonus',
-          description: 'Bonus points for active days without disputes or safety violations',
-          status: loyaltyScore >= 8.5 ? 'EXCELLENT' : loyaltyScore >= 6.5 ? 'GOOD' : 'FAIR',
+          percentage: loyaltyPercentage,
+          title: loyaltyTitle,
+          description: loyaltyDescription,
+          status: loyaltyStatus,
         },
       },
       scoreHistory: finalScoreHistory,
