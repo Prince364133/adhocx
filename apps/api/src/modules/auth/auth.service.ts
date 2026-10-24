@@ -17,6 +17,7 @@ import {
 import { DatabaseService } from '../../database/database.service';
 import { RedisService } from '../../redis/redis.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { getPhoneVariants, assertPhoneAvailable } from '../../common';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -121,7 +122,7 @@ export class AuthService implements OnModuleInit {
     return {
       isEmail: false,
       value: formattedPhone,
-      phoneVariants: [formattedPhone, digitsOnly, `91${digitsOnly}`],
+      phoneVariants: getPhoneVariants(trimmed),
     };
   }
 
@@ -306,9 +307,9 @@ export class AuthService implements OnModuleInit {
     }
 
     if (dto.role) {
-      const expectedRole = this.mapUserRole(dto.role);
-      if (user.role !== expectedRole) {
-        throw new ForbiddenException(`Access denied: This account is registered as a ${user.role}, but login was attempted as a ${expectedRole}.`);
+      const requestedRole = this.mapUserRole(dto.role);
+      if (user.role !== requestedRole) {
+        this.logger.log(`[LOGIN AUTO-DETECT] Note: login requested role ${requestedRole}, but account is registered as ${user.role}. Automatically logging in as ${user.role}.`);
       }
     }
 
@@ -329,36 +330,20 @@ export class AuthService implements OnModuleInit {
 
     const { isEmail, value, phoneVariants } = this.normalizeIdentifier(rawIdentifier);
     const channel = dto.channel || (isEmail ? 'EMAIL' : 'SMS');
-    const assignedRole = dto.role ? this.mapUserRole(dto.role) : undefined;
 
     // Check if phone or email already exists under another role (1-Account 1-Role enforcement)
     if (dto.isRegister === true) {
-      let existingUser: any = null;
-      let conflictField = '';
-
       if (rawPhone) {
-        const phoneNorm = this.normalizeIdentifier(rawPhone);
-        existingUser = await this.db.user.findFirst({
-          where: { phone: { in: phoneNorm.phoneVariants || [phoneNorm.value] } },
-        });
-        if (existingUser) conflictField = 'mobile number';
+        await assertPhoneAvailable(this.db, rawPhone);
       }
 
-      if (!existingUser && rawEmail) {
-        existingUser = await this.db.user.findFirst({
+      if (rawEmail) {
+        const existingUser = await this.db.user.findFirst({
           where: { email: { equals: rawEmail, mode: 'insensitive' } },
         });
-        if (existingUser) conflictField = 'email address';
-      }
-
-      if (existingUser) {
-        if (assignedRole && existingUser.role !== assignedRole) {
+        if (existingUser) {
           throw new ConflictException(
-            `This ${conflictField} is already registered to a ${existingUser.role} account. Under AdhocX's 1-account-1-role policy, an email or mobile number can only have a single role. Please sign in to your ${existingUser.role.toLowerCase()} account.`
-          );
-        } else {
-          throw new ConflictException(
-            `An account with this ${conflictField} is already registered. Please sign in instead.`
+            `An account with this email address is already registered. Please sign in instead.`
           );
         }
       }
@@ -496,12 +481,7 @@ export class AuthService implements OnModuleInit {
 
         // Verify neither phone nor email is already taken by another account
         if (effectivePhone) {
-          const existingPhoneUser = await this.db.user.findUnique({ where: { phone: effectivePhone } });
-          if (existingPhoneUser) {
-            throw new ConflictException(
-              `This mobile number is already registered to a ${existingPhoneUser.role} account. Under the 1-account-1-role policy, a mobile number can only belong to one role.`
-            );
-          }
+          await assertPhoneAvailable(this.db, effectivePhone);
         }
         if (effectiveEmail) {
           const existingEmailUser = await this.db.user.findFirst({
@@ -607,9 +587,7 @@ export class AuthService implements OnModuleInit {
         const assignedRole = this.mapUserRole(dto.role);
 
         if (user && dto.role && user.role !== assignedRole) {
-          throw new ConflictException(
-            `An account with this email is already registered as a ${user.role}. Under AdhocX's 1-account-1-role policy, an email can only have a single role.`
-          );
+          this.logger.log(`[SOCIAL AUTO-DETECT] Account already registered as ${user.role}. Automatically logging in as ${user.role}.`);
         }
 
         if (!user) {

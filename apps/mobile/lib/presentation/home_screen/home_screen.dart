@@ -916,24 +916,6 @@ class _HomeScreenState extends State<HomeScreen> {
           earnings: '₹ ${_todayEarnings.toStringAsFixed(0)}',
           isDark: isDark,
         ),
-        const SizedBox(height: AppSpacing.lg),
-
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: () => context.push(AppRoutes.opportunitiesScreen),
-            icon: const Icon(Icons.near_me_outlined),
-            label: Text(context.tr('View All Live Opportunities')),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-              side: BorderSide(
-                color: isDark ? AppColors.borderDark : AppColors.borderLight,
-              ),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-            ),
-          ),
-        ),
       ],
     );
   }

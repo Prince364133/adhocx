@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import '../../routes/app_routes.dart';
+import '../../services/auth_service.dart';
 import '../../services/driver_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
@@ -118,68 +119,90 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final status = (_profile['verificationStatus'] ?? 'PENDING').toString().toUpperCase();
+    final user = AuthService.instance.currentUser;
+    final driverProf = user?.driverProfile ?? {};
+    final kycDocs = (_profile['kycDocuments'] is Map ? _profile['kycDocuments'] as Map : null) ??
+                    (driverProf['kycDocuments'] is Map ? driverProf['kycDocuments'] as Map : null) ?? {};
+
+    final status = (_profile['verificationStatus'] ?? driverProf['verificationStatus'] ?? user?.verificationStatus ?? 'PENDING').toString().toUpperCase();
     final isVerified = status == 'VERIFIED' || status == 'APPROVED';
     final isUnderReview = status == 'UNDER_REVIEW';
 
     final String verifiedStatusText = isVerified ? 'Verified' : (isUnderReview ? 'Under Review' : 'Pending');
 
+    final dlUrl = _profile['dlFrontUrl'] ?? driverProf['dlFrontUrl'] ?? kycDocs['dlFrontUrl'];
+    final aadharUrl = _profile['aadharFrontUrl'] ?? _profile['aadharBackUrl'] ?? driverProf['aadharFrontUrl'] ?? driverProf['aadharBackUrl'] ?? kycDocs['aadharFrontUrl'] ?? kycDocs['aadharBackUrl'];
+    final panUrl = _profile['panDocUrl'] ?? driverProf['panDocUrl'] ?? kycDocs['panDocUrl'];
+    final rcFrontUrl = _profile['rcFrontUrl'] ?? _profile['rcDocUrl'] ?? driverProf['rcFrontUrl'] ?? driverProf['rcDocUrl'] ?? kycDocs['rcFrontUrl'] ?? kycDocs['rcDocUrl'];
+    final rcBackUrl = _profile['rcBackUrl'] ?? driverProf['rcBackUrl'] ?? kycDocs['rcBackUrl'];
+    final insUrl = _profile['insuranceDocUrl'] ?? driverProf['insuranceDocUrl'] ?? kycDocs['insuranceDocUrl'];
+    final vehUrl = _profile['vehiclePhotoUrl'] ?? driverProf['vehiclePhotoUrl'] ?? kycDocs['vehiclePhotoUrl'];
+    final photoUrl = _profile['profilePhotoUrl'] ?? driverProf['profilePhotoUrl'] ?? kycDocs['profilePhotoUrl'] ?? user?.photoUrl;
+
     final docs = [
       {
+        'title': 'Profile Photo / Selfie',
+        'docNumber': (photoUrl != null && photoUrl.toString().isNotEmpty) ? 'Profile Verified' : '—',
+        'status': (photoUrl != null && photoUrl.toString().isNotEmpty) ? verifiedStatusText : 'Not Uploaded',
+        'validTill': 'Permanent',
+        'icon': Icons.account_circle_outlined,
+        'fileUrl': photoUrl as String?,
+      },
+      {
         'title': 'Driving License',
-        'docNumber': _profile['licenseNumber'] ?? (_profile['dlFrontUrl'] != null ? 'Uploaded' : '—'),
-        'status': (_profile['dlFrontUrl'] != null) ? verifiedStatusText : 'Not Uploaded',
+        'docNumber': _profile['licenseNumber'] ?? (dlUrl != null ? 'Uploaded' : '—'),
+        'status': (dlUrl != null) ? verifiedStatusText : 'Not Uploaded',
         'validTill': _profile['licenseExpiry'] ?? 'Active',
         'icon': Icons.badge_outlined,
-        'fileUrl': _profile['dlFrontUrl'] as String?,
+        'fileUrl': dlUrl as String?,
       },
       {
         'title': 'Aadhaar Card',
-        'docNumber': (_profile['aadharFrontUrl'] != null || _profile['aadharBackUrl'] != null) ? 'Verified Document' : '—',
-        'status': (_profile['aadharFrontUrl'] != null || _profile['aadharBackUrl'] != null) ? verifiedStatusText : 'Not Uploaded',
+        'docNumber': (aadharUrl != null) ? 'Verified Document' : '—',
+        'status': (aadharUrl != null) ? verifiedStatusText : 'Not Uploaded',
         'validTill': 'Permanent',
         'icon': Icons.credit_card_outlined,
-        'fileUrl': (_profile['aadharFrontUrl'] ?? _profile['aadharBackUrl']) as String?,
+        'fileUrl': aadharUrl as String?,
       },
       {
         'title': 'PAN Card',
-        'docNumber': _profile['panNumber'] ?? (_profile['panDocUrl'] != null ? 'Uploaded' : '—'),
-        'status': (_profile['panDocUrl'] != null) ? verifiedStatusText : 'Not Uploaded',
+        'docNumber': _profile['panNumber'] ?? (panUrl != null ? 'Uploaded' : '—'),
+        'status': (panUrl != null) ? verifiedStatusText : 'Not Uploaded',
         'validTill': 'Permanent',
         'icon': Icons.account_balance_wallet_outlined,
-        'fileUrl': _profile['panDocUrl'] as String?,
+        'fileUrl': panUrl as String?,
       },
       {
         'title': 'Vehicle Registration (RC Front)',
-        'docNumber': _profile['vehiclePlate'] ?? ((_profile['rcFrontUrl'] != null || _profile['rcDocUrl'] != null) ? 'Uploaded' : '—'),
-        'status': (_profile['rcFrontUrl'] != null || _profile['rcDocUrl'] != null) ? verifiedStatusText : 'Not Uploaded',
+        'docNumber': _profile['vehiclePlate'] ?? (rcFrontUrl != null ? 'Uploaded' : '—'),
+        'status': (rcFrontUrl != null) ? verifiedStatusText : 'Not Uploaded',
         'validTill': 'Active',
         'icon': Icons.directions_car_outlined,
-        'fileUrl': (_profile['rcFrontUrl'] ?? _profile['rcDocUrl']) as String?,
+        'fileUrl': rcFrontUrl as String?,
       },
       {
         'title': 'Vehicle Registration (RC Back)',
-        'docNumber': _profile['vehiclePlate'] ?? (_profile['rcBackUrl'] != null ? 'Uploaded' : '—'),
-        'status': (_profile['rcBackUrl'] != null) ? verifiedStatusText : 'Not Uploaded',
+        'docNumber': _profile['vehiclePlate'] ?? (rcBackUrl != null ? 'Uploaded' : '—'),
+        'status': (rcBackUrl != null) ? verifiedStatusText : 'Not Uploaded',
         'validTill': 'Active',
         'icon': Icons.directions_car_outlined,
-        'fileUrl': _profile['rcBackUrl'] as String?,
+        'fileUrl': rcBackUrl as String?,
       },
       {
         'title': 'Commercial Insurance',
-        'docNumber': _profile['insuranceDocUrl'] != null ? 'Policy on File' : '—',
-        'status': (_profile['insuranceDocUrl'] != null) ? verifiedStatusText : 'Not Uploaded',
+        'docNumber': (insUrl != null) ? 'Policy on File' : '—',
+        'status': (insUrl != null) ? verifiedStatusText : 'Not Uploaded',
         'validTill': 'Active',
         'icon': Icons.security_outlined,
-        'fileUrl': _profile['insuranceDocUrl'] as String?,
+        'fileUrl': insUrl as String?,
       },
       {
         'title': 'Vehicle Photo',
-        'docNumber': _profile['vehicleModel'] ?? (_profile['vehiclePhotoUrl'] != null ? 'Verified Model' : '—'),
-        'status': (_profile['vehiclePhotoUrl'] != null) ? verifiedStatusText : 'Not Uploaded',
+        'docNumber': _profile['vehicleModel'] ?? (vehUrl != null ? 'Verified Model' : '—'),
+        'status': (vehUrl != null) ? verifiedStatusText : 'Not Uploaded',
         'validTill': 'Permanent',
         'icon': Icons.photo_camera_front_outlined,
-        'fileUrl': _profile['vehiclePhotoUrl'] as String?,
+        'fileUrl': vehUrl as String?,
       },
     ];
 

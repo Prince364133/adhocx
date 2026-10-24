@@ -1,7 +1,7 @@
 import '../../../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import '../../../services/driver_service.dart';
+import '../../../core/utils/app_toast.dart';
 
 class EditProfileModal extends StatefulWidget {
   final Map<String, dynamic> profile;
@@ -127,13 +127,14 @@ class _EditProfileModalState extends State<EditProfileModal> {
         'upiId': _upiCtrl.text.trim(),
       });
 
-      Fluttertoast.showToast(msg: 'Profile updated successfully');
-
       if (mounted) {
+        AppToast.showSuccess('Profile updated successfully', context: context);
         Navigator.of(context).pop();
       }
     } catch (e) {
-      Fluttertoast.showToast(msg: 'Error saving profile: $e');
+      if (mounted) {
+        AppToast.showError(e, context: context);
+      }
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);

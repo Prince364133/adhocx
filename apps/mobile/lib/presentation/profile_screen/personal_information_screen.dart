@@ -135,13 +135,30 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
       setState(() => _isUploadingPhoto = true);
       final bytes = await image.readAsBytes();
 
-      await DriverService.instance.uploadProfilePhoto(
+      final res = await DriverService.instance.uploadProfilePhoto(
         fileBytes: bytes,
         fileName: image.name.isNotEmpty ? image.name : 'profile_photo.jpg',
         mimeType: image.mimeType ?? 'image/jpeg',
       );
 
+      final uploadedUrl = (res is Map && res['url'] != null)
+          ? res['url'].toString()
+          : (res is Map && res['data'] is Map && res['data']['url'] != null)
+              ? res['data']['url'].toString()
+              : null;
+
       if (!mounted) return;
+      if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
+        setState(() {
+          if (_profile != null) {
+            _profile!['profilePhotoUrl'] = uploadedUrl;
+          } else {
+            _profile = {'profilePhotoUrl': uploadedUrl};
+          }
+        });
+        AuthService.instance.updateCurrentUserProfilePhoto(uploadedUrl);
+      }
+
       Fluttertoast.showToast(
         msg: context.tr('Profile photo uploaded successfully!'),
         backgroundColor: AppColors.accentGreenDark,

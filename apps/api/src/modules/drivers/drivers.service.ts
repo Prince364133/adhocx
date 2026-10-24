@@ -17,6 +17,7 @@ import {
 } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
 import { StorageService } from '../../common/storage/storage.service';
+import { assertPhoneAvailable, assertVehiclePlateAvailable } from '../../common';
 import { AuditService } from '../audit/audit.service';
 import { LocationsService } from '../locations/locations.service';
 import { DispatchConfig } from '../dispatch/dispatch.config';
@@ -80,6 +81,7 @@ export class DriversService {
         ...(driver.aadharFrontUrl ? [{ id: 'doc_adh_f', documentType: 'AADHAR_FRONT', title: 'Aadhar Card (Front)', fileUrl: driver.aadharFrontUrl, verified: driver.verificationStatus === 'VERIFIED', uploadedAt: driver.createdAt.toISOString() }] : []),
         ...(driver.aadharBackUrl ? [{ id: 'doc_adh_b', documentType: 'AADHAR_BACK', title: 'Aadhar Card (Back)', fileUrl: driver.aadharBackUrl, verified: driver.verificationStatus === 'VERIFIED', uploadedAt: driver.createdAt.toISOString() }] : []),
         ...(driver.panDocUrl ? [{ id: 'doc_pan', documentType: 'PAN_CARD', title: 'PAN Card', fileUrl: driver.panDocUrl, verified: driver.verificationStatus === 'VERIFIED', uploadedAt: driver.createdAt.toISOString() }] : []),
+        ...(kyc.profilePhotoUrl ? [{ id: 'doc_profile', documentType: 'PROFILE_PHOTO', title: 'Profile Photo', fileUrl: kyc.profilePhotoUrl, verified: driver.verificationStatus === 'VERIFIED', uploadedAt: driver.createdAt.toISOString() }] : []),
       ];
 
       const driverId = 'DRV' + (driver.id.replace(/-/g, '').substring(0, 6).toUpperCase());
@@ -132,7 +134,7 @@ export class DriversService {
         bankIfsc: kyc.bankIfsc || undefined,
         bankName: kyc.bankName || undefined,
         upiId: kyc.upiId || undefined,
-        documents: (driver.kycDocuments as any) || docsList,
+        documents: Array.isArray(driver.kycDocuments) ? driver.kycDocuments : docsList,
         createdAt: driver.createdAt.toISOString(),
         updatedAt: driver.updatedAt.toISOString(),
       };
@@ -167,20 +169,23 @@ export class DriversService {
 
     const cleanPhone = dto.phone ? dto.phone.trim().replace(/\s+/g, '') : undefined;
     const cleanName = dto.fullName ? dto.fullName.trim() : undefined;
+    const rawPlate = (dto.vehiclePlate || (dto as any).rcNumber)?.trim().toUpperCase() || undefined;
+
+    if (cleanPhone && cleanPhone !== driver.phone && cleanPhone !== driver.user?.phone) {
+      await assertPhoneAvailable(this.db, cleanPhone, {
+        excludeUserId: userId,
+        excludeDriverId: driver.id,
+      });
+    }
+
+    if (rawPlate && rawPlate !== driver.vehiclePlate?.toUpperCase()) {
+      await assertVehiclePlateAvailable(this.db, rawPlate, {
+        excludeDriverId: driver.id,
+        excludeUserId: userId,
+      });
+    }
 
     if (cleanName || dto.email || cleanPhone) {
-      if (cleanPhone && cleanPhone !== driver.phone && cleanPhone !== driver.user?.phone) {
-        const existingWithPhone = await this.db.user.findFirst({
-          where: {
-            phone: cleanPhone,
-            id: { not: userId },
-          },
-        });
-        if (existingWithPhone) {
-          throw new ConflictException('This mobile number is already registered to another account');
-        }
-      }
-
       if (dto.email && dto.email.toLowerCase() !== driver.user?.email?.toLowerCase()) {
         const existing = await this.db.user.findUnique({
           where: { email: dto.email.toLowerCase() },
@@ -217,6 +222,8 @@ export class DriversService {
       ...(dto.emergencyContactName !== undefined ? { emergencyContactName: dto.emergencyContactName } : {}),
       ...(dto.emergencyContactPhone !== undefined ? { emergencyContactPhone: dto.emergencyContactPhone } : {}),
       ...(dto.profilePhotoUrl !== undefined ? { profilePhotoUrl: dto.profilePhotoUrl } : {}),
+      ...(dto.rcFrontUrl !== undefined ? { rcFrontUrl: dto.rcFrontUrl } : {}),
+      ...(dto.rcBackUrl !== undefined ? { rcBackUrl: dto.rcBackUrl } : {}),
       ...(dto.bankAccountName !== undefined ? { bankAccountName: dto.bankAccountName.trim() } : {}),
       ...(dto.bankAccountNumber !== undefined ? { bankAccountNumber: dto.bankAccountNumber.trim() } : {}),
       ...(dto.bankIfsc !== undefined ? { bankIfsc: dto.bankIfsc.trim().toUpperCase() } : {}),
@@ -229,13 +236,48 @@ export class DriversService {
       data: {
         ...(cleanName ? { fullName: cleanName } : {}),
         ...(cleanPhone ? { phone: cleanPhone } : {}),
+        ...(dto.dlFrontUrl ? { dlFrontUrl: dto.dlFrontUrl } : {}),
+        ...(dto.dlBackUrl ? { dlBackUrl: dto.dlBackUrl } : {}),
+        ...(dto.rcDocUrl ? { rcDocUrl: dto.rcDocUrl } : (dto.rcFrontUrl ? { rcDocUrl: dto.rcFrontUrl } : {})),
+        ...(dto.insuranceDocUrl ? { insuranceDocUrl: dto.insuranceDocUrl } : {}),
         ...(dto.vehiclePhotoUrl ? { vehiclePhotoUrl: dto.vehiclePhotoUrl } : {}),
+        ...(dto.aadharFrontUrl ? { aadharFrontUrl: dto.aadharFrontUrl } : {}),
+        ...(dto.aadharBackUrl ? { aadharBackUrl: dto.aadharBackUrl } : {}),
+        ...(dto.panDocUrl ? { panDocUrl: dto.panDocUrl } : {}),
         ...(dto.vehicleType ? { vehicleType: dto.vehicleType.toUpperCase() } : {}),
         ...(dto.vehicleModel ? { vehicleModel: dto.vehicleModel } : {}),
-        ...(dto.vehiclePlate ? { vehiclePlate: dto.vehiclePlate.toUpperCase() } : {}),
+        ...(rawPlate ? { vehiclePlate: rawPlate } : {}),
         kycDocuments: updatedKyc,
       },
     });
+
+    if (rawPlate && this.db.vehicle) {
+      const vType = (dto.vehicleType || driver.vehicleType || 'SEDAN').toUpperCase();
+      const vModel = dto.vehicleModel || driver.vehicleModel || 'Commercial Fleet';
+      const existingVehicle = await this.db.vehicle.findFirst({
+        where: { driverId: driver.id },
+      });
+      if (existingVehicle) {
+        await this.db.vehicle.update({
+          where: { id: existingVehicle.id },
+          data: {
+            registrationNumber: rawPlate,
+            vehicleType: vType,
+            model: vModel,
+          },
+        });
+      } else {
+        await this.db.vehicle.create({
+          data: {
+            driverId: driver.id,
+            registrationNumber: rawPlate,
+            vehicleType: vType,
+            model: vModel,
+            verificationStatus: driver.verificationStatus,
+          },
+        });
+      }
+    }
 
     return this.getProfile(userId);
   }
@@ -347,191 +389,187 @@ export class DriversService {
       ...(panDocUrl ? [{ id: 'doc_pan', documentType: 'PAN_CARD', title: 'PAN Card', fileUrl: panDocUrl, verified: false, uploadedAt: new Date().toISOString() }] : []),
     ];
 
-    const plate = dto.rcNumber || dto.vehicle?.registrationNumber || dto.vehiclePlate || 'TS09EA1234';
+    const plate = (dto.rcNumber || dto.vehicle?.registrationNumber || dto.vehiclePlate)?.trim().toUpperCase() || undefined;
     const vehicleType = (dto.vehicle?.type || dto.vehicleType || VehicleType.SEDAN) as VehicleType;
     const vehicleModel = dto.vehicle?.model || dto.vehicleModel || 'Commercial Fleet';
 
     const cleanPhone = dto.phone ? dto.phone.trim().replace(/\s+/g, '') : undefined;
     const cleanName = dto.fullName ? dto.fullName.trim() : undefined;
 
-    try {
-      if (cleanPhone) {
-        const existingWithPhone = await this.db.user.findFirst({
-          where: {
-            phone: cleanPhone,
-            id: { not: userId },
-          },
-        });
-        if (existingWithPhone) {
-          throw new ConflictException('This mobile number is already registered to another account');
-        }
-      }
+    const existingDriver = await this.db.driver.findUnique({ where: { userId } });
 
-      if (cleanPhone || cleanName) {
-        try {
-          await this.db.user.update({
-            where: { id: userId },
-            data: {
-              ...(cleanName ? { fullName: cleanName } : {}),
-              ...(cleanPhone ? { phone: cleanPhone } : {}),
-            },
-          });
-        } catch (_) {}
-      }
+    if (cleanPhone) {
+      await assertPhoneAvailable(this.db, cleanPhone, {
+        excludeUserId: userId,
+        excludeDriverId: existingDriver?.id,
+      });
+    }
 
-      const existingDriver = await this.db.driver.findUnique({ where: { userId } });
+    if (plate) {
+      await assertVehiclePlateAvailable(this.db, plate, {
+        excludeUserId: userId,
+        excludeDriverId: existingDriver?.id,
+      });
+    }
 
-      if (existingDriver) {
-        await this.db.driver.update({
-          where: { id: existingDriver.id },
+    if (cleanPhone || cleanName) {
+      try {
+        await this.db.user.update({
+          where: { id: userId },
           data: {
-            verificationStatus: VerificationStatus.UNDER_REVIEW,
-            rejectionReason: null, // Clear previous rejection reason on re-application
-            vehiclePlate: plate,
-            vehicleType,
-            vehicleModel,
             ...(cleanName ? { fullName: cleanName } : {}),
             ...(cleanPhone ? { phone: cleanPhone } : {}),
-            dlFrontUrl: dlFrontUrl || existingDriver.dlFrontUrl,
-            rcDocUrl: rcDocUrl || existingDriver.rcDocUrl,
-            insuranceDocUrl: insuranceDocUrl || existingDriver.insuranceDocUrl,
-            vehiclePhotoUrl: vehiclePhotoUrl || existingDriver.vehiclePhotoUrl,
-            aadharFrontUrl: aadharFrontUrl || existingDriver.aadharFrontUrl,
-            aadharBackUrl: aadharBackUrl || existingDriver.aadharBackUrl,
-            panDocUrl: panDocUrl || existingDriver.panDocUrl,
-            kycDocuments: {
-              ...((existingDriver.kycDocuments as Record<string, any>) || {}),
-              ...(profilePhotoUrl ? { profilePhotoUrl } : {}),
-              ...(rcFrontUrl ? { rcFrontUrl } : {}),
-              ...(rcBackUrl ? { rcBackUrl } : {}),
-              documents: docsList.length > 0 ? docsList : (((existingDriver.kycDocuments as any)?.documents) || []),
+          },
+        });
+      } catch (_) {}
+    }
+
+    if (existingDriver) {
+      await this.db.driver.update({
+        where: { id: existingDriver.id },
+        data: {
+          verificationStatus: VerificationStatus.UNDER_REVIEW,
+          rejectionReason: null, // Clear previous rejection reason on re-application
+          ...(plate ? { vehiclePlate: plate } : {}),
+          vehicleType,
+          vehicleModel,
+          ...(cleanName ? { fullName: cleanName } : {}),
+          ...(cleanPhone ? { phone: cleanPhone } : {}),
+          dlFrontUrl: dlFrontUrl || existingDriver.dlFrontUrl,
+          rcDocUrl: rcDocUrl || existingDriver.rcDocUrl,
+          insuranceDocUrl: insuranceDocUrl || existingDriver.insuranceDocUrl,
+          vehiclePhotoUrl: vehiclePhotoUrl || existingDriver.vehiclePhotoUrl,
+          aadharFrontUrl: aadharFrontUrl || existingDriver.aadharFrontUrl,
+          aadharBackUrl: aadharBackUrl || existingDriver.aadharBackUrl,
+          panDocUrl: panDocUrl || existingDriver.panDocUrl,
+          kycDocuments: {
+            ...((existingDriver.kycDocuments as Record<string, any>) || {}),
+            ...(profilePhotoUrl ? { profilePhotoUrl } : {}),
+            ...(rcFrontUrl ? { rcFrontUrl } : {}),
+            ...(rcBackUrl ? { rcBackUrl } : {}),
+            documents: docsList.length > 0 ? docsList : (((existingDriver.kycDocuments as any)?.documents) || []),
+          },
+        },
+      });
+
+      try {
+        await this.db.user.update({
+          where: { id: userId },
+          data: { role: 'DRIVER' },
+        });
+      } catch (_) {}
+
+      if (plate && this.db.vehicle) {
+        const driverVehicle = await this.db.vehicle.findFirst({
+          where: { driverId: existingDriver.id },
+        });
+        if (driverVehicle) {
+          await this.db.vehicle.update({
+            where: { id: driverVehicle.id },
+            data: {
+              registrationNumber: plate,
+              vehicleType,
+              model: vehicleModel,
+              verificationStatus: VerificationStatus.UNDER_REVIEW,
             },
-          },
-        });
-
-        try {
-          await this.db.user.update({
-            where: { id: userId },
-            data: { role: 'DRIVER' },
           });
-        } catch (_) {}
-
-        if (plate) {
-          try {
-            await this.db.vehicle.upsert({
-              where: { registrationNumber: plate },
-              create: {
-                driverId: existingDriver.id,
-                vehicleType,
-                model: vehicleModel,
-                registrationNumber: plate,
-                verificationStatus: VerificationStatus.UNDER_REVIEW,
-              },
-              update: {
-                driverId: existingDriver.id,
-                vehicleType,
-                model: vehicleModel,
-                verificationStatus: VerificationStatus.UNDER_REVIEW,
-              },
-            });
-          } catch (_) {}
+        } else {
+          await this.db.vehicle.create({
+            data: {
+              driverId: existingDriver.id,
+              vehicleType,
+              model: vehicleModel,
+              registrationNumber: plate,
+              verificationStatus: VerificationStatus.UNDER_REVIEW,
+            },
+          });
         }
-
-        await this.audit.log({
-          userId,
-          action: existingDriver.verificationStatus === VerificationStatus.REJECTED ? 'DRIVER_KYC_RESUBMITTED' : 'DRIVER_KYC_SUBMITTED',
-          entityType: 'DRIVER',
-          entityId: existingDriver.id,
-          metadata: {
-            dlNumber: dto.dlNumber || dto.licenseNumber,
-            panNumber: dto.panNumber,
-            rcNumber: dto.rcNumber,
-            documentsCount: docsList.length,
-          },
-        });
-
-        return this.getProfile(userId);
       }
 
-      const user = await this.db.user.findUnique({ where: { id: userId } });
-      if (user) {
-        const newDriver = await this.db.driver.create({
+      await this.audit.log({
+        userId,
+        action: existingDriver.verificationStatus === VerificationStatus.REJECTED ? 'DRIVER_KYC_RESUBMITTED' : 'DRIVER_KYC_SUBMITTED',
+        entityType: 'DRIVER',
+        entityId: existingDriver.id,
+        metadata: {
+          dlNumber: dto.dlNumber || dto.licenseNumber,
+          panNumber: dto.panNumber,
+          rcNumber: dto.rcNumber,
+          documentsCount: docsList.length,
+        },
+      });
+
+      return this.getProfile(userId);
+    }
+
+    const user = await this.db.user.findUnique({ where: { id: userId } });
+    if (user) {
+      const newDriver = await this.db.driver.create({
+        data: {
+          userId,
+          fullName: cleanName || user.fullName || 'Driver',
+          phone: cleanPhone || user.phone,
+          verificationStatus: VerificationStatus.UNDER_REVIEW,
+          availabilityStatus: DriverAvailability.OFFLINE,
+          vehiclePlate: plate,
+          vehicleType,
+          vehicleModel,
+          dlFrontUrl,
+          rcDocUrl,
+          insuranceDocUrl,
+          vehiclePhotoUrl,
+          aadharFrontUrl,
+          aadharBackUrl,
+          panDocUrl,
+          kycDocuments: {
+            ...(profilePhotoUrl ? { profilePhotoUrl } : {}),
+            ...(rcFrontUrl ? { rcFrontUrl } : {}),
+            ...(rcBackUrl ? { rcBackUrl } : {}),
+            documents: docsList,
+          },
+        },
+      });
+
+      try {
+        await this.db.user.update({
+          where: { id: userId },
+          data: { role: 'DRIVER' },
+        });
+      } catch (_) {}
+
+      if (plate && this.db.vehicle) {
+        await this.db.vehicle.create({
           data: {
-            userId,
-            fullName: cleanName || user.fullName || 'Driver',
-            phone: cleanPhone || user.phone,
-            verificationStatus: VerificationStatus.UNDER_REVIEW,
-            availabilityStatus: DriverAvailability.OFFLINE,
-            vehiclePlate: plate,
+            driverId: newDriver.id,
             vehicleType,
-            vehicleModel,
-            dlFrontUrl,
-            rcDocUrl,
-            insuranceDocUrl,
-            vehiclePhotoUrl,
-            aadharFrontUrl,
-            aadharBackUrl,
-            panDocUrl,
-            kycDocuments: {
-              ...(profilePhotoUrl ? { profilePhotoUrl } : {}),
-              ...(rcFrontUrl ? { rcFrontUrl } : {}),
-              ...(rcBackUrl ? { rcBackUrl } : {}),
-              documents: docsList,
-            },
+            model: vehicleModel,
+            registrationNumber: plate,
+            verificationStatus: VerificationStatus.UNDER_REVIEW,
           },
         });
-
-        try {
-          await this.db.user.update({
-            where: { id: userId },
-            data: { role: 'DRIVER' },
-          });
-        } catch (_) {}
-
-        if (plate) {
-          try {
-            await this.db.vehicle.upsert({
-              where: { registrationNumber: plate },
-              create: {
-                driverId: newDriver.id,
-                vehicleType,
-                model: vehicleModel,
-                registrationNumber: plate,
-                verificationStatus: VerificationStatus.UNDER_REVIEW,
-              },
-              update: {
-                driverId: newDriver.id,
-                vehicleType,
-                model: vehicleModel,
-                verificationStatus: VerificationStatus.UNDER_REVIEW,
-              },
-            });
-          } catch (_) {}
-        }
-
-        await this.audit.log({
-          userId,
-          action: 'DRIVER_KYC_SUBMITTED',
-          entityType: 'DRIVER',
-          entityId: newDriver.id,
-          metadata: {
-            dlNumber: dto.dlNumber || dto.licenseNumber,
-            panNumber: dto.panNumber,
-            rcNumber: dto.rcNumber,
-            documentsCount: docsList.length,
-          },
-        });
-
-        return this.getProfile(userId);
       }
-    } catch (_) {}
 
-    const user = await this.db.user.findUnique({ where: { id: userId } }).catch(() => null);
+      await this.audit.log({
+        userId,
+        action: 'DRIVER_KYC_SUBMITTED',
+        entityType: 'DRIVER',
+        entityId: newDriver.id,
+        metadata: {
+          dlNumber: dto.dlNumber || dto.licenseNumber,
+          panNumber: dto.panNumber,
+          rcNumber: dto.rcNumber,
+          documentsCount: docsList.length,
+        },
+      });
+
+      return this.getProfile(userId);
+    }
+
     return {
       id: `drv_${userId}`,
       userId,
-      fullName: user?.fullName || 'Driver',
-      phone: user?.phone || '',
+      fullName: 'Driver',
+      phone: '',
       verificationStatus: VerificationStatus.UNDER_REVIEW,
       availabilityStatus: DriverAvailability.OFFLINE,
       vehiclePlate: plate,
@@ -590,22 +628,71 @@ export class DriversService {
       });
     } catch (_) {}
 
-    if (dto?.documentType === 'PROFILE_PHOTO') {
-      try {
-        const driver = await this.db.driver.findUnique({ where: { userId } });
-        if (driver) {
-          const kyc = (driver.kycDocuments as Record<string, any>) || {};
-          await this.db.driver.update({
-            where: { userId },
-            data: {
-              kycDocuments: {
-                ...kyc,
-                profilePhotoUrl: stored.url,
-              },
-            },
-          });
-        }
-      } catch (_) {}
+    const rawDocType = (dto?.documentType || '').trim();
+    const docType = rawDocType.toUpperCase();
+
+    try {
+      let driver = await this.db.driver.findUnique({ where: { userId } });
+      if (!driver) {
+        const user = await this.db.user.findUnique({ where: { id: userId } });
+        driver = await this.db.driver.create({
+          data: {
+            userId,
+            fullName: user?.fullName || 'Driver Applicant',
+            phone: user?.phone || undefined,
+            verificationStatus: VerificationStatus.PENDING,
+            availabilityStatus: DriverAvailability.OFFLINE,
+          },
+        });
+      }
+
+      const kyc = (driver.kycDocuments as Record<string, any>) || {};
+      const updatedKyc: Record<string, any> = { ...kyc };
+      const updateData: any = {};
+
+      if (docType === 'PROFILE_PHOTO' || docType === 'SELFIE' || docType.includes('PROFILE')) {
+        updatedKyc.profilePhotoUrl = stored.url;
+      } else if (docType === 'DRIVING_LICENSE' || docType === 'DL_FRONT' || docType.includes('DL')) {
+        updateData.dlFrontUrl = stored.url;
+        updatedKyc.dlFrontUrl = stored.url;
+      } else if (docType === 'DL_BACK') {
+        updateData.dlBackUrl = stored.url;
+        updatedKyc.dlBackUrl = stored.url;
+      } else if (docType === 'RC_BOOK' || docType === 'RC_FRONT' || docType.includes('RC')) {
+        updateData.rcDocUrl = stored.url;
+        updatedKyc.rcDocUrl = stored.url;
+        updatedKyc.rcFrontUrl = stored.url;
+      } else if (docType === 'RC_BACK') {
+        updatedKyc.rcBackUrl = stored.url;
+      } else if (docType === 'INSURANCE' || docType.includes('INSUR')) {
+        updateData.insuranceDocUrl = stored.url;
+        updatedKyc.insuranceDocUrl = stored.url;
+      } else if (docType === 'VEHICLE_PHOTO' || docType.includes('VEHICLE')) {
+        updateData.vehiclePhotoUrl = stored.url;
+        updatedKyc.vehiclePhotoUrl = stored.url;
+      } else if (docType === 'AADHAR_FRONT' || docType === 'AADHAR' || docType === 'AADHAAR' || docType.includes('AADHA')) {
+        updateData.aadharFrontUrl = stored.url;
+        updatedKyc.aadharFrontUrl = stored.url;
+      } else if (docType === 'AADHAR_BACK') {
+        updateData.aadharBackUrl = stored.url;
+        updatedKyc.aadharBackUrl = stored.url;
+      } else if (docType === 'PAN_CARD' || docType === 'PAN' || docType.includes('PAN')) {
+        updateData.panDocUrl = stored.url;
+        updatedKyc.panDocUrl = stored.url;
+      } else {
+        updatedKyc[docType.toLowerCase()] = stored.url;
+      }
+
+      updateData.kycDocuments = updatedKyc;
+
+      await this.db.driver.update({
+        where: { id: driver.id },
+        data: updateData,
+      });
+
+      this.logger.log(`[DOC UPLOAD PERSISTED] Driver ${driver.id} saved document type ${docType}: ${stored.url}`);
+    } catch (err: any) {
+      this.logger.error(`[DOC UPLOAD PERSIST ERROR] Failed saving ${docType} for user ${userId}: ${err.message}`);
     }
 
     return {

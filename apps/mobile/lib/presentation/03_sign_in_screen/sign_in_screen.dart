@@ -82,12 +82,10 @@ class _SignInScreenState extends State<SignInScreen> {
 
     try {
       final authService = context.read<AuthService>();
-      final onboarding = context.read<OnboardingProvider>();
 
       final res = await authService.requestOtp(
         email: email,
         channel: 'EMAIL',
-        role: onboarding.role,
         isRegister: false,
       );
 
@@ -99,7 +97,6 @@ class _SignInScreenState extends State<SignInScreen> {
           AppRoutes.loginOtpScreen,
           extra: {
             'email': email,
-            'role': onboarding.role,
             'isRegister': false,
           },
         );
@@ -158,10 +155,10 @@ class _SignInScreenState extends State<SignInScreen> {
       final onboarding = context.read<OnboardingProvider>();
       final authService = context.read<AuthService>();
 
+      // Automatically detects user's registered role from backend
       final result = await authService.loginWithPassword(
         identifier: email,
         password: password,
-        role: onboarding.role,
       );
 
       final user = result.user;
@@ -188,6 +185,7 @@ class _SignInScreenState extends State<SignInScreen> {
         } else if (!user.isVerified) {
           context.go(AppRoutes.waitlistGateScreen);
         } else {
+          // Automatically route to Driver dashboard or Vendor/User dashboard based on detected role
           context.go(user.isDriver ? AppRoutes.homeScreen : AppRoutes.userHomeScreen);
         }
       }
@@ -209,7 +207,8 @@ class _SignInScreenState extends State<SignInScreen> {
       final authService = context.read<AuthService>();
       final onboarding = context.read<OnboardingProvider>();
 
-      final result = await authService.signInWithGoogle(role: onboarding.role);
+      // Automatically detects user's registered role from backend
+      final result = await authService.signInWithGoogle();
       final user = result.user;
 
       if (mounted) {

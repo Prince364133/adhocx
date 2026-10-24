@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException, Logger, Optional } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger, Optional } from '@nestjs/common';
 import {
   AdminDriverQueryDto,
   AdminVendorQueryDto,
@@ -14,6 +14,7 @@ import {
 import { DatabaseService } from '../../database/database.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { assertPhoneAvailable, assertVehiclePlateAvailable } from '../../common';
 
 @Injectable()
 export class AdminService {
@@ -100,6 +101,10 @@ export class AdminService {
     for (const [key, value] of Object.entries(copy)) {
       if (typeof value === 'string') {
         const lowerKey = key.toLowerCase();
+        // NEVER mask URLs or file paths!
+        if (lowerKey.includes('url') || value.startsWith('http://') || value.startsWith('https://') || value.startsWith('/')) {
+          continue;
+        }
         if (lowerKey.includes('aadhar') || lowerKey.includes('aadhaar')) {
           // Mask Aadhaar to XXXX-XXXX-1234
           copy[key] = value.replace(/\d(?=\d{4})/g, 'X');
@@ -141,6 +146,7 @@ export class AdminService {
     return {
       ...driver,
       kycDocuments: processedKyc,
+      profilePhotoUrl: (driver.kycDocuments as any)?.profilePhotoUrl || undefined,
       phone: driver.phone || driver.user?.phone || '',
       email: driver.user?.email || (driver.kycDocuments as any)?.email || undefined,
       fullName: driver.fullName || driver.user?.fullName || 'Driver Applicant',
@@ -464,14 +470,20 @@ export class AdminService {
 
     const cleanPhone = data.phone ? data.phone.trim().replace(/\s+/g, '') : undefined;
     const cleanName = data.fullName ? data.fullName.trim() : undefined;
+    const rawPlate = data.vehiclePlate?.trim().toUpperCase();
 
     if (cleanPhone && cleanPhone !== driver.phone && cleanPhone !== driver.user?.phone) {
-      const existing = await this.db.user.findFirst({
-        where: { phone: cleanPhone, id: { not: driver.userId } },
+      await assertPhoneAvailable(this.db, cleanPhone, {
+        excludeUserId: driver.userId,
+        excludeDriverId: driver.id,
       });
-      if (existing) {
-        throw new ConflictException('This mobile number is already registered to another account');
-      }
+    }
+
+    if (rawPlate && rawPlate !== driver.vehiclePlate?.toUpperCase()) {
+      await assertVehiclePlateAvailable(this.db, rawPlate, {
+        excludeUserId: driver.userId,
+        excludeDriverId: driver.id,
+      });
     }
 
     if (cleanPhone || cleanName) {
@@ -489,12 +501,38 @@ export class AdminService {
       data: {
         ...(cleanName ? { fullName: cleanName } : {}),
         ...(cleanPhone ? { phone: cleanPhone } : {}),
-        ...(data.vehiclePlate ? { vehiclePlate: data.vehiclePlate.toUpperCase() } : {}),
+        ...(rawPlate ? { vehiclePlate: rawPlate } : {}),
         ...(data.vehicleModel ? { vehicleModel: data.vehicleModel } : {}),
         ...(data.vehicleType ? { vehicleType: data.vehicleType.toUpperCase() } : {}),
       },
       include: { user: true },
     });
+
+    if (rawPlate) {
+      const vType = (data.vehicleType || driver.vehicleType || 'SEDAN').toUpperCase();
+      const vModel = data.vehicleModel || driver.vehicleModel || 'Commercial Fleet';
+      const veh = await this.db.vehicle.findFirst({ where: { driverId: driver.id } });
+      if (veh) {
+        await this.db.vehicle.update({
+          where: { id: veh.id },
+          data: {
+            registrationNumber: rawPlate,
+            model: vModel,
+            vehicleType: vType,
+          },
+        });
+      } else {
+        await this.db.vehicle.create({
+          data: {
+            driverId: driver.id,
+            registrationNumber: rawPlate,
+            model: vModel,
+            vehicleType: vType,
+            verificationStatus: driver.verificationStatus,
+          },
+        });
+      }
+    }
 
     await this.audit.log({
       userId: adminId,
@@ -525,12 +563,10 @@ export class AdminService {
     const cleanName = data.fullName ? data.fullName.trim() : undefined;
 
     if (cleanPhone && cleanPhone !== vendor.phone && cleanPhone !== vendor.user?.phone) {
-      const existing = await this.db.user.findFirst({
-        where: { phone: cleanPhone, id: { not: vendor.userId } },
+      await assertPhoneAvailable(this.db, cleanPhone, {
+        excludeUserId: vendor.userId,
+        excludeVendorId: vendor.id,
       });
-      if (existing) {
-        throw new ConflictException('This mobile number is already registered to another account');
-      }
     }
 
     if (cleanPhone || cleanName) {

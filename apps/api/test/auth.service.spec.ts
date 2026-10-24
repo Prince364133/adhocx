@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { UnauthorizedException, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { UnauthorizedException, BadRequestException, ConflictException } from '@nestjs/common';
 import { AuthService } from '../src/modules/auth/auth.service';
 import { DatabaseService } from '../src/database/database.service';
 import { RedisService } from '../src/redis/redis.service';
@@ -218,23 +218,22 @@ describe('AuthService Unit Tests', () => {
     );
   });
 
-  it('should reject social auth if account already exists with a different role', async () => {
+  it('should auto-detect user role on social auth if account already exists with registered role', async () => {
     db.user.findFirst.mockResolvedValueOnce({
       id: 'existing-driver',
       email: 'driver@gmail.com',
       role: UserRole.DRIVER,
     });
 
-    await expect(
-      service.socialAuth({
-        provider: 'GOOGLE',
-        email: 'driver@gmail.com',
-        role: 'VENDOR',
-      }),
-    ).rejects.toThrow(ConflictException);
+    const res = await service.socialAuth({
+      provider: 'GOOGLE',
+      email: 'driver@gmail.com',
+      role: 'VENDOR',
+    });
+    expect(res.user.role).toBe(UserRole.DRIVER);
   });
 
-  it('should reject login if user role does not match requested role', async () => {
+  it('should auto-detect user role on login if account already exists with registered role', async () => {
     db.user.findFirst.mockResolvedValueOnce({
       id: 'existing-driver',
       phone: '+919876543210',
@@ -243,12 +242,11 @@ describe('AuthService Unit Tests', () => {
     });
     jest.spyOn(service as any, 'verifyPassword').mockReturnValue(true);
 
-    await expect(
-      service.login({
-        identifier: '+919876543210',
-        password: 'Password123!',
-        role: 'VENDOR',
-      }),
-    ).rejects.toThrow(ForbiddenException);
+    const res = await service.login({
+      identifier: '+919876543210',
+      password: 'Password123!',
+      role: 'VENDOR',
+    });
+    expect(res.user.role).toBe(UserRole.DRIVER);
   });
 });

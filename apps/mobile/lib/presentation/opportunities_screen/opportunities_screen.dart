@@ -22,8 +22,6 @@ class OpportunitiesScreen extends StatefulWidget {
 }
 
 class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
-  String _selectedCategory = 'All';
-  List<String> _categories = ['All'];
   String? _driverVehicleCategory;
   bool _isLoading = true;
   bool _isOnActiveTrip = false;
@@ -111,43 +109,11 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
         }
       }
 
-      // Build dynamic category filter pills STRICTLY for the driver's vehicle type
-      final driverNorm = normalizeVehicleCategory(registeredVehicle);
-      final catSet = <String>{'All'};
-
-      if (dynamicTiers.isNotEmpty) {
-        for (final t in dynamicTiers) {
-          final label = (t['categoryLabel'] ?? t['vehicleType'] ?? '').toString();
-          final tierTypeNorm = normalizeVehicleCategory(t['vehicleType']?.toString() ?? label);
-
-          // ONLY include categories that match the driver's vehicle!
-          // A sedan driver NEVER sees "Compact Hatchback" or "SUV" pills!
-          if (driverNorm.isEmpty || tierTypeNorm == driverNorm) {
-            if (label.isNotEmpty) catSet.add(label);
-          }
-        }
-      }
-
-      // Ensure at least the driver's vehicle category label is present
-      if (catSet.length == 1) {
-        if (driverNorm == 'SEDAN') {
-          catSet.add('Prime Sedan');
-        } else if (driverNorm == 'SUV') {
-          catSet.add('SUV 7 Seater');
-        } else if (driverNorm == 'HATCHBACK') {
-          catSet.add('Compact Hatchback');
-        } else if (driverNorm.isNotEmpty) {
-          catSet.add(driverNorm);
-        }
-      }
-
       if (mounted) {
         setState(() {
           _offers = combinedOps;
           _driverVehicleCategory = registeredVehicle;
           _isOnActiveTrip = activeTrip != null;
-          _categories = catSet.toList();
-          _selectedCategory = 'All';
         });
       }
     } catch (_) {
@@ -175,16 +141,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
         }
       }
 
-      if (_selectedCategory == 'All') return true;
-
-      final selNorm = normalizeVehicleCategory(_selectedCategory);
-      if (selNorm.isNotEmpty && reqNorm.isNotEmpty) {
-        return selNorm == reqNorm;
-      }
-
-      final sel = _selectedCategory.toUpperCase();
-      final rawUpper = rawVType.toUpperCase();
-      return rawUpper.contains(sel) || sel.contains(rawUpper);
+      return true;
     }).toList();
 
     final driverCategoryDisplay = VehicleUtils.getDisplayLabel(driverNorm);
@@ -306,49 +263,6 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                             ),
                           ),
                         ],
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-
-                      // Vehicle Filter Chips (Strictly driver's vehicle categories)
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: _categories.map((cat) {
-                            final isSelected = _selectedCategory == cat;
-                            return GestureDetector(
-                              onTap: () => setState(() => _selectedCategory = cat),
-                              child: Container(
-                                margin: const EdgeInsets.only(right: 8),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? (isDark ? AppColors.primary : AppColors.textPrimaryLight)
-                                      : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
-                                  borderRadius: BorderRadius.circular(AppRadius.full),
-                                  border: Border.all(
-                                    color: isSelected
-                                        ? (isDark ? AppColors.primary : AppColors.textPrimaryLight)
-                                        : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                                  ),
-                                ),
-                                child: Text(
-                                  cat,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                    color: isSelected
-                                        ? Colors.white
-                                        : (isDark ? AppColors.textSecondaryDark : AppColors.textPrimaryLight),
-                                  ),
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
                     ],
                   ),
                 ),

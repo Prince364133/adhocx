@@ -94,7 +94,7 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
         phone: widget.phone,
         email: widget.email,
         otp: _otp,
-        role: widget.role,
+        role: widget.isRegister ? widget.role : null,
         isRegister: widget.isRegister,
         fullName: onboarding.fullName.isNotEmpty ? onboarding.fullName : null,
       );
@@ -107,6 +107,7 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
 
         final user = res.user;
         context.read<AuthProvider>().setUser(user);
+        onboarding.setRole(user.role);
 
         // 1. Mandatory Password Setup: If user hasn't set a password, navigate to setPasswordScreen
         if (!user.hasPassword) {

@@ -11,6 +11,7 @@ import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/common/app_primary_button.dart';
+import '../../core/utils/app_toast.dart';
 
 /// Screen 1: Edit Personal Information matching exact design guidelines and connected to live backend.
 class EditPersonalInfoScreen extends StatefulWidget {
@@ -200,10 +201,9 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
       }
     } catch (e) {
       debugPrint('Error saving profile: $e');
-      Fluttertoast.showToast(
-        msg: 'Failed to update profile: $e',
-        backgroundColor: Colors.redAccent,
-      );
+      if (mounted) {
+        AppToast.showError(e, context: context);
+      }
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);

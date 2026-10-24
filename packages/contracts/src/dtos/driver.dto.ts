@@ -233,6 +233,42 @@ export class UpdateDriverProfileDto {
 
   @IsOptional()
   @IsString()
+  dlFrontUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  dlBackUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  rcDocUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  rcFrontUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  rcBackUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  insuranceDocUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  aadharFrontUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  aadharBackUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  panDocUrl?: string;
+
+  @IsOptional()
+  @IsString()
   bankAccountName?: string;
 
   @IsOptional()

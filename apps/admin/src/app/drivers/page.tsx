@@ -76,11 +76,12 @@ export default function DriversPage() {
       } as unknown as DriverDetail));
 
       let docs: any[] = [];
+      const profilePhoto = detail.profilePhotoUrl || detail.kycDocuments?.profilePhotoUrl;
       if (Array.isArray(detail.kycDocuments) && detail.kycDocuments.length > 0) {
         docs = detail.kycDocuments.map((doc: any, idx: number) => ({
           id: `${detail.id}_doc_${idx}`,
-          documentType: doc.type || 'DOCUMENT',
-          title: doc.title || doc.type?.replace(/_/g, ' ') || `Document ${idx + 1}`,
+          documentType: doc.type || doc.documentType || 'DOCUMENT',
+          title: doc.title || (doc.type || doc.documentType)?.replace(/_/g, ' ') || `Document ${idx + 1}`,
           fileUrl: doc.url || doc.fileUrl,
           verified: detail.verificationStatus === 'VERIFIED',
           createdAt: detail.updatedAt || detail.createdAt,
@@ -89,6 +90,7 @@ export default function DriversPage() {
         docs = detail.documents;
       } else {
         docs = [
+          ...(profilePhoto ? [{ id: `${detail.id}_profile_photo`, documentType: 'PROFILE_PHOTO', title: 'Profile Photo / Selfie', fileUrl: profilePhoto, verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
           ...(detail.dlFrontUrl ? [{ id: `${detail.id}_dl_front`, documentType: 'DRIVING_LICENSE_FRONT', title: 'Driving License (Front)', fileUrl: detail.dlFrontUrl, verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
           ...(detail.dlBackUrl ? [{ id: `${detail.id}_dl_back`, documentType: 'DRIVING_LICENSE_BACK', title: 'Driving License (Back)', fileUrl: detail.dlBackUrl, verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
           ...(detail.rcFrontUrl ? [{ id: `${detail.id}_rc_front`, documentType: 'RC_FRONT', title: 'Vehicle RC (Front)', fileUrl: detail.rcFrontUrl, verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : (detail.rcDocUrl ? [{ id: `${detail.id}_rc`, documentType: 'RC_BOOK', title: 'Vehicle RC Book', fileUrl: detail.rcDocUrl, verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : [])),
@@ -99,6 +101,17 @@ export default function DriversPage() {
           ...(detail.aadharBackUrl ? [{ id: `${detail.id}_aadhar_back`, documentType: 'AADHAR_BACK', title: 'Aadhar Card (Back)', fileUrl: detail.aadharBackUrl, verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
           ...(detail.panDocUrl ? [{ id: `${detail.id}_pan`, documentType: 'PAN_CARD', title: 'PAN Card', fileUrl: detail.panDocUrl, verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
         ];
+      }
+
+      if (profilePhoto && !docs.some((d: any) => d.documentType === 'PROFILE_PHOTO')) {
+        docs.unshift({
+          id: `${detail.id}_profile_photo`,
+          documentType: 'PROFILE_PHOTO',
+          title: 'Profile Photo / Selfie',
+          fileUrl: profilePhoto,
+          verified: detail.verificationStatus === 'VERIFIED',
+          createdAt: detail.createdAt,
+        });
       }
 
       setSelectedDriver({

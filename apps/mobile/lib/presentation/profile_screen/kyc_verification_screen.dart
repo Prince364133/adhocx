@@ -70,16 +70,26 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
                 ? (_profile['rejectionReason']?.toString() ?? 'Please re-upload your valid documents.')
                 : 'Complete and submit your KYC documents.'));
 
-    // Check individual document uploads from live profile
-    final hasDl = _profile['dlFrontUrl'] != null && _profile['dlFrontUrl'].toString().isNotEmpty;
-    final hasRc = (_profile['rcDocUrl'] != null && _profile['rcDocUrl'].toString().isNotEmpty) ||
-        (_profile['rcFrontUrl'] != null && _profile['rcFrontUrl'].toString().isNotEmpty);
-    final hasIns = _profile['insuranceDocUrl'] != null && _profile['insuranceDocUrl'].toString().isNotEmpty;
-    final hasVeh = _profile['vehiclePhotoUrl'] != null && _profile['vehiclePhotoUrl'].toString().isNotEmpty;
-    final hasAadhar = (_profile['aadharFrontUrl'] != null && _profile['aadharFrontUrl'].toString().isNotEmpty) ||
-        (_profile['aadharBackUrl'] != null && _profile['aadharBackUrl'].toString().isNotEmpty);
-    final hasPan = _profile['panDocUrl'] != null && _profile['panDocUrl'].toString().isNotEmpty;
-    final hasPhoto = (_profile['profilePhotoUrl'] != null && _profile['profilePhotoUrl'].toString().isNotEmpty) || hasVeh;
+    // Check individual document uploads from live profile, session user, or nested kycDocuments
+    final driverProf = user?.driverProfile ?? {};
+    final kycDocs = (_profile['kycDocuments'] is Map ? _profile['kycDocuments'] as Map : null) ??
+                    (driverProf['kycDocuments'] is Map ? driverProf['kycDocuments'] as Map : null) ?? {};
+
+    final dlUrl = _profile['dlFrontUrl'] ?? driverProf['dlFrontUrl'] ?? kycDocs['dlFrontUrl'];
+    final rcUrl = _profile['rcDocUrl'] ?? _profile['rcFrontUrl'] ?? driverProf['rcDocUrl'] ?? driverProf['rcFrontUrl'] ?? kycDocs['rcDocUrl'] ?? kycDocs['rcFrontUrl'];
+    final insUrl = _profile['insuranceDocUrl'] ?? driverProf['insuranceDocUrl'] ?? kycDocs['insuranceDocUrl'];
+    final vehUrl = _profile['vehiclePhotoUrl'] ?? driverProf['vehiclePhotoUrl'] ?? kycDocs['vehiclePhotoUrl'];
+    final aadharUrl = _profile['aadharFrontUrl'] ?? _profile['aadharBackUrl'] ?? driverProf['aadharFrontUrl'] ?? driverProf['aadharBackUrl'] ?? kycDocs['aadharFrontUrl'] ?? kycDocs['aadharBackUrl'];
+    final panUrl = _profile['panDocUrl'] ?? driverProf['panDocUrl'] ?? kycDocs['panDocUrl'];
+    final photoUrl = _profile['profilePhotoUrl'] ?? driverProf['profilePhotoUrl'] ?? kycDocs['profilePhotoUrl'] ?? user?.photoUrl ?? vehUrl;
+
+    final hasDl = dlUrl != null && dlUrl.toString().trim().isNotEmpty;
+    final hasRc = rcUrl != null && rcUrl.toString().trim().isNotEmpty;
+    final hasIns = insUrl != null && insUrl.toString().trim().isNotEmpty;
+    final hasVeh = vehUrl != null && vehUrl.toString().trim().isNotEmpty;
+    final hasAadhar = aadharUrl != null && aadharUrl.toString().trim().isNotEmpty;
+    final hasPan = panUrl != null && panUrl.toString().trim().isNotEmpty;
+    final hasPhoto = photoUrl != null && photoUrl.toString().trim().isNotEmpty;
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -269,6 +279,15 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
                                       title: 'Commercial Insurance',
                                       isDark: isDark,
                                       isUploaded: hasIns,
+                                      overallStatus: status,
+                                    ),
+                                    Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                                    _buildDocumentTile(
+                                      context: context,
+                                      icon: Icons.directions_car_outlined,
+                                      title: 'Vehicle Photo',
+                                      isDark: isDark,
+                                      isUploaded: hasVeh,
                                       overallStatus: status,
                                     ),
                                     Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),

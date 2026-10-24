@@ -97,7 +97,11 @@ class UserModel {
       email: data['email']?.toString() ?? root['email']?.toString(),
       role: roleStr,
       fullName: (data['fullName'] ?? data['name'] ?? root['fullName'])?.toString(),
-      photoUrl: data['photoUrl']?.toString() ?? root['photoUrl']?.toString(),
+      photoUrl: data['photoUrl']?.toString() ??
+          root['photoUrl']?.toString() ??
+          driverProf?['profilePhotoUrl']?.toString() ??
+          (driverProf?['kycDocuments'] is Map ? driverProf?['kycDocuments']?['profilePhotoUrl']?.toString() : null) ??
+          vendorProf?['logoUrl']?.toString(),
       hasPassword: hasPass,
       isOnboarded: isOb,
       driverProfile: driverProf,
@@ -182,6 +186,26 @@ class AuthService {
     }
   }
 
+  void updateCurrentUserProfilePhoto(String photoUrl) {
+    if (_currentUser == null) return;
+    final updated = UserModel(
+      id: _currentUser!.id,
+      phone: _currentUser!.phone,
+      email: _currentUser!.email,
+      role: _currentUser!.role,
+      fullName: _currentUser!.fullName,
+      photoUrl: photoUrl,
+      hasPassword: _currentUser!.hasPassword,
+      isOnboarded: _currentUser!.isOnboarded,
+      driverProfile: {
+        ...?_currentUser!.driverProfile,
+        'profilePhotoUrl': photoUrl,
+      },
+      vendorProfile: _currentUser!.vendorProfile,
+    );
+    _persistCurrentUser(updated);
+  }
+
   Future<UserModel?> loadCachedUser() async {
     if (_currentUser != null) return _currentUser;
     try {
@@ -209,20 +233,20 @@ class AuthService {
   Future<AuthResult> loginWithPassword({
     required String identifier,
     required String password,
-    String role = 'DRIVER',
+    String? role,
   }) async {
     final response = await _api.post(
       '/auth/login',
       body: {
         'identifier': identifier,
         'password': password,
-        'role': role,
+        if (role != null && role.isNotEmpty) 'role': role,
       },
     );
 
     final token = await _saveTokens(response);
     final user = await fetchCurrentUser(forceRefresh: true);
-    final effectiveUser = user ?? _currentUser ?? UserModel(id: 'usr_auth', role: role);
+    final effectiveUser = user ?? _currentUser ?? UserModel(id: 'usr_auth', role: role ?? 'DRIVER');
     return AuthResult(user: effectiveUser, accessToken: token);
   }
 
@@ -231,7 +255,7 @@ class AuthService {
     String? phone,
     String? email,
     String? channel,
-    String role = 'DRIVER',
+    String? role,
     bool isRegister = false,
     String? fullName,
     String? companyName,
@@ -242,7 +266,7 @@ class AuthService {
         if (phone != null && phone.isNotEmpty) 'phone': phone,
         if (email != null && email.isNotEmpty) 'email': email,
         'channel': channel ?? (email != null && email.isNotEmpty ? 'EMAIL' : 'SMS'),
-        'role': role,
+        if (role != null && role.isNotEmpty) 'role': role,
         'isRegister': isRegister,
         if (fullName != null) 'fullName': fullName,
         if (companyName != null) 'companyName': companyName,
@@ -256,7 +280,7 @@ class AuthService {
     String? phone,
     String? email,
     required String otp,
-    String role = 'DRIVER',
+    String? role,
     bool isRegister = false,
     String? fullName,
   }) async {
@@ -266,7 +290,7 @@ class AuthService {
         if (phone != null && phone.isNotEmpty) 'phone': phone,
         if (email != null && email.isNotEmpty) 'email': email,
         'otp': otp,
-        'role': role,
+        if (role != null && role.isNotEmpty) 'role': role,
         'isRegister': isRegister,
         if (fullName != null) 'fullName': fullName,
       },
@@ -274,13 +298,13 @@ class AuthService {
 
     final token = await _saveTokens(response);
     final user = await fetchCurrentUser(forceRefresh: true);
-    final effectiveUser = user ?? _currentUser ?? UserModel(id: 'usr_auth', role: role, phone: phone, email: email, fullName: fullName);
+    final effectiveUser = user ?? _currentUser ?? UserModel(id: 'usr_auth', role: role ?? 'DRIVER', phone: phone, email: email, fullName: fullName);
     return AuthResult(user: effectiveUser, accessToken: token);
   }
 
   /// Google Sign-In / Sign-Up (Pre-verified email, skips OTP)
   Future<AuthResult> signInWithGoogle({
-    String role = 'DRIVER',
+    String? role,
   }) async {
     const defaultWebClientId = '886573696369-84dnfvb9jaegbqp8deosr3ucf8tq93ms.apps.googleusercontent.com';
     const envClientId = String.fromEnvironment('GOOGLE_CLIENT_ID', defaultValue: '');
@@ -363,13 +387,13 @@ class AuthService {
         'email': email,
         'fullName': displayName ?? 'User',
         if (idToken != null) 'idToken': idToken,
-        'role': role,
+        if (role != null && role.isNotEmpty) 'role': role,
       },
     );
 
     final token = await _saveTokens(response);
     final user = await fetchCurrentUser(forceRefresh: true);
-    final effectiveUser = user ?? _currentUser ?? UserModel(id: 'usr_auth', role: role, email: email, fullName: displayName);
+    final effectiveUser = user ?? _currentUser ?? UserModel(id: 'usr_auth', role: role ?? 'DRIVER', email: email, fullName: displayName);
     return AuthResult(user: effectiveUser, accessToken: token);
   }
 

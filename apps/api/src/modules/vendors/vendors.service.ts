@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { CreateVendorProfileDto, VendorProfileDto, VerificationStatus } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
+import { assertPhoneAvailable } from '../../common';
 
 @Injectable()
 export class VendorsService {
@@ -25,15 +26,9 @@ export class VendorsService {
     const cleanName = dto.fullName ? dto.fullName.trim() : undefined;
 
     if (effectivePhone && user && effectivePhone !== user.phone) {
-      const existingUser = await this.db.user.findFirst({
-        where: {
-          phone: effectivePhone,
-          id: { not: userId },
-        },
+      await assertPhoneAvailable(this.db, effectivePhone, {
+        excludeUserId: userId,
       });
-      if (existingUser) {
-        throw new ConflictException('This mobile number is already registered to another account');
-      }
 
       try {
         await this.db.user.update({
