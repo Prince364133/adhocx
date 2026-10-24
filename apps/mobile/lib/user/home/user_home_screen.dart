@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
-import '../../core/utils/app_logger.dart';
 import '../../routes/app_routes.dart';
-import '../../services/auth_provider.dart';
 import '../../services/auth_service.dart';
+import '../../services/language_service.dart';
+import '../../services/notification_service.dart';
 import '../../services/onboarding_provider.dart';
 import '../../services/user_service.dart';
 import '../../shared/theme/app_colors.dart';
@@ -14,7 +13,6 @@ import '../../shared/theme/app_typography.dart';
 import '../../shared/theme/theme_provider.dart';
 import '../../shared/widgets/app_primary_button.dart';
 import '../../shared/widgets/pending_review_gate.dart';
-import '../requirements/requirement_draft_provider.dart';
 
 class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
@@ -79,6 +77,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> with WidgetsBindingObse
           _recentRequirements = listRes;
           _isLoading = false;
         });
+        NotificationService.instance.refreshUnreadCount();
         if (checkReviews) _checkPendingReview();
       }
     } catch (e) {
@@ -116,6 +115,19 @@ class _UserHomeScreenState extends State<UserHomeScreen> with WidgetsBindingObse
       return 'Corporate Booker';
     }();
 
+    String getGreeting(BuildContext ctx) {
+      final hour = DateTime.now().hour;
+      if (hour >= 5 && hour < 12) {
+        return ctx.tr('Good morning,');
+      } else if (hour >= 12 && hour < 17) {
+        return ctx.tr('Good afternoon,');
+      } else if (hour >= 17 && hour < 22) {
+        return ctx.tr('Good evening,');
+      } else {
+        return ctx.tr('Good night,');
+      }
+    }
+
     final int totalReq = _summary['totalRequirements'] ?? _recentRequirements.length;
     final int vehiclesRequired = _summary['totalVehiclesRequired'] ?? 0;
     final int vehiclesFulfilled = _summary['totalVehiclesFulfilled'] ?? 0;
@@ -138,137 +150,26 @@ class _UserHomeScreenState extends State<UserHomeScreen> with WidgetsBindingObse
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
-                      child: Row(
-                      children: [
-                        IconButton(
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed: () {
-                            showModalBottomSheet(
-                              context: context,
-                              useRootNavigator: true,
-                              backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                              shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                              ),
-                              builder: (ctx) => SafeArea(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      ListTile(
-                                        leading: const CircleAvatar(
-                                          backgroundColor: AppColors.primary,
-                                          child: Icon(Icons.business, color: Colors.white, size: 20),
-                                        ),
-                                        title: Text(
-                                          displayName,
-                                          style: const TextStyle(fontWeight: FontWeight.bold),
-                                        ),
-                                        subtitle: const Text('Booker / Corporate Fleet Account'),
-                                      ),
-                                      const Divider(),
-                                      ListTile(
-                                        leading: const Icon(Icons.receipt_long_outlined),
-                                        title: const Text('All Requirements'),
-                                        onTap: () {
-                                          Navigator.pop(ctx);
-                                          context.go(AppRoutes.userRequirementsScreen);
-                                        },
-                                      ),
-                                      ListTile(
-                                        leading: const Icon(Icons.account_balance_wallet_outlined),
-                                        title: const Text('Wallet & Payments'),
-                                        onTap: () {
-                                          Navigator.pop(ctx);
-                                          context.push(AppRoutes.userPaymentsScreen);
-                                        },
-                                      ),
-                                      ListTile(
-                                        leading: const Icon(Icons.settings_outlined),
-                                        title: const Text('App Settings'),
-                                        onTap: () {
-                                          Navigator.pop(ctx);
-                                          context.push(AppRoutes.userAppSettingsScreen);
-                                        },
-                                      ),
-                                      ListTile(
-                                        leading: const Icon(Icons.help_outline),
-                                        title: const Text('Help & Support'),
-                                        onTap: () {
-                                          Navigator.pop(ctx);
-                                          context.push(AppRoutes.userHelpFaqScreen);
-                                        },
-                                      ),
-                                       ListTile(
-                                         leading: Icon(Icons.logout, color: AppColors.error),
-                                         title: Text('Sign Out', style: TextStyle(color: AppColors.error)),
-                                         onTap: () async {
-                                           final authProvider = context.read<AuthProvider>();
-                                           final onboardingProvider = context.read<OnboardingProvider>();
-                                           final requirementDraftProvider = context.read<RequirementDraftProvider>();
-                                           final router = GoRouter.of(context);
-
-                                           Navigator.pop(ctx);
-                                           try {
-                                             AppLogger.info('User sign out from home drawer', tag: 'AUTH');
-                                             await authProvider.logout();
-                                             onboardingProvider.reset();
-                                             requirementDraftProvider.reset();
-                                           } catch (e) {
-                                             AppLogger.error('Error during sign out: $e', tag: 'AUTH', error: e);
-                                           }
-                                           if (mounted) {
-                                             router.go(AppRoutes.signInScreen);
-                                           }
-                                         },
-                                       ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                          icon: Icon(
-                            Icons.menu,
-                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                            size: 26,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            getGreeting(context),
+                            style: AppTypography.caption(
+                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Good morning,',
-                                style: AppTypography.caption(
-                                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Row(
-                                children: [
-                                  Flexible(
-                                    child: Text(
-                                      displayName,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: AppTypography.h2(
-                                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  const Icon(Icons.waving_hand_outlined, size: 20, color: AppColors.primary),
-                                ],
-                              ),
-                            ],
+                          const SizedBox(height: 2),
+                          Text(
+                            displayName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.h2(
+                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
                       ),
                     ),
                     Row(
@@ -284,36 +185,52 @@ class _UserHomeScreenState extends State<UserHomeScreen> with WidgetsBindingObse
                             size: 22,
                           ),
                         ),
-                        Stack(
-                          children: [
-                            IconButton(
-                              onPressed: () => context.push(AppRoutes.notificationsFeedScreen),
-                              icon: Icon(
-                                Icons.notifications_outlined,
-                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                size: 26,
-                              ),
-                            ),
-                            Positioned(
-                              right: 8,
-                              top: 8,
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: AppColors.error,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Text(
-                                  '1',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
+                        ValueListenableBuilder<int>(
+                          valueListenable: NotificationService.instance.unreadCount,
+                          builder: (context, count, _) {
+                            return Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                IconButton(
+                                  onPressed: () async {
+                                    await context.push(AppRoutes.notificationsFeedScreen);
+                                    NotificationService.instance.refreshUnreadCount();
+                                  },
+                                  icon: Icon(
+                                    Icons.notifications_outlined,
+                                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                    size: 26,
                                   ),
                                 ),
-                              ),
-                            ),
-                          ],
+                                if (count > 0)
+                                  Positioned(
+                                    right: 6,
+                                    top: 6,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.error,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      constraints: const BoxConstraints(
+                                        minWidth: 16,
+                                        minHeight: 16,
+                                      ),
+                                      child: Text(
+                                        count > 99 ? '99+' : count.toString(),
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          height: 1,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            );
+                          },
                         ),
                       ],
                     ),

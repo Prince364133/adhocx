@@ -102,10 +102,9 @@ void main() {
         (WidgetTester tester) async {
       await tester.pumpWidget(createTestApp(const OnboardingPersonalScreen(), role: 'VENDOR'));
 
-      expect(find.text('Company Legal Name *'), findsOneWidget);
-      expect(find.text('Brand / Trade Name (Optional)'), findsOneWidget);
-      expect(find.text('Company PAN *'), findsOneWidget);
-      expect(find.text('GSTIN Number'), findsOneWidget);
+      expect(find.text('Company Name / Branch Name *'), findsOneWidget);
+      expect(find.text('Company Location / Office Address *'), findsOneWidget);
+      expect(find.text('Business Industry / Sector *'), findsOneWidget);
     });
 
     testWidgets('Screen 12: Vehicle Step 2 renders vehicle options for drivers',
@@ -129,7 +128,15 @@ void main() {
         (WidgetTester tester) async {
       await tester.pumpWidget(createTestApp(const UserHomeScreen()));
 
-      expect(find.text('Good morning,'), findsOneWidget);
+      expect(
+        find.byWidgetPredicate((w) =>
+            w is Text &&
+            (w.data == 'Good morning,' ||
+                w.data == 'Good afternoon,' ||
+                w.data == 'Good evening,' ||
+                w.data == 'Good night,')),
+        findsOneWidget,
+      );
       expect(find.text('Active Requirements'), findsOneWidget);
       expect(find.text('+ Post New Requirement'), findsOneWidget);
       expect(find.text('Recent Requirements'), findsOneWidget);

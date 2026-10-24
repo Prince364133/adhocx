@@ -3,6 +3,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import '../../routes/app_routes.dart';
 import '../../services/driver_service.dart';
+import '../../services/notification_service.dart';
 import '../../services/in_app_message_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
@@ -56,70 +57,145 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen> {
     final items = <NotificationItem>[];
 
     try {
-      final offers = await DriverService.instance.getOffers();
-      for (final o in offers) {
-        final offer = o as Map<String, dynamic>;
-        final rate = offer['payoutAmount'] ?? offer['fare'] ?? 450;
-        final pickup = offer['pickupLocation']?['address'] ?? 'Pickup point';
-        final drop = offer['dropLocation']?['address'] ?? 'Drop point';
+      // 1. Fetch real in-app notifications from the backend API
+      final backendRes = await NotificationService.instance.getInAppNotifications();
+      final backendNotifs = backendRes['notifications'] as List<InAppNotification>? ?? [];
+
+      for (final n in backendNotifs) {
+        IconData icon = Icons.notifications_active_rounded;
+        Color color = AppColors.primary;
+        String routeTarget = '';
+        dynamic extra;
+
+        final type = n.type?.toUpperCase() ?? '';
+        if (type.contains('BID')) {
+          icon = Icons.gavel_rounded;
+          color = AppColors.accentBlue;
+          if (n.data != null && n.data!['requirementId'] != null) {
+            routeTarget = AppRoutes.userRequirementDetailsScreen;
+            extra = n.data!['requirementId'];
+          }
+        } else if (type.contains('TRIP')) {
+          icon = Icons.directions_car_rounded;
+          color = AppColors.primary;
+          if (n.data != null && n.data!['tripId'] != null) {
+            routeTarget = AppRoutes.tripDetailsScreen;
+            extra = {'id': n.data!['tripId']};
+          }
+        } else if (type.contains('PAY') || type.contains('WALLET')) {
+          icon = Icons.account_balance_wallet_rounded;
+          color = AppColors.accentGreenDark;
+          routeTarget = AppRoutes.userPaymentsScreen;
+        } else if (type.contains('OFFER')) {
+          icon = Icons.local_offer_rounded;
+          color = AppColors.warning;
+          routeTarget = AppRoutes.opportunityOfferScreen;
+        } else if (type.contains('KYC') || type.contains('VERIF')) {
+          icon = Icons.verified_user_rounded;
+          color = AppColors.primary;
+          routeTarget = AppRoutes.kycVerificationScreen;
+        }
+
+        final now = DateTime.now();
+        final diff = now.difference(n.createdAt);
+        String timeAgo;
+        if (diff.inMinutes < 1) {
+          timeAgo = 'Just now';
+        } else if (diff.inMinutes < 60) {
+          timeAgo = '${diff.inMinutes}m ago';
+        } else if (diff.inHours < 24) {
+          timeAgo = '${diff.inHours}h ago';
+        } else if (diff.inDays == 1) {
+          timeAgo = 'Yesterday';
+        } else {
+          timeAgo = '${diff.inDays}d ago';
+        }
 
         items.add(NotificationItem(
-          id: 'offer_${offer['id']}',
-          title: 'New Trip Offer — ₹$rate',
-          body: 'Direct Dispatch offer from $pickup to $drop. Tap to view and accept.',
-          timestamp: 'Just now',
-          icon: Icons.local_offer_rounded,
-          color: AppColors.warning,
-          routeTarget: AppRoutes.opportunityOfferScreen,
-          extra: offer,
-          isUnread: true,
+          id: n.id,
+          title: n.title,
+          body: n.body,
+          timestamp: timeAgo,
+          icon: icon,
+          color: color,
+          routeTarget: routeTarget,
+          extra: extra,
+          isUnread: !n.isRead,
         ));
       }
 
-      final trips = await DriverService.instance.getTrips();
-      for (final t in trips) {
-        final trip = t as Map<String, dynamic>;
-        final code = trip['tripCode'] ?? trip['id'] ?? 'TRP';
-        final status = trip['status'] ?? 'ASSIGNED';
+      // 2. Fetch driver offers if any
+      try {
+        final offers = await DriverService.instance.getOffers();
+        for (final o in offers) {
+          final offer = o as Map<String, dynamic>;
+          final rate = offer['payoutAmount'] ?? offer['fare'] ?? 450;
+          final pickup = offer['pickupLocation']?['address'] ?? 'Pickup point';
+          final drop = offer['dropLocation']?['address'] ?? 'Drop point';
 
-        if (status == 'ACCEPTED' || status == 'ASSIGNED') {
           items.add(NotificationItem(
-            id: 'trip_$code',
-            title: 'Trip Confirmed ($code)',
-            body: 'Your trip assignment is confirmed. Proceed to the pickup location.',
-            timestamp: 'Live',
-            icon: Icons.check_circle_outline,
-            color: AppColors.accentGreenDark,
-            routeTarget: AppRoutes.tripDetailsScreen,
-            extra: trip,
+            id: 'offer_${offer['id']}',
+            title: 'New Trip Offer — ₹$rate',
+            body: 'Direct Dispatch offer from $pickup to $drop. Tap to view and accept.',
+            timestamp: 'Just now',
+            icon: Icons.local_offer_rounded,
+            color: AppColors.warning,
+            routeTarget: AppRoutes.opportunityOfferScreen,
+            extra: offer,
             isUnread: true,
           ));
-        } else if (status == 'COMPLETED') {
-          final earnings = trip['driverEarnings'] ?? trip['agreedRate'] ?? 1200;
-          items.add(NotificationItem(
-            id: 'complete_$code',
-            title: 'Trip Completed — ₹$earnings Credited',
-            body: 'Trip $code completed. Earnings have been deposited to your shared wallet.',
-            timestamp: 'Today',
-            icon: Icons.account_balance_wallet_rounded,
-            color: AppColors.accentGreenDark,
-            routeTarget: AppRoutes.walletScreen,
-            extra: trip,
-            isUnread: false,
-          ));
         }
-      }
+      } catch (_) {}
 
-      items.add(const NotificationItem(
-        id: 'sys_kyc',
-        title: 'Platform Verification Verified',
-        body: 'Your KYC credentials and driving license are active and approved.',
-        timestamp: 'Verified',
-        icon: Icons.verified_user_rounded,
-        color: AppColors.primary,
-        routeTarget: AppRoutes.kycVerificationScreen,
-        isUnread: false,
-      ));
+      // 3. Fetch driver trips if any
+      try {
+        final trips = await DriverService.instance.getTrips();
+        for (final t in trips) {
+          final trip = t as Map<String, dynamic>;
+          final code = trip['tripCode'] ?? trip['id'] ?? 'TRP';
+          final status = trip['status'] ?? 'ASSIGNED';
+
+          if (status == 'ACCEPTED' || status == 'ASSIGNED') {
+            items.add(NotificationItem(
+              id: 'trip_$code',
+              title: 'Trip Confirmed ($code)',
+              body: 'Your trip assignment is confirmed. Proceed to the pickup location.',
+              timestamp: 'Live',
+              icon: Icons.check_circle_outline,
+              color: AppColors.accentGreenDark,
+              routeTarget: AppRoutes.tripDetailsScreen,
+              extra: trip,
+              isUnread: true,
+            ));
+          } else if (status == 'COMPLETED') {
+            final earnings = trip['driverEarnings'] ?? trip['agreedRate'] ?? 1200;
+            items.add(NotificationItem(
+              id: 'complete_$code',
+              title: 'Trip Completed — ₹$earnings Credited',
+              body: 'Trip $code completed. Earnings have been deposited to your shared wallet.',
+              timestamp: 'Today',
+              icon: Icons.account_balance_wallet_rounded,
+              color: AppColors.accentGreenDark,
+              routeTarget: AppRoutes.userPaymentsScreen,
+              extra: trip,
+              isUnread: false,
+            ));
+          }
+        }
+      } catch (_) {}
+
+      if (items.isEmpty) {
+        items.add(const NotificationItem(
+          id: 'sys_welcome',
+          title: 'Welcome to ADHOCX',
+          body: 'Your account is active and verified. Real-time updates and alerts will appear here.',
+          timestamp: 'System',
+          icon: Icons.verified_user_rounded,
+          color: AppColors.primary,
+          routeTarget: '',
+          isUnread: false,
+        ));
+      }
     } catch (_) {
     } finally {
       if (mounted) {
@@ -131,7 +207,7 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen> {
     }
   }
 
-  void _markAllAsRead() {
+  Future<void> _markAllAsRead() async {
     setState(() {
       _notifications = _notifications
           .map((n) => NotificationItem(
@@ -147,6 +223,7 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen> {
               ))
           .toList();
     });
+    await NotificationService.instance.markAllAsRead();
     Fluttertoast.showToast(msg: 'All notifications marked as read');
   }
 
@@ -258,8 +335,28 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen> {
                               itemBuilder: (context, index) {
                                 final item = _notifications[index];
                                 return InkWell(
-                                  onTap: () {
-                                    context.push(item.routeTarget, extra: item.extra);
+                                  onTap: () async {
+                                    if (item.isUnread) {
+                                      setState(() {
+                                        _notifications[index] = NotificationItem(
+                                          id: item.id,
+                                          title: item.title,
+                                          body: item.body,
+                                          timestamp: item.timestamp,
+                                          icon: item.icon,
+                                          color: item.color,
+                                          routeTarget: item.routeTarget,
+                                          extra: item.extra,
+                                          isUnread: false,
+                                        );
+                                      });
+                                      if (!item.id.startsWith('offer_') && !item.id.startsWith('trip_') && !item.id.startsWith('complete_') && !item.id.startsWith('sys_')) {
+                                        NotificationService.instance.markAsRead(item.id);
+                                      }
+                                    }
+                                    if (item.routeTarget.isNotEmpty && item.routeTarget != AppRoutes.notificationsFeedScreen) {
+                                      context.push(item.routeTarget, extra: item.extra);
+                                    }
                                   },
                                   borderRadius: BorderRadius.circular(AppRadius.lg),
                                   child: Container(
