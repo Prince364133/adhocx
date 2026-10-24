@@ -43,14 +43,12 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
         DriverService.instance.getOffers(forceRefresh: force),
         DriverService.instance.getBiddingOpportunities(forceRefresh: force).catchError((_) => <dynamic>[]),
         DriverService.instance.getTrips(forceRefresh: force).catchError((_) => <dynamic>[]),
-        DriverService.instance.getVehicleCategories().catchError((_) => <Map<String, dynamic>>[]),
         DriverService.instance.getProfile(forceRefresh: force).catchError((_) => null),
       ]);
       final directOffers = results[0] as List<dynamic>;
       final biddingOps = results[1] as List<dynamic>;
       final trips = results[2] as List<dynamic>;
-      final dynamicTiers = results[3] as List<Map<String, dynamic>>;
-      final driverProfile = results[4];
+      final driverProfile = results[3];
 
       // 1. Resolve Driver's Registered Vehicle Category safely across all payload layers
       String registeredVehicle = VehicleUtils.extractVehicleType(driverProfile);
@@ -263,6 +261,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                             ),
                           ),
                         ],
+                      ),
                     ],
                   ),
                 ),
