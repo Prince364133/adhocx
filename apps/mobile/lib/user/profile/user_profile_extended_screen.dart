@@ -43,7 +43,6 @@ class UserProfileExtendedScreen extends StatelessWidget {
 
     final menuItems = [
       {'title': 'Organization Information', 'icon': Icons.corporate_fare_outlined, 'route': AppRoutes.userOrganizationInformationScreen},
-      {'title': 'Account Status', 'icon': Icons.verified_user_outlined, 'route': AppRoutes.userAccountStatusScreen},
       {'title': 'Notification Settings', 'icon': Icons.notifications_none, 'route': AppRoutes.userNotificationSettingsScreen},
       {'title': 'Support Center', 'icon': Icons.help_outline, 'route': AppRoutes.userSupportCenterScreen},
     ];

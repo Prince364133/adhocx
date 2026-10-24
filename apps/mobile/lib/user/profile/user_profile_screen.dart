@@ -50,7 +50,6 @@ class UserProfileScreen extends StatelessWidget {
     final menuItems = [
       {'icon': Icons.receipt_long_outlined, 'title': 'Corporate Rate Card & Tariffs', 'action': 'rate_card'},
       {'icon': Icons.corporate_fare_outlined, 'title': 'Organization Information', 'route': AppRoutes.userOrganizationInformationScreen},
-      {'icon': Icons.verified_user_outlined, 'title': 'Account Status', 'route': AppRoutes.userAccountStatusScreen},
       {'icon': Icons.notifications_none_outlined, 'title': 'Notification Settings', 'route': AppRoutes.userNotificationSettingsScreen},
       {'icon': Icons.help_outline, 'title': 'Support Center', 'route': AppRoutes.userSupportCenterScreen},
     ];

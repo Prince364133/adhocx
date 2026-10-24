@@ -82,7 +82,6 @@ import '../user/profile/user_profile_extended_screen.dart';
 import '../user/profile/user_organization_information_screen.dart';
 import '../user/profile/user_company_information_screen.dart';
 import '../user/profile/user_contact_information_screen.dart';
-import '../user/profile/user_account_status_screen.dart';
 import '../user/profile/user_notification_settings_screen.dart';
 import '../user/profile/user_app_settings_screen.dart';
 import '../user/support/user_support_center_screen.dart';
@@ -927,7 +926,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.userAccountStatusScreen,
-      builder: (context, state) => const UserAccountStatusScreen(),
+      redirect: (context, state) => AppRoutes.userProfileScreen,
     ),
     GoRoute(
       path: AppRoutes.userNotificationSettingsScreen,
