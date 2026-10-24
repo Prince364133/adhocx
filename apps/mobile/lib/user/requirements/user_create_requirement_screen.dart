@@ -11,6 +11,7 @@ import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
 import '../../core/networking/api_client.dart';
+import '../../core/utils/app_toast.dart';
 import '../../shared/widgets/pending_review_gate.dart';
 import 'models/cab_cart_item.dart';
 import 'models/fleet_template_model.dart';
@@ -207,10 +208,7 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
     } catch (e) {
       setState(() {
         _appliedCoupon = null;
-        _couponError = e
-            .toString()
-            .replaceAll('Exception: ', '')
-            .replaceAll('ApiException(400): ', '');
+        _couponError = AppToast.cleanErrorMessage(e);
         _isValidatingCoupon = false;
       });
     }
@@ -398,7 +396,7 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                                 }
                               } catch (e) {
                                 setModalState(() => isProcessing = false);
-                                Fluttertoast.showToast(msg: 'Top up failed: $e');
+                                AppToast.showError(e);
                               }
                             },
                       style: ElevatedButton.styleFrom(

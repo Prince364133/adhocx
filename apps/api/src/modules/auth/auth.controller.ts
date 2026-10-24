@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Delete, Body, Req, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Delete, Body, Req, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse as SwaggerResponse } from '@nestjs/swagger';
 import {
   RequestOtpDto,
@@ -9,6 +9,7 @@ import {
   LoginDto,
   ResetPasswordDto,
   AuthUserDto,
+  UpdateUserDto,
   UserRole,
 } from '@adhocx/contracts';
 import { JwtAuthGuard, RolesGuard, Roles, CurrentUser } from '../../common';
@@ -110,6 +111,18 @@ export class AuthController {
   @SwaggerResponse({ status: 200, description: 'User profile retrieved' })
   async getMe(@CurrentUser() user: AuthUserDto) {
     return this.authService.getCurrentUser(user.id);
+  }
+
+  @Patch('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update current authenticated user profile details' })
+  @SwaggerResponse({ status: 200, description: 'User profile updated successfully' })
+  async updateProfile(
+    @CurrentUser() user: AuthUserDto,
+    @Body() dto: UpdateUserDto,
+  ) {
+    return this.authService.updateUserProfile(user.id, dto);
   }
 
   @Post('logout')

@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../core/networking/api_client.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
 import '../../services/driver_service.dart';
@@ -64,6 +66,131 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     } catch (_) {
       return isoDate;
     }
+  }
+
+  /// Converts relative, base64, localhost, or CDN image paths into fully-qualified URLs.
+  static String resolveDocumentUrl(String? rawUrl) {
+    if (rawUrl == null || rawUrl.trim().isEmpty) return '';
+    final trimmed = rawUrl.trim();
+
+    if (trimmed.startsWith('data:image')) {
+      return trimmed;
+    }
+
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      if (trimmed.contains('localhost') || trimmed.contains('127.0.0.1')) {
+        return trimmed.replaceAll(
+          RegExp(r'http://(localhost|127\.0\.0\.1)(:\d+)?'),
+          'https://api.adhocx.com',
+        );
+      }
+      return trimmed;
+    }
+
+    final cleanPath = trimmed.startsWith('/') ? trimmed : '/$trimmed';
+    final apiBase = ApiClient.instance.baseUrl.replaceAll('/api/v1', '');
+    return '$apiBase$cleanPath';
+  }
+
+  Widget _buildAvatarImage(String url, String name, bool isDark) {
+    if (url.isEmpty) {
+      return Text(
+        name.isNotEmpty ? name[0].toUpperCase() : 'D',
+        style: AppTypography.h1(
+          color: isDark ? AppColors.primaryLight : AppColors.primary,
+          fontWeight: FontWeight.bold,
+        ),
+      );
+    }
+
+    if (url.startsWith('data:image')) {
+      try {
+        final commaIdx = url.indexOf(',');
+        final base64String = commaIdx != -1 ? url.substring(commaIdx + 1) : url;
+        final bytes = base64Decode(base64String.replaceAll(RegExp(r'\s+'), ''));
+        return ClipOval(
+          child: Image.memory(
+            bytes,
+            width: 72,
+            height: 72,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Text(
+              name.isNotEmpty ? name[0].toUpperCase() : 'D',
+              style: AppTypography.h1(
+                color: isDark ? AppColors.primaryLight : AppColors.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        );
+      } catch (_) {
+        return Text(
+          name.isNotEmpty ? name[0].toUpperCase() : 'D',
+          style: AppTypography.h1(
+            color: isDark ? AppColors.primaryLight : AppColors.primary,
+            fontWeight: FontWeight.bold,
+          ),
+        );
+      }
+    }
+
+    return ClipOval(
+      child: Image.network(
+        url,
+        width: 72,
+        height: 72,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Text(
+          name.isNotEmpty ? name[0].toUpperCase() : 'D',
+          style: AppTypography.h1(
+            color: isDark ? AppColors.primaryLight : AppColors.primary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionCard({
+    required bool isDark,
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xs),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 18,
+                  color: isDark ? AppColors.primaryLight : AppColors.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: AppTypography.caption(
+                    color: isDark ? AppColors.primaryLight : AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          ...children,
+        ],
+      ),
+    );
   }
 
   Future<void> _pickAndUploadPhoto() async {
@@ -182,6 +309,10 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     await context.push(AppRoutes.editPersonalInfoScreen);
     if (mounted) {
       await _loadProfile(force: true);
+      try {
+        await AuthService.instance.fetchCurrentUser(forceRefresh: true);
+      } catch (_) {}
+      if (mounted) setState(() {});
     }
   }
 
@@ -210,47 +341,19 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
         ? rawName.toString().trim()
         : (user?.fullName != null && !isFakeName(user!.fullName) ? user.fullName! : context.tr('Not provided'));
 
-    final rawPhone = _profile?['phone'] ?? onboarding.phoneNumber;
-    final phone = (rawPhone != null && rawPhone.toString().trim().isNotEmpty)
-        ? rawPhone.toString().trim()
-        : (user?.phone?.isNotEmpty == true ? user!.phone! : '—');
+    final rawPhone = (_profile?['phone'] != null && _profile!['phone'].toString().trim().isNotEmpty && _profile!['phone'] != '—')
+        ? _profile!['phone'].toString().trim()
+        : (user?.phone != null && user!.phone!.trim().isNotEmpty && user.phone != '—'
+            ? user.phone!.trim()
+            : (user?.driverProfile?['phone'] != null && user!.driverProfile!['phone'].toString().trim().isNotEmpty
+                ? user.driverProfile!['phone'].toString().trim()
+                : (onboarding.phone.isNotEmpty ? onboarding.phone : (onboarding.phoneNumber.isNotEmpty ? onboarding.phoneNumber : '—'))));
+    final phone = rawPhone;
 
     final rawEmail = _profile?['email'] ?? onboarding.email;
     final String? email = (rawEmail != null && !isFakeEmail(rawEmail.toString()))
         ? rawEmail.toString().trim()
         : (user?.email != null && !isFakeEmail(user!.email) ? user.email!.trim() : null);
-
-    final rawDob = _profile?['dateOfBirth'];
-    final dob = (rawDob != null && rawDob.toString().trim().isNotEmpty)
-        ? rawDob.toString().trim()
-        : (onboarding.dateOfBirth != null
-            ? '${onboarding.dateOfBirth!.day}/${onboarding.dateOfBirth!.month}/${onboarding.dateOfBirth!.year}'
-            : context.tr('Not provided'));
-
-    final rawGender = _profile?['gender'];
-    final gender = (rawGender != null && rawGender.toString().trim().isNotEmpty)
-        ? context.tr(rawGender.toString().trim())
-        : (onboarding.gender.isNotEmpty ? context.tr(onboarding.gender) : context.tr('Not specified'));
-
-    final rawAddress = _profile?['address'];
-    final address = (rawAddress != null && rawAddress.toString().trim().isNotEmpty)
-        ? rawAddress.toString().trim()
-        : context.tr('Not provided');
-
-    final emergencyName = _profile?['emergencyContactName']?.toString().trim();
-    final emergencyPhone = _profile?['emergencyContactPhone']?.toString().trim();
-    final String emergencyContact;
-    if (emergencyName != null && emergencyName.isNotEmpty) {
-      if (emergencyPhone != null && emergencyPhone.isNotEmpty) {
-        emergencyContact = '$emergencyName\n$emergencyPhone';
-      } else {
-        emergencyContact = emergencyName;
-      }
-    } else if (emergencyPhone != null && emergencyPhone.isNotEmpty) {
-      emergencyContact = emergencyPhone;
-    } else {
-      emergencyContact = context.tr('Not provided');
-    }
 
     final driverId = _profile?['driverId']?.toString() ??
         (_profile?['id'] != null
@@ -259,14 +362,72 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                 ? 'DRV${user!.id.replaceAll('-', '').substring(0, 6).toUpperCase()}'
                 : 'DRV-PENDING'));
 
-    final profilePhotoUrl = _profile?['profilePhotoUrl']?.toString() ?? user?.photoUrl;
+    final driverProf = user?.driverProfile;
+    final kycDocs = (_profile?['kycDocuments'] is Map ? _profile!['kycDocuments'] as Map : null) ??
+        (driverProf?['kycDocuments'] is Map ? driverProf!['kycDocuments'] as Map : null);
+
+    final rawPhoto = _profile?['profilePhotoUrl']?.toString() ??
+        kycDocs?['profilePhotoUrl']?.toString() ??
+        user?.photoUrl ??
+        driverProf?['profilePhotoUrl']?.toString() ??
+        (onboarding.profilePhotoUrl != null && onboarding.profilePhotoUrl!.isNotEmpty ? onboarding.profilePhotoUrl : null) ??
+        (onboarding.selfieUrl != null && onboarding.selfieUrl!.isNotEmpty ? onboarding.selfieUrl : null);
+
+    final profilePhotoUrl = resolveDocumentUrl(rawPhoto);
+
     final rawVerification = (_profile?['verificationStatus'] ?? user?.driverProfile?['verificationStatus'] ?? 'PENDING').toString().toUpperCase();
     final isVerified = rawVerification == 'VERIFIED' || rawVerification == 'APPROVED';
     final verificationStatus = rawVerification == 'VERIFIED' ? context.tr('VERIFIED') : (rawVerification == 'UNDER_REVIEW' ? context.tr('UNDER_REVIEW') : context.tr('PENDING'));
-    final statusLabel = isVerified ? context.tr('Active Driver') : (rawVerification == 'UNDER_REVIEW' ? context.tr('Under Review') : context.tr('Pending Verification'));
     final createdAt = _formatDate((_profile?['createdAt'] ?? user?.driverProfile?['createdAt'])?.toString());
     final totalTrips = (_profile?['totalTrips'] ?? _profile?['total_trips'] ?? 0).toString();
     final averageRating = (_profile?['averageRating'] ?? _profile?['rating'] ?? '5.0').toString();
+
+    // Onboarding Payload: Personal Details
+    final rawDob = _profile?['dateOfBirth'] ?? kycDocs?['dateOfBirth'] ?? driverProf?['dateOfBirth'];
+    final dob = (rawDob != null && rawDob.toString().trim().isNotEmpty)
+        ? rawDob.toString().trim()
+        : (onboarding.dateOfBirth != null
+            ? '${onboarding.dateOfBirth!.day.toString().padLeft(2, '0')}/${onboarding.dateOfBirth!.month.toString().padLeft(2, '0')}/${onboarding.dateOfBirth!.year}'
+            : '—');
+
+    final rawGender = _profile?['gender'] ?? kycDocs?['gender'] ?? driverProf?['gender'];
+    final gender = (rawGender != null && rawGender.toString().trim().isNotEmpty)
+        ? rawGender.toString().trim()
+        : (onboarding.gender.isNotEmpty ? onboarding.gender : '—');
+
+    final rawAddress = _profile?['address'] ?? kycDocs?['address'] ?? driverProf?['address'];
+    final address = (rawAddress != null && rawAddress.toString().trim().isNotEmpty)
+        ? rawAddress.toString().trim()
+        : (onboarding.address.isNotEmpty ? onboarding.address : '—');
+
+    // Onboarding Payload: Emergency Contact
+    final rawEmergName = _profile?['emergencyContactName'] ?? kycDocs?['emergencyContactName'] ?? driverProf?['emergencyContactName'];
+    final emergencyName = (rawEmergName != null && rawEmergName.toString().trim().isNotEmpty)
+        ? rawEmergName.toString().trim()
+        : (onboarding.emergencyContactName.isNotEmpty ? onboarding.emergencyContactName : '—');
+
+    final rawEmergPhone = _profile?['emergencyContactPhone'] ?? kycDocs?['emergencyContactPhone'] ?? driverProf?['emergencyContactPhone'];
+    final emergencyPhone = (rawEmergPhone != null && rawEmergPhone.toString().trim().isNotEmpty)
+        ? rawEmergPhone.toString().trim()
+        : (onboarding.emergencyContactPhone.isNotEmpty ? onboarding.emergencyContactPhone : '—');
+
+    // Onboarding Payload: Vehicle Details
+    final rawVehType = _profile?['vehicleType'] ?? driverProf?['vehicleType'];
+    final vehicleType = (rawVehType != null && rawVehType.toString().trim().isNotEmpty)
+        ? rawVehType.toString().trim()
+        : (onboarding.vehicleType.isNotEmpty ? onboarding.vehicleType : 'Sedan');
+
+    final rawVehModel = _profile?['vehicleModel'] ?? driverProf?['vehicleModel'];
+    final vehicleModel = (rawVehModel != null && rawVehModel.toString().trim().isNotEmpty)
+        ? rawVehModel.toString().trim()
+        : (onboarding.carModel.isNotEmpty ? onboarding.carModel : 'Fleet Vehicle');
+
+    final rawVehPlate = _profile?['vehiclePlate'] ?? driverProf?['vehiclePlate'];
+    final vehiclePlate = (rawVehPlate != null && rawVehPlate.toString().trim().isNotEmpty)
+        ? rawVehPlate.toString().trim()
+        : (onboarding.registrationNumber.isNotEmpty ? onboarding.registrationNumber : '—');
+
+    final rawColor = onboarding.color.isNotEmpty ? onboarding.color : (kycDocs?['color']?.toString() ?? '');
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -365,29 +526,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                                                     height: 24,
                                                     child: CircularProgressIndicator(strokeWidth: 2.5),
                                                   )
-                                                : (profilePhotoUrl != null && profilePhotoUrl.isNotEmpty)
-                                                    ? ClipOval(
-                                                        child: Image.network(
-                                                          profilePhotoUrl,
-                                                          width: 72,
-                                                          height: 72,
-                                                          fit: BoxFit.cover,
-                                                          errorBuilder: (_, __, ___) => Text(
-                                                            name.isNotEmpty ? name[0].toUpperCase() : 'D',
-                                                            style: AppTypography.h1(
-                                                              color: isDark ? AppColors.primaryLight : AppColors.primary,
-                                                              fontWeight: FontWeight.bold,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      )
-                                                    : Text(
-                                                        name.isNotEmpty ? name[0].toUpperCase() : 'D',
-                                                        style: AppTypography.h1(
-                                                          color: isDark ? AppColors.primaryLight : AppColors.primary,
-                                                          fontWeight: FontWeight.bold,
-                                                        ),
-                                                      ),
+                                                : _buildAvatarImage(profilePhotoUrl, name, isDark),
                                           ),
                                         ),
                                         Positioned(
@@ -517,167 +656,6 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                               ),
                               const SizedBox(height: AppSpacing.xl),
 
-                              // ── Account Status Banner (Moved into Personal Information) ───
-                              Container(
-                                padding: const EdgeInsets.all(AppSpacing.xl),
-                                decoration: BoxDecoration(
-                                  color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: isDark ? 0.15 : 0.08),
-                                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                                  border: Border.all(
-                                    color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.25),
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 46,
-                                      height: 46,
-                                      decoration: BoxDecoration(
-                                        color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(AppRadius.md),
-                                      ),
-                                      child: Icon(
-                                        Icons.work_outline_rounded,
-                                        color: isDark ? AppColors.primaryLight : AppColors.primary,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 14),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Text(
-                                                statusLabel,
-                                                style: AppTypography.h3(
-                                                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                              Container(
-                                                width: 10,
-                                                height: 10,
-                                                decoration: BoxDecoration(
-                                                  color: isVerified
-                                                      ? (isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark)
-                                                      : AppColors.warning,
-                                                  shape: BoxShape.circle,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            isVerified
-                                                ? context.tr('Your account is active and in good standing')
-                                                : '${context.tr('Your account verification is')} $verificationStatus',
-                                            style: AppTypography.caption(
-                                              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: AppSpacing.md),
-
-                              // ── Profile Verification & KYC Status Interactive Card ───
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                                  border: Border.all(
-                                    color: (isVerified ? AppColors.accentGreen : AppColors.warning).withValues(alpha: isDark ? 0.3 : 0.25),
-                                    width: 1.2,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: InkWell(
-                                  onTap: () => context.push(AppRoutes.kycVerificationScreen),
-                                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(AppSpacing.lg),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          width: 44,
-                                          height: 44,
-                                          decoration: BoxDecoration(
-                                            color: (isVerified ? AppColors.accentGreen : AppColors.warning).withValues(alpha: isDark ? 0.2 : 0.12),
-                                            borderRadius: BorderRadius.circular(AppRadius.md),
-                                          ),
-                                          child: Icon(
-                                            isVerified ? Icons.verified_user_rounded : Icons.pending_actions_rounded,
-                                            color: isVerified
-                                                ? (isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark)
-                                                : AppColors.warning,
-                                            size: 24,
-                                          ),
-                                        ),
-                                        const SizedBox(width: AppSpacing.md),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                context.tr('Profile Verification & KYC Status'),
-                                                style: AppTypography.h4(
-                                                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 3),
-                                              Text(
-                                                context.tr('Driving license, RC & Aadhaar card verification'),
-                                                style: AppTypography.caption(
-                                                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                          decoration: BoxDecoration(
-                                            color: (isVerified ? AppColors.accentGreen : AppColors.warning).withValues(alpha: isDark ? 0.2 : 0.12),
-                                            borderRadius: BorderRadius.circular(AppRadius.pill),
-                                            border: Border.all(
-                                              color: (isVerified ? AppColors.accentGreen : AppColors.warning).withValues(alpha: 0.35),
-                                            ),
-                                          ),
-                                          child: Text(
-                                            verificationStatus,
-                                            style: AppTypography.micro(
-                                              color: isVerified
-                                                  ? (isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark)
-                                                  : AppColors.warning,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Icon(
-                                          Icons.chevron_right_rounded,
-                                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                                          size: 20,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: AppSpacing.md),
-
                               // ── Account Metrics Card ───────────────────────────────
                               Container(
                                 decoration: BoxDecoration(
@@ -688,11 +666,13 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                                 child: Column(
                                   children: [
                                     InkWell(
-                                      onTap: () => context.push(AppRoutes.kycVerificationScreen),
+                                      onTap: () => context.push(AppRoutes.kycVerificationScreen, extra: 'identity'),
+                                      borderRadius: BorderRadius.circular(AppRadius.lg),
                                       child: _buildMetricTile(
                                         isDark: isDark,
                                         label: context.tr('Verification Status'),
                                         valueWidget: Row(
+                                          mainAxisSize: MainAxisSize.min,
                                           children: [
                                             Text(
                                               verificationStatus,
@@ -750,6 +730,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                                       isDark: isDark,
                                       label: context.tr('Customer Rating'),
                                       valueWidget: Row(
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Text(
                                             averageRating,
@@ -792,99 +773,143 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                               ),
                               const SizedBox(height: AppSpacing.md),
 
-                              // ── View Account Policies Tile ─────────────────────────
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                                  border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                                ),
-                                child: ListTile(
-                                  onTap: () {
-                                    // Terms & conditions or policy modal
-                                  },
-                                  leading: Icon(
-                                    Icons.article_outlined,
-                                    color: isDark ? AppColors.primaryLight : AppColors.primary,
-                                  ),
-                                  title: Text(
-                                    context.tr('View Account Policies'),
-                                    style: AppTypography.body(
-                                      color: isDark ? AppColors.primaryLight : AppColors.primary,
-                                      fontWeight: FontWeight.bold,
+                              // ── Personal & Onboarding Details ──────────────────────
+                              _buildSectionCard(
+                                isDark: isDark,
+                                title: context.tr('Personal Details'),
+                                icon: Icons.person_outline_rounded,
+                                children: [
+                                  _buildMetricTile(
+                                    isDark: isDark,
+                                    label: context.tr('Date of Birth'),
+                                    valueWidget: Text(
+                                      dob,
+                                      style: AppTypography.body(
+                                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
-                                  trailing: Icon(
-                                    Icons.chevron_right,
-                                    color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                  Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                                  _buildMetricTile(
+                                    isDark: isDark,
+                                    label: context.tr('Gender'),
+                                    valueWidget: Text(
+                                      gender,
+                                      style: AppTypography.body(
+                                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
-                              const SizedBox(height: AppSpacing.xl),
-
-                              // ── Personal Details Section Title ─────────────────────
-                              Text(
-                                context.tr('Personal Details'),
-                                style: AppTypography.body(
-                                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                                  Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                                  _buildMetricTile(
+                                    isDark: isDark,
+                                    label: context.tr('Permanent Address'),
+                                    valueWidget: Text(
+                                      address,
+                                      textAlign: TextAlign.end,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: AppTypography.caption(
+                                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                               const SizedBox(height: AppSpacing.md),
 
-                              // ── Details Container Card ─────────────────────────────
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                                  border: Border.all(
-                                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                              // ── Emergency Contact ──────────────────────────────────
+                              _buildSectionCard(
+                                isDark: isDark,
+                                title: context.tr('Emergency Contact'),
+                                icon: Icons.contact_phone_outlined,
+                                children: [
+                                  _buildMetricTile(
+                                    isDark: isDark,
+                                    label: context.tr('Contact Name'),
+                                    valueWidget: Text(
+                                      emergencyName,
+                                      style: AppTypography.body(
+                                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                                   ),
-                                ),
-                                child: Column(
-                                  children: [
-                                    _buildDetailTile(
-                                      icon: Icons.person_outline,
-                                      label: context.tr('Full Name'),
-                                      value: name,
-                                      isDark: isDark,
-                                      onTap: _navigateToEdit,
+                                  Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                                  _buildMetricTile(
+                                    isDark: isDark,
+                                    label: context.tr('Contact Phone'),
+                                    valueWidget: Text(
+                                      emergencyPhone,
+                                      style: AppTypography.body(
+                                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
-                                    Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                                    _buildDetailTile(
-                                      icon: Icons.cake_outlined,
-                                      label: context.tr('Date of Birth'),
-                                      value: dob,
-                                      isDark: isDark,
-                                      onTap: _navigateToEdit,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: AppSpacing.md),
+
+                              // ── Registered Vehicle ─────────────────────────────────
+                              _buildSectionCard(
+                                isDark: isDark,
+                                title: context.tr('Registered Vehicle'),
+                                icon: Icons.directions_car_outlined,
+                                children: [
+                                  _buildMetricTile(
+                                    isDark: isDark,
+                                    label: context.tr('Vehicle Type & Model'),
+                                    valueWidget: Text(
+                                      '$vehicleType • $vehicleModel',
+                                      style: AppTypography.body(
+                                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
-                                    Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                                    _buildDetailTile(
-                                      icon: Icons.alternate_email,
-                                      label: context.tr('Gender'),
-                                      value: gender,
-                                      isDark: isDark,
-                                      onTap: _navigateToEdit,
+                                  ),
+                                  Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                                  _buildMetricTile(
+                                    isDark: isDark,
+                                    label: context.tr('Plate Number'),
+                                    valueWidget: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(AppRadius.xs),
+                                        border: Border.all(
+                                          color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.25),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        vehiclePlate,
+                                        style: AppTypography.caption(
+                                          color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
+                                  ),
+                                  if (rawColor.isNotEmpty && rawColor != '—') ...[
                                     Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                                    _buildDetailTile(
-                                      icon: Icons.location_on_outlined,
-                                      label: context.tr('Address'),
-                                      value: address,
+                                    _buildMetricTile(
                                       isDark: isDark,
-                                      onTap: _navigateToEdit,
-                                    ),
-                                    Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                                    _buildDetailTile(
-                                      icon: Icons.emergency_outlined,
-                                      label: context.tr('Emergency Contact'),
-                                      value: emergencyContact,
-                                      isDark: isDark,
-                                      onTap: _navigateToEdit,
+                                      label: context.tr('Vehicle Color'),
+                                      valueWidget: Text(
+                                        rawColor,
+                                        style: AppTypography.body(
+                                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
                                     ),
                                   ],
-                                ),
+                                ],
                               ),
+                              const SizedBox(height: AppSpacing.xl),
                             ],
                           ),
                         ),
@@ -914,64 +939,17 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
             label,
             style: AppTypography.body(color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
           ),
-          valueWidget,
+          const SizedBox(width: AppSpacing.md),
+          Flexible(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: valueWidget,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildDetailTile({
-    required IconData icon,
-    required String label,
-    required String value,
-    required bool isDark,
-    VoidCallback? onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.lg),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.md,
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: 20,
-              color: isDark ? AppColors.primaryLight : AppColors.primary,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: AppTypography.caption(
-                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    value,
-                    style: AppTypography.body(
-                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.chevron_right,
-              size: 18,
-              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+
 }

@@ -177,6 +177,10 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   email?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
 }
 
 export class UserMeResponseDto {
@@ -192,16 +196,32 @@ export class UserMeResponseDto {
   vendorProfile?: {
     id: string;
     organizationName: string;
+    fullName?: string;
+    phone?: string;
+    address?: string | null;
+    gstNumber?: string | null;
     verificationStatus: string;
     rejectionReason?: string;
+    createdAt?: any;
   };
   driverProfile?: {
     id: string;
+    fullName?: string;
+    phone?: string;
     verificationStatus: string;
     availabilityStatus: string;
     vehicleType?: string;
     walletBalance: number;
     rejectionReason?: string;
+    createdAt?: any;
+    profilePhotoUrl?: string;
+    dateOfBirth?: string;
+    gender?: string;
+    address?: string;
+    emergencyContactName?: string;
+    emergencyContactPhone?: string;
+    vehiclePlate?: string;
+    vehicleModel?: string;
   };
   createdAt!: string;
 }

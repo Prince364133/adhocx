@@ -168,14 +168,6 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                   ),
                   child: Row(
                     children: [
-                      IconButton(
-                        onPressed: () {},
-                        icon: Icon(
-                          Icons.menu,
-                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           context.tr('Opportunities'),
@@ -244,21 +236,6 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                                 ),
                               ),
                             ],
-                          ),
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight,
-                              borderRadius: BorderRadius.circular(AppRadius.md),
-                              border: Border.all(
-                                color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                              ),
-                            ),
-                            child: const Icon(
-                              Icons.near_me_outlined,
-                              color: AppColors.primary,
-                              size: 20,
-                            ),
                           ),
                         ],
                       ),

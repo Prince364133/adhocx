@@ -1,6 +1,7 @@
 import '../../../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import '../../../services/driver_service.dart';
+import '../../../services/auth_service.dart';
 import '../../../core/utils/app_toast.dart';
 
 class EditProfileModal extends StatefulWidget {
@@ -113,10 +114,26 @@ class _EditProfileModalState extends State<EditProfileModal> {
     setState(() => _isSaving = true);
 
     try {
+      final newName = _nameCtrl.text.trim();
+      final newPhone = _phoneCtrl.text.trim();
+
+      // Immediately sync local session
+      AuthService.instance.updateCurrentUser(
+        fullName: newName,
+        phone: newPhone.isNotEmpty ? newPhone : null,
+      );
+
+      try {
+        await AuthService.instance.updateUserProfile(
+          fullName: newName,
+          phone: newPhone.isNotEmpty ? newPhone : null,
+        );
+      } catch (_) {}
+
       // 1. Authoritative Backend Update
       await DriverService.instance.updateProfile({
-        'fullName': _nameCtrl.text.trim(),
-        'phone': _phoneCtrl.text.trim(),
+        'fullName': newName,
+        'phone': newPhone,
         'vehicleType': _vehicleType,
         'vehiclePlate': _vehicleNumCtrl.text.trim(),
         'rcNumber': _rcCtrl.text.trim(),

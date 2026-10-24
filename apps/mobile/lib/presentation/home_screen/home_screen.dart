@@ -524,7 +524,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       GestureDetector(
-                        onTap: () => context.push(AppRoutes.personalInfoScreen),
+                        onTap: () async {
+                          await context.push(AppRoutes.personalInfoScreen);
+                          if (mounted) {
+                            try {
+                              await AuthService.instance.fetchCurrentUser(forceRefresh: true);
+                            } catch (_) {}
+                            setState(() {});
+                          }
+                        },
                         child: CircleAvatar(
                           radius: 18,
                           backgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.borderLight,

@@ -24,7 +24,6 @@ import '../presentation/opportunities_screen/opportunities_screen.dart';
 import '../presentation/opportunities_screen/opportunity_details_screen.dart';
 import '../presentation/opportunities_screen/opportunity_offer_screen.dart';
 import '../presentation/profile_screen/add_vehicle_screen.dart';
-import '../presentation/profile_screen/document_details_screen.dart';
 import '../presentation/profile_screen/edit_personal_info_screen.dart';
 import '../presentation/profile_screen/driver_faq_screen.dart';
 import '../presentation/profile_screen/driver_report_issue_screen.dart';
@@ -80,6 +79,7 @@ import '../user/payments/user_payment_details_screen.dart';
 import '../user/payments/user_payment_status_screen.dart';
 import '../user/profile/user_profile_screen.dart';
 import '../user/profile/user_profile_extended_screen.dart';
+import '../user/profile/user_organization_information_screen.dart';
 import '../user/profile/user_company_information_screen.dart';
 import '../user/profile/user_contact_information_screen.dart';
 import '../user/profile/user_account_status_screen.dart';
@@ -206,6 +206,7 @@ class AppRoutes {
   static const String userPaymentFailedScreen = '/user/payments/failed';
   static const String userProfileScreen = '/user/profile';
   static const String userProfileExtendedScreen = '/user/profile/extended';
+  static const String userOrganizationInformationScreen = '/user/profile/organization-info';
   static const String userCompanyInformationScreen = '/user/profile/company-info';
   static const String userContactInformationScreen = '/user/profile/contact-info';
   static const String userAccountStatusScreen = '/user/profile/account-status';
@@ -266,8 +267,9 @@ class AppRoutes {
   static const String vendorPaymentFailedScreen = userPaymentFailedScreen;
   static const String vendorProfileScreen = userProfileScreen;
   static const String vendorProfileExtendedScreen = userProfileExtendedScreen;
-  static const String vendorCompanyInformationScreen = userCompanyInformationScreen;
-  static const String vendorContactInformationScreen = userContactInformationScreen;
+  static const String vendorOrganizationInformationScreen = userOrganizationInformationScreen;
+  static const String vendorCompanyInformationScreen = userOrganizationInformationScreen;
+  static const String vendorContactInformationScreen = userOrganizationInformationScreen;
   static const String vendorAccountStatusScreen = userAccountStatusScreen;
   static const String vendorNotificationSettingsScreen = userNotificationSettingsScreen;
   static const String vendorSupportCenterScreen = userSupportCenterScreen;
@@ -555,7 +557,10 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.kycVerificationScreen,
-      builder: (context, state) => const KycVerificationScreen(),
+      builder: (context, state) {
+        final filter = (state.extra as String?) ?? state.uri.queryParameters['filter'];
+        return KycVerificationScreen(initialFilter: filter);
+      },
     ),
     GoRoute(
       path: AppRoutes.driverScoreScreen,
@@ -563,7 +568,13 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.documentDetailsScreen,
-      builder: (context, state) => const DocumentDetailsScreen(),
+      redirect: (context, state) {
+        final filter = (state.extra as String?) ?? state.uri.queryParameters['filter'];
+        if (filter != null && filter.isNotEmpty) {
+          return '${AppRoutes.kycVerificationScreen}?filter=$filter';
+        }
+        return AppRoutes.kycVerificationScreen;
+      },
     ),
     GoRoute(
       path: AppRoutes.accountStatusScreen,
@@ -903,12 +914,16 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const UserProfileExtendedScreen(),
     ),
     GoRoute(
+      path: AppRoutes.userOrganizationInformationScreen,
+      builder: (context, state) => const UserOrganizationInformationScreen(),
+    ),
+    GoRoute(
       path: AppRoutes.userCompanyInformationScreen,
-      builder: (context, state) => const UserCompanyInformationScreen(),
+      builder: (context, state) => const UserOrganizationInformationScreen(),
     ),
     GoRoute(
       path: AppRoutes.userContactInformationScreen,
-      builder: (context, state) => const UserContactInformationScreen(),
+      builder: (context, state) => const UserOrganizationInformationScreen(),
     ),
     GoRoute(
       path: AppRoutes.userAccountStatusScreen,

@@ -59,13 +59,41 @@ export class DriversService {
 
   async getProfile(userId: string): Promise<DriverProfileDto> {
     try {
-      const driver = await this.db.driver.findUnique({
+      let driver = await this.db.driver.findUnique({
         where: { userId },
         include: { user: true },
       });
 
       if (!driver) {
-        throw new NotFoundException('Driver profile not found');
+        const user = await this.db.user.findUnique({ where: { id: userId } });
+        if (user) {
+          driver = await this.db.driver.create({
+            data: {
+              userId,
+              fullName: user.fullName || 'Driver',
+              phone: user.phone || undefined,
+              verificationStatus: VerificationStatus.PENDING,
+              availabilityStatus: DriverAvailability.OFFLINE,
+            },
+            include: { user: true },
+          });
+        } else {
+          throw new NotFoundException('Driver profile not found');
+        }
+      }
+
+      // Sync phone between user and driver if one is missing
+      if (!driver.phone && driver.user?.phone && this.db?.driver?.update) {
+        await this.db.driver.update({
+          where: { id: driver.id },
+          data: { phone: driver.user.phone },
+        }).catch(() => null);
+        driver.phone = driver.user.phone;
+      } else if (driver.phone && !driver.user?.phone && this.db?.user?.update) {
+        await this.db.user.update({
+          where: { id: userId },
+          data: { phone: driver.phone },
+        }).catch(() => null);
       }
 
       const kyc = (driver.kycDocuments as Record<string, any>) || {};
@@ -139,8 +167,12 @@ export class DriversService {
         updatedAt: driver.updatedAt.toISOString(),
       };
     } catch (e) {
-      if (e instanceof NotFoundException) throw e;
-      const user = await this.db.user.findUnique({ where: { id: userId } }).catch(() => null);
+      let user: any = null;
+      try {
+        if (this.db?.user?.findUnique) {
+          user = await this.db.user.findUnique({ where: { id: userId } });
+        }
+      } catch (_) {}
       return {
         id: `drv_${userId}`,
         userId,
@@ -158,13 +190,26 @@ export class DriversService {
   }
 
   async updateProfile(userId: string, dto: UpdateDriverProfileDto): Promise<DriverProfileDto> {
-    const driver = await this.db.driver.findUnique({
+    let driver = await this.db.driver.findUnique({
       where: { userId },
       include: { user: true },
     });
 
     if (!driver) {
-      throw new NotFoundException('Driver profile not found');
+      const user = await this.db.user.findUnique({ where: { id: userId } });
+      if (!user) {
+        throw new NotFoundException('Driver profile not found');
+      }
+      driver = await this.db.driver.create({
+        data: {
+          userId,
+          fullName: user.fullName || 'Driver',
+          phone: user.phone || undefined,
+          verificationStatus: VerificationStatus.PENDING,
+          availabilityStatus: DriverAvailability.OFFLINE,
+        },
+        include: { user: true },
+      });
     }
 
     const cleanPhone = dto.phone ? dto.phone.trim().replace(/\s+/g, '') : undefined;
@@ -421,7 +466,14 @@ export class DriversService {
             ...(cleanPhone ? { phone: cleanPhone } : {}),
           },
         });
-      } catch (_) {}
+      } catch (userUpErr: any) {
+        if (cleanName) {
+          await this.db.user.update({
+            where: { id: userId },
+            data: { fullName: cleanName },
+          }).catch(() => null);
+        }
+      }
     }
 
     if (existingDriver) {
@@ -646,51 +698,55 @@ export class DriversService {
         });
       }
 
-      const kyc = (driver.kycDocuments as Record<string, any>) || {};
-      const updatedKyc: Record<string, any> = { ...kyc };
-      const updateData: any = {};
+      if (driver) {
+        const kyc = (driver.kycDocuments as Record<string, any>) || {};
+        const updatedKyc: Record<string, any> = { ...kyc };
+        const updateData: any = {};
 
-      if (docType === 'PROFILE_PHOTO' || docType === 'SELFIE' || docType.includes('PROFILE')) {
-        updatedKyc.profilePhotoUrl = stored.url;
-      } else if (docType === 'DRIVING_LICENSE' || docType === 'DL_FRONT' || docType.includes('DL')) {
-        updateData.dlFrontUrl = stored.url;
-        updatedKyc.dlFrontUrl = stored.url;
-      } else if (docType === 'DL_BACK') {
-        updateData.dlBackUrl = stored.url;
-        updatedKyc.dlBackUrl = stored.url;
-      } else if (docType === 'RC_BOOK' || docType === 'RC_FRONT' || docType.includes('RC')) {
-        updateData.rcDocUrl = stored.url;
-        updatedKyc.rcDocUrl = stored.url;
-        updatedKyc.rcFrontUrl = stored.url;
-      } else if (docType === 'RC_BACK') {
-        updatedKyc.rcBackUrl = stored.url;
-      } else if (docType === 'INSURANCE' || docType.includes('INSUR')) {
-        updateData.insuranceDocUrl = stored.url;
-        updatedKyc.insuranceDocUrl = stored.url;
-      } else if (docType === 'VEHICLE_PHOTO' || docType.includes('VEHICLE')) {
-        updateData.vehiclePhotoUrl = stored.url;
-        updatedKyc.vehiclePhotoUrl = stored.url;
-      } else if (docType === 'AADHAR_FRONT' || docType === 'AADHAR' || docType === 'AADHAAR' || docType.includes('AADHA')) {
-        updateData.aadharFrontUrl = stored.url;
-        updatedKyc.aadharFrontUrl = stored.url;
-      } else if (docType === 'AADHAR_BACK') {
-        updateData.aadharBackUrl = stored.url;
-        updatedKyc.aadharBackUrl = stored.url;
-      } else if (docType === 'PAN_CARD' || docType === 'PAN' || docType.includes('PAN')) {
-        updateData.panDocUrl = stored.url;
-        updatedKyc.panDocUrl = stored.url;
-      } else {
-        updatedKyc[docType.toLowerCase()] = stored.url;
+        if (docType === 'PROFILE_PHOTO' || docType === 'SELFIE' || docType.includes('PROFILE')) {
+          updatedKyc.profilePhotoUrl = stored.url;
+        } else if (docType === 'DRIVING_LICENSE' || docType === 'DL_FRONT' || docType.includes('DL')) {
+          updateData.dlFrontUrl = stored.url;
+          updatedKyc.dlFrontUrl = stored.url;
+        } else if (docType === 'DL_BACK') {
+          updateData.dlBackUrl = stored.url;
+          updatedKyc.dlBackUrl = stored.url;
+        } else if (docType === 'RC_BOOK' || docType === 'RC_FRONT' || docType.includes('RC')) {
+          updateData.rcDocUrl = stored.url;
+          updatedKyc.rcDocUrl = stored.url;
+          updatedKyc.rcFrontUrl = stored.url;
+        } else if (docType === 'RC_BACK') {
+          updatedKyc.rcBackUrl = stored.url;
+        } else if (docType === 'INSURANCE' || docType.includes('INSUR')) {
+          updateData.insuranceDocUrl = stored.url;
+          updatedKyc.insuranceDocUrl = stored.url;
+        } else if (docType === 'VEHICLE_PHOTO' || docType.includes('VEHICLE')) {
+          updateData.vehiclePhotoUrl = stored.url;
+          updatedKyc.vehiclePhotoUrl = stored.url;
+        } else if (docType === 'AADHAR_FRONT' || docType === 'AADHAR' || docType === 'AADHAAR' || docType.includes('AADHA')) {
+          updateData.aadharFrontUrl = stored.url;
+          updatedKyc.aadharFrontUrl = stored.url;
+        } else if (docType === 'AADHAR_BACK') {
+          updateData.aadharBackUrl = stored.url;
+          updatedKyc.aadharBackUrl = stored.url;
+        } else if (docType === 'PAN_CARD' || docType === 'PAN' || docType.includes('PAN')) {
+          updateData.panDocUrl = stored.url;
+          updatedKyc.panDocUrl = stored.url;
+        } else {
+          updatedKyc[docType.toLowerCase()] = stored.url;
+        }
+
+        updateData.kycDocuments = updatedKyc;
+
+        if (this.db?.driver?.update) {
+          await this.db.driver.update({
+            where: { id: driver.id },
+            data: updateData,
+          });
+        }
+
+        this.logger.log(`[DOC UPLOAD PERSISTED] Driver ${driver.id} saved document type ${docType}: ${stored.url}`);
       }
-
-      updateData.kycDocuments = updatedKyc;
-
-      await this.db.driver.update({
-        where: { id: driver.id },
-        data: updateData,
-      });
-
-      this.logger.log(`[DOC UPLOAD PERSISTED] Driver ${driver.id} saved document type ${docType}: ${stored.url}`);
     } catch (err: any) {
       this.logger.error(`[DOC UPLOAD PERSIST ERROR] Failed saving ${docType} for user ${userId}: ${err.message}`);
     }

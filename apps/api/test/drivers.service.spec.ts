@@ -24,7 +24,8 @@ describe('DriversService Unit Tests', () => {
         upsert: jest.fn(),
       },
       user: {
-        findUnique: jest.fn(),
+        findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn().mockResolvedValue({}),
       },
     };
 

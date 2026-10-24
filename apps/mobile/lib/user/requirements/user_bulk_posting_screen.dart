@@ -8,6 +8,7 @@ import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
 import 'services/bulk_posting_service.dart';
+import '../../core/utils/app_toast.dart';
 
 class UserBulkPostingScreen extends StatefulWidget {
   const UserBulkPostingScreen({super.key});
@@ -43,11 +44,7 @@ class _UserBulkPostingScreenState extends State<UserBulkPostingScreen> {
       }
     } catch (e) {
       if (mounted) {
-        Fluttertoast.showToast(
-          msg: 'Download failed: ${e.toString().replaceAll('Exception: ', '')}',
-          backgroundColor: AppColors.error,
-          textColor: Colors.white,
-        );
+        AppToast.showError(e, context: context);
       }
     } finally {
       if (mounted) setState(() => _isDownloadingTemplate = false);
@@ -83,13 +80,9 @@ class _UserBulkPostingScreenState extends State<UserBulkPostingScreen> {
       }
     } catch (e) {
       if (mounted) {
-        final cleanMsg = e.toString().replaceAll('Exception: ', '');
+        final cleanMsg = AppToast.cleanErrorMessage(e);
         setState(() => _errorMessage = cleanMsg);
-        Fluttertoast.showToast(
-          msg: 'Upload error: $cleanMsg',
-          backgroundColor: AppColors.error,
-          textColor: Colors.white,
-        );
+        AppToast.showError(cleanMsg, context: context);
       }
     } finally {
       if (mounted) setState(() => _isUploadingFile = false);

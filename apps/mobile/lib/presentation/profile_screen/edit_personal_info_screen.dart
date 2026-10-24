@@ -28,10 +28,17 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _emergencyNameController = TextEditingController();
   final TextEditingController _emergencyPhoneController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
 
   String _gender = 'Male';
+  String? _phone;
   bool _isLoadingInitial = true;
   bool _isSaving = false;
+
+  static const _months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
 
   static bool _isFakeName(String? n) {
     if (n == null) return true;
@@ -69,37 +76,74 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
         ? onboarding.email
         : (!_isFakeEmail(user?.email) ? user!.email! : '');
 
+    final initialDob = onboarding.dateOfBirth != null
+        ? '${onboarding.dateOfBirth!.day} ${_months[onboarding.dateOfBirth!.month - 1]} ${onboarding.dateOfBirth!.year}'
+        : '';
+    final initialGender = onboarding.gender.isNotEmpty ? onboarding.gender : 'Male';
+    final initialAddress = onboarding.address;
+    final initialEmergencyName = onboarding.emergencyContactName;
+    final initialEmergencyPhone = onboarding.emergencyContactPhone;
+
+    _phone = onboarding.phone.isNotEmpty
+        ? onboarding.phone
+        : (user?.phone?.isNotEmpty == true
+            ? user!.phone
+            : (user?.driverProfile?['phone']?.toString()));
+
     _nameController = TextEditingController(text: initialName);
     _emailController = TextEditingController(text: initialEmail);
+    _dobController.text = initialDob;
+    _addressController.text = initialAddress;
+    _emergencyNameController.text = initialEmergencyName;
+    _emergencyPhoneController.text = initialEmergencyPhone;
+    _phoneController.text = (_phone != null && _phone != '—') ? _phone! : '';
+    if (['Male', 'Female', 'Other'].contains(initialGender)) {
+      _gender = initialGender;
+    }
 
     _loadExistingProfile();
   }
 
   Future<void> _loadExistingProfile() async {
     try {
-      final profile = await DriverService.instance.getProfile();
+      final profile = await DriverService.instance.getProfile(forceRefresh: true);
       if (profile != null && mounted) {
         final p = Map<String, dynamic>.from(profile is Map ? profile : {});
+        final onboarding = Provider.of<OnboardingProvider>(context, listen: false);
+        final user = AuthService.instance.currentUser;
+
         setState(() {
-          if (p['fullName'] != null && !_isFakeName(p['fullName'].toString())) {
+          final serverPhone = p['phone']?.toString().trim();
+          if (serverPhone != null && serverPhone.isNotEmpty && serverPhone != '—') {
+            _phone = serverPhone;
+          } else if (_phone == null || _phone!.isEmpty || _phone == '—') {
+            _phone = onboarding.phone.isNotEmpty
+                ? onboarding.phone
+                : (user?.phone?.isNotEmpty == true ? user!.phone : null);
+          }
+          if (_phone != null && _phone != '—') {
+            _phoneController.text = _phone!;
+          }
+
+          if (_nameController.text.trim().isEmpty && p['fullName'] != null && !_isFakeName(p['fullName'].toString())) {
             _nameController.text = p['fullName'].toString().trim();
           }
-          if (p['email'] != null && !_isFakeEmail(p['email'].toString())) {
+          if (_emailController.text.trim().isEmpty && p['email'] != null && !_isFakeEmail(p['email'].toString())) {
             _emailController.text = p['email'].toString().trim();
           }
-          if (p['dateOfBirth'] != null) {
+          if (p['dateOfBirth'] != null && p['dateOfBirth'].toString().trim().isNotEmpty) {
             _dobController.text = p['dateOfBirth'].toString().trim();
           }
           if (p['gender'] != null && ['Male', 'Female', 'Other'].contains(p['gender'])) {
             _gender = p['gender'].toString();
           }
-          if (p['address'] != null) {
+          if (p['address'] != null && p['address'].toString().trim().isNotEmpty) {
             _addressController.text = p['address'].toString().trim();
           }
-          if (p['emergencyContactName'] != null) {
+          if (p['emergencyContactName'] != null && p['emergencyContactName'].toString().trim().isNotEmpty) {
             _emergencyNameController.text = p['emergencyContactName'].toString().trim();
           }
-          if (p['emergencyContactPhone'] != null) {
+          if (p['emergencyContactPhone'] != null && p['emergencyContactPhone'].toString().trim().isNotEmpty) {
             _emergencyPhoneController.text = p['emergencyContactPhone'].toString().trim();
           }
           _isLoadingInitial = false;
@@ -120,6 +164,7 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
     _addressController.dispose();
     _emergencyNameController.dispose();
     _emergencyPhoneController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -149,9 +194,8 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
     );
 
     if (picked != null) {
-      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       setState(() {
-        _dobController.text = '${picked.day} ${months[picked.month - 1]} ${picked.year}';
+        _dobController.text = '${picked.day} ${_months[picked.month - 1]} ${picked.year}';
       });
     }
   }
@@ -169,9 +213,37 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
     setState(() => _isSaving = true);
 
     try {
+      final effectiveEnteredPhone = _phoneController.text.trim().isNotEmpty
+          ? _phoneController.text.trim()
+          : (_phone != null && _phone != '—' ? _phone : null);
+
+      final enteredEmail = _emailController.text.trim().isNotEmpty
+          ? _emailController.text.trim()
+          : null;
+
+      // 1. Immediately update local AuthService session so UI updates synchronously
+      AuthService.instance.updateCurrentUser(
+        fullName: name,
+        phone: effectiveEnteredPhone,
+        email: enteredEmail,
+      );
+
+      // 2. Authoritatively persist core User table record via PATCH /auth/profile
+      try {
+        await AuthService.instance.updateUserProfile(
+          fullName: name,
+          phone: effectiveEnteredPhone,
+          email: enteredEmail,
+        );
+      } catch (authErr) {
+        debugPrint('Auth profile sync warning: $authErr');
+      }
+
+      // 3. Update driver specific record
       final payload = {
         'fullName': name,
-        if (_emailController.text.trim().isNotEmpty) 'email': _emailController.text.trim(),
+        if (enteredEmail != null) 'email': enteredEmail,
+        if (effectiveEnteredPhone != null && effectiveEnteredPhone.isNotEmpty) 'phone': effectiveEnteredPhone,
         'dateOfBirth': _dobController.text.trim(),
         'gender': _gender,
         'address': _addressController.text.trim(),
@@ -186,7 +258,16 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
         onboarding.updatePersonalInfo(
           fullName: name,
           email: _emailController.text.trim(),
+          phone: effectiveEnteredPhone,
+          address: _addressController.text.trim(),
+          emergencyContactName: _emergencyNameController.text.trim(),
+          emergencyContactPhone: _emergencyPhoneController.text.trim(),
+          gender: _gender,
         );
+
+        await AuthService.instance.fetchCurrentUser(forceRefresh: true);
+
+        if (!mounted) return;
 
         Fluttertoast.showToast(
           msg: 'Personal information saved successfully!',
@@ -214,8 +295,15 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final onboarding = Provider.of<OnboardingProvider>(context);
     final user = AuthService.instance.currentUser;
-    final phone = (user?.phone != null && user!.phone!.trim().isNotEmpty) ? user.phone! : '—';
+    final effectivePhone = (_phone != null && _phone!.trim().isNotEmpty && _phone != '—')
+        ? _phone!
+        : (user?.phone != null && user!.phone!.trim().isNotEmpty
+            ? user.phone!
+            : (user?.driverProfile?['phone']?.toString().isNotEmpty == true
+                ? user!.driverProfile!['phone'].toString()
+                : (onboarding.phone.isNotEmpty ? onboarding.phone : '')));
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -310,48 +398,63 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
                             ),
                             const SizedBox(height: AppSpacing.lg),
 
-                            // Phone Number (Disabled / Verified)
-                            Text(
-                              'Phone Number (Verified)',
-                              style: AppTypography.caption(
-                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Container(
-                              padding: const EdgeInsets.all(AppSpacing.md),
-                              decoration: BoxDecoration(
-                                color: isDark ? AppColors.surfaceElevatedDark : AppColors.bgLight,
-                                borderRadius: BorderRadius.circular(AppRadius.md),
-                                border: Border.all(
-                                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                                ),
-                              ),
-                              child: Row(
+                            // Phone Number (Verified or Editable if missing)
+                            if (effectivePhone.isNotEmpty && effectivePhone != '—')
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Icon(
-                                    Icons.phone_outlined,
-                                    size: 20,
-                                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      phone,
-                                      style: AppTypography.body(
-                                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                                      ),
+                                  Text(
+                                    'Phone Number (Verified)',
+                                    style: AppTypography.caption(
+                                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  Icon(
-                                    Icons.lock_outline,
-                                    size: 16,
-                                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                  const SizedBox(height: 6),
+                                  Container(
+                                    padding: const EdgeInsets.all(AppSpacing.md),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? AppColors.surfaceElevatedDark : AppColors.bgLight,
+                                      borderRadius: BorderRadius.circular(AppRadius.md),
+                                      border: Border.all(
+                                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.phone_outlined,
+                                          size: 20,
+                                          color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Text(
+                                            effectivePhone,
+                                            style: AppTypography.body(
+                                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                            ),
+                                          ),
+                                        ),
+                                        Icon(
+                                          Icons.lock_outline,
+                                          size: 16,
+                                          color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ],
+                              )
+                            else
+                              _buildTextField(
+                                label: 'Phone Number',
+                                controller: _phoneController,
+                                icon: Icons.phone_outlined,
+                                keyboardType: TextInputType.phone,
+                                isDark: isDark,
+                                hint: 'Enter your 10-digit mobile number',
                               ),
-                            ),
                             const SizedBox(height: AppSpacing.lg),
 
                             Row(

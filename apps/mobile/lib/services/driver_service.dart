@@ -107,6 +107,23 @@ class DriverService {
       body: data,
     );
     invalidateCache(profile: true);
+
+    final String? fullName = data['fullName']?.toString() ?? data['name']?.toString();
+    final String? phone = data['phone']?.toString();
+    final String? email = data['email']?.toString();
+    if (fullName != null || phone != null || email != null) {
+      AuthService.instance.updateCurrentUser(
+        fullName: fullName,
+        phone: phone,
+        email: email,
+        driverProfile: data,
+      );
+    }
+
+    try {
+      await AuthService.instance.fetchCurrentUser(forceRefresh: true);
+    } catch (_) {}
+
     return result;
   }
 
@@ -199,7 +216,7 @@ class DriverService {
     String? panDocUrl,
   }) async {
     await _ensureDriverSession();
-    return await _api.post(
+    final res = await _api.post(
       '/drivers/kyc',
       body: {
         'licenseNumber': licenseNumber,
@@ -221,6 +238,19 @@ class DriverService {
         if (panDocUrl != null) 'panDocUrl': panDocUrl,
       },
     );
+    invalidateCache(profile: true);
+
+    if (fullName != null || phone != null) {
+      AuthService.instance.updateCurrentUser(
+        fullName: fullName,
+        phone: phone,
+      );
+    }
+    try {
+      await AuthService.instance.fetchCurrentUser(forceRefresh: true);
+    } catch (_) {}
+
+    return res;
   }
 
   // Offers (Direct Dispatch Mode with 8s cache TTL)

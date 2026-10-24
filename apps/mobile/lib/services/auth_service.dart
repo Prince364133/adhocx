@@ -31,6 +31,32 @@ class UserModel {
     this.vendorProfile,
   });
 
+  UserModel copyWith({
+    String? id,
+    String? phone,
+    String? email,
+    String? role,
+    String? fullName,
+    String? photoUrl,
+    bool? hasPassword,
+    bool? isOnboarded,
+    Map<String, dynamic>? driverProfile,
+    Map<String, dynamic>? vendorProfile,
+  }) {
+    return UserModel(
+      id: id ?? this.id,
+      phone: phone ?? this.phone,
+      email: email ?? this.email,
+      role: role ?? this.role,
+      fullName: fullName ?? this.fullName,
+      photoUrl: photoUrl ?? this.photoUrl,
+      hasPassword: hasPassword ?? this.hasPassword,
+      isOnboarded: isOnboarded ?? this.isOnboarded,
+      driverProfile: driverProfile ?? this.driverProfile,
+      vendorProfile: vendorProfile ?? this.vendorProfile,
+    );
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -91,12 +117,25 @@ class UserModel {
         vStatus == 'UNDER_REVIEW' ||
         vStatus == 'VERIFIED';
 
+    final rawPhone = data['phone']?.toString() ??
+        root['phone']?.toString() ??
+        driverProf?['phone']?.toString() ??
+        vendorProf?['phone']?.toString();
+    final cleanPhone = (rawPhone != null && rawPhone.trim().isNotEmpty && rawPhone.trim() != '—')
+        ? rawPhone.trim()
+        : null;
+
+    final rawName = data['fullName'] ?? data['name'] ?? root['fullName'] ?? driverProf?['fullName'] ?? vendorProf?['fullName'];
+    final cleanName = (rawName != null && rawName.toString().trim().isNotEmpty)
+        ? rawName.toString().trim()
+        : null;
+
     return UserModel(
       id: (data['id'] ?? root['id'] ?? '').toString(),
-      phone: data['phone']?.toString() ?? root['phone']?.toString(),
+      phone: cleanPhone,
       email: data['email']?.toString() ?? root['email']?.toString(),
       role: roleStr,
-      fullName: (data['fullName'] ?? data['name'] ?? root['fullName'])?.toString(),
+      fullName: cleanName,
       photoUrl: data['photoUrl']?.toString() ??
           root['photoUrl']?.toString() ??
           driverProf?['profilePhotoUrl']?.toString() ??
@@ -227,6 +266,72 @@ class AuthService {
     _currentUser = user;
     authStateListenable.value = user;
     _persistCurrentUser(user);
+  }
+
+  void updateCurrentUser({
+    String? fullName,
+    String? phone,
+    String? email,
+    String? photoUrl,
+    bool? isOnboarded,
+    Map<String, dynamic>? driverProfile,
+    Map<String, dynamic>? vendorProfile,
+  }) {
+    if (_currentUser == null) return;
+    final updated = _currentUser!.copyWith(
+      fullName: (fullName != null && fullName.trim().isNotEmpty) ? fullName.trim() : _currentUser!.fullName,
+      phone: (phone != null && phone.trim().isNotEmpty) ? phone.trim() : _currentUser!.phone,
+      email: (email != null && email.trim().isNotEmpty) ? email.trim() : _currentUser!.email,
+      photoUrl: photoUrl ?? _currentUser!.photoUrl,
+      isOnboarded: isOnboarded ?? _currentUser!.isOnboarded,
+      driverProfile: driverProfile != null
+          ? { ...?_currentUser!.driverProfile, ...driverProfile }
+          : (fullName != null
+              ? { ...?_currentUser!.driverProfile, 'fullName': fullName.trim() }
+              : _currentUser!.driverProfile),
+      vendorProfile: vendorProfile != null
+          ? { ...?_currentUser!.vendorProfile, ...vendorProfile }
+          : (fullName != null
+              ? { ...?_currentUser!.vendorProfile, 'fullName': fullName.trim() }
+              : _currentUser!.vendorProfile),
+    );
+    _currentUser = updated;
+    authStateListenable.value = updated;
+    _persistCurrentUser(updated);
+  }
+
+  Future<UserModel> updateUserProfile({
+    String? fullName,
+    String? phone,
+    String? email,
+  }) async {
+    final payload = <String, dynamic>{};
+    if (fullName != null && fullName.trim().isNotEmpty) {
+      payload['fullName'] = fullName.trim();
+    }
+    if (phone != null && phone.trim().isNotEmpty) {
+      payload['phone'] = phone.trim();
+    }
+    if (email != null && email.trim().isNotEmpty) {
+      payload['email'] = email.trim();
+    }
+
+    // Immediately update local cache so UI reacts synchronously
+    updateCurrentUser(fullName: fullName, phone: phone, email: email);
+
+    try {
+      final response = await _api.patch('/auth/profile', body: payload);
+      if (response != null && response is Map<String, dynamic>) {
+        final data = response['data'] is Map<String, dynamic> ? response['data'] as Map<String, dynamic> : response;
+        final updated = UserModel.fromJson(data);
+        setCurrentUser(updated);
+        return updated;
+      }
+    } catch (e) {
+      AppLogger.warn('updateUserProfile API warning: $e');
+    }
+
+    return _currentUser!;
   }
 
   /// Password Authentication (Mobile Number / Email + Password)

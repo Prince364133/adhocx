@@ -9,6 +9,22 @@ class AuthProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
 
+  AuthProvider() {
+    _user = _authService.currentUser;
+    _authService.authStateListenable.addListener(_onAuthStateChanged);
+  }
+
+  void _onAuthStateChanged() {
+    _user = _authService.currentUser;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _authService.authStateListenable.removeListener(_onAuthStateChanged);
+    super.dispose();
+  }
+
   UserModel? get user => _user ?? _authService.currentUser;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;

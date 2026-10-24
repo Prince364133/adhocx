@@ -93,6 +93,7 @@ export class UserProfileDto {
   organizationName!: string;
   fullName!: string;
   phone!: string;
+  email?: string;
   verificationStatus!: VerificationStatus;
   gstNumber?: string;
   address?: string;

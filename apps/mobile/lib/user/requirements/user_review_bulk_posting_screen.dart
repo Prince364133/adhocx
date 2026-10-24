@@ -9,6 +9,7 @@ import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
 import 'models/bulk_requirement_item.dart';
 import 'services/bulk_posting_service.dart';
+import '../../core/utils/app_toast.dart';
 
 class UserReviewBulkPostingScreen extends StatefulWidget {
   final List<BulkRequirementItem>? initialRequirements;
@@ -176,7 +177,7 @@ class _UserReviewBulkPostingScreenState extends State<UserReviewBulkPostingScree
       }
     } catch (e) {
       if (mounted) {
-        final cleanMsg = e.toString().replaceAll('Exception: ', '');
+        final cleanMsg = AppToast.cleanErrorMessage(e);
         _showFailureDialog([cleanMsg]);
       }
     } finally {

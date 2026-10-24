@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../../theme/app_colors.dart';
@@ -14,79 +15,136 @@ class AppToast {
     if (error == null) return 'An unexpected error occurred. Please try again.';
 
     String raw;
+    int? statusCode;
     if (error is ApiException) {
-      final code = error.statusCode;
-      final msg = error.message.trim();
-      final lower = msg.toLowerCase();
-
-      // Check for user existence errors
-      if (lower.contains('user does not exist') ||
-          lower.contains('account not found') ||
-          lower.contains('user not found') ||
-          lower.contains('no account found')) {
-        return 'No account found with this email or mobile number. Please check your details or sign up.';
-      }
-
-      // Check for password errors
-      if (lower.contains('incorrect password') ||
-          lower.contains('invalid password') ||
-          lower.contains('wrong password')) {
-        return 'Incorrect password. Please try again or reset your password.';
-      }
-
-      // Check for generic invalid credentials
-      if (lower.contains('invalid mobile number/email or password') ||
-          lower.contains('invalid credentials')) {
-        return 'Invalid email/phone or password. Please verify your details.';
-      }
-
-      // Check for missing password setup
-      if (lower.contains('no password set')) {
-        return 'No password has been set for this account. Please sign in with OTP or click "Forgot Password".';
-      }
-
-      // Check for OTP errors
-      if (lower.contains('invalid otp') || lower.contains('invalid or expired otp')) {
-        return 'Invalid or expired OTP code. Please enter the correct code or request a new one.';
-      }
-
-      // Check for rate limit
-      if (code == 429 || lower.contains('too many requests')) {
-        return 'Too many attempts. Please wait a moment before trying again.';
-      }
-
-      if (code == 404) {
-        return 'The requested account or resource was not found.';
-      }
-
-      if (code >= 500) {
-        return 'Server temporarily unavailable. Please try again shortly.';
-      }
-
-      raw = msg;
+      statusCode = error.statusCode;
+      raw = error.message.trim();
     } else {
       raw = error.toString().trim();
     }
 
-    // Strip technical exception prefixes
-    raw = raw.replaceAll(RegExp(r'^(Api)?Exception(\(\d+\))?:\s*', caseSensitive: false), '');
-    raw = raw.replaceAll(RegExp(r'^(Client|BadRequest|Unauthorized|NotFound|Forbidden)Exception:\s*', caseSensitive: false), '');
-    raw = raw.replaceAll(RegExp(r'^Error:\s*', caseSensitive: false), '');
-    raw = raw.trim();
+    // Try parsing raw string as JSON if it looks like a serialized JSON error
+    if (raw.startsWith('{') && raw.endsWith('}')) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map) {
+          if (decoded['message'] != null) {
+            final m = decoded['message'];
+            raw = (m is List ? m.join('. ') : m.toString()).trim();
+          } else if (decoded['error'] != null) {
+            final err = decoded['error'];
+            if (err is Map && err['message'] != null) {
+              raw = err['message'].toString().trim();
+            } else if (err is String) {
+              raw = err.trim();
+            }
+          }
+        }
+      } catch (_) {}
+    }
 
-    // Check for common network/connectivity issues
-    final lowerRaw = raw.toLowerCase();
-    if (lowerRaw.contains('socketexception') ||
-        lowerRaw.contains('failed host lookup') ||
-        lowerRaw.contains('network is unreachable') ||
-        lowerRaw.contains('connection refused') ||
-        lowerRaw.contains('clientexception') ||
-        lowerRaw.contains('xmlhttprequest error')) {
+    // Repeatedly strip all technical prefixes and wrappers anywhere in the message
+    bool changed = true;
+    while (changed) {
+      final prev = raw;
+      // Strip technical exception class prefixes (e.g. ApiException(400):, Exception:, ClientException:, etc.)
+      raw = raw.replaceAll(RegExp(r'(Api|Client|BadRequest|Unauthorized|NotFound|Forbidden|InternalServerError|Conflict|Socket|Timeout|Http|Platform|Format|Type|State)?Exception(\(\d+\))?:\s*', caseSensitive: false), '');
+      raw = raw.replaceAll(RegExp(r'(TypeError|NoSuchMethodError|StateError|AssertionError):\s*', caseSensitive: false), '');
+      // Strip action prefixes like "Withdrawal: ", "Arrival check: ", "Error starting trip: "
+      raw = raw.replaceAll(RegExp(r'^(Withdrawal|Arrival check|Error starting trip|Error completing trip|Failed to [a-zA-Z0-9_\s]+|Notice|Alert|Error):\s*', caseSensitive: false), '');
+      raw = raw.replaceAll(RegExp(r'^Error:\s*', caseSensitive: false), '');
+      raw = raw.replaceAll(RegExp(r'\[\d{3}\]\s*', caseSensitive: false), '');
+      raw = raw.replaceAll(RegExp(r'\(status\s*\d{3}\)\s*', caseSensitive: false), '');
+      raw = raw.trim();
+      changed = (raw != prev);
+    }
+
+    final lower = raw.toLowerCase();
+
+    // 1. Balance and wallet issues
+    if (lower.contains('insufficient balance')) {
+      return raw.isNotEmpty ? raw : 'Insufficient wallet balance for this withdrawal.';
+    }
+
+    // 2. User existence errors
+    if (lower.contains('user does not exist') ||
+        lower.contains('account not found') ||
+        lower.contains('user not found') ||
+        lower.contains('no account found')) {
+      return 'No account found with this email or mobile number. Please check your details or sign up.';
+    }
+
+    // 3. Password errors
+    if (lower.contains('incorrect password') ||
+        lower.contains('invalid password') ||
+        lower.contains('wrong password')) {
+      return 'Incorrect password. Please try again or reset your password.';
+    }
+
+    // 4. Generic invalid credentials
+    if (lower.contains('invalid mobile number/email or password') ||
+        lower.contains('invalid credentials')) {
+      return 'Invalid email/phone or password. Please verify your details.';
+    }
+
+    // 5. Missing password setup
+    if (lower.contains('no password set')) {
+      return 'No password has been set for this account. Please sign in with OTP or click "Forgot Password".';
+    }
+
+    // 6. OTP errors
+    if (lower.contains('invalid otp') || lower.contains('invalid or expired otp')) {
+      return 'Invalid or expired OTP code. Please enter the correct code or request a new one.';
+    }
+
+    // 7. Rate limit
+    if (statusCode == 429 || lower.contains('too many requests')) {
+      return 'Too many attempts. Please wait a moment before trying again.';
+    }
+
+    // 8. Unique conflict or duplicate
+    if (lower.contains('already in use') ||
+        lower.contains('already exists') ||
+        lower.contains('unique constraint') ||
+        lower.contains('violates unique')) {
+      return raw.isNotEmpty ? raw : 'This information is already linked to another account.';
+    }
+
+    // 9. Common network/connectivity issues
+    if (lower.contains('socketexception') ||
+        lower.contains('failed host lookup') ||
+        lower.contains('network is unreachable') ||
+        lower.contains('connection refused') ||
+        lower.contains('clientexception') ||
+        lower.contains('timed out') ||
+        lower.contains('timeoutexception') ||
+        lower.contains('xmlhttprequest error') ||
+        lower.contains('connection closed')) {
       return 'Unable to connect to the server. Please check your internet connection.';
     }
 
+    // 10. Database / Server / Internal errors / Technical code dumps
+    if ((statusCode != null && statusCode >= 500) ||
+        lower.contains('internal server error') ||
+        lower.contains('prismaclient') ||
+        lower.contains('prisma') ||
+        lower.contains('database') ||
+        lower.contains('sqlstate') ||
+        lower.contains('syntax error') ||
+        lower.contains('unhandled exception') ||
+        lower.contains('nullcheckoperator') ||
+        lower.contains('stack trace') ||
+        lower.contains('nosuchmethod') ||
+        lower.contains('request failed with status')) {
+      return 'Something went wrong. Please try again shortly.';
+    }
+
+    if (statusCode == 404 || lower.contains('not found')) {
+      return raw.isNotEmpty ? raw : 'The requested resource was not found.';
+    }
+
     if (raw.isEmpty) {
-      return 'An unexpected error occurred. Please try again.';
+      return 'Unable to complete your request. Please check your details and try again.';
     }
 
     return raw;

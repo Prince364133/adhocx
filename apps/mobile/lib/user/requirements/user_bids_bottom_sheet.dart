@@ -7,6 +7,7 @@ import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
+import '../../core/utils/app_toast.dart';
 
 class UserBidsBottomSheet extends StatefulWidget {
   final String requirementId;
@@ -83,12 +84,7 @@ class _UserBidsBottomSheetState extends State<UserBidsBottomSheet> {
     } catch (e) {
       if (mounted) {
         setState(() => _acceptingBidId = null);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        AppToast.showError(e, context: context);
       }
     }
   }

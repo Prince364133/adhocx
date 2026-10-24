@@ -5,6 +5,7 @@ import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/common/app_primary_button.dart';
+import '../../core/utils/app_toast.dart';
 
 class DriverSubmitBidSheet extends StatefulWidget {
   final Map<String, dynamic> opportunity;
@@ -102,7 +103,7 @@ class _DriverSubmitBidSheetState extends State<DriverSubmitBidSheet> {
       if (mounted) {
         setState(() {
           _isSubmitting = false;
-          _errorMessage = e.toString().replaceAll('Exception: ', '');
+          _errorMessage = AppToast.cleanErrorMessage(e);
         });
       }
     }

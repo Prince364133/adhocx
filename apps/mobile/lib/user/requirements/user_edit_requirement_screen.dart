@@ -8,6 +8,7 @@ import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
+import '../../core/utils/app_toast.dart';
 
 class UserEditRequirementScreen extends StatefulWidget {
   final Map<String, dynamic>? requirementData;
@@ -58,7 +59,7 @@ class _UserEditRequirementScreenState extends State<UserEditRequirementScreen> {
       }
     } catch (e) {
       if (mounted) {
-        Fluttertoast.showToast(msg: 'Error: ${e.toString().replaceAll("Exception: ", "")}');
+        AppToast.showError(e, context: context);
       }
     } finally {
       if (mounted) setState(() => _isDeleting = false);

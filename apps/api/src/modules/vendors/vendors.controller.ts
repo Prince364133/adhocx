@@ -1,5 +1,5 @@
 
-import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { CreateVendorProfileDto, AuthUserDto, UserRole } from '@adhocx/contracts';
 import { JwtAuthGuard, RolesGuard, Roles, CurrentUser } from '../../common';
@@ -20,6 +20,16 @@ export class VendorsController {
     @Body() dto: CreateVendorProfileDto,
   ) {
     return this.vendorsService.createProfile(user.id, dto, dto.phone || user.phone || '');
+  }
+
+  @Patch('profile')
+  @Roles(UserRole.VENDOR, UserRole.ADMIN, UserRole.DRIVER)
+  @ApiOperation({ summary: 'Update vendor profile' })
+  async updateProfile(
+    @CurrentUser() user: AuthUserDto,
+    @Body() dto: any,
+  ) {
+    return this.vendorsService.updateProfile(user.id, dto);
   }
 
   @Get('profile')

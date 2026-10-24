@@ -7,6 +7,7 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_radius.dart';
 import '../../../theme/app_typography.dart';
 import '../../../widgets/common/app_primary_button.dart';
+import '../../../core/utils/app_toast.dart';
 
 /// Interactive modal allowing drivers to view and update their bank payout details.
 class BankDetailsModal extends StatefulWidget {
@@ -156,10 +157,7 @@ class _BankDetailsModalState extends State<BankDetailsModal> {
       }
     } catch (e) {
       if (mounted) {
-        Fluttertoast.showToast(
-          msg: 'Failed to update bank details: ${e.toString().replaceAll('Exception: ', '')}',
-          backgroundColor: AppColors.error,
-        );
+        AppToast.showError(e, context: context);
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);

@@ -14,7 +14,7 @@ class ApiException implements Exception {
   ApiException({required this.statusCode, required this.message, this.data});
 
   @override
-  String toString() => 'ApiException($statusCode): $message';
+  String toString() => message;
 }
 
 class _ApiCacheEntry {
@@ -608,7 +608,9 @@ class ApiClient {
       return responseData;
     }
 
-    String errorMessage = 'Request failed with status: ${response.statusCode}';
+    String errorMessage = response.statusCode >= 500
+        ? 'Server is temporarily unavailable. Please try again shortly.'
+        : 'Request failed. Please check your details and try again.';
     if (responseData is Map) {
       if (responseData['error'] is Map) {
         final err = responseData['error'] as Map;
@@ -620,7 +622,8 @@ class ApiClient {
             errorMessage = details;
           }
         }
-        if ((errorMessage == 'Request failed with status: ${response.statusCode}' ||
+        if ((errorMessage.startsWith('Request failed') ||
+             errorMessage.startsWith('Server is temporarily unavailable') ||
              errorMessage == 'Validation failed') &&
             err['message'] != null) {
           errorMessage = err['message'].toString();

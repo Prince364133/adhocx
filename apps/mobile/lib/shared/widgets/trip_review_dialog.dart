@@ -5,6 +5,7 @@ import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
+import '../../core/utils/app_toast.dart';
 
 class TripReviewDialog extends StatefulWidget {
   final String tripId;
@@ -91,12 +92,7 @@ class _TripReviewDialogState extends State<TripReviewDialog> {
     } catch (e) {
       if (mounted) {
         setState(() => _submitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        AppToast.showError(e, context: context);
       }
     }
   }

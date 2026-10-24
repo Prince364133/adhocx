@@ -25,9 +25,16 @@ export class VendorsService {
     const effectivePhone = rawPhone.trim().replace(/\s+/g, '');
     const cleanName = dto.fullName ? dto.fullName.trim() : undefined;
 
-    if (effectivePhone && user && effectivePhone !== user.phone) {
+    // Check existing vendor to exclude self from phone collision check
+    let existingVendor: any = null;
+    try {
+      existingVendor = await this.db.vendor.findUnique({ where: { userId } });
+    } catch (_) {}
+
+    if (effectivePhone && (effectivePhone !== user?.phone || effectivePhone !== existingVendor?.phone)) {
       await assertPhoneAvailable(this.db, effectivePhone, {
         excludeUserId: userId,
+        excludeVendorId: existingVendor?.id,
       });
 
       try {
@@ -53,7 +60,7 @@ export class VendorsService {
     const extraDetails: Record<string, any> = {};
     const extraKeys = [
       'brandName', 'panNumber', 'businessType', 'website', 'city', 'state', 'pincode',
-      'billingAddress', 'isBillingAddressSame', 'monthlyTrips',
+      'billingAddress', 'isBillingAddressSame', 'billingEmail', 'monthlyTrips',
       'spocDesignation', 'alternatePhone', 'alternateEmail',
       'emergencyContactName', 'emergencyContactPhone', 'operationalCampus'
     ];
@@ -65,12 +72,9 @@ export class VendorsService {
 
     // Preserve existing kycDocuments if any
     let existingKyc: any = {};
-    try {
-      const existingVendor = await this.db.vendor.findUnique({ where: { userId } });
-      if (existingVendor?.kycDocuments && typeof existingVendor.kycDocuments === 'object') {
-        existingKyc = existingVendor.kycDocuments;
-      }
-    } catch (_) {}
+    if (existingVendor?.kycDocuments && typeof existingVendor.kycDocuments === 'object') {
+      existingKyc = existingVendor.kycDocuments;
+    }
 
     const updatedKyc = {
       ...existingKyc,
@@ -119,9 +123,14 @@ export class VendorsService {
     } as any;
   }
 
+  async updateProfile(userId: string, dto: any): Promise<VendorProfileDto> {
+    return this.createProfile(userId, dto, dto.phone || '');
+  }
+
   async getProfile(userId: string): Promise<VendorProfileDto> {
     const vendor = await this.db.vendor.findUnique({
       where: { userId },
+      include: { user: true },
     });
 
     if (!vendor) {
@@ -141,10 +150,11 @@ export class VendorsService {
         organizationName: user.fullName || 'Corporate Partner',
         fullName: user.fullName || 'Business Requester',
         phone: user.phone,
+        email: user.email,
         verificationStatus: VerificationStatus.PENDING,
         createdAt: user.createdAt.toISOString(),
         updatedAt: user.updatedAt.toISOString(),
-      };
+      } as any;
     }
 
     const savedCompanyDetails = (vendor.kycDocuments as any)?.companyDetails || {};
@@ -153,8 +163,9 @@ export class VendorsService {
       id: vendor.id,
       userId: vendor.userId,
       organizationName: vendor.organizationName,
-      fullName: vendor.fullName,
-      phone: vendor.phone,
+      fullName: vendor.fullName || vendor.user?.fullName,
+      phone: vendor.phone || vendor.user?.phone,
+      email: vendor.user?.email || undefined,
       verificationStatus: vendor.verificationStatus as VerificationStatus,
       gstNumber: vendor.gstNumber || undefined,
       address: vendor.address || undefined,

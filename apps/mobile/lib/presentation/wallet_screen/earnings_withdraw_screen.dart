@@ -9,6 +9,7 @@ import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/common/app_primary_button.dart';
+import '../../core/utils/app_toast.dart';
 import './widgets/bank_details_modal.dart';
 
 /// Screen 3: Request Withdrawal screen with live wallet integration and ₹1,000 minimum threshold.
@@ -111,10 +112,10 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
       return;
     }
 
-    if (_availableBalance > 0 && amount > _availableBalance) {
-      Fluttertoast.showToast(
-        msg: 'Amount exceeds available balance (₹$_availableBalance)',
-        backgroundColor: AppColors.error,
+    if (amount > _availableBalance) {
+      AppToast.showError(
+        'Amount exceeds available balance (₹${_availableBalance.toStringAsFixed(2)})',
+        context: context,
       );
       return;
     }
@@ -166,10 +167,9 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
         );
       }
     } catch (e) {
-      Fluttertoast.showToast(
-        msg: 'Withdrawal: ${e.toString().replaceAll('Exception: ', '')}',
-        backgroundColor: AppColors.error,
-      );
+      if (mounted) {
+        AppToast.showError(e, context: context);
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

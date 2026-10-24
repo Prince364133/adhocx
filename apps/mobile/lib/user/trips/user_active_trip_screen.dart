@@ -10,6 +10,7 @@ import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/trip_rating_bottom_sheet.dart';
+import '../../core/utils/app_toast.dart';
 
 class UserActiveTripScreen extends StatefulWidget {
   final Map<String, dynamic>? trip;
@@ -99,7 +100,7 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
       }
     } catch (e) {
       if (!silent && mounted) {
-        setState(() => _errorMessage = e.toString().replaceAll('Exception: ', ''));
+        setState(() => _errorMessage = AppToast.cleanErrorMessage(e));
       }
     } finally {
       if (!silent && mounted) setState(() => _isLoading = false);

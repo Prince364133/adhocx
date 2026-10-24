@@ -64,7 +64,7 @@ void main() {
 
       expect(exception.statusCode, 400);
       expect(exception.message, 'Invalid OTP provided');
-      expect(exception.toString(), 'ApiException(400): Invalid OTP provided');
+      expect(exception.toString(), 'Invalid OTP provided');
     });
 
     test('ApiClient singleton returns consistent instance', () {
@@ -119,6 +119,23 @@ void main() {
       expect(
         AppToast.cleanErrorMessage(networkError),
         'Unable to connect to the server. Please check your internet connection.',
+      );
+
+      // 6. Withdrawal API exception stripping
+      const withdrawalRaw = 'Withdrawal: ApiException(400): Insufficient balance. Available: ₹0.00, Requested: ₹2000.00';
+      expect(
+        AppToast.cleanErrorMessage(withdrawalRaw),
+        'Insufficient balance. Available: ₹0.00, Requested: ₹2000.00',
+      );
+
+      // 7. Prisma/database internal error masking
+      final dbError = ApiException(
+        statusCode: 500,
+        message: 'PrismaClientKnownRequestError: Invalid `prisma.user.findUnique()` invocation',
+      );
+      expect(
+        AppToast.cleanErrorMessage(dbError),
+        'Something went wrong. Please try again shortly.',
       );
     });
 
@@ -175,6 +192,53 @@ void main() {
 
       // Malformed token returns false gracefully
       expect(ApiClient.isTokenExpiring('invalid_token'), false);
+    });
+
+    test('UserModel.copyWith correctly updates fullName, phone, email and profiles', () {
+      final initialUser = UserModel(
+        id: 'usr-google',
+        role: 'DRIVER',
+        fullName: 'RJ SPORTS',
+        email: 'rjsports.store@gmail.com',
+        driverProfile: {'fullName': 'RJ SPORTS'},
+      );
+
+      final updatedUser = initialUser.copyWith(
+        fullName: 'Rahul Sharma',
+        phone: '+919876543210',
+      );
+
+      expect(updatedUser.id, 'usr-google');
+      expect(updatedUser.fullName, 'Rahul Sharma');
+      expect(updatedUser.phone, '+919876543210');
+      expect(updatedUser.email, 'rjsports.store@gmail.com');
+      expect(updatedUser.role, 'DRIVER');
+    });
+
+    test('AuthService.updateCurrentUser immediately updates session and notifies listeners', () {
+      final auth = AuthService.instance;
+      auth.setCurrentUser(UserModel(
+        id: 'usr-test-1',
+        role: 'DRIVER',
+        fullName: 'Google Preload Name',
+        email: 'test@gmail.com',
+      ));
+
+      expect(auth.currentUser?.fullName, 'Google Preload Name');
+
+      var notified = false;
+      auth.authStateListenable.addListener(() {
+        notified = true;
+      });
+
+      auth.updateCurrentUser(
+        fullName: 'Edited Real Name',
+        phone: '+919811122233',
+      );
+
+      expect(auth.currentUser?.fullName, 'Edited Real Name');
+      expect(auth.currentUser?.phone, '+919811122233');
+      expect(notified, true);
     });
   });
 }

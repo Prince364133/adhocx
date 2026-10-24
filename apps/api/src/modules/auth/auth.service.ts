@@ -12,6 +12,7 @@ import {
   ResetPasswordDto,
   AuthResponseDto,
   UserMeResponseDto,
+  UpdateUserDto,
   UserRole,
 } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
@@ -839,10 +840,10 @@ export class AuthService implements OnModuleInit {
       expiresAt: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString(),
       user: {
         id: user.id,
-        phone: user.phone,
+        phone: user.phone || user.driver?.phone || user.vendor?.phone || undefined,
         email: user.email,
         role: user.role as UserRole,
-        fullName: user.fullName || undefined,
+        fullName: user.fullName || user.driver?.fullName || user.vendor?.fullName || undefined,
         isApproved,
         hasPassword,
         isOnboarded,
@@ -851,7 +852,7 @@ export class AuthService implements OnModuleInit {
               id: user.vendor.id,
               organizationName: user.vendor.organizationName,
               fullName: user.vendor.fullName,
-              phone: user.vendor.phone,
+              phone: user.vendor.phone || user.phone || undefined,
               address: user.vendor.address,
               gstNumber: user.vendor.gstNumber,
               verificationStatus: user.vendor.verificationStatus,
@@ -863,7 +864,7 @@ export class AuthService implements OnModuleInit {
           ? {
               id: user.driver.id,
               fullName: user.driver.fullName,
-              phone: user.driver.phone,
+              phone: user.driver.phone || user.phone || undefined,
               verificationStatus: user.driver.verificationStatus,
               availabilityStatus: user.driver.availabilityStatus,
               vehicleType: user.driver.vehicleType || undefined,
@@ -1026,6 +1027,8 @@ export class AuthService implements OnModuleInit {
       }
     }
 
+    const profilePhoto = (user?.driver?.kycDocuments as any)?.profilePhotoUrl || (user?.vendor?.kycDocuments as any)?.logoUrl || undefined;
+
     return {
       accessToken: newAccessToken,
       refreshToken: newRefreshToken,
@@ -1036,6 +1039,7 @@ export class AuthService implements OnModuleInit {
         email: user?.email || payload.email || undefined,
         role: payload.role as UserRole,
         fullName: user?.fullName || undefined,
+        photoUrl: profilePhoto,
         isApproved,
         hasPassword,
         isOnboarded,
@@ -1081,12 +1085,26 @@ export class AuthService implements OnModuleInit {
       isOnboarded = true;
     }
 
+    const effectivePhone = user.phone || user.driver?.phone || user.vendor?.phone || undefined;
+    const effectiveFullName = user.fullName || user.driver?.fullName || user.vendor?.fullName || undefined;
+    const driverKyc = (user.driver?.kycDocuments as Record<string, any>) || {};
+    const effectivePhoto = driverKyc.profilePhotoUrl || (user.vendor?.kycDocuments as any)?.logoUrl || undefined;
+
+    // Backfill user.phone if driver or vendor has a verified phone
+    if (!user.phone && effectivePhone) {
+      await this.db.user.update({
+        where: { id: userId },
+        data: { phone: effectivePhone },
+      }).catch(() => null);
+    }
+
     return {
       id: user.id,
-      phone: user.phone || undefined,
+      phone: effectivePhone,
       email: user.email || undefined,
       role: user.role as UserRole,
-      fullName: user.fullName || undefined,
+      fullName: effectiveFullName,
+      photoUrl: effectivePhoto,
       status: user.status,
       hasPassword,
       isOnboarded,
@@ -1094,6 +1112,8 @@ export class AuthService implements OnModuleInit {
         ? {
             id: user.vendor.id,
             organizationName: user.vendor.organizationName,
+            fullName: user.vendor.fullName,
+            phone: user.vendor.phone || effectivePhone,
             verificationStatus: user.vendor.verificationStatus,
             rejectionReason: (user.vendor as any).rejectionReason || undefined,
           }
@@ -1101,14 +1121,91 @@ export class AuthService implements OnModuleInit {
       driverProfile: user.driver
         ? {
             id: user.driver.id,
+            fullName: user.driver.fullName,
+            phone: user.driver.phone || effectivePhone,
             verificationStatus: user.driver.verificationStatus,
             availabilityStatus: user.driver.availabilityStatus,
             vehicleType: user.driver.vehicleType || undefined,
             walletBalance: Number(user.driver.walletBalance || 0),
             rejectionReason: (user.driver as any).rejectionReason || undefined,
+            profilePhotoUrl: driverKyc.profilePhotoUrl || undefined,
+            dateOfBirth: driverKyc.dateOfBirth || undefined,
+            gender: driverKyc.gender || undefined,
+            address: driverKyc.address || undefined,
+            emergencyContactName: driverKyc.emergencyContactName || undefined,
+            emergencyContactPhone: driverKyc.emergencyContactPhone || undefined,
+            vehiclePlate: user.driver.vehiclePlate || undefined,
+            vehicleModel: user.driver.vehicleModel || undefined,
           }
         : undefined,
       createdAt: user.createdAt.toISOString(),
     };
+  }
+
+  async updateUserProfile(userId: string, dto: UpdateUserDto): Promise<UserMeResponseDto> {
+    const cleanName = dto.fullName ? dto.fullName.trim() : undefined;
+    const cleanPhone = dto.phone ? dto.phone.trim().replace(/\s+/g, '') : undefined;
+    const cleanEmail = dto.email ? dto.email.trim().toLowerCase() : undefined;
+
+    const user = await this.db.user.findUnique({
+      where: { id: userId },
+      include: { driver: true, vendor: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User profile not found');
+    }
+
+    if (cleanPhone && cleanPhone !== user.phone && cleanPhone !== user.driver?.phone && cleanPhone !== user.vendor?.phone) {
+      await assertPhoneAvailable(this.db, cleanPhone, {
+        excludeUserId: userId,
+        excludeDriverId: user.driver?.id,
+      });
+    }
+
+    if (cleanEmail && cleanEmail !== user.email?.toLowerCase()) {
+      const existing = await this.db.user.findUnique({
+        where: { email: cleanEmail },
+      });
+      if (existing && existing.id !== userId) {
+        throw new ConflictException('This email is already in use by another account');
+      }
+    }
+
+    await this.db.user.update({
+      where: { id: userId },
+      data: {
+        ...(cleanName ? { fullName: cleanName } : {}),
+        ...(cleanPhone ? { phone: cleanPhone } : {}),
+        ...(cleanEmail ? { email: cleanEmail } : {}),
+      },
+    });
+
+    if (user.driver) {
+      try {
+        await this.db.driver.update({
+          where: { id: user.driver.id },
+          data: {
+            ...(cleanName ? { fullName: cleanName } : {}),
+            ...(cleanPhone ? { phone: cleanPhone } : {}),
+          },
+        });
+      } catch (_) {}
+    }
+
+    if (user.vendor) {
+      try {
+        await this.db.vendor.update({
+          where: { id: user.vendor.id },
+          data: {
+            ...(cleanName ? { fullName: cleanName } : {}),
+            ...(cleanPhone ? { phone: cleanPhone } : {}),
+          },
+        });
+      } catch (_) {}
+    }
+
+    this.logger.log(`👤 Profile updated for user ${userId}: name="${cleanName}", email="${cleanEmail}", phone="${cleanPhone}"`);
+    return this.getCurrentUser(userId);
   }
 }

@@ -13,6 +13,7 @@ import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
 import '../../core/networking/api_client.dart';
 import '../../shared/widgets/pending_review_gate.dart';
+import '../../core/utils/app_toast.dart';
 import 'requirement_draft_provider.dart';
 import 'utils/office_hub_detector.dart';
 
@@ -331,7 +332,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                                   } catch (err) {
                                     setModalState(() {
                                       appliedTopUpCoupon = null;
-                                      topUpCouponError = err.toString().replaceAll('Exception: ', '').replaceAll('ApiException(400): ', '');
+                                      topUpCouponError = AppToast.cleanErrorMessage(err);
                                       isValidatingTopUpCoupon = false;
                                     });
                                   }
@@ -533,10 +534,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                               } catch (err) {
                                 setModalState(() => isProcessing = false);
                                 if (mounted) {
-                                  final msg = err.toString().replaceAll('ClientException: ', '').replaceAll('Exception: ', '').replaceAll('ApiException(400): ', '');
-                                  messenger.showSnackBar(
-                                    SnackBar(content: Text('Top-up failed: $msg'), backgroundColor: AppColors.error),
-                                  );
+                                  AppToast.showError(err);
                                 }
                               }
                             },
@@ -1056,7 +1054,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                                           } catch (err) {
                                             setState(() {
                                               _appliedCoupon = null;
-                                              _couponError = err.toString().replaceAll('Exception: ', '').replaceAll('ApiException(400): ', '');
+                                              _couponError = AppToast.cleanErrorMessage(err);
                                               _isValidatingCoupon = false;
                                             });
                                           }

@@ -11,6 +11,7 @@ import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/common/app_primary_button.dart';
+import '../../core/utils/app_toast.dart';
 
 /// Screen 3: Trip Details with live backend integration and full lifecycle support.
 class TripDetailsScreen extends StatefulWidget {
@@ -152,10 +153,9 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
       );
       await _fetchTripDetails();
     } catch (e) {
-      Fluttertoast.showToast(
-        msg: 'Arrival check: ${e.toString().replaceAll('Exception: ', '')}',
-        backgroundColor: AppColors.error,
-      );
+      if (mounted) {
+        AppToast.showError(e, context: context);
+      }
     } finally {
       if (mounted) setState(() => _isActionInProgress = false);
     }
@@ -210,10 +210,9 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
         );
         await _fetchTripDetails();
       } catch (e) {
-        Fluttertoast.showToast(
-          msg: 'Error starting trip: ${e.toString().replaceAll('Exception: ', '')}',
-          backgroundColor: AppColors.error,
-        );
+        if (mounted) {
+          AppToast.showError(e, context: context);
+        }
       } finally {
         if (mounted) setState(() => _isActionInProgress = false);
       }
@@ -237,10 +236,9 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
         }
       }
     } catch (e) {
-      Fluttertoast.showToast(
-        msg: 'Error completing trip: ${e.toString().replaceAll('Exception: ', '')}',
-        backgroundColor: AppColors.error,
-      );
+      if (mounted) {
+        AppToast.showError(e, context: context);
+      }
     } finally {
       if (mounted) setState(() => _isActionInProgress = false);
     }

@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:universal_html/html.dart' as html;
 import '../../../services/user_service.dart';
 import '../models/bulk_requirement_item.dart';
+import '../../../core/utils/app_toast.dart';
 
 class BulkParseResult {
   final String fileName;
@@ -614,9 +615,7 @@ class BulkPostingService {
         successCount++;
       } catch (e) {
         failedCount++;
-        final cleanMsg = e.toString()
-            .replaceAll('Exception: ', '')
-            .replaceAll('ApiException(400): ', '');
+        final cleanMsg = AppToast.cleanErrorMessage(e);
         errors.add('Row #${item.rowIndex} (${item.title}): $cleanMsg');
       }
     }

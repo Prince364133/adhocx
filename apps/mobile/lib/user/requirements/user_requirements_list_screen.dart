@@ -14,6 +14,7 @@ import 'services/fleet_template_service.dart';
 import 'utils/office_hub_detector.dart';
 import 'widgets/batch_requirement_details_modal.dart';
 import 'widgets/saved_templates_modal.dart';
+import '../../core/utils/app_toast.dart';
 
 class RequirementGroupItem {
   final String key;
@@ -321,7 +322,9 @@ class _UserRequirementsListScreenState extends State<UserRequirementsListScreen>
         textColor: Colors.white,
       );
     } catch (e) {
-      Fluttertoast.showToast(msg: 'Failed to save template: $e');
+      if (mounted) {
+        AppToast.showError(e, context: context);
+      }
     }
   }
 

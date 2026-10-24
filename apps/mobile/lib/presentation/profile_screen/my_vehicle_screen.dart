@@ -320,6 +320,7 @@ class _MyVehicleScreenState extends State<MyVehicleScreen> {
                                       badgeText: isVerified ? 'Verified' : 'Under Review',
                                       badgeColor: statusColor,
                                       isDark: isDark,
+                                      onTap: () => context.push(AppRoutes.kycVerificationScreen, extra: 'vehicle'),
                                     ),
                                   ],
                                 ),
@@ -383,7 +384,7 @@ class _MyVehicleScreenState extends State<MyVehicleScreen> {
                                 ),
                               ),
                               child: ListTile(
-                                onTap: () => context.push(AppRoutes.documentDetailsScreen),
+                                onTap: () => context.push(AppRoutes.kycVerificationScreen, extra: 'vehicle'),
                                 leading: Icon(
                                   Icons.description_outlined,
                                   color: isDark ? AppColors.primaryLight : AppColors.primary,
@@ -418,8 +419,10 @@ class _MyVehicleScreenState extends State<MyVehicleScreen> {
     required bool isDark,
     String? badgeText,
     Color? badgeColor,
+    VoidCallback? onTap,
   }) {
-    return Padding(
+    final bool showValue = badgeText == null || value.trim().toLowerCase() != badgeText.trim().toLowerCase();
+    final child = Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
         vertical: AppSpacing.md,
@@ -435,17 +438,18 @@ class _MyVehicleScreenState extends State<MyVehicleScreen> {
           ),
           Row(
             children: [
-              Text(
-                value,
-                style: AppTypography.body(
-                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                  fontWeight: FontWeight.w600,
+              if (showValue)
+                Text(
+                  value,
+                  style: AppTypography.body(
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
               if (badgeText != null) ...[
-                const SizedBox(width: 8),
+                if (showValue) const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: (badgeColor ?? AppColors.primary).withValues(alpha: isDark ? 0.2 : 0.12),
                     borderRadius: BorderRadius.circular(AppRadius.xs),
@@ -459,10 +463,26 @@ class _MyVehicleScreenState extends State<MyVehicleScreen> {
                   ),
                 ),
               ],
+              if (onTap != null) ...[
+                const SizedBox(width: 6),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                ),
+              ],
             ],
           ),
         ],
       ),
     );
+
+    if (onTap != null) {
+      return InkWell(
+        onTap: onTap,
+        child: child,
+      );
+    }
+    return child;
   }
 }

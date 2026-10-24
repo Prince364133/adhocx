@@ -12,6 +12,7 @@ import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
 import '../../shared/widgets/trip_rating_bottom_sheet.dart';
 import 'user_bids_bottom_sheet.dart';
+import '../../core/utils/app_toast.dart';
 
 class UserRequirementDetailsScreen extends StatefulWidget {
   final String? requirementId;
@@ -205,9 +206,7 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
       } catch (e) {
         if (mounted) {
           setState(() => _isLoading = false);
-          messenger.showSnackBar(
-            SnackBar(content: Text('Failed to cancel: $e'), backgroundColor: AppColors.error),
-          );
+          AppToast.showError(e);
         }
       }
     }
@@ -231,9 +230,7 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        messenger.showSnackBar(
-          SnackBar(content: Text('Retry failed: $e'), backgroundColor: AppColors.error),
-        );
+        AppToast.showError(e);
       }
     }
   }
@@ -1450,15 +1447,12 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                                           const SizedBox(height: 4),
                                           ElevatedButton(
                                             onPressed: () async {
-                                              final messenger = ScaffoldMessenger.of(context);
                                               try {
                                                 await UserService.instance.acceptBid(b['id'].toString());
                                                 _loadRequirement(silent: false);
                                               } catch (e) {
                                                 if (mounted) {
-                                                  messenger.showSnackBar(
-                                                    SnackBar(content: Text('Failed to accept quote: $e'), backgroundColor: AppColors.error),
-                                                  );
+                                                  AppToast.showError(e);
                                                 }
                                               }
                                             },

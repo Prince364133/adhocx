@@ -46,12 +46,13 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
   late final TextEditingController _spocDesignationController;
   late final TextEditingController _spocPhoneController;
   late final TextEditingController _billingEmailController;
+  final TextEditingController _altPhoneController = TextEditingController();
   late final TextEditingController _cityController;
   late final TextEditingController _stateController;
   late final TextEditingController _pincodeController;
 
-  String _selectedBusinessType = 'Private Limited';
-  String _selectedMonthlyTrips = '26 - 100 trips / month';
+  String _selectedBusinessType = 'IT & Technology Services';
+  String _selectedMonthlyTrips = '50 - 200 trips / month';
   DateTime? _selectedDate;
   String _selectedGender = 'Male';
   bool _isSaving = false;
@@ -59,20 +60,22 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
   String? _inlineErrorMessage;
 
   static const List<String> _businessEntityTypes = [
-    'Private Limited',
-    'Public Limited',
-    'LLP (Limited Liability Partnership)',
-    'Partnership Firm',
-    'Sole Proprietorship',
-    'Corporate Enterprise',
-    'Travel Agency / Event Organizer',
+    'IT & Technology Services',
+    'BPO / Call Center & KPO',
+    'Consulting & Professional Services',
+    'Manufacturing & Engineering',
+    'Healthcare & Pharmaceuticals',
+    'Banking, Financial Services & Insurance',
+    'Logistics & Supply Chain',
+    'Travel & Corporate Hospitality',
+    'Other Corporate Enterprise',
   ];
 
   static const List<String> _monthlyTripOptions = [
-    '1 - 25 trips / month',
-    '26 - 100 trips / month',
-    '101 - 500 trips / month',
-    '500+ trips / month',
+    '10 - 50 trips / month',
+    '50 - 200 trips / month',
+    '200 - 500 trips / month',
+    '500+ trips / month (Enterprise Fleet)',
   ];
 
   @override
@@ -116,23 +119,25 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
           : (authUser?.vendorProfile?['organizationName'] ?? ''),
     );
     _brandNameController = TextEditingController(text: onboarding.brandName);
-    _selectedBusinessType = onboarding.businessType.isNotEmpty
+    _selectedBusinessType = onboarding.businessType.isNotEmpty &&
+            _businessEntityTypes.contains(onboarding.businessType)
         ? onboarding.businessType
-        : 'Private Limited';
+        : 'IT & Technology Services';
     _panController = TextEditingController(text: onboarding.panNumber);
     _gstController = TextEditingController(
       text: onboarding.gstNumber.isNotEmpty
           ? onboarding.gstNumber
           : (authUser?.vendorProfile?['gstNumber'] ?? ''),
     );
-    _selectedMonthlyTrips = onboarding.monthlyTrips.isNotEmpty
+    _selectedMonthlyTrips = onboarding.monthlyTrips.isNotEmpty &&
+            _monthlyTripOptions.contains(onboarding.monthlyTrips)
         ? onboarding.monthlyTrips
-        : '26 - 100 trips / month';
+        : '50 - 200 trips / month';
     _spocNameController = TextEditingController(text: initialName);
     _spocDesignationController = TextEditingController(
       text: onboarding.spocDesignation.isNotEmpty
           ? onboarding.spocDesignation
-          : 'Travel Desk Lead',
+          : 'Corporate Lead',
     );
     _spocPhoneController = TextEditingController(text: initialPhone);
     _billingEmailController = TextEditingController(
@@ -140,6 +145,12 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
           ? onboarding.billingEmail
           : initialEmail,
     );
+    _altPhoneController.text =
+        (authUser?.vendorProfile?['alternatePhone'] ?? '').toString();
+    if (_emergencyPhoneController.text.isEmpty) {
+      _emergencyPhoneController.text =
+          (authUser?.vendorProfile?['emergencyContactPhone'] ?? '').toString();
+    }
     _cityController = TextEditingController(text: onboarding.city);
     _stateController = TextEditingController(text: onboarding.stateName);
     _pincodeController = TextEditingController(text: onboarding.pincode);
@@ -160,6 +171,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
     _spocDesignationController.dispose();
     _spocPhoneController.dispose();
     _billingEmailController.dispose();
+    _altPhoneController.dispose();
     _cityController.dispose();
     _stateController.dispose();
     _pincodeController.dispose();
@@ -227,24 +239,19 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
     if (onboarding.isUser) {
       // ── Vendor / Corporate Booker Submission ──
       if (!_formKey.currentState!.validate()) {
-        const msg = 'Please fill in all mandatory company details.';
+        const msg = 'Please fill in all mandatory organization details.';
         setState(() => _inlineErrorMessage = msg);
         AppToast.showError(msg, context: context);
         return;
       }
 
       final companyName = _companyNameController.text.trim();
-      final brandName = _brandNameController.text.trim();
-      final gstNumber = _gstController.text.trim().toUpperCase();
-      final panNumber = _panController.text.trim().toUpperCase();
       final spocName = _spocNameController.text.trim();
       final spocPhone = _spocPhoneController.text.trim();
-      final spocDesignation = _spocDesignationController.text.trim();
-      final registeredAddress = _addressController.text.trim();
-      final city = _cityController.text.trim();
-      final state = _stateController.text.trim();
-      final pincode = _pincodeController.text.trim();
       final billingEmail = _billingEmailController.text.trim();
+      final altPhone = _altPhoneController.text.trim();
+      final emergencyPhone = _emergencyPhoneController.text.trim();
+      final location = _addressController.text.trim();
 
       setState(() {
         _isSaving = true;
@@ -252,27 +259,30 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
       });
 
       try {
-        final fullAddress = [registeredAddress, city, state, pincode]
-            .where((s) => s.isNotEmpty)
-            .join(', ');
-
         onboarding.setVendorDetails(
           companyName: companyName,
-          brandName: brandName,
           businessType: _selectedBusinessType,
-          gstNumber: gstNumber,
-          panNumber: panNumber,
-          address: fullAddress,
-          city: city,
-          state: state,
-          pincode: pincode,
-          billingAddress: fullAddress,
+          address: location,
+          city: location,
+          billingAddress: location,
           billingEmail: billingEmail,
           spocName: spocName,
-          spocDesignation: spocDesignation,
           phone: spocPhone,
           monthlyTrips: _selectedMonthlyTrips,
         );
+
+        // Immediately sync name and phone to session and core User
+        AuthService.instance.updateCurrentUser(
+          fullName: spocName,
+          phone: spocPhone.isNotEmpty ? spocPhone : null,
+          email: billingEmail.isNotEmpty ? billingEmail : null,
+        );
+        try {
+          await AuthService.instance.updateUserProfile(
+            fullName: spocName,
+            phone: spocPhone.isNotEmpty ? spocPhone : null,
+          );
+        } catch (_) {}
 
         await ApiClient.instance.post(
           '/vendors/profile',
@@ -280,17 +290,13 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
             'organizationName': companyName,
             'fullName': spocName,
             if (spocPhone.isNotEmpty) 'phone': spocPhone,
-            if (gstNumber.isNotEmpty) 'gstNumber': gstNumber,
-            'address': fullAddress.isNotEmpty ? fullAddress : 'India',
-            if (panNumber.isNotEmpty) 'panNumber': panNumber,
-            'businessType': _selectedBusinessType,
-            if (city.isNotEmpty) 'city': city,
-            if (state.isNotEmpty) 'state': state,
-            if (pincode.isNotEmpty) 'pincode': pincode,
-            'billingAddress': fullAddress,
+            if (billingEmail.isNotEmpty) 'email': billingEmail,
             if (billingEmail.isNotEmpty) 'billingEmail': billingEmail,
-            if (billingEmail.isNotEmpty) 'alternateEmail': billingEmail,
-            if (spocDesignation.isNotEmpty) 'spocDesignation': spocDesignation,
+            if (altPhone.isNotEmpty) 'alternatePhone': altPhone,
+            if (emergencyPhone.isNotEmpty) 'emergencyContactPhone': emergencyPhone,
+            'address': location.isNotEmpty ? location : 'India',
+            'city': location,
+            'businessType': _selectedBusinessType,
             'monthlyTrips': _selectedMonthlyTrips,
           },
         );
@@ -303,7 +309,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
 
         if (mounted) {
           AppToast.showSuccess(
-            'Corporate Profile submitted for review!',
+            'Organization Profile submitted for review!',
             context: context,
           );
           context.go(AppRoutes.welcomeSuccessScreen);
@@ -366,6 +372,18 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
         dateOfBirth: _selectedDate,
         gender: _selectedGender,
       );
+
+      // Immediately sync entered name to session
+      AuthService.instance.updateCurrentUser(
+        fullName: enteredName,
+        phone: enteredPhone.isNotEmpty ? enteredPhone : null,
+      );
+      try {
+        await AuthService.instance.updateUserProfile(
+          fullName: enteredName,
+          phone: enteredPhone.isNotEmpty ? enteredPhone : null,
+        );
+      } catch (_) {}
 
       try {
         await DriverService.instance.updateProfile({
@@ -486,7 +504,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                     Text(
                       isDriver
                           ? 'Basic Details'
-                          : 'Company & Billing Details',
+                          : 'Organization Information',
                       style: AppTypography.h1(
                         color: isDark
                             ? AppColors.textPrimaryDark
@@ -498,7 +516,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                     Text(
                       isDriver
                           ? 'Step 1 of 3: Provide your personal and contact details'
-                          : 'Enter your business and billing information to activate corporate cab booking',
+                          : 'Provide your contact and organization details to activate corporate booking',
                       style: AppTypography.body(
                         color: isDark
                             ? AppColors.textSecondaryDark
@@ -811,24 +829,23 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                       const SizedBox(height: AppSpacing.xl),
                     ] else ...[
                       // ─────────────────── VENDOR / CORPORATE FORM ───────────────────
-                      // SECTION 1: Company Information
+                      // SECTION 1: User & Contact Details
                       _buildSectionHeader(
                         context,
-                        icon: Icons.business_rounded,
-                        title: 'Company Information',
-                        subtitle: 'Official registered corporate entity details',
+                        icon: Icons.person_pin_rounded,
+                        title: 'User & Contact Details',
+                        subtitle: 'Primary account manager and contact details',
                       ),
                       const SizedBox(height: AppSpacing.md),
 
                       AppTextField(
-                        controller: _companyNameController,
-                        label: 'Company Legal Name *',
-                        hintText: 'e.g. Acme Technologies Private Limited',
-                        prefixIcon:
-                            const Icon(Icons.apartment_rounded, size: 20),
+                        controller: _spocNameController,
+                        label: 'Full Name *',
+                        hintText: 'Enter your name as the app user',
+                        prefixIcon: const Icon(Icons.person_outline, size: 20),
                         validator: (val) {
                           if (val == null || val.trim().length < 2) {
-                            return 'Please enter legal company name';
+                            return 'Please enter your full name';
                           }
                           return null;
                         },
@@ -836,20 +853,159 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                       const SizedBox(height: AppSpacing.md),
 
                       AppTextField(
-                        controller: _brandNameController,
-                        label: 'Brand / Trade Name (Optional)',
-                        hintText: 'e.g. Acme Mobility',
-                        prefixIcon:
-                            const Icon(Icons.storefront_outlined, size: 20),
+                        controller: _spocPhoneController,
+                        label: 'Official Mobile Number *',
+                        hintText: '10-digit primary mobile number',
+                        prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+                        keyboardType: TextInputType.phone,
+                        validator: (val) {
+                          final p = val?.trim() ?? '';
+                          final d = p.replaceAll(RegExp(r'\D'), '');
+                          if (d.length < 10) {
+                            return 'Enter valid 10-digit mobile number';
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: AppSpacing.md),
 
-                      // Business Entity Type Dropdown
+                      AppTextField(
+                        controller: _billingEmailController,
+                        label: 'Official Email Address *',
+                        hintText: 'e.g. yourname@company.com',
+                        prefixIcon:
+                            const Icon(Icons.email_outlined, size: 20),
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (val) {
+                          final e = val?.trim().toLowerCase() ?? '';
+                          if (e.isEmpty || !e.contains('@') || !e.contains('.')) {
+                            return 'Enter a valid official email address';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+
+                      AppTextField(
+                        controller: _altPhoneController,
+                        label: 'Alternative Contact Number (Optional)',
+                        hintText: 'e.g. +91 91234 56789',
+                        prefixIcon:
+                            const Icon(Icons.phone_iphone_outlined, size: 20),
+                        keyboardType: TextInputType.phone,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+
+                      AppTextField(
+                        controller: _emergencyPhoneController,
+                        label: 'Emergency Helpline Number (Optional)',
+                        hintText: 'e.g. +91 1800 123 456 or alternate contact',
+                        prefixIcon:
+                            const Icon(Icons.support_agent_outlined, size: 20),
+                        keyboardType: TextInputType.phone,
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+
+                      // SECTION 2: Organization & Company Details
+                      _buildSectionHeader(
+                        context,
+                        icon: Icons.business_rounded,
+                        title: 'Company & Organization Details',
+                        subtitle: 'Official registered entity and branch details',
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+
+                      AppTextField(
+                        controller: _companyNameController,
+                        label: 'Company Name / Branch Name *',
+                        hintText: 'e.g. Acme Mobility / Gurugram Branch',
+                        prefixIcon:
+                            const Icon(Icons.apartment_rounded, size: 20),
+                        validator: (val) {
+                          if (val == null || val.trim().length < 2) {
+                            return 'Please enter company name or branch name';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+
+                      AppTextField(
+                        controller: _addressController,
+                        readOnly: !_isManualAddress,
+                        onTap: _isManualAddress ? null : _pickLocation,
+                        label: 'Company Location / Office Address *',
+                        hintText: _isManualAddress
+                            ? 'Building, Floor, Area, City'
+                            : 'Tap to select location on map or search',
+                        prefixIcon:
+                            const Icon(Icons.location_on_outlined, size: 20),
+                        suffixIcon: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (_addressController.text.isNotEmpty)
+                              IconButton(
+                                icon: const Icon(Icons.clear_rounded, size: 18),
+                                tooltip: 'Clear',
+                                onPressed: () =>
+                                    setState(() => _addressController.clear()),
+                              ),
+                            IconButton(
+                              icon: const Icon(Icons.my_location_rounded,
+                                  color: AppColors.primary, size: 20),
+                              tooltip: 'Select on Map',
+                              onPressed: _pickLocation,
+                            ),
+                          ],
+                        ),
+                        validator: (val) {
+                          if (val == null || val.trim().length < 3) {
+                            return 'Enter company location or office address';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 4),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 4, vertical: 0),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _isManualAddress = !_isManualAddress;
+                            });
+                          },
+                          icon: Icon(
+                            _isManualAddress
+                                ? Icons.map_outlined
+                                : Icons.edit_note_rounded,
+                            size: 15,
+                            color: AppColors.primary,
+                          ),
+                          label: Text(
+                            _isManualAddress
+                                ? 'Pick from Map / Search instead'
+                                : 'Or type address manually',
+                            style: AppTypography.micro(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+
+                      // Business Industry / Sector Dropdown
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Business Entity Type *',
+                            'Business Industry / Sector *',
                             style: AppTypography.caption(
                               color: isDark
                                   ? AppColors.textMutedDark
@@ -906,56 +1062,12 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                       ),
                       const SizedBox(height: AppSpacing.md),
 
-                      // Company PAN & GSTIN Row
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: AppTextField(
-                              controller: _panController,
-                              label: 'Company PAN (Optional)',
-                              hintText: 'ABCDE1234F',
-                              textCapitalization: TextCapitalization.characters,
-                              prefixIcon:
-                                  const Icon(Icons.badge_outlined, size: 20),
-                              validator: (val) {
-                                final pan = val?.trim().toUpperCase() ?? '';
-                                if (pan.isNotEmpty && pan.length != 10) {
-                                  return '10-char PAN required';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.md),
-                          Expanded(
-                            child: AppTextField(
-                              controller: _gstController,
-                              label: 'GSTIN Number (Optional)',
-                              hintText: '22AAAAA0000A1Z5',
-                              textCapitalization: TextCapitalization.characters,
-                              prefixIcon: const Icon(
-                                  Icons.receipt_long_outlined,
-                                  size: 20),
-                              validator: (val) {
-                                final gst = val?.trim().toUpperCase() ?? '';
-                                if (gst.isNotEmpty && gst.length != 15) {
-                                  return '15-char GSTIN required';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-
                       // Monthly Volume Dropdown
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Estimated Monthly Fleet Trips *',
+                            'Estimated Monthly Ride Requirements *',
                             style: AppTypography.caption(
                               color: isDark
                                   ? AppColors.textMutedDark
@@ -1011,213 +1123,13 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                         ],
                       ),
                       const SizedBox(height: AppSpacing.xl),
-
-                      // SECTION 2: Authorized Signatory / SPOC
-                      _buildSectionHeader(
-                        context,
-                        icon: Icons.person_pin_rounded,
-                        title: 'Authorized Company Representative (SPOC)',
-                        subtitle: 'Person registering and their role/belonging in the company',
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-
-                      AppTextField(
-                        controller: _spocNameController,
-                        label: 'Contact Person Name *',
-                        hintText: 'Full name of manager or desk lead',
-                        prefixIcon: const Icon(Icons.person_outline, size: 20),
-                        validator: (val) {
-                          if (val == null || val.trim().length < 2) {
-                            return 'Enter contact person name';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-
-                      AppTextField(
-                        controller: _spocDesignationController,
-                        label: 'Designation / Role *',
-                        hintText: 'e.g. Travel Desk Manager / Admin Lead',
-                        prefixIcon: const Icon(Icons.work_outline, size: 20),
-                        validator: (val) {
-                          if (val == null || val.trim().isEmpty) {
-                            return 'Enter contact person designation';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-
-                      AppTextField(
-                        controller: _spocPhoneController,
-                        label: 'Official Contact Mobile Number *',
-                        hintText: '10-digit mobile number',
-                        prefixIcon: const Icon(Icons.phone_outlined, size: 20),
-                        keyboardType: TextInputType.phone,
-                        validator: (val) {
-                          final p = val?.trim() ?? '';
-                          final d = p.replaceAll(RegExp(r'\D'), '');
-                          if (d.length < 10) {
-                            return 'Enter valid 10-digit phone number';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-
-                      AppTextField(
-                        controller: _billingEmailController,
-                        label: 'Corporate Billing / Invoicing Email *',
-                        hintText: 'e.g. accounts@company.com',
-                        prefixIcon:
-                            const Icon(Icons.mark_email_read_outlined, size: 20),
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (val) {
-                          final e = val?.trim().toLowerCase() ?? '';
-                          if (e.isEmpty || !e.contains('@') || !e.contains('.')) {
-                            return 'Enter a valid corporate billing email';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: AppSpacing.xl),
-
-                      // SECTION 3: Registered Corporate Address
-                      _buildSectionHeader(
-                        context,
-                        icon: Icons.pin_drop_rounded,
-                        title: 'Registered Corporate Office Address',
-                        subtitle: 'Office premises for tax invoice & GST records',
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-
-                      AppTextField(
-                        controller: _addressController,
-                        readOnly: !_isManualAddress,
-                        onTap: _isManualAddress ? null : _pickLocation,
-                        label: 'Street Address / Building / Campus *',
-                        hintText: _isManualAddress
-                            ? 'Building, Floor, Street, Area'
-                            : 'Tap to select location on map or search',
-                        prefixIcon:
-                            const Icon(Icons.location_city_outlined, size: 20),
-                        suffixIcon: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (_addressController.text.isNotEmpty)
-                              IconButton(
-                                icon: const Icon(Icons.clear_rounded, size: 18),
-                                tooltip: 'Clear',
-                                onPressed: () =>
-                                    setState(() => _addressController.clear()),
-                              ),
-                            IconButton(
-                              icon: const Icon(Icons.my_location_rounded,
-                                  color: AppColors.primary, size: 20),
-                              tooltip: 'Select on Map',
-                              onPressed: _pickLocation,
-                            ),
-                          ],
-                        ),
-                        validator: (val) {
-                          if (val == null || val.trim().length < 3) {
-                            return 'Enter registered office address';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 4),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton.icon(
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 4, vertical: 0),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _isManualAddress = !_isManualAddress;
-                            });
-                          },
-                          icon: Icon(
-                            _isManualAddress
-                                ? Icons.map_outlined
-                                : Icons.edit_note_rounded,
-                            size: 15,
-                            color: AppColors.primary,
-                          ),
-                          label: Text(
-                            _isManualAddress
-                                ? 'Pick from Map / Search instead'
-                                : 'Or type address manually',
-                            style: AppTypography.micro(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: AppTextField(
-                              controller: _cityController,
-                              label: 'City *',
-                              hintText: 'e.g. Hyderabad / Gurugram',
-                              validator: (val) {
-                                if (val == null || val.trim().isEmpty) {
-                                  return 'Enter city';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.sm),
-                          Expanded(
-                            child: AppTextField(
-                              controller: _stateController,
-                              label: 'State *',
-                              hintText: 'e.g. Telangana',
-                              validator: (val) {
-                                if (val == null || val.trim().isEmpty) {
-                                  return 'Enter state';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.sm),
-                          Expanded(
-                            child: AppTextField(
-                              controller: _pincodeController,
-                              label: 'PIN Code *',
-                              hintText: '500081',
-                              keyboardType: TextInputType.number,
-                              validator: (val) {
-                                final p = val?.trim() ?? '';
-                                if (p.length < 6) {
-                                  return '6-digit PIN';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.xl),
                     ],
 
                     // ── Primary Action Button ─────────────────────────────────
                     AppPrimaryButton(
                       text: isDriver
                           ? 'CONTINUE TO IDENTITY VERIFICATION'
-                          : 'SUBMIT CORPORATE PROFILE FOR REVIEW',
+                          : 'SUBMIT ORGANIZATION DETAILS FOR REVIEW',
                       isLoading: _isSaving,
                       onPressed: _isSaving ? null : _handleContinue,
                     ),

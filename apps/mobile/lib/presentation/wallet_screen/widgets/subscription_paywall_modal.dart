@@ -6,6 +6,7 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_radius.dart';
 import '../../../theme/app_spacing.dart';
 import '../../../widgets/common/app_primary_button.dart';
+import '../../../core/utils/app_toast.dart';
 
 /// Modern, high-converting Driver Subscription Paywall Modal Sheet.
 /// Allows drivers to activate their monthly membership via Razorpay Checkout,
@@ -103,7 +104,7 @@ class _SubscriptionPaywallModalState extends State<SubscriptionPaywallModal> {
       }
     } catch (e) {
       setState(() {
-        _couponError = e.toString().replaceAll('Exception: ', '');
+        _couponError = AppToast.cleanErrorMessage(e);
       });
     } finally {
       if (mounted) setState(() => _isVerifyingCoupon = false);

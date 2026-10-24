@@ -6,6 +6,7 @@ import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
+import '../../core/utils/app_toast.dart';
 
 class UserAppSettingsScreen extends StatefulWidget {
   const UserAppSettingsScreen({super.key});
@@ -34,12 +35,7 @@ class _UserAppSettingsScreenState extends State<UserAppSettingsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error opening link: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        AppToast.showError(e, context: context);
       }
     }
   }

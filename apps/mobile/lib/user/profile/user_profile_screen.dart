@@ -3,6 +3,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/app_toast.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_provider.dart';
 import '../../services/auth_service.dart';
@@ -48,8 +49,7 @@ class UserProfileScreen extends StatelessWidget {
 
     final menuItems = [
       {'icon': Icons.receipt_long_outlined, 'title': 'Corporate Rate Card & Tariffs', 'action': 'rate_card'},
-      {'icon': Icons.business_outlined, 'title': 'Company Information', 'route': AppRoutes.userCompanyInformationScreen},
-      {'icon': Icons.phone_outlined, 'title': 'Contact Information', 'route': AppRoutes.userContactInformationScreen},
+      {'icon': Icons.corporate_fare_outlined, 'title': 'Organization Information', 'route': AppRoutes.userOrganizationInformationScreen},
       {'icon': Icons.verified_user_outlined, 'title': 'Account Status', 'route': AppRoutes.userAccountStatusScreen},
       {'icon': Icons.notifications_none_outlined, 'title': 'Notification Settings', 'route': AppRoutes.userNotificationSettingsScreen},
       {'icon': Icons.help_outline, 'title': 'Support Center', 'route': AppRoutes.userSupportCenterScreen},
@@ -357,11 +357,9 @@ class UserProfileScreen extends StatelessWidget {
                 }
               } catch (e) {
                 AppLogger.error('Error deleting account: $e', tag: 'AUTH', error: e);
-                Fluttertoast.showToast(
-                  msg: 'Failed to delete account: $e',
-                  backgroundColor: AppColors.error,
-                  textColor: Colors.white,
-                );
+                if (context.mounted) {
+                  AppToast.showError(e, context: context);
+                }
               }
             },
             style: ElevatedButton.styleFrom(

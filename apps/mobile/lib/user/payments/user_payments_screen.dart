@@ -6,6 +6,7 @@ import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
+import '../../core/utils/app_toast.dart';
 
 class UserPaymentsScreen extends StatefulWidget {
   const UserPaymentsScreen({super.key});
@@ -233,7 +234,7 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
                                   } catch (err) {
                                     setModalState(() {
                                       appliedCoupon = null;
-                                      couponError = err.toString().replaceAll('Exception: ', '').replaceAll('ApiException(400): ', '');
+                                      couponError = AppToast.cleanErrorMessage(err);
                                       isValidatingCoupon = false;
                                     });
                                   }
@@ -430,10 +431,7 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
                               } catch (err) {
                                 setModalState(() => isProcessing = false);
                                 if (mounted) {
-                                  final msg = err.toString().replaceAll('ClientException: ', '').replaceAll('Exception: ', '').replaceAll('ApiException(400): ', '');
-                                  messenger.showSnackBar(
-                                    SnackBar(content: Text('Top-up failed: $msg'), backgroundColor: AppColors.error),
-                                  );
+                                  AppToast.showError(err);
                                 }
                               }
                             },

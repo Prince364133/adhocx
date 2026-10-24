@@ -35,9 +35,15 @@ export class HttpExceptionFilter implements ExceptionFilter {
         details = resObj.details || (Array.isArray(resObj.message) ? resObj.message : undefined);
       }
     } else if (exception instanceof Error) {
-      message = exception.message;
-      code = exception.name || 'INTERNAL_ERROR';
+      status = HttpStatus.INTERNAL_SERVER_ERROR;
+      code = 'INTERNAL_SERVER_ERROR';
+      message = 'An unexpected internal error occurred. Please try again shortly.';
       this.logger.error(`Unhandled Exception: ${exception.message}`, exception.stack);
+    }
+
+    if (status >= 500) {
+      message = 'An unexpected internal error occurred. Please try again shortly.';
+      details = undefined;
     }
 
     const displayMessage = Array.isArray(details)

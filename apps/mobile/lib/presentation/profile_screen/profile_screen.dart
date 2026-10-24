@@ -341,12 +341,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 // ── Hero Profile Card ──────────────────────────────────
                 ProfileDriverCardWidget(
                   profile: effectiveProfile,
-                  onTap: () => context.push(AppRoutes.personalInfoScreen),
+                  onTap: () async {
+                    await context.push(AppRoutes.personalInfoScreen);
+                    if (mounted) _fetchProfile();
+                  },
                 ),
                 const SizedBox(height: AppSpacing.xl),
 
-                // ── Section 1: Account & Documents ────────────────────
-                _buildSectionTitle('ACCOUNT & DOCUMENTS', isDark),
+                // ── Section 1: Vehicle & Fleet ────────────────────────
+                _buildSectionTitle('VEHICLE & FLEET', isDark),
                 const SizedBox(height: AppSpacing.xs),
                 _buildCardGroup(
                   isDark: isDark,
@@ -358,95 +361,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       subtitle: context.tr('Car model, plate & specifications'),
                       onTap: () => context.push(AppRoutes.myVehicleScreen),
                     ),
-                    _divider(isDark),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xl),
+
+                // ── Section 2: Earnings & Rates ──────────────────────
+                _buildSectionTitle('EARNINGS & RATES', isDark),
+                const SizedBox(height: AppSpacing.xs),
+                _buildCardGroup(
+                  isDark: isDark,
+                  children: [
                     ProfileMenuItemWidget(
-                      icon: Icons.shield_outlined,
+                      icon: Icons.receipt_long_outlined,
                       iconColor: AppColors.primary,
-                      label: context.tr('Account Status'),
-                      subtitle: '${context.tr('Active Driver')} • ${context.tr('Account standing')}',
-                      trailing: _buildPill(
-                        text: context.tr('Active'),
-                        color: AppColors.accentGreen,
-                        isDark: isDark,
-                      ),
-                      onTap: () => context.push(AppRoutes.personalInfoScreen),
-                    ),
-                    _divider(isDark),
-                    ProfileMenuItemWidget(
-                      icon: Icons.verified_user_outlined,
-                      iconColor: AppColors.success,
-                      label: context.tr('Profile Verification & KYC Status'),
-                      subtitle: context.tr('Driving license, RC & Aadhaar card'),
-                      trailing: _buildPill(
-                        text: context.tr('Verified'),
-                        color: AppColors.accentGreen,
-                        isDark: isDark,
-                      ),
-                      onTap: () => context.push(AppRoutes.kycVerificationScreen),
+                      label: context.tr('Driver Rate Card'),
+                      subtitle: context.tr('Standard base fare & distance rates'),
+                      onTap: () => _openModal(const RateCardModal()),
                     ),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.xl),
 
-                      // ── Section 2: Earnings & Rates ──────────────────────
-                      _buildSectionTitle('EARNINGS & RATES', isDark),
-                      const SizedBox(height: AppSpacing.xs),
-                      _buildCardGroup(
+                // ── Section 3: Preferences & System ───────────────────
+                _buildSectionTitle('PREFERENCES & SYSTEM', isDark),
+                const SizedBox(height: AppSpacing.xs),
+                _buildCardGroup(
+                  isDark: isDark,
+                  children: [
+                    ProfileMenuItemWidget(
+                      icon: Icons.language_rounded,
+                      iconColor: AppColors.info,
+                      label: context.tr('App Language'),
+                      subtitle: context.tr('Select your preferred dialect'),
+                      trailing: _buildPill(
+                        text: languageProvider.currentLanguageLabel,
+                        color: AppColors.primary,
                         isDark: isDark,
-                        children: [
-                          ProfileMenuItemWidget(
-                            icon: Icons.receipt_long_outlined,
-                            iconColor: AppColors.primary,
-                            label: context.tr('Driver Rate Card'),
-                            subtitle: context.tr('Standard base fare & distance rates'),
-                            onTap: () => _openModal(const RateCardModal()),
-                          ),
-                        ],
                       ),
-                      const SizedBox(height: AppSpacing.xl),
-
-                      // ── Section 3: Preferences & System ───────────────────
-                      _buildSectionTitle('PREFERENCES & SYSTEM', isDark),
-                      const SizedBox(height: AppSpacing.xs),
-                      _buildCardGroup(
+                      onTap: _showLanguageSelector,
+                    ),
+                    _divider(isDark),
+                    ProfileMenuItemWidget(
+                      icon: _themeIcon(themeProvider.themeMode),
+                      iconColor: AppColors.success,
+                      label: context.tr('App Theme'),
+                      subtitle: context.tr('Light, dark, or system default'),
+                      trailing: _buildPill(
+                        text: themeProvider.themeModeLabel,
+                        color: AppColors.accentGreen,
                         isDark: isDark,
-                        children: [
-                          ProfileMenuItemWidget(
-                            icon: Icons.notifications_none_rounded,
-                            iconColor: AppColors.accentPurple,
-                            label: context.tr('Notifications Feed'),
-                            subtitle: context.tr('Dispatch updates & payment alerts'),
-                            onTap: () => context.push(AppRoutes.notificationsFeedScreen),
-                          ),
-                          _divider(isDark),
-                          ProfileMenuItemWidget(
-                            icon: Icons.language_rounded,
-                            iconColor: AppColors.info,
-                            label: context.tr('App Language'),
-                            subtitle: context.tr('Select your preferred dialect'),
-                            trailing: _buildPill(
-                              text: languageProvider.currentLanguageLabel,
-                              color: AppColors.primary,
-                              isDark: isDark,
-                            ),
-                            onTap: _showLanguageSelector,
-                          ),
-                          _divider(isDark),
-                          ProfileMenuItemWidget(
-                            icon: _themeIcon(themeProvider.themeMode),
-                            iconColor: AppColors.success,
-                            label: context.tr('App Theme'),
-                            subtitle: context.tr('Light, dark, or system default'),
-                            trailing: _buildPill(
-                              text: themeProvider.themeModeLabel,
-                              color: AppColors.accentGreen,
-                              isDark: isDark,
-                            ),
-                            onTap: _showThemeSelector,
-                          ),
-                        ],
                       ),
-                      const SizedBox(height: AppSpacing.xl),
+                      onTap: _showThemeSelector,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xl),
 
                       // ── Section 4: Support & Security ─────────────────────
                       _buildSectionTitle('SUPPORT & SECURITY', isDark),

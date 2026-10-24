@@ -11,6 +11,7 @@ import '../models/cab_cart_item.dart';
 import '../models/fleet_template_model.dart';
 import '../services/fleet_template_service.dart';
 import '../utils/office_hub_detector.dart';
+import '../../../core/utils/app_toast.dart';
 
 class BatchRequirementDetailsModal extends StatefulWidget {
   final String groupName;
@@ -163,7 +164,9 @@ class _BatchRequirementDetailsModalState extends State<BatchRequirementDetailsMo
         textColor: Colors.white,
       );
     } catch (e) {
-      Fluttertoast.showToast(msg: 'Failed to save template: $e');
+      if (mounted) {
+        AppToast.showError(e, context: context);
+      }
     } finally {
       if (mounted) setState(() => _isSavingTemplate = false);
     }
@@ -497,7 +500,7 @@ class _BatchRequirementDetailsModalState extends State<BatchRequirementDetailsMo
                       Fluttertoast.showToast(msg: 'Retrying driver dispatch for Cab #$index...');
                       widget.onRefreshNeeded();
                     } catch (e) {
-                      Fluttertoast.showToast(msg: 'Retry failed: $e');
+                      AppToast.showError(e);
                     }
                   },
                   icon: const Icon(Icons.refresh, size: 14, color: AppColors.warning),
