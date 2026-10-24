@@ -18,6 +18,22 @@
           "client_type": 1,
           "android_info": {
             "package_name": "com.adhocx.app",
+            "certificate_hash": "b7bb9291b31a52458392c815d6920702cb112796"
+          }
+        },
+        {
+          "client_id": "886573696369-71b25h9oo9e0bjph84okjqd6k1ld7lmm.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.adhocx.app",
+            "certificate_hash": "cb0931db5f20e695f077e13e2f5e843898313bf0"
+          }
+        },
+        {
+          "client_id": "886573696369-71b25h9oo9e0bjph84okjqd6k1ld7lmm.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.adhocx.app",
             "certificate_hash": "e6a17b6294d35eecad0664db8731114b35e69bf6"
           }
         },

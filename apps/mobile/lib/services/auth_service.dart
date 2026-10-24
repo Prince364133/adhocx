@@ -292,7 +292,7 @@ class AuthService {
     String? signInError;
 
     try {
-      final GoogleSignIn googleSignIn = GoogleSignIn(
+      GoogleSignIn googleSignIn = GoogleSignIn(
         // On Android, clientId MUST be null (Google Play Services resolves via package name + SHA-1).
         // On Web, clientId is required.
         clientId: kIsWeb ? googleClientId : null,
@@ -306,12 +306,28 @@ class AuthService {
         await googleSignIn.signOut();
       } catch (_) {}
 
-      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      GoogleSignInAccount? googleUser;
+      try {
+        googleUser = await googleSignIn.signIn();
+      } catch (e) {
+        if (!kIsWeb && (e.toString().contains('10') || e.toString().contains('DEVELOPER_ERROR'))) {
+          debugPrint('GoogleSignIn code 10 encountered. Attempting direct profile fallback...');
+          googleSignIn = GoogleSignIn(
+            scopes: ['email', 'profile'],
+          );
+          googleUser = await googleSignIn.signIn();
+        } else {
+          rethrow;
+        }
+      }
+
       if (googleUser != null) {
         email = googleUser.email;
         displayName = googleUser.displayName;
-        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-        idToken = googleAuth.idToken;
+        try {
+          final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+          idToken = googleAuth.idToken;
+        } catch (_) {}
       }
     } catch (e) {
       debugPrint('GoogleSignIn native/web sign-in error: $e');
