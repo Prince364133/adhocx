@@ -695,11 +695,6 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
             icon: const Icon(Icons.bookmark_rounded, color: AppColors.primary),
             tooltip: 'Saved Templates',
           ),
-          IconButton(
-            onPressed: () => context.push(AppRoutes.userBulkPostingScreen),
-            icon: Icon(Icons.tune, color: AppColors.primary),
-            tooltip: 'Bulk Upload CSV',
-          ),
         ],
       ),
       body: SafeArea(

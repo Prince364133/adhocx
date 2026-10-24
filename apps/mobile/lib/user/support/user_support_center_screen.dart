@@ -33,7 +33,7 @@ class _UserSupportCenterScreenState extends State<UserSupportCenterScreen> with 
     {
       'category': 'Corporate Booking',
       'q': 'Can we schedule recurring daily employee commutes?',
-      'a': 'Yes, use the Bulk Posting feature under the Requirements tab to schedule daily shifts, multiple pickup points, and dedicated vehicle fleets across chosen dates.',
+      'a': 'Yes, you can schedule recurring employee shifts, multiple pickup points, and dedicated vehicle fleets across chosen dates directly when creating requirements.',
     },
     {
       'category': 'Billing & GST',
