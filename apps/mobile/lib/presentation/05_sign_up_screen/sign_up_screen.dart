@@ -176,14 +176,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
           context.push(AppRoutes.setPasswordScreen);
         } else if (!result.user.isOnboarded) {
           context.push(AppRoutes.onboardingPersonalScreen);
-        } else if (result.user.isDriver) {
-          if (!result.user.isVerified) {
-            context.go(AppRoutes.waitlistGateScreen);
-          } else {
-            context.go(AppRoutes.homeScreen);
-          }
+        } else if (!result.user.isVerified) {
+          context.go(AppRoutes.waitlistGateScreen);
         } else {
-          context.go(AppRoutes.userHomeScreen);
+          context.go(result.user.isDriver ? AppRoutes.homeScreen : AppRoutes.userHomeScreen);
         }
       }
     } catch (e) {

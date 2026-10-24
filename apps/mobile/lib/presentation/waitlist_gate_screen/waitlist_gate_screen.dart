@@ -241,6 +241,9 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final user = AuthService.instance.currentUser;
+    final isBusiness = user != null && user.isUser;
+
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
@@ -249,6 +252,7 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
           _ApprovalState.rejected => WaitlistRejectedWidget(
               reason: _rejectionReason ?? 'Your application requires updates.',
               onReApply: _reApply,
+              isBusiness: isBusiness,
             ),
           _ApprovalState.waiting => _buildWaitingState(isDark),
         },

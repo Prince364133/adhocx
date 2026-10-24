@@ -7,6 +7,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
+import '../../services/language_service.dart';
 
 class TripsScreen extends StatefulWidget {
   const TripsScreen({super.key});
@@ -115,6 +116,7 @@ class _TripsScreenState extends State<TripsScreen>
 
   @override
   Widget build(BuildContext context) {
+    context.watch<LanguageProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
@@ -141,17 +143,9 @@ class _TripsScreenState extends State<TripsScreen>
                   ),
                   child: Row(
                     children: [
-                      IconButton(
-                        onPressed: () => _loadTrips(forceRefresh: true),
-                        icon: Icon(
-                          Icons.refresh,
-                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Trips',
+                          context.tr('Trips'),
                           style: AppTypography.h2(
                             color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             fontWeight: FontWeight.bold,
@@ -180,9 +174,9 @@ class _TripsScreenState extends State<TripsScreen>
                     unselectedLabelColor: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                     labelStyle: AppTypography.body(fontWeight: FontWeight.bold),
                     tabs: [
-                      Tab(text: 'Upcoming (${_upcomingTrips.length})'),
-                      Tab(text: 'Active (${_activeTrips.length})'),
-                      Tab(text: 'Completed (${_completedTrips.length})'),
+                      Tab(text: '${context.tr('Upcoming')} (${_upcomingTrips.length})'),
+                      Tab(text: '${context.tr('Active')} (${_activeTrips.length})'),
+                      Tab(text: '${context.tr('Completed')} (${_completedTrips.length})'),
                     ],
                   ),
                 ),

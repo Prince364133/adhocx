@@ -59,23 +59,20 @@ export class RequirementsService {
     });
 
     if (!vendor) {
-      // Auto-provision vendor if user is registering/posting
-      const user = await this.db.user.findUnique({ where: { id: vendorUserId } });
-      vendor = await this.db.vendor.create({
-        data: {
-          userId: vendorUserId,
-          fullName: user?.fullName || 'Corporate User',
-          organizationName: user?.fullName || 'Corporate Partner',
-          phone: user?.phone || '+919999999999',
-          verificationStatus: VerificationStatus.VERIFIED,
-        },
-      });
+      throw new ForbiddenException(
+        'Please complete your corporate vendor profile onboarding before posting requirements.'
+      );
     } else if (vendor.verificationStatus !== VerificationStatus.VERIFIED) {
-      // In development mode, auto-promote vendor to VERIFIED
-      vendor = await this.db.vendor.update({
-        where: { id: vendor.id },
-        data: { verificationStatus: VerificationStatus.VERIFIED },
-      });
+      if (process.env.NODE_ENV === 'test' || process.env.BYPASS_VERIFICATION === 'true') {
+        vendor = await this.db.vendor.update({
+          where: { id: vendor.id },
+          data: { verificationStatus: VerificationStatus.VERIFIED },
+        });
+      } else {
+        throw new ForbiddenException(
+          `Your corporate account is currently ${vendor.verificationStatus.toLowerCase().replace('_', ' ')}. Requirement posting is locked until your application is reviewed and accepted by an Administrator in the Admin Panel.`
+        );
+      }
     }
 
     const vendorId = vendor?.id || `vnd_${vendorUserId}`;

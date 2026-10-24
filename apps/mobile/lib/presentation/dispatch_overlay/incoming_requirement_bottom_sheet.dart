@@ -57,7 +57,6 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
   Timer? _countdownTimer;
   String? _roadDistanceDisplay;
   String? _roadEtaDisplay;
-  bool _isCalculatingRoute = false;
   bool _isSubmitting = false;
 
   @override
@@ -164,7 +163,6 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
     // 3. Compute road route via Google Maps Routes API (with traffic ETA and road network fallback)
     if (pLat != null && pLng != null && dLat != null && dLng != null &&
         pLat != 0.0 && pLng != 0.0 && dLat != 0.0 && dLng != 0.0) {
-      _isCalculatingRoute = true;
       LocationService.instance.calculateRoadRoute(
         startLat: pLat,
         startLng: pLng,
@@ -175,20 +173,15 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
         if (route.distanceKm > 0) {
           // If this is an offline approximation and we already have a canonical verified route distance, don't downgrade it!
           if (!route.isAccurateRoad && _roadDistanceDisplay != null) {
-            setState(() => _isCalculatingRoute = false);
             return;
           }
           setState(() {
             _roadDistanceDisplay = route.formattedDistance;
             _roadEtaDisplay = route.formattedEta;
-            _isCalculatingRoute = false;
           });
         }
       }).catchError((e) {
         debugPrint('[DispatchOverlay] Road route calculation notice: $e');
-        if (mounted) {
-          setState(() => _isCalculatingRoute = false);
-        }
       });
     }
   }
@@ -411,7 +404,7 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
     final String fallbackDistanceStr = hasValidPassedDistance
         ? '${parsedDist.toStringAsFixed(1)} km'
         : (_roadDistanceDisplay ?? '30.6 km');
-    final String effectiveDistanceDisplay = (hasValidPassedDistance && parsedDist != null)
+    final String effectiveDistanceDisplay = hasValidPassedDistance
         ? '${parsedDist.toStringAsFixed(1)} km'
         : (_roadDistanceDisplay ?? fallbackDistanceStr);
 

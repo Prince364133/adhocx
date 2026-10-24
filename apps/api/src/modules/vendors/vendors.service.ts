@@ -57,7 +57,7 @@ export class VendorsService {
     const anyDto = dto as any;
     const extraDetails: Record<string, any> = {};
     const extraKeys = [
-      'panNumber', 'businessType', 'website', 'city', 'state', 'pincode',
+      'brandName', 'panNumber', 'businessType', 'website', 'city', 'state', 'pincode',
       'billingAddress', 'isBillingAddressSame', 'monthlyTrips',
       'spocDesignation', 'alternatePhone', 'alternateEmail',
       'emergencyContactName', 'emergencyContactPhone', 'operationalCampus'
@@ -89,7 +89,7 @@ export class VendorsService {
       where: { userId },
       create: {
         userId,
-        organizationName: dto.organizationName,
+        organizationName: dto.organizationName || user?.fullName || 'Business Booker',
         fullName: cleanName || user?.fullName || 'Business Booker',
         phone: effectivePhone,
         gstNumber: dto.gstNumber,
@@ -98,7 +98,7 @@ export class VendorsService {
         verificationStatus: VerificationStatus.UNDER_REVIEW,
       },
       update: {
-        organizationName: dto.organizationName,
+        ...(dto.organizationName ? { organizationName: dto.organizationName } : {}),
         fullName: cleanName || user?.fullName || undefined,
         phone: effectivePhone || undefined,
         gstNumber: dto.gstNumber,

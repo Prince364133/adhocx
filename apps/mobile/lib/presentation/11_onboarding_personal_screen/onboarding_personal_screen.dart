@@ -913,17 +913,14 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                           Expanded(
                             child: AppTextField(
                               controller: _panController,
-                              label: 'Company PAN *',
+                              label: 'Company PAN (Optional)',
                               hintText: 'ABCDE1234F',
                               textCapitalization: TextCapitalization.characters,
                               prefixIcon:
                                   const Icon(Icons.badge_outlined, size: 20),
                               validator: (val) {
                                 final pan = val?.trim().toUpperCase() ?? '';
-                                if (pan.isEmpty) {
-                                  return 'Enter PAN';
-                                }
-                                if (pan.length != 10) {
+                                if (pan.isNotEmpty && pan.length != 10) {
                                   return '10-char PAN required';
                                 }
                                 return null;
@@ -934,12 +931,19 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                           Expanded(
                             child: AppTextField(
                               controller: _gstController,
-                              label: 'GSTIN Number',
+                              label: 'GSTIN Number (Optional)',
                               hintText: '22AAAAA0000A1Z5',
                               textCapitalization: TextCapitalization.characters,
                               prefixIcon: const Icon(
                                   Icons.receipt_long_outlined,
                                   size: 20),
+                              validator: (val) {
+                                final gst = val?.trim().toUpperCase() ?? '';
+                                if (gst.isNotEmpty && gst.length != 15) {
+                                  return '15-char GSTIN required';
+                                }
+                                return null;
+                              },
                             ),
                           ),
                         ],
@@ -1012,8 +1016,8 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                       _buildSectionHeader(
                         context,
                         icon: Icons.person_pin_rounded,
-                        title: 'Authorized Travel Desk Contact (SPOC)',
-                        subtitle: 'Primary account manager for booking operations',
+                        title: 'Authorized Company Representative (SPOC)',
+                        subtitle: 'Person registering and their role/belonging in the company',
                       ),
                       const SizedBox(height: AppSpacing.md),
 

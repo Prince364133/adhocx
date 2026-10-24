@@ -354,9 +354,9 @@ final GoRouter appRouter = GoRouter(
       return AppRoutes.onboardingPersonalScreen;
     }
 
-    // 4. Mandatory Verification Gate (Wall) for Drivers:
-    // If driver is not yet verified by Admin, lock to waitlistGateScreen
-    if (user.isDriver && !user.isVerified) {
+    // 4. Mandatory Verification Gate (Wall) for Drivers & Vendors:
+    // If user is not yet verified by Admin, lock to waitlistGateScreen
+    if (!user.isVerified) {
       // If user has already submitted profile/documents and is under review (not rejected), redirect away from onboarding
       if ((user.isOnboarded || user.isUnderReview) && !user.isRejected) {
         if (currentPath == AppRoutes.onboardingPersonalScreen ||

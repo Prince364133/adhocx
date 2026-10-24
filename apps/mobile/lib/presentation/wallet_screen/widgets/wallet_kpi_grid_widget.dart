@@ -1,5 +1,6 @@
 import '../../../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
+import '../../../services/language_service.dart';
 
 class WalletKpiGridWidget extends StatelessWidget {
   final double todayEarnings;
@@ -90,7 +91,7 @@ class _KpiCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            label,
+            context.tr(label),
             style: TextStyle(
               color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
               fontSize: 12,

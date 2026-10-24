@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import './custom_icon_widget.dart';
+import '../services/language_service.dart';
 
 // V3 Liquid Glass — BackdropFilter blur + frosted surface + animated pill — LOCKED
 class AppNavigation extends StatefulWidget {
@@ -74,6 +75,7 @@ class _AppNavigationState extends State<AppNavigation> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<LanguageProvider>();
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -148,7 +150,7 @@ class _AppNavigationState extends State<AppNavigation> {
                                     : cs.onSurfaceVariant,
                               ),
                               child: Text(
-                                tab.label,
+                                tab.label.tr(context),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),

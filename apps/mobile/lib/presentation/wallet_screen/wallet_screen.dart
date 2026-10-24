@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../../services/driver_service.dart';
+import '../../services/language_service.dart';
 import '../../shared/theme/app_colors.dart';
 
 import './widgets/bank_details_modal.dart';
@@ -172,6 +173,7 @@ class _WalletScreenState extends State<WalletScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<LanguageProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
@@ -249,7 +251,7 @@ class _WalletScreenState extends State<WalletScreen> {
           ),
           const SizedBox(width: 12),
           Text(
-            'Wallet & Settlements',
+            context.tr('Wallet & Settlements'),
             style: TextStyle(
               color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
               fontSize: 17,

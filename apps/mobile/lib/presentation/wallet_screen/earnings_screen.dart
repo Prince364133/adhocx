@@ -126,14 +126,6 @@ class _EarningsScreenState extends State<EarningsScreen> {
                   ),
                   child: Row(
                     children: [
-                      IconButton(
-                        onPressed: _loadWalletData,
-                        icon: Icon(
-                          Icons.refresh,
-                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           'Earnings',
@@ -158,8 +150,11 @@ class _EarningsScreenState extends State<EarningsScreen> {
                 Expanded(
                   child: AdaptiveSkeleton(
                     isLoading: _isLoading,
-                    child: ListView(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: RefreshIndicator(
+                      onRefresh: _loadWalletData,
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.all(AppSpacing.lg),
                       children: [
                             // ── Available Balance Purple Hero Card ─────────────────
                             Container(
@@ -436,6 +431,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                             ),
                           ],
                         ),
+                      ),
                     ),
                 ),
               ],

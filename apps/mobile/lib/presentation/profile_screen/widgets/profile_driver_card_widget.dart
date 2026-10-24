@@ -19,18 +19,21 @@ class ProfileDriverCardWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final name = (profile['name'] != null && profile['name'].toString().trim().isNotEmpty)
+    final rawName = (profile['name'] != null && profile['name'].toString().trim().isNotEmpty)
         ? profile['name'].toString().trim()
         : 'Driver';
-    final initial = name.isNotEmpty ? name[0].toUpperCase() : 'D';
+    final isGenericName = rawName.toLowerCase() == 'driver' || rawName.toLowerCase() == 'partner';
+    final name = isGenericName ? context.tr(rawName) : rawName;
+    final initial = rawName.isNotEmpty ? rawName[0].toUpperCase() : 'D';
 
     final phone = (profile['phone'] != null && profile['phone'].toString().trim().isNotEmpty)
         ? profile['phone'].toString().trim()
         : '—';
 
-    final vehicle = (profile['vehicle'] != null && profile['vehicle'].toString().trim().isNotEmpty)
+    final rawVehicle = (profile['vehicle'] != null && profile['vehicle'].toString().trim().isNotEmpty)
         ? profile['vehicle'].toString().trim()
         : 'Commercial Fleet Vehicle';
+    final vehicle = context.tr(rawVehicle);
 
     final isVerified = profile['is_verified'] != false;
     final rating = profile['rating']?.toString() ?? '0';

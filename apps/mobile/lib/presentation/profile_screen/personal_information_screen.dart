@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:provider/provider.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
 import '../../services/driver_service.dart';
@@ -142,6 +141,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
         mimeType: image.mimeType ?? 'image/jpeg',
       );
 
+      if (!mounted) return;
       Fluttertoast.showToast(
         msg: context.tr('Profile photo uploaded successfully!'),
         backgroundColor: AppColors.accentGreenDark,
@@ -568,6 +568,99 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                               ),
                               const SizedBox(height: AppSpacing.md),
 
+                              // ── Profile Verification & KYC Status Interactive Card ───
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                                  border: Border.all(
+                                    color: (isVerified ? AppColors.accentGreen : AppColors.warning).withValues(alpha: isDark ? 0.3 : 0.25),
+                                    width: 1.2,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: InkWell(
+                                  onTap: () => context.push(AppRoutes.kycVerificationScreen),
+                                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(AppSpacing.lg),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 44,
+                                          height: 44,
+                                          decoration: BoxDecoration(
+                                            color: (isVerified ? AppColors.accentGreen : AppColors.warning).withValues(alpha: isDark ? 0.2 : 0.12),
+                                            borderRadius: BorderRadius.circular(AppRadius.md),
+                                          ),
+                                          child: Icon(
+                                            isVerified ? Icons.verified_user_rounded : Icons.pending_actions_rounded,
+                                            color: isVerified
+                                                ? (isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark)
+                                                : AppColors.warning,
+                                            size: 24,
+                                          ),
+                                        ),
+                                        const SizedBox(width: AppSpacing.md),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                context.tr('Profile Verification & KYC Status'),
+                                                style: AppTypography.h4(
+                                                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 3),
+                                              Text(
+                                                context.tr('Driving license, RC & Aadhaar card verification'),
+                                                style: AppTypography.caption(
+                                                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                          decoration: BoxDecoration(
+                                            color: (isVerified ? AppColors.accentGreen : AppColors.warning).withValues(alpha: isDark ? 0.2 : 0.12),
+                                            borderRadius: BorderRadius.circular(AppRadius.pill),
+                                            border: Border.all(
+                                              color: (isVerified ? AppColors.accentGreen : AppColors.warning).withValues(alpha: 0.35),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            verificationStatus,
+                                            style: AppTypography.micro(
+                                              color: isVerified
+                                                  ? (isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark)
+                                                  : AppColors.warning,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Icon(
+                                          Icons.chevron_right_rounded,
+                                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                          size: 20,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.md),
+
                               // ── Account Metrics Card ───────────────────────────────
                               Container(
                                 decoration: BoxDecoration(
@@ -577,29 +670,38 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                                 ),
                                 child: Column(
                                   children: [
-                                    _buildMetricTile(
-                                      isDark: isDark,
-                                      label: context.tr('Verification Status'),
-                                      valueWidget: Row(
-                                        children: [
-                                          Text(
-                                            verificationStatus,
-                                            style: AppTypography.body(
-                                              color: isVerified
-                                                  ? (isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark)
-                                                  : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
-                                              fontWeight: FontWeight.bold,
+                                    InkWell(
+                                      onTap: () => context.push(AppRoutes.kycVerificationScreen),
+                                      child: _buildMetricTile(
+                                        isDark: isDark,
+                                        label: context.tr('Verification Status'),
+                                        valueWidget: Row(
+                                          children: [
+                                            Text(
+                                              verificationStatus,
+                                              style: AppTypography.body(
+                                                color: isVerified
+                                                    ? (isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark)
+                                                    : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                                                fontWeight: FontWeight.bold,
+                                              ),
                                             ),
-                                          ),
-                                          if (isVerified) ...[
-                                            const SizedBox(width: 4),
+                                            if (isVerified) ...[
+                                              const SizedBox(width: 4),
+                                              Icon(
+                                                Icons.check_circle_rounded,
+                                                size: 16,
+                                                color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
+                                              ),
+                                            ],
+                                            const SizedBox(width: 6),
                                             Icon(
-                                              Icons.check_circle_rounded,
+                                              Icons.chevron_right_rounded,
                                               size: 16,
-                                              color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
+                                              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                                             ),
                                           ],
-                                        ],
+                                        ),
                                       ),
                                     ),
                                     Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),

@@ -8,11 +8,13 @@ import '../../../widgets/common/app_primary_button.dart';
 class WaitlistRejectedWidget extends StatelessWidget {
   final String reason;
   final VoidCallback onReApply;
+  final bool isBusiness;
 
   const WaitlistRejectedWidget({
     super.key,
     required this.reason,
     required this.onReApply,
+    this.isBusiness = false,
   });
 
   @override
@@ -40,7 +42,7 @@ class WaitlistRejectedWidget extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xxl),
           Text(
-            'Application Requires Updates',
+            isBusiness ? 'Corporate Application Requires Updates' : 'Application Requires Updates',
             style: AppTypography.display(
               color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
               fontWeight: FontWeight.w800,
@@ -85,8 +87,8 @@ class WaitlistRejectedWidget extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xxxl),
           AppPrimaryButton(
-            text: 'Re-Upload Documents & Re-Apply',
-            icon: Icons.upload_file_rounded,
+            text: isBusiness ? 'Update Corporate Details & Re-Submit' : 'Re-Upload Documents & Re-Apply',
+            icon: isBusiness ? Icons.edit_note_rounded : Icons.upload_file_rounded,
             onPressed: onReApply,
           ),
         ],

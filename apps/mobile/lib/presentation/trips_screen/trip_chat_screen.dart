@@ -32,8 +32,6 @@ class _TripChatScreenState extends State<TripChatScreen> {
   String _tripId = '';
   String _otherPartyName = 'User';
   String _otherPartyPhone = '';
-  String _otherPartyRole = 'USER';
-  String _tripStatus = 'IN_PROGRESS';
   String _myUserId = '';
   bool _isDriver = true;
 
@@ -72,8 +70,6 @@ class _TripChatScreenState extends State<TripChatScreen> {
           p['vendorPhone']?.toString() ??
           p['driverPhone']?.toString() ??
           '';
-      _otherPartyRole = p['otherPartyRole']?.toString() ?? (_isDriver ? 'USER' : 'DRIVER');
-      _tripStatus = p['status']?.toString() ?? 'IN_PROGRESS';
     } else if (widget.params is String) {
       _tripId = widget.params as String;
     }

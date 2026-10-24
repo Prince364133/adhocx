@@ -517,43 +517,59 @@ export class NotificationsService implements OnModuleInit {
   async registerDeviceToken(userId: string, dto: RegisterDeviceTokenDto) {
     if (!this.db) return { success: true };
 
-    const { token, platform, deviceModel, appVersion } = dto;
-    const devicePlatform = (platform as unknown as DevicePlatform) || DevicePlatform.ANDROID;
+    try {
+      // 1. Verify user exists to prevent Prisma Foreign Key violation (P2003)
+      const user = await this.db.user.findUnique({
+        where: { id: userId },
+        select: { id: true },
+      });
 
-    const existing = await this.db.deviceToken.findUnique({
-      where: { token },
-    });
+      if (!user) {
+        this.logger.warn(`⚠️ [DEVICE TOKEN] User ${userId} not found in database. Registration skipped.`);
+        return { success: false, message: 'User account not found' };
+      }
 
-    if (existing) {
-      const updated = await this.db.deviceToken.update({
+      const { token, platform, deviceModel, appVersion } = dto;
+      const devicePlatform = (platform as unknown as DevicePlatform) || DevicePlatform.ANDROID;
+
+      const existing = await this.db.deviceToken.findUnique({
         where: { token },
+      });
+
+      if (existing) {
+        const updated = await this.db.deviceToken.update({
+          where: { token },
+          data: {
+            userId,
+            platform: devicePlatform,
+            deviceModel: deviceModel || existing.deviceModel,
+            appVersion: appVersion || existing.appVersion,
+            isActive: true,
+            lastActiveAt: new Date(),
+          },
+        });
+        this.logger.log(`📱 [DEVICE TOKEN UPDATED] User: ${userId} | Platform: ${platform} | Token: ${token.substring(0, 10)}...`);
+        return updated;
+      }
+
+      const created = await this.db.deviceToken.create({
         data: {
           userId,
+          token,
           platform: devicePlatform,
-          deviceModel: deviceModel || existing.deviceModel,
-          appVersion: appVersion || existing.appVersion,
+          deviceModel,
+          appVersion,
           isActive: true,
           lastActiveAt: new Date(),
         },
       });
-      this.logger.log(`📱 [DEVICE TOKEN UPDATED] User: ${userId} | Platform: ${platform} | Token: ${token.substring(0, 10)}...`);
-      return updated;
+
+      this.logger.log(`📱 [DEVICE TOKEN REGISTERED] User: ${userId} | Platform: ${platform} | Token: ${token.substring(0, 10)}...`);
+      return created;
+    } catch (err: any) {
+      this.logger.error(`❌ [DEVICE TOKEN ERROR] Failed to register token for ${userId}: ${err.message}`, err.stack);
+      return { success: false, error: err.message };
     }
-
-    const created = await this.db.deviceToken.create({
-      data: {
-        userId,
-        token,
-        platform: devicePlatform,
-        deviceModel,
-        appVersion,
-        isActive: true,
-        lastActiveAt: new Date(),
-      },
-    });
-
-    this.logger.log(`📱 [DEVICE TOKEN REGISTERED] User: ${userId} | Platform: ${platform} | Token: ${token.substring(0, 10)}...`);
-    return created;
   }
 
   /**
@@ -562,14 +578,15 @@ export class NotificationsService implements OnModuleInit {
   async unregisterDeviceToken(token: string) {
     if (!this.db) return { success: true };
     try {
-      await this.db.deviceToken.update({
+      await this.db.deviceToken.updateMany({
         where: { token },
         data: { isActive: false },
       });
       this.logger.log(`📱 [DEVICE TOKEN DEACTIVATED] Token: ${token.substring(0, 10)}...`);
       return { success: true };
-    } catch {
-      return { success: false };
+    } catch (err: any) {
+      this.logger.warn(`⚠️ [DEVICE TOKEN UNREGISTER NOTICE] Token not found or already deactivated: ${err.message}`);
+      return { success: true };
     }
   }
 

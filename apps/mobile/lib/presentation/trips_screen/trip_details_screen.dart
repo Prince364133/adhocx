@@ -370,21 +370,17 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                           ),
                         ),
                       ),
-                      IconButton(
-                        onPressed: _fetchTripDetails,
-                        icon: Icon(
-                          Icons.refresh,
-                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                        ),
-                      ),
                     ],
                   ),
                 ),
 
                 // ── Scrollable Body ──────────────────────────────────────────
                 Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: RefreshIndicator(
+                    onRefresh: _fetchTripDetails,
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(AppSpacing.lg),
                     children: [
                       // ── Banner Card ─────────────────────────────────
                       Container(
@@ -799,6 +795,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                     ],
                   ),
                 ),
+              ),
               ],
             ),
           ),

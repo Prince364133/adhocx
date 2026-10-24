@@ -166,23 +166,15 @@ class _DriverScoreScreenState extends State<DriverScoreScreen> with SingleTicker
           ),
           onPressed: () => context.pop(),
         ),
-        actions: [
-          IconButton(
-            icon: Icon(
-              Icons.refresh,
-              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-            ),
-            onPressed: _fetchScoreDetails,
-            tooltip: 'Refresh Score',
-          ),
-        ],
       ),
       body: SafeArea(
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+            : RefreshIndicator(
+                onRefresh: _fetchScoreDetails,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
                 child: Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 520),
@@ -241,6 +233,7 @@ class _DriverScoreScreenState extends State<DriverScoreScreen> with SingleTicker
                   ),
                 ),
               ),
+            ),
       ),
     );
   }

@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/utils/app_logger.dart';
 import '../../routes/app_routes.dart';
-import '../../services/auth_service.dart';
 import '../../services/language_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
@@ -109,21 +108,6 @@ class _DriverFaqScreenState extends State<DriverFaqScreen> {
     }
   }
 
-  Future<void> _launchEmailSupport() async {
-    final user = AuthService.instance.currentUser;
-    final driverName = user?.fullName ?? 'Driver';
-    final phone = user?.phone ?? '';
-    final emailUri = Uri(
-      scheme: 'mailto',
-      path: 'support@adhocx.com',
-      query: 'subject=${Uri.encodeComponent('AdhocX Driver Inquiry - FAQs & Helpdesk')}&body=${Uri.encodeComponent('Hi AdhocX Support Team,\n\nI have a question regarding my driver operations.\n\nDriver Name: $driverName\nContact Phone: $phone\n\nQuestion / Details:\n')}',
-    );
-    try {
-      await launchUrl(emailUri, mode: LaunchMode.externalApplication);
-    } catch (e) {
-      AppLogger.error('Failed to launch email: $e', tag: 'SUPPORT');
-    }
-  }
 
   @override
   Widget build(BuildContext context) {

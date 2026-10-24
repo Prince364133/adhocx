@@ -28,7 +28,6 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  bool _showLanguageSwitcher = false;
   Map<String, dynamic> _driverProfile = {};
 
   @override
@@ -300,7 +299,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final themeProvider = context.watch<ThemeProvider>();
     final languageProvider = context.watch<LanguageProvider>();
-    final currentLang = languageProvider.currentLocale.languageCode.toUpperCase();
     final onboarding = context.watch<OnboardingProvider>();
 
     // Dynamic profile resolution
@@ -332,70 +330,63 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 480),
-            child: Column(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.lg,
+                AppSpacing.lg,
+                100,
+              ),
               children: [
-                // ── Modern Brand Header ─────────────────────────────────────
-                _buildHeader(isDark, themeProvider),
+                // ── Hero Profile Card ──────────────────────────────────
+                ProfileDriverCardWidget(
+                  profile: effectiveProfile,
+                  onTap: () => context.push(AppRoutes.personalInfoScreen),
+                ),
+                const SizedBox(height: AppSpacing.xl),
 
-                // ── Scrollable Content ───────────────────────────────────────
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.lg,
-                      AppSpacing.lg,
-                      AppSpacing.lg,
-                      100,
+                // ── Section 1: Account & Documents ────────────────────
+                _buildSectionTitle('ACCOUNT & DOCUMENTS', isDark),
+                const SizedBox(height: AppSpacing.xs),
+                _buildCardGroup(
+                  isDark: isDark,
+                  children: [
+                    ProfileMenuItemWidget(
+                      icon: Icons.directions_car_outlined,
+                      iconColor: AppColors.info,
+                      label: context.tr('Vehicle Details'),
+                      subtitle: context.tr('Car model, plate & specifications'),
+                      onTap: () => context.push(AppRoutes.myVehicleScreen),
                     ),
-                    children: [
-                      // ── Hero Profile Card ──────────────────────────────────
-                      ProfileDriverCardWidget(
-                        profile: effectiveProfile,
-                        onTap: () => context.push(AppRoutes.personalInfoScreen),
-                      ),
-                      const SizedBox(height: AppSpacing.xl),
-
-                      // ── Section 1: Account & Documents ────────────────────
-                      _buildSectionTitle('ACCOUNT & DOCUMENTS', isDark),
-                      const SizedBox(height: AppSpacing.xs),
-                      _buildCardGroup(
+                    _divider(isDark),
+                    ProfileMenuItemWidget(
+                      icon: Icons.shield_outlined,
+                      iconColor: AppColors.primary,
+                      label: context.tr('Account Status'),
+                      subtitle: '${context.tr('Active Driver')} • ${context.tr('Account standing')}',
+                      trailing: _buildPill(
+                        text: context.tr('Active'),
+                        color: AppColors.accentGreen,
                         isDark: isDark,
-                        children: [
-                          ProfileMenuItemWidget(
-                            icon: Icons.directions_car_outlined,
-                            iconColor: AppColors.info,
-                            label: context.tr('Vehicle Details'),
-                            subtitle: context.tr('Car model, plate & specifications'),
-                            onTap: () => context.push(AppRoutes.myVehicleScreen),
-                          ),
-                          _divider(isDark),
-                          ProfileMenuItemWidget(
-                            icon: Icons.verified_user_outlined,
-                            iconColor: AppColors.success,
-                            label: context.tr('KYC & Verification'),
-                            subtitle: context.tr('Driving license, RC & Aadhaar card'),
-                            trailing: _buildPill(
-                              text: context.tr('Verified'),
-                              color: AppColors.accentGreen,
-                              isDark: isDark,
-                            ),
-                            onTap: () => context.push(AppRoutes.kycVerificationScreen),
-                          ),
-                          _divider(isDark),
-                          ProfileMenuItemWidget(
-                            icon: Icons.shield_outlined,
-                            iconColor: AppColors.warning,
-                            label: context.tr('Account Status & Tier'),
-                            subtitle: '${context.tr('Active Driver')} • ${context.tr('Gold Level')}',
-                            trailing: _buildPill(
-                              text: context.tr('Gold Tier'),
-                              color: AppColors.warning,
-                              isDark: isDark,
-                            ),
-                            onTap: () => context.push(AppRoutes.personalInfoScreen),
-                          ),
-                        ],
                       ),
-                      const SizedBox(height: AppSpacing.xl),
+                      onTap: () => context.push(AppRoutes.personalInfoScreen),
+                    ),
+                    _divider(isDark),
+                    ProfileMenuItemWidget(
+                      icon: Icons.verified_user_outlined,
+                      iconColor: AppColors.success,
+                      label: context.tr('Profile Verification & KYC Status'),
+                      subtitle: context.tr('Driving license, RC & Aadhaar card'),
+                      trailing: _buildPill(
+                        text: context.tr('Verified'),
+                        color: AppColors.accentGreen,
+                        isDark: isDark,
+                      ),
+                      onTap: () => context.push(AppRoutes.kycVerificationScreen),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xl),
 
                       // ── Section 2: Earnings & Rates ──────────────────────
                       _buildSectionTitle('EARNINGS & RATES', isDark),
@@ -515,102 +506,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(bool isDark, ThemeProvider themeProvider) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.md,
-      ),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-        border: Border(
-          bottom: BorderSide(
-            color: isDark ? AppColors.borderDark : AppColors.borderLight,
-            width: 1,
-          ),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [AppColors.primaryGradientStart, AppColors.primaryGradientEnd],
-              ),
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(AppRadius.md - 2),
-              child: Image.asset(
-                'assets/images/adhocx_icon.png',
-                fit: BoxFit.cover,
               ),
             ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Driver Profile & Settings',
-                  style: AppTypography.h3(
-                    color: isDark
-                        ? AppColors.textPrimaryDark
-                        : AppColors.textPrimaryLight,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  'Manage account, fleet & preferences',
-                  style: AppTypography.micro(
-                    color: isDark
-                        ? AppColors.textSecondaryDark
-                        : AppColors.textSecondaryLight,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            onPressed: _showThemeSelector,
-            tooltip: 'Toggle Theme',
-            icon: Icon(
-              _themeIcon(themeProvider.themeMode),
-              color: isDark
-                  ? AppColors.textSecondaryDark
-                  : AppColors.textSecondaryLight,
-              size: 20,
-            ),
-          ),
-        ],
-      ),
-    );
+          );
   }
 
   Widget _buildSectionTitle(String title, bool isDark) {
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 4),
       child: Text(
-        title,
+        context.tr(title),
         style: AppTypography.micro(
           color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
           fontWeight: FontWeight.w700,
@@ -692,7 +597,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: OutlinedButton.icon(
         onPressed: _signOut,
         icon: const Icon(Icons.logout_rounded, size: 18),
-        label: const Text('Sign Out'),
+        label: Text(context.tr('Sign Out')),
         style: OutlinedButton.styleFrom(
           backgroundColor: isDark
               ? AppColors.errorContainer.withValues(alpha: 0.15)

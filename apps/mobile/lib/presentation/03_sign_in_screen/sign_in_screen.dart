@@ -185,14 +185,10 @@ class _SignInScreenState extends State<SignInScreen> {
           context.go(AppRoutes.setPasswordScreen);
         } else if (!user.isOnboarded && !user.isUnderReview && !user.isVerified) {
           context.go(AppRoutes.onboardingPersonalScreen);
-        } else if (user.isDriver) {
-          if (!user.isVerified) {
-            context.go(AppRoutes.waitlistGateScreen);
-          } else {
-            context.go(AppRoutes.homeScreen);
-          }
+        } else if (!user.isVerified) {
+          context.go(AppRoutes.waitlistGateScreen);
         } else {
-          context.go(AppRoutes.userHomeScreen);
+          context.go(user.isDriver ? AppRoutes.homeScreen : AppRoutes.userHomeScreen);
         }
       }
     } catch (e) {
@@ -236,14 +232,10 @@ class _SignInScreenState extends State<SignInScreen> {
           context.go(AppRoutes.setPasswordScreen);
         } else if (!user.isOnboarded) {
           context.go(AppRoutes.onboardingPersonalScreen);
-        } else if (user.isDriver) {
-          if (!user.isVerified) {
-            context.go(AppRoutes.waitlistGateScreen);
-          } else {
-            context.go(AppRoutes.homeScreen);
-          }
+        } else if (!user.isVerified) {
+          context.go(AppRoutes.waitlistGateScreen);
         } else {
-          context.go(AppRoutes.userHomeScreen);
+          context.go(user.isDriver ? AppRoutes.homeScreen : AppRoutes.userHomeScreen);
         }
       }
     } catch (e) {

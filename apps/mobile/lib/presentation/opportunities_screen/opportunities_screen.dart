@@ -11,6 +11,7 @@ import '../../theme/app_typography.dart';
 import '../../shared/widgets/app_adaptive_skeleton.dart';
 
 import '../../utils/vehicle_utils.dart';
+import '../../services/language_service.dart';
 
 /// Screen 1: Nearby Opportunities List with strict vehicle category isolation.
 class OpportunitiesScreen extends StatefulWidget {
@@ -157,6 +158,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<LanguageProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final driverNorm = normalizeVehicleCategory(_driverVehicleCategory);
 
@@ -221,7 +223,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Opportunities',
+                          context.tr('Opportunities'),
                           style: AppTypography.h2(
                             color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             fontWeight: FontWeight.bold,
@@ -254,7 +256,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                               Row(
                                 children: [
                                   Text(
-                                    'Nearby trips',
+                                    context.tr('Nearby trips'),
                                     style: AppTypography.caption(
                                       color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                                       fontWeight: FontWeight.w500,

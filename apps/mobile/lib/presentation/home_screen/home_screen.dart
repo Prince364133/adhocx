@@ -18,6 +18,7 @@ import '../../services/edge_case_manager.dart';
 import '../../services/permission_service.dart';
 import '../../services/location_monitor_service.dart';
 import '../../utils/vehicle_utils.dart';
+import '../../services/language_service.dart';
 
 enum DriverHomeState { offline, available, offerAttention, assignedTrip, activeTrip, completedTrip }
 
@@ -406,7 +407,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(width: 5),
           Text(
-            label,
+            context.tr(label),
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.bold,
@@ -420,6 +421,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<LanguageProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
@@ -446,21 +448,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   child: Row(
                     children: [
-                      IconButton(
-                        onPressed: () => _loadLiveDriverData(silent: false),
-                        icon: Icon(
-                          Icons.refresh,
-                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                        ),
-                        tooltip: 'Sync Live Offers',
-                      ),
-                      const SizedBox(width: 8),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Welcome back,',
+                              context.tr('Welcome back,'),
                               style: AppTypography.caption(
                                 color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                               ).copyWith(fontSize: 11),
@@ -469,7 +462,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               children: [
                                 Flexible(
                                   child: Text(
-                                    _driverName,
+                                    (_driverName.toLowerCase() == 'driver' || _driverName.toLowerCase() == 'partner')
+                                        ? context.tr(_driverName)
+                                        : _driverName,
                                     style: AppTypography.body(
                                       color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                       fontWeight: FontWeight.bold,
@@ -505,7 +500,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     const Icon(Icons.shield, size: 11, color: Colors.white),
                                     const SizedBox(width: 4),
                                     Text(
-                                      'Trust Score: ${_trustScore.toStringAsFixed(0)}/100 • $_trustTier',
+                                      '${context.tr('Trust Score')}: ${_trustScore.toStringAsFixed(0)}/100 • $_trustTier',
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 10,
@@ -551,6 +546,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: RefreshIndicator(
                       onRefresh: () => _loadLiveDriverData(silent: false),
                       child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
                         padding: const EdgeInsets.all(AppSpacing.lg),
                         children: [
                           switch (_currentState) {
@@ -595,7 +591,7 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Availability',
+                context.tr('Availability'),
                 style: AppTypography.caption(color: Colors.white70),
               ),
               const SizedBox(height: 8),
@@ -611,7 +607,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    'Offline',
+                    context.tr('Offline'),
                     style: AppTypography.h2(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -621,7 +617,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 2),
               Text(
-                'You are currently offline. Go online to receive trip offers.',
+                context.tr('You are currently offline. Go online to receive trip offers.'),
                 style: AppTypography.caption(color: Colors.white70),
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -639,7 +635,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   child: Text(
-                    'GO ONLINE',
+                    context.tr('GO ONLINE'),
                     style: AppTypography.body(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -670,7 +666,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
-                'You are offline',
+                context.tr('You are offline'),
                 style: AppTypography.h3(
                   color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                   fontWeight: FontWeight.bold,
@@ -678,17 +674,17 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Go online to receive trip opportunities in real-time',
+                context.tr('Go online to receive trip opportunities in real-time'),
                 style: AppTypography.caption(
                   color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
-              _buildBullet('Go online to get live trip dispatches', isDark),
+              _buildBullet(context.tr('Go online to get live trip dispatches'), isDark),
               const SizedBox(height: 4),
-              _buildBullet("We'll notify you automatically on new requests", isDark),
+              _buildBullet(context.tr("We'll notify you automatically on new requests"), isDark),
               const SizedBox(height: 4),
-              _buildBullet('You can go offline anytime with one tap', isDark),
+              _buildBullet(context.tr('You can go offline anytime with one tap'), isDark),
             ],
           ),
         ),
@@ -807,7 +803,7 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Availability',
+                context.tr('Availability'),
                 style: AppTypography.caption(
                   color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                 ),
@@ -825,7 +821,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    'Available',
+                    context.tr('Available'),
                     style: AppTypography.h2(
                       color: isDark ? AppColors.accentGreen : AppColors.accentGreenDark,
                       fontWeight: FontWeight.bold,
@@ -835,7 +831,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 2),
               Text(
-                'You are online and listening for live nearby trips',
+                context.tr('You are online and listening for live nearby trips'),
                 style: AppTypography.caption(
                   color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                 ),
@@ -855,7 +851,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   child: Text(
-                    'GO OFFLINE',
+                    context.tr('GO OFFLINE'),
                     style: AppTypography.body(
                       color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                       fontWeight: FontWeight.bold,
@@ -885,7 +881,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "You're available",
+                      context.tr("You're available"),
                       style: AppTypography.body(
                         color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         fontWeight: FontWeight.bold,
@@ -893,7 +889,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Auto-scanning for incoming booking requests...',
+                      context.tr('Auto-scanning for incoming booking requests...'),
                       style: AppTypography.caption(
                         color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                       ),
@@ -927,7 +923,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: OutlinedButton.icon(
             onPressed: () => context.push(AppRoutes.opportunitiesScreen),
             icon: const Icon(Icons.near_me_outlined),
-            label: const Text('View All Live Opportunities'),
+            label: Text(context.tr('View All Live Opportunities')),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14),
               foregroundColor: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
@@ -1807,7 +1803,7 @@ class _HomeScreenState extends State<HomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "Today's Activity",
+            context.tr("Today's Activity"),
             style: AppTypography.caption(
               color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
             ),
@@ -1820,7 +1816,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Trips',
+                      context.tr('Trips'),
                       style: AppTypography.caption(
                         color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                       ),
@@ -1840,7 +1836,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Earnings',
+                      context.tr('Earnings'),
                       style: AppTypography.caption(
                         color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                       ),
