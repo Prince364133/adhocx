@@ -43,8 +43,6 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
   late double _officeLat;
   late double _officeLng;
   Map<String, dynamic>? _locality;
-  late TextEditingController _officeGuidanceController;
-  late TextEditingController _homeGuidanceController;
 
   bool _isCalculatingRoute = false;
   double _distanceKm = 0.0;
@@ -88,13 +86,7 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
 
     _locality = widget.initialLocality;
 
-    final isOutbound = _direction == 'OUTBOUND_FROM_OFFICE';
-    _officeGuidanceController = TextEditingController(
-      text: isOutbound ? widget.initialPickupInstructions : widget.initialDropInstructions,
-    );
-    _homeGuidanceController = TextEditingController(
-      text: isOutbound ? widget.initialDropInstructions : widget.initialPickupInstructions,
-    );
+
 
     if (_locality != null) {
       final locLat = _localityLat;
@@ -110,8 +102,6 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
 
   @override
   void dispose() {
-    _officeGuidanceController.dispose();
-    _homeGuidanceController.dispose();
     super.dispose();
   }
 
@@ -448,14 +438,10 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
       'durationMinutes': finalDuration,
       'formattedDistance': finalFormattedDist,
       'formattedEta': finalFormattedEta,
-      'pickupInstructions': _isOfficePickup
-          ? _officeGuidanceController.text.trim()
-          : _homeGuidanceController.text.trim(),
-      'dropInstructions': !_isOfficePickup
-          ? _officeGuidanceController.text.trim()
-          : _homeGuidanceController.text.trim(),
-      'officeGuidance': _officeGuidanceController.text.trim(),
-      'homeGuidance': _homeGuidanceController.text.trim(),
+      'pickupInstructions': widget.initialPickupInstructions,
+      'dropInstructions': widget.initialDropInstructions,
+      'officeGuidance': _isOfficePickup ? widget.initialPickupInstructions : widget.initialDropInstructions,
+      'homeGuidance': !_isOfficePickup ? widget.initialPickupInstructions : widget.initialDropInstructions,
     });
   }
 
@@ -783,40 +769,7 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 10),
-                        TextFormField(
-                          controller: _isOfficePickup ? _officeGuidanceController : _homeGuidanceController,
-                          decoration: InputDecoration(
-                            isDense: true,
-                            prefixIcon: Icon(
-                              _isOfficePickup ? Icons.corporate_fare_rounded : Icons.home_work_outlined,
-                              size: 16,
-                              color: AppColors.primary,
-                            ),
-                            labelText: _isOfficePickup
-                                ? 'Office Gate / Tower / Lobby Guidance'
-                                : 'Home Flat / Colony Landmark Guidance',
-                            labelStyle: TextStyle(
-                              fontSize: 11,
-                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                            ),
-                            hintText: _isOfficePickup
-                                ? 'e.g. Building 12B, Gate 3, Ground Floor Lobby'
-                                : 'e.g. Flat 402, Sai Residency, beside SBI ATM',
-                            hintStyle: TextStyle(
-                              fontSize: 11,
-                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(AppRadius.sm),
-                              borderSide: BorderSide(
-                                color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                              ),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                          ),
-                          style: const TextStyle(fontSize: 12),
-                        ),
+
                       ],
                     ),
                   ),
@@ -928,40 +881,7 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 10),
-                        TextFormField(
-                          controller: !_isOfficePickup ? _officeGuidanceController : _homeGuidanceController,
-                          decoration: InputDecoration(
-                            isDense: true,
-                            prefixIcon: Icon(
-                              !_isOfficePickup ? Icons.corporate_fare_rounded : Icons.home_work_outlined,
-                              size: 16,
-                              color: AppColors.accentPurple,
-                            ),
-                            labelText: !_isOfficePickup
-                                ? 'Office Gate / Tower / Lobby Guidance'
-                                : 'Home Flat / Colony Landmark Guidance',
-                            labelStyle: TextStyle(
-                              fontSize: 11,
-                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                            ),
-                            hintText: !_isOfficePickup
-                                ? 'e.g. Building 12B, Gate 3, Ground Floor Lobby'
-                                : 'e.g. Flat 402, Sai Residency, beside SBI ATM',
-                            hintStyle: TextStyle(
-                              fontSize: 11,
-                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(AppRadius.sm),
-                              borderSide: BorderSide(
-                                color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                              ),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                          ),
-                          style: const TextStyle(fontSize: 12),
-                        ),
+
                       ],
                     ),
                   ),

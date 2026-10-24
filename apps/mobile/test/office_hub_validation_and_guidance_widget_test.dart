@@ -54,14 +54,9 @@ void main() {
       // Check that bottom sheet is visible
       expect(find.byType(SelectRouteSubBottomSheet), findsOneWidget);
 
-      // Verify labels for Outbound trip (Office -> Home):
-      // Stop 1 is Office Pickup
-      expect(find.text('Office Gate / Tower / Lobby Guidance'), findsOneWidget);
-      expect(find.text('Gate 2 Main Lobby'), findsOneWidget);
-
-      // Stop 2 is Home Drop
-      expect(find.text('Home Flat / Colony Landmark Guidance'), findsOneWidget);
-      expect(find.text('Flat 402, beside SBI ATM'), findsOneWidget);
+      // Verify that guidance/landmark fields are removed from SelectRouteSubBottomSheet:
+      expect(find.text('Office Gate / Tower / Lobby Guidance'), findsNothing);
+      expect(find.text('Home Flat / Colony Landmark Guidance'), findsNothing);
 
       // Tap confirm button
       await tester.tap(find.text('Confirm Route Locations'));
@@ -124,13 +119,9 @@ void main() {
 
       expect(find.byType(SelectRouteSubBottomSheet), findsOneWidget);
 
-      // For Inbound trip (Home -> Office):
-      // Stop 1 is Home Pickup, Stop 2 is Office Drop
-      expect(find.text('Home Flat / Colony Landmark Guidance'), findsOneWidget);
-      expect(find.text('Near Metro Pillar 1400'), findsOneWidget);
-
-      expect(find.text('Office Gate / Tower / Lobby Guidance'), findsOneWidget);
-      expect(find.text('Building 12, Basement B1'), findsOneWidget);
+      // Verify that guidance/landmark fields are removed from SelectRouteSubBottomSheet:
+      expect(find.text('Home Flat / Colony Landmark Guidance'), findsNothing);
+      expect(find.text('Office Gate / Tower / Lobby Guidance'), findsNothing);
 
       // Tap confirm button
       await tester.tap(find.text('Confirm Route Locations'));
