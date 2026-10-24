@@ -26,4 +26,11 @@
 -keep class com.google.android.gms.common.api.** { *; }
 -keep class com.google.android.gms.** { *; }
 -dontwarn com.google.android.gms.**
+
+# Razorpay SDK preservation
+-keep class com.razorpay.** { *; }
+-dontwarn com.razorpay.**
+
+# Flutter Plugins generic keep
+-keep class io.flutter.plugins.** { *; }
 
