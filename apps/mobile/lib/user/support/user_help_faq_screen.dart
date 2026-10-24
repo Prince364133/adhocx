@@ -65,12 +65,19 @@ class _UserHelpFaqScreenState extends State<UserHelpFaqScreen> {
                           borderRadius: BorderRadius.circular(AppRadius.sm),
                         ),
                         child: Center(
-                          child: Text(
-                            tab,
-                            style: TextStyle(
-                              color: isSelected ? Colors.white : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                              fontSize: 12,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 2),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                tab,
+                                maxLines: 1,
+                                style: TextStyle(
+                                  color: isSelected ? Colors.white : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  fontSize: 12,
+                                ),
+                              ),
                             ),
                           ),
                         ),

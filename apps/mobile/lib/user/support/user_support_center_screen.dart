@@ -269,9 +269,11 @@ class _UserSupportCenterScreenState extends State<UserSupportCenterScreen> with 
                   color: AppColors.primary,
                 ),
                 indicatorSize: TabBarIndicatorSize.tab,
+                labelPadding: const EdgeInsets.symmetric(horizontal: 6),
                 labelColor: Colors.white,
                 unselectedLabelColor: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
                 tabs: [
                   Tab(
                     child: Row(
@@ -279,7 +281,12 @@ class _UserSupportCenterScreenState extends State<UserSupportCenterScreen> with 
                       children: [
                         const Icon(Icons.receipt_long_outlined, size: 16),
                         const SizedBox(width: 6),
-                        Text('My Tickets (${_myTickets.length})'),
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text('My Tickets (${_myTickets.length})', maxLines: 1),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -289,7 +296,12 @@ class _UserSupportCenterScreenState extends State<UserSupportCenterScreen> with 
                       children: [
                         Icon(Icons.help_outline, size: 16),
                         SizedBox(width: 6),
-                        Text('Help & FAQs'),
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text('Help & FAQs', maxLines: 1),
+                          ),
+                        ),
                       ],
                     ),
                   ),

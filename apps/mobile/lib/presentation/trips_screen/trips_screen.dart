@@ -170,13 +170,47 @@ class _TripsScreenState extends State<TripsScreen>
                     controller: _tabController,
                     indicatorColor: AppColors.primary,
                     indicatorWeight: 3,
+                    labelPadding: const EdgeInsets.symmetric(horizontal: 4),
                     labelColor: AppColors.primary,
                     unselectedLabelColor: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                    labelStyle: AppTypography.body(fontWeight: FontWeight.bold),
+                    labelStyle: AppTypography.small(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                    unselectedLabelStyle: AppTypography.small(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                    ),
                     tabs: [
-                      Tab(text: '${context.tr('Upcoming')} (${_upcomingTrips.length})'),
-                      Tab(text: '${context.tr('Active')} (${_activeTrips.length})'),
-                      Tab(text: '${context.tr('Completed')} (${_completedTrips.length})'),
+                      Tab(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            '${context.tr('Upcoming')} (${_upcomingTrips.length})',
+                            maxLines: 1,
+                          ),
+                        ),
+                      ),
+                      Tab(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            '${context.tr('Active')} (${_activeTrips.length})',
+                            maxLines: 1,
+                          ),
+                        ),
+                      ),
+                      Tab(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            '${context.tr('Completed')} (${_completedTrips.length})',
+                            maxLines: 1,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),

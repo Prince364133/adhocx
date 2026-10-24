@@ -222,12 +222,24 @@ class _DriverReportIssueScreenState extends State<DriverReportIssueScreen> with 
                     controller: _tabController,
                     indicatorColor: isDark ? AppColors.primaryLight : AppColors.primary,
                     indicatorWeight: 3,
+                    labelPadding: const EdgeInsets.symmetric(horizontal: 6),
                     labelColor: isDark ? AppColors.primaryLight : AppColors.primary,
                     unselectedLabelColor: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                    labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                    unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
                     tabs: [
-                      Tab(text: context.tr('Report an Issue')),
-                      Tab(text: 'My Issues (${_myIssues.length})'),
+                      Tab(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(context.tr('Report an Issue'), maxLines: 1),
+                        ),
+                      ),
+                      Tab(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text('My Issues (${_myIssues.length})', maxLines: 1),
+                        ),
+                      ),
                     ],
                   ),
                 ),
