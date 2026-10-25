@@ -58,7 +58,48 @@ class AppTextField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final effectiveHint = hintText ?? hint;
+    final isPhone = keyboardType == TextInputType.phone;
+    final effectiveHint = hintText ?? hint ?? (isPhone ? '98765 43210' : null);
+    final effectiveFormatters = inputFormatters ?? (isPhone
+        ? [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(10),
+          ]
+        : null);
+
+    Widget? effectivePrefix = prefixIcon;
+    if (isPhone && (effectivePrefix == null || effectivePrefix is Icon)) {
+      effectivePrefix = Container(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+        margin: const EdgeInsets.only(right: AppSpacing.sm),
+        decoration: BoxDecoration(
+          border: Border(
+            right: BorderSide(
+              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              width: 1.2,
+            ),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.phone_iphone_rounded,
+              size: 18,
+              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              '+91',
+              style: AppTypography.body(
+                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -85,7 +126,7 @@ class AppTextField extends StatelessWidget {
           maxLines: maxLines,
           textInputAction: textInputAction,
           textCapitalization: textCapitalization,
-          inputFormatters: inputFormatters,
+          inputFormatters: effectiveFormatters,
           onChanged: onChanged,
           onFieldSubmitted: onSubmitted,
           validator: validator,
@@ -98,7 +139,7 @@ class AppTextField extends StatelessWidget {
             hintStyle: AppTypography.body(
               color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
             ),
-            prefixIcon: prefixIcon,
+            prefixIcon: effectivePrefix,
             suffixIcon: suffixIcon,
             filled: true,
             fillColor: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight,

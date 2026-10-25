@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import '../../routes/app_routes.dart';
@@ -58,7 +59,13 @@ class _UserRaiseIssueScreenState extends State<UserRaiseIssueScreen> {
   void _initUserData() {
     final user = AuthService.instance.currentUser;
     _contactPersonController.text = user?.fullName ?? '';
-    _contactPhoneController.text = user?.phone ?? '';
+    final phone = user?.phone ?? '';
+    final digits = phone.replaceAll(RegExp(r'\D'), '');
+    if (digits.length > 10 && digits.startsWith('91')) {
+      _contactPhoneController.text = digits.substring(digits.length - 10);
+    } else {
+      _contactPhoneController.text = digits.length > 10 ? digits.substring(0, 10) : digits;
+    }
   }
 
   Future<void> _fetchRecentTrips() async {
@@ -104,6 +111,12 @@ class _UserRaiseIssueScreenState extends State<UserRaiseIssueScreen> {
       final user = AuthService.instance.currentUser;
       final companyName = user?.vendorProfile?['organizationName'] ?? user?.fullName ?? 'Corporate Booker';
 
+      final rawPhone = _contactPhoneController.text.trim();
+      final phoneDigits = rawPhone.replaceAll(RegExp(r'\D'), '');
+      final formattedPhone = phoneDigits.isNotEmpty
+          ? '+91${phoneDigits.length > 10 ? phoneDigits.substring(phoneDigits.length - 10) : phoneDigits}'
+          : '';
+
       final res = await UserService.instance.submitSupportQuery(
         category: _selectedCategory,
         subject: subject,
@@ -112,7 +125,7 @@ class _UserRaiseIssueScreenState extends State<UserRaiseIssueScreen> {
         priority: _selectedPriority,
         companyName: companyName,
         contactPerson: _contactPersonController.text.trim(),
-        contactPhone: _contactPhoneController.text.trim(),
+        contactPhone: formattedPhone,
         contactEmail: user?.email,
       );
 
@@ -392,12 +405,40 @@ class _UserRaiseIssueScreenState extends State<UserRaiseIssueScreen> {
                         TextField(
                           controller: _contactPhoneController,
                           keyboardType: TextInputType.phone,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(10),
+                          ],
                           style: TextStyle(fontSize: 12, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
                           decoration: InputDecoration(
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                             contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                             filled: true,
                             fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                            prefixIcon: Padding(
+                              padding: const EdgeInsets.only(left: 10, right: 6),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    '+91',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Container(
+                                    width: 1,
+                                    height: 14,
+                                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            hintText: '98765 43210',
+                            hintStyle: const TextStyle(fontSize: 12, color: AppColors.slate400),
                           ),
                         ),
                       ],

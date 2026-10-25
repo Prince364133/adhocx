@@ -96,6 +96,11 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
             ? authUser.fullName!
             : '');
 
+    String clean10Digits(String val) {
+      final d = val.replaceAll(RegExp(r'\D'), '');
+      return d.length > 10 ? d.substring(d.length - 10) : d;
+    }
+
     final initialPhone = onboarding.phoneNumber.isNotEmpty
         ? onboarding.phoneNumber
         : (authUser?.phone ?? '');
@@ -105,10 +110,10 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
         : (authUser?.email ?? '');
 
     _nameController = TextEditingController(text: initialName);
-    _phoneController = TextEditingController(text: initialPhone);
+    _phoneController = TextEditingController(text: clean10Digits(initialPhone));
     _addressController.text = onboarding.address;
     _emergencyNameController.text = onboarding.emergencyContactName;
-    _emergencyPhoneController.text = onboarding.emergencyContactPhone;
+    _emergencyPhoneController.text = clean10Digits(onboarding.emergencyContactPhone);
     _selectedGender = onboarding.gender.isNotEmpty ? onboarding.gender : 'Male';
     _selectedDate = onboarding.dateOfBirth;
 
@@ -139,17 +144,17 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
           ? onboarding.spocDesignation
           : 'Corporate Lead',
     );
-    _spocPhoneController = TextEditingController(text: initialPhone);
+    _spocPhoneController = TextEditingController(text: clean10Digits(initialPhone));
     _billingEmailController = TextEditingController(
       text: onboarding.billingEmail.isNotEmpty
           ? onboarding.billingEmail
           : initialEmail,
     );
     _altPhoneController.text =
-        (authUser?.vendorProfile?['alternatePhone'] ?? '').toString();
+        clean10Digits((authUser?.vendorProfile?['alternatePhone'] ?? '').toString());
     if (_emergencyPhoneController.text.isEmpty) {
       _emergencyPhoneController.text =
-          (authUser?.vendorProfile?['emergencyContactPhone'] ?? '').toString();
+          clean10Digits((authUser?.vendorProfile?['emergencyContactPhone'] ?? '').toString());
     }
     _cityController = TextEditingController(text: onboarding.city);
     _stateController = TextEditingController(text: onboarding.stateName);
@@ -236,6 +241,12 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
   Future<void> _handleContinue() async {
     final onboarding = context.read<OnboardingProvider>();
 
+    String formatIndiaPhone(String raw) {
+      final d = raw.replaceAll(RegExp(r'\D'), '');
+      if (d.isEmpty) return '';
+      return '+91$d';
+    }
+
     if (onboarding.isUser) {
       // ── Vendor / Corporate Booker Submission ──
       if (!_formKey.currentState!.validate()) {
@@ -247,10 +258,10 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
 
       final companyName = _companyNameController.text.trim();
       final spocName = _spocNameController.text.trim();
-      final spocPhone = _spocPhoneController.text.trim();
+      final spocPhone = formatIndiaPhone(_spocPhoneController.text.trim());
       final billingEmail = _billingEmailController.text.trim();
-      final altPhone = _altPhoneController.text.trim();
-      final emergencyPhone = _emergencyPhoneController.text.trim();
+      final altPhone = formatIndiaPhone(_altPhoneController.text.trim());
+      final emergencyPhone = formatIndiaPhone(_emergencyPhoneController.text.trim());
       final location = _addressController.text.trim();
 
       setState(() {
@@ -352,10 +363,10 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
       }
 
       final enteredName = _nameController.text.trim();
-      final enteredPhone = _phoneController.text.trim();
+      final enteredPhone = formatIndiaPhone(_phoneController.text.trim());
       final enteredAddress = _addressController.text.trim();
       final enteredEmergencyName = _emergencyNameController.text.trim();
-      final enteredEmergencyPhone = _emergencyPhoneController.text.trim();
+      final enteredEmergencyPhone = formatIndiaPhone(_emergencyPhoneController.text.trim());
 
       if (enteredAddress.isEmpty) {
         const msg = 'Please enter or select your residential address/location.';
@@ -582,7 +593,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                       AppTextField(
                         controller: _phoneController,
                         label: 'Mobile Phone Number *',
-                        hintText: '10-digit mobile number',
+                        hintText: '98765 43210',
                         prefixIcon: const Icon(Icons.phone_outlined, size: 20),
                         keyboardType: TextInputType.phone,
                         validator: (val) {
@@ -590,7 +601,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                             return 'Please enter your mobile phone number';
                           }
                           final digits = val.replaceAll(RegExp(r'\D'), '');
-                          if (digits.length < 10) {
+                          if (digits.length != 10) {
                             return 'Please enter a valid 10-digit mobile number';
                           }
                           return null;
@@ -821,10 +832,19 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                             AppTextField(
                               controller: _emergencyPhoneController,
                               label: 'Emergency Phone Number',
-                              hintText: 'e.g. +91 98765 43210',
+                              hintText: '98765 43210',
                               prefixIcon:
                                   const Icon(Icons.phone_outlined, size: 18),
                               keyboardType: TextInputType.phone,
+                              validator: (val) {
+                                if (val != null && val.trim().isNotEmpty) {
+                                  final d = val.replaceAll(RegExp(r'\D'), '');
+                                  if (d.length != 10) {
+                                    return 'Enter valid 10-digit emergency number';
+                                  }
+                                }
+                                return null;
+                              },
                             ),
                           ],
                         ),
@@ -858,13 +878,13 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                       AppTextField(
                         controller: _spocPhoneController,
                         label: 'Official Mobile Number *',
-                        hintText: '10-digit primary mobile number',
+                        hintText: '98765 43210',
                         prefixIcon: const Icon(Icons.phone_outlined, size: 20),
                         keyboardType: TextInputType.phone,
                         validator: (val) {
                           final p = val?.trim() ?? '';
                           final d = p.replaceAll(RegExp(r'\D'), '');
-                          if (d.length < 10) {
+                          if (d.length != 10) {
                             return 'Enter valid 10-digit mobile number';
                           }
                           return null;
@@ -892,20 +912,38 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                       AppTextField(
                         controller: _altPhoneController,
                         label: 'Alternative Contact Number (Optional)',
-                        hintText: 'e.g. +91 91234 56789',
+                        hintText: '91234 56789',
                         prefixIcon:
                             const Icon(Icons.phone_iphone_outlined, size: 20),
                         keyboardType: TextInputType.phone,
+                        validator: (val) {
+                          if (val != null && val.trim().isNotEmpty) {
+                            final d = val.replaceAll(RegExp(r'\D'), '');
+                            if (d.length != 10) {
+                              return 'Enter valid 10-digit alternative number';
+                            }
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: AppSpacing.md),
 
                       AppTextField(
                         controller: _emergencyPhoneController,
                         label: 'Emergency Helpline Number (Optional)',
-                        hintText: 'e.g. +91 1800 123 456 or alternate contact',
+                        hintText: '98765 43210',
                         prefixIcon:
                             const Icon(Icons.support_agent_outlined, size: 20),
                         keyboardType: TextInputType.phone,
+                        validator: (val) {
+                          if (val != null && val.trim().isNotEmpty) {
+                            final d = val.replaceAll(RegExp(r'\D'), '');
+                            if (d.length != 10) {
+                              return 'Enter valid 10-digit helpline number';
+                            }
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: AppSpacing.xl),
 

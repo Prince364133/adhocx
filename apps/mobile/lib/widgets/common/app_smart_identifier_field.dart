@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
@@ -46,14 +47,17 @@ class AppSmartIdentifierField extends StatefulWidget {
       };
     } else {
       final digits = text.replaceAll(RegExp(r'\D'), '');
-      final formatted = digits.length == 10 ? '+91$digits' : (text.startsWith('+') ? text : '+$digits');
+      final clean10 = digits.length > 10 && digits.startsWith('91')
+          ? digits.substring(digits.length - 10)
+          : (digits.length > 10 ? digits.substring(0, 10) : digits);
+      final formatted = '+91$clean10';
       return {
         'isEmail': false,
         'value': formatted,
         'phone': formatted,
         'email': null,
         'channel': 'SMS',
-        'rawDigits': digits,
+        'rawDigits': clean10,
       };
     }
   }
@@ -246,6 +250,30 @@ class _AppSmartIdentifierFieldState extends State<AppSmartIdentifierField> {
           enabled: widget.enabled,
           keyboardType: TextInputType.emailAddress,
           cursorColor: isDark ? AppColors.primaryLight : AppColors.primary,
+          inputFormatters: [
+            TextInputFormatter.withFunction((oldVal, newVal) {
+              final newText = newVal.text;
+              if (AppSmartIdentifierField.isEmailInput(newText)) {
+                return newVal;
+              }
+              final digits = newText.replaceAll(RegExp(r'\D'), '');
+              if (digits.length > 10) {
+                if (digits.startsWith('91') && digits.length >= 12) {
+                  final truncated = digits.substring(digits.length - 10);
+                  return TextEditingValue(
+                    text: truncated,
+                    selection: TextSelection.collapsed(offset: truncated.length),
+                  );
+                }
+                final truncated = digits.substring(0, 10);
+                return TextEditingValue(
+                  text: truncated,
+                  selection: TextSelection.collapsed(offset: truncated.length),
+                );
+              }
+              return newVal;
+            }),
+          ],
           style: AppTypography.body(
             color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
           ),

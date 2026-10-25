@@ -30,14 +30,17 @@ class KycIdentitySectionWidget extends StatelessWidget {
           _KycField(
             isDark: isDark,
             label: 'Phone Number',
-            hint: '9876543210',
+            hint: '98765 43210',
             icon: Icons.phone_outlined,
             keyboardType: TextInputType.phone,
             inputFormatters: [
               FilteringTextInputFormatter.digitsOnly,
               LengthLimitingTextInputFormatter(10),
             ],
-            onSaved: (v) => onSaved({'phone': v ?? ''}),
+            onSaved: (v) {
+              final d = (v ?? '').replaceAll(RegExp(r'\D'), '');
+              onSaved({'phone': d.isNotEmpty ? '+91$d' : ''});
+            },
             validator: (v) =>
                 (v == null || v.length != 10) ? 'Enter 10-digit number' : null,
           ),
@@ -179,6 +182,8 @@ class _KycField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isPhone = keyboardType == TextInputType.phone;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -204,11 +209,40 @@ class _KycField extends StatelessWidget {
             hintStyle: TextStyle(
               color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
             ),
-            prefixIcon: Icon(
-              icon,
-              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-              size: 18,
-            ),
+            prefixIcon: isPhone
+                ? Padding(
+                    padding: const EdgeInsets.only(left: 12, right: 8),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          icon,
+                          color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '+91',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          width: 1,
+                          height: 16,
+                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                        ),
+                      ],
+                    ),
+                  )
+                : Icon(
+                    icon,
+                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                    size: 18,
+                  ),
             filled: true,
             fillColor: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight,
             enabledBorder: OutlineInputBorder(

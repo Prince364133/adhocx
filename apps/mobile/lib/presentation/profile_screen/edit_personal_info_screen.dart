@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -141,13 +142,19 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
         final onboarding = Provider.of<OnboardingProvider>(context, listen: false);
 
         setState(() {
+          String clean10(dynamic v) {
+            final s = (v ?? '').toString().replaceAll(RegExp(r'\D'), '');
+            return s.length > 10 ? s.substring(s.length - 10) : s;
+          }
+
           final serverPhone = p['phone']?.toString().trim();
           if (serverPhone != null && serverPhone.isNotEmpty && serverPhone != '—') {
-            _phone = serverPhone;
+            _phone = clean10(serverPhone);
           } else if (_phone == null || _phone!.isEmpty || _phone == '—') {
-            _phone = onboarding.phone.isNotEmpty
+            final fallback = onboarding.phone.isNotEmpty
                 ? onboarding.phone
                 : (user?.phone?.isNotEmpty == true ? user!.phone : null);
+            _phone = fallback != null ? clean10(fallback) : null;
           }
           if (_phone != null && _phone != '—') {
             _phoneController.text = _phone!;
@@ -172,7 +179,7 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
             _emergencyNameController.text = p['emergencyContactName'].toString().trim();
           }
           if (p['emergencyContactPhone'] != null && p['emergencyContactPhone'].toString().trim().isNotEmpty) {
-            _emergencyPhoneController.text = p['emergencyContactPhone'].toString().trim();
+            _emergencyPhoneController.text = clean10(p['emergencyContactPhone']);
           }
           _isLoadingInitial = false;
         });
@@ -250,13 +257,23 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
     setState(() => _isSaving = true);
 
     try {
-      final effectiveEnteredPhone = _phoneController.text.trim().isNotEmpty
-          ? _phoneController.text.trim()
-          : (_phone != null && _phone != '—' ? _phone : null);
+      String? formatPhone(String raw) {
+        final d = raw.replaceAll(RegExp(r'\D'), '');
+        if (d.isEmpty) return null;
+        return '+91$d';
+      }
+
+      final rawEnteredPhone = _phoneController.text.trim();
+      final effectiveEnteredPhone = rawEnteredPhone.isNotEmpty
+          ? formatPhone(rawEnteredPhone)
+          : (_phone != null && _phone != '—' ? formatPhone(_phone!) : null);
 
       final enteredEmail = _emailController.text.trim().isNotEmpty
           ? _emailController.text.trim()
           : null;
+
+      final rawEmergencyPhone = _emergencyPhoneController.text.trim();
+      final effectiveEmergencyPhone = formatPhone(rawEmergencyPhone) ?? '';
 
       // 1. Immediately update local AuthService session so UI updates synchronously
       AuthService.instance.updateCurrentUser(
@@ -285,7 +302,7 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
         'gender': _gender,
         'address': _addressController.text.trim(),
         'emergencyContactName': _emergencyNameController.text.trim(),
-        'emergencyContactPhone': _emergencyPhoneController.text.trim(),
+        'emergencyContactPhone': effectiveEmergencyPhone,
       };
 
       final user = AuthService.instance.currentUser;
@@ -632,6 +649,46 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
     TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
   }) {
+    final isPhone = keyboardType == TextInputType.phone;
+    Widget prefixWidget = Icon(
+      icon,
+      color: isDark ? AppColors.primaryLight : AppColors.primary,
+      size: 20,
+    );
+
+    if (isPhone) {
+      prefixWidget = Container(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+        margin: const EdgeInsets.only(right: AppSpacing.sm),
+        decoration: BoxDecoration(
+          border: Border(
+            right: BorderSide(
+              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              width: 1.2,
+            ),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.phone_iphone_rounded,
+              size: 18,
+              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              '+91',
+              style: AppTypography.body(
+                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -647,16 +704,18 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
           controller: controller,
           keyboardType: keyboardType,
           maxLines: maxLines,
+          inputFormatters: isPhone
+              ? [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(10),
+                ]
+              : null,
           style: AppTypography.body(
             color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
           ),
           decoration: InputDecoration(
-            prefixIcon: Icon(
-              icon,
-              color: isDark ? AppColors.primaryLight : AppColors.primary,
-              size: 20,
-            ),
-            hintText: hint,
+            prefixIcon: prefixWidget,
+            hintText: isPhone ? (hint ?? '98765 43210') : hint,
             hintStyle: AppTypography.body(
               color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
             ),

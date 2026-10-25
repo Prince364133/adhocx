@@ -47,28 +47,49 @@ void main() {
       expect(find.text('Get Started'), findsOneWidget);
     });
 
-    testWidgets('Screen 3: Sign In Screen renders password login form by default',
+    testWidgets('Screen 3: Sign In Screen renders mobile login with password by default and supports OTP & email mode',
         (WidgetTester tester) async {
       await tester.pumpWidget(createTestApp(const SignInScreen()));
 
       expect(find.text('Welcome back!'), findsOneWidget);
-      expect(find.text('Email Address'), findsOneWidget);
+      expect(find.text('Mobile Number'), findsWidgets);
+      expect(find.text('+91'), findsOneWidget);
       expect(find.text('Password'), findsOneWidget);
       expect(find.text('Sign In'), findsOneWidget);
-      expect(find.text('Sign in with Email OTP instead'), findsOneWidget);
+      expect(find.text('Sign in with Mobile OTP instead'), findsOneWidget);
       expect(find.text('Forgot Password?'), findsOneWidget);
       expect(find.text('Continue with Google'), findsOneWidget);
       expect(find.text("Don't have an account? "), findsOneWidget);
+
+      // Switch to Mobile OTP mode
+      await tester.tap(find.text('Sign in with Mobile OTP instead'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Continue with Mobile OTP'), findsOneWidget);
+
+      // Switch to Email mode
+      await tester.tap(find.text('Email Address'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Continue with Email OTP'), findsOneWidget);
     });
 
-    testWidgets('Screen 5: Sign Up Screen renders user registration and Driver CTA',
+    testWidgets('Screen 5: Sign Up Screen renders mobile registration by default and Driver CTA',
         (WidgetTester tester) async {
       await tester.pumpWidget(createTestApp(const SignUpScreen(), role: 'VENDOR'));
 
       expect(find.text('Create your account'), findsOneWidget);
-      expect(find.text('Continue with Email'), findsOneWidget);
+      expect(find.text('Work Mobile Number *'), findsOneWidget);
+      expect(find.text('+91'), findsOneWidget);
+      expect(find.text('Continue with Mobile OTP'), findsOneWidget);
       expect(find.text('Registering as a Commercial Driver?'), findsOneWidget);
       expect(find.text('Switch to Driver'), findsOneWidget);
+
+      // Switch to Email mode
+      await tester.tap(find.text('Email Address'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Continue with Email'), findsOneWidget);
     });
 
     testWidgets('Screen 6: Set Password Screen renders password fields',

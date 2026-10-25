@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/auth_service.dart';
@@ -100,18 +101,27 @@ class _UserOrganizationInformationScreenState
 
       if (mounted) {
         setState(() {
+          String clean10(dynamic raw) {
+            if (raw == null) return '';
+            final digits = raw.toString().replaceAll(RegExp(r'\D'), '');
+            if (digits.length > 10 && digits.startsWith('91')) {
+              return digits.substring(digits.length - 10);
+            }
+            return digits.length > 10 ? digits.substring(0, 10) : digits;
+          }
+
           // Contact Details
           _fullNameController.text =
               (merged['fullName'] ?? user?.fullName ?? '').toString();
           _phoneController.text =
-              (merged['phone'] ?? user?.phone ?? '').toString();
+              clean10(merged['phone'] ?? user?.phone ?? '');
           _emailController.text =
               (user?.email ?? merged['email'] ?? merged['billingEmail'] ?? '')
                   .toString();
           _altPhoneController.text =
-              (merged['alternatePhone'] ?? '').toString();
+              clean10(merged['alternatePhone'] ?? '');
           _emergencyPhoneController.text =
-              (merged['emergencyContactPhone'] ?? '').toString();
+              clean10(merged['emergencyContactPhone'] ?? '');
 
           // Organization Details
           _orgNameController.text = (merged['organizationName'] ??
@@ -158,11 +168,18 @@ class _UserOrganizationInformationScreenState
     setState(() => _isSaving = true);
 
     try {
+      String formatPhone(String raw) {
+        final digits = raw.replaceAll(RegExp(r'\D'), '');
+        if (digits.isEmpty) return '';
+        final last10 = digits.length > 10 ? digits.substring(digits.length - 10) : digits;
+        return '+91$last10';
+      }
+
       final fullName = _fullNameController.text.trim();
-      final phone = _phoneController.text.trim();
+      final phone = formatPhone(_phoneController.text.trim());
       final email = _emailController.text.trim();
-      final altPhone = _altPhoneController.text.trim();
-      final emergencyPhone = _emergencyPhoneController.text.trim();
+      final altPhone = formatPhone(_altPhoneController.text.trim());
+      final emergencyPhone = formatPhone(_emergencyPhoneController.text.trim());
       final orgName = _orgNameController.text.trim();
       final location = _locationController.text.trim();
 
@@ -221,6 +238,7 @@ class _UserOrganizationInformationScreenState
     String? Function(String?)? validator,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isPhone = keyboardType == TextInputType.phone;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -236,6 +254,12 @@ class _UserOrganizationInformationScreenState
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
+          inputFormatters: isPhone
+              ? [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(10),
+                ]
+              : null,
           style: AppTypography.body(
             color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
           ),
@@ -245,17 +269,60 @@ class _UserOrganizationInformationScreenState
                       if (val == null || val.trim().isEmpty) {
                         return 'This field is required';
                       }
+                      if (isPhone &&
+                          val.trim().replaceAll(RegExp(r'\D'), '').length != 10) {
+                        return 'Enter a valid 10-digit mobile number';
+                      }
                       return null;
                     }
-                  : null),
+                  : (isPhone
+                      ? (val) {
+                          if (val != null &&
+                              val.trim().isNotEmpty &&
+                              val.trim().replaceAll(RegExp(r'\D'), '').length != 10) {
+                            return 'Enter a valid 10-digit mobile number';
+                          }
+                          return null;
+                        }
+                      : null)),
           decoration: InputDecoration(
-            hintText: hintText,
+            hintText: isPhone && (hintText.isEmpty || hintText.contains('+91'))
+                ? '98765 43210'
+                : hintText,
             hintStyle: AppTypography.body(
               color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
             ),
-            prefixIcon: Icon(prefixIcon,
-                color: isDark ? AppColors.primaryLight : AppColors.primary,
-                size: 20),
+            prefixIcon: isPhone
+                ? Padding(
+                    padding: const EdgeInsets.only(left: 12, right: 8),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(prefixIcon,
+                            color: isDark ? AppColors.primaryLight : AppColors.primary,
+                            size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          '+91',
+                          style: AppTypography.body(
+                            color: isDark
+                                ? AppColors.textPrimaryDark
+                                : AppColors.textPrimaryLight,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          width: 1,
+                          height: 18,
+                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                        ),
+                      ],
+                    ),
+                  )
+                : Icon(prefixIcon,
+                    color: isDark ? AppColors.primaryLight : AppColors.primary,
+                    size: 20),
             filled: true,
             fillColor: isDark ? AppColors.bgDark : AppColors.bgLight,
             contentPadding:
@@ -541,14 +608,14 @@ class _UserOrganizationInformationScreenState
                             _buildTextField(
                               controller: _phoneController,
                               label: 'Official Mobile Number *',
-                              hintText: '10-digit primary mobile number',
+                              hintText: '98765 43210',
                               prefixIcon: Icons.phone_outlined,
                               keyboardType: TextInputType.phone,
                               isRequired: true,
                               validator: (val) {
                                 final p = val?.trim() ?? '';
                                 final d = p.replaceAll(RegExp(r'\D'), '');
-                                if (d.length < 10) {
+                                if (d.length != 10) {
                                   return 'Enter a valid 10-digit mobile number';
                                 }
                                 return null;
@@ -580,7 +647,7 @@ class _UserOrganizationInformationScreenState
                             _buildTextField(
                               controller: _altPhoneController,
                               label: 'Alternative Contact Number (Optional)',
-                              hintText: 'e.g. +91 91234 56789',
+                              hintText: '98765 43210',
                               prefixIcon: Icons.phone_iphone_outlined,
                               keyboardType: TextInputType.phone,
                               isRequired: false,
@@ -591,7 +658,7 @@ class _UserOrganizationInformationScreenState
                             _buildTextField(
                               controller: _emergencyPhoneController,
                               label: 'Emergency Helpline Number (Optional)',
-                              hintText: 'e.g. +91 1800 123 456 or alternate contact',
+                              hintText: '98765 43210',
                               prefixIcon: Icons.support_agent_outlined,
                               keyboardType: TextInputType.phone,
                               isRequired: false,

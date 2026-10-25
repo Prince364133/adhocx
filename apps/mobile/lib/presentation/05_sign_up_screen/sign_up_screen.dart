@@ -12,11 +12,13 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
+import '../../widgets/common/app_phone_field.dart';
 import '../../widgets/common/app_primary_button.dart';
+import '../../widgets/common/app_segmented_control.dart';
 import '../../widgets/common/app_social_auth_button.dart';
 import '../../widgets/common/app_text_field.dart';
 
-/// Screen 5: Create your account (Sign Up) with single Email field and Google Auth.
+/// Screen 5: Create your account (Sign Up) with Mobile Number (+91, max 10 digits) or Email, and Google Auth.
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
 
@@ -32,8 +34,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
   late final TapGestureRecognizer _privacyRecognizer;
 
   final _formKey = GlobalKey<FormState>();
+  final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
 
+  bool _isPhoneMode = true; // Default to Mobile Number (+91, max 10 digits)
   bool _agreeToTerms = false;
   bool _isLoading = false;
 
@@ -48,6 +52,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   void dispose() {
     _termsRecognizer.dispose();
     _privacyRecognizer.dispose();
+    _phoneController.dispose();
     _emailController.dispose();
     super.dispose();
   }
@@ -66,6 +71,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
+  String? _validatePhone(String? val) {
+    if (val == null || val.trim().isEmpty) {
+      return 'Please enter your mobile number';
+    }
+    final digits = val.replaceAll(RegExp(r'\D'), '');
+    if (digits.length != 10) {
+      return 'Please enter a valid 10-digit mobile number';
+    }
+    return null;
+  }
+
   String? _validateEmail(String? val) {
     if (val == null || val.trim().isEmpty) {
       return 'Please enter your email address';
@@ -79,12 +95,27 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   Future<void> _handleSignUp() async {
-    final emailRaw = _emailController.text.trim().toLowerCase();
-    final emailError = _validateEmail(emailRaw);
-    if (emailError != null) {
-      _formKey.currentState?.validate();
-      AppToast.showError(emailError, context: context);
-      return;
+    String? targetPhone;
+    String? targetEmail;
+
+    if (_isPhoneMode) {
+      final phoneError = _validatePhone(_phoneController.text);
+      if (phoneError != null) {
+        _formKey.currentState?.validate();
+        AppToast.showError(phoneError, context: context);
+        return;
+      }
+      final digits = _phoneController.text.replaceAll(RegExp(r'\D'), '');
+      targetPhone = '+91$digits';
+    } else {
+      final emailRaw = _emailController.text.trim().toLowerCase();
+      final emailError = _validateEmail(emailRaw);
+      if (emailError != null) {
+        _formKey.currentState?.validate();
+        AppToast.showError(emailError, context: context);
+        return;
+      }
+      targetEmail = emailRaw;
     }
 
     if (!_agreeToTerms) {
@@ -93,7 +124,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
 
     if (!_formKey.currentState!.validate()) {
-      AppToast.showError('Please enter a valid email address', context: context);
+      AppToast.showError('Please check the highlighted field', context: context);
       return;
     }
 
@@ -108,24 +139,28 @@ class _SignUpScreenState extends State<SignUpScreen> {
         fullName: onboarding.fullName.isNotEmpty ? onboarding.fullName : (isDriver ? 'Driver' : 'User'),
         dateOfBirth: onboarding.dateOfBirth,
         gender: onboarding.gender,
-        email: emailRaw,
+        email: targetEmail,
+        phone: targetPhone,
       );
 
       final res = await authService.requestOtp(
-        email: emailRaw,
-        channel: 'EMAIL',
+        phone: targetPhone,
+        email: targetEmail,
+        channel: _isPhoneMode ? 'SMS' : 'EMAIL',
         role: onboarding.role,
         isRegister: true,
       );
 
       if (mounted) {
-        final message = res is Map && res['message'] != null ? res['message'] : 'OTP sent to $emailRaw';
+        final dest = targetPhone ?? targetEmail ?? '';
+        final message = res is Map && res['message'] != null ? res['message'] : 'OTP sent to $dest';
         AppToast.showSuccess(message, context: context);
 
         context.push(
           AppRoutes.loginOtpScreen,
           extra: {
-            'email': emailRaw,
+            if (targetPhone != null) 'phone': targetPhone,
+            if (targetEmail != null) 'email': targetEmail,
             'role': onboarding.role,
             'isRegister': true,
           },
@@ -254,19 +289,51 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xl),
 
-                    // ── Single Input: Email Address ──────────────────────────
-                    AppTextField(
-                      controller: _emailController,
-                      label: isDriver ? 'Email Address *' : 'Corporate Email Address *',
-                      hintText: isDriver ? 'name@example.com' : 'traveldesk@company.com',
-                      prefixIcon: Icon(
-                        Icons.email_outlined,
-                        size: 20,
-                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                      ),
-                      keyboardType: TextInputType.emailAddress,
-                      validator: _validateEmail,
+                    // ── Mode Switcher: Mobile Number (default) vs Email Address ─
+                    AppSegmentedControl<bool>(
+                      selectedValue: _isPhoneMode,
+                      items: const [
+                        SegmentItem<bool>(
+                          value: true,
+                          label: 'Mobile Number',
+                          icon: Icons.phone_android_rounded,
+                        ),
+                        SegmentItem<bool>(
+                          value: false,
+                          label: 'Email Address',
+                          icon: Icons.email_outlined,
+                        ),
+                      ],
+                      onValueChanged: (val) {
+                        setState(() {
+                          _isPhoneMode = val;
+                        });
+                      },
                     ),
+                    const SizedBox(height: AppSpacing.lg),
+
+                    // ── Input Field: Mobile Number or Email ──────────────────
+                    if (_isPhoneMode) ...[
+                      AppPhoneField(
+                        controller: _phoneController,
+                        label: isDriver ? 'Mobile Number *' : 'Work Mobile Number *',
+                        hintText: '98765 43210',
+                        validator: _validatePhone,
+                      ),
+                    ] else ...[
+                      AppTextField(
+                        controller: _emailController,
+                        label: isDriver ? 'Email Address *' : 'Corporate Email Address *',
+                        hintText: isDriver ? 'name@example.com' : 'traveldesk@company.com',
+                        prefixIcon: Icon(
+                          Icons.email_outlined,
+                          size: 20,
+                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                        ),
+                        keyboardType: TextInputType.emailAddress,
+                        validator: _validateEmail,
+                      ),
+                    ],
                     const SizedBox(height: AppSpacing.lg),
 
                     // ── Terms & Privacy Checkbox ─────────────────────────────
@@ -285,7 +352,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             ),
                             side: BorderSide(
                               color: _agreeToTerms
-                                  ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                                  ? (isDriver ? (isDark ? AppColors.primaryLight : AppColors.primary) : (isDark ? AppColors.primaryLight : AppColors.primary))
                                   : (isDark ? AppColors.borderDark : AppColors.borderLight),
                               width: 1.5,
                             ),
@@ -333,9 +400,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xl),
 
-                    // ── Primary Action: Continue with Email ──────────────────
+                    // ── Primary Action: Continue with Mobile OTP / Email ─────
                     AppPrimaryButton(
-                      text: 'Continue with Email',
+                      text: _isPhoneMode ? 'Continue with Mobile OTP' : 'Continue with Email',
                       isLoading: _isLoading,
                       onPressed: _handleSignUp,
                     ),

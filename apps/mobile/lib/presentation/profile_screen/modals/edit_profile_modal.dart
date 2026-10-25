@@ -1,5 +1,6 @@
 import '../../../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../services/driver_service.dart';
 import '../../../services/auth_service.dart';
 import '../../../core/utils/app_toast.dart';
@@ -34,11 +35,20 @@ class _EditProfileModalState extends State<EditProfileModal> {
   @override
   void initState() {
     super.initState();
+    String clean10(dynamic raw) {
+      if (raw == null) return '';
+      final digits = raw.toString().replaceAll(RegExp(r'\D'), '');
+      if (digits.length > 10 && digits.startsWith('91')) {
+        return digits.substring(digits.length - 10);
+      }
+      return digits.length > 10 ? digits.substring(0, 10) : digits;
+    }
+
     _nameCtrl = TextEditingController(
       text: widget.profile['full_name'] as String? ?? widget.profile['name'] as String? ?? '',
     );
     _phoneCtrl = TextEditingController(
-      text: widget.profile['phone'] as String? ?? '',
+      text: clean10(widget.profile['phone']),
     );
     _dlCtrl = TextEditingController(
       text: widget.profile['dl_number'] as String? ?? '',
@@ -114,8 +124,15 @@ class _EditProfileModalState extends State<EditProfileModal> {
     setState(() => _isSaving = true);
 
     try {
+      String formatPhone(String raw) {
+        final digits = raw.replaceAll(RegExp(r'\D'), '');
+        if (digits.isEmpty) return '';
+        final last10 = digits.length > 10 ? digits.substring(digits.length - 10) : digits;
+        return '+91$last10';
+      }
+
       final newName = _nameCtrl.text.trim();
-      final newPhone = _phoneCtrl.text.trim();
+      final newPhone = formatPhone(_phoneCtrl.text.trim());
 
       // Immediately sync local session
       AuthService.instance.updateCurrentUser(
@@ -441,6 +458,8 @@ class _EditProfileModalState extends State<EditProfileModal> {
     TextInputType? keyboardType,
     TextCapitalization caps = TextCapitalization.none,
   }) {
+    final isPhone = keyboardType == TextInputType.phone;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -457,18 +476,63 @@ class _EditProfileModalState extends State<EditProfileModal> {
           controller: ctrl,
           keyboardType: keyboardType,
           textCapitalization: caps,
+          inputFormatters: isPhone
+              ? [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(10),
+                ]
+              : null,
           style: TextStyle(
             color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
             fontSize: 14,
           ),
+          validator: (val) {
+            if (isPhone) {
+              final d = (val ?? '').replaceAll(RegExp(r'\D'), '');
+              if (d.isNotEmpty && d.length != 10) {
+                return 'Enter a valid 10-digit mobile number';
+              }
+            }
+            return null;
+          },
           decoration: InputDecoration(
             filled: true,
             fillColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-            prefixIcon: Icon(
-              icon,
-              color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
-              size: 17,
-            ),
+            hintText: isPhone ? '98765 43210' : null,
+            prefixIcon: isPhone
+                ? Padding(
+                    padding: const EdgeInsets.only(left: 12, right: 8),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          icon,
+                          color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
+                          size: 17,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '+91',
+                          style: TextStyle(
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          width: 1,
+                          height: 16,
+                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                        ),
+                      ],
+                    ),
+                  )
+                : Icon(
+                    icon,
+                    color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
+                    size: 17,
+                  ),
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
