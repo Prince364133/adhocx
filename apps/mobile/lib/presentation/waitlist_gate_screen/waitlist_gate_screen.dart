@@ -301,47 +301,11 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
   }
 
   Widget _buildBrandHeader(bool isDark) {
-    return Column(
-      children: [
-        // App Icon Badge
-        Container(
-          width: 58,
-          height: 58,
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.surfaceDark : Colors.white,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(
-              color: isDark ? AppColors.borderDark : AppColors.borderLight,
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.15),
-                blurRadius: 18,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.lg - 1.5),
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Image.asset(
-                'assets/images/adhocx_icon.png',
-                fit: BoxFit.contain,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-
-        // Synchronized AdhocX Brand Typography
-        AdhocxBrandLogo(
-          fontSize: 28,
-          subtitle: 'VERIFICATION CENTER',
-          isDark: isDark,
-        ),
-      ],
+    // Synchronized AdhocX Brand Typography
+    return AdhocxBrandLogo(
+      fontSize: 28,
+      subtitle: 'VERIFICATION CENTER',
+      isDark: isDark,
     );
   }
 
@@ -486,67 +450,6 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Live Sync Header Row
-          Row(
-            children: [
-              AnimatedBuilder(
-                animation: _pulseAnimation,
-                builder: (context, child) {
-                  return Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: AppColors.success,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.success.withValues(alpha: 0.7 * _pulseAnimation.value),
-                          blurRadius: 6,
-                          spreadRadius: 1,
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Text(
-                'Live Auto-Sync Active',
-                style: AppTypography.label(
-                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.success.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppRadius.full),
-                ),
-                child: Text(
-                  'Every 3s',
-                  style: TextStyle(
-                    color: AppColors.success,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'This screen automatically unlocks and routes to your console the moment you are approved.',
-            style: AppTypography.caption(
-              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          const Divider(height: 1),
-          const SizedBox(height: AppSpacing.md),
-
-          // Breakdown items
           _checklistItem(
             isDark: isDark,
             icon: Icons.check_circle_rounded,
@@ -556,7 +459,7 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
             trailingBadge: 'DONE',
             trailingColor: AppColors.success,
           ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.md),
           _checklistItem(
             isDark: isDark,
             icon: Icons.sync_rounded,
@@ -565,16 +468,6 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
             subtitle: 'Verification Officer reviewing documents',
             trailingBadge: 'IN PROGRESS',
             trailingColor: AppColors.brandOrange,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _checklistItem(
-            isDark: isDark,
-            icon: Icons.lock_clock_rounded,
-            iconColor: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-            title: 'Account Activation',
-            subtitle: isBusiness ? 'Access trip dispatch' : 'Go online and accept trips',
-            trailingBadge: 'NEXT',
-            trailingColor: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
           ),
         ],
       ),
