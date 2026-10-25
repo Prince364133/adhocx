@@ -483,7 +483,8 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final extra = state.extra as Map<String, dynamic>? ?? {};
         return ForgotPasswordOtpScreen(
-          phone: extra['phone'] ?? '',
+          phone: extra['phone'],
+          email: extra['email'],
         );
       },
     ),
@@ -492,7 +493,8 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final extra = state.extra as Map<String, dynamic>? ?? {};
         return ResetPasswordScreen(
-          phone: extra['phone'] ?? '',
+          phone: extra['phone'],
+          email: extra['email'],
           otp: extra['otp'],
         );
       },

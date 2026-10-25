@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Patch, Delete, Body, Req, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Delete, Body, Req, Query, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse as SwaggerResponse } from '@nestjs/swagger';
 import {
   RequestOtpDto,
@@ -68,6 +68,32 @@ export class AuthController {
   @SwaggerResponse({ status: 200, description: 'Authentication successful' })
   async verifyOtp(@Body() dto: VerifyOtpDto) {
     return this.authService.verifyOtp(dto);
+  }
+
+  @Get('check-phone')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Check if a mobile number is available and unique for registration' })
+  @SwaggerResponse({ status: 200, description: 'Phone availability check result' })
+  async checkPhone(
+    @Query('phone') phone: string,
+    @Req() req: any,
+  ) {
+    const authHeader = req.headers?.authorization;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : undefined;
+    return this.authService.checkPhoneAvailability(phone, token);
+  }
+
+  @Post('check-phone')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Check if a mobile number is available and unique for registration' })
+  @SwaggerResponse({ status: 200, description: 'Phone availability check result' })
+  async checkPhonePost(
+    @Body() dto: { phone: string },
+    @Req() req: any,
+  ) {
+    const authHeader = req.headers?.authorization;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : undefined;
+    return this.authService.checkPhoneAvailability(dto.phone, token);
   }
 
   @Post('social')

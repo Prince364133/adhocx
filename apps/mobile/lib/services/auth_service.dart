@@ -339,6 +339,25 @@ class AuthService {
     _persistCurrentUser(updated);
   }
 
+  /// Check if a mobile number is available and unique across all accounts
+  Future<Map<String, dynamic>> checkPhoneAvailability(String phone) async {
+    final cleanPhone = phone.trim();
+    if (cleanPhone.isEmpty) {
+      return {'available': false, 'message': 'Please enter a valid mobile number.'};
+    }
+    try {
+      final res = await _api.post('/auth/check-phone', body: {'phone': cleanPhone});
+      if (res is Map<String, dynamic>) {
+        return res;
+      }
+      return {'available': true};
+    } catch (e) {
+      final str = e.toString();
+      final msg = str.replaceFirst(RegExp(r'^(Exception|ConflictException):\s*'), '');
+      return {'available': false, 'message': msg};
+    }
+  }
+
   Future<UserModel> updateUserProfile({
     String? fullName,
     String? phone,
@@ -355,9 +374,6 @@ class AuthService {
       payload['email'] = email.trim();
     }
 
-    // Immediately update local cache so UI reacts synchronously
-    updateCurrentUser(fullName: fullName, phone: phone, email: email);
-
     try {
       final response = await _api.patch('/auth/profile', body: payload);
       if (response != null && response is Map<String, dynamic>) {
@@ -367,9 +383,11 @@ class AuthService {
         return updated;
       }
     } catch (e) {
-      AppLogger.warn('updateUserProfile API warning: $e');
+      AppLogger.warn('updateUserProfile API error: $e');
+      rethrow;
     }
 
+    updateCurrentUser(fullName: fullName, phone: phone, email: email);
     return _currentUser!;
   }
 

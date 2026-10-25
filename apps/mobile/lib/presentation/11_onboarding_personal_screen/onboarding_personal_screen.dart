@@ -268,6 +268,19 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
       });
 
       try {
+        if (spocPhone.isNotEmpty) {
+          final phoneCheck = await AuthService.instance.checkPhoneAvailability(spocPhone);
+          if (phoneCheck['available'] == false) {
+            final errorMsg = phoneCheck['message'] as String? ??
+                'This mobile number is already registered to another account. Every account must have a unique mobile number.';
+            if (mounted) {
+              setState(() => _inlineErrorMessage = errorMsg);
+              AppToast.showError(errorMsg, context: context);
+            }
+            return;
+          }
+        }
+
         onboarding.setVendorDetails(
           companyName: companyName,
           businessType: _selectedBusinessType,
@@ -280,18 +293,12 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
           monthlyTrips: _selectedMonthlyTrips,
         );
 
-        // Immediately sync name and phone to session and core User
-        AuthService.instance.updateCurrentUser(
+        // Authoritatively persist core User profile (throws ConflictException if duplicate)
+        await AuthService.instance.updateUserProfile(
           fullName: spocName,
           phone: spocPhone.isNotEmpty ? spocPhone : null,
           email: billingEmail.isNotEmpty ? billingEmail : null,
         );
-        try {
-          await AuthService.instance.updateUserProfile(
-            fullName: spocName,
-            phone: spocPhone.isNotEmpty ? spocPhone : null,
-          );
-        } catch (_) {}
 
         await ApiClient.instance.post(
           '/vendors/profile',
@@ -373,31 +380,41 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
         return;
       }
 
-      setState(() => _inlineErrorMessage = null);
+      setState(() {
+        _isSaving = true;
+        _inlineErrorMessage = null;
+      });
 
-      onboarding.setPersonalDetails(
-        fullName: enteredName,
-        phone: enteredPhone,
-        address: enteredAddress,
-        emergencyContactName: enteredEmergencyName,
-        emergencyContactPhone: enteredEmergencyPhone,
-        dateOfBirth: _selectedDate,
-        gender: _selectedGender,
-      );
-
-      // Immediately sync entered name to session
-      AuthService.instance.updateCurrentUser(
-        fullName: enteredName,
-        phone: enteredPhone.isNotEmpty ? enteredPhone : null,
-      );
       try {
+        if (enteredPhone.isNotEmpty) {
+          final phoneCheck = await AuthService.instance.checkPhoneAvailability(enteredPhone);
+          if (phoneCheck['available'] == false) {
+            final errorMsg = phoneCheck['message'] as String? ??
+                'This mobile number is already registered to another account. Every account must have a unique mobile number.';
+            if (mounted) {
+              setState(() => _inlineErrorMessage = errorMsg);
+              AppToast.showError(errorMsg, context: context);
+            }
+            return;
+          }
+        }
+
+        onboarding.setPersonalDetails(
+          fullName: enteredName,
+          phone: enteredPhone,
+          address: enteredAddress,
+          emergencyContactName: enteredEmergencyName,
+          emergencyContactPhone: enteredEmergencyPhone,
+          dateOfBirth: _selectedDate,
+          gender: _selectedGender,
+        );
+
+        // Authoritatively persist core User profile (throws ConflictException on collision)
         await AuthService.instance.updateUserProfile(
           fullName: enteredName,
           phone: enteredPhone.isNotEmpty ? enteredPhone : null,
         );
-      } catch (_) {}
 
-      try {
         await DriverService.instance.updateProfile({
           if (enteredName.isNotEmpty) 'fullName': enteredName,
           if (enteredPhone.isNotEmpty) 'phone': enteredPhone,
@@ -411,12 +428,24 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                 '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
           if (_selectedGender.isNotEmpty) 'gender': _selectedGender,
         });
-      } catch (e) {
-        AppLogger.warn('Driver profile update on personal step notice: $e');
-      }
 
-      if (mounted) {
-        context.push(AppRoutes.onboardingDocumentsScreen);
+        final updatedUser = await AuthService.instance.fetchCurrentUser(forceRefresh: true);
+        if (updatedUser != null && mounted) {
+          context.read<AuthProvider>().setUser(updatedUser);
+        }
+
+        if (mounted) {
+          context.push(AppRoutes.onboardingDocumentsScreen);
+        }
+      } catch (e) {
+        AppLogger.error('Driver personal step error: $e');
+        if (mounted) {
+          final cleanMsg = AppToast.cleanErrorMessage(e);
+          setState(() => _inlineErrorMessage = cleanMsg);
+          AppToast.showError(cleanMsg, context: context);
+        }
+      } finally {
+        if (mounted) setState(() => _isSaving = false);
       }
     }
   }

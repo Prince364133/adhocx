@@ -13,12 +13,14 @@ import '../../widgets/common/app_text_field.dart';
 
 /// Screen 9: Reset Password (Forgot Password Step 3) matching exact design mockup.
 class ResetPasswordScreen extends StatefulWidget {
-  final String phone;
+  final String? phone;
+  final String? email;
   final String? otp;
 
   const ResetPasswordScreen({
     super.key,
-    required this.phone,
+    this.phone,
+    this.email,
     this.otp,
   });
 
@@ -73,7 +75,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       final otpCode = widget.otp ?? '123456';
 
       await authService.resetPassword(
-        identifier: widget.phone,
+        identifier: widget.email ?? widget.phone ?? '',
         otp: otpCode,
         newPassword: password,
       );

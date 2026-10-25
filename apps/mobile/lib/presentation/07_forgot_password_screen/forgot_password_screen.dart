@@ -7,8 +7,8 @@ import '../../services/auth_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
-import '../../widgets/common/app_phone_field.dart';
 import '../../widgets/common/app_primary_button.dart';
+import '../../widgets/common/app_text_field.dart';
 
 /// Screen 7: Forgot Password? (Step 1) matching exact design mockup.
 class ForgotPasswordScreen extends StatefulWidget {
@@ -20,54 +20,60 @@ class ForgotPasswordScreen extends StatefulWidget {
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
   bool _isLoading = false;
 
   @override
   void dispose() {
-    _phoneController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleSendOtp() async {
-    final rawPhone = _phoneController.text.trim().replaceAll(RegExp(r'\D'), '');
-    if (rawPhone.isEmpty) {
-      _formKey.currentState?.validate();
-      AppToast.showError('Please enter your 10-digit mobile number', context: context);
-      return;
+  String? _validateEmail(String? val) {
+    if (val == null || val.trim().isEmpty) {
+      return 'Please enter your registered email address';
     }
-    if (rawPhone.length != 10) {
+    final email = val.trim().toLowerCase();
+    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    if (!emailRegex.hasMatch(email)) {
+      return 'Please enter a valid email address';
+    }
+    return null;
+  }
+
+  Future<void> _handleSendOtp() async {
+    final email = _emailController.text.trim().toLowerCase();
+    final emailError = _validateEmail(email);
+    if (emailError != null) {
       _formKey.currentState?.validate();
-      AppToast.showError('Please enter a valid 10-digit mobile number', context: context);
+      AppToast.showError(emailError, context: context);
       return;
     }
 
     if (!_formKey.currentState!.validate()) {
-      AppToast.showError('Please enter a valid mobile number', context: context);
+      AppToast.showError('Please enter a valid email address', context: context);
       return;
     }
-
-    final fullPhone = '+91$rawPhone';
 
     setState(() => _isLoading = true);
 
     try {
       final authService = context.read<AuthService>();
       final res = await authService.requestOtp(
-        phone: fullPhone,
-        role: 'DRIVER',
+        email: email,
+        channel: 'EMAIL',
         isRegister: false,
       );
 
       if (mounted) {
         AppToast.showSuccess(
-          res['message'] ?? 'Password reset OTP sent to $fullPhone',
+          res is Map && res['message'] != null ? res['message'] : 'Password reset OTP sent to $email',
           context: context,
         );
 
         context.push(
           AppRoutes.forgotPasswordOtpScreen,
-          extra: {'phone': fullPhone},
+          extra: {'email': email},
         );
       }
     } catch (e) {
@@ -125,25 +131,25 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      'Enter your registered mobile number',
+                      'Enter your registered email address to reset password',
                       style: AppTypography.body(
                         color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xxl),
 
-                    // ── Phone Field ──────────────────────────────────────────
-                    AppPhoneField(
-                      controller: _phoneController,
-                      label: 'Mobile Number',
-                      hintText: '98765 43210',
-                      validator: (val) {
-                        final digits = (val ?? '').replaceAll(RegExp(r'\D'), '');
-                        if (digits.length != 10) {
-                          return 'Enter a valid 10-digit mobile number';
-                        }
-                        return null;
-                      },
+                    // ── Email Field ──────────────────────────────────────────
+                    AppTextField(
+                      controller: _emailController,
+                      label: 'Email Address',
+                      hintText: 'name@example.com',
+                      keyboardType: TextInputType.emailAddress,
+                      prefixIcon: Icon(
+                        Icons.email_outlined,
+                        size: 20,
+                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                      ),
+                      validator: _validateEmail,
                     ),
                     const SizedBox(height: AppSpacing.xxl),
 

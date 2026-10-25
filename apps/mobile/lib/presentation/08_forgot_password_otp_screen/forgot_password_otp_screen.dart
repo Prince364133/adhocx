@@ -13,11 +13,13 @@ import '../../widgets/common/app_numeric_keypad.dart';
 
 /// Screen 8: Enter OTP (Forgot Password Step 2) matching exact design mockup.
 class ForgotPasswordOtpScreen extends StatefulWidget {
-  final String phone;
+  final String? phone;
+  final String? email;
 
   const ForgotPasswordOtpScreen({
     super.key,
-    required this.phone,
+    this.phone,
+    this.email,
   });
 
   @override
@@ -83,6 +85,7 @@ class _ForgotPasswordOtpScreenState extends State<ForgotPasswordOtpScreen> {
       final authService = context.read<AuthService>();
       await authService.verifyOtp(
         phone: widget.phone,
+        email: widget.email,
         otp: _otp,
         role: 'DRIVER',
         isRegister: false,
@@ -96,7 +99,11 @@ class _ForgotPasswordOtpScreenState extends State<ForgotPasswordOtpScreen> {
 
         context.push(
           AppRoutes.resetPasswordScreen,
-          extra: {'phone': widget.phone, 'otp': _otp},
+          extra: {
+            if (widget.phone != null) 'phone': widget.phone,
+            if (widget.email != null) 'email': widget.email,
+            'otp': _otp,
+          },
         );
       }
     } catch (e) {
@@ -153,7 +160,7 @@ class _ForgotPasswordOtpScreenState extends State<ForgotPasswordOtpScreen> {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    "We've sent a 6-digit code to ${widget.phone}",
+                    "We've sent a 6-digit code to ${widget.email ?? widget.phone ?? 'your device'}",
                     style: AppTypography.body(
                       color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                     ),

@@ -1228,4 +1228,37 @@ export class AuthService implements OnModuleInit {
     this.logger.log(`👤 Profile updated for user ${userId}: name="${cleanName}", email="${cleanEmail}", phone="${cleanPhone}"`);
     return this.getCurrentUser(userId);
   }
+
+  async checkPhoneAvailability(
+    phone: string,
+    tokenOrUserId?: string,
+  ): Promise<{ available: boolean; message?: string }> {
+    if (!phone || !phone.trim()) {
+      return { available: false, message: 'Please enter a valid mobile number.' };
+    }
+
+    let excludeUserId: string | undefined;
+    if (tokenOrUserId) {
+      if (tokenOrUserId.includes('.')) {
+        try {
+          const payload = this.jwtService.decode(tokenOrUserId) as any;
+          excludeUserId = payload?.sub;
+        } catch (_) {}
+      } else {
+        excludeUserId = tokenOrUserId;
+      }
+    }
+
+    try {
+      await assertPhoneAvailable(this.db, phone.trim(), {
+        excludeUserId,
+      });
+      return { available: true };
+    } catch (err: any) {
+      return {
+        available: false,
+        message: err.message || 'This mobile number is already registered to another account. Every account must have a unique mobile number.',
+      };
+    }
+  }
 }

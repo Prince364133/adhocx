@@ -11,13 +11,11 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
-import '../../widgets/common/app_phone_field.dart';
 import '../../widgets/common/app_primary_button.dart';
-import '../../widgets/common/app_segmented_control.dart';
 import '../../widgets/common/app_social_auth_button.dart';
 import '../../widgets/common/app_text_field.dart';
 
-/// Screen 3: Sign In with Phone Number (default +91) or Email, Google Auth, and Password login.
+/// Screen 3: Sign In with Email, Google Auth, and Password/Email OTP login.
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
 
@@ -27,10 +25,8 @@ class SignInScreen extends StatefulWidget {
 
 class _SignInScreenState extends State<SignInScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _isPhoneMode = true; // Default to Mobile Number (+91, max 10 digits)
   bool _showPasswordField = true;
   bool _obscurePassword = true;
   bool _isLoading = false;
@@ -39,7 +35,6 @@ class _SignInScreenState extends State<SignInScreen> {
   @override
   void initState() {
     super.initState();
-    _phoneController.addListener(_clearInlineError);
     _emailController.addListener(_clearInlineError);
     _passwordController.addListener(_clearInlineError);
   }
@@ -52,24 +47,11 @@ class _SignInScreenState extends State<SignInScreen> {
 
   @override
   void dispose() {
-    _phoneController.removeListener(_clearInlineError);
     _emailController.removeListener(_clearInlineError);
     _passwordController.removeListener(_clearInlineError);
-    _phoneController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
-  }
-
-  String? _validatePhone(String? val) {
-    if (val == null || val.trim().isEmpty) {
-      return 'Please enter your mobile number';
-    }
-    final digits = val.replaceAll(RegExp(r'\D'), '');
-    if (digits.length != 10) {
-      return 'Please enter a valid 10-digit mobile number';
-    }
-    return null;
   }
 
   String? _validateEmail(String? val) {
@@ -85,29 +67,13 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   Future<void> _handleOtpSignIn() async {
-    String? targetPhone;
-    String? targetEmail;
-
-    if (_isPhoneMode) {
-      final phoneError = _validatePhone(_phoneController.text);
-      if (phoneError != null) {
-        _formKey.currentState?.validate();
-        setState(() => _inlineErrorMessage = phoneError);
-        AppToast.showError(phoneError, context: context);
-        return;
-      }
-      final digits = _phoneController.text.replaceAll(RegExp(r'\D'), '');
-      targetPhone = '+91$digits';
-    } else {
-      final email = _emailController.text.trim().toLowerCase();
-      final emailError = _validateEmail(email);
-      if (emailError != null) {
-        _formKey.currentState?.validate();
-        setState(() => _inlineErrorMessage = emailError);
-        AppToast.showError(emailError, context: context);
-        return;
-      }
-      targetEmail = email;
+    final email = _emailController.text.trim().toLowerCase();
+    final emailError = _validateEmail(email);
+    if (emailError != null) {
+      _formKey.currentState?.validate();
+      setState(() => _inlineErrorMessage = emailError);
+      AppToast.showError(emailError, context: context);
+      return;
     }
 
     setState(() {
@@ -119,22 +85,19 @@ class _SignInScreenState extends State<SignInScreen> {
       final authService = context.read<AuthService>();
 
       final res = await authService.requestOtp(
-        phone: targetPhone,
-        email: targetEmail,
-        channel: _isPhoneMode ? 'SMS' : 'EMAIL',
+        email: email,
+        channel: 'EMAIL',
         isRegister: false,
       );
 
       if (mounted) {
-        final dest = targetPhone ?? targetEmail ?? '';
-        final message = res is Map && res['message'] != null ? res['message'] : 'OTP sent to $dest';
+        final message = res is Map && res['message'] != null ? res['message'] : 'OTP sent to $email';
         AppToast.showSuccess(message, context: context);
 
         context.push(
           AppRoutes.loginOtpScreen,
           extra: {
-            if (targetPhone != null) 'phone': targetPhone,
-            if (targetEmail != null) 'email': targetEmail,
+            'email': email,
             'isRegister': false,
           },
         );
@@ -151,29 +114,15 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   Future<void> _handlePasswordSignIn() async {
-    String identifier;
-
-    if (_isPhoneMode) {
-      final phoneError = _validatePhone(_phoneController.text);
-      if (phoneError != null) {
-        _formKey.currentState?.validate();
-        setState(() => _inlineErrorMessage = phoneError);
-        AppToast.showError(phoneError, context: context);
-        return;
-      }
-      final digits = _phoneController.text.replaceAll(RegExp(r'\D'), '');
-      identifier = '+91$digits';
-    } else {
-      final email = _emailController.text.trim().toLowerCase();
-      final emailError = _validateEmail(email);
-      if (emailError != null) {
-        _formKey.currentState?.validate();
-        setState(() => _inlineErrorMessage = emailError);
-        AppToast.showError(emailError, context: context);
-        return;
-      }
-      identifier = email;
+    final email = _emailController.text.trim().toLowerCase();
+    final emailError = _validateEmail(email);
+    if (emailError != null) {
+      _formKey.currentState?.validate();
+      setState(() => _inlineErrorMessage = emailError);
+      AppToast.showError(emailError, context: context);
+      return;
     }
+    final identifier = email;
 
     final password = _passwordController.text.trim();
     if (password.isEmpty) {
@@ -353,7 +302,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      'Sign in with your mobile number, email, or Google',
+                      'Sign in with your email address or Google',
                       style: AppTypography.body(
                         color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                       ),
@@ -409,52 +358,19 @@ class _SignInScreenState extends State<SignInScreen> {
                       ),
                     ],
 
-                    // ── Mode Switcher: Mobile Number (default) vs Email Address ─
-                    AppSegmentedControl<bool>(
-                      selectedValue: _isPhoneMode,
-                      items: const [
-                        SegmentItem<bool>(
-                          value: true,
-                          label: 'Mobile Number',
-                          icon: Icons.phone_android_rounded,
-                        ),
-                        SegmentItem<bool>(
-                          value: false,
-                          label: 'Email Address',
-                          icon: Icons.email_outlined,
-                        ),
-                      ],
-                      onValueChanged: (val) {
-                        setState(() {
-                          _isPhoneMode = val;
-                          _inlineErrorMessage = null;
-                        });
-                      },
+                    // ── Input Field: Email Address ───────────────────────────
+                    AppTextField(
+                      controller: _emailController,
+                      label: 'Email Address',
+                      hintText: 'name@example.com',
+                      keyboardType: TextInputType.emailAddress,
+                      prefixIcon: Icon(
+                        Icons.email_outlined,
+                        size: 20,
+                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                      ),
+                      validator: _validateEmail,
                     ),
-                    const SizedBox(height: AppSpacing.lg),
-
-                    // ── Input Field: Phone or Email ──────────────────────────
-                    if (_isPhoneMode) ...[
-                      AppPhoneField(
-                        controller: _phoneController,
-                        label: 'Mobile Number',
-                        hintText: '98765 43210',
-                        validator: _validatePhone,
-                      ),
-                    ] else ...[
-                      AppTextField(
-                        controller: _emailController,
-                        label: 'Email Address',
-                        hintText: 'name@example.com',
-                        keyboardType: TextInputType.emailAddress,
-                        prefixIcon: Icon(
-                          Icons.email_outlined,
-                          size: 20,
-                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                        ),
-                        validator: _validateEmail,
-                      ),
-                    ],
 
                     // ── Optional Password Field (Toggled by user) ────────────
                     if (_showPasswordField) ...[
@@ -514,7 +430,7 @@ class _SignInScreenState extends State<SignInScreen> {
                               ),
                               child: Text(
                                 _showPasswordField
-                                    ? (_isPhoneMode ? 'Sign in with Mobile OTP instead' : 'Sign in with Email OTP instead')
+                                    ? 'Sign in with Email OTP instead'
                                     : 'Sign in with password instead',
                                 style: AppTypography.caption(
                                   color: isDark ? AppColors.primaryLight : AppColors.primary,
@@ -552,7 +468,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     AppPrimaryButton(
                       text: _showPasswordField
                           ? 'Sign In'
-                          : (_isPhoneMode ? 'Continue with Mobile OTP' : 'Continue with Email OTP'),
+                          : 'Continue with Email OTP',
                       isLoading: _isLoading,
                       onPressed: _showPasswordField ? _handlePasswordSignIn : _handleOtpSignIn,
                     ),

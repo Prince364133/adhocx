@@ -47,49 +47,41 @@ void main() {
       expect(find.text('Get Started'), findsOneWidget);
     });
 
-    testWidgets('Screen 3: Sign In Screen renders mobile login with password by default and supports OTP & email mode',
+    testWidgets('Screen 3: Sign In Screen renders email login with password and supports email OTP & Google',
         (WidgetTester tester) async {
       await tester.pumpWidget(createTestApp(const SignInScreen()));
 
       expect(find.text('Welcome back!'), findsOneWidget);
-      expect(find.text('Mobile Number'), findsWidgets);
-      expect(find.text('+91'), findsOneWidget);
+      expect(find.text('Email Address'), findsWidgets);
       expect(find.text('Password'), findsOneWidget);
       expect(find.text('Sign In'), findsOneWidget);
-      expect(find.text('Sign in with Mobile OTP instead'), findsOneWidget);
+      expect(find.text('Sign in with Email OTP instead'), findsOneWidget);
       expect(find.text('Forgot Password?'), findsOneWidget);
       expect(find.text('Continue with Google'), findsOneWidget);
       expect(find.text("Don't have an account? "), findsOneWidget);
+      // Ensure Mobile Number option is NOT present on Sign In
+      expect(find.text('Mobile Number'), findsNothing);
 
-      // Switch to Mobile OTP mode
-      await tester.tap(find.text('Sign in with Mobile OTP instead'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Continue with Mobile OTP'), findsOneWidget);
-
-      // Switch to Email mode
-      await tester.tap(find.text('Email Address'));
+      // Switch to Email OTP mode
+      await tester.tap(find.text('Sign in with Email OTP instead'));
       await tester.pumpAndSettle();
 
       expect(find.text('Continue with Email OTP'), findsOneWidget);
+      expect(find.text('Sign in with password instead'), findsOneWidget);
     });
 
-    testWidgets('Screen 5: Sign Up Screen renders mobile registration by default and Driver CTA',
+    testWidgets('Screen 5: Sign Up Screen renders email registration without mobile option and Driver CTA',
         (WidgetTester tester) async {
       await tester.pumpWidget(createTestApp(const SignUpScreen(), role: 'VENDOR'));
 
       expect(find.text('Create your account'), findsOneWidget);
-      expect(find.text('Work Mobile Number *'), findsOneWidget);
-      expect(find.text('+91'), findsOneWidget);
-      expect(find.text('Continue with Mobile OTP'), findsOneWidget);
+      expect(find.text('Corporate Email Address *'), findsOneWidget);
+      expect(find.text('Continue with Email OTP'), findsOneWidget);
       expect(find.text('Registering as a Commercial Driver?'), findsOneWidget);
       expect(find.text('Switch to Driver'), findsOneWidget);
-
-      // Switch to Email mode
-      await tester.tap(find.text('Email Address'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Continue with Email'), findsOneWidget);
+      // Ensure Mobile Number option is NOT present on Sign Up
+      expect(find.text('Mobile Number'), findsNothing);
+      expect(find.text('Work Mobile Number *'), findsNothing);
     });
 
     testWidgets('Screen 6: Set Password Screen renders password fields',
@@ -109,21 +101,23 @@ void main() {
       expect(find.text('Driver'), findsOneWidget);
     });
 
-    testWidgets('Screen 11: Personal Details Screen renders profile fields for drivers',
+    testWidgets('Screen 11: Personal Details Screen renders profile fields and mobile phone for drivers',
         (WidgetTester tester) async {
       await tester.pumpWidget(createTestApp(const OnboardingPersonalScreen(), role: 'DRIVER'));
 
       expect(find.text('Basic Details'), findsOneWidget);
       expect(find.text('Full Legal Name *'), findsOneWidget);
+      expect(find.text('Mobile Phone Number *'), findsOneWidget);
       expect(find.text('Male'), findsOneWidget);
       expect(find.text('Female'), findsOneWidget);
     });
 
-    testWidgets('Screen 11: Vendor Corporate Details Screen renders company fields',
+    testWidgets('Screen 11: Vendor Corporate Details Screen renders company fields and official mobile',
         (WidgetTester tester) async {
       await tester.pumpWidget(createTestApp(const OnboardingPersonalScreen(), role: 'VENDOR'));
 
       expect(find.text('Company Name / Branch Name *'), findsOneWidget);
+      expect(find.text('Official Mobile Number *'), findsOneWidget);
       expect(find.text('Company Location / Office Address *'), findsOneWidget);
       expect(find.text('Business Industry / Sector *'), findsOneWidget);
     });
