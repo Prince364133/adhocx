@@ -14,9 +14,7 @@ import '../../core/networking/api_client.dart';
 import '../../core/utils/app_toast.dart';
 import '../../shared/widgets/pending_review_gate.dart';
 import 'models/cab_cart_item.dart';
-import 'models/fleet_template_model.dart';
 import 'requirement_draft_provider.dart';
-import 'services/fleet_template_service.dart';
 import 'widgets/add_cab_modal_bottom_sheet.dart';
 import 'widgets/saved_templates_modal.dart';
 
@@ -58,82 +56,6 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
     _couponController.dispose();
     _cartNameController.dispose();
     super.dispose();
-  }
-
-  Future<void> _saveCurrentCartAsTemplate() async {
-    final draft = context.read<RequirementDraftProvider>();
-    if (draft.cabs.isEmpty) {
-      Fluttertoast.showToast(msg: 'Add at least one cab to save as template.');
-      return;
-    }
-
-    final nameController = TextEditingController(
-      text: _cartNameController.text.trim().isNotEmpty
-          ? _cartNameController.text.trim()
-          : 'Corporate Transfer to Malakpet',
-    );
-
-    final templateName = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.bookmark_add_rounded, color: AppColors.primary),
-            SizedBox(width: 8),
-            Text('Save as Template', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Save this multi-cab cart as a reusable template to run daily with 1-click.',
-              style: TextStyle(fontSize: 12, color: AppColors.slate600),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Template Name',
-                hintText: 'e.g. Corporate Transfer to Malakpet',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            onPressed: () => Navigator.pop(ctx, nameController.text.trim()),
-            child: const Text('Save Template', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-
-    if (templateName != null && templateName.isNotEmpty) {
-      final template = FleetTemplate(
-        id: 'tmpl_${DateTime.now().millisecondsSinceEpoch}',
-        name: templateName,
-        cabs: List.from(draft.cabs),
-        createdAt: DateTime.now(),
-      );
-
-      await FleetTemplateService.instance.saveTemplate(template);
-      _cartNameController.text = templateName;
-      draft.setCartName(templateName);
-
-      Fluttertoast.showToast(
-        msg: 'Template "$templateName" saved! Run daily anytime.',
-        backgroundColor: AppColors.success,
-        textColor: Colors.white,
-      );
-    }
   }
 
   void _showSavedTemplatesBottomSheet() async {
@@ -700,53 +622,6 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
       body: SafeArea(
         child: Column(
           children: [
-            // Top Enterprise Multi-Cab Dispatch Banner
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 8),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.primary.withValues(alpha: 0.12),
-                    AppColors.accentPurple.withValues(alpha: 0.08),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    child: const Icon(Icons.local_shipping_outlined, color: AppColors.primary, size: 22),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Multi-Cab Fleet Manifest (Add to Cart)',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                        ),
-                        Text(
-                          'Book multiple cabs for different pickup/drop locations and departure times.',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
             // Main Manifest List
             Expanded(
               child: draft.cabs.isEmpty
@@ -875,43 +750,6 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                   : ListView(
                       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 8),
                       children: [
-                        // Cart / Manifest Name & Save as Template Bar
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                            borderRadius: BorderRadius.circular(AppRadius.md),
-                            border: Border.all(
-                              color: AppColors.primary.withValues(alpha: 0.3),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.label_outline_rounded, size: 18, color: AppColors.primary),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: TextField(
-                                  controller: _cartNameController,
-                                  decoration: const InputDecoration(
-                                    isDense: true,
-                                    border: InputBorder.none,
-                                    hintText: 'Cart Name (e.g. Corporate Transfer to Malakpet)',
-                                    hintStyle: TextStyle(fontSize: 13),
-                                  ),
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                                  onChanged: (val) => draft.setCartName(val),
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.bookmark_add_rounded, color: AppColors.primary, size: 22),
-                                tooltip: 'Save Cart as Template',
-                                onPressed: _saveCurrentCartAsTemplate,
-                              ),
-                            ],
-                          ),
-                        ),
-
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
