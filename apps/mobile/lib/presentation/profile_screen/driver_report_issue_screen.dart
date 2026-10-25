@@ -10,6 +10,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
+import '../../shared/widgets/app_profile_avatar.dart';
 
 class DriverReportIssueScreen extends StatefulWidget {
   final String? initialTripId;
@@ -312,10 +313,10 @@ class _DriverReportIssueScreenState extends State<DriverReportIssueScreen> with 
           ),
           child: Row(
             children: [
-              CircleAvatar(
+              AppProfileAvatar(
                 radius: 18,
-                backgroundColor: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.15),
-                child: Icon(Icons.person, size: 20, color: isDark ? AppColors.primaryLight : AppColors.primary),
+                name: driverName,
+                isDark: isDark,
               ),
               const SizedBox(width: 12),
               Expanded(

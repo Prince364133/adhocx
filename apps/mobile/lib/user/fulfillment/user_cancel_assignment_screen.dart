@@ -6,6 +6,7 @@ import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
+import '../../shared/widgets/app_profile_avatar.dart';
 
 class UserCancelAssignmentScreen extends StatefulWidget {
   final Map<String, dynamic>? trip;
@@ -64,8 +65,7 @@ class _UserCancelAssignmentScreenState extends State<UserCancelAssignmentScreen>
     final vehiclePlate = driver?['vehiclePlate'] ?? trip['vehiclePlate'] ?? 'Vehicle Assigned';
     final vehicleModel = driver?['vehicleModel'] ?? trip['vehicleModel'] ?? 'Sedan';
     final status = (trip['status'] ?? 'ASSIGNED').toString();
-
-    final initials = driverName.split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join().toUpperCase();
+    final driverPhoto = (trip['driverPhoto'] ?? driver?['photoUrl'] ?? driver?['profilePhotoUrl'] ?? driverUser?['photoUrl'])?.toString();
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -100,10 +100,11 @@ class _UserCancelAssignmentScreenState extends State<UserCancelAssignmentScreen>
                 ),
                 child: Row(
                   children: [
-                    CircleAvatar(
+                    AppProfileAvatar(
                       radius: 20,
-                      backgroundColor: AppColors.primary,
-                      child: Text(initials.isNotEmpty ? initials : 'D', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      imageUrl: driverPhoto,
+                      name: driverName.toString(),
+                      isDark: isDark,
                     ),
                     const SizedBox(width: 12),
                     Expanded(

@@ -10,6 +10,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
+import '../../shared/widgets/app_profile_avatar.dart';
 
 /// Full-featured Trip Chat Screen connecting Driver and Vendor/User for an active trip.
 class TripChatScreen extends StatefulWidget {
@@ -32,6 +33,7 @@ class _TripChatScreenState extends State<TripChatScreen> {
   String _tripId = '';
   String _otherPartyName = 'User';
   String _otherPartyPhone = '';
+  String? _otherPartyPhoto;
   String _myUserId = '';
   bool _isDriver = true;
 
@@ -70,6 +72,12 @@ class _TripChatScreenState extends State<TripChatScreen> {
           p['vendorPhone']?.toString() ??
           p['driverPhone']?.toString() ??
           '';
+      _otherPartyPhoto = p['otherPartyPhoto']?.toString() ??
+          p['vendorPhoto']?.toString() ??
+          p['driverPhoto']?.toString() ??
+          p['photoUrl']?.toString() ??
+          p['profilePhotoUrl']?.toString() ??
+          p['avatarUrl']?.toString();
     } else if (widget.params is String) {
       _tripId = widget.params as String;
     }
@@ -248,17 +256,11 @@ class _TripChatScreenState extends State<TripChatScreen> {
                       color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                     ),
                   ),
-                  CircleAvatar(
+                  AppProfileAvatar(
                     radius: 20,
-                    backgroundColor: isDark ? AppColors.primaryLight.withValues(alpha: 0.2) : AppColors.primary.withValues(alpha: 0.15),
-                    child: Text(
-                      _otherPartyName.isNotEmpty ? _otherPartyName[0].toUpperCase() : 'U',
-                      style: TextStyle(
-                        color: isDark ? AppColors.primaryLight : AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
+                    imageUrl: _otherPartyPhoto,
+                    name: _otherPartyName,
+                    isDark: isDark,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -492,17 +494,11 @@ class _TripChatScreenState extends State<TripChatScreen> {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isMe) ...[
-            CircleAvatar(
+            AppProfileAvatar(
               radius: 14,
-              backgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.borderLight,
-              child: Text(
-                _otherPartyName.isNotEmpty ? _otherPartyName[0].toUpperCase() : 'U',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                ),
-              ),
+              imageUrl: _otherPartyPhoto,
+              name: _otherPartyName,
+              isDark: isDark,
             ),
             const SizedBox(width: 6),
           ],

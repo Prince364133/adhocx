@@ -12,6 +12,7 @@ import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
+import '../../shared/widgets/app_profile_avatar.dart';
 import '../requirements/requirement_draft_provider.dart';
 import 'modals/vendor_rate_card_modal.dart';
 
@@ -38,14 +39,6 @@ class UserProfileScreen extends StatelessWidget {
       }
       return 'AdhocX User';
     }();
-
-    final String initials = displayName
-        .trim()
-        .split(' ')
-        .where((s) => s.isNotEmpty)
-        .take(2)
-        .map((s) => s[0].toUpperCase())
-        .join();
 
     final menuItems = [
       {'icon': Icons.receipt_long_outlined, 'title': 'Corporate Rate Card & Tariffs', 'action': 'rate_card'},
@@ -102,19 +95,11 @@ class UserProfileScreen extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: Text(
-                          initials.isNotEmpty ? initials : 'AX',
-                          style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-                        ),
-                      ),
+                    AppProfileAvatar(
+                      radius: 28,
+                      imageUrl: currentUser?.effectivePhotoUrl,
+                      name: displayName,
+                      isDark: isDark,
                     ),
                     const SizedBox(width: AppSpacing.md),
                     Column(

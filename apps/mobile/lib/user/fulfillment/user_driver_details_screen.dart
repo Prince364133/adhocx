@@ -8,6 +8,7 @@ import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
+import '../../shared/widgets/app_profile_avatar.dart';
 
 class UserDriverDetailsScreen extends StatefulWidget {
   final Map<String, dynamic>? trip;
@@ -60,8 +61,7 @@ class _UserDriverDetailsScreenState extends State<UserDriverDetailsScreen> {
     final vehiclePlate = (trip['vehiclePlate'] ?? driver?['vehiclePlate'] ?? '\u2014').toString();
     final vehicleModel = (trip['vehicleModel'] ?? driver?['vehicleModel'] ?? trip['vehicleType'] ?? '\u2014').toString();
     final totalTrips = (driver?['totalTrips'] ?? 0).toString();
-
-    final initials = driverName.split(' ').where((e) => e.isNotEmpty).map((e) => e[0]).take(2).join().toUpperCase();
+    final driverPhoto = (trip['driverPhoto'] ?? driver?['photoUrl'] ?? driver?['profilePhotoUrl'] ?? driverUser?['photoUrl'])?.toString();
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -98,13 +98,11 @@ class _UserDriverDetailsScreenState extends State<UserDriverDetailsScreen> {
                     Center(
                       child: Column(
                         children: [
-                          CircleAvatar(
+                          AppProfileAvatar(
                             radius: 36,
-                            backgroundColor: AppColors.primary,
-                            child: Text(
-                              initials.isNotEmpty ? initials : 'D',
-                              style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-                            ),
+                            imageUrl: driverPhoto,
+                            name: driverName,
+                            isDark: isDark,
                           ),
                           const SizedBox(height: 10),
                           Row(

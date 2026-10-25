@@ -322,6 +322,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       'rating': _driverProfile['rating'] ?? '5.0',
       'total_trips': _driverProfile['total_trips'] ?? '0',
       'acceptance_rate': _driverProfile['acceptance_rate'] ?? '100%',
+      'profilePhotoUrl': _driverProfile['profilePhotoUrl'] ??
+          _driverProfile['photoUrl'] ??
+          AuthService.instance.currentUser?.effectivePhotoUrl ??
+          (onboarding.profilePhotoUrl?.isNotEmpty == true ? onboarding.profilePhotoUrl : null),
     };
 
     return Scaffold(

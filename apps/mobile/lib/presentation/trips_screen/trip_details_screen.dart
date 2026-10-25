@@ -12,6 +12,7 @@ import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/common/app_primary_button.dart';
 import '../../core/utils/app_toast.dart';
+import '../../shared/widgets/app_profile_avatar.dart';
 
 /// Screen 3: Trip Details with live backend integration and full lifecycle support.
 class TripDetailsScreen extends StatefulWidget {
@@ -313,6 +314,13 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
         req['vendor']?['organizationName'] ??
         req['vendor']?['businessName'] ??
         'User';
+    final passengerPhoto = trip['vendorPhoto'] ??
+        trip['requesterPhoto'] ??
+        trip['vendor']?['photoUrl'] ??
+        trip['vendor']?['user']?['photoUrl'] ??
+        trip['vendor']?['logoUrl'] ??
+        req['vendor']?['photoUrl'] ??
+        req['vendor']?['logoUrl'];
     final passengerPhone = trip['vendorPhone'] ??
         trip['vendor']?['phone'] ??
         trip['vendor']?['user']?['phone'] ??
@@ -615,16 +623,11 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                         ),
                         child: Row(
                           children: [
-                            CircleAvatar(
+                            AppProfileAvatar(
                               radius: 20,
-                              backgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.borderLight,
-                              child: Text(
-                                passengerName.isNotEmpty ? passengerName[0].toUpperCase() : 'U',
-                                style: TextStyle(
-                                  color: isDark ? AppColors.primaryLight : AppColors.primary,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                              imageUrl: passengerPhoto?.toString(),
+                              name: passengerName,
+                              isDark: isDark,
                             ),
                             const SizedBox(width: 12),
                             Expanded(

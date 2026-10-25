@@ -8,6 +8,7 @@ import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
+import '../../shared/widgets/app_profile_avatar.dart';
 
 class UserProfileExtendedScreen extends StatelessWidget {
   const UserProfileExtendedScreen({super.key});
@@ -32,14 +33,6 @@ class UserProfileExtendedScreen extends StatelessWidget {
       }
       return 'AdhocX User';
     }();
-
-    final String initials = displayName
-        .trim()
-        .split(' ')
-        .where((s) => s.isNotEmpty)
-        .take(2)
-        .map((s) => s[0].toUpperCase())
-        .join();
 
     final menuItems = [
       {'title': 'Organization Information', 'icon': Icons.corporate_fare_outlined, 'route': AppRoutes.userOrganizationInformationScreen},
@@ -76,10 +69,13 @@ class UserProfileExtendedScreen extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    CircleAvatar(
+                    AppProfileAvatar(
                       radius: 28,
-                      backgroundColor: Colors.white24,
-                      child: Text(initials.isNotEmpty ? initials : 'AX', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
+                      imageUrl: currentUser?.effectivePhotoUrl,
+                      name: displayName,
+                      isDark: isDark,
+                      borderWidth: 1.5,
+                      borderColor: Colors.white30,
                     ),
                     const SizedBox(width: 14),
                     Expanded(

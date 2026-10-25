@@ -12,6 +12,7 @@ import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/theme/theme_provider.dart';
 import '../../shared/widgets/app_primary_button.dart';
+import '../../shared/widgets/app_profile_avatar.dart';
 import '../../shared/widgets/pending_review_gate.dart';
 
 class UserHomeScreen extends StatefulWidget {
@@ -231,6 +232,15 @@ class _UserHomeScreenState extends State<UserHomeScreen> with WidgetsBindingObse
                               ],
                             );
                           },
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        GestureDetector(
+                          onTap: () => context.push(AppRoutes.userProfileScreen),
+                          child: AppProfileAvatar(
+                            radius: 17,
+                            name: displayName,
+                            isDark: isDark,
+                          ),
                         ),
                       ],
                     ),

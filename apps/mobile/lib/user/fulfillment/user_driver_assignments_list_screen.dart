@@ -6,6 +6,7 @@ import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
+import '../../shared/widgets/app_profile_avatar.dart';
 
 class UserDriverAssignmentsListScreen extends StatefulWidget {
   final List<dynamic>? initialTrips;
@@ -181,6 +182,7 @@ class _UserDriverAssignmentsListScreenState extends State<UserDriverAssignmentsL
                           final vehiclePlate = driver?['vehiclePlate'] ?? t['vehiclePlate'] ?? 'DL Vehicle';
                           final vehicleModel = driver?['vehicleModel'] ?? t['vehicleModel'] ?? 'Sedan';
                           final status = (t['status'] ?? 'ASSIGNED').toString();
+                          final driverPhoto = (t['driverPhoto'] ?? driver?['photoUrl'] ?? driver?['profilePhotoUrl'] ?? driverUser?['photoUrl'])?.toString();
 
                           Color badgeColor = AppColors.success;
                           if (status == 'CANCELLED') badgeColor = AppColors.error;
@@ -198,13 +200,11 @@ class _UserDriverAssignmentsListScreenState extends State<UserDriverAssignmentsL
                               ),
                               child: Row(
                                 children: [
-                                  CircleAvatar(
+                                  AppProfileAvatar(
                                     radius: 20,
-                                    backgroundColor: AppColors.primary,
-                                    child: Text(
-                                      driverName.isNotEmpty ? driverName.substring(0, 1).toUpperCase() : 'D',
-                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                                    ),
+                                    imageUrl: driverPhoto,
+                                    name: driverName.toString(),
+                                    isDark: isDark,
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(

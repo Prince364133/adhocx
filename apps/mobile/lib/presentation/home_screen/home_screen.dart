@@ -13,6 +13,7 @@ import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../shared/widgets/trip_rating_bottom_sheet.dart';
 import '../../shared/widgets/app_adaptive_skeleton.dart';
+import '../../shared/widgets/app_profile_avatar.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../services/edge_case_manager.dart';
 import '../../services/permission_service.dart';
@@ -533,14 +534,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             setState(() {});
                           }
                         },
-                        child: CircleAvatar(
+                        child: AppProfileAvatar(
                           radius: 18,
-                          backgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.borderLight,
-                          child: Icon(
-                            Icons.person,
-                            size: 20,
-                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                          ),
+                          name: _driverName,
+                          isDark: isDark,
                         ),
                       ),
                     ],

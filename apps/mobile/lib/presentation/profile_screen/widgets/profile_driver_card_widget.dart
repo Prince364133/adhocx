@@ -4,6 +4,7 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_radius.dart';
 import '../../../theme/app_spacing.dart';
 import '../../../theme/app_typography.dart';
+import '../../../shared/widgets/app_profile_avatar.dart';
 
 class ProfileDriverCardWidget extends StatelessWidget {
   final Map<String, dynamic> profile;
@@ -24,7 +25,6 @@ class ProfileDriverCardWidget extends StatelessWidget {
         : 'Driver';
     final isGenericName = rawName.toLowerCase() == 'driver' || rawName.toLowerCase() == 'partner';
     final name = isGenericName ? context.tr(rawName) : rawName;
-    final initial = rawName.isNotEmpty ? rawName[0].toUpperCase() : 'D';
 
     final phone = (profile['phone'] != null && profile['phone'].toString().trim().isNotEmpty)
         ? profile['phone'].toString().trim()
@@ -71,53 +71,14 @@ class ProfileDriverCardWidget extends StatelessWidget {
                 Row(
                   children: [
                     // Avatar with online status
-                    Stack(
-                      children: [
-                        Container(
-                          width: 60,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: const LinearGradient(
-                              colors: [AppColors.primary, AppColors.primaryHover],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.primary.withValues(alpha: 0.35),
-                                blurRadius: 10,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: Center(
-                            child: Text(
-                              initial,
-                              style: AppTypography.h2(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          right: 0,
-                          bottom: 0,
-                          child: Container(
-                            width: 16,
-                            height: 16,
-                            decoration: BoxDecoration(
-                              color: AppColors.accentGreen,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: isDark ? AppColors.surfaceDark : Colors.white,
-                                width: 2.5,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                    AppProfileAvatar(
+                      radius: 30,
+                      imageUrl: profile['profilePhotoUrl']?.toString() ?? profile['photoUrl']?.toString(),
+                      name: name,
+                      isDark: isDark,
+                      showOnlineBadge: true,
+                      isOnline: true,
+                      onlineBadgeRadius: 8,
                     ),
                     const SizedBox(width: AppSpacing.md),
 

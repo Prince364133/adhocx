@@ -532,7 +532,7 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
     final aadharFront = _profile['aadharFrontUrl'] ?? driverProf['aadharFrontUrl'] ?? kycDocs['aadharFrontUrl'];
     final aadharBack = _profile['aadharBackUrl'] ?? driverProf['aadharBackUrl'] ?? kycDocs['aadharBackUrl'];
     final panUrl = _profile['panDocUrl'] ?? driverProf['panDocUrl'] ?? kycDocs['panDocUrl'];
-    final photoUrl = _profile['profilePhotoUrl'] ?? driverProf['profilePhotoUrl'] ?? kycDocs['profilePhotoUrl'] ?? user?.photoUrl;
+    final photoUrl = _profile['profilePhotoUrl'] ?? driverProf['profilePhotoUrl'] ?? kycDocs['profilePhotoUrl'] ?? user?.effectivePhotoUrl ?? user?.photoUrl;
 
     final hasDl = (dlFront != null && dlFront.toString().trim().isNotEmpty) || (dlBack != null && dlBack.toString().trim().isNotEmpty);
     final hasRc = (rcFront != null && rcFront.toString().trim().isNotEmpty) || (rcBack != null && rcBack.toString().trim().isNotEmpty);

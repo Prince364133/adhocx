@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
@@ -13,6 +12,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
+import '../../shared/widgets/app_profile_avatar.dart';
 
 /// Screen: Personal Information and Account Status screen bound to live backend data.
 class PersonalInformationScreen extends StatefulWidget {
@@ -90,65 +90,6 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     final cleanPath = trimmed.startsWith('/') ? trimmed : '/$trimmed';
     final apiBase = ApiClient.instance.baseUrl.replaceAll('/api/v1', '');
     return '$apiBase$cleanPath';
-  }
-
-  Widget _buildAvatarImage(String url, String name, bool isDark) {
-    if (url.isEmpty) {
-      return Text(
-        name.isNotEmpty ? name[0].toUpperCase() : 'D',
-        style: AppTypography.h1(
-          color: isDark ? AppColors.primaryLight : AppColors.primary,
-          fontWeight: FontWeight.bold,
-        ),
-      );
-    }
-
-    if (url.startsWith('data:image')) {
-      try {
-        final commaIdx = url.indexOf(',');
-        final base64String = commaIdx != -1 ? url.substring(commaIdx + 1) : url;
-        final bytes = base64Decode(base64String.replaceAll(RegExp(r'\s+'), ''));
-        return ClipOval(
-          child: Image.memory(
-            bytes,
-            width: 72,
-            height: 72,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Text(
-              name.isNotEmpty ? name[0].toUpperCase() : 'D',
-              style: AppTypography.h1(
-                color: isDark ? AppColors.primaryLight : AppColors.primary,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        );
-      } catch (_) {
-        return Text(
-          name.isNotEmpty ? name[0].toUpperCase() : 'D',
-          style: AppTypography.h1(
-            color: isDark ? AppColors.primaryLight : AppColors.primary,
-            fontWeight: FontWeight.bold,
-          ),
-        );
-      }
-    }
-
-    return ClipOval(
-      child: Image.network(
-        url,
-        width: 72,
-        height: 72,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Text(
-          name.isNotEmpty ? name[0].toUpperCase() : 'D',
-          style: AppTypography.h1(
-            color: isDark ? AppColors.primaryLight : AppColors.primary,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    );
   }
 
   Widget _buildSectionCard({
@@ -368,6 +309,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
 
     final rawPhoto = _profile?['profilePhotoUrl']?.toString() ??
         kycDocs?['profilePhotoUrl']?.toString() ??
+        user?.effectivePhotoUrl ??
         user?.photoUrl ??
         driverProf?['profilePhotoUrl']?.toString() ??
         (onboarding.profilePhotoUrl != null && onboarding.profilePhotoUrl!.isNotEmpty ? onboarding.profilePhotoUrl : null) ??
@@ -516,18 +458,23 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                                       children: [
                                         GestureDetector(
                                           onTap: _isUploadingPhoto ? null : _pickAndUploadPhoto,
-                                          child: CircleAvatar(
-                                            radius: 36,
-                                            backgroundColor: (isDark ? AppColors.primaryLight : AppColors.primary)
-                                                .withValues(alpha: 0.2),
-                                            child: _isUploadingPhoto
-                                                ? const SizedBox(
+                                          child: _isUploadingPhoto
+                                              ? CircleAvatar(
+                                                  radius: 36,
+                                                  backgroundColor: (isDark ? AppColors.primaryLight : AppColors.primary)
+                                                      .withValues(alpha: 0.2),
+                                                  child: const SizedBox(
                                                     width: 24,
                                                     height: 24,
                                                     child: CircularProgressIndicator(strokeWidth: 2.5),
-                                                  )
-                                                : _buildAvatarImage(profilePhotoUrl, name, isDark),
-                                          ),
+                                                  ),
+                                                )
+                                              : AppProfileAvatar(
+                                                  radius: 36,
+                                                  imageUrl: profilePhotoUrl,
+                                                  name: name,
+                                                  isDark: isDark,
+                                                ),
                                         ),
                                         Positioned(
                                           right: 0,

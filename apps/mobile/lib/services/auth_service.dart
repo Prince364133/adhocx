@@ -130,22 +130,59 @@ class UserModel {
         ? rawName.toString().trim()
         : null;
 
+    String? resolvePhoto(dynamic val) {
+      if (val == null) return null;
+      final str = val.toString().trim();
+      if (str.isEmpty || str == 'null' || str == 'undefined') return null;
+      return str;
+    }
+
+    final cleanPhoto = resolvePhoto(data['photoUrl']) ??
+        resolvePhoto(root['photoUrl']) ??
+        resolvePhoto(data['profilePhotoUrl']) ??
+        resolvePhoto(root['profilePhotoUrl']) ??
+        resolvePhoto(data['avatarUrl']) ??
+        resolvePhoto(root['avatarUrl']) ??
+        resolvePhoto(data['selfieUrl']) ??
+        resolvePhoto(root['selfieUrl']) ??
+        resolvePhoto(data['profilePic']) ??
+        resolvePhoto(driverProf?['profilePhotoUrl']) ??
+        resolvePhoto(driverProf?['photoUrl']) ??
+        resolvePhoto(driverProf?['kycDocuments'] is Map ? driverProf?['kycDocuments']?['profilePhotoUrl'] : null) ??
+        resolvePhoto(vendorProf?['logoUrl']) ??
+        resolvePhoto(vendorProf?['photoUrl']);
+
     return UserModel(
       id: (data['id'] ?? root['id'] ?? '').toString(),
       phone: cleanPhone,
       email: data['email']?.toString() ?? root['email']?.toString(),
       role: roleStr,
       fullName: cleanName,
-      photoUrl: data['photoUrl']?.toString() ??
-          root['photoUrl']?.toString() ??
-          driverProf?['profilePhotoUrl']?.toString() ??
-          (driverProf?['kycDocuments'] is Map ? driverProf?['kycDocuments']?['profilePhotoUrl']?.toString() : null) ??
-          vendorProf?['logoUrl']?.toString(),
+      photoUrl: cleanPhoto,
       hasPassword: hasPass,
       isOnboarded: isOb,
       driverProfile: driverProf,
       vendorProfile: vendorProf,
     );
+  }
+
+  String? get effectivePhotoUrl {
+    if (photoUrl != null && photoUrl!.trim().isNotEmpty && photoUrl != 'null' && photoUrl != 'undefined') {
+      return photoUrl!.trim();
+    }
+    final dPhoto = driverProfile?['profilePhotoUrl']?.toString() ?? driverProfile?['photoUrl']?.toString();
+    if (dPhoto != null && dPhoto.trim().isNotEmpty && dPhoto != 'null' && dPhoto != 'undefined') {
+      return dPhoto.trim();
+    }
+    final kycPhoto = (driverProfile?['kycDocuments'] is Map ? driverProfile?['kycDocuments']?['profilePhotoUrl']?.toString() : null);
+    if (kycPhoto != null && kycPhoto.trim().isNotEmpty && kycPhoto != 'null' && kycPhoto != 'undefined') {
+      return kycPhoto.trim();
+    }
+    final vPhoto = vendorProfile?['logoUrl']?.toString() ?? vendorProfile?['photoUrl']?.toString();
+    if (vPhoto != null && vPhoto.trim().isNotEmpty && vPhoto != 'null' && vPhoto != 'undefined') {
+      return vPhoto.trim();
+    }
+    return null;
   }
 
   bool get isDriver => role == 'DRIVER';

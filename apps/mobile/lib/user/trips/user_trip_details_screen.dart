@@ -9,6 +9,7 @@ import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
+import '../../shared/widgets/app_profile_avatar.dart';
 
 enum TripStatusState {
   upcoming,
@@ -121,6 +122,7 @@ class _UserTripDetailsScreenState extends State<UserTripDetailsScreen> {
     final vehiclePlate = driver?['vehiclePlate'] ?? trip['vehiclePlate'] ?? '—';
     final vehicleModel = driver?['vehicleModel'] ?? trip['vehicleModel'] ?? trip['vehicleType'] ?? 'Commercial Fleet';
     final tripCode = trip['tripCode'] ?? trip['id'] ?? '—';
+    final driverPhoto = (trip['driverPhoto'] ?? driver?['photoUrl'] ?? driver?['profilePhotoUrl'] ?? driverUser?['photoUrl'])?.toString();
 
     final pickup = trip['pickupLocation'] as Map<String, dynamic>?;
     final drop = trip['dropLocation'] as Map<String, dynamic>?;
@@ -262,13 +264,11 @@ class _UserTripDetailsScreenState extends State<UserTripDetailsScreen> {
                             ),
                             child: Row(
                               children: [
-                                CircleAvatar(
+                                AppProfileAvatar(
                                   radius: 20,
-                                  backgroundColor: AppColors.primary,
-                                  child: Text(
-                                    driverName.isNotEmpty ? driverName.substring(0, 1).toUpperCase() : 'D',
-                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                                  ),
+                                  imageUrl: driverPhoto,
+                                  name: driverName.toString(),
+                                  isDark: isDark,
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(

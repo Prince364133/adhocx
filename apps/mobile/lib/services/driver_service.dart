@@ -97,6 +97,15 @@ class DriverService {
     final response = await _api.get('/drivers/profile', force: forceRefresh);
     _cachedProfile = response;
     _lastProfileFetchTime = now;
+    if (response is Map) {
+      final pUrl = response['profilePhotoUrl'] ??
+          response['photoUrl'] ??
+          (response['kycDocuments'] is Map ? response['kycDocuments']['profilePhotoUrl'] : null) ??
+          (response['data'] is Map ? (response['data']['profilePhotoUrl'] ?? response['data']['photoUrl']) : null);
+      if (pUrl != null && pUrl.toString().trim().isNotEmpty && pUrl.toString().trim() != 'null') {
+        AuthService.instance.updateCurrentUserProfilePhoto(pUrl.toString().trim());
+      }
+    }
     return response;
   }
 
@@ -111,11 +120,13 @@ class DriverService {
     final String? fullName = data['fullName']?.toString() ?? data['name']?.toString();
     final String? phone = data['phone']?.toString();
     final String? email = data['email']?.toString();
-    if (fullName != null || phone != null || email != null) {
+    final String? photoUrl = data['profilePhotoUrl']?.toString() ?? data['photoUrl']?.toString();
+    if (fullName != null || phone != null || email != null || photoUrl != null) {
       AuthService.instance.updateCurrentUser(
         fullName: fullName,
         phone: phone,
         email: email,
+        photoUrl: photoUrl,
         driverProfile: data,
       );
     }
@@ -139,6 +150,16 @@ class DriverService {
       mimeType: mimeType,
     );
     invalidateCache(profile: true);
+
+    final uploadedUrl = (result is Map && result['url'] != null)
+        ? result['url'].toString()
+        : (result is Map && result['data'] is Map && result['data']['url'] != null)
+            ? result['data']['url'].toString()
+            : null;
+    if (uploadedUrl != null && uploadedUrl.isNotEmpty && uploadedUrl != 'null') {
+      AuthService.instance.updateCurrentUserProfilePhoto(uploadedUrl);
+    }
+
     return result;
   }
 

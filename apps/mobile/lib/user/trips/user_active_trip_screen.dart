@@ -10,6 +10,7 @@ import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/trip_rating_bottom_sheet.dart';
+import '../../shared/widgets/app_profile_avatar.dart';
 import '../../core/utils/app_toast.dart';
 
 class UserActiveTripScreen extends StatefulWidget {
@@ -339,7 +340,7 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
       {'time': 'Completed', 'title': 'Dropoff & Trip Settlement', 'isDone': isCompleted, 'isCurrent': status == 'COMPLETED'},
     ];
 
-    final initials = driverName.split(' ').where((e) => e.isNotEmpty).map((e) => e[0]).take(2).join().toUpperCase();
+    final driverPhoto = (trip['driverPhoto'] ?? driver?['photoUrl'] ?? driver?['profilePhotoUrl'] ?? driverUser?['photoUrl'])?.toString();
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -562,13 +563,11 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
                           ),
                           child: Row(
                             children: [
-                              CircleAvatar(
+                              AppProfileAvatar(
                                 radius: 24,
-                                backgroundColor: AppColors.primary,
-                                child: Text(
-                                  initials.isNotEmpty ? initials : 'D',
-                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                                ),
+                                imageUrl: driverPhoto,
+                                name: driverName,
+                                isDark: isDark,
                               ),
                               const SizedBox(width: 12),
                               Expanded(

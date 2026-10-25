@@ -13,6 +13,7 @@ import '../../shared/widgets/app_primary_button.dart';
 import '../../shared/widgets/trip_rating_bottom_sheet.dart';
 import 'user_bids_bottom_sheet.dart';
 import '../../core/utils/app_toast.dart';
+import '../../shared/widgets/app_profile_avatar.dart';
 
 class UserRequirementDetailsScreen extends StatefulWidget {
   final String? requirementId;
@@ -388,7 +389,6 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
             itemCount: uniqueDrivers.length,
             itemBuilder: (context, index) {
               final driverName = uniqueDrivers[index];
-              final initial = driverName.isNotEmpty ? driverName[0].toUpperCase() : 'D';
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
@@ -400,17 +400,10 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                 ),
                 child: Row(
                   children: [
-                    CircleAvatar(
+                    AppProfileAvatar(
                       radius: 16,
-                      backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                      child: Text(
-                        initial,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: AppColors.primary,
-                        ),
-                      ),
+                      name: driverName,
+                      isDark: isDark,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -1034,6 +1027,11 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                               if (d is! Map) return const SizedBox.shrink();
                               final driverName = d['driverName']?.toString() ?? 'Verified Driver';
                               final driverPhone = d['driverPhone']?.toString() ?? '—';
+                              final driverPhoto = d['driverPhoto'] ??
+                                  d['driver']?['photoUrl'] ??
+                                  d['driverProfile']?['photoUrl'] ??
+                                  d['photoUrl'] ??
+                                  d['profilePhotoUrl'];
                               final vehiclePlate = d['vehiclePlate']?.toString() ?? '—';
                               final rawStatus = (d['tripStatus']?.toString() ?? 'ASSIGNED');
                               final tripStatus = rawStatus.replaceAll('_', ' ');
@@ -1077,9 +1075,11 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                                     // Driver header
                                     Row(
                                       children: [
-                                        CircleAvatar(
-                                          backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-                                          child: const Icon(Icons.person, color: AppColors.primary),
+                                        AppProfileAvatar(
+                                          radius: 20,
+                                          imageUrl: driverPhoto?.toString(),
+                                          name: driverName,
+                                          isDark: isDark,
                                         ),
                                         const SizedBox(width: 12),
                                         Expanded(
