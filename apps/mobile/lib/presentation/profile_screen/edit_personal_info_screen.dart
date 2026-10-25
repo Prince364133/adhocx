@@ -11,6 +11,7 @@ import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/common/app_primary_button.dart';
+import '../../core/networking/api_client.dart';
 import '../../core/utils/app_toast.dart';
 
 /// Screen 1: Edit Personal Information matching exact design guidelines and connected to live backend.
@@ -76,19 +77,31 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
         ? onboarding.email
         : (!_isFakeEmail(user?.email) ? user!.email! : '');
 
+    final vendorProf = user?.vendorProfile;
     final initialDob = onboarding.dateOfBirth != null
         ? '${onboarding.dateOfBirth!.day} ${_months[onboarding.dateOfBirth!.month - 1]} ${onboarding.dateOfBirth!.year}'
-        : '';
-    final initialGender = onboarding.gender.isNotEmpty ? onboarding.gender : 'Male';
-    final initialAddress = onboarding.address;
-    final initialEmergencyName = onboarding.emergencyContactName;
-    final initialEmergencyPhone = onboarding.emergencyContactPhone;
+        : (vendorProf?['dateOfBirth']?.toString() ?? vendorProf?['companyDetails']?['dateOfBirth']?.toString() ?? '');
+    final vendorGender = vendorProf?['gender']?.toString() ?? vendorProf?['companyDetails']?['gender']?.toString() ?? '';
+    final initialGender = onboarding.gender.isNotEmpty
+        ? onboarding.gender
+        : (vendorGender.isNotEmpty ? vendorGender : 'Male');
+    final initialAddress = onboarding.address.isNotEmpty
+        ? onboarding.address
+        : (vendorProf?['address']?.toString() ?? vendorProf?['companyDetails']?['address']?.toString() ?? '');
+    final initialEmergencyName = onboarding.emergencyContactName.isNotEmpty
+        ? onboarding.emergencyContactName
+        : (vendorProf?['emergencyContactName']?.toString() ?? vendorProf?['companyDetails']?['emergencyContactName']?.toString() ?? '');
+    final initialEmergencyPhone = onboarding.emergencyContactPhone.isNotEmpty
+        ? onboarding.emergencyContactPhone
+        : (vendorProf?['emergencyContactPhone']?.toString() ?? vendorProf?['companyDetails']?['emergencyContactPhone']?.toString() ?? '');
 
     _phone = onboarding.phone.isNotEmpty
         ? onboarding.phone
         : (user?.phone?.isNotEmpty == true
             ? user!.phone
-            : (user?.driverProfile?['phone']?.toString()));
+            : (user?.driverProfile?['phone']?.toString() ??
+               vendorProf?['phone']?.toString() ??
+               vendorProf?['companyDetails']?['phone']?.toString()));
 
     _nameController = TextEditingController(text: initialName);
     _emailController = TextEditingController(text: initialEmail);
@@ -106,11 +119,26 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
 
   Future<void> _loadExistingProfile() async {
     try {
-      final profile = await DriverService.instance.getProfile(forceRefresh: true);
+      final user = AuthService.instance.currentUser;
+      final isVendor = user?.role == 'VENDOR' || user?.role == 'USER';
+      dynamic profile;
+      if (isVendor) {
+        try {
+          profile = await ApiClient.instance.get('/vendors/profile', force: true);
+        } catch (_) {
+          profile = user?.vendorProfile;
+        }
+      } else {
+        try {
+          profile = await DriverService.instance.getProfile(forceRefresh: true);
+        } catch (_) {
+          profile = user?.driverProfile;
+        }
+      }
+
       if (profile != null && mounted) {
         final p = Map<String, dynamic>.from(profile is Map ? profile : {});
         final onboarding = Provider.of<OnboardingProvider>(context, listen: false);
-        final user = AuthService.instance.currentUser;
 
         setState(() {
           final serverPhone = p['phone']?.toString().trim();
@@ -175,8 +203,12 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
       try {
         final parts = currentText.split(RegExp(r'[-/ ]'));
         if (parts.length == 3) {
+          int? m = int.tryParse(parts[1]);
+          if (m == null) {
+            final idx = _months.indexWhere((mon) => mon.toLowerCase() == parts[1].toLowerCase());
+            if (idx != -1) m = idx + 1;
+          }
           final y = int.tryParse(parts[2]) ?? int.tryParse(parts[0]);
-          final m = int.tryParse(parts[1]);
           final d = int.tryParse(parts[0]) ?? int.tryParse(parts[2]);
           if (y != null && m != null && d != null) {
             initial = DateTime(y, m, d);
@@ -185,11 +217,16 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
       } catch (_) {}
     }
 
+    final maxDate = DateTime.now().subtract(const Duration(days: 365 * 18));
+    final minDate = DateTime(1940);
+    if (initial.isAfter(maxDate)) initial = maxDate;
+    if (initial.isBefore(minDate)) initial = minDate;
+
     final picked = await showDatePicker(
       context: context,
       initialDate: initial,
-      firstDate: DateTime(1940),
-      lastDate: DateTime.now().subtract(const Duration(days: 365 * 18)),
+      firstDate: minDate,
+      lastDate: maxDate,
       helpText: 'Select Date of Birth (18+ only)',
     );
 
@@ -239,7 +276,7 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
         debugPrint('Auth profile sync warning: $authErr');
       }
 
-      // 3. Update driver specific record
+      // 3. Update driver or vendor specific record
       final payload = {
         'fullName': name,
         if (enteredEmail != null) 'email': enteredEmail,
@@ -251,7 +288,14 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
         'emergencyContactPhone': _emergencyPhoneController.text.trim(),
       };
 
-      await DriverService.instance.updateProfile(payload);
+      final user = AuthService.instance.currentUser;
+      final isVendor = user?.role == 'VENDOR' || user?.role == 'USER';
+
+      if (isVendor) {
+        await ApiClient.instance.patch('/vendors/profile', body: payload);
+      } else {
+        await DriverService.instance.updateProfile(payload);
+      }
 
       if (mounted) {
         final onboarding = Provider.of<OnboardingProvider>(context, listen: false);
@@ -303,7 +347,9 @@ class _EditPersonalInfoScreenState extends State<EditPersonalInfoScreen> {
             ? user.phone!
             : (user?.driverProfile?['phone']?.toString().isNotEmpty == true
                 ? user!.driverProfile!['phone'].toString()
-                : (onboarding.phone.isNotEmpty ? onboarding.phone : '')));
+                : (user?.vendorProfile?['phone']?.toString().isNotEmpty == true
+                    ? user!.vendorProfile!['phone'].toString()
+                    : (onboarding.phone.isNotEmpty ? onboarding.phone : ''))));
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,

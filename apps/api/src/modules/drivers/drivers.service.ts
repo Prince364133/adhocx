@@ -439,8 +439,15 @@ export class DriversService {
 
     const cleanPhone = dto.phone ? dto.phone.trim().replace(/\s+/g, '') : undefined;
     const cleanName = dto.fullName ? dto.fullName.trim() : undefined;
+    const cleanDob = dto.dateOfBirth?.trim() || undefined;
+    const cleanGender = dto.gender?.trim() || undefined;
+    const cleanAddress = dto.address?.trim() || undefined;
+    const cleanEmergencyName = dto.emergencyContactName?.trim() || undefined;
+    const cleanEmergencyPhone = dto.emergencyContactPhone?.trim().replace(/\s+/g, '') || undefined;
 
     const existingDriver = await this.db.driver.findUnique({ where: { userId } });
+    const userForKyc = await this.db.user.findUnique({ where: { id: userId } });
+    const effectivePhoneToSave = cleanPhone || existingDriver?.phone || userForKyc?.phone || undefined;
 
     if (cleanPhone) {
       await assertPhoneAvailable(this.db, cleanPhone, {
@@ -476,6 +483,20 @@ export class DriversService {
     }
 
     if (existingDriver) {
+      const existingKyc = (existingDriver.kycDocuments as Record<string, any>) || {};
+      const updatedKyc = {
+        ...existingKyc,
+        ...(profilePhotoUrl ? { profilePhotoUrl } : {}),
+        ...(rcFrontUrl ? { rcFrontUrl } : {}),
+        ...(rcBackUrl ? { rcBackUrl } : {}),
+        ...(cleanDob ? { dateOfBirth: cleanDob } : {}),
+        ...(cleanGender ? { gender: cleanGender } : {}),
+        ...(cleanAddress ? { address: cleanAddress } : {}),
+        ...(cleanEmergencyName ? { emergencyContactName: cleanEmergencyName } : {}),
+        ...(cleanEmergencyPhone ? { emergencyContactPhone: cleanEmergencyPhone } : {}),
+        documents: docsList.length > 0 ? docsList : (((existingDriver.kycDocuments as any)?.documents) || []),
+      };
+
       await this.db.driver.update({
         where: { id: existingDriver.id },
         data: {
@@ -485,7 +506,7 @@ export class DriversService {
           vehicleType,
           vehicleModel,
           ...(cleanName ? { fullName: cleanName } : {}),
-          ...(cleanPhone ? { phone: cleanPhone } : {}),
+          ...(effectivePhoneToSave ? { phone: effectivePhoneToSave } : {}),
           dlFrontUrl: dlFrontUrl || existingDriver.dlFrontUrl,
           rcDocUrl: rcDocUrl || existingDriver.rcDocUrl,
           insuranceDocUrl: insuranceDocUrl || existingDriver.insuranceDocUrl,
@@ -493,13 +514,7 @@ export class DriversService {
           aadharFrontUrl: aadharFrontUrl || existingDriver.aadharFrontUrl,
           aadharBackUrl: aadharBackUrl || existingDriver.aadharBackUrl,
           panDocUrl: panDocUrl || existingDriver.panDocUrl,
-          kycDocuments: {
-            ...((existingDriver.kycDocuments as Record<string, any>) || {}),
-            ...(profilePhotoUrl ? { profilePhotoUrl } : {}),
-            ...(rcFrontUrl ? { rcFrontUrl } : {}),
-            ...(rcBackUrl ? { rcBackUrl } : {}),
-            documents: docsList.length > 0 ? docsList : (((existingDriver.kycDocuments as any)?.documents) || []),
-          },
+          kycDocuments: updatedKyc,
         },
       });
 
@@ -553,13 +568,25 @@ export class DriversService {
       return this.getProfile(userId);
     }
 
-    const user = await this.db.user.findUnique({ where: { id: userId } });
+    const user = userForKyc || (await this.db.user.findUnique({ where: { id: userId } }));
     if (user) {
+      const newKyc = {
+        ...(profilePhotoUrl ? { profilePhotoUrl } : {}),
+        ...(rcFrontUrl ? { rcFrontUrl } : {}),
+        ...(rcBackUrl ? { rcBackUrl } : {}),
+        ...(cleanDob ? { dateOfBirth: cleanDob } : {}),
+        ...(cleanGender ? { gender: cleanGender } : {}),
+        ...(cleanAddress ? { address: cleanAddress } : {}),
+        ...(cleanEmergencyName ? { emergencyContactName: cleanEmergencyName } : {}),
+        ...(cleanEmergencyPhone ? { emergencyContactPhone: cleanEmergencyPhone } : {}),
+        documents: docsList,
+      };
+
       const newDriver = await this.db.driver.create({
         data: {
           userId,
           fullName: cleanName || user.fullName || 'Driver',
-          phone: cleanPhone || user.phone,
+          phone: effectivePhoneToSave || user.phone,
           verificationStatus: VerificationStatus.UNDER_REVIEW,
           availabilityStatus: DriverAvailability.OFFLINE,
           vehiclePlate: plate,
@@ -572,12 +599,7 @@ export class DriversService {
           aadharFrontUrl,
           aadharBackUrl,
           panDocUrl,
-          kycDocuments: {
-            ...(profilePhotoUrl ? { profilePhotoUrl } : {}),
-            ...(rcFrontUrl ? { rcFrontUrl } : {}),
-            ...(rcBackUrl ? { rcBackUrl } : {}),
-            documents: docsList,
-          },
+          kycDocuments: newKyc,
         },
       });
 

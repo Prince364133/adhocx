@@ -85,6 +85,14 @@ export class CreateUserProfileDto {
   @IsOptional()
   @IsString()
   operationalCampus?: string;
+
+  @IsOptional()
+  @IsString()
+  dateOfBirth?: string;
+
+  @IsOptional()
+  @IsString()
+  gender?: string;
 }
 
 export class UserProfileDto {
@@ -116,5 +124,7 @@ export class UserProfileDto {
   emergencyContactName?: string;
   emergencyContactPhone?: string;
   operationalCampus?: string;
+  dateOfBirth?: string;
+  gender?: string;
 }
 

@@ -203,6 +203,23 @@ export class UserMeResponseDto {
     verificationStatus: string;
     rejectionReason?: string;
     createdAt?: any;
+    brandName?: string;
+    businessType?: string;
+    panNumber?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+    billingAddress?: string;
+    billingEmail?: string;
+    monthlyTrips?: string;
+    spocDesignation?: string;
+    alternatePhone?: string;
+    alternateEmail?: string;
+    emergencyContactName?: string;
+    emergencyContactPhone?: string;
+    dateOfBirth?: string;
+    gender?: string;
+    [key: string]: any;
   };
   driverProfile?: {
     id: string;

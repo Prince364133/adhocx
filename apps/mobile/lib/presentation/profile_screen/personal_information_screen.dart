@@ -41,15 +41,34 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
 
   Future<void> _loadProfile({bool force = false}) async {
     try {
-      final res = await DriverService.instance.getProfile(forceRefresh: force);
+      final user = AuthService.instance.currentUser;
+      final isVendor = user?.role == 'VENDOR' || user?.role == 'USER';
+
+      dynamic res;
+      if (isVendor) {
+        try {
+          res = await ApiClient.instance.get('/vendors/profile', force: force);
+        } catch (_) {
+          res = user?.vendorProfile;
+        }
+      } else {
+        try {
+          res = await DriverService.instance.getProfile(forceRefresh: force);
+        } catch (_) {
+          res = user?.driverProfile;
+        }
+      }
+
       if (res != null && mounted) {
         setState(() {
           _profile = Map<String, dynamic>.from(res is Map ? res : {});
           _isLoading = false;
         });
+      } else if (mounted) {
+        setState(() => _isLoading = false);
       }
     } catch (e) {
-      debugPrint('Error loading driver profile: $e');
+      debugPrint('Error loading profile: $e');
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -276,19 +295,27 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
       return l.isEmpty || l == 'user.google@gmail.com' || l == 'test@example.com' || l == '—';
     }
 
+    final isVendorUser = user?.role == 'VENDOR' || user?.role == 'USER';
+    final vendorProf = user?.vendorProfile;
+    final driverProf = user?.driverProfile;
+
     // Profile field fallbacks
     final rawName = _profile?['fullName'] ?? onboarding.fullName;
     final name = (rawName != null && !isFakeName(rawName.toString()))
         ? rawName.toString().trim()
         : (user?.fullName != null && !isFakeName(user!.fullName) ? user.fullName! : context.tr('Not provided'));
 
+    final driverPhone = driverProf?['phone']?.toString().trim();
+    final vendorPhone = vendorProf?['phone']?.toString().trim();
     final rawPhone = (_profile?['phone'] != null && _profile!['phone'].toString().trim().isNotEmpty && _profile!['phone'] != '—')
         ? _profile!['phone'].toString().trim()
         : (user?.phone != null && user!.phone!.trim().isNotEmpty && user.phone != '—'
             ? user.phone!.trim()
-            : (user?.driverProfile?['phone'] != null && user!.driverProfile!['phone'].toString().trim().isNotEmpty
-                ? user.driverProfile!['phone'].toString().trim()
-                : (onboarding.phone.isNotEmpty ? onboarding.phone : (onboarding.phoneNumber.isNotEmpty ? onboarding.phoneNumber : '—'))));
+            : (driverPhone != null && driverPhone.isNotEmpty
+                ? driverPhone
+                : (vendorPhone != null && vendorPhone.isNotEmpty
+                    ? vendorPhone
+                    : (onboarding.phone.isNotEmpty ? onboarding.phone : (onboarding.phoneNumber.isNotEmpty ? onboarding.phoneNumber : '—')))));
     final phone = rawPhone;
 
     final rawEmail = _profile?['email'] ?? onboarding.email;
@@ -296,59 +323,63 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
         ? rawEmail.toString().trim()
         : (user?.email != null && !isFakeEmail(user!.email) ? user.email!.trim() : null);
 
+    final String idPrefix = isVendorUser ? 'VND' : 'DRV';
     final driverId = _profile?['driverId']?.toString() ??
+        _profile?['vendorId']?.toString() ??
         (_profile?['id'] != null
-            ? 'DRV${_profile!['id'].toString().replaceAll('-', '').substring(0, 6).toUpperCase()}'
+            ? '$idPrefix${_profile!['id'].toString().replaceAll('-', '').substring(0, 6).toUpperCase()}'
             : (user?.id != null
-                ? 'DRV${user!.id.replaceAll('-', '').substring(0, 6).toUpperCase()}'
-                : 'DRV-PENDING'));
+                ? '$idPrefix${user!.id.replaceAll('-', '').substring(0, 6).toUpperCase()}'
+                : '$idPrefix-PENDING'));
 
-    final driverProf = user?.driverProfile;
     final kycDocs = (_profile?['kycDocuments'] is Map ? _profile!['kycDocuments'] as Map : null) ??
-        (driverProf?['kycDocuments'] is Map ? driverProf!['kycDocuments'] as Map : null);
+        (driverProf?['kycDocuments'] is Map ? driverProf!['kycDocuments'] as Map : null) ??
+        (vendorProf?['kycDocuments'] is Map ? vendorProf!['kycDocuments'] as Map : null);
 
     final rawPhoto = _profile?['profilePhotoUrl']?.toString() ??
+        _profile?['photoUrl']?.toString() ??
         kycDocs?['profilePhotoUrl']?.toString() ??
         user?.effectivePhotoUrl ??
         user?.photoUrl ??
         driverProf?['profilePhotoUrl']?.toString() ??
+        vendorProf?['logoUrl']?.toString() ??
         (onboarding.profilePhotoUrl != null && onboarding.profilePhotoUrl!.isNotEmpty ? onboarding.profilePhotoUrl : null) ??
         (onboarding.selfieUrl != null && onboarding.selfieUrl!.isNotEmpty ? onboarding.selfieUrl : null);
 
     final profilePhotoUrl = resolveDocumentUrl(rawPhoto);
 
-    final rawVerification = (_profile?['verificationStatus'] ?? user?.driverProfile?['verificationStatus'] ?? 'PENDING').toString().toUpperCase();
+    final rawVerification = (_profile?['verificationStatus'] ?? driverProf?['verificationStatus'] ?? vendorProf?['verificationStatus'] ?? 'PENDING').toString().toUpperCase();
     final isVerified = rawVerification == 'VERIFIED' || rawVerification == 'APPROVED';
     final verificationStatus = rawVerification == 'VERIFIED' ? context.tr('VERIFIED') : (rawVerification == 'UNDER_REVIEW' ? context.tr('UNDER_REVIEW') : context.tr('PENDING'));
-    final createdAt = _formatDate((_profile?['createdAt'] ?? user?.driverProfile?['createdAt'])?.toString());
+    final createdAt = _formatDate((_profile?['createdAt'] ?? driverProf?['createdAt'] ?? vendorProf?['createdAt'])?.toString());
     final totalTrips = (_profile?['totalTrips'] ?? _profile?['total_trips'] ?? 0).toString();
     final averageRating = (_profile?['averageRating'] ?? _profile?['rating'] ?? '5.0').toString();
 
     // Onboarding Payload: Personal Details
-    final rawDob = _profile?['dateOfBirth'] ?? kycDocs?['dateOfBirth'] ?? driverProf?['dateOfBirth'];
+    final rawDob = _profile?['dateOfBirth'] ?? kycDocs?['dateOfBirth'] ?? driverProf?['dateOfBirth'] ?? vendorProf?['dateOfBirth'];
     final dob = (rawDob != null && rawDob.toString().trim().isNotEmpty)
         ? rawDob.toString().trim()
         : (onboarding.dateOfBirth != null
             ? '${onboarding.dateOfBirth!.day.toString().padLeft(2, '0')}/${onboarding.dateOfBirth!.month.toString().padLeft(2, '0')}/${onboarding.dateOfBirth!.year}'
             : '—');
 
-    final rawGender = _profile?['gender'] ?? kycDocs?['gender'] ?? driverProf?['gender'];
+    final rawGender = _profile?['gender'] ?? kycDocs?['gender'] ?? driverProf?['gender'] ?? vendorProf?['gender'];
     final gender = (rawGender != null && rawGender.toString().trim().isNotEmpty)
         ? rawGender.toString().trim()
         : (onboarding.gender.isNotEmpty ? onboarding.gender : '—');
 
-    final rawAddress = _profile?['address'] ?? kycDocs?['address'] ?? driverProf?['address'];
+    final rawAddress = _profile?['address'] ?? kycDocs?['address'] ?? driverProf?['address'] ?? vendorProf?['address'] ?? vendorProf?['billingAddress'];
     final address = (rawAddress != null && rawAddress.toString().trim().isNotEmpty)
         ? rawAddress.toString().trim()
         : (onboarding.address.isNotEmpty ? onboarding.address : '—');
 
     // Onboarding Payload: Emergency Contact
-    final rawEmergName = _profile?['emergencyContactName'] ?? kycDocs?['emergencyContactName'] ?? driverProf?['emergencyContactName'];
+    final rawEmergName = _profile?['emergencyContactName'] ?? kycDocs?['emergencyContactName'] ?? driverProf?['emergencyContactName'] ?? vendorProf?['emergencyContactName'];
     final emergencyName = (rawEmergName != null && rawEmergName.toString().trim().isNotEmpty)
         ? rawEmergName.toString().trim()
         : (onboarding.emergencyContactName.isNotEmpty ? onboarding.emergencyContactName : '—');
 
-    final rawEmergPhone = _profile?['emergencyContactPhone'] ?? kycDocs?['emergencyContactPhone'] ?? driverProf?['emergencyContactPhone'];
+    final rawEmergPhone = _profile?['emergencyContactPhone'] ?? kycDocs?['emergencyContactPhone'] ?? driverProf?['emergencyContactPhone'] ?? vendorProf?['emergencyContactPhone'] ?? vendorProf?['alternatePhone'];
     final emergencyPhone = (rawEmergPhone != null && rawEmergPhone.toString().trim().isNotEmpty)
         ? rawEmergPhone.toString().trim()
         : (onboarding.emergencyContactPhone.isNotEmpty ? onboarding.emergencyContactPhone : '—');
@@ -548,7 +579,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
-                                            '${context.tr('Driver ID')}: $driverId',
+                                            '${isVendorUser ? context.tr('Client ID') : context.tr('Driver ID')}: $driverId',
                                             style: AppTypography.caption(
                                               color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                                             ),

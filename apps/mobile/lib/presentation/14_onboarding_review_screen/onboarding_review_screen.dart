@@ -104,6 +104,17 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
         phone: onboarding.phone.isNotEmpty ? onboarding.phone : null,
         fullName: onboarding.fullName.isNotEmpty ? onboarding.fullName : null,
         profilePhotoUrl: profileUrl,
+        dateOfBirth: onboarding.dateOfBirth != null
+            ? '${onboarding.dateOfBirth!.day}/${onboarding.dateOfBirth!.month}/${onboarding.dateOfBirth!.year}'
+            : null,
+        gender: onboarding.gender.isNotEmpty ? onboarding.gender : null,
+        address: onboarding.address.isNotEmpty ? onboarding.address : null,
+        emergencyContactName: onboarding.emergencyContactName.isNotEmpty
+            ? onboarding.emergencyContactName
+            : null,
+        emergencyContactPhone: onboarding.emergencyContactPhone.isNotEmpty
+            ? onboarding.emergencyContactPhone
+            : null,
         dlFrontUrl: dlUrl,
         rcDocUrl: rcFUrl,
         rcFrontUrl: rcFUrl,

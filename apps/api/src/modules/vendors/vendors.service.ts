@@ -15,7 +15,7 @@ export class VendorsService {
       }
     } catch (_) {}
 
-    if (user && user.role !== 'VENDOR' && user.role !== 'ADMIN') {
+    if (user && user.role !== 'VENDOR' && user.role !== 'ADMIN' && (user.role as any) !== 'USER') {
       throw new ForbiddenException(
         `This account is registered as a ${user.role}. Under AdhocX's 1-account-1-role policy, a driver account cannot create or switch to a vendor profile.`
       );
@@ -62,7 +62,8 @@ export class VendorsService {
       'brandName', 'panNumber', 'businessType', 'website', 'city', 'state', 'pincode',
       'billingAddress', 'isBillingAddressSame', 'billingEmail', 'monthlyTrips',
       'spocDesignation', 'alternatePhone', 'alternateEmail',
-      'emergencyContactName', 'emergencyContactPhone', 'operationalCampus'
+      'emergencyContactName', 'emergencyContactPhone', 'operationalCampus',
+      'dateOfBirth', 'gender'
     ];
     for (const k of extraKeys) {
       if (anyDto[k] !== undefined) {

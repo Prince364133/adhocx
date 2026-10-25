@@ -1097,6 +1097,18 @@ export class AuthService implements OnModuleInit {
         data: { phone: effectivePhone },
       }).catch(() => null);
     }
+    if (user.driver && !user.driver.phone && effectivePhone) {
+      await this.db.driver.update({
+        where: { id: user.driver.id },
+        data: { phone: effectivePhone },
+      }).catch(() => null);
+    }
+    if (user.vendor && !user.vendor.phone && effectivePhone) {
+      await this.db.vendor.update({
+        where: { id: user.vendor.id },
+        data: { phone: effectivePhone },
+      }).catch(() => null);
+    }
 
     return {
       id: user.id,
@@ -1114,8 +1126,11 @@ export class AuthService implements OnModuleInit {
             organizationName: user.vendor.organizationName,
             fullName: user.vendor.fullName,
             phone: user.vendor.phone || effectivePhone,
+            address: user.vendor.address || undefined,
+            gstNumber: user.vendor.gstNumber || undefined,
             verificationStatus: user.vendor.verificationStatus,
             rejectionReason: (user.vendor as any).rejectionReason || undefined,
+            ...((user.vendor.kycDocuments as any)?.companyDetails || {}),
           }
         : undefined,
       driverProfile: user.driver
@@ -1160,6 +1175,7 @@ export class AuthService implements OnModuleInit {
       await assertPhoneAvailable(this.db, cleanPhone, {
         excludeUserId: userId,
         excludeDriverId: user.driver?.id,
+        excludeVendorId: user.vendor?.id,
       });
     }
 

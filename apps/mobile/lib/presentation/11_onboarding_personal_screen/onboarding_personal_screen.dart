@@ -298,6 +298,9 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
             'city': location,
             'businessType': _selectedBusinessType,
             'monthlyTrips': _selectedMonthlyTrips,
+            if (_brandNameController.text.trim().isNotEmpty) 'brandName': _brandNameController.text.trim(),
+            if (_gstController.text.trim().isNotEmpty) 'gstNumber': _gstController.text.trim(),
+            if (_panController.text.trim().isNotEmpty) 'panNumber': _panController.text.trim(),
           },
         );
 
