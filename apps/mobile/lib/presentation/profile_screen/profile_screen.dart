@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/name_utils.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_provider.dart';
 import '../../services/auth_service.dart';
@@ -49,7 +50,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _driverProfile = Map<String, dynamic>.from(profileRes);
           }
           final user = AuthService.instance.currentUser;
-          _driverProfile['name'] = _driverProfile['fullName'] ?? _driverProfile['full_name'] ?? user?.fullName ?? 'Driver';
+          final rawPName = _driverProfile['fullName'] ?? _driverProfile['full_name'] ?? user?.fullName;
+          _driverProfile['name'] = !isPlaceholderName(rawPName) ? rawPName! : 'Partner';
           _driverProfile['phone'] = _driverProfile['phone'] ?? user?.phone ?? '';
 
           final veh = _driverProfile['vehicle'] ?? (_driverProfile['vehicles'] is List && (_driverProfile['vehicles'] as List).isNotEmpty ? _driverProfile['vehicles'][0] : null);
@@ -303,11 +305,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     // Dynamic profile resolution
     final effectiveProfile = {
-      'name': (_driverProfile['name'] != null && _driverProfile['name'].toString().isNotEmpty)
+      'name': (_driverProfile['name'] != null && _driverProfile['name'].toString().isNotEmpty && !isPlaceholderName(_driverProfile['name'].toString()))
           ? _driverProfile['name'].toString()
-          : (onboarding.fullName.isNotEmpty
+          : (!isPlaceholderName(onboarding.fullName)
               ? onboarding.fullName
-              : (AuthService.instance.currentUser?.fullName?.isNotEmpty == true ? AuthService.instance.currentUser!.fullName! : 'Driver')),
+              : (!isPlaceholderName(AuthService.instance.currentUser?.fullName) ? AuthService.instance.currentUser!.fullName! : 'Partner')),
       'phone': (_driverProfile['phone'] != null && _driverProfile['phone'].toString().isNotEmpty)
           ? _driverProfile['phone'].toString()
           : (onboarding.phoneNumber.isNotEmpty

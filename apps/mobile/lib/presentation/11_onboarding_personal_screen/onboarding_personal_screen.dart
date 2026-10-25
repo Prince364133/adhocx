@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/networking/api_client.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/app_toast.dart';
+import '../../core/utils/name_utils.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_provider.dart';
 import '../../services/auth_service.dart';
@@ -84,16 +85,10 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
     final authUser = AuthService.instance.currentUser;
     final onboarding = context.read<OnboardingProvider>();
 
-    final initialName = onboarding.fullName.isNotEmpty
-        ? onboarding.fullName
-        : ((authUser?.fullName != null &&
-                authUser!.fullName!.isNotEmpty &&
-                authUser.fullName != 'Driver' &&
-                authUser.fullName != 'Driver Partner' &&
-                authUser.fullName != 'Google User' &&
-                authUser.fullName != 'Google Partner' &&
-                authUser.fullName != 'User')
-            ? authUser.fullName!
+    final initialName = !isPlaceholderName(onboarding.fullName)
+        ? onboarding.fullName.trim()
+        : (!isPlaceholderName(authUser?.fullName)
+            ? authUser!.fullName!.trim()
             : '');
 
     String clean10Digits(String val) {
@@ -119,9 +114,11 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
 
     // Vendor specific initialization
     _companyNameController = TextEditingController(
-      text: onboarding.companyName.isNotEmpty
+      text: onboarding.companyName.isNotEmpty && !isPlaceholderName(onboarding.companyName)
           ? onboarding.companyName
-          : (authUser?.vendorProfile?['organizationName'] ?? ''),
+          : (!isPlaceholderName(authUser?.vendorProfile?['organizationName'])
+              ? authUser!.vendorProfile!['organizationName']
+              : ''),
     );
     _brandNameController = TextEditingController(text: onboarding.brandName);
     _selectedBusinessType = onboarding.businessType.isNotEmpty &&
@@ -244,7 +241,8 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
     String formatIndiaPhone(String raw) {
       final d = raw.replaceAll(RegExp(r'\D'), '');
       if (d.isEmpty) return '';
-      return '+91$d';
+      final ten = d.length > 10 ? d.substring(d.length - 10) : d;
+      return '+91$ten';
     }
 
     if (onboarding.isUser) {
@@ -584,6 +582,9 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                         validator: (val) {
                           if (val == null || val.trim().length < 3) {
                             return 'Please enter your legal name (min 3 characters)';
+                          }
+                          if (isPlaceholderName(val)) {
+                            return 'Please enter your real legal name as per government ID';
                           }
                           return null;
                         },

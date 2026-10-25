@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/utils/app_toast.dart';
+import '../../core/utils/name_utils.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_provider.dart';
 import '../../services/auth_service.dart';
@@ -460,6 +461,19 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
         licenseNumber: plate.isNotEmpty ? 'DL-$plate' : 'DL-PENDING',
         licenseExpiry: DateTime.now().add(const Duration(days: 365 * 5)),
         documentUrls: docList,
+        fullName: !isPlaceholderName(onboarding.fullName) ? onboarding.fullName.trim() : null,
+        phone: onboarding.phone.isNotEmpty ? onboarding.phone : null,
+        address: onboarding.address.isNotEmpty ? onboarding.address : null,
+        dateOfBirth: onboarding.dateOfBirth != null
+            ? '${onboarding.dateOfBirth!.day}/${onboarding.dateOfBirth!.month}/${onboarding.dateOfBirth!.year}'
+            : null,
+        gender: onboarding.gender.isNotEmpty ? onboarding.gender : null,
+        emergencyContactName: onboarding.emergencyContactName.isNotEmpty
+            ? onboarding.emergencyContactName
+            : null,
+        emergencyContactPhone: onboarding.emergencyContactPhone.isNotEmpty
+            ? onboarding.emergencyContactPhone
+            : null,
         profilePhotoUrl: onboarding.profilePhotoUrl,
         dlFrontUrl: onboarding.drivingLicenseUrl,
         rcDocUrl: rcFUrl,
@@ -482,7 +496,7 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
       // 2. Also persist Driver Personal Profile details
       try {
         await driverService.updateProfile({
-          if (onboarding.fullName.isNotEmpty) 'fullName': onboarding.fullName,
+          if (!isPlaceholderName(onboarding.fullName)) 'fullName': onboarding.fullName.trim(),
           if (onboarding.phone.isNotEmpty) 'phone': onboarding.phone,
           if (onboarding.address.isNotEmpty) 'address': onboarding.address,
           if (onboarding.emergencyContactName.isNotEmpty)

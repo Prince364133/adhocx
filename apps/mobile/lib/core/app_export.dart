@@ -8,3 +8,4 @@ export '../widgets/loading_skeleton_widget.dart';
 export '../theme/app_theme.dart';
 export '../routes/app_routes.dart';
 export 'utils/app_toast.dart';
+export 'utils/name_utils.dart';

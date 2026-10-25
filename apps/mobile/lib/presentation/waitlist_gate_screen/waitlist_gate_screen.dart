@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/app_toast.dart';
+import '../../core/utils/name_utils.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_provider.dart';
 import '../../services/auth_service.dart';
@@ -223,7 +224,7 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
         onboarding.setRole(user.role);
         if (user.fullName != null || user.phone != null || user.email != null) {
           onboarding.setPersonalDetails(
-            fullName: user.fullName,
+            fullName: !isPlaceholderName(user.fullName) ? user.fullName : null,
             phone: user.phone,
             email: user.email,
           );

@@ -6,6 +6,7 @@ import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
 import '../../services/driver_service.dart';
 import '../../services/global_dispatch_overlay_service.dart';
+import '../../core/utils/name_utils.dart';
 import '../../core/networking/api_client.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
@@ -139,10 +140,11 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           if (profile != null) {
             final user = profile['user'] as Map<String, dynamic>?;
-            _driverName = profile['fullName'] as String? ??
+            final rawName = profile['fullName'] as String? ??
                 user?['name'] as String? ??
                 user?['fullName'] as String? ??
-                'Driver';
+                AuthService.instance.currentUser?.fullName;
+            _driverName = !isPlaceholderName(rawName) ? rawName! : 'Partner';
             final num? scoreNum = profile['trustScore'] as num? ??
                 profile['trust_score'] as num? ??
                 profile['currentScore'] as num?;

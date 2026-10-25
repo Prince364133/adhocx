@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../core/utils/app_toast.dart';
+import '../../core/utils/name_utils.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_provider.dart';
 import '../../services/auth_service.dart';
@@ -102,7 +103,7 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
         licenseExpiry: DateTime.now().add(const Duration(days: 365 * 5)),
         documentUrls: docList,
         phone: onboarding.phone.isNotEmpty ? onboarding.phone : null,
-        fullName: onboarding.fullName.isNotEmpty ? onboarding.fullName : null,
+        fullName: !isPlaceholderName(onboarding.fullName) ? onboarding.fullName.trim() : null,
         profilePhotoUrl: profileUrl,
         dateOfBirth: onboarding.dateOfBirth != null
             ? '${onboarding.dateOfBirth!.day}/${onboarding.dateOfBirth!.month}/${onboarding.dateOfBirth!.year}'
@@ -135,7 +136,7 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
       // Also persist personal details to driver profile
       try {
         await driverService.updateProfile({
-          if (onboarding.fullName.isNotEmpty) 'fullName': onboarding.fullName,
+          if (!isPlaceholderName(onboarding.fullName)) 'fullName': onboarding.fullName.trim(),
           if (onboarding.phone.isNotEmpty) 'phone': onboarding.phone,
           if (onboarding.address.isNotEmpty) 'address': onboarding.address,
           if (onboarding.emergencyContactName.isNotEmpty)

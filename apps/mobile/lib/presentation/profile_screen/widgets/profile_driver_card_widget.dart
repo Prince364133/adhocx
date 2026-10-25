@@ -5,6 +5,7 @@ import '../../../theme/app_radius.dart';
 import '../../../theme/app_spacing.dart';
 import '../../../theme/app_typography.dart';
 import '../../../shared/widgets/app_profile_avatar.dart';
+import '../../../core/utils/name_utils.dart';
 
 class ProfileDriverCardWidget extends StatelessWidget {
   final Map<String, dynamic> profile;
@@ -22,9 +23,8 @@ class ProfileDriverCardWidget extends StatelessWidget {
 
     final rawName = (profile['name'] != null && profile['name'].toString().trim().isNotEmpty)
         ? profile['name'].toString().trim()
-        : 'Driver';
-    final isGenericName = rawName.toLowerCase() == 'driver' || rawName.toLowerCase() == 'partner';
-    final name = isGenericName ? context.tr(rawName) : rawName;
+        : '';
+    final name = !isPlaceholderName(rawName) ? rawName : context.tr('Partner');
 
     final phone = (profile['phone'] != null && profile['phone'].toString().trim().isNotEmpty)
         ? profile['phone'].toString().trim()

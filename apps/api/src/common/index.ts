@@ -6,3 +6,4 @@ export * from './decorators/roles.decorator';
 export * from './decorators/current-user.decorator';
 export * from './errors/domain-errors';
 export * from './utils/uniqueness.util';
+export * from './utils/name.util';

@@ -14,7 +14,7 @@ import {
 import { DatabaseService } from '../../database/database.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { assertPhoneAvailable, assertVehiclePlateAvailable } from '../../common';
+import { assertPhoneAvailable, assertVehiclePlateAvailable, sanitizeRealName } from '../../common';
 
 @Injectable()
 export class AdminService {
@@ -72,7 +72,7 @@ export class AdminService {
       ...d,
       phone: d.phone || d.user?.phone || '',
       email: d.user?.email || (d.kycDocuments as any)?.email || undefined,
-      fullName: d.fullName || d.user?.fullName || 'Driver Applicant',
+      fullName: sanitizeRealName(d.fullName) || sanitizeRealName(d.user?.fullName) || d.phone || 'Driver Applicant',
     }));
 
     return {
@@ -149,7 +149,7 @@ export class AdminService {
       profilePhotoUrl: (driver.kycDocuments as any)?.profilePhotoUrl || undefined,
       phone: driver.phone || driver.user?.phone || '',
       email: driver.user?.email || (driver.kycDocuments as any)?.email || undefined,
-      fullName: driver.fullName || driver.user?.fullName || 'Driver Applicant',
+      fullName: sanitizeRealName(driver.fullName) || sanitizeRealName(driver.user?.fullName) || driver.phone || 'Driver Applicant',
     };
   }
 
@@ -408,8 +408,8 @@ export class AdminService {
       userId: v.userId,
       organizationName: v.organizationName,
       companyName: v.organizationName,
-      fullName: v.fullName || v.user?.fullName || 'Vendor Partner',
-      contactPerson: v.fullName || v.user?.fullName || 'Vendor Partner',
+      fullName: sanitizeRealName(v.fullName) || sanitizeRealName(v.user?.fullName) || v.organizationName || 'Vendor Partner',
+      contactPerson: sanitizeRealName(v.fullName) || sanitizeRealName(v.user?.fullName) || v.organizationName || 'Vendor Partner',
       phone: v.phone || v.user?.phone || '',
       email: v.user?.email || (v.kycDocuments as any)?.email || undefined,
       gstNumber: v.gstNumber,
@@ -451,9 +451,9 @@ export class AdminService {
       ...vendor,
       phone: vendor.phone || vendor.user?.phone || '',
       email: vendor.user?.email || (vendor.kycDocuments as any)?.email || undefined,
-      fullName: vendor.fullName || vendor.user?.fullName || 'Vendor Partner',
+      fullName: sanitizeRealName(vendor.fullName) || sanitizeRealName(vendor.user?.fullName) || vendor.organizationName || 'Vendor Partner',
       companyName: vendor.organizationName,
-      contactPerson: vendor.fullName || vendor.user?.fullName || 'Vendor Partner',
+      contactPerson: sanitizeRealName(vendor.fullName) || sanitizeRealName(vendor.user?.fullName) || vendor.organizationName || 'Vendor Partner',
       requirementsCount: vendor.requirements?.length || 0,
     };
   }
@@ -469,7 +469,7 @@ export class AdminService {
     if (!driver) throw new NotFoundException('Driver not found');
 
     const cleanPhone = data.phone ? data.phone.trim().replace(/\s+/g, '') : undefined;
-    const cleanName = data.fullName ? data.fullName.trim() : undefined;
+    const cleanName = sanitizeRealName(data.fullName);
     const rawPlate = data.vehiclePlate?.trim().toUpperCase();
 
     if (cleanPhone && cleanPhone !== driver.phone && cleanPhone !== driver.user?.phone) {
@@ -560,7 +560,7 @@ export class AdminService {
     if (!vendor) throw new NotFoundException('Vendor not found');
 
     const cleanPhone = data.phone ? data.phone.trim().replace(/\s+/g, '') : undefined;
-    const cleanName = data.fullName ? data.fullName.trim() : undefined;
+    const cleanName = sanitizeRealName(data.fullName);
 
     if (cleanPhone && cleanPhone !== vendor.phone && cleanPhone !== vendor.user?.phone) {
       await assertPhoneAvailable(this.db, cleanPhone, {

@@ -10,6 +10,7 @@ import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
 import '../../core/utils/app_toast.dart';
+import '../../core/utils/name_utils.dart';
 
 /// Screen for viewing and editing corporate client / vendor organization and contact information.
 /// Merges previous Company Information and Contact Information into a single streamlined view.
@@ -111,8 +112,8 @@ class _UserOrganizationInformationScreenState
           }
 
           // Contact Details
-          _fullNameController.text =
-              (merged['fullName'] ?? user?.fullName ?? '').toString();
+          final rawContactName = (merged['fullName'] ?? user?.fullName ?? '').toString();
+          _fullNameController.text = !isPlaceholderName(rawContactName) ? rawContactName : '';
           _phoneController.text =
               clean10(merged['phone'] ?? user?.phone ?? '');
           _emailController.text =
@@ -124,11 +125,11 @@ class _UserOrganizationInformationScreenState
               clean10(merged['emergencyContactPhone'] ?? '');
 
           // Organization Details
-          _orgNameController.text = (merged['organizationName'] ??
+          final rawOrgName = (merged['organizationName'] ??
                   merged['companyName'] ??
                   user?.fullName ??
-                  '')
-              .toString();
+                  '').toString();
+          _orgNameController.text = !isPlaceholderName(rawOrgName) ? rawOrgName : '';
 
           final existingAddress = (merged['address'] ?? '').toString();
           final existingCity = (merged['city'] ?? '').toString();

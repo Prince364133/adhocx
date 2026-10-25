@@ -18,7 +18,7 @@ import {
 import { DatabaseService } from '../../database/database.service';
 import { RedisService } from '../../redis/redis.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { getPhoneVariants, assertPhoneAvailable } from '../../common';
+import { getPhoneVariants, assertPhoneAvailable, sanitizeRealName } from '../../common';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -495,17 +495,19 @@ export class AuthService implements OnModuleInit {
           }
         }
 
+        const realName = sanitizeRealName(dto.fullName);
+
         user = await this.db.user.create({
           data: {
             phone: effectivePhone || undefined,
             email: effectiveEmail || undefined,
             role: assignedRole,
-            fullName: dto.fullName || (assignedRole === UserRole.DRIVER ? 'Driver' : 'User'),
+            fullName: realName || undefined,
             driver:
               assignedRole === UserRole.DRIVER
                 ? {
                     create: {
-                      fullName: dto.fullName || 'Driver',
+                      fullName: realName || '',
                       phone: effectivePhone || undefined,
                       verificationStatus: 'PENDING',
                       availabilityStatus: 'OFFLINE',
@@ -516,8 +518,8 @@ export class AuthService implements OnModuleInit {
               assignedRole === UserRole.VENDOR
                 ? {
                     create: {
-                      fullName: dto.fullName || 'Vendor Partner',
-                      organizationName: dto.fullName || 'Corporate Partner',
+                      fullName: realName || '',
+                      organizationName: realName || '',
                       phone: effectivePhone || undefined,
                       verificationStatus: 'PENDING',
                     },
@@ -591,18 +593,20 @@ export class AuthService implements OnModuleInit {
           this.logger.log(`[SOCIAL AUTO-DETECT] Account already registered as ${user.role}. Automatically logging in as ${user.role}.`);
         }
 
+        const realName = sanitizeRealName(fullName);
+
         if (!user) {
           user = await this.db.user.create({
             data: {
               email,
               phone: undefined, // No fake random phone numbers generated!
-              fullName: fullName || undefined,
+              fullName: realName || undefined,
               role: assignedRole,
               driver:
                 assignedRole === UserRole.DRIVER
                   ? {
                       create: {
-                        fullName: fullName || 'Driver',
+                        fullName: realName || '',
                         phone: undefined,
                         verificationStatus: 'PENDING',
                         availabilityStatus: 'OFFLINE',
@@ -613,8 +617,8 @@ export class AuthService implements OnModuleInit {
                 assignedRole === UserRole.VENDOR
                   ? {
                       create: {
-                        fullName: fullName || 'Vendor Partner',
-                        organizationName: fullName || 'Corporate Partner',
+                        fullName: realName || '',
+                        organizationName: realName || '',
                         phone: undefined,
                         verificationStatus: 'PENDING',
                       },
@@ -638,8 +642,8 @@ export class AuthService implements OnModuleInit {
               user.vendor = await this.db.vendor.create({
                 data: {
                   userId: user.id,
-                  fullName: user.fullName || fullName || 'Vendor Partner',
-                  organizationName: user.fullName || fullName || 'Corporate Partner',
+                  fullName: sanitizeRealName(user.fullName) || realName || '',
+                  organizationName: sanitizeRealName(user.fullName) || realName || '',
                   verificationStatus: 'PENDING',
                 },
               });
@@ -649,7 +653,7 @@ export class AuthService implements OnModuleInit {
               user.driver = await this.db.driver.create({
                 data: {
                   userId: user.id,
-                  fullName: user.fullName || fullName || 'Driver',
+                  fullName: sanitizeRealName(user.fullName) || realName || '',
                   verificationStatus: 'PENDING',
                   availabilityStatus: 'OFFLINE',
                 },
@@ -1086,7 +1090,7 @@ export class AuthService implements OnModuleInit {
     }
 
     const effectivePhone = user.phone || user.driver?.phone || user.vendor?.phone || undefined;
-    const effectiveFullName = user.fullName || user.driver?.fullName || user.vendor?.fullName || undefined;
+    const effectiveFullName = sanitizeRealName(user.fullName) || sanitizeRealName(user.driver?.fullName) || sanitizeRealName(user.vendor?.fullName) || undefined;
     const driverKyc = (user.driver?.kycDocuments as Record<string, any>) || {};
     const effectivePhoto = driverKyc.profilePhotoUrl || (user.vendor?.kycDocuments as any)?.logoUrl || undefined;
 
@@ -1158,7 +1162,7 @@ export class AuthService implements OnModuleInit {
   }
 
   async updateUserProfile(userId: string, dto: UpdateUserDto): Promise<UserMeResponseDto> {
-    const cleanName = dto.fullName ? dto.fullName.trim() : undefined;
+    const cleanName = sanitizeRealName(dto.fullName);
     const cleanPhone = dto.phone ? dto.phone.trim().replace(/\s+/g, '') : undefined;
     const cleanEmail = dto.email ? dto.email.trim().toLowerCase() : undefined;
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../core/utils/app_toast.dart';
+import '../../core/utils/name_utils.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_provider.dart';
 import '../../services/auth_service.dart';
@@ -217,7 +218,7 @@ class _SignInScreenState extends State<SignInScreen> {
       if (mounted) {
         context.read<AuthProvider>().setUser(user);
         onboarding.setRole(user.role);
-        if (user.fullName != null) {
+        if (user.fullName != null && !isPlaceholderName(user.fullName)) {
           onboarding.setPersonalDetails(
             fullName: user.fullName!,
             phone: user.phone,
@@ -266,7 +267,7 @@ class _SignInScreenState extends State<SignInScreen> {
       if (mounted) {
         context.read<AuthProvider>().setUser(user);
         onboarding.setRole(user.role);
-        if (user.fullName != null) {
+        if (user.fullName != null && !isPlaceholderName(user.fullName)) {
           onboarding.setPersonalDetails(
             fullName: user.fullName!,
             phone: user.phone,

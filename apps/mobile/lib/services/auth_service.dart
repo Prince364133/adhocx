@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/networking/api_client.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../core/utils/app_logger.dart';
+import '../core/utils/name_utils.dart';
 import './fcm_service.dart';
 
 class UserModel {
@@ -315,21 +316,22 @@ class AuthService {
     Map<String, dynamic>? vendorProfile,
   }) {
     if (_currentUser == null) return;
+    final validName = (fullName != null && !isPlaceholderName(fullName)) ? fullName.trim() : null;
     final updated = _currentUser!.copyWith(
-      fullName: (fullName != null && fullName.trim().isNotEmpty) ? fullName.trim() : _currentUser!.fullName,
+      fullName: validName ?? _currentUser!.fullName,
       phone: (phone != null && phone.trim().isNotEmpty) ? phone.trim() : _currentUser!.phone,
       email: (email != null && email.trim().isNotEmpty) ? email.trim() : _currentUser!.email,
       photoUrl: photoUrl ?? _currentUser!.photoUrl,
       isOnboarded: isOnboarded ?? _currentUser!.isOnboarded,
       driverProfile: driverProfile != null
           ? { ...?_currentUser!.driverProfile, ...driverProfile }
-          : (fullName != null
-              ? { ...?_currentUser!.driverProfile, 'fullName': fullName.trim() }
+          : (validName != null
+              ? { ...?_currentUser!.driverProfile, 'fullName': validName }
               : _currentUser!.driverProfile),
       vendorProfile: vendorProfile != null
           ? { ...?_currentUser!.vendorProfile, ...vendorProfile }
-          : (fullName != null
-              ? { ...?_currentUser!.vendorProfile, 'fullName': fullName.trim() }
+          : (validName != null
+              ? { ...?_currentUser!.vendorProfile, 'fullName': validName }
               : _currentUser!.vendorProfile),
     );
     _currentUser = updated;
@@ -527,7 +529,8 @@ class AuthService {
       body: {
         'provider': 'GOOGLE',
         'email': email,
-        'fullName': displayName ?? 'User',
+        if (displayName != null && !isPlaceholderName(displayName))
+          'fullName': displayName.trim(),
         if (idToken != null) 'idToken': idToken,
         if (role != null && role.isNotEmpty) 'role': role,
       },
@@ -535,7 +538,12 @@ class AuthService {
 
     final token = await _saveTokens(response);
     final user = await fetchCurrentUser(forceRefresh: true);
-    final effectiveUser = user ?? _currentUser ?? UserModel(id: 'usr_auth', role: role ?? 'DRIVER', email: email, fullName: displayName);
+    final effectiveUser = user ?? _currentUser ?? UserModel(
+      id: 'usr_auth',
+      role: role ?? 'DRIVER',
+      email: email,
+      fullName: isPlaceholderName(displayName) ? null : displayName,
+    );
     return AuthResult(user: effectiveUser, accessToken: token);
   }
 
@@ -549,21 +557,27 @@ class AuthService {
       throw Exception('Apple Sign-In was cancelled or not completed. Please try again or use your mobile number.');
     }
     final userEmail = email;
-    final userName = fullName ?? 'Apple User';
+    final cleanFullName = isPlaceholderName(fullName) ? null : fullName?.trim();
 
     final response = await _api.post(
       '/auth/social',
       body: {
         'provider': 'APPLE',
         'email': userEmail,
-        'fullName': userName,
+        if (cleanFullName != null && cleanFullName.isNotEmpty)
+          'fullName': cleanFullName,
         'role': role,
       },
     );
 
     final token = await _saveTokens(response);
     final user = await fetchCurrentUser(forceRefresh: true);
-    final effectiveUser = user ?? _currentUser ?? UserModel(id: 'usr_auth', role: role, email: userEmail, fullName: userName);
+    final effectiveUser = user ?? _currentUser ?? UserModel(
+      id: 'usr_auth',
+      role: role,
+      email: userEmail,
+      fullName: cleanFullName,
+    );
     return AuthResult(user: effectiveUser, accessToken: token);
   }
 

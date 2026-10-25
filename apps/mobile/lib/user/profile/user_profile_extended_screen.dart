@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../routes/app_routes.dart';
+import '../../core/utils/name_utils.dart';
 import '../../services/auth_service.dart';
 import '../../services/onboarding_provider.dart';
 import '../../shared/theme/app_colors.dart';
@@ -21,17 +22,17 @@ class UserProfileExtendedScreen extends StatelessWidget {
     final currentUser = AuthService.instance.currentUser;
 
     final String displayName = () {
-      if (onboarding != null && onboarding.fullName.isNotEmpty) {
+      if (onboarding != null && !isPlaceholderName(onboarding.fullName)) {
         return onboarding.fullName;
       }
       final userFullName = currentUser?.fullName;
-      if (userFullName != null && userFullName.isNotEmpty) {
+      if (userFullName != null && !isPlaceholderName(userFullName)) {
         return userFullName;
       }
-      if (onboarding != null && onboarding.companyName.isNotEmpty) {
+      if (onboarding != null && !isPlaceholderName(onboarding.companyName)) {
         return onboarding.companyName;
       }
-      return 'AdhocX User';
+      return 'AdhocX Partner';
     }();
 
     final menuItems = [

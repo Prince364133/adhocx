@@ -17,7 +17,7 @@ import {
 } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
 import { StorageService } from '../../common/storage/storage.service';
-import { assertPhoneAvailable, assertVehiclePlateAvailable } from '../../common';
+import { assertPhoneAvailable, assertVehiclePlateAvailable, sanitizeRealName } from '../../common';
 import { AuditService } from '../audit/audit.service';
 import { LocationsService } from '../locations/locations.service';
 
@@ -176,7 +176,7 @@ export class DriversService {
         id: `drv_${userId}`,
         userId,
         driverId: `DRV${userId.substring(0, 6).toUpperCase()}`,
-        fullName: user?.fullName || 'Driver',
+        fullName: sanitizeRealName(user?.fullName) || '',
         phone: user?.phone || '',
         email: user?.email || undefined,
         verificationStatus: VerificationStatus.PENDING,
@@ -194,6 +194,10 @@ export class DriversService {
       include: { user: true },
     });
 
+    const cleanPhone = dto.phone ? dto.phone.trim().replace(/\s+/g, '') : undefined;
+    const cleanName = sanitizeRealName(dto.fullName);
+    const rawPlate = (dto.vehiclePlate || (dto as any).rcNumber)?.trim().toUpperCase() || undefined;
+
     if (!driver) {
       const user = await this.db.user.findUnique({ where: { id: userId } });
       if (!user) {
@@ -202,7 +206,7 @@ export class DriversService {
       driver = await this.db.driver.create({
         data: {
           userId,
-          fullName: user.fullName || 'Driver',
+          fullName: cleanName || sanitizeRealName(user.fullName) || '',
           phone: user.phone || undefined,
           verificationStatus: VerificationStatus.PENDING,
           availabilityStatus: DriverAvailability.OFFLINE,
@@ -210,10 +214,6 @@ export class DriversService {
         include: { user: true },
       });
     }
-
-    const cleanPhone = dto.phone ? dto.phone.trim().replace(/\s+/g, '') : undefined;
-    const cleanName = dto.fullName ? dto.fullName.trim() : undefined;
-    const rawPlate = (dto.vehiclePlate || (dto as any).rcNumber)?.trim().toUpperCase() || undefined;
 
     if (cleanPhone && cleanPhone !== driver.phone && cleanPhone !== driver.user?.phone) {
       await assertPhoneAvailable(this.db, cleanPhone, {
@@ -438,15 +438,15 @@ export class DriversService {
     const vehicleModel = dto.vehicle?.model || dto.vehicleModel || 'Commercial Fleet';
 
     const cleanPhone = dto.phone ? dto.phone.trim().replace(/\s+/g, '') : undefined;
-    const cleanName = dto.fullName ? dto.fullName.trim() : undefined;
+    const existingDriver = await this.db.driver.findUnique({ where: { userId } });
+    const userForKyc = await this.db.user.findUnique({ where: { id: userId } });
+    const cleanName = sanitizeRealName(dto.fullName) || sanitizeRealName(existingDriver?.fullName) || sanitizeRealName(userForKyc?.fullName);
     const cleanDob = dto.dateOfBirth?.trim() || undefined;
     const cleanGender = dto.gender?.trim() || undefined;
     const cleanAddress = dto.address?.trim() || undefined;
     const cleanEmergencyName = dto.emergencyContactName?.trim() || undefined;
     const cleanEmergencyPhone = dto.emergencyContactPhone?.trim().replace(/\s+/g, '') || undefined;
 
-    const existingDriver = await this.db.driver.findUnique({ where: { userId } });
-    const userForKyc = await this.db.user.findUnique({ where: { id: userId } });
     const effectivePhoneToSave = cleanPhone || existingDriver?.phone || userForKyc?.phone || undefined;
 
     if (cleanPhone) {
@@ -585,7 +585,7 @@ export class DriversService {
       const newDriver = await this.db.driver.create({
         data: {
           userId,
-          fullName: cleanName || user.fullName || 'Driver',
+          fullName: cleanName || sanitizeRealName(user.fullName) || '',
           phone: effectivePhoneToSave || user.phone,
           verificationStatus: VerificationStatus.UNDER_REVIEW,
           availabilityStatus: DriverAvailability.OFFLINE,

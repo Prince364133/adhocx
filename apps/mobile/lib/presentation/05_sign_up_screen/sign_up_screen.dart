@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/utils/app_toast.dart';
+import '../../core/utils/name_utils.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_provider.dart';
 import '../../services/auth_service.dart';
@@ -134,9 +135,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
       final authService = context.read<AuthService>();
       final onboarding = context.read<OnboardingProvider>();
 
-      final isDriver = onboarding.role == 'DRIVER';
       onboarding.setPersonalDetails(
-        fullName: onboarding.fullName.isNotEmpty ? onboarding.fullName : (isDriver ? 'Driver' : 'User'),
+        fullName: !isPlaceholderName(onboarding.fullName) ? onboarding.fullName : '',
         dateOfBirth: onboarding.dateOfBirth,
         gender: onboarding.gender,
         email: targetEmail,
@@ -192,8 +192,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
           ? await authService.signInWithGoogle(role: onboarding.role)
           : await authService.signInWithApple(role: onboarding.role);
 
+      final realSocialName = !isPlaceholderName(result.user.fullName) ? result.user.fullName! : '';
       onboarding.setPersonalDetails(
-        fullName: result.user.fullName ?? '',
+        fullName: realSocialName,
         dateOfBirth: onboarding.dateOfBirth,
         gender: onboarding.gender,
         email: result.user.email,

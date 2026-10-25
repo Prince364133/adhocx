@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../core/utils/app_toast.dart';
+import '../../core/utils/name_utils.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_provider.dart';
 import '../../services/auth_service.dart';
@@ -96,7 +97,7 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
         otp: _otp,
         role: widget.isRegister ? widget.role : null,
         isRegister: widget.isRegister,
-        fullName: onboarding.fullName.isNotEmpty ? onboarding.fullName : null,
+        fullName: !isPlaceholderName(onboarding.fullName) ? onboarding.fullName.trim() : null,
       );
 
       if (mounted) {

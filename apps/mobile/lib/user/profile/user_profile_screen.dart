@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/app_toast.dart';
+import '../../core/utils/name_utils.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_provider.dart';
 import '../../services/auth_service.dart';
@@ -27,17 +28,17 @@ class UserProfileScreen extends StatelessWidget {
     final currentUser = AuthService.instance.currentUser;
 
     final String displayName = () {
-      if (onboarding != null && onboarding.fullName.isNotEmpty) {
+      if (onboarding != null && !isPlaceholderName(onboarding.fullName)) {
         return onboarding.fullName;
       }
       final userFullName = currentUser?.fullName;
-      if (userFullName != null && userFullName.isNotEmpty) {
+      if (userFullName != null && !isPlaceholderName(userFullName)) {
         return userFullName;
       }
-      if (onboarding != null && onboarding.companyName.isNotEmpty) {
+      if (onboarding != null && !isPlaceholderName(onboarding.companyName)) {
         return onboarding.companyName;
       }
-      return 'AdhocX User';
+      return 'AdhocX Partner';
     }();
 
     final menuItems = [
