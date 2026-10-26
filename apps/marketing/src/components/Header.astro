@@ -1,44 +1,82 @@
 ---
+import Icon from './Icon.astro';
+
 interface Props {
   activeNav?: string;
   logoTag?: string;
 }
 
-const { activeNav = '', logoTag = 'B2B Platform' } = Astro.props;
+const { activeNav = '', logoTag = 'B2B Transport' } = Astro.props;
 ---
 
 <header class="header-sticky" id="site-header">
   <div class="container header-inner">
-    <a href="/" class="brand-logo" id="header-brand-logo">
+    <a href="/" class="brand-logo" id="header-brand-logo" aria-label="AdhocX Home">
       <span class="logo-text">Adhoc<span class="logo-accent">X</span></span>
       <span class="logo-tag">{logoTag}</span>
     </a>
 
-    <ul class="nav-links" id="primary-nav-links">
-      <li><a href="/vendors" class:list={["nav-link", { active: activeNav === 'vendors' }]} id="nav-vendors">For Vendors</a></li>
-      <li><a href="/drivers" class:list={["nav-link", { active: activeNav === 'drivers' }]} id="nav-drivers">For Drivers</a></li>
-      <li><a href="/#marketplace" class:list={["nav-link", { active: activeNav === 'how-it-works' }]} id="nav-marketplace">How It Works</a></li>
-      <li><a href="/blogs" class:list={["nav-link", { active: activeNav === 'blogs' }]} id="nav-blogs">Blog & Insights</a></li>
-      <li><a href="/terms" class:list={["nav-link", { active: activeNav === 'terms' }]} id="nav-terms">Terms</a></li>
-      <li><a href="/privacy" class:list={["nav-link", { active: activeNav === 'privacy' }]} id="nav-privacy">Privacy</a></li>
-      <li class="mobile-only-action">
-        <a href="/drivers" class="btn btn-secondary" style="width:100%;justify-content:center;">Driver Portal</a>
-      </li>
-      <li class="mobile-only-action">
-        <a href="/vendors" class="btn btn-primary" style="width:100%;justify-content:center;">Vendor Portal</a>
-      </li>
-    </ul>
+    <nav aria-label="Primary Navigation">
+      <ul class="nav-links" id="primary-nav-links">
+        <li>
+          <a href="/vendors" class:list={["nav-link", { active: activeNav === 'vendors' }]} id="nav-vendors">
+            Corporate
+          </a>
+        </li>
+        <li>
+          <a href="/drivers" class:list={["nav-link", { active: activeNav === 'drivers' }]} id="nav-drivers">
+            Drive with Us
+          </a>
+        </li>
+        <li>
+          <a href="/#marketplace" class:list={["nav-link", { active: activeNav === 'how-it-works' }]} id="nav-marketplace">
+            How It Works
+          </a>
+        </li>
+        <li>
+          <a href="/vendors#fleet-overview" class:list={["nav-link", { active: activeNav === 'rates' }]} id="nav-rates">
+            Fleet Options
+          </a>
+        </li>
+        <li>
+          <a href="/blogs" class:list={["nav-link", { active: activeNav === 'blogs' }]} id="nav-blogs">
+            Insights
+          </a>
+        </li>
+        <li class="mobile-only-action">
+          <a href="/drivers" class="btn btn-secondary" style="width:100%;justify-content:center;min-height:44px;">
+            Driver Onboarding
+          </a>
+        </li>
+        <li class="mobile-only-action">
+          <a href="/vendors#corporate-form" class="btn btn-primary" style="width:100%;justify-content:center;min-height:44px;">
+            Source Corporate Fleet
+          </a>
+        </li>
+      </ul>
+    </nav>
 
     <div class="header-actions">
-      <a href="/drivers" class="btn btn-secondary nav-action-btn" id="btn-header-driver">Driver Portal</a>
-      <a href="/vendors" class="btn btn-primary nav-action-btn" id="btn-header-vendor">Vendor Portal</a>
-      <button class="menu-toggle" id="menu-toggle-btn" aria-label="Toggle Navigation Menu" aria-expanded="false">
-        <svg class="hamburger-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <a href="/drivers" class="btn btn-secondary nav-action-btn" id="btn-header-driver">
+        Driver Portal
+      </a>
+      <a href="/vendors#corporate-form" class="btn btn-primary nav-action-btn" id="btn-header-vendor">
+        Vendor Portal
+      </a>
+      <button
+        class="menu-toggle"
+        id="menu-toggle-btn"
+        aria-label="Toggle Navigation Menu"
+        aria-expanded="false"
+        aria-controls="primary-nav-links"
+        type="button"
+      >
+        <svg class="hamburger-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
           <line x1="3" y1="12" x2="21" y2="12"></line>
           <line x1="3" y1="6" x2="21" y2="6"></line>
           <line x1="3" y1="18" x2="21" y2="18"></line>
         </svg>
-        <svg class="close-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
+        <svg class="close-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;" aria-hidden="true">
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
@@ -47,6 +85,22 @@ const { activeNav = '', logoTag = 'B2B Platform' } = Astro.props;
   </div>
 </header>
 
+<style>
+  .nav-pill-bonus {
+    display: inline-block;
+    background: var(--color-success-bg);
+    color: var(--color-success);
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--color-success-border);
+    margin-left: 4px;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+</style>
+
 <script>
   const toggle = document.getElementById('menu-toggle-btn');
   const nav = document.getElementById('primary-nav-links');
@@ -54,21 +108,32 @@ const { activeNav = '', logoTag = 'B2B Platform' } = Astro.props;
   const close = toggle?.querySelector('.close-icon') as HTMLElement | null;
   const header = document.getElementById('site-header');
 
-  toggle?.addEventListener('click', () => {
-    const isOpen = nav?.classList.toggle('open');
+  function setMenuOpen(isOpen: boolean) {
+    if (nav) nav.classList.toggle('open', isOpen);
     if (hamburger) hamburger.style.display = isOpen ? 'none' : 'block';
     if (close) close.style.display = isOpen ? 'block' : 'none';
-    toggle.setAttribute('aria-expanded', String(isOpen));
+    toggle?.setAttribute('aria-expanded', String(isOpen));
+    document.body.style.overflow = isOpen ? 'hidden' : '';
+  }
+
+  toggle?.addEventListener('click', () => {
+    const isOpen = nav?.classList.contains('open');
+    setMenuOpen(!isOpen);
   });
 
   // Close menu on link click
   nav?.querySelectorAll('.nav-link').forEach(link => {
     link.addEventListener('click', () => {
-      nav.classList.remove('open');
-      if (hamburger) hamburger.style.display = 'block';
-      if (close) close.style.display = 'none';
-      toggle?.setAttribute('aria-expanded', 'false');
+      setMenuOpen(false);
     });
+  });
+
+  // Close menu on Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && nav?.classList.contains('open')) {
+      setMenuOpen(false);
+      toggle?.focus();
+    }
   });
 
   // Sticky shadow on scroll

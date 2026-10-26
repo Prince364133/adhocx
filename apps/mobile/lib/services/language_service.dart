@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 export 'package:provider/provider.dart';
@@ -233,12 +236,50 @@ class AppLanguageService {
       'No upcoming trips': 'No upcoming trips',
       'No active trips': 'No active trips',
       'No completed trips': 'No completed trips',
+      'No Active Trips': 'No Active Trips',
+      'No Completed Trips': 'No Completed Trips',
+      'When you accept a booking and arrive or start a trip, live telemetry and route progress will appear here.': 'When you accept a booking and arrive or start a trip, live telemetry and route progress will appear here.',
+      'Trips you conclude will be archived here with detailed earnings breakdown.': 'Trips you conclude will be archived here with detailed earnings breakdown.',
+      'Completed Summary': 'Completed Summary',
+      'Settled': 'Settled',
+      'Trip History': 'Trip History',
+      'Trip ID': 'Trip ID',
+      'ONGOING TRIP': 'ONGOING TRIP',
+      'Ongoing Trip': 'Ongoing Trip',
+      'Transfer': 'Transfer',
+      'Trip Progress': 'Trip Progress',
+      'Arrived': 'Arrived',
+      'In Progress': 'In Progress',
+      'Passenger / Requester': 'Passenger / Requester',
+      'Customer': 'Customer',
+      'Est.': 'Est.',
+      'VIEW TRIP DETAILS': 'VIEW TRIP DETAILS',
+      'View Trip Details': 'View Trip Details',
       'Pickup': 'Pickup',
       'Drop': 'Drop',
       'Fare': 'Fare',
       'View Details': 'View Details',
       'Start Trip': 'Start Trip',
       'Complete Trip': 'Complete Trip',
+
+      // Opportunities & Vehicle Categories
+      'opportunities nearby': 'opportunities nearby',
+      'No active': 'No active',
+      'opportunities': 'opportunities',
+      'No active opportunities': 'No active opportunities',
+      'Make sure you are online to receive matching trips.': 'Make sure you are online to receive matching trips.',
+      'Direct Dispatch • Guaranteed Net Payout': 'Direct Dispatch • Guaranteed Net Payout',
+      'Pickup location': 'Pickup location',
+      'Destination location': 'Destination location',
+      'VIEW OPPORTUNITIES': 'VIEW OPPORTUNITIES',
+      'View Opportunities': 'View Opportunities',
+      'Check the Opportunities tab to accept available requests in your area.': 'Check the Opportunities tab to accept available requests in your area.',
+      'Prime Sedan': 'Prime Sedan',
+      'SUV 7 Seater': 'SUV 7 Seater',
+      'Compact Hatchback': 'Compact Hatchback',
+      'Sedan': 'Sedan',
+      'SUV': 'SUV',
+      'Hatchback': 'Hatchback',
 
       // Wallet / Earnings Screen
       'Wallet & Settlements': 'Wallet & Settlements',
@@ -461,12 +502,50 @@ class AppLanguageService {
       'No upcoming trips': 'कोई आगामी यात्रा नहीं है',
       'No active trips': 'कोई सक्रिय यात्रा नहीं है',
       'No completed trips': 'कोई पूर्ण यात्रा नहीं है',
+      'No Active Trips': 'कोई सक्रिय यात्रा नहीं है',
+      'No Completed Trips': 'कोई पूर्ण यात्रा नहीं है',
+      'When you accept a booking and arrive or start a trip, live telemetry and route progress will appear here.': 'जब आप बुकिंग स्वीकार करेंगे और पहुंचेंगे या यात्रा शुरू करेंगे, तो लाइव टेलीमेट्री और मार्ग की प्रगति यहां दिखाई देगी।',
+      'Trips you conclude will be archived here with detailed earnings breakdown.': 'आपके द्वारा समाप्त की गई यात्राएं विस्तृत कमाई के विवरण के साथ यहां संग्रहित की जाएंगी।',
+      'Completed Summary': 'पूर्ण यात्राओं का सारांश',
+      'Settled': 'निपटारा हुआ',
+      'Trip History': 'यात्रा इतिहास',
+      'Trip ID': 'यात्रा आईडी',
+      'ONGOING TRIP': 'चालू यात्रा',
+      'Ongoing Trip': 'चालू यात्रा',
+      'Transfer': 'स्थानांतरण',
+      'Trip Progress': 'यात्रा की प्रगति',
+      'Arrived': 'पहुंच गए',
+      'In Progress': 'प्रगति पर',
+      'Passenger / Requester': 'यात्री / अनुरोधकर्ता',
+      'Customer': 'ग्राहक',
+      'Est.': 'अनुमानित',
+      'VIEW TRIP DETAILS': 'यात्रा विवरण देखें',
+      'View Trip Details': 'यात्रा विवरण देखें',
       'Pickup': 'पिकअप',
       'Drop': 'ड्रॉप',
       'Fare': 'किराया',
       'View Details': 'विवरण देखें',
       'Start Trip': 'यात्रा शुरू करें',
       'Complete Trip': 'यात्रा पूरी करें',
+
+      // Opportunities & Vehicle Categories
+      'opportunities nearby': 'आस-पास अवसर उपलब्ध हैं',
+      'No active': 'कोई सक्रिय नहीं',
+      'opportunities': 'अवसर',
+      'No active opportunities': 'कोई सक्रिय अवसर नहीं है',
+      'Make sure you are online to receive matching trips.': 'अनुरूप यात्राएं प्राप्त करने के लिए सुनिश्चित करें कि आप ऑनलाइन हैं।',
+      'Direct Dispatch • Guaranteed Net Payout': 'प्रत्यक्ष प्रेषण • गारंटीकृत शुद्ध भुगतान',
+      'Pickup location': 'पिकअप स्थान',
+      'Destination location': 'गंतव्य स्थान',
+      'VIEW OPPORTUNITIES': 'अवसर देखें',
+      'View Opportunities': 'अवसर देखें',
+      'Check the Opportunities tab to accept available requests in your area.': 'अपने क्षेत्र में उपलब्ध अनुरोधों को स्वीकार करने के लिए अवसर टैब देखें।',
+      'Prime Sedan': 'प्राइम सेडान',
+      'SUV 7 Seater': 'एसयूवी 7 सीटर',
+      'Compact Hatchback': 'कॉम्पैक्ट हैचबैक',
+      'Sedan': 'सेडान',
+      'SUV': 'एसयूवी',
+      'Hatchback': 'हैचबैक',
 
       // Wallet / Earnings Screen
       'Wallet & Settlements': 'वॉलेट और निपटान',
@@ -689,12 +768,50 @@ class AppLanguageService {
       'No upcoming trips': 'రాబోయే ట్రిప్పులు ఏవీ లేవు',
       'No active trips': 'యాక్టివ్ ట్రిప్పులు ఏవీ లేవు',
       'No completed trips': 'పూర్తయిన ట్రిప్పులు ఏవీ లేవు',
+      'No Active Trips': 'యాక్టివ్ ట్రిప్పులు ఏవీ లేవు',
+      'No Completed Trips': 'పూర్తయిన ట్రిప్పులు ఏవీ లేవు',
+      'When you accept a booking and arrive or start a trip, live telemetry and route progress will appear here.': 'మీరు బుకింగ్‌ను అంగీకరించి చేరుకున్నప్పుడు లేదా ట్రిప్ ప్రారంభించినప్పుడు, ప్రత్యక్ష టెలిమెట్రీ మరియు మార్గం పురోగతి ఇక్కడ కనిపిస్తుంది.',
+      'Trips you conclude will be archived here with detailed earnings breakdown.': 'మీరు ముగించిన ట్రిప్పులు వివరణాత్మక సంపాదనతో ఇక్కడ ఆర్కైవ్ చేయబడతాయి.',
+      'Completed Summary': 'పూర్తయిన సారాంశం',
+      'Settled': 'సెటిల్ చేయబడింది',
+      'Trip History': 'ట్రిప్ చరిత్ర',
+      'Trip ID': 'ట్రిప్ ID',
+      'ONGOING TRIP': 'కొనసాగుతున్న ట్రిప్',
+      'Ongoing Trip': 'కొనసాగుతున్న ట్రిప్',
+      'Transfer': 'బదిలీ',
+      'Trip Progress': 'ట్రిప్ పురోగతి',
+      'Arrived': 'చేరుకున్నారు',
+      'In Progress': 'పురోగతిలో ఉంది',
+      'Passenger / Requester': 'ప్రయాణీకుడు / అభ్యర్థించినవారు',
+      'Customer': 'కస్టమర్',
+      'Est.': 'అంచనా',
+      'VIEW TRIP DETAILS': 'ట్రిప్ వివరాలను చూడండి',
+      'View Trip Details': 'ట్రిప్ వివరాలను చూడండి',
       'Pickup': 'పికప్',
       'Drop': 'డ్రాప్',
       'Fare': 'ఛార్జీ',
       'View Details': 'వివరాలు చూడండి',
       'Start Trip': 'ట్రిప్ ప్రారంభించండి',
       'Complete Trip': 'ట్రిప్ పూర్తి చేయండి',
+
+      // Opportunities & Vehicle Categories
+      'opportunities nearby': 'సమీపంలో అవకాశాలు అందుబాటులో ఉన్నాయి',
+      'No active': 'క్రియాశీలకంగా ఏదీ లేదు',
+      'opportunities': 'అవకాశాలు',
+      'No active opportunities': 'క్రియాశీల అవకాశాలు ఏవీ లేవు',
+      'Make sure you are online to receive matching trips.': 'సరిపోలే ట్రిప్పులను స్వీకరించడానికి మీరు ఆన్‌లైన్‌లో ఉన్నారని నిర్ధారించుకోండి.',
+      'Direct Dispatch • Guaranteed Net Payout': 'ప్రత్యక్ష డిస్పాచ్ • హామీ ఇవ్వబడిన నికర చెల్లింపు',
+      'Pickup location': 'పికప్ స్థానం',
+      'Destination location': 'గమ్యస్థాన స్థానం',
+      'VIEW OPPORTUNITIES': 'అవకాశాలను చూడండి',
+      'View Opportunities': 'అవకాశాలను చూడండి',
+      'Check the Opportunities tab to accept available requests in your area.': 'మీ ప్రాంతంలో అందుబాటులో ఉన్న అభ్యర్థనలను అంగీకరించడానికి అవకాశాల ట్యాబ్‌ను చూడండి.',
+      'Prime Sedan': 'ప్రైమ్ సెడాన్',
+      'SUV 7 Seater': 'SUV 7 సీటర్',
+      'Compact Hatchback': 'కాంపాక్ట్ హ్యాచ్‌బ్యాక్',
+      'Sedan': 'సెడాన్',
+      'SUV': 'SUV',
+      'Hatchback': 'హ్యాచ్‌బ్యాక్',
 
       // Wallet / Earnings Screen
       'Wallet & Settlements': 'వాలెట్ & సెటిల్‌మెంట్‌లు',
@@ -713,35 +830,138 @@ class AppLanguageService {
     },
   };
 
-  /// Translate a given key using the active language code with smart case-insensitive fallback.
+  // ── Dynamic Translation Cache & Auto-Translation Engine ─────────────────────
+  static final Map<String, Map<String, String>> _dynamicCache = {
+    'hi': {},
+    'te': {},
+  };
+  static final Set<String> _inFlightRequests = {};
+  static Timer? _saveDebounceTimer;
+  static Timer? _notifyDebounceTimer;
+  static bool _cacheInitialized = false;
+
+  /// Loads cached translations from persistent SharedPreferences on startup
+  static Future<void> initCache() async {
+    if (_cacheInitialized) return;
+    _cacheInitialized = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedJson = prefs.getString('adhocx_dynamic_translations_v1');
+      if (savedJson != null && savedJson.isNotEmpty) {
+        final decoded = jsonDecode(savedJson) as Map<String, dynamic>;
+        for (final lang in decoded.keys) {
+          final map = decoded[lang];
+          if (map is Map) {
+            _dynamicCache.putIfAbsent(lang, () => {});
+            for (final entry in map.entries) {
+              _dynamicCache[lang]![entry.key.toString()] = entry.value.toString();
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading dynamic translations cache: $e');
+    }
+  }
+
+  static void _scheduleCacheSave() {
+    _saveDebounceTimer?.cancel();
+    _saveDebounceTimer = Timer(const Duration(milliseconds: 600), () async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('adhocx_dynamic_translations_v1', jsonEncode(_dynamicCache));
+      } catch (_) {}
+    });
+  }
+
+  static void _scheduleNotify() {
+    _notifyDebounceTimer?.cancel();
+    _notifyDebounceTimer = Timer(const Duration(milliseconds: 80), () {
+      LanguageProvider.instance?.notifyDynamicTranslation();
+    });
+  }
+
+  /// Automatically translates an arbitrary text string via Google Translate API
+  /// and caches it in memory and SharedPreferences.
+  static Future<void> _fetchAutoTranslation(String key, String targetLang) async {
+    final trimmedKey = key.trim();
+    if (trimmedKey.isEmpty) return;
+    if (targetLang == 'en') return;
+
+    // Skip pure numbers, times, currencies, symbols
+    if (RegExp(r'^[0-9\s₹\.,:/\-+()—#%*]+$').hasMatch(trimmedKey)) return;
+
+    final requestKey = '$targetLang:$trimmedKey';
+    if (_inFlightRequests.contains(requestKey)) return;
+    _inFlightRequests.add(requestKey);
+
+    try {
+      final url = Uri.parse(
+        'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=$targetLang&dt=t&q=${Uri.encodeComponent(trimmedKey)}',
+      );
+      final response = await http.get(url).timeout(const Duration(seconds: 4));
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is List && decoded.isNotEmpty && decoded[0] is List) {
+          final buffer = StringBuffer();
+          for (final part in decoded[0]) {
+            if (part is List && part.isNotEmpty && part[0] != null) {
+              buffer.write(part[0].toString());
+            }
+          }
+          final translated = buffer.toString().trim();
+          if (translated.isNotEmpty) {
+            _dynamicCache.putIfAbsent(targetLang, () => {})[trimmedKey] = translated;
+            _scheduleCacheSave();
+            _scheduleNotify();
+          }
+        }
+      }
+    } catch (_) {
+      // Graceful network timeout/offline fallback
+    } finally {
+      _inFlightRequests.remove(requestKey);
+    }
+  }
+
+  /// Translate a given key using the active language code with smart case-insensitive
+  /// and automatic online translation fallback for any dynamic text on the screen.
   static String translate(String key, {String? languageCode}) {
     if (key.trim().isEmpty) return key;
     final lang = languageCode ?? 'en';
+    if (lang == 'en') return key;
+
+    final trimmed = key.trim();
+    final lowerKey = trimmed.toLowerCase();
+
+    // 1. Check built-in static dictionary
     final langMap = _translations[lang];
     if (langMap != null) {
       if (langMap.containsKey(key)) return langMap[key]!;
-      final trimmed = key.trim();
       if (langMap.containsKey(trimmed)) return langMap[trimmed]!;
-      final lowerKey = trimmed.toLowerCase();
       for (final entry in langMap.entries) {
         if (entry.key.toLowerCase() == lowerKey) {
           return entry.value;
         }
       }
     }
-    // Fallback to English
-    final enMap = _translations['en'];
-    if (enMap != null) {
-      if (enMap.containsKey(key)) return enMap[key]!;
-      final trimmed = key.trim();
-      if (enMap.containsKey(trimmed)) return enMap[trimmed]!;
-      final lowerKey = trimmed.toLowerCase();
-      for (final entry in enMap.entries) {
+
+    // 2. Check dynamic auto-translation cache
+    final dynamicMap = _dynamicCache[lang];
+    if (dynamicMap != null) {
+      if (dynamicMap.containsKey(key)) return dynamicMap[key]!;
+      if (dynamicMap.containsKey(trimmed)) return dynamicMap[trimmed]!;
+      for (final entry in dynamicMap.entries) {
         if (entry.key.toLowerCase() == lowerKey) {
           return entry.value;
         }
       }
     }
+
+    // 3. Not found in dictionary or cache: trigger background auto-translation
+    _fetchAutoTranslation(trimmed, lang);
+
+    // 4. In the meantime, return the original text
     return key;
   }
 }
@@ -766,7 +986,14 @@ extension StringTranslationExtension on String {
 
 /// LanguageProvider with persistence and reactive updates.
 class LanguageProvider extends ChangeNotifier {
+  static LanguageProvider? _instance;
+  static LanguageProvider? get instance => _instance;
+
   Locale _currentLocale = const Locale('en');
+
+  LanguageProvider() {
+    _instance = this;
+  }
 
   Locale get currentLocale => _currentLocale;
 
@@ -784,9 +1011,15 @@ class LanguageProvider extends ChangeNotifier {
     }
   }
 
-  /// Load saved language from SharedPreferences on startup
+  /// Triggers rebuild across all listening widgets when dynamic translation completes
+  void notifyDynamicTranslation() {
+    notifyListeners();
+  }
+
+  /// Load saved language and dynamic translation cache from SharedPreferences on startup
   Future<void> loadSavedLanguage() async {
     try {
+      await AppLanguageService.initCache();
       final prefs = await SharedPreferences.getInstance();
       final savedLang = prefs.getString('app_language') ?? 'en';
       if (['en', 'hi', 'te'].contains(savedLang)) {
@@ -818,3 +1051,4 @@ class LanguageProvider extends ChangeNotifier {
     }
   }
 }
+

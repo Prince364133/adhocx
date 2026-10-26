@@ -1,0 +1,27 @@
+{
+  "name": "AdhocX — B2B Commercial Transport Portal",
+  "short_name": "AdhocX",
+  "description": "Automated corporate fleet fulfillment, 4 & 7 seater yellow-plate cabs in Hyderabad.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#1B0E38",
+  "icons": [
+    {
+      "src": "/adhocx_icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

@@ -1,0 +1,544 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Icon from '../components/Icon.astro';
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "AdhocX Fleet & Logistics Insights",
+  "publisher": {
+    "@type": "Organization",
+    "name": "Estemporaneo Technologies Private Limited",
+    "url": "https://www.adhocx.com",
+    "logo": "https://www.adhocx.com/adhocx-logo.png"
+  }
+};
+---
+
+<BaseLayout
+  title="AdhocX Article — Fleet & Mobility Insights"
+  description="In-depth analysis and operational insights from Estemporaneo Technologies Private Limited."
+  canonical="https://www.adhocx.com/blogs"
+  activeNav="blogs"
+  logoTag="Insights"
+  noindex={true}
+  jsonLd={jsonLd}
+>
+  <article class="article-container" style="padding-top: var(--space-8);">
+    <header class="article-header">
+      <div class="container article-header-inner">
+        <!-- Breadcrumb Navigation -->
+        <nav class="breadcrumb-nav" aria-label="Breadcrumb">
+          <ol>
+            <li><a href="/">Home</a></li>
+            <li><span class="bc-sep">/</span></li>
+            <li><a href="/blogs">Blog & Insights</a></li>
+            <li><span class="bc-sep">/</span></li>
+            <li><span id="bc-category" class="bc-current">B2B Fleet Operations</span></li>
+          </ol>
+        </nav>
+
+        <div class="article-header-meta">
+          <span class="badge badge-primary" id="art-category">B2B Fleet Operations</span>
+          <span class="art-meta-readtime" id="art-readtime" style="display:inline-flex;align-items:center;gap:4px;">
+            <Icon name="clock" size={13} color="var(--color-primary-600)" /> 4 min read
+          </span>
+          <span class="art-meta-views" id="art-views" style="display:inline-flex;align-items:center;gap:4px;">
+            <Icon name="users" size={13} color="var(--color-primary-600)" /> 340+ Reads
+          </span>
+        </div>
+
+        <h1 class="article-main-title" id="art-title">
+          How AdhocX Algorithmic Dispatch Cuts Enterprise Corporate Cab Costs
+        </h1>
+
+        <p class="article-lead-excerpt" id="art-excerpt">
+          Discover how live driver reverse bidding and instant automated fulfillment eliminate middlemen broker markups for corporate logistics and spot employee transit in Hyderabad.
+        </p>
+
+        <div class="article-author-strip">
+          <div class="author-avatar-badge" id="art-author-initials">AX</div>
+          <div class="author-details-box">
+            <div class="author-name-text" id="art-author">AdhocX Logistics Research</div>
+            <div class="author-role-text" id="art-role">Fleet Operations & Mobility Research</div>
+          </div>
+          <div class="article-date-box">
+            <span class="pub-label">Published:</span>
+            <time id="art-date">Sep 01, 2026</time>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Featured Cover Hero Image -->
+    <div class="container article-cover-container">
+      <div class="article-cover-wrap">
+        <img
+          id="art-cover"
+          src="https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=1200&q=80"
+          alt="Article Header Cover"
+        />
+      </div>
+    </div>
+
+    <!-- Article Layout: Content + Sticky Sidebar -->
+    <div class="container article-body-layout">
+      <!-- Main Article Content Stream -->
+      <div class="article-content-col">
+        <div class="article-rich-text" id="art-content">
+          <!-- Rendered HTML/Markdown injected here -->
+        </div>
+
+        <!-- Tags Strip -->
+        <div class="article-tags-wrap" id="art-tags-container">
+          <span class="tags-label" style="display:inline-flex;align-items:center;gap:4px;">
+            <Icon name="file-text" size={14} color="var(--color-primary-600)" /> Topics:
+          </span>
+          <div class="tags-pills-list" id="art-tags-list">
+            <!-- Rendered Tags -->
+          </div>
+        </div>
+
+        <!-- Author Bio Box -->
+        <div class="author-bio-card">
+          <div class="author-bio-avatar">AX</div>
+          <div class="author-bio-info">
+            <h4 id="bio-name">AdhocX Logistics Research</h4>
+            <p id="bio-role">
+              The AdhocX Research & Engineering team develops next-generation dispatch algorithms, transparent reverse bidding protocols, and instant driver settlement ledgers powering commercial transit in Hyderabad.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sticky Sidebar: Table of Contents & Sharing -->
+      <aside class="article-sidebar-col">
+        <div class="sidebar-sticky-box">
+          <!-- Table of Contents -->
+          <div class="sidebar-card toc-card">
+            <h4 class="sidebar-heading" style="display:flex;align-items:center;gap:6px;">
+              <Icon name="file-text" size={16} color="var(--color-primary-600)" /> Table of Contents
+            </h4>
+            <nav id="toc-nav" class="toc-links-list">
+              <!-- Headings generated automatically -->
+            </nav>
+          </div>
+
+          <!-- Social Sharing -->
+          <div class="sidebar-card share-card">
+            <h4 class="sidebar-heading" style="display:flex;align-items:center;gap:6px;">
+              <Icon name="arrow-right" size={16} color="var(--color-primary-600)" /> Share This Article
+            </h4>
+            <div class="share-buttons-grid">
+              <button class="share-btn linkedin" id="share-linkedin" title="Share on LinkedIn">
+                LinkedIn
+              </button>
+              <button class="share-btn twitter" id="share-twitter" title="Share on X">
+                X / Twitter
+              </button>
+              <button class="share-btn whatsapp" id="share-whatsapp" title="Share on WhatsApp">
+                WhatsApp
+              </button>
+              <button class="share-btn copylink" id="share-copy" title="Copy Link to Clipboard">
+                Copy Link
+              </button>
+            </div>
+            <div id="copy-feedback" style="display:none; color:#10b981; font-size:12px; margin-top:8px; text-align:center;">
+              Link copied to clipboard!
+            </div>
+          </div>
+
+          <!-- Mini Conversion Card -->
+          <div class="sidebar-card cta-sidebar-card">
+            <div class="cta-mini-tag">AdhocX Enterprise</div>
+            <h4>Need Dedicated Cabs?</h4>
+            <p>Get guaranteed driver fulfillment swiftly with transparent terms.</p>
+            <a href="/vendors#corporate-form" class="btn btn-primary" style="width:100%; justify-content:center;">
+              Corporate Portal →
+            </a>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </article>
+
+  <!-- Related Articles -->
+  <section class="section-padding" style="background: var(--color-surface-muted); margin-top: var(--space-12);">
+    <div class="container">
+      <h3 class="h3-title" style="margin-bottom: var(--space-6);">Related Research & Insights</h3>
+      <div class="blog-grid" id="related-grid">
+        <!-- Related articles populated by script -->
+      </div>
+    </div>
+  </section>
+
+  <!-- Bottom CTA -->
+  <section class="section-padding">
+    <div class="container">
+      <div class="card" style="border: 2px solid var(--color-primary-500); padding: var(--space-10); text-align: center; box-shadow: var(--shadow-xl); background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);">
+        <span class="badge badge-primary" style="margin-bottom: var(--space-3);">Hyderabad B2B Mobility</span>
+        <h2 class="h2-title" style="margin-bottom: var(--space-3);">Scale Your Commercial Fleet or Drive with AdhocX</h2>
+        <p class="body-large" style="max-width: 650px; margin: 0 auto var(--space-6);">
+          Join hundreds of enterprise companies and commercial yellow-plate drivers powering Hyderabad's fastest-growing transit network.
+        </p>
+        <div style="display: flex; gap: var(--space-4); justify-content: center; flex-wrap: wrap;">
+          <a href="/vendors#corporate-form" class="btn btn-primary btn-large">Source Corporate Fleet</a>
+          <a href="/drivers#register" class="btn btn-secondary btn-large">Drive with AdhocX</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script is:inline>
+    // Canonical SSG redirect to /blogs/:slug
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetSlug = urlParams.get('slug');
+    if (targetSlug) {
+      window.location.replace('/blogs/' + encodeURIComponent(targetSlug));
+    }
+
+    const API_BASE = window.location.hostname.includes('localhost') 
+      ? 'http://localhost:7001/api/v1' 
+      : 'https://api.adhocx.com/api/v1';
+
+    const SEED_ARTICLES = {
+      'how-reverse-auction-cuts-enterprise-cab-costs': {
+        title: 'How AdhocX Reverse Auction Bidding Cuts Enterprise Spot Cab Costs',
+        slug: 'how-reverse-auction-cuts-enterprise-cab-costs',
+        excerpt: 'Discover how live driver reverse bidding and instant automated fulfillment eliminate middlemen broker markups for corporate logistics and spot employee transit in Hyderabad.',
+        category: 'B2B Fleet Operations',
+        tags: ['Reverse Bidding', 'Corporate Mobility', 'Hyderabad Tech Transit', 'Fleet Optimization'],
+        coverImage: 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=1200&q=80',
+        authorName: 'AdhocX Logistics Research',
+        authorRole: 'Head of Enterprise Mobility',
+        readTime: '4 min read',
+        views: 342,
+        publishedAt: '2026-09-01T10:00:00Z',
+        seoKeywords: 'corporate cab booking, B2B taxi hyderabad, reverse bidding logistics, enterprise employee transport',
+        content: `
+## The Pain Point: High Broker Markups in Corporate Employee Transit
+
+Traditional corporate transport managers in tech hubs like Hyderabad's HITEC City, Gachibowli, and Financial District face a recurring nightmare during peak hours and unexpected demand surges. When enterprise contracts fall short or emergency shifts require unscheduled cab deployment, transport desks rely on fragmented broker WhatsApp groups and manual dispatch calls.
+
+This legacy workflow introduces:
+1. **Unpredictable surge surcharges** marked up heavily by aggregators.
+2. **Zero visibility** into driver credentials and commercial vehicle fitness.
+3. **Delayed SLAs** leading to missed employee log-in times and corporate compliance breaches.
+
+---
+
+## How the AdhocX Reverse Bidding Engine Solves Spot Procurement
+
+AdhocX's proprietary **Reverse Bidding & Instant Fulfillment System** turns the traditional spot cab booking model on its head:
+
+### 1. Direct Requirements Broadcast
+When a verified corporate vendor posts a requirement (e.g., 5 Sedan cabs from Madhapur to RGIA Airport at 02:00 AM), the requirement is instantly broadcast to pre-verified commercial drivers within a 15km geofence.
+
+### 2. Competitive Downward Bidding
+Drivers and small fleet owners view the trip parameters and submit competitive live quotes. In high-density corridors, this transparent competition reduces fare overhead significantly compared to fixed broker tariffs.
+
+### 3. Automated Guardrails & SLA Enforcement
+Every driver on the AdhocX platform is vetted for commercial insurance, police verification, and vehicle badge compliance. Once an offer is locked, AdhocX automates live trip telemetry and driver location tracking.
+
+\`\`\`
+Traditional Broker Model:
+[Enterprise] ---> [Broker Tier 1] ---> [Broker Tier 2] ---> [Driver] (Heavy Middleman Markups)
+
+AdhocX Direct Reverse Bidding:
+[Enterprise] <=======================> [Verified Commercial Driver] (Direct Fair Terms)
+\`\`\`
+
+---
+
+## Real-World Impact: Case Study in Cyberabad Tech Corridor
+
+A leading IT/BPO service provider with 1,200 nocturnal support staff integrated AdhocX for ad-hoc and unscheduled transport needs. Over 90 days:
+- **Average Cab Dispatch Time:** Reduced from 42 minutes to **under 7 minutes**.
+- **Procurement Savings:** Achieved **substantial direct monthly cost reduction**.
+- **Driver Satisfaction:** Participating drivers earned higher take-home pay through automated direct bank payouts.
+
+---
+
+## Key Takeaway for Enterprise Mobility Leaders
+
+Optimizing corporate transit is no longer just about hiring more vendor cabs; it is about algorithmically removing frictional middlemen. With AdhocX, enterprises achieve transparency, compliance, and guaranteed driver availability at standardized contract terms.
+        `
+      },
+      'driver-empowerment-1-hour-payouts-milestone-bonus': {
+        title: 'Driver Empowerment: Why Direct Bank Payouts and Milestone Bonuses Win in 2026',
+        slug: 'driver-empowerment-1-hour-payouts-milestone-bonus',
+        excerpt: 'Why weekly or monthly payment delays stifle driver retention, and how AdhocX instant settlement ledger and Century Milestone bonuses empower commercial drivers.',
+        category: 'Driver Welfare & Earnings',
+        tags: ['Driver Earnings', 'Direct Payouts', 'Milestone Bonus', 'Driver Welfare'],
+        coverImage: 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=1200&q=80',
+        authorName: 'Varsha Adigoppula',
+        authorRole: 'Operations & Partner Success Lead',
+        readTime: '5 min read',
+        views: 512,
+        publishedAt: '2026-09-05T14:30:00Z',
+        seoKeywords: 'driver bonus hyderabad, instant cab driver payout, commercial driver program',
+        content: `
+## The Liquidity Crisis in Commercial Driving
+
+For commercial drivers operating yellow-plate Sedans (4-seater) and SUVs (7-seater) in urban metropolitan areas, cash flow is daily oxygen. Fuel expenses (CNG/Diesel), toll charges, and vehicle EMI installments occur daily, yet traditional aggregator platforms hold driver payouts for 7 to 14 days or impose opaque penalty deductions.
+
+This creates extreme churn, driver dissatisfaction, and high ride-cancellation rates that degrade customer trust.
+
+---
+
+## The AdhocX Direct Payout Standard
+
+At AdhocX, we engineered an **Automated Double-Entry Settlement Ledger** directly tied to banking partner APIs:
+
+- **Direct Bank Payouts:** The moment a corporate trip is marked completed and digital trip telemetry is verified, the net earnings are dispatched directly to the driver's linked bank account (IMPS/UPI).
+- **Transparent Trip Breakdown:** Drivers see the exact breakdown of distance, trip parameters, and incentives before accepting any trip.
+- **Century Milestone Bonus:** To reward dedication, every commercial driver who onboards and activates on the AdhocX platform unlocks performance cash bonuses directly to their registered bank account.
+
+\`\`\`
+[Trip Completion Verified] 
+       │
+       ▼
+[Automated Ledger Entry Generated]
+       │
+       ▼
+[Instant IMPS / UPI Bank Dispatch] ──> Under 60 Minutes Guaranteed
+\`\`\`
+
+---
+
+## Standardized Terms & Guaranteed Payouts
+
+Unlike consumer rideshare apps that leave drivers stranded in distant industrial or suburban clusters with uncertain fares, AdhocX provides:
+1. **Clear Outstation Parameters:** Guaranteed confirmed routes with zero hidden deductions.
+2. **Dedicated Bulk Contract Matching:** Continuous morning and evening shift assignments for predictable monthly revenue.
+3. **24/7 Driver Support & Dispute Protection:** Dedicated hotline for route discrepancies, toll claims, and parking reimbursements.
+        `
+      },
+      'bulk-fleet-outsourcing-vs-spot-dispatch-guide': {
+        title: 'Bulk Fleet Outsourcing vs Spot Dispatch: A Strategic Guide for Corporate Logistics',
+        slug: 'bulk-fleet-outsourcing-vs-spot-dispatch-guide',
+        excerpt: 'Comparing dedicated monthly fleet retainers against dynamic on-demand spot dispatching to optimize corporate transport budgets and maintain guaranteed SLA punctuality.',
+        category: 'Enterprise Logistics',
+        tags: ['Fleet Optimization', 'B2B Logistics', 'Cost Reduction'],
+        coverImage: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80',
+        authorName: 'AdhocX Enterprise Solutions',
+        authorRole: 'Supply Chain Strategy Director',
+        readTime: '6 min read',
+        views: 289,
+        publishedAt: '2026-09-08T08:15:00Z',
+        seoKeywords: 'corporate fleet outsourcing, employee transit strategy, B2B cab spot dispatch',
+        content: `
+## The Strategic Dilemma: Fixed Retainer or On-Demand Flexibility?
+
+Corporate facilities and logistics executives frequently debate the most cost-effective fleet structure:
+- Should the company lease a dedicated fleet of 50 vehicles on fixed monthly retainer?
+- Or should the enterprise operate a lean core fleet and fulfill peak fluctuations through digital spot marketplaces?
+
+---
+
+## Comparative Breakdown: Dedicated vs. Spot Dispatch
+
+| Operational Metric | Dedicated Fleet Retainer | AdhocX Dynamic Spot Fulfillment |
+| :--- | :--- | :--- |
+| **Fixed Monthly Cost** | High (fixed vehicle rent + driver minimums) | **Zero (pay-per-trip basis)** |
+| **Idle Vehicle Waste** | Significant on weekends/holidays (Substantial idle loss) | **Zero idle fleet liability** |
+| **Peak Surge Scalability** | Rigid (limited to contracted vehicles) | **Infinite elasticity across verified pool** |
+| **Driver Backup Redundancy** | Vulnerable to driver absenteeism | **Automated fallback assignment in < 5 mins** |
+| **Billing Transparency** | Paper log sheets & manual invoice audits | **Digital GPS telemetry & automated invoices** |
+
+---
+
+## The Optimal Hybrid Architecture: The 70/30 Rule
+
+Top-performing enterprises adopt a **hybrid mobility strategy**:
+1. **Core Retainer Baseline:** Maintain dedicated contracts for predictable, high-volume recurring employee routes.
+2. **Elastic On-Demand Buffer with AdhocX:** Utilize AdhocX's automated bidding and dispatch marketplace for emergency shifts, client airport transfers, VIP delegations, and seasonal peaks.
+        `
+      }
+    };
+
+    function parseMarkdownToHTML(md) {
+      if (!md) return '';
+      let html = md.trim();
+
+      html = html.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+      html = html.replace(/```([\s\S]*?)```/g, (match, code) => {
+        return `<pre class="article-code-block"><code>${code.trim()}</code></pre>`;
+      });
+
+      html = html.replace(/(\|.+?\|\n\|[-:| ]+\|\n(?:\|.+?\|\n?)+)/g, (match) => {
+        const rows = match.trim().split('\n');
+        const headers = rows[0].split('|').filter(c => c.trim()).map(c => `<th>${c.trim()}</th>`).join('');
+        const bodyRows = rows.slice(2).map(r => {
+          const cells = r.split('|').filter(c => c.trim()).map(c => `<td>${c.trim().replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</td>`).join('');
+          return `<tr>${cells}</tr>`;
+        }).join('');
+        return `<div class="table-responsive"><table class="article-data-table"><thead><tr>${headers}</tr></thead><tbody>${bodyRows}</tbody></table></div>`;
+      });
+
+      let headingIndex = 0;
+      html = html.replace(/^### (.*$)/gim, (m, text) => {
+        headingIndex++;
+        const id = `section-${headingIndex}`;
+        return `<h3 id="${id}" class="article-heading-h3">${text.trim()}</h3>`;
+      });
+
+      html = html.replace(/^## (.*$)/gim, (m, text) => {
+        headingIndex++;
+        const id = `section-${headingIndex}`;
+        return `<h2 id="${id}" class="article-heading-h2">${text.trim()}</h2>`;
+      });
+
+      html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+      html = html.replace(/^> (.*$)/gim, '<blockquote class="article-quote"><p>$1</p></blockquote>');
+      html = html.replace(/^---$/gim, '<hr class="article-divider" />');
+      html = html.replace(/^\- (.*$)/gim, '<li class="article-list-item">$1</li>');
+      html = html.replace(/((?:<li class="article-list-item">.*<\/li>\n?)+)/g, '<ul class="article-ul">$1</ul>');
+      html = html.replace(/^\d+\. (.*$)/gim, '<li class="article-ol-item">$1</li>');
+      html = html.replace(/((?:<li class="article-ol-item">.*<\/li>\n?)+)/g, '<ol class="article-ol">$1</ol>');
+
+      const blocks = html.split(/\n\n+/);
+      html = blocks.map(block => {
+        block = block.trim();
+        if (
+          block.startsWith('<h') ||
+          block.startsWith('<pre') ||
+          block.startsWith('<div') ||
+          block.startsWith('<blockquote') ||
+          block.startsWith('<ul') ||
+          block.startsWith('<ol') ||
+          block.startsWith('<hr')
+        ) {
+          return block;
+        }
+        return `<p class="article-p">${block.replace(/\n/g, '<br/>')}</p>`;
+      }).join('\n\n');
+
+      return html;
+    }
+
+    function buildTableOfContents() {
+      const contentEl = document.getElementById('art-content');
+      const tocEl = document.getElementById('toc-nav');
+      if (!contentEl || !tocEl) return;
+
+      const headings = contentEl.querySelectorAll('h2, h3');
+      if (headings.length === 0) {
+        tocEl.innerHTML = '<span style="color:#64748b; font-size:12px;">No sub-sections</span>';
+        return;
+      }
+
+      tocEl.innerHTML = Array.from(headings).map(h => {
+        const isH3 = h.tagName.toLowerCase() === 'h3';
+        return `
+          <a href="#${h.id}" class="toc-link ${isH3 ? 'toc-sublink' : ''}">
+            ${h.textContent}
+          </a>
+        `;
+      }).join('');
+
+      tocEl.querySelectorAll('a').forEach(a => {
+        a.addEventListener('click', (e) => {
+          e.preventDefault();
+          const target = document.querySelector(a.getAttribute('href'));
+          if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        });
+      });
+    }
+
+    function renderArticle(art) {
+      document.title = `${art.seoTitle || art.title} — AdhocX Insights`;
+
+      document.getElementById('bc-category').textContent = art.category;
+      document.getElementById('art-category').textContent = art.category;
+      document.getElementById('art-readtime').textContent = `${art.readTime || '5 min read'}`;
+      document.getElementById('art-views').textContent = `${(art.views || 0) + 1} Reads`;
+      document.getElementById('art-title').textContent = art.title;
+      document.getElementById('art-excerpt').textContent = art.excerpt;
+      document.getElementById('art-author').textContent = art.authorName || 'AdhocX Team';
+      document.getElementById('art-role').textContent = art.authorRole || 'Mobility Operations Research';
+
+      const initials = (art.authorName || 'AX').split(' ').map(n => n[0]).slice(0, 2).join('');
+      document.getElementById('art-author-initials').textContent = initials;
+      document.getElementById('bio-name').textContent = art.authorName || 'AdhocX Team';
+
+      if (art.publishedAt) {
+        const d = new Date(art.publishedAt);
+        document.getElementById('art-date').textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      }
+
+      if (art.coverImage) {
+        document.getElementById('art-cover').src = art.coverImage;
+      }
+
+      document.getElementById('art-content').innerHTML = parseMarkdownToHTML(art.content);
+      buildTableOfContents();
+
+      const tagsList = document.getElementById('art-tags-list');
+      if (art.tags && art.tags.length > 0) {
+        tagsList.innerHTML = art.tags.map(t => `<a href="/blogs?search=${encodeURIComponent(t)}" class="tag-pill">#${t}</a>`).join('');
+      } else {
+        tagsList.innerHTML = `<span class="tag-pill">#${art.category}</span>`;
+      }
+
+      const pageUrl = window.location.href;
+      const shareTitle = encodeURIComponent(art.title);
+      document.getElementById('share-linkedin').onclick = () => window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(pageUrl)}`, '_blank');
+      document.getElementById('share-twitter').onclick = () => window.open(`https://twitter.com/intent/tweet?text=${shareTitle}&url=${encodeURIComponent(pageUrl)}`, '_blank');
+      document.getElementById('share-whatsapp').onclick = () => window.open(`https://api.whatsapp.com/send?text=${shareTitle}%20${encodeURIComponent(pageUrl)}`, '_blank');
+      document.getElementById('share-copy').onclick = () => {
+        navigator.clipboard.writeText(pageUrl).then(() => {
+          const feedback = document.getElementById('copy-feedback');
+          feedback.style.display = 'block';
+          setTimeout(() => feedback.style.display = 'none', 3000);
+        });
+      };
+
+      renderRelatedArticles(art.slug);
+    }
+
+    function renderRelatedArticles(currentSlug) {
+      const relContainer = document.getElementById('related-grid');
+      const allValues = Object.values(SEED_ARTICLES).filter(x => x.slug !== currentSlug);
+      relContainer.innerHTML = allValues.slice(0, 2).map(b => `
+        <article class="card" style="padding: var(--space-6);">
+          <div style="font-size: 0.8125rem; color: var(--color-text-muted); margin-bottom: 8px;">
+            <span>${b.category}</span> • <span>${b.readTime}</span>
+          </div>
+          <h4 class="h4-title" style="margin-bottom: 8px;">
+            <a href="/blog-detail?slug=${encodeURIComponent(b.slug)}" style="color: var(--color-text-primary); text-decoration: none;">${b.title}</a>
+          </h4>
+          <p class="body-text" style="font-size: 0.875rem; margin-bottom: 16px;">${b.excerpt}</p>
+          <a href="/blog-detail?slug=${encodeURIComponent(b.slug)}" class="btn btn-secondary" style="font-size: 13px;">Read Article →</a>
+        </article>
+      `).join('');
+    }
+
+    async function initArticle() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const slug = urlParams.get('slug') || 'how-reverse-auction-cuts-enterprise-cab-costs';
+
+      if (SEED_ARTICLES[slug]) {
+        renderArticle(SEED_ARTICLES[slug]);
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/blogs/${encodeURIComponent(slug)}`);
+        if (res.ok) {
+          const liveBlog = await res.json();
+          if (liveBlog) {
+            renderArticle(liveBlog);
+          }
+        }
+      } catch (err) {
+        console.log('Serving offline seed article content:', err);
+      }
+    }
+
+    initArticle();
+  </script>
+</BaseLayout>

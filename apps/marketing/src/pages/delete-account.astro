@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import Icon from '../components/Icon.astro';
 
 const jsonLd = {
   "@context": "https://schema.org",
@@ -15,6 +16,7 @@ const jsonLd = {
   description="Official Google Play compliant user account and personal data deletion request portal for AdhocX Commercial Drivers."
   canonical="https://www.adhocx.com/delete-account"
   activeNav=""
+  noindex={true}
   jsonLd={jsonLd}
 >
   <section class="section-padding" style="background: var(--color-surface-muted);">
@@ -46,7 +48,7 @@ const jsonLd = {
         </div>
 
         <a href="mailto:support@adhocx.com?subject=Account%20and%20Data%20Deletion%20Request%20-%20AdhocX&body=Hello%20AdhocX%20Privacy%20Team%2C%0A%0AI%20would%20like%20to%20request%20the%20permanent%20deletion%20of%20my%20AdhocX%20account%20and%20all%20associated%20personal%20data.%0A%0AMy%20Registered%20Phone%20Number%3A%20%0AMy%20Full%20Legal%20Name%3A%20%0ARole%20(Driver%20%2F%20Vendor)%3A%20%0A%0AThank%20you." class="btn btn-primary" style="display:inline-flex; align-items:center; gap:8px; margin-bottom:28px;">
-          &#128465; Submit Deletion Request via Email (support@adhocx.com)
+          <Icon name="mail" size={16} /> Submit Deletion Request via Email (support@adhocx.com)
         </a>
 
         <h2 class="h4-title" style="margin-bottom: 8px; color: var(--color-primary-600);">What Data is Permanently Deleted?</h2>

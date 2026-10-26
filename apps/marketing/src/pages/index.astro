@@ -1,25 +1,153 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import Icon from '../components/Icon.astro';
+import FaqAccordion, { type FaqItem } from '../components/FaqAccordion.astro';
 
-const jsonLd = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  "name": "Estemporaneo Technologies Private Limited",
-  "url": "https://www.adhocx.com",
-  "logo": "https://www.adhocx.com/assets/logo.png",
-  "contactPoint": {
-    "@type": "ContactPoint",
-    "email": "support@adhocx.com",
-    "telephone": "+91-7893545818",
-    "contactType": "customer service",
-    "areaServed": "IN"
+const jsonLd = [
+  {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "@id": "https://www.adhocx.com/#corporate-transport-service",
+    "name": "B2B Corporate Commercial Transport & Fleet Sourcing",
+    "serviceType": "Enterprise Mobility & Employee Cab Logistics",
+    "provider": {
+      "@type": "Organization",
+      "name": "Estemporaneo Technologies Private Limited",
+      "url": "https://www.adhocx.com"
+    },
+    "areaServed": [
+      {
+        "@type": "City",
+        "name": "Hyderabad"
+      },
+      {
+        "@type": "Place",
+        "name": "HITEC City"
+      },
+      {
+        "@type": "Place",
+        "name": "Financial District"
+      },
+      {
+        "@type": "Place",
+        "name": "Gachibowli"
+      }
+    ],
+    "description": "Algorithmic commercial cab fulfillment platform connecting corporate logistics desks with verified 4-seater and 7-seater yellow-plate drivers. Features 15-minute search cutoff SLAs, unified GST invoicing, and 1-hour bank refund rails.",
+    "hasOfferCatalog": {
+      "@type": "OfferCatalog",
+      "name": "Commercial Corporate Cab Tiers",
+      "itemListElement": [
+        {
+          "@type": "Offer",
+          "itemOffered": {
+            "@type": "Service",
+            "name": "Commercial 4-Seater Sedan (Dzire / Etios)"
+          }
+        },
+        {
+          "@type": "Offer",
+          "itemOffered": {
+            "@type": "Service",
+            "name": "Commercial 6/7-Seater MUV / SUV (Ertiga / Innova Crysta)"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    "name": "How to Source B2B Commercial Cabs with AdhocX",
+    "description": "Step-by-step workflow for enterprise transport desks to schedule employee transit and spot cabs in Hyderabad.",
+    "step": [
+      {
+        "@type": "HowToStep",
+        "position": 1,
+        "name": "Raise Corporate Trip Requirement",
+        "text": "Submit single or recurring fleet demand specifying pickup schedule, route, and 4 or 7 seater vehicle tier via the enterprise dashboard or API."
+      },
+      {
+        "@type": "HowToStep",
+        "position": 2,
+        "name": "Algorithmic Dispatch & 15-Minute SLA Cutoff",
+        "text": "The AdhocX engine matches requirements with verified commercial yellow-plate drivers, guaranteeing driver assignment in under 90 seconds."
+      },
+      {
+        "@type": "HowToStep",
+        "position": 3,
+        "name": "Live Telemetry & Automated Bank Reconciliation",
+        "text": "Track trips in real time with digital OTP boarding and receive automated single-invoice GST billing with 1-hour refund rails for cancellations."
+      }
+    ]
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What is AdhocX and how does the B2B commercial transport marketplace work?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "AdhocX is an automated B2B commercial cab fulfillment marketplace in Hyderabad. It connects corporate travel desks with background-verified commercial 4-seater and 7-seater drivers, eliminating manual WhatsApp cab dispatching with algorithmic 90-second pairing and guaranteed SLAs."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How does the 1-hour bank refund guarantee operate?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "If a corporate requirement is canceled within eligible SLA terms or cannot be matched within the 15-minute search cutoff window, funds are credited directly back to the enterprise's registered bank account within 60 minutes via instant IMPS/UPI banking rails."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What commercial vehicles are supported on the AdhocX platform?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "AdhocX exclusively fulfills bookings with commercial yellow-plate vehicles including 4-seater sedans (Maruti Dzire, Toyota Etios) and 6/7-seater SUVs/MUVs (Maruti Ertiga, Toyota Innova Crysta), all carrying valid commercial fitness and commercial insurance."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How do commercial drivers qualify for the Century Milestone Bonus?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Verified commercial drivers who complete the required trip milestones unlock cash performance rewards paid directly to their bank account with transparent direct settlements."
+        }
+      }
+    ]
   }
-};
+];
+
+const homeFaqs: FaqItem[] = [
+  {
+    question: "What is AdhocX and how does the B2B commercial transport marketplace work?",
+    highlight: "AdhocX is an automated B2B commercial cab fulfillment marketplace in Hyderabad. It connects corporate travel desks with background-verified commercial 4-seater and 7-seater drivers, replacing manual WhatsApp cab dispatching with programmatic driver allocation and guaranteed SLAs.",
+    answer: "Traditional corporate cab sourcing relies on chaotic phone calls and unvetted WhatsApp groups where fares fluctuate unpredictably and drivers cancel last minute. AdhocX digitizes the entire lifecycle: enterprise transport managers raise demand via an automated dashboard, our dispatch engine algorithmically pairs the booking with nearby verified yellow-plate chauffeurs, and consolidated monthly GST invoicing simplifies accounting."
+  },
+  {
+    question: "How does the bank refund guarantee operate for corporate clients?",
+    highlight: "If a booking cannot be matched within our strict allocation SLA cutoff, or if an eligible cancellation occurs, the full booking funds are credited back to the corporate bank account via direct banking rails.",
+    answer: "Unlike consumer aggregators that lock corporate balances into proprietary platform wallets or take days to process refunds, AdhocX maintains direct real-time banking integration with corporate accounts to eliminate cash flow friction for corporate transport desks."
+  },
+  {
+    question: "What commercial vehicles and capacity tiers are supported on the platform?",
+    highlight: "We exclusively onboard verified commercial yellow-plate vehicles: 4-seater sedans (Maruti Dzire, Toyota Etios, Hyundai Aura) and 6/7-seater MUVs/SUVs (Maruti Ertiga, Toyota Innova Crysta).",
+    answer: "Every vehicle undergoes strict document audits verifying commercial taxi registration (yellow board), valid RTO fitness certificate, commercial passenger liability insurance, and comprehensive vehicle hygiene checks before being allowed on corporate routes."
+  },
+  {
+    question: "How do commercial drivers qualify for the Century Milestone Bonus?",
+    highlight: "Commercial 4-seater and 7-seater drivers who complete initial milestones receive performance rewards directly into their bank account with transparent direct settlements.",
+    answer: "The Century Milestone incentive is open to all newly onboarded commercial taxi drivers in Hyderabad. Drivers retain full trip earnings with transparent direct settlements, and milestone rewards are disbursed via regular direct deposits or on-demand fast payouts."
+  }
+];
 ---
 
 <BaseLayout
-  title="AdhocX — B2B Commercial Transport & Driver Fulfillment Marketplace"
-  description="AdhocX connects enterprise transport vendors with verified commercial 4 & 7 seater drivers in Hyderabad. Instant automatic assignment, transparent rate cards, 1-hour bank payouts, and guaranteed SLAs."
+  title="AdhocX — B2B Corporate Cab Fulfillment & Commercial Transport Marketplace Hyderabad"
+  description="Hyderabad's premier automated B2B corporate cab fulfillment marketplace. Algorithmic dispatch for 4 & 7 seater yellow-plate fleets, reliable on-time SLA, direct bank refunds, and driver milestone rewards."
   canonical="https://www.adhocx.com/"
   jsonLd={jsonLd}
 >
@@ -28,67 +156,124 @@ const jsonLd = {
     <div class="container hero-grid">
       <div class="hero-content">
         <div class="hero-tag">
-          <span class="badge badge-primary">✓ Enterprise B2B Transport Marketplace</span>
-          <span class="badge badge-info">Hyderabad 4 & 7 Seater Fleets</span>
+          <span class="badge badge-primary">
+            <Icon name="shield-check" size={14} color="var(--color-primary-600)" />
+            Enterprise B2B Transport Marketplace
+          </span>
+          <span class="badge badge-info">
+            <Icon name="map-pin" size={14} color="var(--color-info)" />
+            Hyderabad 4 & 7 Seater Fleets
+          </span>
         </div>
-        <h1 class="display-title">Reliable, Fast & Operational Commercial Transport.</h1>
-        <p class="body-large">
-          AdhocX connects enterprise transport vendors with verified commercial 4-seater and 7-seater commercial drivers and fleet operators. Built for operational clarity, instant driver assignment, guaranteed rates, and 1-hour bank payouts.
-        </p>
+        <h1 class="display-title">
+          Reliable, Fast & Operational Commercial Transport.
+        </h1>
+
+        <!-- AEO Featured Snippet Direct Answer -->
+        <div class="direct-answer-banner">
+          <p class="body-large" style="margin: 0; color: var(--color-primary-900); font-weight: 500;">
+            <strong>AdhocX</strong> connects enterprise transport vendors with verified commercial 4-seater and 7-seater yellow-plate drivers across Hyderabad's IT corridors. Built for operational certainty, rapid driver assignment, transparent contract terms, and direct bank payouts.
+          </p>
+        </div>
+
         <div class="hero-actions">
-          <a href="/vendors" class="btn btn-primary btn-large" id="btn-hero-enterprise">
+          <a href="/vendors#corporate-form" class="btn btn-primary btn-large" id="btn-hero-enterprise">
+            <Icon name="building" size={18} />
             Source Corporate Fleet
           </a>
           <a href="/drivers" class="btn btn-secondary btn-large" id="btn-hero-driver">
-            Drive with AdhocX (₹2K Bonus*)
+            <Icon name="car" size={18} />
+            Drive with AdhocX
           </a>
         </div>
+
         <div class="hero-metrics metrics-3">
           <div class="metric-item">
-            <div class="metric-val">&lt; 90 Sec</div>
-            <div class="metric-lbl">Instant Auto-Dispatch</div>
+            <div class="metric-val">Rapid</div>
+            <div class="metric-lbl">Algorithmic Auto-Dispatch</div>
           </div>
           <div class="metric-item">
-            <div class="metric-val">1 Hour</div>
-            <div class="metric-lbl">Bank Refund & Withdrawal</div>
+            <div class="metric-val">Direct</div>
+            <div class="metric-lbl">Bank Payout & Refunds</div>
           </div>
           <div class="metric-item">
-            <div class="metric-val">100%</div>
-            <div class="metric-lbl">4 & 7 Seater Yellow-Plate</div>
+            <div class="metric-val">Verified</div>
+            <div class="metric-lbl">Commercial Yellow-Plate</div>
           </div>
         </div>
       </div>
 
       <div class="hero-card-side">
-        <div class="card" style="border: 1px solid var(--color-primary-300); box-shadow: var(--shadow-xl); position: relative; overflow: hidden;">
-          <div style="position: absolute; top:0; left:0; right:0; height: 4px; background: var(--color-primary-gradient);"></div>
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <span class="badge badge-primary">Live Dispatch Engine</span>
-            <span style="font-size: 12px; color: var(--color-success); font-weight: 600;">● Active in Hyderabad</span>
-          </div>
-          <h3 class="h3-title" style="margin-bottom: 8px;">AdhocX Centralized Fulfillment</h3>
-          <p class="body-text" style="margin-bottom: 20px;">
-            Automated pairing of corporate vendor demand with commercial 4-seater and 7-seater taxi supply across IT and industrial corridors.
-          </p>
-          <div style="background: var(--color-surface-muted); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 20px; border: 1px solid var(--color-border);">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-              <div>
-                <span class="text-caption">Avg Assignment Time</span>
-                <div style="font-size: 18px; font-weight: 700; color: var(--color-primary-600);">&lt; 90 Seconds</div>
+        <div class="hero-visual-card" data-animate>
+          <div class="card-accent-strip"></div>
+          
+          <!-- Vehicle Fleet Visual Showcase -->
+          <div class="fleet-image-frame">
+            <img 
+              src="/images/hero-fleet.jpg" 
+              alt="AdhocX B2B Commercial Vehicle Fleet - 4-Seater Sedans & 7-Seater Executive MUVs in Hyderabad IT Park"
+              class="fleet-hero-img"
+              width="600"
+              height="450"
+              loading="eager"
+            />
+            
+            <div class="fleet-image-gradient"></div>
+
+            <!-- Floating Status Badges -->
+            <div class="fleet-top-pills">
+              <span class="glass-pill live-pill">
+                <span class="pulse-dot"></span> Live Fleet Dispatch • HITEC City
+              </span>
+              <span class="glass-pill verified-pill">
+                <Icon name="shield-check" size={13} color="#22C55E" /> Commercial Yellow-Plate
+              </span>
+            </div>
+
+            <!-- Floating Bottom Fleet Info -->
+            <div class="fleet-floating-info">
+              <div class="fleet-tagline-row">
+                <div class="fleet-tagline-title">
+                  <Icon name="car" size={16} color="#B195FA" />
+                  <span>Commercial Fleet Categories</span>
+                </div>
+                <span class="fleet-city-tag">Hyderabad</span>
               </div>
-              <div>
-                <span class="text-caption">Commercial Compliance</span>
-                <div style="font-size: 18px; font-weight: 700; color: var(--color-primary-600);">4 & 7 Seater Only</div>
+              
+              <div class="fleet-types-chips">
+                <span class="chip-item">
+                  <strong>4-Seater Sedan</strong> (Dzire • Etios • Aura)
+                </span>
+                <span class="chip-item">
+                  <strong>6/7-Seater MUV</strong> (Ertiga • Innova Crysta)
+                </span>
               </div>
             </div>
           </div>
-          <div style="display: flex; gap: 12px;">
-            <a href="/vendors" class="btn btn-primary" style="flex: 1; justify-content: center; font-size: 14px;">
-              Vendor Portal
-            </a>
-            <a href="/drivers" class="btn btn-secondary" style="flex: 1; justify-content: center; font-size: 14px;">
-              Driver Portal
-            </a>
+
+          <!-- Operational Verification & Fast Actions -->
+          <div class="fleet-card-body">
+            <div class="fleet-stats-grid">
+              <div class="fleet-stat-box">
+                <span class="text-caption">Dispatch Engine</span>
+                <div class="stat-highlight">Fast Algorithmic Allocation</div>
+              </div>
+              <div class="fleet-stat-box">
+                <span class="text-caption">Driver Verification</span>
+                <div class="stat-highlight">Commercial DL & RTO Fitness</div>
+              </div>
+            </div>
+
+            <div class="card-actions-row">
+              <a href="/vendors#corporate-form" class="btn btn-primary" style="flex: 1.1; justify-content: center; font-size: 14px; min-height: 44px;">
+                <Icon name="building" size={16} />
+                Source Fleet
+              </a>
+              <a href="https://play.google.com/store/apps/details?id=com.adhocx.app" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="flex: 1.1; justify-content: center; font-size: 14px; min-height: 44px;">
+                <Icon name="download" size={16} />
+                Driver App
+              </a>
+            </div>
           </div>
         </div>
       </div>
@@ -100,20 +285,20 @@ const jsonLd = {
     <div class="container">
       <div class="stats-bar" data-animate>
         <div class="stat-item">
-          <div class="stat-value">99.4%</div>
-          <div class="stat-label">On-Time SLA</div>
+          <div class="stat-value">High Reliability</div>
+          <div class="stat-label">On-Time SLA Delivery</div>
         </div>
         <div class="stat-item">
-          <div class="stat-value">&lt; 90 Sec</div>
-          <div class="stat-label">Instant Allocation</div>
+          <div class="stat-value">Instant</div>
+          <div class="stat-label">Algorithmic Driver Allocation</div>
         </div>
         <div class="stat-item">
-          <div class="stat-value">100%</div>
-          <div class="stat-label">Yellow-Plate Verified</div>
+          <div class="stat-value">Verified</div>
+          <div class="stat-label">Yellow-Plate Commercial Only</div>
         </div>
         <div class="stat-item">
-          <div class="stat-value">₹0</div>
-          <div class="stat-label">Surcharge Guarantee</div>
+          <div class="stat-value">Transparent</div>
+          <div class="stat-label">Zero Surcharge Guarantee</div>
         </div>
       </div>
     </div>
@@ -122,11 +307,11 @@ const jsonLd = {
   <!-- Dual Portal Gateway -->
   <section class="section-padding" id="portals">
     <div class="container">
-      <div class="section-header">
-        <span class="badge badge-primary">Role-Specific Portals</span>
-        <h2 class="h2-title">Choose Your Dedicated Workspace</h2>
-        <p class="body-large">
-          AdhocX provides tailor-made tools for commercial fleet buyers and commercial drivers.
+      <div class="section-header" style="text-align: center;">
+        <span class="badge badge-primary">Role-Specific Workspaces</span>
+        <h2 class="h2-title">Dedicated Portals for Corporate Desks & Fleet Drivers</h2>
+        <p class="body-large" style="margin: 0 auto; max-width: 650px;">
+          AdhocX delivers purpose-built workflows for corporate travel managers sourcing bulk commercial fleets and professional drivers seeking guaranteed corporate tariffs.
         </p>
       </div>
 
@@ -135,32 +320,34 @@ const jsonLd = {
         <div class="portal-card portal-vendor" data-animate>
           <div>
             <div class="portal-card-header">
-              <div class="portal-icon-box">🏢</div>
+              <div class="portal-icon-box">
+                <Icon name="building" size={24} color="var(--color-primary-600)" />
+              </div>
               <div>
                 <span class="badge badge-primary" style="margin-bottom: 4px;">For Corporate Vendors</span>
                 <h3 class="h3-title">Fleet Sourcing & Spot Cabs</h3>
               </div>
             </div>
             <p class="body-text">
-              Procure reliable 4-seater and 7-seater employee transit, emergency spot cabs, and corporate fleet solutions with strict service level guarantees.
+              Procure verified 4-seater sedans and 7-seater MUVs for scheduled employee shifts, airport executive transfers, and emergency spot cabs with 15-minute search cutoff SLAs.
             </p>
             <ul class="portal-feature-list">
               <li class="portal-feature-item">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                <span><strong>Instant Dispatch:</strong> Automated programmatic assignment for zero last-minute uncertainty.</span>
+                <Icon name="check-circle" size={18} color="var(--color-primary-600)" />
+                <span><strong>Instant Dispatch:</strong> Automated programmatic assignment eliminates WhatsApp dispatch chaos.</span>
               </li>
               <li class="portal-feature-item">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                <span><strong>1-Hour Refund:</strong> Direct bank credit within 60 minutes for unfulfilled bookings.</span>
+                <Icon name="bank-note" size={18} color="var(--color-primary-600)" />
+                <span><strong>1-Hour Bank Refund:</strong> Automatic refund rails directly to company bank accounts for unassigned trips.</span>
               </li>
               <li class="portal-feature-item">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                <span><strong>Auto Assignment:</strong> Programmatic match with verified yellow plate cabs.</span>
+                <Icon name="shield-check" size={18} color="var(--color-primary-600)" />
+                <span><strong>Single GST Invoice:</strong> Consolidated monthly billing with digital trip sheets and OTP validation.</span>
               </li>
             </ul>
           </div>
           <div style="margin-top: 24px;">
-            <a href="/vendors" class="btn btn-primary" style="width: 100%; justify-content: center;">
+            <a href="/vendors#corporate-form" class="btn btn-primary" style="width: 100%; justify-content: center; min-height: 44px;">
               Enter Vendor Portal →
             </a>
           </div>
@@ -170,32 +357,34 @@ const jsonLd = {
         <div class="portal-card portal-driver" data-animate>
           <div>
             <div class="portal-card-header">
-              <div class="portal-icon-box" style="background: var(--color-primary-100); color: var(--color-primary-600);">🚗</div>
+              <div class="portal-icon-box" style="background: var(--color-primary-100); color: var(--color-primary-600);">
+                <Icon name="car" size={24} color="var(--color-primary-600)" />
+              </div>
               <div>
                 <span class="badge badge-primary" style="margin-bottom: 4px;">For Commercial Drivers</span>
-                <h3 class="h3-title">Commercial Driver</h3>
+                <h3 class="h3-title">Commercial Chauffeur Network</h3>
               </div>
             </div>
             <p class="body-text">
-              Accept scheduled corporate duties, airport executive runs, and employee shifts with guaranteed fixed tariffs.
+              Connect to scheduled corporate employee routes, business executive airport transfers, and outstation corporate duties with confirmed trip allocations.
             </p>
             <ul class="portal-feature-list">
               <li class="portal-feature-item">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                <span><strong>₹2,000 Bonus Join Us:</strong> Special incentive for verified commercial drivers (T&C Apply*).</span>
+                <Icon name="sparkles" size={18} color="var(--color-success)" />
+                <span><strong>Milestone Rewards:</strong> Complete trip milestones to claim performance cash bonuses (T&C Apply*).</span>
               </li>
               <li class="portal-feature-item">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                <span><strong>1-Hour Bank Payout:</strong> Instant on-demand cashouts directly to your bank account.</span>
+                <Icon name="clock" size={18} color="var(--color-primary-600)" />
+                <span><strong>Instant Bank Payout:</strong> Withdraw earnings directly to your bank account or UPI on demand.</span>
               </li>
               <li class="portal-feature-item">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                <span><strong>0% Commission Promo:</strong> Retain 100% of your earnings during launch window.</span>
+                <Icon name="shield-check" size={18} color="var(--color-primary-600)" />
+                <span><strong>Transparent Earnings:</strong> Retain your full trip earnings with clear account statements and zero hidden deductions.</span>
               </li>
             </ul>
           </div>
           <div style="margin-top: 24px;">
-            <a href="/drivers" class="btn btn-primary" style="width: 100%; justify-content: center;">
+            <a href="/drivers" class="btn btn-primary" style="width: 100%; justify-content: center; min-height: 44px;">
               Drive with AdhocX →
             </a>
           </div>
@@ -205,12 +394,14 @@ const jsonLd = {
   </section>
 
   <!-- How It Works Section -->
-  <section class="section-padding" style="background: var(--color-surface-muted);">
+  <section class="section-padding" style="background: var(--color-surface-muted);" id="marketplace">
     <div class="container">
-      <div class="section-header">
+      <div class="section-header" style="text-align: center;">
         <span class="badge badge-primary">Operational Workflow</span>
         <h2 class="h2-title">How the AdhocX Marketplace Operates</h2>
-        <p class="body-large">Built from the ground up for predictable, automated B2B fleet logistics.</p>
+        <p class="body-large" style="margin: 0 auto; max-width: 650px;">
+          Built from the ground up for predictable, automated B2B fleet logistics with zero phone-tag or unverified vehicles.
+        </p>
       </div>
 
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-6);">
@@ -218,33 +409,35 @@ const jsonLd = {
           <div class="step-number">01</div>
           <h3 class="h4-title" style="margin-bottom: 8px;">Corporate Demand Raised</h3>
           <p class="body-text">
-            Enterprise clients request single or bulk 4-seater and 7-seater vehicles with pickup schedules and transparent fixed contract pricing.
+            Enterprise clients request single or recurring 4-seater and 7-seater vehicles with pickup schedules and transparent contract terms.
           </p>
         </div>
 
         <div class="card" data-animate>
           <div class="step-number">02</div>
-          <h3 class="h4-title" style="margin-bottom: 8px;">15-Min Cutoff Assignment</h3>
+          <h3 class="h4-title" style="margin-bottom: 8px;">Automated Driver Assignment</h3>
           <p class="body-text">
-            Our dispatch engine algorithmically assigns verified local commercial drivers swiftly with instant confirmation and real-time tracking.
+            Our dispatch engine algorithmically pairs verified local commercial drivers swiftly with instant confirmation and real-time tracking.
           </p>
         </div>
 
         <div class="card" data-animate>
           <div class="step-number">03</div>
-          <h3 class="h4-title" style="margin-bottom: 8px;">1-Hour Bank Refund SLA</h3>
+          <h3 class="h4-title" style="margin-bottom: 8px;">Direct Bank Refund SLA</h3>
           <p class="body-text">
-            Eligible refunds reach the vendor's bank account within 1 hour of effective cancellation trigger via instant banking rails.
+            Eligible refunds reach the vendor's bank account directly upon effective cancellation trigger via instant banking rails.
           </p>
         </div>
       </div>
 
-      <div class="cta-actions">
+      <div class="cta-actions" style="margin-top: var(--space-8); display: flex; justify-content: center; gap: 16px; flex-wrap: wrap;">
         <a href="/vendors#corporate-form" class="btn btn-primary btn-large">
+          <Icon name="building" size={18} />
           Source Corporate Fleet Now
         </a>
         <a href="/drivers" class="btn btn-secondary btn-large">
-          Drive with Us (₹2K Bonus*)
+          <Icon name="car" size={18} />
+          Drive with Us
         </a>
       </div>
     </div>
@@ -252,50 +445,385 @@ const jsonLd = {
 
   <!-- Driver Bonus Teaser -->
   <section class="section-padding">
-    <div class="container" style="max-width: 800px;">
-      <div class="card" style="border: 2px solid var(--color-primary-500); padding: var(--space-8); text-align: center; box-shadow: var(--shadow-xl);" data-animate>
-        <span class="badge badge-primary" style="margin-bottom: var(--space-4);">🎉 Exclusive Driver Launch Offer</span>
-        <h2 class="h2-title" style="margin-bottom: var(--space-3); color: #0f172a;">Join Us & Get ₹2,000 Bonus*</h2>
-        <p class="body-large" style="max-width: 560px; margin: 0 auto var(--space-6);">
-          Special joining incentive for verified commercial 4-seater and 7-seater drivers. Get ₹2,000 bonus — join us today. Terms and conditions apply.
+    <div class="container" style="max-width: 840px;">
+      <div class="card bonus-teaser-card" data-animate>
+        <div style="display: inline-flex; align-items: center; gap: 6px; margin-bottom: var(--space-3);" class="badge badge-primary">
+          <Icon name="sparkles" size={14} color="var(--color-primary-600)" />
+          Exclusive Driver Milestone Rewards
+        </div>
+        <h2 class="h2-title" style="margin-bottom: var(--space-3); color: var(--color-primary-900);">
+          Drive with AdhocX & Unlock Milestone Rewards
+        </h2>
+        <p class="body-large" style="max-width: 600px; margin: 0 auto var(--space-6);">
+          Special joining and performance incentive for verified commercial 4-seater and 7-seater drivers in Hyderabad. Complete your trip milestones and receive rewards credited directly to your bank account.
         </p>
-        <div class="bonus-specs-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: var(--space-4); margin-bottom: var(--space-6);">
-          <div style="background: var(--color-surface-muted); padding: var(--space-4); border-radius: var(--radius-lg); border: 1px solid var(--color-border);">
-            <div class="text-caption">Bonus Amount</div>
-            <div style="font-size: 1.25rem; font-weight: 800; color: var(--color-primary-600); margin-top: 4px;">₹2,000*</div>
+
+        <div class="bonus-specs-grid">
+          <div class="bonus-spec-card">
+            <div class="text-caption">Reward Program</div>
+            <div class="bonus-spec-val" style="font-size: 1.15rem;">Milestone Bonus*</div>
           </div>
-          <div style="background: var(--color-surface-muted); padding: var(--space-4); border-radius: var(--radius-lg); border: 1px solid var(--color-border);">
-            <div class="text-caption">Payout</div>
-            <div style="font-size: 1.25rem; font-weight: 800; color: var(--color-primary-600); margin-top: 4px;">Direct Bank</div>
+          <div class="bonus-spec-card">
+            <div class="text-caption">Payout Method</div>
+            <div class="bonus-spec-val" style="font-size: 1.15rem;">Direct Bank</div>
           </div>
-          <div style="background: var(--color-surface-muted); padding: var(--space-4); border-radius: var(--radius-lg); border: 1px solid var(--color-border);">
-            <div class="text-caption">Commission</div>
-            <div style="font-size: 1.25rem; font-weight: 800; color: var(--color-success); margin-top: 4px;">0%</div>
+          <div class="bonus-spec-card">
+            <div class="text-caption">Earnings Model</div>
+            <div class="bonus-spec-val" style="color: var(--color-success); font-size: 1.15rem;">Zero Deductions</div>
           </div>
-          <div style="background: var(--color-surface-muted); padding: var(--space-4); border-radius: var(--radius-lg); border: 1px solid var(--color-border);">
-            <div class="text-caption">Daily Payout</div>
-            <div style="font-size: 1.25rem; font-weight: 800; color: var(--color-primary-600); margin-top: 4px;">1 Hour</div>
+          <div class="bonus-spec-card">
+            <div class="text-caption">Settlement SLA</div>
+            <div class="bonus-spec-val" style="font-size: 1.15rem;">Fast Payouts</div>
           </div>
         </div>
-        <a href="/drivers" class="btn btn-primary btn-large">Claim Your ₹2,000 Bonus* →</a>
-        <div style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: 10px;">
-          * ₹2,000 bonus join us — terms and conditions apply.
+
+        <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: var(--space-4);">
+          <a
+            href="https://play.google.com/store/apps/details?id=com.adhocx.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn btn-primary btn-large"
+            id="btn-playstore-driver-home"
+          >
+            <Icon name="download" size={18} />
+            Download Driver App on Google Play →
+          </a>
+          <a href="/drivers" class="btn btn-secondary btn-large">
+            <Icon name="car" size={18} />
+            Driver Details
+          </a>
+        </div>
+        <div style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: 12px;">
+          * Century Milestone Program. Commercial yellow-plate taxi drivers only. Terms and conditions apply.
         </div>
       </div>
     </div>
   </section>
 
-  <!-- CTA Section -->
+  <!-- Interactive FAQ Accordion -->
+  <FaqAccordion
+    items={homeFaqs}
+    title="Frequently Asked Questions: B2B Commercial Mobility"
+    badge="Enterprise & Driver Help Desk"
+    description="Explore transparent answers on operational SLAs, 1-hour refund mechanisms, and commercial compliance in Hyderabad."
+    id="home-faqs"
+  />
+
+  <!-- Final CTA Section -->
   <section class="cta-section">
     <div class="container" style="position: relative; z-index: 1;">
       <h2 class="h2-title" style="margin-bottom: var(--space-4);">Ready to Transform Your Transport Operations?</h2>
-      <p class="body-large" style="max-width: 560px; margin: 0 auto var(--space-8);">
-        Whether you're sourcing corporate fleets or looking to drive commercially — AdhocX has you covered.
+      <p class="body-large" style="max-width: 580px; margin: 0 auto var(--space-8);">
+        Whether you are sourcing corporate fleets or looking to drive commercially — AdhocX provides guaranteed fulfillment and transparent payouts.
       </p>
       <div class="cta-actions" style="margin-top: 0;">
-        <a href="/vendors" class="btn btn-primary btn-large">Source Corporate Fleet</a>
-        <a href="/drivers" class="btn btn-secondary btn-large">Drive with AdhocX</a>
+        <a href="/vendors#corporate-form" class="btn btn-primary btn-large">
+          <Icon name="building" size={18} />
+          Source Corporate Fleet
+        </a>
+        <a href="/drivers" class="btn btn-secondary btn-large">
+          <Icon name="car" size={18} />
+          Drive with AdhocX
+        </a>
       </div>
     </div>
   </section>
 </BaseLayout>
+
+<style>
+  .direct-answer-banner {
+    background: var(--color-surface);
+    border-left: 4px solid var(--color-primary-600);
+    padding: var(--space-4) var(--space-5);
+    border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+    margin-bottom: var(--space-6);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Hero Visual Card & Fleet Showcase */
+  .hero-visual-card {
+    background: var(--color-surface, #ffffff);
+    border: 1px solid rgba(90, 48, 176, 0.22);
+    border-radius: 20px;
+    box-shadow: 0 20px 40px -10px rgba(90, 48, 176, 0.18), 0 1px 3px rgba(0, 0, 0, 0.05);
+    position: relative;
+    overflow: hidden;
+    transition: transform var(--transition-base), box-shadow var(--transition-base);
+  }
+
+  .hero-visual-card:hover {
+    box-shadow: 0 25px 50px -10px rgba(90, 48, 176, 0.25), 0 0 0 1px rgba(90, 48, 176, 0.3);
+  }
+
+  .card-accent-strip {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--color-primary-gradient);
+    z-index: 3;
+  }
+
+  .fleet-image-frame {
+    position: relative;
+    width: 100%;
+    height: 290px;
+    overflow: hidden;
+    background: #1B0E38;
+  }
+
+  .fleet-hero-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center bottom;
+    display: block;
+    transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .hero-visual-card:hover .fleet-hero-img {
+    transform: scale(1.03);
+  }
+
+  .fleet-image-gradient {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      180deg,
+      rgba(27, 14, 56, 0.7) 0%,
+      rgba(27, 14, 56, 0.05) 45%,
+      rgba(27, 14, 56, 0.88) 100%
+    );
+    pointer-events: none;
+  }
+
+  .fleet-top-pills {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    right: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    z-index: 2;
+    flex-wrap: wrap;
+  }
+
+  .glass-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .live-pill {
+    background: rgba(27, 14, 56, 0.8);
+    color: #4ADE80;
+  }
+
+  .verified-pill {
+    background: rgba(27, 14, 56, 0.8);
+    color: #F8FAFC;
+  }
+
+  .pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22C55E;
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+    animation: pulse-green 2s infinite;
+  }
+
+  @keyframes pulse-green {
+    0% {
+      transform: scale(0.95);
+      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+    }
+    70% {
+      transform: scale(1);
+      box-shadow: 0 0 0 6px rgba(34, 197, 94, 0);
+    }
+    100% {
+      transform: scale(0.95);
+      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+    }
+  }
+
+  .fleet-floating-info {
+    position: absolute;
+    bottom: 12px;
+    left: 14px;
+    right: 14px;
+    z-index: 2;
+  }
+
+  .fleet-tagline-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+
+  .fleet-tagline-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #FFFFFF;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  }
+
+  .fleet-city-tag {
+    background: rgba(177, 149, 250, 0.25);
+    color: #E9D5FF;
+    border: 1px solid rgba(177, 149, 250, 0.4);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .fleet-types-chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .chip-item {
+    background: rgba(27, 14, 56, 0.8);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #E2E8F0;
+    font-size: 0.72rem;
+    padding: 4px 10px;
+    border-radius: 6px;
+    line-height: 1.3;
+  }
+
+  .chip-item strong {
+    color: #FFFFFF;
+  }
+
+  .fleet-card-body {
+    padding: 18px 20px 20px 20px;
+  }
+
+  .fleet-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    background: var(--color-surface-muted, #F8FAFC);
+    border: 1px solid var(--color-border, #E2E8F0);
+    border-radius: var(--radius-lg, 12px);
+    padding: 12px 14px;
+    margin-bottom: 16px;
+  }
+
+  .fleet-stat-box .text-caption {
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .fleet-stat-box .stat-highlight {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--color-primary-700, #5A30B0);
+    line-height: 1.25;
+  }
+
+  .card-actions-row {
+    display: flex;
+    gap: 12px;
+  }
+
+  @media (max-width: 640px) {
+    .fleet-image-frame {
+      height: 230px;
+    }
+
+    .fleet-top-pills {
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      gap: 6px;
+    }
+
+    .glass-pill {
+      font-size: 0.6875rem;
+      padding: 4px 8px;
+    }
+
+    .fleet-floating-info {
+      bottom: 8px;
+      left: 10px;
+      right: 10px;
+    }
+
+    .chip-item {
+      font-size: 0.65rem;
+      padding: 3px 6px;
+    }
+
+    .fleet-card-body {
+      padding: 14px 14px 16px 14px;
+    }
+
+    .fleet-stats-grid {
+      grid-template-columns: 1fr;
+      gap: 8px;
+      padding: 10px 12px;
+    }
+
+    .card-actions-row {
+      flex-direction: column;
+      gap: 8px;
+    }
+  }
+
+  .bonus-teaser-card {
+    border: 2px solid var(--color-primary-500);
+    padding: var(--space-8);
+    text-align: center;
+    box-shadow: var(--shadow-xl);
+    background: #FFFFFF;
+  }
+
+  .bonus-specs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+  }
+
+  .bonus-spec-card {
+    background: var(--color-surface-muted);
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+  }
+
+  .bonus-spec-val {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--color-primary-600);
+    margin-top: 4px;
+  }
+</style>

@@ -217,7 +217,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                                       borderRadius: BorderRadius.circular(AppRadius.full),
                                     ),
                                     child: Text(
-                                      driverCategoryDisplay,
+                                      context.tr(driverCategoryDisplay),
                                       style: const TextStyle(
                                         fontSize: 10,
                                         fontWeight: FontWeight.bold,
@@ -229,7 +229,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                '${filteredOps.length} opportunities nearby',
+                                '${filteredOps.length} ${context.tr('opportunities nearby')}',
                                 style: AppTypography.h3(
                                   color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                   fontWeight: FontWeight.bold,
@@ -258,7 +258,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'You are currently on an active trip. Direct dispatches are paused. Complete your ongoing trip to receive new direct dispatch trips.',
+                            context.tr('You are currently on an active trip. Direct dispatches are paused. Complete your ongoing trip to receive new direct dispatch trips.'),
                             style: AppTypography.caption(
                               color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                               fontWeight: FontWeight.w500,
@@ -309,7 +309,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                                       ),
                                       const SizedBox(height: 12),
                                       Text(
-                                        'No active $driverCategoryDisplay opportunities',
+                                        '${context.tr('No active')} ${context.tr(driverCategoryDisplay)} ${context.tr('opportunities')}',
                                         style: AppTypography.h3(
                                           color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                           fontWeight: FontWeight.bold,
@@ -317,7 +317,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        'Make sure you are online to receive matching $driverCategoryDisplay trips.',
+                                        '${context.tr('Make sure you are online to receive matching')} ${context.tr(driverCategoryDisplay)} ${context.tr('trips')}.',
                                         style: AppTypography.caption(
                                           color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                                         ),
@@ -412,14 +412,14 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      title,
+                      context.tr(title),
                       style: AppTypography.body(
                         color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     Text(
-                      'Direct Dispatch • Guaranteed Net Payout',
+                      context.tr('Direct Dispatch • Guaranteed Net Payout'),
                       style: AppTypography.caption(
                         color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                         fontWeight: FontWeight.normal,
@@ -435,7 +435,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                   borderRadius: BorderRadius.circular(AppRadius.xs),
                 ),
                 child: Text(
-                  category,
+                  context.tr(category),
                   style: AppTypography.caption(
                     color: opColor,
                     fontWeight: FontWeight.bold,
@@ -478,7 +478,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    'Net Rate',
+                    context.tr('Net Rate'),
                     style: AppTypography.caption(
                       color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                       fontWeight: FontWeight.w500,
@@ -516,7 +516,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 10),
                   ),
                   child: Text(
-                    'View Details',
+                    context.tr('View Details'),
                     style: TextStyle(
                       color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                       fontWeight: FontWeight.w600,
@@ -543,9 +543,9 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     elevation: 0,
                   ),
-                  child: const Text(
-                    'Accept Offer',
-                    style: TextStyle(
+                  child: Text(
+                    context.tr('Accept Offer'),
+                    style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
                     ),

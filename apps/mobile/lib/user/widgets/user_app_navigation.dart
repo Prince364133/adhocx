@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../shared/theme/app_colors.dart';
+import '../../services/language_service.dart';
 
 class UserAppNavigation extends StatefulWidget {
   final StatefulNavigationShell navigationShell;
@@ -70,6 +71,7 @@ class _UserAppNavigationState extends State<UserAppNavigation> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<LanguageProvider>();
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final activeColor = AppColors.primary;
@@ -151,7 +153,7 @@ class _UserAppNavigationState extends State<UserAppNavigation> {
                                   : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
                             ),
                             child: Text(
-                              tab.label,
+                              tab.label.tr(context),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),

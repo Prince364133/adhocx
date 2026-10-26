@@ -15,6 +15,7 @@ import '../../core/utils/app_toast.dart';
 import '../../core/utils/name_utils.dart';
 import '../../shared/widgets/app_profile_avatar.dart';
 import '../../shared/widgets/trip_start_otp_bottom_sheet.dart';
+import '../../services/language_service.dart';
 
 /// Screen 3: Trip Details with live backend integration and full lifecycle support.
 class TripDetailsScreen extends StatefulWidget {
@@ -364,7 +365,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Trip Details',
+                          context.tr('Trip Details'),
                           style: AppTypography.h3(
                             color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             fontWeight: FontWeight.bold,
@@ -406,10 +407,10 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                               children: [
                                 Text(
                                   isCompleted
-                                      ? 'TRIP COMPLETED'
+                                      ? context.tr('TRIP COMPLETED')
                                       : (isArrived
-                                          ? 'ARRIVED AT PICKUP'
-                                          : (isAssigned ? 'DRIVER ASSIGNED' : 'TRIP IN PROGRESS')),
+                                          ? context.tr('ARRIVED AT PICKUP')
+                                          : (isAssigned ? context.tr('DRIVER ASSIGNED') : context.tr('TRIP IN PROGRESS'))),
                                   style: AppTypography.caption(
                                     color: Colors.white.withValues(alpha: 0.9),
                                     fontWeight: FontWeight.bold,
@@ -437,14 +438,14 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  'Trip ID: $shortTripId',
+                                  '${context.tr('Trip ID')}: $shortTripId',
                                   style: AppTypography.body(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                                 Text(
-                                  status,
+                                  context.tr(status),
                                   style: AppTypography.caption(
                                     color: Colors.white.withValues(alpha: 0.8),
                                   ),
@@ -676,7 +677,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                               child: OutlinedButton.icon(
                                 onPressed: _openNavigation,
                                 icon: const Icon(Icons.navigation_outlined, size: 18),
-                                label: const Text('NAVIGATE'),
+                                label: Text(context.tr('NAVIGATE')),
                                 style: OutlinedButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(vertical: 14),
                                   side: BorderSide(
@@ -692,7 +693,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                             const SizedBox(width: AppSpacing.md),
                             Expanded(
                               child: AppPrimaryButton(
-                                text: 'MARK ARRIVED',
+                                text: context.tr('MARK ARRIVED'),
                                 isLoading: _isActionInProgress,
                                 onPressed: () => _handleMarkArrived(tripId),
                               ),
@@ -706,7 +707,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                               child: OutlinedButton.icon(
                                 onPressed: _openNavigation,
                                 icon: const Icon(Icons.navigation_outlined, size: 18),
-                                label: const Text('NAVIGATE'),
+                                label: Text(context.tr('NAVIGATE')),
                                 style: OutlinedButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(vertical: 14),
                                   side: BorderSide(
@@ -722,7 +723,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                             const SizedBox(width: AppSpacing.md),
                             Expanded(
                               child: AppPrimaryButton(
-                                text: 'START TRIP (OTP)',
+                                text: context.tr('START TRIP (OTP)'),
                                 isLoading: _isActionInProgress,
                                 onPressed: () => _handleStartTrip(tripId, passengerName: passengerName),
                               ),
@@ -736,7 +737,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                               child: OutlinedButton.icon(
                                 onPressed: _openNavigation,
                                 icon: const Icon(Icons.navigation_outlined, size: 18),
-                                label: const Text('NAVIGATE'),
+                                label: Text(context.tr('NAVIGATE')),
                                 style: OutlinedButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(vertical: 14),
                                   side: BorderSide(
@@ -752,7 +753,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                             const SizedBox(width: AppSpacing.md),
                             Expanded(
                               child: AppPrimaryButton(
-                                text: 'COMPLETE TRIP',
+                                text: context.tr('COMPLETE TRIP'),
                                 isLoading: _isActionInProgress,
                                 onPressed: () => _handleCompleteTrip(tripId, payout),
                               ),
@@ -778,7 +779,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                'Trip Settled & Payout Complete ($payout)',
+                                '${context.tr('Trip Settled & Payout Complete')} ($payout)',
                                 style: AppTypography.body(
                                   color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
                                   fontWeight: FontWeight.bold,
@@ -825,7 +826,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            label,
+            context.tr(label),
             style: AppTypography.caption(
               color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
             ).copyWith(fontSize: 11),

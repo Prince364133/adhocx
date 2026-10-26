@@ -1,0 +1,434 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Icon from '../../components/Icon.astro';
+import { ARTICLES_CONTENT, type ArticleData } from '../../data/blogArticles';
+
+export async function getStaticPaths() {
+  let paths = Object.keys(ARTICLES_CONTENT).map((slug) => ({
+    params: { slug },
+    props: { article: ARTICLES_CONTENT[slug] },
+  }));
+
+  try {
+    const apiUrl =
+      process.env.API_URL ||
+      process.env.PUBLIC_API_URL ||
+      'http://localhost:7001/api/v1';
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 1200);
+
+    const res = await fetch(`${apiUrl}/blogs?status=PUBLISHED&limit=20`, {
+      signal: controller.signal,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    clearTimeout(timeout);
+
+    if (res.ok) {
+      const json = await res.json();
+      const rawList = Array.isArray(json?.data?.items)
+        ? json.data.items
+        : Array.isArray(json?.items)
+        ? json.items
+        : Array.isArray(json)
+        ? json
+        : [];
+
+      for (const p of rawList) {
+        if (p.slug && !ARTICLES_CONTENT[p.slug]) {
+          const pubDate = p.publishedAt ? new Date(p.publishedAt) : new Date(p.createdAt || Date.now());
+          const formattedDate = pubDate.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          });
+
+          paths.push({
+            params: { slug: p.slug },
+            props: {
+              article: {
+                slug: p.slug,
+                title: p.title,
+                category: p.category || 'Corporate Mobility',
+                readTime: p.readTime || '4 min read',
+                date: formattedDate,
+                author: p.authorName || 'AdhocX Fleet Operations Research',
+                authorRole: 'Enterprise Fleet & Mobility Intelligence',
+                summary: p.excerpt || p.summary || p.title,
+                directAnswer: p.excerpt || p.summary || p.title,
+                coverImage: p.coverImage || 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=1200&q=80',
+                keyTakeaways: [
+                  'Verified yellow-plate commercial fleet fulfillment across Hyderabad.',
+                  '15-minute search cutoff and automated driver pairing.',
+                  '1-Hour Direct Bank Refund SLA via instant IMPS/UPI rails.'
+                ],
+                contentHtml: p.content || `<p>${p.excerpt || p.summary || p.title}</p>`
+              }
+            }
+          });
+        }
+      }
+    }
+  } catch (_) {
+    // Graceful fallback to static articles
+  }
+
+  return paths;
+}
+
+const { article } = Astro.props as { article: ArticleData };
+
+// Schema.org BlogPosting JSON-LD
+const blogPostingSchema = {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "@id": `https://www.adhocx.com/blogs/${article.slug}#article`,
+  "headline": article.title,
+  "description": article.summary,
+  "image": article.coverImage,
+  "datePublished": "2026-10-15T00:00:00+05:30",
+  "dateModified": "2026-10-27T00:00:00+05:30",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": `https://www.adhocx.com/blogs/${article.slug}`
+  },
+  "author": {
+    "@type": "Organization",
+    "name": article.author,
+    "url": "https://www.adhocx.com",
+    "sameAs": [
+      "https://www.linkedin.com/company/adhocx",
+      "https://twitter.com/AdhocX"
+    ]
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Estemporaneo Technologies Private Limited",
+    "url": "https://www.adhocx.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://www.adhocx.com/adhocx-logo.png",
+      "width": 600,
+      "height": 180
+    }
+  },
+  "inLanguage": "en-IN",
+  "wordCount": 1250,
+  "timeRequired": "PT5M"
+};
+
+const otherArticles = Object.values(ARTICLES_CONTENT).filter(a => a.slug !== article.slug).slice(0, 3);
+---
+
+<BaseLayout
+  title={`${article.title} — AdhocX Research`}
+  description={article.summary}
+  canonical={`https://www.adhocx.com/blogs/${article.slug}`}
+  ogTitle={article.title}
+  ogDescription={article.summary}
+  ogType="article"
+  ogImage={article.coverImage}
+  activeNav="blogs"
+  logoTag="Insights"
+  jsonLd={blogPostingSchema}
+  breadcrumbs={[
+    { name: 'Home', url: '/' },
+    { name: 'Blog & Insights', url: '/blogs' },
+    { name: article.category, url: '/blogs' },
+    { name: article.title, url: `/blogs/${article.slug}` }
+  ]}
+>
+  <article class="article-container" style="padding-top: var(--space-8); padding-bottom: var(--space-16);">
+    <header class="article-header">
+      <div class="container article-header-inner">
+        <!-- Breadcrumb Navigation -->
+        <nav class="breadcrumb-nav" aria-label="Breadcrumb">
+          <ol>
+            <li><a href="/">Home</a></li>
+            <li><span class="bc-sep">/</span></li>
+            <li><a href="/blogs">Blog & Insights</a></li>
+            <li><span class="bc-sep">/</span></li>
+            <li><span class="bc-current">{article.category}</span></li>
+          </ol>
+        </nav>
+
+        <div class="article-header-meta">
+          <span class="badge badge-primary">{article.category}</span>
+          <span class="art-meta-readtime" style="display:inline-flex;align-items:center;gap:4px;">
+            <Icon name="clock" size={13} color="var(--color-primary-600)" /> {article.readTime}
+          </span>
+          <span class="art-meta-views" style="display:inline-flex;align-items:center;gap:4px;">
+            <Icon name="users" size={13} color="var(--color-primary-600)" /> Verified Research
+          </span>
+        </div>
+
+        <h1 class="article-main-title">
+          {article.title}
+        </h1>
+
+        <p class="article-lead-excerpt">
+          {article.summary}
+        </p>
+
+        <div class="article-author-strip">
+          <div class="author-avatar-badge">AX</div>
+          <div class="author-details-box">
+            <div class="author-name-text">{article.author}</div>
+            <div class="author-role-text">{article.authorRole}</div>
+          </div>
+          <div class="article-date-box">
+            <span class="pub-label">Published:</span>
+            <time>{article.date}</time>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Featured Cover Hero Image -->
+    <div class="container article-cover-container">
+      <div class="article-cover-wrap">
+        <img
+          src={article.coverImage}
+          alt={article.title}
+          loading="eager"
+        />
+      </div>
+    </div>
+
+    <!-- Direct Answer Callout for GEO & AEO (High-density 40-60 words) -->
+    <div class="container" style="margin-top: var(--space-8); margin-bottom: var(--space-8);">
+      <div class="direct-answer-callout" style="max-width: 820px; margin: 0 auto; background: #F6F3FF; border-left: 4px solid var(--color-primary-600); padding: 24px; border-radius: 8px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <Icon name="sparkles" size={18} color="var(--color-primary-600)" />
+          <strong style="color:var(--color-primary-900); font-size:0.95rem;">Executive Summary (Direct Answer)</strong>
+        </div>
+        <p style="margin: 0; color: var(--color-primary-950); font-size: 1.05rem; line-height: 1.6; font-weight: 500;">
+          {article.directAnswer}
+        </p>
+      </div>
+    </div>
+
+    <!-- Key Takeaways Box (GEO Optimization) -->
+    <div class="container" style="margin-bottom: var(--space-8);">
+      <div style="max-width: 820px; margin: 0 auto; background: #FFFFFF; border: 1px solid var(--color-border); padding: 24px; border-radius: 12px; box-shadow: var(--shadow-sm);">
+        <h2 style="font-size: 1.15rem; font-weight: 800; color: var(--color-primary-900); margin: 0 0 12px 0; display:flex; align-items:center; gap:8px;">
+          <Icon name="shield-check" size={20} color="var(--color-success)" /> Key Takeaways for Corporate Fleet Desks
+        </h2>
+        <ul style="margin: 0; padding-left: 20px; display:flex; flex-direction:column; gap:8px;">
+          {article.keyTakeaways.map((point) => (
+            <li style="color: var(--color-text-secondary); font-size: 0.95rem; line-height: 1.5;">{point}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
+
+    <!-- Article Rich Body -->
+    <div class="container">
+      <div class="article-body-wrapper" style="max-width: 820px; margin: 0 auto; font-size: 1.05rem; line-height: 1.8; color: var(--color-text-secondary);">
+        <div set:html={article.contentHtml} />
+
+        <!-- Author Authority Signoff Box -->
+        <div class="author-signoff-box" style="margin-top: var(--space-12); padding: 24px; background: var(--color-surface-muted); border-radius: 12px; border: 1px solid var(--color-border); display: flex; gap: 16px; align-items: center;">
+          <div style="width: 54px; height: 54px; border-radius: 50%; background: var(--color-primary-600); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.25rem; flex-shrink: 0;">
+            AX
+          </div>
+          <div>
+            <div style="font-weight: 800; color: var(--color-primary-900); font-size: 1rem;">
+              Published by {article.author}
+            </div>
+            <div style="color: var(--color-text-muted); font-size: 0.875rem; margin-top: 2px;">
+              Estemporaneo Technologies Private Limited — Operational headquarters in HITEC City, Hyderabad. Governing statutory commercial cab compliance, driver welfare, and corporate mobility SLAs.
+            </div>
+          </div>
+        </div>
+
+        <!-- In-Article Corporate CTA -->
+        <div style="margin-top: var(--space-10); padding: 32px; background: linear-gradient(135deg, #1B0E38 0%, #301760 100%); border-radius: 16px; color: #ffffff; text-align: center;">
+          <h3 style="font-size: 1.5rem; font-weight: 800; color: #ffffff; margin: 0 0 8px 0;">
+            Modernize Your Hyderabad Corporate Fleet Transit
+          </h3>
+          <p style="color: #cbd5e1; max-width: 540px; margin: 0 auto 20px auto; font-size: 0.95rem;">
+            Access verified commercial 4-seater and 7-seater cabs with 15-minute SLA cutoffs and unified GST billing.
+          </p>
+          <div style="display:flex; justify-content:center; gap:12px; flex-wrap:wrap;">
+            <a href="/vendors" class="btn btn-primary" style="background:#2563EB; border-color:#2563EB; color:#ffffff;">
+              <Icon name="file-text" size={16} /> Request Corporate Demo
+            </a>
+            <a href="/drivers" class="btn btn-secondary" style="background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.2); color:#ffffff;">
+              <Icon name="car" size={16} /> Drive with AdhocX
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Related Articles Section -->
+    {otherArticles.length > 0 && (
+      <section style="margin-top: var(--space-16); padding-top: var(--space-12); border-top: 1px solid var(--color-border); background: var(--color-surface-muted);">
+        <div class="container">
+          <div style="text-align: center; margin-bottom: var(--space-8);">
+            <span class="badge badge-primary">Topical Exploration</span>
+            <h2 class="h3-title" style="margin-top: 8px;">Related Commercial Mobility Insights</h2>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-6);">
+            {otherArticles.map((rel) => (
+              <a href={`/blogs/${rel.slug}`} class="card blog-card" style="text-decoration:none; display:flex; flex-direction:column; justify-content:space-between;">
+                <div>
+                  <span class="badge badge-primary" style="margin-bottom:8px;">{rel.category}</span>
+                  <h3 class="h4-title" style="color:var(--color-primary-900); margin:0 0 8px 0;">{rel.title}</h3>
+                  <p class="body-text" style="color:var(--color-text-secondary); font-size:0.9rem; margin:0;">{rel.summary}</p>
+                </div>
+                <div style="margin-top:16px; display:flex; justify-content:space-between; align-items:center; font-size:0.8rem; color:var(--color-text-muted); border-top:1px solid var(--color-border); padding-top:12px;">
+                  <span>{rel.readTime}</span>
+                  <span style="color:var(--color-primary-600); font-weight:600; display:inline-flex; align-items:center; gap:4px;">
+                    Read Article <Icon name="arrow-right" size={12} />
+                  </span>
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      </section>
+    )}
+  </article>
+</BaseLayout>
+
+<style>
+  .article-header {
+    margin-bottom: var(--space-6);
+  }
+  .article-header-inner {
+    max-width: 820px;
+    margin: 0 auto;
+  }
+  .breadcrumb-nav {
+    margin-bottom: var(--space-4);
+  }
+  .breadcrumb-nav ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+  }
+  .breadcrumb-nav a {
+    color: var(--color-primary-600);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .breadcrumb-nav a:hover {
+    text-decoration: underline;
+  }
+  .bc-sep {
+    color: var(--color-text-muted);
+  }
+  .bc-current {
+    color: var(--color-text-secondary);
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 260px;
+  }
+  .article-header-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: var(--space-3);
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+  }
+  .article-main-title {
+    font-size: clamp(1.85rem, 3.8vw, 2.75rem);
+    font-weight: 900;
+    color: var(--color-primary-950);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin: 0 0 var(--space-4) 0;
+  }
+  .article-lead-excerpt {
+    font-size: 1.15rem;
+    line-height: 1.6;
+    color: var(--color-text-secondary);
+    margin: 0 0 var(--space-6) 0;
+  }
+  .article-author-strip {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--color-border);
+  }
+  .author-avatar-badge {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--color-primary-600);
+    color: #ffffff;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+  .author-name-text {
+    font-weight: 700;
+    color: var(--color-primary-900);
+    font-size: 0.95rem;
+  }
+  .author-role-text {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+  }
+  .article-date-box {
+    margin-left: auto;
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+    text-align: right;
+  }
+  .article-cover-container {
+    max-width: 820px;
+    margin: 0 auto;
+  }
+  .article-cover-wrap {
+    border-radius: 16px;
+    overflow: hidden;
+    max-height: 420px;
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-md);
+  }
+  .article-cover-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .article-body-wrapper :global(h2) {
+    font-size: 1.55rem;
+    font-weight: 800;
+    color: var(--color-primary-950);
+    margin-top: 2rem;
+    margin-bottom: 0.85rem;
+    line-height: 1.3;
+  }
+  .article-body-wrapper :global(p) {
+    margin-bottom: 1.25rem;
+  }
+  .article-body-wrapper :global(ul),
+  .article-body-wrapper :global(ol) {
+    margin-bottom: 1.5rem;
+    padding-left: 1.5rem;
+  }
+  .article-body-wrapper :global(li) {
+    margin-bottom: 0.5rem;
+  }
+  .article-body-wrapper :global(strong) {
+    color: var(--color-primary-900);
+  }
+</style>

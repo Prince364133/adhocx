@@ -1,70 +1,164 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import EnterpriseLeadForm from '../components/EnterpriseLeadForm';
+import Icon from '../components/Icon.astro';
+import FaqAccordion, { type FaqItem } from '../components/FaqAccordion.astro';
 
-const jsonLd = {
-  "@context": "https://schema.org",
-  "@type": "Service",
-  "name": "AdhocX Enterprise Corporate Transport Solutions",
-  "serviceType": "Commercial 4 & 7 Seater Fleet Logistics & Employee Mobility",
-  "provider": {
-    "@type": "Organization",
-    "name": "Estemporaneo Technologies Private Limited",
-    "url": "https://www.adhocx.com"
+const jsonLd = [
+  {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "@id": "https://www.adhocx.com/vendors#enterprise-service",
+    "name": "AdhocX Enterprise Corporate Transport Solutions",
+    "serviceType": "Commercial 4 & 7 Seater Fleet Logistics & Employee Mobility",
+    "provider": {
+      "@type": "Organization",
+      "name": "Estemporaneo Technologies Private Limited",
+      "url": "https://www.adhocx.com"
+    },
+    "areaServed": [
+      {
+        "@type": "City",
+        "name": "Hyderabad"
+      },
+      {
+        "@type": "Place",
+        "name": "HITEC City"
+      },
+      {
+        "@type": "Place",
+        "name": "Financial District"
+      },
+      {
+        "@type": "Place",
+        "name": "Gachibowli"
+      },
+      {
+        "@type": "Place",
+        "name": "Madhapur"
+      }
+    ],
+    "description": "Automated B2B corporate 4 & 7 seater cab fulfillment marketplace. Algorithmic dispatch, 15-minute search cutoff SLA, 1-hour bank refund guarantee, and single unified GST billing for enterprise transport desks."
   },
-  "areaServed": {
-    "@type": "City",
-    "name": "Hyderabad"
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "How does AdhocX eliminate WhatsApp cab dispatching for corporate transport desks?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "AdhocX replaces informal WhatsApp groups with an automated B2B dispatch dashboard. Requirements for 4-seater sedans or 7-seater MUVs are algorithmically paired with verified commercial yellow-plate chauffeurs in under 90 seconds, with live GPS telemetry and automated GST trip invoicing."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What is the bank refund SLA for corporate clients?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "If a vehicle requirement cannot be fulfilled within our search cutoff, the full booking funds are credited back to the corporate entity's bank account directly via automated banking rails."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can AdhocX integrate with internal corporate travel desks and ERPs?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. AdhocX supports API integration and centralized enterprise dashboard access with role-based permissions, custom cost-center tagging, and single monthly consolidated GST tax invoicing."
+        }
+      }
+    ]
+  }
+];
+
+const vendorFaqs: FaqItem[] = [
+  {
+    question: "How does AdhocX eliminate WhatsApp cab dispatching for corporate transport desks?",
+    highlight: "AdhocX replaces chaotic WhatsApp messaging with an algorithmic dispatch engine that pairs verified commercial 4-seater and 7-seater cabs swiftly with real-time GPS telemetry and strict SLA enforcement.",
+    answer: "In traditional WhatsApp sourcing, transport leads face delayed responses, uncertain driver turnouts, and lack of compliance verification. With AdhocX, transport desks submit trip demands through our enterprise portal. The platform automatically enforces vehicle eligibility (commercial yellow-plate only), verifies driver fitness, and provides live status alerts directly to admins and passengers."
   },
-  "description": "Automated B2B corporate 4 & 7 seater cab fulfillment marketplace. Algorithmic dispatch, 15-minute search cutoff SLA, 1-hour bank refund guarantee, and single unified GST billing for enterprise transport desks."
-};
+  {
+    question: "What financial guarantees back your allocation SLA cutoff and refund policy?",
+    highlight: "Every corporate booking carries an automated search cutoff. If a cab is not secured within the cutoff window, or in cases of eligible cancellation, the full booking funds are refunded directly to your bank account.",
+    answer: "We do not hold vendor balances in proprietary closed wallets. Our automated refund rails interact directly with your registered enterprise bank account via IMPS/UPI, ensuring zero working capital lockup for procurement and finance teams."
+  },
+  {
+    question: "How does billing and GST compliance work for enterprise transport accounts?",
+    highlight: "Enterprises receive a single consolidated monthly GST tax invoice itemizing all employee shifts, airport executive trips, and spot duties mapped to internal cost centers.",
+    answer: "Forget sorting through hundreds of disorganized manual fuel slips and driver cash vouchers. AdhocX provides downloadable Excel and PDF audit sheets with digital OTP verification stamps, RTO registration numbers, and kilometer telemetry for seamless accounting compliance."
+  },
+  {
+    question: "What safety protocols protect employees during late-night shift transport?",
+    highlight: "Background-verified commercial chauffeurs, digital OTP boarding verification, live GPS tracking, and a dedicated 24/7 central operations desk with rapid emergency backup cab SLAs.",
+    answer: "All commercial drivers undergo police verification checks, driving record scrutiny, and passenger safety orientation. Our central operations room actively monitors off-route deviations and SOS alerts during graveyard and early morning corporate shifts in Hyderabad."
+  }
+];
 ---
 
 <BaseLayout
-  title="Corporate Fleet Solutions & B2B Cab Sourcing (4 & 7 Seater) — AdhocX"
-  description="Automated enterprise corporate cab fulfillment for 4-seater and 7-seater yellow plate fleets. Eliminate WhatsApp dispatch chaos with instant driver assignment, 15-minute SLA cutoffs, and 1-hour bank refund guarantee."
+  title="Corporate Fleet Solutions & B2B Cab Sourcing (4 & 7 Seater) — AdhocX Hyderabad"
+  description="Automated enterprise corporate cab fulfillment for 4-seater and 7-seater yellow-plate fleets in Hyderabad. Eliminate WhatsApp dispatch chaos with instant driver assignment, strict SLA cutoffs, and direct bank refund guarantee."
   canonical="https://www.adhocx.com/vendors"
   activeNav="vendors"
   jsonLd={jsonLd}
+  breadcrumbs={[
+    { name: 'Home', url: '/' },
+    { name: 'Corporate Vendors', url: '/vendors' }
+  ]}
 >
   <!-- Enterprise Hero -->
-  <section class="hero-section" style="background: linear-gradient(180deg, #F6F3FF 0%, #ffffff 100%);">
+  <section class="hero-section" style="background: linear-gradient(180deg, #F6F3FF 0%, #FFFFFF 100%);">
     <div class="container hero-grid">
       <div class="hero-content">
         <div class="hero-tag">
-          <span class="badge badge-primary">✓ Enterprise Transport Desk Solution</span>
-          <span class="badge badge-info">4 & 7 Seater Commercial Fleets</span>
+          <span class="badge badge-primary">
+            <Icon name="building" size={14} color="var(--color-primary-600)" />
+            Enterprise Transport Desk Solution
+          </span>
+          <span class="badge badge-info">
+            <Icon name="shield-check" size={14} color="var(--color-info)" />
+            4 & 7 Seater Commercial Fleets
+          </span>
         </div>
-        <h1 class="display-title" style="color: #0f172a;">
-          Never Drop a Fleet Requirement Again.
+        <h1 class="display-title" style="color: var(--color-primary-900);">
+          Never Drop a Corporate Fleet Requirement Again.
         </h1>
-        <p class="body-large">
-          Replace unorganized WhatsApp groups and unreliable vendors with AdhocX's automated B2B dispatch engine. Verified 4-seater and 7-seater yellow-board cabs, guaranteed rates, live telemetry, and 15-minute search cutoff SLAs.
-        </p>
+
+        <!-- Direct Answer Callout for GEO & Featured Snippets -->
+        <div class="direct-answer-callout">
+          <p class="body-large" style="margin: 0; color: var(--color-primary-900); font-weight: 500;">
+            <strong>AdhocX for Enterprise</strong> replaces unorganized WhatsApp cab groups and manual phone dispatching with an automated B2B dispatch engine. Access verified commercial 4-seater and 7-seater yellow-board cabs with strict SLA cutoffs, unified GST invoicing, and direct bank refunds across Hyderabad.
+          </p>
+        </div>
+
         <div class="hero-actions">
           <a href="#corporate-form" class="btn btn-primary btn-large">
-            Request Corporate Rate Card →
+            <Icon name="file-text" size={18} />
+            Request Corporate Access →
           </a>
-          <a href="#fleet-rates" class="btn btn-secondary btn-large">
+          <a href="#fleet-overview" class="btn btn-secondary btn-large">
+            <Icon name="car" size={18} />
             Explore 4 & 7 Seater Fleets
           </a>
         </div>
+
         <div class="hero-metrics metrics-4" style="border-top: 1px solid var(--color-border);">
           <div class="metric-item">
-            <div class="metric-val" style="color: var(--color-primary-600);">99.4%</div>
+            <div class="metric-val" style="color: var(--color-primary-600); font-size: 1.15rem;">Reliable</div>
             <div class="metric-lbl">On-Time SLA Delivery</div>
           </div>
           <div class="metric-item">
-            <div class="metric-val" style="color: var(--color-primary-600);">&lt; 90 Sec</div>
-            <div class="metric-lbl">Instant Auto-Dispatch</div>
+            <div class="metric-val" style="color: var(--color-primary-600); font-size: 1.15rem;">Rapid</div>
+            <div class="metric-lbl">Algorithmic Auto-Dispatch</div>
           </div>
           <div class="metric-item">
-            <div class="metric-val" style="color: var(--color-primary-600);">4 & 7 Seater</div>
-            <div class="metric-lbl">Commercial Yellow-Plate</div>
+            <div class="metric-val" style="color: var(--color-primary-600); font-size: 1.15rem;">4 & 7 Seater</div>
+            <div class="metric-lbl">Yellow-Plate Verified</div>
           </div>
           <div class="metric-item">
-            <div class="metric-val" style="color: var(--color-primary-600);">1 Hour</div>
-            <div class="metric-lbl">Bank Refund SLA</div>
+            <div class="metric-val" style="color: var(--color-primary-600); font-size: 1.15rem;">Direct</div>
+            <div class="metric-lbl">Bank Refund Rails</div>
           </div>
         </div>
       </div>
@@ -87,13 +181,35 @@ const jsonLd = {
         </p>
       </div>
 
-      <div class="table-container" style="max-width: 1000px; margin: 0 auto;" data-animate>
-        <table class="data-table">
+      <div class="table-scroll-hint">
+        <div class="table-hint-text">
+          <Icon name="arrow-right" size={14} color="var(--color-primary-600)" />
+          <span>Swipe horizontally to compare full workflow parameters</span>
+        </div>
+        <div class="table-hint-jumpers">
+          <span style="font-size: 0.6875rem; color: var(--color-text-muted);">Quick Jump:</span>
+          <button type="button" class="table-jump-btn" data-container="whatsappTableContainer" data-offset="170">WhatsApp</button>
+          <button type="button" class="table-jump-btn" data-container="whatsappTableContainer" data-offset="430">AdhocX</button>
+        </div>
+      </div>
+
+      <div class="table-container table-container-scrollable" id="whatsappTableContainer" style="max-width: 1040px; margin: 0 auto;" tabindex="0" role="region" aria-label="WhatsApp versus AdhocX comparison matrix" data-animate>
+        <table class="data-table" style="min-width: 710px; width: 100%;">
           <thead>
             <tr>
-              <th style="width: 25%;">Feature / Workflow</th>
-              <th style="width: 35%; color: #dc2626;">❌ Traditional WhatsApp Groups</th>
-              <th style="width: 40%; color: var(--color-primary-700); background: var(--color-primary-50);">✅ AdhocX Automated Platform</th>
+              <th style="min-width: 160px; width: 170px;">Feature / Workflow</th>
+              <th style="min-width: 250px; width: 260px; color: var(--color-error);">
+                <span class="table-th-flex">
+                  <Icon name="x-circle" size={16} color="var(--color-error)" />
+                  Traditional WhatsApp Groups
+                </span>
+              </th>
+              <th style="min-width: 270px; width: 280px; color: var(--color-primary-800); background: var(--color-primary-50);">
+                <span class="table-th-flex">
+                  <Icon name="check-circle" size={16} color="var(--color-primary-600)" />
+                  AdhocX Automated Platform
+                </span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -103,14 +219,14 @@ const jsonLd = {
               <td style="background: var(--color-primary-50);"><strong>Algorithmic Auto-Assignment</strong> with 15-minute search cutoff SLA</td>
             </tr>
             <tr>
-              <td><strong>Tariffs & Pricing Transparency</strong></td>
-              <td>Arbitrary surge pricing, hidden fees, manual negotiation disputes</td>
-              <td style="background: var(--color-primary-50);"><strong>Fixed transparent rate cards</strong> for 4 and 7 seater cabs</td>
+              <td><strong>Billing & Contract Transparency</strong></td>
+              <td>Arbitrary surge surcharges, hidden fees, manual negotiation disputes</td>
+              <td style="background: var(--color-primary-50);"><strong>Standardized corporate terms</strong> for 4 and 7 seater commercial cabs</td>
             </tr>
             <tr>
               <td><strong>Driver & Fleet Vetting</strong></td>
               <td>Zero compliance checks; private white-plate cars or unvetted drivers</td>
-              <td style="background: var(--color-primary-50);"><strong>100% Yellow-Plate Only</strong> (4 & 7 Seater) with background verification</td>
+              <td style="background: var(--color-primary-50);"><strong>Commercial Yellow-Plate Only</strong> (4 & 7 Seater) with background verification</td>
             </tr>
             <tr>
               <td><strong>Trip Tracking & Safety</strong></td>
@@ -125,7 +241,7 @@ const jsonLd = {
             <tr>
               <td><strong>Unfulfilled Ride Compensation</strong></td>
               <td>No refund recourse; stranded employees or lost vendor prepayments</td>
-              <td style="background: var(--color-primary-50);"><strong>1-Hour Direct Bank Refund SLA</strong> for unfulfilled bookings</td>
+              <td style="background: var(--color-primary-50);"><strong>Direct Bank Refund SLA</strong> for unfulfilled bookings</td>
             </tr>
           </tbody>
         </table>
@@ -134,121 +250,551 @@ const jsonLd = {
   </section>
 
   <!-- Fleet Categories (Only 4 and 7 Seaters) -->
-  <section class="section-padding" id="fleet-rates">
+  <section class="section-padding" id="fleet-overview">
+    <div id="fleet-rates" style="position: relative; top: -80px;"></div>
     <div class="container">
-      <div class="section-header">
-        <span class="badge badge-primary">Commercial Fleet</span>
+      <div class="section-header" style="text-align: center;">
+        <span class="badge badge-primary">Commercial Fleet Standards</span>
         <h2 class="h2-title">Enterprise Commercial Fleet Categories (4 & 7 Seaters)</h2>
-        <p class="body-large">Standardized commercial yellow-plate vehicles dedicated for executive and employee transport.</p>
+        <p class="body-large" style="margin: 0 auto; max-width: 650px;">
+          Standardized commercial yellow-plate vehicles dedicated for executive and employee transport across Hyderabad.
+        </p>
       </div>
 
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-6);">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: var(--space-6);">
         <!-- Sedan (4 Seater) -->
-        <div class="card" data-animate>
-          <div style="font-size: 2.5rem; margin-bottom: var(--space-3);">🚗</div>
-          <span class="badge badge-primary" style="margin-bottom: var(--space-2);">4-Seater Compact</span>
+        <div class="card fleet-tier-card" data-animate>
+          <div class="fleet-icon-wrapper">
+            <Icon name="car" size={28} color="var(--color-primary-600)" />
+          </div>
+          <span class="badge badge-primary" style="margin-bottom: var(--space-2);">4-Seater Commercial</span>
           <h3 class="h4-title" style="margin-bottom: 4px;">Compact Sedan</h3>
           <div style="color: var(--color-text-muted); font-size: 0.875rem; margin-bottom: var(--space-4);">Maruti Dzire, Toyota Etios, Hyundai Aura</div>
-          <ul style="list-style: none; padding: 0; margin: 0 0 var(--space-6) 0; font-size: 0.875rem; display: flex; flex-direction: column; gap: 8px;">
-            <li>👥 Capacity: 4 Passengers + Chauffeur</li>
-            <li>🧳 Luggage: 2 Large Bags</li>
-            <li>❄️ Dual Zone AC & GPS Enabled</li>
-            <li>🏢 Ideal for: Daily tech shift drops, point-to-point</li>
+          <ul class="fleet-spec-list">
+            <li>
+              <Icon name="users" size={16} color="var(--color-primary-600)" />
+              <span>Capacity: 4 Passengers + Chauffeur</span>
+            </li>
+            <li>
+              <Icon name="check" size={16} color="var(--color-primary-600)" />
+              <span>Luggage: 2 Large Bags (Boot Space)</span>
+            </li>
+            <li>
+              <Icon name="check" size={16} color="var(--color-primary-600)" />
+              <span>Dual-Zone AC & Active GPS Enabled</span>
+            </li>
+            <li>
+              <Icon name="building" size={16} color="var(--color-primary-600)" />
+              <span>Ideal for: Daily IT shift drops, airport executive runs</span>
+            </li>
           </ul>
-          <div style="border-top: 1px solid var(--color-border); padding-top: var(--space-4);">
-            <div class="text-caption">Average Corporate Tariff</div>
-            <div style="font-size: 1.25rem; font-weight: 800; color: var(--color-primary-600);">₹12 - ₹15 / km</div>
+          <div class="fleet-tariff-box">
+            <div class="text-caption">Deployment Model</div>
+            <div class="fleet-rate-val" style="font-size: 1.15rem;">Dedicated Enterprise Allocation</div>
           </div>
         </div>
 
         <!-- MUV (6/7 Seater) -->
-        <div class="card" data-animate>
-          <div style="font-size: 2.5rem; margin-bottom: var(--space-3);">🚙</div>
-          <span class="badge badge-primary" style="margin-bottom: var(--space-2);">6/7-Seater MUV</span>
+        <div class="card fleet-tier-card" data-animate>
+          <div class="fleet-icon-wrapper">
+            <Icon name="users" size={28} color="var(--color-primary-600)" />
+          </div>
+          <span class="badge badge-primary" style="margin-bottom: var(--space-2);">6/7-Seater Commercial</span>
           <h3 class="h4-title" style="margin-bottom: 4px;">6/7-Seater MUV</h3>
           <div style="color: var(--color-text-muted); font-size: 0.875rem; margin-bottom: var(--space-4);">Maruti Ertiga, Maruti XL6, Kia Carens</div>
-          <ul style="list-style: none; padding: 0; margin: 0 0 var(--space-6) 0; font-size: 0.875rem; display: flex; flex-direction: column; gap: 8px;">
-            <li>👥 Capacity: 6-7 Passengers + Chauffeur</li>
-            <li>🧳 Luggage: 3-4 Medium Bags</li>
-            <li>❄️ Roof-mounted Rear AC Vents</li>
-            <li>🏢 Ideal for: Shared employee clusters, airport drops</li>
+          <ul class="fleet-spec-list">
+            <li>
+              <Icon name="users" size={16} color="var(--color-primary-600)" />
+              <span>Capacity: 6-7 Passengers + Chauffeur</span>
+            </li>
+            <li>
+              <Icon name="check" size={16} color="var(--color-primary-600)" />
+              <span>Luggage: 3-4 Medium Bags</span>
+            </li>
+            <li>
+              <Icon name="check" size={16} color="var(--color-primary-600)" />
+              <span>Roof-mounted Rear AC Vents</span>
+            </li>
+            <li>
+              <Icon name="building" size={16} color="var(--color-primary-600)" />
+              <span>Ideal for: Shared employee clusters, team offsites</span>
+            </li>
           </ul>
-          <div style="border-top: 1px solid var(--color-border); padding-top: var(--space-4);">
-            <div class="text-caption">Average Corporate Tariff</div>
-            <div style="font-size: 1.25rem; font-weight: 800; color: var(--color-primary-600);">₹16 - ₹20 / km</div>
+          <div class="fleet-tariff-box">
+            <div class="text-caption">Deployment Model</div>
+            <div class="fleet-rate-val" style="font-size: 1.15rem;">Scheduled Cluster Deployment</div>
           </div>
         </div>
 
         <!-- Executive SUV (7 Seater) -->
-        <div class="card" data-animate>
-          <div style="font-size: 2.5rem; margin-bottom: var(--space-3);">✨</div>
+        <div class="card fleet-tier-card" data-animate>
+          <div class="fleet-icon-wrapper">
+            <Icon name="sparkles" size={28} color="var(--color-primary-600)" />
+          </div>
           <span class="badge badge-primary" style="margin-bottom: var(--space-2);">7-Seater Executive</span>
           <h3 class="h4-title" style="margin-bottom: 4px;">Executive SUV</h3>
           <div style="color: var(--color-text-muted); font-size: 0.875rem; margin-bottom: var(--space-4);">Toyota Innova Crysta / Hycross</div>
-          <ul style="list-style: none; padding: 0; margin: 0 0 var(--space-6) 0; font-size: 0.875rem; display: flex; flex-direction: column; gap: 8px;">
-            <li>👥 Capacity: 7 Passengers + Chauffeur</li>
-            <li>🧳 Luggage: 4 Large Suitcases</li>
-            <li>👔 Chauffeur in Uniform & Premium Comfort</li>
-            <li>🏢 Ideal for: Leadership transport, client delegations</li>
+          <ul class="fleet-spec-list">
+            <li>
+              <Icon name="users" size={16} color="var(--color-primary-600)" />
+              <span>Capacity: 7 Passengers + Chauffeur</span>
+            </li>
+            <li>
+              <Icon name="check" size={16} color="var(--color-primary-600)" />
+              <span>Luggage: 4 Large Suitcases</span>
+            </li>
+            <li>
+              <Icon name="shield-check" size={16} color="var(--color-primary-600)" />
+              <span>Chauffeur in Uniform & Premium Amenities</span>
+            </li>
+            <li>
+              <Icon name="building" size={16} color="var(--color-primary-600)" />
+              <span>Ideal for: Executive delegations, client transport</span>
+            </li>
           </ul>
-          <div style="border-top: 1px solid var(--color-border); padding-top: var(--space-4);">
-            <div class="text-caption">Average Corporate Tariff</div>
-            <div style="font-size: 1.25rem; font-weight: 800; color: var(--color-primary-600);">₹22 - ₹28 / km</div>
+          <div class="fleet-tariff-box">
+            <div class="text-caption">Deployment Model</div>
+            <div class="fleet-rate-val" style="font-size: 1.15rem;">VIP Executive Chauffeur Service</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comprehensive Vehicle Specification Matrix (GEO & Table Extraction) -->
+      <div style="margin-top: var(--space-12);" data-animate>
+        <div style="text-align: center; margin-bottom: var(--space-6);">
+          <span class="badge badge-info">Fleet Matrix</span>
+          <h3 class="h3-title" style="margin-top: 8px;">Detailed Commercial Vehicle Specifications</h3>
+          <p class="body-text" style="color: var(--color-text-muted); max-width: 600px; margin: 0 auto;">
+            Compare capacity, comfort amenities, and service specifications to select the optimal fleet class for your enterprise transport requirements.
+          </p>
+        </div>
+
+        <!-- Mobile Native Specification Cards (Zero-Squish Mobile UX) -->
+        <div class="fleet-mobile-cards-view">
+          <div class="fleet-mobile-pill-tabs" role="tablist" aria-label="Commercial Fleet Classes">
+            <button type="button" class="fleet-tab-btn active" data-tab="sedan" role="tab" aria-selected="true" aria-controls="fleet-card-sedan">
+              <span class="tab-car-badge">4-Seater</span>
+              <span class="tab-car-name">Compact Sedan</span>
+            </button>
+            <button type="button" class="fleet-tab-btn" data-tab="muv" role="tab" aria-selected="false" aria-controls="fleet-card-muv">
+              <span class="tab-car-badge">6/7-Seater</span>
+              <span class="tab-car-name">Commercial MUV</span>
+            </button>
+            <button type="button" class="fleet-tab-btn" data-tab="executive" role="tab" aria-selected="false" aria-controls="fleet-card-executive">
+              <span class="tab-car-badge">VIP 7-Seater</span>
+              <span class="tab-car-name">Innova Crysta</span>
+            </button>
+          </div>
+
+          <!-- Sedan Card -->
+          <div class="fleet-spec-card active" id="fleet-card-sedan" role="tabpanel">
+            <div class="spec-card-top">
+              <div>
+                <span class="spec-tier-tag">Dedicated Enterprise Fleet</span>
+                <h4 class="spec-card-title">Compact Sedan (4-Seater)</h4>
+                <p class="spec-card-subtitle">Maruti Dzire • Toyota Etios • Hyundai Aura</p>
+              </div>
+            </div>
+            <div class="spec-attributes-grid">
+              <div class="spec-attribute-item">
+                <span class="spec-attr-label">Passenger Capacity</span>
+                <span class="spec-attr-value">4 Adults + 1 Chauffeur</span>
+              </div>
+              <div class="spec-attribute-item">
+                <span class="spec-attr-label">Boot Luggage</span>
+                <span class="spec-attr-value">378 Liters (2 Medium Bags)</span>
+              </div>
+              <div class="spec-attribute-item">
+                <span class="spec-attr-label">Air Conditioning</span>
+                <span class="spec-attr-value">Front Cabin High-Flow AC</span>
+              </div>
+              <div class="spec-attribute-item">
+                <span class="spec-attr-label">Compliance</span>
+                <span class="spec-attr-value">Yellow-Plate + Commercial FC</span>
+              </div>
+              <div class="spec-attribute-item">
+                <span class="spec-attr-label">Allocation SLA</span>
+                <span class="spec-attr-value">Under 15 Minutes</span>
+              </div>
+              <div class="spec-attribute-item">
+                <span class="spec-attr-label">Deployment Tier</span>
+                <span class="spec-attr-value">Dedicated Enterprise Fleet</span>
+              </div>
+              <div class="spec-attribute-item full-width">
+                <span class="spec-attr-label">Recommended Operations</span>
+                <span class="spec-attr-value">Daily employee shift drops, manager point-to-point transit</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- MUV Card -->
+          <div class="fleet-spec-card" id="fleet-card-muv" role="tabpanel" style="display: none;">
+            <div class="spec-card-top">
+              <div>
+                <span class="spec-tier-tag">Scheduled Cluster Fleet</span>
+                <h4 class="spec-card-title">6/7-Seater MUV</h4>
+                <p class="spec-card-subtitle">Maruti Ertiga • XL6 • Carens</p>
+              </div>
+            </div>
+            <div class="spec-attributes-grid">
+              <div class="spec-attribute-item">
+                <span class="spec-attr-label">Passenger Capacity</span>
+                <span class="spec-attr-value">6 Adults + 1 Chauffeur</span>
+              </div>
+              <div class="spec-attribute-item">
+                <span class="spec-attr-label">Boot Luggage</span>
+                <span class="spec-attr-value">Modular 209L - 550L (3 Bags)</span>
+              </div>
+              <div class="spec-attribute-item">
+                <span class="spec-attr-label">Air Conditioning</span>
+                <span class="spec-attr-value">Roof-Mounted Rear AC Vents</span>
+              </div>
+              <div class="spec-attribute-item">
+                <span class="spec-attr-label">Compliance</span>
+                <span class="spec-attr-value">Yellow-Plate + Commercial FC</span>
+              </div>
+              <div class="spec-attribute-item">
+                <span class="spec-attr-label">Allocation SLA</span>
+                <span class="spec-attr-value">Under 15 Minutes</span>
+              </div>
+              <div class="spec-attribute-item">
+                <span class="spec-attr-label">Deployment Tier</span>
+                <span class="spec-attr-value">Scheduled Cluster Deployment</span>
+              </div>
+              <div class="spec-attribute-item full-width">
+                <span class="spec-attr-label">Recommended Operations</span>
+                <span class="spec-attr-value">Shared team clusters, project commuter groups, offsite transfers</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Executive Card -->
+          <div class="fleet-spec-card" id="fleet-card-executive" role="tabpanel" style="display: none;">
+            <div class="spec-card-top">
+              <div>
+                <span class="spec-tier-tag" style="background: #F3E8FF; color: #6B21A8;">VIP Executive Service</span>
+                <h4 class="spec-card-title">7-Seater Executive</h4>
+                <p class="spec-card-subtitle">Toyota Innova Crysta • Hycross</p>
+              </div>
+            </div>
+            <div class="spec-attributes-grid">
+              <div class="spec-attribute-item">
+                <span class="spec-attr-label">Passenger Capacity</span>
+                <span class="spec-attr-value">7 Adults + 1 Chauffeur</span>
+              </div>
+              <div class="spec-attribute-item">
+                <span class="spec-attr-label">Boot Luggage</span>
+                <span class="spec-attr-value">400+ Liters (4 Large Suitcases)</span>
+              </div>
+              <div class="spec-attribute-item">
+                <span class="spec-attr-label">Air Conditioning</span>
+                <span class="spec-attr-value">Multi-Zone Auto Climate Control</span>
+              </div>
+              <div class="spec-attribute-item">
+                <span class="spec-attr-label">Compliance</span>
+                <span class="spec-attr-value">Yellow-Plate + Uniform Chauffeur</span>
+              </div>
+              <div class="spec-attribute-item">
+                <span class="spec-attr-label">Allocation SLA</span>
+                <span class="spec-attr-value">Under 30 Minutes</span>
+              </div>
+              <div class="spec-attribute-item">
+                <span class="spec-attr-label">Deployment Tier</span>
+                <span class="spec-attr-value">VIP Executive Chauffeur Service</span>
+              </div>
+              <div class="spec-attribute-item full-width">
+                <span class="spec-attr-label">Recommended Operations</span>
+                <span class="spec-attr-value">CXO delegations, VIP client airport transfers, executive roadshows</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="fleet-matrix-toggle-wrap">
+            <button type="button" class="btn btn-outline btn-sm fleet-matrix-toggle-btn" id="toggleMatrixBtn" style="font-size: 0.8125rem;">
+              <Icon name="columns" size={14} color="var(--color-primary-600)" />
+              <span id="matrixToggleText">Compare Full Side-by-Side Matrix</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Full Comparison Matrix with Horizontal Scroll & Sticky Column -->
+        <div id="fleetMatrixContainer">
+          <div class="table-scroll-hint">
+            <div class="table-hint-text">
+              <Icon name="arrow-right" size={14} color="var(--color-primary-600)" />
+              <span>Swipe horizontally to compare full vehicle specs</span>
+            </div>
+            <div class="table-hint-jumpers">
+              <span style="font-size: 0.6875rem; color: var(--color-text-muted);">Quick Jump:</span>
+              <button type="button" class="table-jump-btn" data-container="fleetTableContainer" data-offset="170">Sedan</button>
+              <button type="button" class="table-jump-btn" data-container="fleetTableContainer" data-offset="390">MUV</button>
+              <button type="button" class="table-jump-btn" data-container="fleetTableContainer" data-offset="610">Executive</button>
+            </div>
+          </div>
+
+          <div class="table-container table-container-scrollable" id="fleetTableContainer" style="max-width: 1040px; margin: 0 auto; box-shadow: var(--shadow-md);" tabindex="0" role="region" aria-label="Detailed commercial vehicle specifications matrix">
+            <table class="data-table" style="min-width: 840px; width: 100%;">
+              <thead>
+                <tr>
+                  <th style="min-width: 170px; width: 170px;">Vehicle Metric / Parameter</th>
+                  <th style="min-width: 210px; width: 220px;">Compact Sedan (4-Seater)<br><span style="font-size:0.75rem; font-weight:normal; color:var(--color-text-muted);">Maruti Dzire / Etios</span></th>
+                  <th style="min-width: 210px; width: 220px;">6/7-Seater MUV<br><span style="font-size:0.75rem; font-weight:normal; color:var(--color-text-muted);">Maruti Ertiga / XL6</span></th>
+                  <th style="min-width: 220px; width: 230px; background: var(--color-primary-50); color: var(--color-primary-900);">7-Seater Executive<br><span style="font-size:0.75rem; font-weight:normal; color:var(--color-primary-700);">Toyota Innova Crysta</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Passenger Capacity</strong></td>
+                  <td>4 Adults + 1 Chauffeur</td>
+                  <td>6 Adults + 1 Chauffeur</td>
+                  <td style="background: var(--color-primary-50);"><strong>7 Adults + 1 Chauffeur</strong></td>
+                </tr>
+                <tr>
+                  <td><strong>Boot Luggage Volume</strong></td>
+                  <td>378 Liters (2 Medium Bags)</td>
+                  <td>Modular 209L - 550L (3 Bags)</td>
+                  <td style="background: var(--color-primary-50);"><strong>400+ Liters (4 Large Suitcases)</strong></td>
+                </tr>
+                <tr>
+                  <td><strong>Air Conditioning</strong></td>
+                  <td>Front Cabin High-Flow AC</td>
+                  <td>Roof-Mounted Rear AC Vents</td>
+                  <td style="background: var(--color-primary-50);"><strong>Multi-Zone Auto Climate Control</strong></td>
+                </tr>
+                <tr>
+                  <td><strong>Statutory Compliance</strong></td>
+                  <td>Yellow-Plate + Commercial FC</td>
+                  <td>Yellow-Plate + Commercial FC</td>
+                  <td style="background: var(--color-primary-50);"><strong>Yellow-Plate + Uniform Chauffeur</strong></td>
+                </tr>
+                <tr>
+                  <td><strong>Deployment Tier</strong></td>
+                  <td><strong>Dedicated Enterprise Deployment</strong></td>
+                  <td><strong>Scheduled Cluster Deployment</strong></td>
+                  <td style="background: var(--color-primary-50); color: var(--color-primary-700);"><strong>VIP Executive Chauffeur Service</strong></td>
+                </tr>
+                <tr>
+                  <td><strong>Allocation SLA Cutoff</strong></td>
+                  <td>Under 15 Minutes</td>
+                  <td>Under 15 Minutes</td>
+                  <td style="background: var(--color-primary-50);"><strong>Under 30 Minutes</strong></td>
+                </tr>
+                <tr>
+                  <td><strong>Recommended Use Case</strong></td>
+                  <td>Daily employee shift drops, individual manager spot transit</td>
+                  <td>Shared team clusters, project commuter groups, offsites</td>
+                  <td style="background: var(--color-primary-50);">CXO delegations, VIP client airport transfers, executive roadshows</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- SLA & Compliance Guarantees -->
+  <!-- SLA & Compliance Commitments -->
   <section class="section-padding" style="background: var(--color-surface-muted);">
     <div class="container">
-      <div class="section-header">
+      <div class="section-header" style="text-align: center;">
         <span class="badge badge-primary">Guaranteed SLAs</span>
         <h2 class="h2-title">Enterprise Contract Commitments</h2>
-        <p class="body-large">We back our service with clear operational guarantees and financial SLAs.</p>
+        <p class="body-large" style="margin: 0 auto; max-width: 650px;">
+          We back every corporate transport booking with measurable operational and financial SLAs.
+        </p>
       </div>
 
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-6);">
         <div class="card" style="border-top: 4px solid var(--color-primary-600);" data-animate>
-          <h3 class="h4-title" style="margin-bottom: 8px;">⚡ Instant Automated Dispatch</h3>
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            <Icon name="clock" size={22} color="var(--color-primary-600)" />
+            <h3 class="h4-title" style="margin: 0;">Instant Automated Dispatch</h3>
+          </div>
           <p class="body-text">
-            Our dispatch engine algorithmically secures verified 4 or 7 seater commercial cabs with live vehicle tracking and guaranteed fulfillment.
+            Our dispatch engine algorithmically secures verified 4 or 7 seater commercial cabs in under 90 seconds, with live vehicle tracking and guaranteed fulfillment.
           </p>
         </div>
 
         <div class="card" style="border-top: 4px solid var(--color-primary-600);" data-animate>
-          <h3 class="h4-title" style="margin-bottom: 8px;">💳 1-Hour Bank Refund SLA</h3>
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            <Icon name="bank-note" size={22} color="var(--color-primary-600)" />
+            <h3 class="h4-title" style="margin: 0;">Automated Bank Refund SLA</h3>
+          </div>
           <p class="body-text">
-            Unfulfilled or canceled bookings receive instant refund processing directly into your corporate bank account or ledger balance within 60 minutes.
+            If a vehicle requirement is cancelled or unfulfilled, the entire unused balance is credited back to the corporate account promptly via instant IMPS/UPI banking rails.
           </p>
         </div>
 
         <div class="card" style="border-top: 4px solid var(--color-primary-600);" data-animate>
-          <h3 class="h4-title" style="margin-bottom: 8px;">📋 100% Commercial Yellow Board</h3>
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            <Icon name="shield-check" size={22} color="var(--color-primary-600)" />
+            <h3 class="h4-title" style="margin: 0;">Verified Commercial Compliance</h3>
+          </div>
           <p class="body-text">
-            Every vehicle is commercially licensed (Yellow Board 4 & 7 Seater), RTA fitness verified, commercially insured, with background-checked chauffeurs.
+            Zero white-plate private cars. We exclusively onboard verified yellow-plate commercial 4-seater and 7-seater vehicles with commercial insurance and valid fitness certificates.
           </p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- CTA Banner -->
+  <!-- Interactive Vendor FAQs -->
+  <FaqAccordion
+    items={vendorFaqs}
+    title="Corporate Procurement & Transport Desk FAQs"
+    badge="B2B Fleet Inquiries"
+    description="Learn how AdhocX ensures reliable commercial cab fulfillment, transparent billing, and strict SLA compliance for enterprises in Hyderabad."
+    id="vendor-faqs"
+  />
+
+  <!-- Final CTA Section -->
   <section class="cta-section">
     <div class="container" style="position: relative; z-index: 1;">
-      <h2 class="h2-title" style="margin-bottom: var(--space-4);">Upgrade Your Corporate Fleet Operations Today</h2>
-      <p class="body-large" style="max-width: 560px; margin: 0 auto var(--space-8);">
-        Join leading tech companies and facilities managers in Hyderabad who trust AdhocX for 4 & 7 seater commercial transport.
+      <h2 class="h2-title" style="margin-bottom: var(--space-4);">Ready to Modernize Your Corporate Transport Desk?</h2>
+      <p class="body-large" style="max-width: 580px; margin: 0 auto var(--space-8);">
+        Join leading enterprises across Hyderabad who rely on AdhocX for scheduled employee transit and spot commercial cab fulfillment.
       </p>
       <div class="cta-actions" style="margin-top: 0;">
         <a href="#corporate-form" class="btn btn-primary btn-large">
-          Request Corporate Demo
+          <Icon name="file-text" size={18} />
+          Submit Corporate RFP / Request Demo
         </a>
-        <a href="tel:+917893545818" class="btn btn-secondary btn-large">
-          Speak with Enterprise Sales (+91-7893545818)
+        <a href="/#marketplace" class="btn btn-secondary btn-large">
+          <Icon name="clock" size={18} />
+          Learn How It Works
         </a>
       </div>
     </div>
   </section>
+
+  <script is:inline>
+    function initFleetTableAndCards() {
+      // Mobile Tab Switching
+      const tabBtns = document.querySelectorAll('.fleet-tab-btn');
+      const cards = document.querySelectorAll('.fleet-spec-card');
+
+      tabBtns.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const target = btn.getAttribute('data-tab');
+          tabBtns.forEach((b) => {
+            b.classList.remove('active');
+            b.setAttribute('aria-selected', 'false');
+          });
+          btn.classList.add('active');
+          btn.setAttribute('aria-selected', 'true');
+
+          cards.forEach((card) => {
+            if (card.id === `fleet-card-${target}`) {
+              card.style.display = 'block';
+              card.classList.add('active');
+            } else {
+              card.style.display = 'none';
+              card.classList.remove('active');
+            }
+          });
+        });
+      });
+
+      // Mobile Matrix Jump / Toggle
+      const toggleBtn = document.getElementById('toggleMatrixBtn');
+      const matrixWrap = document.getElementById('fleetMatrixContainer');
+
+      if (toggleBtn && matrixWrap) {
+        toggleBtn.addEventListener('click', () => {
+          matrixWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      }
+
+      // Quick Jump Buttons for horizontal scroll
+      const jumpButtons = document.querySelectorAll('.table-jump-btn');
+      jumpButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const containerId = btn.getAttribute('data-container');
+          const offset = parseInt(btn.getAttribute('data-offset') || '0', 10);
+          const container = document.getElementById(containerId);
+          if (container) {
+            container.scrollTo({ left: offset, behavior: 'smooth' });
+          }
+        });
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initFleetTableAndCards);
+    } else {
+      initFleetTableAndCards();
+    }
+  </script>
 </BaseLayout>
+
+<style>
+  .direct-answer-callout {
+    background: var(--color-surface);
+    border-left: 4px solid var(--color-primary-600);
+    padding: var(--space-4) var(--space-5);
+    border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+    margin-bottom: var(--space-6);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .table-th-flex {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .fleet-tier-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: var(--space-6);
+    border: 1px solid var(--color-border);
+    transition: transform var(--transition-base), box-shadow var(--transition-base);
+  }
+
+  .fleet-tier-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--color-primary-300);
+  }
+
+  .fleet-icon-wrapper {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-lg);
+    background: var(--color-primary-50);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: var(--space-3);
+  }
+
+  .fleet-spec-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 var(--space-6) 0;
+    font-size: 0.875rem;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .fleet-spec-list li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--color-text-secondary);
+  }
+
+  .fleet-tariff-box {
+    border-top: 1px solid var(--color-border);
+    padding-top: var(--space-4);
+  }
+
+  .fleet-rate-val {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--color-primary-600);
+    margin-top: 2px;
+  }
+</style>

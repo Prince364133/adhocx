@@ -31,7 +31,7 @@ class _TripsScreenState extends State<TripsScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(_onTabChanged);
     _loadTrips(forceRefresh: true);
 
@@ -54,8 +54,8 @@ class _TripsScreenState extends State<TripsScreen>
           });
         }
         _loadTrips(forceRefresh: true, silent: true);
-        if (status == 'COMPLETED' && _tabController.index != 2) {
-          _tabController.animateTo(2);
+        if (status == 'COMPLETED' && _tabController.index != 1) {
+          _tabController.animateTo(1);
         }
       }
     });
@@ -92,14 +92,14 @@ class _TripsScreenState extends State<TripsScreen>
     }
   }
 
-  List<dynamic> get _upcomingTrips => _allTrips.where((t) {
-        final st = (t['status'] ?? '').toString().toUpperCase();
-        return st == 'ASSIGNED' || st == 'DRIVER_ASSIGNED' || st == 'SCHEDULED';
-      }).toList();
-
   List<dynamic> get _activeTrips => _allTrips.where((t) {
         final st = (t['status'] ?? '').toString().toUpperCase();
-        return st == 'ARRIVED' || st == 'IN_PROGRESS' || st == 'STARTED';
+        return st == 'ASSIGNED' ||
+            st == 'DRIVER_ASSIGNED' ||
+            st == 'SCHEDULED' ||
+            st == 'ARRIVED' ||
+            st == 'IN_PROGRESS' ||
+            st == 'STARTED';
       }).toList();
 
   List<dynamic> get _completedTrips => _allTrips.where((t) {
@@ -191,15 +191,6 @@ class _TripsScreenState extends State<TripsScreen>
                         child: FittedBox(
                           fit: BoxFit.scaleDown,
                           child: Text(
-                            '${context.tr('Upcoming')} (${_upcomingTrips.length})',
-                            maxLines: 1,
-                          ),
-                        ),
-                      ),
-                      Tab(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
                             '${context.tr('Active')} (${_activeTrips.length})',
                             maxLines: 1,
                           ),
@@ -225,7 +216,6 @@ class _TripsScreenState extends State<TripsScreen>
                       : TabBarView(
                           controller: _tabController,
                           children: [
-                            _buildUpcomingTab(isDark),
                             _buildActiveTab(isDark),
                             _buildCompletedTab(isDark),
                           ],
@@ -239,298 +229,11 @@ class _TripsScreenState extends State<TripsScreen>
     );
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // TAB 1: UPCOMING TRIPS VIEW
-  // ───────────────────────────────────────────────────────────────────────────
-  Widget _buildUpcomingTab(bool isDark) {
-    if (_upcomingTrips.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: () => _loadTrips(forceRefresh: true),
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Container(
-            constraints: BoxConstraints(
-              minHeight: MediaQuery.of(context).size.height * 0.7,
-            ),
-            alignment: Alignment.center,
-            padding: const EdgeInsets.all(AppSpacing.xxl),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: isDark ? 0.15 : 0.08),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.calendar_today_outlined,
-                    size: 48,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                Text(
-                  'No Upcoming Trips',
-                  style: AppTypography.h3(
-                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Check the Opportunities tab to accept available requests in your area.',
-                  textAlign: TextAlign.center,
-                  style: AppTypography.body(
-                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                ElevatedButton.icon(
-                  onPressed: () => context.go(AppRoutes.opportunitiesScreen),
-                  icon: const Icon(Icons.flash_on_rounded, size: 18),
-                  label: const Text('VIEW OPPORTUNITIES'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
 
-    return RefreshIndicator(
-      onRefresh: () => _loadTrips(forceRefresh: true),
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        children: [
-          Text(
-            'Scheduled Trips (${_upcomingTrips.length})',
-            style: AppTypography.caption(
-              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          ..._upcomingTrips.map((trip) {
-            final req = trip['requirement'] as Map<String, dynamic>? ?? {};
-            final pickup = trip['pickupLocation']?['address'] ??
-                req['pickupLocation']?['address'] ??
-                'Pickup Location';
-            final drop = trip['dropLocation']?['address'] ??
-                req['dropLocation']?['address'] ??
-                'Drop Location';
-            final vehicle = req['vehicleType']?.toString() ?? 'Sedan';
-            final payout = DriverService.resolveDriverPayoutFormatted(trip);
-            final status = (trip['status'] ?? 'ASSIGNED').toString().toUpperCase();
-            final title = '${vehicle.toUpperCase()} Booking';
-            final time = trip['reportingTime'] != null
-                ? trip['reportingTime'].toString().split('T').last.substring(0, 5)
-                : 'Now';
 
-            return Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.md),
-              child: _buildUpcomingTripCard(
-                trip: trip,
-                time: time,
-                title: title,
-                badgeText: status,
-                pickup: pickup,
-                drop: drop,
-                vehicle: vehicle,
-                passengers: '1 Passenger',
-                payout: payout,
-                isDark: isDark,
-              ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildUpcomingTripCard({
-    required dynamic trip,
-    required String time,
-    required String title,
-    required String badgeText,
-    required String pickup,
-    required String drop,
-    required String vehicle,
-    required String passengers,
-    required String payout,
-    required bool isDark,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: isDark ? AppColors.borderDark : AppColors.borderLight,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                time,
-                style: AppTypography.body(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  title,
-                  style: AppTypography.body(
-                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryLight.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(AppRadius.xs),
-                ),
-                child: Text(
-                  badgeText,
-                  style: AppTypography.caption(
-                    color: AppColors.primaryLight,
-                    fontWeight: FontWeight.bold,
-                  ).copyWith(fontSize: 10),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-
-          // Pickup Location
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.circle, size: 8, color: AppColors.accentGreenDark),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  pickup,
-                  style: AppTypography.caption(
-                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-
-          // Drop Location
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.circle, size: 8, color: AppColors.error),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  drop,
-                  style: AppTypography.caption(
-                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Divider(
-            height: 1,
-            color: isDark ? AppColors.borderDark : AppColors.borderLight,
-          ),
-          const SizedBox(height: AppSpacing.md),
-
-          Row(
-            children: [
-              Icon(
-                Icons.directions_car_outlined,
-                size: 14,
-                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                vehicle,
-                style: AppTypography.caption(
-                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Icon(
-                Icons.person_outline,
-                size: 14,
-                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                passengers,
-                style: AppTypography.caption(
-                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                payout,
-                style: AppTypography.body(
-                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-
-          GestureDetector(
-            onTap: () async {
-              await context.push(AppRoutes.tripDetailsScreen, extra: trip);
-              if (mounted) {
-                _loadTrips(forceRefresh: true, silent: true);
-              }
-            },
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'VIEW DETAILS',
-                  style: AppTypography.caption(
-                    color: isDark ? AppColors.primaryLight : AppColors.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Icon(
-                  Icons.chevron_right,
-                  size: 16,
-                  color: isDark ? AppColors.primaryLight : AppColors.primary,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   // ───────────────────────────────────────────────────────────────────────────
-  // TAB 2: ACTIVE TRIP VIEW
+  // TAB 1: ACTIVE TRIP VIEW
   // ───────────────────────────────────────────────────────────────────────────
   Widget _buildActiveTab(bool isDark) {
     if (_activeTrips.isEmpty) {
@@ -561,7 +264,7 @@ class _TripsScreenState extends State<TripsScreen>
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 Text(
-                  'No Active Trips',
+                  context.tr('No Active Trips'),
                   style: AppTypography.h3(
                     color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                     fontWeight: FontWeight.bold,
@@ -569,7 +272,7 @@ class _TripsScreenState extends State<TripsScreen>
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'When you accept a booking and arrive or start a trip, live telemetry and route progress will appear here.',
+                  context.tr('When you accept a booking and arrive or start a trip, live telemetry and route progress will appear here.'),
                   textAlign: TextAlign.center,
                   style: AppTypography.body(
                     color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
@@ -677,13 +380,13 @@ class _TripsScreenState extends State<TripsScreen>
                 borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
               ),
               child: SafeHeaderRow(
-                title: 'ONGOING TRIP',
+                title: context.tr('ONGOING TRIP'),
                 titleStyle: AppTypography.caption(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
                 trailing: Text(
-                  'Trip ID: $shortTripId',
+                  '${context.tr('Trip ID')}: $shortTripId',
                   style: AppTypography.caption(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
@@ -706,7 +409,7 @@ class _TripsScreenState extends State<TripsScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SafeHeaderRow(
-                    title: '$vehicle Transfer',
+                    title: '${context.tr(vehicle)} ${context.tr('Transfer')}',
                     titleStyle: AppTypography.h3(
                       color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                       fontWeight: FontWeight.bold,
@@ -718,7 +421,7 @@ class _TripsScreenState extends State<TripsScreen>
                         borderRadius: BorderRadius.circular(AppRadius.xs),
                       ),
                       child: Text(
-                        status,
+                        context.tr(status),
                         style: AppTypography.caption(
                           color: isDark ? AppColors.accentGreen : AppColors.accentGreenDark,
                           fontWeight: FontWeight.bold,
@@ -739,7 +442,7 @@ class _TripsScreenState extends State<TripsScreen>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Pickup',
+                              context.tr('Pickup'),
                               style: AppTypography.caption(
                                 color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                 fontWeight: FontWeight.bold,
@@ -769,7 +472,7 @@ class _TripsScreenState extends State<TripsScreen>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Drop',
+                              context.tr('Drop'),
                               style: AppTypography.caption(
                                 color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                 fontWeight: FontWeight.bold,
@@ -805,7 +508,7 @@ class _TripsScreenState extends State<TripsScreen>
 
                   // Trip Progress Stepper
                   Text(
-                    'Trip Progress',
+                    context.tr('Trip Progress'),
                     style: AppTypography.caption(
                       color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                       fontWeight: FontWeight.bold,
@@ -839,7 +542,7 @@ class _TripsScreenState extends State<TripsScreen>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Passenger / Requester',
+                              context.tr('Passenger / Requester'),
                               style: AppTypography.caption(
                                 color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                               ),
@@ -873,7 +576,7 @@ class _TripsScreenState extends State<TripsScreen>
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            'Earnings',
+                            context.tr('Earnings'),
                             style: AppTypography.caption(
                               color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                             ),
@@ -886,7 +589,7 @@ class _TripsScreenState extends State<TripsScreen>
                             ),
                           ),
                           Text(
-                            'Est.',
+                            context.tr('Est.'),
                             style: AppTypography.caption(
                               color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                             ),
@@ -916,7 +619,7 @@ class _TripsScreenState extends State<TripsScreen>
                         ),
                       ),
                       child: Text(
-                        'VIEW TRIP DETAILS',
+                        context.tr('VIEW TRIP DETAILS'),
                         style: AppTypography.body(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -973,7 +676,7 @@ class _TripsScreenState extends State<TripsScreen>
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     Text(
-                      'No Completed Trips Yet',
+                      context.tr('No Completed Trips Yet'),
                       style: AppTypography.h3(
                         color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         fontWeight: FontWeight.bold,
@@ -981,7 +684,7 @@ class _TripsScreenState extends State<TripsScreen>
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Trips you conclude will be archived here with detailed earnings breakdown.',
+                      context.tr('Trips you conclude will be archived here with detailed earnings breakdown.'),
                       textAlign: TextAlign.center,
                       style: AppTypography.body(
                         color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
@@ -1016,7 +719,7 @@ class _TripsScreenState extends State<TripsScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Completed Summary",
+                  context.tr("Completed Summary"),
                   style: AppTypography.caption(
                     color: isDark ? AppColors.accentGreen : AppColors.accentGreenDark,
                     fontWeight: FontWeight.bold,
@@ -1037,7 +740,7 @@ class _TripsScreenState extends State<TripsScreen>
           const SizedBox(height: AppSpacing.lg),
 
           Text(
-            'Trip History',
+            context.tr('Trip History'),
             style: AppTypography.caption(
               color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
               fontWeight: FontWeight.bold,
@@ -1049,15 +752,15 @@ class _TripsScreenState extends State<TripsScreen>
             final req = trip['requirement'] as Map<String, dynamic>? ?? {};
             final pickup = trip['pickupLocation']?['address'] ??
                 req['pickupLocation']?['address'] ??
-                'Pickup Location';
+                context.tr('Pickup Location');
             final drop = trip['dropLocation']?['address'] ??
                 req['dropLocation']?['address'] ??
-                'Drop Location';
+                context.tr('Drop Location');
             final vehicle = req['vehicleType']?.toString() ?? 'Sedan';
             final payout = DriverService.resolveDriverPayoutFormatted(trip);
             final time = trip['completedAt'] != null
                 ? trip['completedAt'].toString().split('T').first
-                : 'Completed';
+                : context.tr('Completed');
 
             return Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -1070,12 +773,12 @@ class _TripsScreenState extends State<TripsScreen>
                 },
                 child: _buildCompletedTripCard(
                   time: time,
-                  title: '$vehicle Transfer',
+                  title: '${context.tr(vehicle)} ${context.tr('Transfer')}',
                   payout: payout,
                   pickup: pickup,
                   drop: drop,
                   vehicle: vehicle,
-                  passengers: '1 Passenger',
+                  passengers: '1 ${context.tr('Passenger')}',
                   isDark: isDark,
                 ),
               ),
@@ -1212,7 +915,7 @@ class _TripsScreenState extends State<TripsScreen>
                   borderRadius: BorderRadius.circular(AppRadius.xs),
                 ),
                 child: Text(
-                  'Completed',
+                  context.tr('Completed'),
                   style: AppTypography.caption(
                     color: isDark ? AppColors.accentGreen : AppColors.accentGreenDark,
                     fontWeight: FontWeight.bold,
@@ -1253,7 +956,7 @@ class _TripsScreenState extends State<TripsScreen>
         ),
         const SizedBox(height: 4),
         Text(
-          title,
+          context.tr(title),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
@@ -1281,14 +984,14 @@ class _TripsScreenState extends State<TripsScreen>
     return Column(
       children: [
         Text(
-          label,
+          context.tr(label),
           style: AppTypography.caption(
             color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
           ),
         ),
         const SizedBox(height: 2),
         Text(
-          value,
+          context.tr(value),
           style: AppTypography.h3(
             color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
             fontWeight: FontWeight.bold,

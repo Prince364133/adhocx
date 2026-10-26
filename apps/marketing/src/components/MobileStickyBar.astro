@@ -1,0 +1,93 @@
+---
+import Icon from './Icon.astro';
+---
+
+<div class="mobile-sticky-bar" aria-label="Mobile Quick Conversion Bar">
+  <div class="sticky-bar-inner">
+    <a href="/vendors" class="sticky-btn sticky-btn-primary">
+      <Icon name="building" size={16} />
+      <span>Corporate Fleet</span>
+    </a>
+
+    <a href="/drivers" class="sticky-btn sticky-btn-secondary">
+      <Icon name="car" size={16} />
+      <span>Drive & Earn</span>
+    </a>
+
+    <a href="tel:+917893545818" class="sticky-btn sticky-btn-call" aria-label="Call AdhocX 24/7 Operations Desk">
+      <Icon name="phone" size={16} />
+    </a>
+  </div>
+</div>
+
+<style>
+  .mobile-sticky-bar {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 999;
+    background: rgba(27, 14, 56, 0.94);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.25);
+    padding: 10px 16px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+
+  @media (max-width: 768px) {
+    .mobile-sticky-bar {
+      display: block;
+    }
+  }
+
+  .sticky-bar-inner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  .sticky-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 44px;
+    min-height: 44px;
+    border-radius: 8px;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: transform 0.15s ease, background-color 0.15s ease;
+    flex: 1;
+  }
+
+  .sticky-btn:active {
+    transform: scale(0.97);
+  }
+
+  .sticky-btn-primary {
+    background: #2563EB;
+    color: #ffffff;
+    border: 1px solid #3B82F6;
+  }
+
+  .sticky-btn-secondary {
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .sticky-btn-call {
+    flex: 0 0 44px;
+    width: 44px;
+    background: #16A34A;
+    color: #ffffff;
+    border: 1px solid #22C55E;
+    border-radius: 8px;
+  }
+</style>

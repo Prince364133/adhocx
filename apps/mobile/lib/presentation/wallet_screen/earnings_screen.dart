@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
 import '../../services/driver_service.dart';
+import '../../services/language_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
@@ -128,7 +129,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          'Earnings',
+                          context.tr('Earnings'),
                           style: AppTypography.h2(
                             color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             fontWeight: FontWeight.bold,
@@ -178,7 +179,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Available Balance',
+                                    context.tr('Available Balance'),
                                     style: AppTypography.caption(
                                       color: Colors.white.withValues(alpha: 0.8),
                                       fontWeight: FontWeight.w600,
@@ -212,7 +213,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        'Min withdrawal: ₹1,000',
+                                        context.tr('Min withdrawal: ₹1,000'),
                                         style: AppTypography.caption(
                                           color: Colors.white.withValues(alpha: 0.9),
                                           fontWeight: FontWeight.w500,
@@ -233,7 +234,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                                           ),
                                         ),
                                         child: Text(
-                                          'WITHDRAW NOW',
+                                          context.tr('WITHDRAW NOW'),
                                           style: AppTypography.caption(
                                             color: AppColors.primaryHover,
                                             fontWeight: FontWeight.bold,
@@ -271,7 +272,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        'This Week',
+                                        context.tr('This Week'),
                                         style: AppTypography.caption(
                                           color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                                           fontWeight: FontWeight.w600,
@@ -287,7 +288,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                                           borderRadius: BorderRadius.circular(AppRadius.full),
                                         ),
                                         child: Text(
-                                          _thisWeekEarned > 0 ? 'Live Balance' : 'Current Period',
+                                          _thisWeekEarned > 0 ? context.tr('Live Balance') : context.tr('Current Period'),
                                           style: AppTypography.caption(
                                             color: isDark ? AppColors.accentGreen : AppColors.accentGreenDark,
                                             fontWeight: FontWeight.bold,
@@ -311,13 +312,13 @@ class _EarningsScreenState extends State<EarningsScreen> {
                                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                                     crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
-                                      _buildBarColumn('Mon', _getBarHeight(1), isHigh: DateTime.now().weekday == 1, isDark: isDark),
-                                      _buildBarColumn('Tue', _getBarHeight(2), isHigh: DateTime.now().weekday == 2, isDark: isDark),
-                                      _buildBarColumn('Wed', _getBarHeight(3), isHigh: DateTime.now().weekday == 3, isDark: isDark),
-                                      _buildBarColumn('Thu', _getBarHeight(4), isHigh: DateTime.now().weekday == 4, isDark: isDark),
-                                      _buildBarColumn('Fri', _getBarHeight(5), isHigh: DateTime.now().weekday == 5, isDark: isDark),
-                                      _buildBarColumn('Sat', _getBarHeight(6), isHigh: DateTime.now().weekday == 6, isDark: isDark),
-                                      _buildBarColumn('Sun', _getBarHeight(7), isHigh: DateTime.now().weekday == 7, isDark: isDark),
+                                      _buildBarColumn(context.tr('Mon'), _getBarHeight(1), isHigh: DateTime.now().weekday == 1, isDark: isDark),
+                                      _buildBarColumn(context.tr('Tue'), _getBarHeight(2), isHigh: DateTime.now().weekday == 2, isDark: isDark),
+                                      _buildBarColumn(context.tr('Wed'), _getBarHeight(3), isHigh: DateTime.now().weekday == 3, isDark: isDark),
+                                      _buildBarColumn(context.tr('Thu'), _getBarHeight(4), isHigh: DateTime.now().weekday == 4, isDark: isDark),
+                                      _buildBarColumn(context.tr('Fri'), _getBarHeight(5), isHigh: DateTime.now().weekday == 5, isDark: isDark),
+                                      _buildBarColumn(context.tr('Sat'), _getBarHeight(6), isHigh: DateTime.now().weekday == 6, isDark: isDark),
+                                      _buildBarColumn(context.tr('Sun'), _getBarHeight(7), isHigh: DateTime.now().weekday == 7, isDark: isDark),
                                     ],
                                   ),
                                 ],
@@ -330,7 +331,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                               children: [
                                 Expanded(
                                   child: _buildCountCard(
-                                    title: 'Trips',
+                                    title: context.tr('Trips'),
                                     count: '$_tripsTotal',
                                     icon: Icons.directions_car_outlined,
                                     color: AppColors.primary,
@@ -340,7 +341,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                                 const SizedBox(width: AppSpacing.md),
                                 Expanded(
                                   child: _buildCountCard(
-                                    title: 'Completed',
+                                    title: context.tr('Completed'),
                                     count: '$_tripsCompleted',
                                     icon: Icons.check_circle_outline,
                                     color: isDark ? AppColors.accentGreen : AppColors.accentGreenDark,
@@ -350,7 +351,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                                 const SizedBox(width: AppSpacing.md),
                                 Expanded(
                                   child: _buildCountCard(
-                                    title: 'Cancelled',
+                                    title: context.tr('Cancelled'),
                                     count: '$_tripsCancelled',
                                     icon: Icons.cancel_outlined,
                                     color: AppColors.error,
@@ -366,7 +367,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  'Summary',
+                                  context.tr('Summary'),
                                   style: AppTypography.h3(
                                     color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                     fontWeight: FontWeight.bold,
@@ -375,7 +376,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                                 GestureDetector(
                                   onTap: () => context.push(AppRoutes.earningsTransactionsScreen),
                                   child: Text(
-                                    'View Transactions',
+                                    context.tr('View Transactions'),
                                     style: AppTypography.caption(
                                       color: isDark ? AppColors.primaryLight : AppColors.primary,
                                       fontWeight: FontWeight.bold,
@@ -536,7 +537,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
         color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
       ),
       title: Text(
-        label,
+        context.tr(label),
         style: AppTypography.body(
           color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
           fontWeight: FontWeight.w500,

@@ -2,7 +2,13 @@
 import SeoHead from '../components/SeoHead.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import MobileStickyBar from '../components/MobileStickyBar.astro';
 import '../styles/global.css';
+
+interface BreadcrumbItem {
+  name: string;
+  url: string;
+}
 
 interface Props {
   title: string;
@@ -10,9 +16,14 @@ interface Props {
   canonical?: string;
   ogTitle?: string;
   ogDescription?: string;
+  ogType?: string;
+  ogImage?: string;
+  ogImageAlt?: string;
   activeNav?: string;
   logoTag?: string;
-  jsonLd?: object;
+  jsonLd?: object | object[];
+  noindex?: boolean;
+  breadcrumbs?: BreadcrumbItem[];
 }
 
 const {
@@ -21,14 +32,99 @@ const {
   canonical,
   ogTitle,
   ogDescription,
+  ogType = 'website',
+  ogImage,
+  ogImageAlt,
   activeNav,
   logoTag,
   jsonLd,
+  noindex = false,
+  breadcrumbs,
 } = Astro.props;
+
+// Global Organization & Hyderabad LocalBusiness Schema
+const defaultOrganizationSchema = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://www.adhocx.com/#organization",
+      "name": "AdhocX",
+      "legalName": "Estemporaneo Technologies Private Limited",
+      "url": "https://www.adhocx.com",
+      "logo": "https://www.adhocx.com/adhocx-logo.png",
+      "foundingDate": "2024",
+      "description": "B2B commercial cab fulfillment marketplace and corporate fleet mobility provider in Hyderabad. Connecting enterprise transport desks with verified commercial 4 & 7 seater yellow-plate drivers.",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "telephone": "+91-7893545818",
+        "contactType": "customer service",
+        "email": "support@adhocx.com",
+        "areaServed": "IN",
+        "availableLanguage": ["English", "Hindi", "Telugu"]
+      },
+      "sameAs": [
+        "https://www.linkedin.com/company/adhocx",
+        "https://twitter.com/AdhocX"
+      ]
+    },
+    {
+      "@type": "LocalBusiness",
+      "@id": "https://www.adhocx.com/#localbusiness",
+      "name": "AdhocX Hyderabad Corporate Fleet Operations",
+      "image": "https://www.adhocx.com/adhocx-logo.png",
+      "url": "https://www.adhocx.com",
+      "telephone": "+91-7893545818",
+      "priceRange": "$$",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "HITEC City & Financial District",
+        "addressLocality": "Hyderabad",
+        "addressRegion": "Telangana",
+        "postalCode": "500081",
+        "addressCountry": "IN"
+      },
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": 17.4486,
+        "longitude": 78.3741
+      },
+      "openingHoursSpecification": {
+        "@type": "OpeningHoursSpecification",
+        "dayOfWeek": [
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday",
+          "Saturday",
+          "Sunday"
+        ],
+        "opens": "00:00",
+        "closes": "23:59"
+      }
+    },
+    ...(breadcrumbs && breadcrumbs.length > 0 ? [{
+      "@type": "BreadcrumbList",
+      "itemListElement": breadcrumbs.map((bc, idx) => ({
+        "@type": "ListItem",
+        "position": idx + 1,
+        "name": bc.name,
+        "item": bc.url.startsWith('http') ? bc.url : `https://www.adhocx.com${bc.url}`
+      }))
+    }] : [])
+  ]
+};
+
+const combinedJsonLd = jsonLd
+  ? Array.isArray(jsonLd)
+    ? [defaultOrganizationSchema, ...jsonLd]
+    : [defaultOrganizationSchema, jsonLd]
+  : defaultOrganizationSchema;
 ---
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-IN">
 <head>
   <SeoHead
     title={title}
@@ -36,17 +132,21 @@ const {
     canonical={canonical}
     ogTitle={ogTitle}
     ogDescription={ogDescription}
+    ogType={ogType}
+    ogImage={ogImage}
+    ogImageAlt={ogImageAlt}
+    noindex={noindex}
   />
-  {jsonLd && (
-    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
-  )}
+  <script type="application/ld+json" set:html={JSON.stringify(combinedJsonLd)} />
 </head>
 <body>
+  <a href="#main-content" class="skip-to-content">Skip to main content</a>
   <Header activeNav={activeNav} logoTag={logoTag} />
   <main id="main-content">
     <slot />
   </main>
   <Footer />
+  <MobileStickyBar />
 
   <script>
     // Intersection Observer for scroll animations

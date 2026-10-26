@@ -1,78 +1,109 @@
-import React, { useState, useEffect, useId } from 'react';
+import React, { useState } from 'react';
 
-interface VehicleRate {
+interface VehicleTier {
   id: string;
   name: string;
   category: string;
-  avgPerTrip: number;
-  icon: string;
+  models: string;
+  useCase: string;
+  features: string[];
+  specs: { label: string; value: string }[];
 }
 
-const DEFAULT_VEHICLES: VehicleRate[] = [
-  { id: 'sedan', name: 'Dzire / Etios', category: 'Compact Sedan', avgPerTrip: 480, icon: '🚗' },
-  { id: 'suv', name: 'Ertiga / XL6', category: '6-Seater MUV', avgPerTrip: 680, icon: '🚙' },
-  { id: 'innova', name: 'Innova Crysta', category: 'Executive SUV', avgPerTrip: 950, icon: '✨' },
+function VehicleIcon({ type, isSelected }: { type: string; isSelected: boolean }) {
+  const stroke = isSelected ? '#5A30B0' : '#64748b';
+  if (type === 'suv' || type.includes('muv') || type.includes('6') || type.includes('7')) {
+    return (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'inline-block' }}>
+        <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.5 2.8C2 10.9 2 11 2 11.2V16c0 .6.4 1 1 1h2" />
+        <circle cx="7" cy="17" r="2" />
+        <path d="M9 17h6" />
+        <circle cx="17" cy="17" r="2" />
+      </svg>
+    );
+  }
+  if (type === 'innova' || type.includes('executive')) {
+    return (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'inline-block' }}>
+        <path d="M14 16H9m10 0h3v-3.15a1 1 0 0 0-.84-.99L16 11l-2.7-3.6a1 1 0 0 0-.8-.4H5.24a2 2 0 0 0-1.8 1.1l-.8 1.63A6 6 0 0 0 2 12.42V16h2" />
+        <circle cx="6.5" cy="16.5" r="2.5" />
+        <circle cx="16.5" cy="16.5" r="2.5" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'inline-block' }}>
+      <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" />
+      <circle cx="7" cy="17" r="2" />
+      <path d="M9 17h6" />
+      <circle cx="17" cy="17" r="2" />
+    </svg>
+  );
+}
+
+const VEHICLE_TIERS: VehicleTier[] = [
+  {
+    id: 'sedan',
+    name: 'Compact Sedan',
+    category: 'Commercial 4-Seater',
+    models: 'Maruti Dzire • Toyota Etios • Hyundai Aura',
+    useCase: 'Daily corporate tech park shift transit, manager duties, and airport transfers',
+    features: [
+      'Pre-scheduled confirmed corporate pickup & drop rosters',
+      'Direct in-app route dispatch with transparent drop details',
+      'Instant settlement to registered bank account or UPI on demand',
+      'Milestone program with unlocked performance rewards in app'
+    ],
+    specs: [
+      { label: 'Passenger Capacity', value: '4 Passengers' },
+      { label: 'Vehicle Compliance', value: 'Yellow-Plate Commercial' },
+      { label: 'Permit Scope', value: 'Hyderabad & Telangana' },
+      { label: 'Settlement Speed', value: 'Direct Bank / UPI' }
+    ]
+  },
+  {
+    id: 'muv',
+    name: '6/7-Seater MUV',
+    category: 'Commercial 6 & 7-Seater',
+    models: 'Maruti Ertiga • Maruti XL6 • Kia Carens',
+    useCase: 'Shared corporate team clusters, executive office runs, and airport transit',
+    features: [
+      'High-demand shared employee shift clusters across IT corridors',
+      'Consistent multi-passenger duty schedules',
+      'Real-time automated digital duty slips and passenger OTP verification',
+      'Dedicated driver helpline in Telugu, Hindi, and English'
+    ],
+    specs: [
+      { label: 'Passenger Capacity', value: '6-7 Passengers' },
+      { label: 'Vehicle Compliance', value: 'Yellow-Plate Commercial' },
+      { label: 'Air Conditioning', value: 'Rear Roof-Mounted Vents' },
+      { label: 'Settlement Speed', value: 'Direct Bank / UPI' }
+    ]
+  },
+  {
+    id: 'innova',
+    name: 'Executive SUV',
+    category: 'Executive 7-Seater',
+    models: 'Toyota Innova Crysta • Toyota Hycross',
+    useCase: 'VIP corporate delegations, business roadshows, and premium airport duties',
+    features: [
+      'Executive corporate reservations and dedicated client itineraries',
+      'Priority assignment for top-rated commercial chauffeurs',
+      'Group accidental insurance coverage while on duty',
+      'Automated digital trip logging and fast bank transfers'
+    ],
+    specs: [
+      { label: 'Passenger Capacity', value: '7 Passengers' },
+      { label: 'Vehicle Compliance', value: 'Executive Yellow-Plate' },
+      { label: 'Comfort Class', value: 'Climate Control & Captain Seats' },
+      { label: 'Settlement Speed', value: 'Direct Bank / UPI' }
+    ]
+  }
 ];
 
 export default function EarningsCalculator() {
-  const [vehicles, setVehicles] = useState<VehicleRate[]>(DEFAULT_VEHICLES);
   const [selectedVehicle, setSelectedVehicle] = useState<string>('sedan');
-  const [tripsPerDay, setTripsPerDay] = useState<number>(6);
-  const [daysPerMonth, setDaysPerMonth] = useState<number>(26);
-
-  useEffect(() => {
-    async function loadLiveTiers() {
-      try {
-        const apiUrl =
-          typeof window !== 'undefined' &&
-          (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-            ? 'http://localhost:7001/api/v1'
-            : 'https://api.adhocx.com/api/v1';
-
-        const res = await fetch(`${apiUrl}/pricing/tiers`);
-        if (res.ok) {
-          const raw = await res.json();
-          const tiers = Array.isArray(raw) ? raw : raw?.data || [];
-          if (Array.isArray(tiers) && tiers.length > 0) {
-            const mapped: VehicleRate[] = tiers.map((t: any) => {
-              const vType = (t.vehicleType || '').toLowerCase();
-              let icon = '🚗';
-              if (vType.includes('suv') || vType.includes('muv')) icon = '🚙';
-              else if (vType.includes('bus') || vType.includes('tempo')) icon = '🚐';
-              else if (vType.includes('bike')) icon = '🏍️';
-              else if (vType.includes('truck') || vType.includes('ace')) icon = '🚚';
-
-              return {
-                id: vType,
-                name: t.categoryLabel || t.vehicleType,
-                category: t.seatingCapacity || `${t.vehicleType} Fleet`,
-                avgPerTrip: Number(t.baseFare || 480),
-                icon,
-              };
-            });
-            setVehicles(mapped);
-            if (!mapped.some((m) => m.id === selectedVehicle)) {
-              setSelectedVehicle(mapped[0].id);
-            }
-          }
-        }
-      } catch (_) {}
-    }
-    loadLiveTiers();
-  }, []);
-
-  const vehicleId = useId();
-  const tripsId = useId();
-  const daysId = useId();
-
-  const vehicle = vehicles.find((v) => v.id === selectedVehicle) || vehicles[0] || DEFAULT_VEHICLES[0];
-  const totalTripsMonth = tripsPerDay * daysPerMonth;
-  const grossMonthlyEarnings = totalTripsMonth * (vehicle?.avgPerTrip || 480);
-
-  // Bonus applies if they hit 100+ trips in a month
-  const milestoneBonus = totalTripsMonth >= 100 ? 2000 : 0;
-  const netTotalEarnings = grossMonthlyEarnings + milestoneBonus;
-  const weeklyEstimate = Math.round(netTotalEarnings / 4);
+  const activeTier = VEHICLE_TIERS.find((v) => v.id === selectedVehicle) || VEHICLE_TIERS[0];
 
   return (
     <div style={{
@@ -86,8 +117,8 @@ export default function EarningsCalculator() {
       <div style={{ marginBottom: '24px', textAlign: 'center' }}>
         <span style={{
           display: 'inline-block',
-          background: '#dcfce7',
-          color: '#15803d',
+          background: 'var(--color-primary-50, #F6F3FF)',
+          color: 'var(--color-primary-700, #5A30B0)',
           fontWeight: 700,
           fontSize: '0.75rem',
           padding: '4px 12px',
@@ -96,23 +127,20 @@ export default function EarningsCalculator() {
           letterSpacing: '0.05em',
           marginBottom: '8px'
         }}>
-          Interactive Estimator
+          Commercial Fleet & Driver Features
         </span>
-        <h3 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0 0 8px 0' }}>
-          Calculate Your Monthly Earnings
+        <h3 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0 0 8px 0', color: 'var(--color-primary-900, #1B0E38)' }}>
+          Commercial Vehicles & In-App Benefits
         </h3>
-        <p style={{ color: 'var(--color-text-muted, #64748b)', fontSize: '0.95rem', margin: 0 }}>
-          Real estimates based on active Hyderabad corporate shift rates and 0% promotional commission.
+        <p style={{ color: 'var(--color-text-secondary, #64748b)', fontSize: '0.95rem', margin: 0 }}>
+          Explore dedicated vehicle categories, transparent direct bank payouts, and operational support built into the AdhocX Driver App.
         </p>
       </div>
 
       {/* Vehicle Type Selection */}
       <div style={{ marginBottom: '24px' }}>
-        <label htmlFor={vehicleId} style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '10px' }}>
-          1. Select Commercial Vehicle Category
-        </label>
-        <div id={vehicleId} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
-          {vehicles.map((v) => {
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
+          {VEHICLE_TIERS.map((v) => {
             const isSelected = v.id === selectedVehicle;
             return (
               <button
@@ -120,21 +148,23 @@ export default function EarningsCalculator() {
                 type="button"
                 onClick={() => setSelectedVehicle(v.id)}
                 style={{
-                  padding: '12px 8px',
-                  borderRadius: '10px',
-                  border: isSelected ? '2px solid #2563eb' : '1px solid #e2e8f0',
-                  background: isSelected ? '#eff6ff' : '#f8fafc',
+                  padding: '14px 12px',
+                  borderRadius: '12px',
+                  border: isSelected ? '2px solid #5A30B0' : '1px solid var(--color-border, #e2e8f0)',
+                  background: isSelected ? 'var(--color-primary-50, #F6F3FF)' : 'var(--color-surface, #ffffff)',
                   cursor: 'pointer',
                   textAlign: 'center',
                   transition: 'all 0.15s ease'
                 }}
               >
-                <div style={{ fontSize: '1.5rem', marginBottom: '4px' }}>{v.icon}</div>
-                <div style={{ fontWeight: 700, fontSize: '0.85rem', color: isSelected ? '#1d4ed8' : '#334155' }}>
+                <div style={{ marginBottom: '6px', display: 'flex', justifyContent: 'center' }}>
+                  <VehicleIcon type={v.id} isSelected={isSelected} />
+                </div>
+                <div style={{ fontWeight: 700, fontSize: '0.9rem', color: isSelected ? '#5A30B0' : '#1e293b' }}>
                   {v.name}
                 </div>
-                <div style={{ fontSize: '0.725rem', color: '#64748b', marginTop: '2px' }}>
-                  ~₹{v.avgPerTrip}/trip
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
+                  {v.category}
                 </div>
               </button>
             );
@@ -142,127 +172,97 @@ export default function EarningsCalculator() {
         </div>
       </div>
 
-      {/* Sliders */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '28px' }}>
-        <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <label htmlFor={tripsId} style={{ fontSize: '0.875rem', fontWeight: 600, color: '#334155' }}>
-              Daily Trips
-            </label>
-            <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#2563eb' }}>
-              {tripsPerDay} trips/day
+      {/* Active Vehicle Details Card */}
+      <div style={{
+        background: 'var(--color-surface, #ffffff)',
+        border: '1px solid var(--color-border, #e2e8f0)',
+        borderRadius: '14px',
+        padding: '24px',
+        marginBottom: '24px'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px', marginBottom: '14px' }}>
+          <div>
+            <span style={{
+              display: 'inline-block',
+              background: '#dcfce7',
+              color: '#15803d',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              padding: '2px 8px',
+              borderRadius: '9999px',
+              marginBottom: '4px'
+            }}>
+              Active Commercial Category
             </span>
-          </div>
-          <input
-            id={tripsId}
-            type="range"
-            min="2"
-            max="12"
-            step="1"
-            value={tripsPerDay}
-            onChange={(e) => setTripsPerDay(Number(e.target.value))}
-            style={{ width: '100%', accentColor: '#2563eb', cursor: 'pointer' }}
-          />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#94a3b8', marginTop: '4px' }}>
-            <span>2 trips (Part-time)</span>
-            <span>12 trips (Full-time)</span>
+            <h4 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-primary-900, #1B0E38)' }}>
+              {activeTier.name} — {activeTier.category}
+            </h4>
+            <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '2px' }}>
+              {activeTier.models}
+            </div>
           </div>
         </div>
 
-        <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <label htmlFor={daysId} style={{ fontSize: '0.875rem', fontWeight: 600, color: '#334155' }}>
-              Working Days / Month
-            </label>
-            <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#2563eb' }}>
-              {daysPerMonth} days
-            </span>
-          </div>
-          <input
-            id={daysId}
-            type="range"
-            min="15"
-            max="30"
-            step="1"
-            value={daysPerMonth}
-            onChange={(e) => setDaysPerMonth(Number(e.target.value))}
-            style={{ width: '100%', accentColor: '#2563eb', cursor: 'pointer' }}
-          />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#94a3b8', marginTop: '4px' }}>
-            <span>15 days</span>
-            <span>30 days</span>
-          </div>
+        <p style={{ fontSize: '0.9rem', color: '#334155', lineHeight: 1.5, margin: '0 0 16px 0' }}>
+          <strong>Primary Operational Duties:</strong> {activeTier.useCase}
+        </p>
+
+        {/* Feature Checkpoints */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px', marginBottom: '18px' }}>
+          {activeTier.features.map((feat, idx) => (
+            <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '0.85rem', color: '#334155' }}>
+              <span style={{ color: '#16a34a', fontWeight: 800, flexShrink: 0 }}>✓</span>
+              <span>{feat}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Spec Pill Badges */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px', borderTop: '1px solid #f1f5f9', paddingTop: '14px' }}>
+          {activeTier.specs.map((spec, i) => (
+            <div key={i} style={{ background: '#f8fafc', padding: '8px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>{spec.label}</div>
+              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b', marginTop: '2px' }}>{spec.value}</div>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Summary Box (Light Surface) */}
+      {/* Driver App Download & Benefits Card */}
       <div style={{
         background: '#F6F3FF',
         color: '#0F172A',
         borderRadius: '16px',
         padding: '24px',
-        position: 'relative',
-        overflow: 'hidden',
-        border: '2px solid #5A30B0'
+        border: '2px solid #5A30B0',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '16px'
       }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div>
-            <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
-              Estimated Monthly Trips
+            <div style={{ fontSize: '0.75rem', color: '#5A30B0', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
+              Official Android Driver Application
             </div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0F172A', marginTop: '2px' }}>
-              {totalTripsMonth} <span style={{ fontSize: '0.9rem', fontWeight: 500, color: '#64748b' }}>trips</span>
+            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#1B0E38', marginTop: '2px' }}>
+              Get the AdhocX Driver App on Google Play
             </div>
-          </div>
-
-          <div>
-            <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
-              Base Trip Payout
-            </div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#5A30B0', marginTop: '2px' }}>
-              ₹{grossMonthlyEarnings.toLocaleString('en-IN')}
-            </div>
-          </div>
-
-          <div>
-            <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
-              Joining Bonus*
-            </div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#16a34a', marginTop: '2px' }}>
-              +₹2,000*
-            </div>
-          </div>
-        </div>
-
-        <div style={{
-          borderTop: '1px solid #E2E8F0',
-          paddingTop: '16px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '12px'
-        }}>
-          <div>
-            <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>Total Estimated Take-Home:</span>
-            <div style={{ fontSize: '2.25rem', fontWeight: 900, color: '#16a34a' }}>
-              ₹{netTotalEarnings.toLocaleString('en-IN')}
-              <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#64748b', marginLeft: '6px' }}>/month</span>
-            </div>
-            <div style={{ fontSize: '0.8rem', color: '#475569' }}>
-              Approx. <strong>₹{weeklyEstimate.toLocaleString('en-IN')}</strong> paid out weekly to your bank.
+            <div style={{ fontSize: '0.85rem', color: '#475569', marginTop: '4px' }}>
+              Upload documents, track corporate assignments, and unlock Century Milestone bonuses.
             </div>
           </div>
 
           <a
-            href="https://play.google.com/store"
+            href="https://play.google.com/store/apps/details?id=com.adhocx.app"
             target="_blank"
             rel="noopener noreferrer"
             style={{
-              display: 'inline-block',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
               background: 'linear-gradient(135deg, #5A30B0 0%, #6A3FE0 100%)',
               color: '#ffffff',
-              padding: '14px 24px',
+              padding: '12px 22px',
               borderRadius: '10px',
               fontWeight: 700,
               textDecoration: 'none',
@@ -270,12 +270,15 @@ export default function EarningsCalculator() {
               boxShadow: '0 4px 14px rgba(90, 48, 176, 0.4)'
             }}
           >
-            Join Us & Claim ₹2,000 Bonus* →
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M3.609 1.814L13.792 12 3.61 22.186a1.94 1.94 0 0 1-.22-.919V2.733c0-.334.08-.65.22-.92zm11.3 11.303l2.25 2.25-11.83 6.83 9.58-9.08zm0-2.234l-9.58-9.08 11.83 6.83-2.25 2.25zm1.414 1.117l2.828-1.633a1.94 1.94 0 0 1 0 3.266l-2.828-1.633z" />
+            </svg>
+            Download on Google Play →
           </a>
         </div>
 
-        <div style={{ fontSize: '0.725rem', color: '#64748b', marginTop: '12px', borderTop: '1px dashed #E2E8F0', paddingTop: '8px' }}>
-          * ₹2,000 bonus join us — terms and conditions apply. Only for verified commercial yellow-plate 4 & 7 seater cabs.
+        <div style={{ fontSize: '0.725rem', color: '#64748b', borderTop: '1px dashed #CBD5E1', paddingTop: '8px' }}>
+          * Commercial yellow-plate taxi drivers only. Valid DL badge and RTO fitness required. Terms and conditions apply.
         </div>
       </div>
     </div>

@@ -504,7 +504,7 @@ export default function BlogsPage() {
             accessor: (blog) => (
               <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end' }}>
                 <a
-                  href={`http://localhost:3000/blog-detail.html?slug=${blog.slug}`}
+                  href={`http://localhost:4321/blogs/${blog.slug}`}
                   target="_blank"
                   rel="noreferrer"
                   title="Preview live on marketing site"

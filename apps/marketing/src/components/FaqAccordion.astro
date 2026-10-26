@@ -1,0 +1,190 @@
+---
+import Icon from './Icon.astro';
+
+export interface FaqItem {
+  question: string;
+  answer: string;
+  highlight?: string;
+}
+
+interface Props {
+  items: FaqItem[];
+  title?: string;
+  badge?: string;
+  description?: string;
+  id?: string;
+}
+
+const {
+  items,
+  title = 'Frequently Asked Questions',
+  badge = 'Help & Insights',
+  description = 'Direct, transparent answers regarding AdhocX B2B fleet logistics, SLAs, and commercial operations.',
+  id = 'faq-section',
+} = Astro.props;
+---
+
+<section class="section-padding faq-accordion-section" id={id}>
+  <div class="container" style="max-width: 860px;">
+    {(badge || title) && (
+      <div class="section-header" style="text-align: center; margin-bottom: var(--space-8);">
+        {badge && <span class="badge badge-primary" style="margin-bottom: var(--space-3);">{badge}</span>}
+        {title && <h2 class="h2-title">{title}</h2>}
+        {description && <p class="body-large" style="margin: 0 auto; max-width: 600px;">{description}</p>}
+      </div>
+    )}
+
+    <div class="faq-list">
+      {items.map((item, index) => {
+        const itemIndex = index + 1;
+        const answerId = `faq-ans-${id}-${itemIndex}`;
+        const questionId = `faq-q-${id}-${itemIndex}`;
+        return (
+          <div class="faq-item card" style="padding: 0; overflow: hidden; margin-bottom: var(--space-4);" data-faq-item>
+            <button
+              class="faq-trigger"
+              id={questionId}
+              aria-expanded="false"
+              aria-controls={answerId}
+              type="button"
+            >
+              <span class="faq-question-text">{item.question}</span>
+              <span class="faq-icon-wrapper">
+                <Icon name="chevron-down" size={18} class="faq-chevron" />
+              </span>
+            </button>
+            <div
+              class="faq-content"
+              id={answerId}
+              role="region"
+              aria-labelledby={questionId}
+              hidden
+            >
+              <div class="faq-inner-body">
+                {item.highlight && (
+                  <div class="faq-direct-answer-callout">
+                    <span class="callout-pill">Direct Answer</span>
+                    <p class="callout-text">{item.highlight}</p>
+                  </div>
+                )}
+                <p class="body-text faq-detailed-answer">{item.answer}</p>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+</section>
+
+<style>
+  .faq-trigger {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-5) var(--space-6);
+    background: transparent;
+    border: none;
+    text-align: left;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+  }
+
+  .faq-trigger:hover {
+    background: var(--color-surface-muted);
+    color: var(--color-primary-600);
+  }
+
+  .faq-trigger:focus-visible {
+    outline: 2px solid var(--color-primary-600);
+    outline-offset: -2px;
+  }
+
+  .faq-question-text {
+    flex: 1;
+    padding-right: var(--space-4);
+    line-height: 1.4;
+  }
+
+  .faq-icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-full);
+    background: var(--color-surface-muted);
+    transition: transform var(--transition-base), background var(--transition-fast);
+    flex-shrink: 0;
+  }
+
+  .faq-trigger[aria-expanded="true"] .faq-icon-wrapper {
+    transform: rotate(180deg);
+    background: var(--color-primary-100);
+    color: var(--color-primary-600);
+  }
+
+  .faq-content {
+    border-top: 1px solid var(--color-border);
+  }
+
+  .faq-inner-body {
+    padding: var(--space-5) var(--space-6);
+  }
+
+  .faq-direct-answer-callout {
+    background: var(--color-primary-50);
+    border-left: 3px solid var(--color-primary-600);
+    padding: var(--space-3) var(--space-4);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    margin-bottom: var(--space-4);
+  }
+
+  .callout-pill {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-primary-600);
+    margin-bottom: 4px;
+  }
+
+  .callout-text {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-primary-900);
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  .faq-detailed-answer {
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+    margin: 0;
+  }
+</style>
+
+<script>
+  function initFaqAccordions() {
+    document.querySelectorAll('[data-faq-item]').forEach((item) => {
+      const trigger = item.querySelector('.faq-trigger') as HTMLButtonElement | null;
+      const content = item.querySelector('.faq-content') as HTMLElement | null;
+
+      if (!trigger || !content) return;
+
+      trigger.addEventListener('click', () => {
+        const isExpanded = trigger.getAttribute('aria-expanded') === 'true';
+        trigger.setAttribute('aria-expanded', String(!isExpanded));
+        content.hidden = isExpanded;
+      });
+    });
+  }
+
+  initFaqAccordions();
+  document.addEventListener('astro:page-load', initFaqAccordions);
+</script>

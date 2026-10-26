@@ -98,13 +98,15 @@ export default function EnterpriseLeadForm() {
           justifyContent: 'center',
           margin: '0 auto 16px auto'
         }}>
-          ✓
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#5A30B0" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
         </div>
         <h3 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0 0 8px 0', color: '#0f172a' }}>
           Corporate Demo Request Received!
         </h3>
         <p style={{ color: '#64748b', fontSize: '0.95rem', maxWidth: '440px', margin: '0 auto 24px auto', lineHeight: 1.6 }}>
-          Thank you, <strong>{formData.contactName}</strong>. Our enterprise logistics specialist for <strong>{formData.companyName}</strong> will contact you at <strong>{formData.phone}</strong> or <strong>{formData.email}</strong> within 30 minutes with our 4-seater and 7-seater rate card.
+          Thank you, <strong>{formData.contactName}</strong>. Our enterprise logistics specialist for <strong>{formData.companyName}</strong> will contact you at <strong>{formData.phone}</strong> or <strong>{formData.email}</strong> within 30 minutes with our 4-seater and 7-seater fleet access details.
         </p>
         <button
           onClick={() => setSubmitted(false)}
@@ -149,7 +151,7 @@ export default function EnterpriseLeadForm() {
           Enterprise Fleet Setup
         </span>
         <h3 style={{ fontSize: '1.4rem', fontWeight: 800, margin: '0 0 6px 0', color: '#0f172a' }}>
-          Request Corporate Demo & Rate Card
+          Request Corporate Demo & Fleet Access
         </h3>
         <p style={{ color: '#64748b', fontSize: '0.875rem', margin: 0 }}>
           4 & 7 Seater commercial fleet dispatch, 15-minute SLA allocation, and unified GST billing.
@@ -165,15 +167,17 @@ export default function EnterpriseLeadForm() {
             <input
               type="text"
               required
+              autoComplete="organization"
               placeholder="e.g. Tech Mahindra / Infosys / Google"
               value={formData.companyName}
               onChange={e => setFormData({ ...formData, companyName: e.target.value })}
               style={{
                 width: '100%',
-                padding: '10px 14px',
+                padding: '12px 14px',
+                minHeight: '44px',
                 borderRadius: '8px',
                 border: '1px solid #cbd5e1',
-                fontSize: '0.9rem',
+                fontSize: '1rem',
                 outline: 'none',
                 boxSizing: 'border-box'
               }}
@@ -187,15 +191,17 @@ export default function EnterpriseLeadForm() {
             <input
               type="text"
               required
+              autoComplete="name"
               placeholder="e.g. Rahul Sharma (Admin Head)"
               value={formData.contactName}
               onChange={e => setFormData({ ...formData, contactName: e.target.value })}
               style={{
                 width: '100%',
-                padding: '10px 14px',
+                padding: '12px 14px',
+                minHeight: '44px',
                 borderRadius: '8px',
                 border: '1px solid #cbd5e1',
-                fontSize: '0.9rem',
+                fontSize: '1rem',
                 outline: 'none',
                 boxSizing: 'border-box'
               }}
@@ -211,15 +217,17 @@ export default function EnterpriseLeadForm() {
             <input
               type="email"
               required
+              autoComplete="email"
               placeholder="name@company.com"
               value={formData.email}
               onChange={e => setFormData({ ...formData, email: e.target.value })}
               style={{
                 width: '100%',
-                padding: '10px 14px',
+                padding: '12px 14px',
+                minHeight: '44px',
                 borderRadius: '8px',
                 border: '1px solid #cbd5e1',
-                fontSize: '0.9rem',
+                fontSize: '1rem',
                 outline: 'none',
                 boxSizing: 'border-box'
               }}
@@ -233,15 +241,17 @@ export default function EnterpriseLeadForm() {
             <input
               type="tel"
               required
+              autoComplete="tel"
               placeholder="+91 98765 43210"
               value={formData.phone}
               onChange={e => setFormData({ ...formData, phone: e.target.value })}
               style={{
                 width: '100%',
-                padding: '10px 14px',
+                padding: '12px 14px',
+                minHeight: '44px',
                 borderRadius: '8px',
                 border: '1px solid #cbd5e1',
-                fontSize: '0.9rem',
+                fontSize: '1rem',
                 outline: 'none',
                 boxSizing: 'border-box'
               }}
@@ -326,7 +336,19 @@ export default function EnterpriseLeadForm() {
                     transition: 'all 0.15s ease'
                   }}
                 >
-                  {isChecked ? '✓ ' : '+ '}{v}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    {isChecked ? (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    ) : (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                      </svg>
+                    )}
+                    {v}
+                  </span>
                 </button>
               );
             })}
@@ -342,8 +364,16 @@ export default function EnterpriseLeadForm() {
             color: '#b91c1c',
             fontSize: '0.85rem',
             fontWeight: 500,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
           }}>
-            ⚠️ {errorMsg}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <span>{errorMsg}</span>
           </div>
         )}
 
@@ -361,14 +391,38 @@ export default function EnterpriseLeadForm() {
             border: 'none',
             cursor: submitting ? 'not-allowed' : 'pointer',
             boxShadow: '0 4px 14px rgba(90, 48, 176, 0.4)',
-            transition: 'transform 0.15s ease'
+            transition: 'transform 0.15s ease',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
           }}
         >
-          {submitting ? 'Submitting Corporate Request...' : 'Get Custom Enterprise Rate Card →'}
+          {submitting ? (
+            <>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'spin 1s linear infinite' }} aria-hidden="true">
+                <line x1="12" y1="2" x2="12" y2="6"></line>
+                <line x1="12" y1="18" x2="12" y2="22"></line>
+                <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+                <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                <line x1="2" y1="12" x2="6" y2="12"></line>
+                <line x1="18" y1="12" x2="22" y2="12"></line>
+                <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+                <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+              </svg>
+              <span>Submitting Corporate Request...</span>
+            </>
+          ) : (
+            <span>Get Custom Enterprise Fleet Access →</span>
+          )}
         </button>
 
-        <p style={{ textAlign: 'center', fontSize: '0.75rem', color: '#94a3b8', margin: '4px 0 0 0' }}>
-          🔒 Your contact info is strictly confidential. No spam, guaranteed 30-min response.
+        <p style={{ textAlign: 'center', fontSize: '0.75rem', color: '#64748b', margin: '4px 0 0 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          <span>Strictly confidential. No spam, guaranteed 30-min response.</span>
         </p>
       </form>
     </div>

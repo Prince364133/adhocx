@@ -1,0 +1,40 @@
+# ==============================================================================
+# AdhocX B2B Commercial Mobility Platform — Robots Directives
+# https://www.adhocx.com
+# ==============================================================================
+
+# Search Engine Crawlers
+User-agent: Googlebot
+User-agent: Bingbot
+User-agent: Slurp
+User-agent: DuckDuckBot
+User-agent: Baiduspider
+User-agent: YandexBot
+Allow: /
+Disallow: /api/
+Disallow: /delete-account
+Disallow: /admin/
+
+# Generative AI & Answer Engine Crawlers (Permitted for Knowledge Graph & Citations)
+User-agent: GPTBot
+User-agent: ChatGPT-User
+User-agent: PerplexityBot
+User-agent: ClaudeBot
+User-agent: CCBot
+User-agent: Google-Extended
+User-agent: Applebot-Extended
+Allow: /
+Disallow: /api/
+Disallow: /delete-account
+Disallow: /admin/
+
+# Default Rules
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /delete-account
+Disallow: /admin/
+
+# Sitemaps
+Sitemap: https://www.adhocx.com/sitemap-index.xml
+Sitemap: https://www.adhocx.com/sitemap-0.xml
