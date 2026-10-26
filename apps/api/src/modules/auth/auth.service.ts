@@ -18,7 +18,7 @@ import {
 import { DatabaseService } from '../../database/database.service';
 import { RedisService } from '../../redis/redis.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { getPhoneVariants, assertPhoneAvailable, sanitizeRealName } from '../../common';
+import { getPhoneVariants, assertPhoneAvailable, sanitizeRealName, isPlaceholderName } from '../../common';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -519,7 +519,7 @@ export class AuthService implements OnModuleInit {
                 ? {
                     create: {
                       fullName: realName || '',
-                      organizationName: realName || '',
+                      organizationName: '',
                       phone: effectivePhone || undefined,
                       verificationStatus: 'PENDING',
                     },
@@ -643,7 +643,7 @@ export class AuthService implements OnModuleInit {
                 data: {
                   userId: user.id,
                   fullName: sanitizeRealName(user.fullName) || realName || '',
-                  organizationName: sanitizeRealName(user.fullName) || realName || '',
+                  organizationName: '',
                   verificationStatus: 'PENDING',
                 },
               });
@@ -804,11 +804,10 @@ export class AuthService implements OnModuleInit {
       user.vendor &&
       (user.vendor.verificationStatus === 'VERIFIED' ||
        user.vendor.verificationStatus === 'UNDER_REVIEW' ||
-       user.vendor.verificationStatus === 'PENDING' ||
-       user.vendor.verificationStatus === 'REJECTED' ||
-       user.vendor.address ||
-       user.vendor.gstNumber ||
-       Boolean(user.vendor.organizationName?.trim()))
+       (user.vendor.verificationStatus === 'REJECTED' && Boolean(user.vendor.address?.trim())) ||
+       (Boolean(user.vendor.address?.trim()) &&
+        Boolean(user.vendor.organizationName?.trim()) &&
+        !isPlaceholderName(user.vendor.organizationName)))
     );
 
     const hasDriverSubmission = Boolean(
@@ -1015,7 +1014,10 @@ export class AuthService implements OnModuleInit {
           user.vendor &&
           (user.vendor.verificationStatus === 'VERIFIED' ||
            user.vendor.verificationStatus === 'UNDER_REVIEW' ||
-           Boolean(user.vendor.organizationName?.trim()))
+           (user.vendor.verificationStatus === 'REJECTED' && Boolean(user.vendor.address?.trim())) ||
+           (Boolean(user.vendor.address?.trim()) &&
+            Boolean(user.vendor.organizationName?.trim()) &&
+            !isPlaceholderName(user.vendor.organizationName)))
         );
       } else if (user.role === UserRole.ADMIN) {
         isApproved = true;
@@ -1101,13 +1103,13 @@ export class AuthService implements OnModuleInit {
         data: { phone: effectivePhone },
       }).catch(() => null);
     }
-    if (user.driver && !user.driver.phone && effectivePhone) {
+    if (user.driver && !user.driver.phone && effectivePhone && this.db.driver?.update) {
       await this.db.driver.update({
         where: { id: user.driver.id },
         data: { phone: effectivePhone },
       }).catch(() => null);
     }
-    if (user.vendor && !user.vendor.phone && effectivePhone) {
+    if (user.vendor && !user.vendor.phone && effectivePhone && this.db.vendor?.update) {
       await this.db.vendor.update({
         where: { id: user.vendor.id },
         data: { phone: effectivePhone },

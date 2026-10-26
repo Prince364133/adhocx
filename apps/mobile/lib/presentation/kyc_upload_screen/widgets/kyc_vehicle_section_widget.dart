@@ -33,18 +33,21 @@ class _KycVehicleSectionWidgetState extends State<KycVehicleSectionWidget> {
 
   Future<void> _loadVehicleCategories() async {
     try {
-      final tiers = await DriverService.instance.getVehicleCategories();
-      if (mounted && tiers.isNotEmpty) {
+      final tiers = await DriverService.instance.getVehicleCategories(forceRefresh: true);
+      final activeTiers = tiers.where((t) => t['isActive'] != false).toList();
+      if (mounted && activeTiers.isNotEmpty) {
         setState(() {
-          _vehicleOptions = tiers.map((t) => {
+          _vehicleOptions = activeTiers.map((t) => {
             'id': (t['vehicleType'] as String? ?? 'SEDAN').toUpperCase(),
             'label': t['categoryLabel'] as String? ?? t['vehicleType'] as String? ?? 'Vehicle',
             'iconKey': t['iconKey'] as String? ?? 'car',
           }).toList();
           _isLoadingCategories = false;
         });
+        return;
       }
     } catch (_) {
+    } finally {
       if (mounted) setState(() => _isLoadingCategories = false);
     }
   }
@@ -52,14 +55,6 @@ class _KycVehicleSectionWidgetState extends State<KycVehicleSectionWidget> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    final options = _vehicleOptions.isNotEmpty
-        ? _vehicleOptions
-        : [
-            {'id': 'SEDAN', 'label': 'Prime Sedan', 'iconKey': 'car'},
-            {'id': 'SUV', 'label': 'Fleet SUV', 'iconKey': 'car'},
-            {'id': 'HATCHBACK', 'label': 'Hatchback', 'iconKey': 'car'},
-          ];
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -95,11 +90,33 @@ class _KycVehicleSectionWidgetState extends State<KycVehicleSectionWidget> {
             ],
           ),
           const SizedBox(height: 10),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Row(
-              children: options.map((opt) {
+          if (_isLoadingCategories && _vehicleOptions.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                children: [
+                  SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+                  SizedBox(width: 8),
+                  Text('Loading live vehicle categories...', style: TextStyle(fontSize: 12)),
+                ],
+              ),
+            )
+          else if (_vehicleOptions.isEmpty)
+            Row(
+              children: [
+                const Text('No categories loaded.', style: TextStyle(fontSize: 12)),
+                TextButton(
+                  onPressed: _loadVehicleCategories,
+                  child: const Text('Retry', style: TextStyle(fontSize: 12)),
+                ),
+              ],
+            )
+          else
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                children: _vehicleOptions.map((opt) {
                 final id = (opt['id'] as String).toUpperCase();
                 final label = opt['label'] as String;
                 final isSelected = _vehicleType.toUpperCase() == id;

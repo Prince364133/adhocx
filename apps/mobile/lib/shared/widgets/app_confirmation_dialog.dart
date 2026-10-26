@@ -35,8 +35,11 @@ class AppConfirmationDialog extends StatelessWidget {
     String cancelText = 'Cancel',
     required VoidCallback onConfirm,
   }) {
-    return showDialog<bool>(
+    return showModalBottomSheet<bool>(
       context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) => AppConfirmationDialog(
         icon: icon,
         iconColor: iconColor,
@@ -57,21 +60,38 @@ class AppConfirmationDialog extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Dialog(
-      backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+      ),
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: SafeArea(
+        top: false,
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
+            Center(
+              child: Container(
+                width: 38,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.borderSubtleDark : AppColors.borderSubtleLight,
+                  borderRadius: AppRadius.borderPill,
+                ),
               ),
-              child: Icon(icon, color: iconColor, size: 36),
+            ),
+            Center(
+              child: Container(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: iconColor, size: 36),
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
@@ -90,7 +110,7 @@ class AppConfirmationDialog extends StatelessWidget {
                 color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
               ),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.xl),
             Row(
               children: [
                 Expanded(
@@ -98,7 +118,7 @@ class AppConfirmationDialog extends StatelessWidget {
                     onPressed: () => Navigator.of(context).pop(false),
                     style: OutlinedButton.styleFrom(
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                     child: Text(cancelText),
                   ),

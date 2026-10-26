@@ -46,11 +46,20 @@ export class VendorsService {
           },
         });
       } catch (_) {}
-    } else if (cleanName) {
       try {
         await this.db.user.update({
           where: { id: userId },
           data: { fullName: cleanName },
+        });
+      } catch (_) {}
+    }
+
+    const effectiveEmail = (dto.email || (dto as any).billingEmail)?.trim();
+    if (effectiveEmail && effectiveEmail !== user?.email) {
+      try {
+        await this.db.user.update({
+          where: { id: userId },
+          data: { email: effectiveEmail },
         });
       } catch (_) {}
     }
@@ -60,7 +69,7 @@ export class VendorsService {
     const extraDetails: Record<string, any> = {};
     const extraKeys = [
       'brandName', 'panNumber', 'businessType', 'website', 'city', 'state', 'pincode',
-      'billingAddress', 'isBillingAddressSame', 'billingEmail', 'monthlyTrips',
+      'billingAddress', 'isBillingAddressSame', 'billingEmail', 'email', 'monthlyTrips',
       'spocDesignation', 'alternatePhone', 'alternateEmail',
       'emergencyContactName', 'emergencyContactPhone', 'operationalCampus',
       'dateOfBirth', 'gender'

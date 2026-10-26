@@ -68,12 +68,34 @@ export class AdminService {
       this.db.driver.count({ where }),
     ]);
 
-    const mappedItems = items.map((d: any) => ({
-      ...d,
-      phone: d.phone || d.user?.phone || '',
-      email: d.user?.email || (d.kycDocuments as any)?.email || undefined,
-      fullName: sanitizeRealName(d.fullName) || sanitizeRealName(d.user?.fullName) || d.phone || 'Driver Applicant',
-    }));
+    const mappedItems = items.map((d: any) => {
+      const kyc = d.kycDocuments && typeof d.kycDocuments === 'object' ? { ...d.kycDocuments } : {};
+      if (Array.isArray(kyc.documents)) {
+        kyc.documents = kyc.documents.map((doc: any) => ({
+          ...doc,
+          fileUrl: this.resolveAssetUrl(doc.fileUrl || doc.url),
+        }));
+      }
+      if (kyc.profilePhotoUrl) {
+        kyc.profilePhotoUrl = this.resolveAssetUrl(kyc.profilePhotoUrl);
+      }
+      return {
+        ...d,
+        phone: d.phone || d.user?.phone || '',
+        email: d.user?.email || kyc.email || undefined,
+        fullName: sanitizeRealName(d.fullName) || sanitizeRealName(d.user?.fullName) || d.phone || 'Driver Applicant',
+        profilePhotoUrl: this.resolveAssetUrl(d.profilePhotoUrl || kyc.profilePhotoUrl),
+        dlFrontUrl: d.dlFrontUrl ? this.resolveAssetUrl(d.dlFrontUrl) : undefined,
+        dlBackUrl: d.dlBackUrl ? this.resolveAssetUrl(d.dlBackUrl) : undefined,
+        rcDocUrl: d.rcDocUrl ? this.resolveAssetUrl(d.rcDocUrl) : undefined,
+        insuranceDocUrl: d.insuranceDocUrl ? this.resolveAssetUrl(d.insuranceDocUrl) : undefined,
+        vehiclePhotoUrl: d.vehiclePhotoUrl ? this.resolveAssetUrl(d.vehiclePhotoUrl) : undefined,
+        aadharFrontUrl: d.aadharFrontUrl ? this.resolveAssetUrl(d.aadharFrontUrl) : undefined,
+        aadharBackUrl: d.aadharBackUrl ? this.resolveAssetUrl(d.aadharBackUrl) : undefined,
+        panDocUrl: d.panDocUrl ? this.resolveAssetUrl(d.panDocUrl) : undefined,
+        kycDocuments: kyc,
+      };
+    });
 
     return {
       items: mappedItems,
@@ -84,6 +106,21 @@ export class AdminService {
       hasNextPage: page * limit < total,
       hasPrevPage: page > 1,
     };
+  }
+
+  /**
+   * Resolves relative paths (/uploads/...) to fully qualified, reachable URLs
+   */
+  public resolveAssetUrl(rawUrl?: string | null): string {
+    if (!rawUrl || typeof rawUrl !== 'string') return '';
+    const trimmed = rawUrl.trim();
+    if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return '';
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) {
+      return trimmed;
+    }
+    const clean = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+    const base = (process.env.APP_URL || 'https://api.adhocx.com').replace(/\/+$/, '');
+    return `${base}${clean}`;
   }
 
   /**
@@ -142,11 +179,29 @@ export class AdminService {
 
     const isFinanceOrSuperAdmin = actorRole === 'FINANCE_ADMIN' || actorRole === 'SUPER_ADMIN';
     const processedKyc = isFinanceOrSuperAdmin ? driver.kycDocuments : this.maskSensitivePii(driver.kycDocuments);
+    const kyc = processedKyc && typeof processedKyc === 'object' ? { ...processedKyc } : {};
+    if (Array.isArray(kyc.documents)) {
+      kyc.documents = kyc.documents.map((doc: any) => ({
+        ...doc,
+        fileUrl: this.resolveAssetUrl(doc.fileUrl || doc.url),
+      }));
+    }
+    if (kyc.profilePhotoUrl) {
+      kyc.profilePhotoUrl = this.resolveAssetUrl(kyc.profilePhotoUrl);
+    }
 
     return {
       ...driver,
-      kycDocuments: processedKyc,
-      profilePhotoUrl: (driver.kycDocuments as any)?.profilePhotoUrl || undefined,
+      dlFrontUrl: driver.dlFrontUrl ? this.resolveAssetUrl(driver.dlFrontUrl) : undefined,
+      dlBackUrl: driver.dlBackUrl ? this.resolveAssetUrl(driver.dlBackUrl) : undefined,
+      rcDocUrl: driver.rcDocUrl ? this.resolveAssetUrl(driver.rcDocUrl) : undefined,
+      insuranceDocUrl: driver.insuranceDocUrl ? this.resolveAssetUrl(driver.insuranceDocUrl) : undefined,
+      vehiclePhotoUrl: driver.vehiclePhotoUrl ? this.resolveAssetUrl(driver.vehiclePhotoUrl) : undefined,
+      aadharFrontUrl: driver.aadharFrontUrl ? this.resolveAssetUrl(driver.aadharFrontUrl) : undefined,
+      aadharBackUrl: driver.aadharBackUrl ? this.resolveAssetUrl(driver.aadharBackUrl) : undefined,
+      panDocUrl: driver.panDocUrl ? this.resolveAssetUrl(driver.panDocUrl) : undefined,
+      kycDocuments: kyc,
+      profilePhotoUrl: this.resolveAssetUrl((driver.kycDocuments as any)?.profilePhotoUrl),
       phone: driver.phone || driver.user?.phone || '',
       email: driver.user?.email || (driver.kycDocuments as any)?.email || undefined,
       fullName: sanitizeRealName(driver.fullName) || sanitizeRealName(driver.user?.fullName) || driver.phone || 'Driver Applicant',

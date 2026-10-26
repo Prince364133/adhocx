@@ -35,10 +35,16 @@ export class HttpExceptionFilter implements ExceptionFilter {
         details = resObj.details || (Array.isArray(resObj.message) ? resObj.message : undefined);
       }
     } else if (exception instanceof Error) {
-      status = HttpStatus.INTERNAL_SERVER_ERROR;
-      code = 'INTERNAL_SERVER_ERROR';
-      message = 'An unexpected internal error occurred. Please try again shortly.';
-      this.logger.error(`Unhandled Exception: ${exception.message}`, exception.stack);
+      if ((exception as any).name === 'InvalidStateTransitionError') {
+        status = HttpStatus.BAD_REQUEST;
+        code = 'INVALID_STATE_TRANSITION';
+        message = exception.message;
+      } else {
+        status = HttpStatus.INTERNAL_SERVER_ERROR;
+        code = 'INTERNAL_SERVER_ERROR';
+        message = 'An unexpected internal error occurred. Please try again shortly.';
+        this.logger.error(`Unhandled Exception: ${exception.message}`, exception.stack);
+      }
     }
 
     if (status >= 500) {

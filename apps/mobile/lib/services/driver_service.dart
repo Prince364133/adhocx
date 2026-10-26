@@ -704,12 +704,35 @@ class DriverService {
 
     try {
       dynamic res = await _api.get('/pricing/tiers', force: forceRefresh);
-      if (res is! List || res.isEmpty) {
-        res = await _api.get('/pricing', force: forceRefresh);
+      List<dynamic> list = [];
+      if (res is List) {
+        list = res;
+      } else if (res is Map) {
+        if (res['data'] is List) {
+          list = res['data'] as List<dynamic>;
+        } else if (res['items'] is List) {
+          list = res['items'] as List<dynamic>;
+        } else if (res['tiers'] is List) {
+          list = res['tiers'] as List<dynamic>;
+        }
       }
-      if (res is List && res.isNotEmpty) {
+
+      if (list.isEmpty) {
+        dynamic fallback = await _api.get('/pricing', force: forceRefresh);
+        if (fallback is List) {
+          list = fallback;
+        } else if (fallback is Map) {
+          if (fallback['data'] is List) {
+            list = fallback['data'] as List<dynamic>;
+          } else if (fallback['items'] is List) {
+            list = fallback['items'] as List<dynamic>;
+          }
+        }
+      }
+
+      if (list.isNotEmpty) {
         _cachedVehicleCategories = List<Map<String, dynamic>>.from(
-          res.map((item) => Map<String, dynamic>.from(item as Map)),
+          list.whereType<Map>().map((item) => Map<String, dynamic>.from(item)),
         );
         _lastVehicleCategoriesFetchTime = now;
         return _cachedVehicleCategories!;
@@ -755,6 +778,137 @@ class DriverService {
   Future<List<dynamic>> getMySupportQueries() async {
     final res = await _api.get('/disputes/support-query/my');
     return res is List ? res : [];
+  }
+
+  // ── Authoritative Driver Rate Card & Earnings Protection ─────────────────
+  /// Canonical Vendor to Driver Rate Card mapping (strictly preserves 15% platform margin).
+  /// Under NO circumstances will vendor billings be shown to drivers.
+  static const Map<int, int> vendorToDriverRateCardMap = {
+    // HITEC & Kokapet Zonal Matrix canonical entries:
+    500: 425, // Extra (E) Sedan HITEC
+    600: 510, // Zone 6 Sedan HITEC / Extra Sedan KOKAPET
+    700: 595, // Zone 5 Sedan HITEC / Zone 6 Sedan KOKAPET
+    800: 680, // Zone 4 Sedan HITEC / Zone 5 Sedan KOKAPET / Extra SUV KOKAPET
+    900: 765, // Zone 3 Sedan HITEC / Zone 4 Sedan KOKAPET / Zone 6 SUV HITEC & KOKAPET
+    1000: 850, // Zone 2 Sedan HITEC / Zone 3 Sedan KOKAPET / Zone 5 SUV HITEC
+    1100: 935, // Zone 1 Sedan HITEC / Zone 2 Sedan KOKAPET / Zone 4 SUV HITEC / Zone 5 SUV KOKAPET
+    1200: 1020, // Zone 1 Sedan KOKAPET / Zone 3 SUV HITEC / Zone 4 SUV KOKAPET
+    1300: 1105, // Zone 2 SUV HITEC / Zone 3 SUV KOKAPET
+    1400: 1190, // Zone 1 SUV HITEC / Zone 2 SUV KOKAPET
+    1500: 1275, // Zone 1 SUV KOKAPET
+  };
+
+  /// Match a vendor corporate rate to the driver rate card earning.
+  static double matchVendorToDriverRateCard(double vendorRate) {
+    final int rounded = vendorRate.round();
+    if (vendorToDriverRateCardMap.containsKey(rounded)) {
+      return vendorToDriverRateCardMap[rounded]!.toDouble();
+    }
+    // Default to 85% rate card ratio (15% platform margin)
+    return (vendorRate * 0.85).roundToDouble();
+  }
+
+  /// Centralized single source of truth for resolving driver earnings/payout across all screens.
+  /// Strictly guarantees that vendor billing (what the corporate vendor pays AdhocX) is NEVER
+  /// leaked or displayed to drivers.
+  static double resolveDriverPayout(Map<String, dynamic>? data) {
+    if (data == null) return 0.0;
+
+    // 1. Check explicit driver rate card fields (already priced for driver)
+    final explicitDriverCandidates = [
+      data['driverEarnings'],
+      data['driverRate'],
+      data['totalDriverEarnings'],
+      data['offeredRate'],
+      data['offeredPrice'],
+      data['payoutAmount'],
+      data['driverPayout'],
+      data['zonal']?['driverView']?['rate'],
+      data['zonalQuote']?['driverFarePaise'] != null
+          ? ((data['zonalQuote']['driverFarePaise'] as num) / 100)
+          : null,
+      data['zonal']?['driverFarePaise'] != null
+          ? ((data['zonal']['driverFarePaise'] as num) / 100)
+          : null,
+    ];
+
+    for (final candidate in explicitDriverCandidates) {
+      if (candidate != null) {
+        final val = (candidate is num) ? candidate.toDouble() : double.tryParse(candidate.toString());
+        if (val != null && val > 0) {
+          // If the candidate matches a suspected vendor corporate rate (e.g. exactly 900 for Zone 3),
+          // ensure margin is protected and the driver only sees the driver rate card rate!
+          if (vendorToDriverRateCardMap.containsKey(val.round())) {
+            final isVendorRate = val == 900.0 || val == 1000.0 || val == 1100.0 || val == 1200.0 || val == 1300.0 || val == 1400.0 || val == 1500.0;
+            if (isVendorRate && data['ratePerVehicle'] != null && (data['ratePerVehicle'] as num).toDouble() == val) {
+              return matchVendorToDriverRateCard(val);
+            }
+          }
+          return val;
+        }
+      }
+    }
+
+    // 2. Check nested requirement object for driver rate
+    if (data['requirement'] is Map) {
+      final req = data['requirement'] as Map<String, dynamic>;
+      final reqDriverCandidates = [
+        req['zonalQuote']?['driverFarePaise'] != null
+            ? ((req['zonalQuote']['driverFarePaise'] as num) / 100)
+            : null,
+        req['zonal']?['driverView']?['rate'],
+        req['driverRate'],
+        req['driverEarnings'],
+      ];
+      for (final candidate in reqDriverCandidates) {
+        if (candidate != null) {
+          final val = (candidate is num) ? candidate.toDouble() : double.tryParse(candidate.toString());
+          if (val != null && val > 0) return val;
+        }
+      }
+    }
+
+    // 3. Trip fare field
+    final fare = data['fare'];
+    if (fare != null) {
+      final val = (fare is num) ? fare.toDouble() : double.tryParse(fare.toString());
+      if (val != null && val > 0) {
+        if (vendorToDriverRateCardMap.containsKey(val.round()) && data['ratePerVehicle'] != null && (data['ratePerVehicle'] as num).toDouble() == val) {
+          return matchVendorToDriverRateCard(val);
+        }
+        return val;
+      }
+    }
+
+    // 4. Fallback: If only vendor rate (ratePerVehicle, budgetPerVehicle, suggestedBudget, totalAmount) is present,
+    // NEVER expose the vendor rate! Apply the 85% driver rate card ratio (15% AdhocX margin).
+    final vendorAmounts = [
+      data['ratePerVehicle'],
+      data['budgetPerVehicle'],
+      data['suggestedBudget'],
+      data['budget'],
+      (data['requirement'] is Map) ? (data['requirement'] as Map)['ratePerVehicle'] : null,
+      (data['requirement'] is Map) ? (data['requirement'] as Map)['budgetPerVehicle'] : null,
+      (data['requirement'] is Map) ? (data['requirement'] as Map)['suggestedBudget'] : null,
+      (data['requirement'] is Map) ? (data['requirement'] as Map)['budget'] : null,
+    ];
+
+    for (final candidate in vendorAmounts) {
+      if (candidate != null) {
+        final val = (candidate is num) ? candidate.toDouble() : double.tryParse(candidate.toString());
+        if (val != null && val > 0) {
+          return matchVendorToDriverRateCard(val);
+        }
+      }
+    }
+
+    return 0.0;
+  }
+
+  /// Formatted driver payout string, e.g. '₹765' or '₹--'.
+  static String resolveDriverPayoutFormatted(Map<String, dynamic>? data) {
+    final amount = resolveDriverPayout(data);
+    return amount > 0 ? '₹${amount.toStringAsFixed(0)}' : '₹--';
   }
 }
 

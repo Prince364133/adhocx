@@ -16,7 +16,6 @@ import '../utils/vehicle_utils.dart';
 import './auth_service.dart';
 import './driver_service.dart';
 import './local_notification_service.dart';
-import './in_app_message_service.dart';
 import './permission_service.dart';
 
 /// Global Dispatch Overlay Service for AdhocX Driver App.
@@ -227,10 +226,17 @@ class GlobalDispatchOverlayService {
     final pickup = (req?['pickupLocation'] ?? offerData['pickupLocation'] ?? 'Pickup available').toString();
     final rate = (offerData['offeredRate'] ?? req?['ratePerVehicle'] ?? '').toString();
     final bodyText = rate.isNotEmpty ? '₹$rate • Pickup: $pickup' : 'Pickup: $pickup';
+    final payloadMap = {
+      'type': 'TRIP_OFFER',
+      'offerId': offerId,
+      'id': offerId,
+      'route': '/offers/$offerId',
+      ...offerData,
+    };
     LocalNotificationService.instance.showIncomingRideNotification(
       title: 'New Ride Requirement Available!',
       body: bodyText,
-      payload: offerId,
+      payload: jsonEncode(payloadMap),
     );
 
     // Delivery receipt: the driver actually saw this offer (unseen expiries are not penalized)
@@ -307,10 +313,10 @@ class GlobalDispatchOverlayService {
         } else {
           final title = payload['title']?.toString() ?? 'AdhocX Notification';
           final body = payload['body']?.toString() ?? payload['message']?.toString() ?? 'You have a new update';
-          InAppMessageService.instance.showInAppNotification(
+          LocalNotificationService.instance.showIncomingRideNotification(
             title: title,
             body: body,
-            data: payload,
+            payload: jsonEncode(payload),
           );
         }
         break;
@@ -321,18 +327,18 @@ class GlobalDispatchOverlayService {
         break;
       case 'DRIVER_COOLDOWN':
         final minutes = payload['cooldownMinutes']?.toString() ?? '3';
-        InAppMessageService.instance.showInAppNotification(
+        LocalNotificationService.instance.showIncomingRideNotification(
           title: 'Offers paused for $minutes min',
           body: payload['message']?.toString() ??
               'You skipped several nearby trips in a row. New offers resume automatically.',
-          data: payload,
+          payload: jsonEncode(payload),
         );
         break;
       case 'DRIVER_COOLDOWN_CLEARED':
-        InAppMessageService.instance.showInAppNotification(
+        LocalNotificationService.instance.showIncomingRideNotification(
           title: 'Offers resumed',
           body: payload['message']?.toString() ?? 'You can receive new trip offers again.',
-          data: payload,
+          payload: jsonEncode(payload),
         );
         break;
     }

@@ -16,6 +16,14 @@ export class CreateUserProfileDto {
 
   @IsOptional()
   @IsString()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  billingEmail?: string;
+
+  @IsOptional()
+  @IsString()
   gstNumber?: string;
 
   @IsOptional()

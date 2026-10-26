@@ -21,10 +21,14 @@ export function isPlaceholderName(name?: string | null): boolean {
     n === 'google partner' ||
     n === 'apple user' ||
     n === 'requester' ||
+    n === 'requester passenger' ||
     n === 'partner' ||
     n === 'partner name' ||
     n === 'corporate partner' ||
     n === 'corporate booker' ||
+    n === 'business booker' ||
+    n === 'corporate client' ||
+    n === 'passenger' ||
     n === 'adhocx partner' ||
     n === 'adhocx user' ||
     n === 'test driver'

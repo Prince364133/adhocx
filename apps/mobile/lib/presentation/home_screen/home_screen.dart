@@ -13,6 +13,7 @@ import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../shared/widgets/trip_rating_bottom_sheet.dart';
+import '../../shared/widgets/trip_start_otp_bottom_sheet.dart';
 import '../../shared/widgets/app_adaptive_skeleton.dart';
 import '../../shared/widgets/app_profile_avatar.dart';
 import 'package:geolocator/geolocator.dart';
@@ -44,6 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? _liveTrip;
   double _platformCommissionPercent = 10.0;
   Timer? _autoRefreshTimer;
+  StreamSubscription<Map<String, dynamic>>? _tripEventsSubscription;
   final TextEditingController _otpController = TextEditingController();
 
   @override
@@ -51,8 +53,19 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _loadLiveDriverData();
     _startAutoRefresh();
+    _listenToTripLifecycleEvents();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkStartupPermissionStatus();
+    });
+  }
+
+  void _listenToTripLifecycleEvents() {
+    _tripEventsSubscription?.cancel();
+    _tripEventsSubscription = DriverService.instance.tripEventsStream.listen((event) {
+      debugPrint('🚗 [HomeScreen] Realtime trip event received: $event -> force syncing live state');
+      if (mounted) {
+        _loadLiveDriverData(silent: true, force: true);
+      }
     });
   }
 
@@ -74,6 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _autoRefreshTimer?.cancel();
+    _tripEventsSubscription?.cancel();
     _otpController.dispose();
     GlobalDispatchOverlayService.instance.stopRealtimeListener();
     LocationMonitorService.instance.stopMonitoring();
@@ -86,8 +100,9 @@ class _HomeScreenState extends State<HomeScreen> {
     _autoRefreshTimer?.cancel();
     _autoRefreshTimer = Timer.periodic(const Duration(seconds: 6), (_) {
       if (GlobalDispatchOverlayService.instance.isPaymentFlowActive) return;
-      if (mounted && (_currentState == DriverHomeState.available || _currentState == DriverHomeState.offerAttention)) {
-        _loadLiveDriverData(silent: true, force: false);
+      if (mounted && _currentState != DriverHomeState.offline) {
+        final isOnTrip = _currentState == DriverHomeState.assignedTrip || _currentState == DriverHomeState.activeTrip;
+        _loadLiveDriverData(silent: true, force: isOnTrip);
       }
     });
   }
@@ -206,6 +221,12 @@ class _HomeScreenState extends State<HomeScreen> {
             return;
           }
 
+          // Neither active nor assigned trip exists: clear stale trip and release driver state!
+          _liveTrip = null;
+          if (_currentState == DriverHomeState.assignedTrip || _currentState == DriverHomeState.activeTrip) {
+            _currentState = DriverHomeState.available;
+          }
+
           // Resolve driver vehicle category
           String driverVehicle = VehicleUtils.extractVehicleType(profile);
           if (driverVehicle.isEmpty) {
@@ -237,10 +258,9 @@ class _HomeScreenState extends State<HomeScreen> {
             _liveOffer = null;
           }
 
-          // 4. If driver is available and has no assigned/active trip, ensure available state
+          // 4. If driver is available and has no active trip, ensure available state
           if (_currentState != DriverHomeState.offline &&
-              _currentState != DriverHomeState.assignedTrip &&
-              _currentState != DriverHomeState.activeTrip) {
+              _currentState != DriverHomeState.completedTrip) {
             _currentState = DriverHomeState.available;
           }
         });
@@ -943,16 +963,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final pickup = (offer?['pickupLocation']?['address'] ?? offer?['pickup'] ?? reqObj?['pickupAddress'] ?? 'Pickup Location').toString();
     final drop = (offer?['dropLocation']?['address'] ?? offer?['drop'] ?? reqObj?['dropAddress'] ?? 'Drop Location').toString();
     
-    final rawRate = offer?['offeredRate'] ??
-        offer?['suggestedBudget'] ??
-        offer?['offeredPrice'] ??
-        offer?['driverRate'] ??
-        reqObj?['ratePerVehicle'] ??
-        reqObj?['budget'] ??
-        reqObj?['suggestedBudget'];
-    final num rate = rawRate != null
-        ? ((rawRate is num) ? rawRate : (num.tryParse(rawRate.toString()) ?? 0))
-        : 0;
+    final num rate = DriverService.resolveDriverPayout(offer);
     final rateStr = rate > 0 ? '₹ ${rate.toStringAsFixed(0)} Net' : '₹ Net';
 
     return Column(
@@ -1305,9 +1316,20 @@ class _HomeScreenState extends State<HomeScreen> {
                     try {
                       await DriverService.instance.markArrived(tripId);
                       Fluttertoast.showToast(msg: 'Marked arrived! Ask passenger for OTP.', backgroundColor: AppColors.primary);
-                      _loadLiveDriverData(silent: false);
+                      await _loadLiveDriverData(silent: false, force: true);
                     } catch (e) {
-                      Fluttertoast.showToast(msg: 'Error: $e', backgroundColor: AppColors.error);
+                      // Stale trip or already completed/cancelled: force re-sync
+                      DriverService.instance.notifyTripChanged(tripId: tripId);
+                      await _loadLiveDriverData(silent: true, force: true);
+                      if (!mounted) return;
+                      if (_liveTrip == null || _currentState != DriverHomeState.assignedTrip) {
+                        Fluttertoast.showToast(
+                          msg: 'Trip is already completed or cancelled. State updated.',
+                          backgroundColor: AppColors.accentGreenDark,
+                        );
+                      } else {
+                        Fluttertoast.showToast(msg: '$e', backgroundColor: AppColors.error);
+                      }
                     }
                   },
                   icon: const Icon(Icons.pin_drop_rounded, color: Colors.white),
@@ -1381,79 +1403,85 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (status == 'ARRIVED') ...[
-                Text(
-                  'Enter Passenger Start OTP',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.pin_outlined, color: AppColors.primary, size: 28),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '4-Digit Start OTP Required',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                              ),
+                            ),
+                            Text(
+                              'Ask passenger for their 4-digit PIN to begin trip',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: _otpController,
-                  keyboardType: TextInputType.number,
-                  maxLength: 4,
-                  style: TextStyle(
-                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: 'Enter 4-digit OTP (e.g. 1234)',
-                    hintStyle: TextStyle(
-                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                    ),
-                    prefixIcon: const Icon(Icons.lock_clock_outlined),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                  ),
-                ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
-                  height: 46,
-                  child: ElevatedButton(
+                  height: 48,
+                  child: ElevatedButton.icon(
                     onPressed: () async {
-                      final otp = _otpController.text.trim();
-                      if (otp.isEmpty) {
-                        Fluttertoast.showToast(msg: 'Please enter 4-digit OTP');
-                        return;
-                      }
-                      try {
-                        await DriverService.instance.startTrip(tripId, otp);
-                        Fluttertoast.showToast(msg: 'Trip Started! Drive safely.', backgroundColor: AppColors.success);
-                        _loadLiveDriverData(silent: false);
-                      } catch (e) {
-                        if (mounted) {
-                          showDialog(
-                            context: context,
-                          builder: (ctx) => AlertDialog(
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
-                            title: const Row(
-                              children: [
-                                Icon(Icons.error_outline, color: AppColors.error),
-                                SizedBox(width: 8),
-                                Text('Invalid Start OTP', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                              ],
-                            ),
-                            content: Text(
-                              'The OTP entered ($otp) is incorrect.\n\nPlease ask the passenger for the 4-digit Ride Start PIN displayed on their AdhocX booking screen.',
-                              style: const TextStyle(fontSize: 13),
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.of(ctx).pop(),
-                                child: const Text('OK, Try Again'),
-                              ),
-                            ],
-                          ),
+                      final rawName = trip?['passengerName'] ??
+                          trip?['userName'] ??
+                          trip?['customerName'] ??
+                          trip?['user']?['fullName'] ??
+                          trip?['vendor']?['user']?['fullName'];
+                      final sanitized = sanitizeRealName(rawName?.toString());
+                      final pName = sanitized.isNotEmpty ? sanitized : 'Passenger';
+                      final started = await TripStartOtpBottomSheet.show(
+                        context: context,
+                        tripId: tripId,
+                        passengerName: pName,
+                      );
+                      if (started == true) {
+                        Fluttertoast.showToast(
+                          msg: 'Trip Started! Drive safely.',
+                          backgroundColor: AppColors.success,
                         );
-                        }
+                        _loadLiveDriverData(silent: false);
                       }
                     },
+                    icon: const Icon(Icons.verified_outlined, color: Colors.white, size: 20),
+                    label: const Text(
+                      'ENTER 4-DIGIT OTP & START TRIP →',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.accentGreenDark,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                      ),
                     ),
-                    child: const Text('START TRIP →', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ] else ...[
@@ -1495,8 +1523,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showCompleteTripModal(BuildContext context, String tripId, String dropAddress, String rawFare) {
-    final tollController = TextEditingController();
-    final parkingController = TextEditingController();
     final baseFare = double.tryParse(rawFare.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
     bool isSubmitting = false;
 
@@ -1509,12 +1535,10 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (ctx, setModalState) {
           final isDark = Theme.of(ctx).brightness == Brightness.dark;
           final bottomInset = MediaQuery.of(ctx).viewInsets.bottom;
-          final toll = double.tryParse(tollController.text.trim()) ?? 0.0;
-          final parking = double.tryParse(parkingController.text.trim()) ?? 0.0;
           final isCorporate = (_liveTrip?['requirement']?['fulfillmentMode'] ?? _liveTrip?['fulfillmentMode']) == 'CORPORATE_DISPATCH' || _liveTrip?['localityTier'] != null;
           final commissionPercent = _platformCommissionPercent;
           final platformFee = isCorporate ? 0.0 : (baseFare * (commissionPercent / 100.0)).roundToDouble();
-          final netPayout = (baseFare - platformFee + toll + parking).clamp(0.0, 9999999.0);
+          final netPayout = (baseFare - platformFee).clamp(0.0, 9999999.0);
 
           return SafeArea(
             top: false,
@@ -1556,43 +1580,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: TextStyle(fontSize: 12, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
                   ),
                   const Divider(height: 24),
-                  Text(
-                    'Additional FASTag Toll / Parking (Optional)',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? AppColors.textPrimaryDark : AppColors.slate900),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: tollController,
-                          keyboardType: TextInputType.number,
-                          onChanged: (_) => setModalState(() {}),
-                          decoration: InputDecoration(
-                            labelText: 'Toll (₹)',
-                            hintText: '0',
-                            prefixText: '₹ ',
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: parkingController,
-                          keyboardType: TextInputType.number,
-                          onChanged: (_) => setModalState(() {}),
-                          decoration: InputDecoration(
-                            labelText: 'Parking (₹)',
-                            hintText: '0',
-                            prefixText: '₹ ',
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -1615,26 +1602,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               Text('Platform Commission (${commissionPercent.toStringAsFixed(0)}%)', style: const TextStyle(fontSize: 12, color: AppColors.error)),
                               Text('-₹ ${platformFee.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.error)),
-                            ],
-                          ),
-                        ],
-                        if (toll > 0) ...[
-                          const SizedBox(height: 4),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('Toll Charges', style: TextStyle(fontSize: 12, color: AppColors.success)),
-                              Text('+₹ ${toll.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.success)),
-                            ],
-                          ),
-                        ],
-                        if (parking > 0) ...[
-                          const SizedBox(height: 4),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('Parking Charges', style: TextStyle(fontSize: 12, color: AppColors.success)),
-                              Text('+₹ ${parking.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.success)),
                             ],
                           ),
                         ],
@@ -1664,8 +1631,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               try {
                                 await DriverService.instance.completeTrip(
                                   tripId,
-                                  tollCharges: toll,
-                                  parkingCharges: parking,
                                 );
                                 if (ctx.mounted) Navigator.of(ctx).pop();
                                 Fluttertoast.showToast(msg: 'Trip Completed! ₹${netPayout.toStringAsFixed(0)} credited.', backgroundColor: AppColors.success);

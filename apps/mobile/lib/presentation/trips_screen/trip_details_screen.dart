@@ -12,7 +12,9 @@ import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/common/app_primary_button.dart';
 import '../../core/utils/app_toast.dart';
+import '../../core/utils/name_utils.dart';
 import '../../shared/widgets/app_profile_avatar.dart';
+import '../../shared/widgets/trip_start_otp_bottom_sheet.dart';
 
 /// Screen 3: Trip Details with live backend integration and full lifecycle support.
 class TripDetailsScreen extends StatefulWidget {
@@ -56,7 +58,13 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
     try {
       final updated = await DriverService.instance.getTrip(tripId);
       if (updated != null && mounted) {
-        setState(() => _trip = updated);
+        setState(() {
+          if (updated is Map && _trip is Map) {
+            _trip = Map<String, dynamic>.from(_trip as Map)..addAll(Map<String, dynamic>.from(updated));
+          } else {
+            _trip = updated;
+          }
+        });
       }
     } catch (_) {}
   }
@@ -154,6 +162,8 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
       );
       await _fetchTripDetails();
     } catch (e) {
+      DriverService.instance.notifyTripChanged(tripId: tripId);
+      await _fetchTripDetails();
       if (mounted) {
         AppToast.showError(e, context: context);
       }
@@ -162,61 +172,19 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
     }
   }
 
-  Future<void> _handleStartTrip(String tripId) async {
-    final otpController = TextEditingController();
-    final bool? confirmed = await showDialog<bool>(
+  Future<void> _handleStartTrip(String tripId, {String? passengerName}) async {
+    final verified = await TripStartOtpBottomSheet.show(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Start Trip - Enter OTP'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Ask passenger/requester for the 4 or 6 digit trip start OTP:'),
-            const SizedBox(height: 12),
-            TextField(
-              controller: otpController,
-              keyboardType: TextInputType.number,
-              autofocus: true,
-              decoration: const InputDecoration(
-                labelText: 'Trip Start OTP',
-                hintText: 'e.g. 1234 or 123456',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('CANCEL'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('VERIFY & START', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+      tripId: tripId,
+      passengerName: passengerName,
     );
 
-    if (confirmed == true && otpController.text.trim().isNotEmpty) {
-      setState(() => _isActionInProgress = true);
-      try {
-        await DriverService.instance.startTrip(tripId, otpController.text.trim());
-        DriverService.instance.notifyTripChanged(tripId: tripId, status: 'IN_PROGRESS');
-        Fluttertoast.showToast(
-          msg: 'Trip started successfully!',
-          backgroundColor: AppColors.accentGreenDark,
-        );
-        await _fetchTripDetails();
-      } catch (e) {
-        if (mounted) {
-          AppToast.showError(e, context: context);
-        }
-      } finally {
-        if (mounted) setState(() => _isActionInProgress = false);
-      }
+    if (verified == true) {
+      Fluttertoast.showToast(
+        msg: 'Trip started successfully!',
+        backgroundColor: AppColors.accentGreenDark,
+      );
+      await _fetchTripDetails();
     }
   }
 
@@ -291,41 +259,68 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
         : LocationService.estimateRoadEtaMinutes(computedDistance);
     final durationStr = '$computedDuration min';
 
-    final rawTripPayout = trip['driverRate'] ??
-        trip['driverEarnings'] ??
-        trip['totalDriverEarnings'] ??
-        trip['fare'] ??
-        req['ratePerVehicle'] ??
-        req['budgetPerVehicle'] ??
-        req['suggestedBudget'] ??
-        trip['ratePerVehicle'];
-    final num parsedTripPayout = rawTripPayout != null
-        ? ((rawTripPayout is num) ? rawTripPayout : (num.tryParse(rawTripPayout.toString()) ?? 0))
-        : 0;
-    final payout = parsedTripPayout > 0 ? '₹${parsedTripPayout.toStringAsFixed(0)}' : '₹--';
+    final payout = DriverService.resolveDriverPayoutFormatted(trip);
 
-    final passengerName = trip['vendorName'] ??
-        trip['requesterName'] ??
-        trip['vendor']?['fullName'] ??
-        trip['vendor']?['user']?['fullName'] ??
-        trip['vendor']?['organizationName'] ??
-        trip['vendorOrganizationName'] ??
-        req['vendor']?['fullName'] ??
-        req['vendor']?['organizationName'] ??
-        req['vendor']?['businessName'] ??
-        'User';
-    final passengerPhoto = trip['vendorPhoto'] ??
+    final List<String?> nameCandidates = [
+      trip['userName']?.toString(),
+      trip['passengerName']?.toString(),
+      trip['customerName']?.toString(),
+      trip['user']?['fullName']?.toString(),
+      trip['vendor']?['user']?['fullName']?.toString(),
+      req['vendor']?['user']?['fullName']?.toString(),
+      trip['vendor']?['fullName']?.toString(),
+      trip['vendorName']?.toString(),
+      trip['requesterName']?.toString(),
+      req['vendor']?['fullName']?.toString(),
+      trip['vendorOrganizationName']?.toString(),
+      trip['vendor']?['organizationName']?.toString(),
+      req['vendor']?['organizationName']?.toString(),
+      req['vendor']?['businessName']?.toString(),
+      req['vendor']?['companyName']?.toString(),
+    ];
+
+    String passengerName = '';
+    for (final candidate in nameCandidates) {
+      final sanitized = sanitizeRealName(candidate);
+      if (sanitized.isNotEmpty) {
+        passengerName = sanitized;
+        break;
+      }
+    }
+    if (passengerName.isEmpty) {
+      passengerName = 'Customer';
+    }
+
+    final List<String?> phoneCandidates = [
+      trip['passengerPhone']?.toString(),
+      trip['customerPhone']?.toString(),
+      trip['userPhone']?.toString(),
+      trip['user']?['phone']?.toString(),
+      trip['vendor']?['user']?['phone']?.toString(),
+      trip['vendor']?['phone']?.toString(),
+      trip['vendorPhone']?.toString(),
+      req['vendor']?['user']?['phone']?.toString(),
+      req['vendor']?['phone']?.toString(),
+      req['user']?['phone']?.toString(),
+    ];
+
+    String passengerPhone = '';
+    for (final candidate in phoneCandidates) {
+      final p = (candidate ?? '').trim();
+      if (p.isNotEmpty && p != '—' && p != '-' && p != '+91 98765 43210') {
+        passengerPhone = p;
+        break;
+      }
+    }
+
+    final passengerPhoto = trip['passengerPhoto'] ??
+        trip['vendorPhoto'] ??
         trip['requesterPhoto'] ??
         trip['vendor']?['photoUrl'] ??
         trip['vendor']?['user']?['photoUrl'] ??
         trip['vendor']?['logoUrl'] ??
         req['vendor']?['photoUrl'] ??
         req['vendor']?['logoUrl'];
-    final passengerPhone = trip['vendorPhone'] ??
-        trip['vendor']?['phone'] ??
-        trip['vendor']?['user']?['phone'] ??
-        req['vendor']?['phone'] ??
-        '+91 98765 43210';
     final vehicle = req['vehicleType']?.toString() ?? 'Commercial Vehicle';
     final startOtp = trip['startOtp'] ?? req['startOtp'];
 
@@ -729,7 +724,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                               child: AppPrimaryButton(
                                 text: 'START TRIP (OTP)',
                                 isLoading: _isActionInProgress,
-                                onPressed: () => _handleStartTrip(tripId),
+                                onPressed: () => _handleStartTrip(tripId, passengerName: passengerName),
                               ),
                             ),
                           ],

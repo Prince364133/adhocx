@@ -12,7 +12,6 @@ import {
   DriverAvailability,
   VehicleType,
   UserRole,
-  InvalidStateTransitionError,
 } from '@adhocx/contracts';
 
 describe('TripsService Unit Tests', () => {
@@ -209,7 +208,7 @@ describe('TripsService Unit Tests', () => {
     db.driver.findUnique.mockResolvedValue({ id: 'drv-1', userId: 'usr-drv-1' });
 
     await expect(service.markArrived('trip-1', 'usr-drv-1')).rejects.toThrow(
-      InvalidStateTransitionError,
+      BadRequestException,
     );
   });
 

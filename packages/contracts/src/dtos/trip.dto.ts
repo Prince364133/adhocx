@@ -86,6 +86,11 @@ export class TripResponseDto {
   vehiclePlate?: string;
   vehicleModel?: string;
   driver?: any;
+  vendorName?: string;
+  vendorPhone?: string;
+  vendorOrganizationName?: string;
+  requesterName?: string;
+  vendor?: any;
   createdAt!: string;
   updatedAt!: string;
 }
@@ -114,11 +119,6 @@ export class TripEventResponseDto {
 }
 
 export class TripDetailResponseDto extends TripResponseDto {
-  vendorOrganizationName?: string;
-  vendorName?: string;
-  vendorPhone?: string;
-  requesterName?: string;
-  vendor?: any;
   distanceKm?: number;
   durationMinutes?: number;
   startOtp?: string;

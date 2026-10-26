@@ -8,6 +8,9 @@ import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../services/language_service.dart';
+import '../../shared/widgets/google_route_map_widget.dart';
+import '../../shared/widgets/safe_ui_widgets.dart';
+import '../../core/utils/name_utils.dart';
 
 class TripsScreen extends StatefulWidget {
   const TripsScreen({super.key});
@@ -326,17 +329,7 @@ class _TripsScreenState extends State<TripsScreen>
                 req['dropLocation']?['address'] ??
                 'Drop Location';
             final vehicle = req['vehicleType']?.toString() ?? 'Sedan';
-            final rawAmount = trip['driverRate'] ??
-                trip['driverEarnings'] ??
-                trip['totalDriverEarnings'] ??
-                trip['fare'] ??
-                req['ratePerVehicle'] ??
-                req['budget'] ??
-                req['suggestedBudget'];
-            final num parsedPayout = rawAmount != null
-                ? ((rawAmount is num) ? rawAmount : (num.tryParse(rawAmount.toString()) ?? 0))
-                : 0;
-            final payout = parsedPayout > 0 ? '₹${parsedPayout.toStringAsFixed(0)}' : '₹--';
+            final payout = DriverService.resolveDriverPayoutFormatted(trip);
             final status = (trip['status'] ?? 'ASSIGNED').toString().toUpperCase();
             final title = '${vehicle.toUpperCase()} Booking';
             final time = trip['reportingTime'] != null
@@ -607,10 +600,72 @@ class _TripsScreenState extends State<TripsScreen>
         final drop = trip['dropLocation']?['address'] ??
             req['dropLocation']?['address'] ??
             'Drop Location';
-        final payout = '₹${trip['driverEarnings'] ?? trip['fare'] ?? trip['ratePerVehicle'] ?? 0}';
-        final passengerName = req['vendor']?['businessName'] ?? req['vendor']?['companyName'] ?? 'Requester Passenger';
-        final passengerPhone = req['vendor']?['phone'] ?? '\u2014';
+        final payout = DriverService.resolveDriverPayoutFormatted(trip);
+        final passengerNameCandidates = [
+          trip['userName'],
+          trip['passengerName'],
+          trip['customerName'],
+          trip['user']?['fullName'],
+          trip['vendor']?['user']?['fullName'],
+          req['vendor']?['user']?['fullName'],
+          trip['vendor']?['fullName'],
+          trip['vendorName'],
+          trip['requesterName'],
+          req['vendor']?['fullName'],
+          trip['vendorOrganizationName'],
+          trip['vendor']?['organizationName'],
+          req['vendor']?['organizationName'],
+          req['vendor']?['businessName'],
+          req['vendor']?['companyName'],
+        ];
+        String passengerName = '';
+        for (final c in passengerNameCandidates) {
+          final s = sanitizeRealName(c?.toString());
+          if (s.isNotEmpty) {
+            passengerName = s;
+            break;
+          }
+        }
+        if (passengerName.isEmpty) passengerName = 'Customer';
+
+        final passengerPhoneCandidates = [
+          trip['passengerPhone'],
+          trip['customerPhone'],
+          trip['userPhone'],
+          trip['user']?['phone'],
+          trip['vendor']?['user']?['phone'],
+          trip['vendor']?['phone'],
+          trip['vendorPhone'],
+          req['vendor']?['user']?['phone'],
+          req['vendor']?['phone'],
+        ];
+        String passengerPhone = '';
+        for (final c in passengerPhoneCandidates) {
+          final p = (c?.toString() ?? '').trim();
+          if (p.isNotEmpty && p != '—' && p != '-' && p != '+91 98765 43210') {
+            passengerPhone = p;
+            break;
+          }
+        }
+        if (passengerPhone.isEmpty) passengerPhone = '\u2014';
         final vehicle = req['vehicleType']?.toString() ?? 'Commercial Vehicle';
+
+        final pLat = (trip['pickupLocation']?['latitude'] as num?)?.toDouble() ??
+            (req['pickupLocation']?['latitude'] as num?)?.toDouble() ??
+            (req['pickupLat'] as num?)?.toDouble() ??
+            17.3850;
+        final pLng = (trip['pickupLocation']?['longitude'] as num?)?.toDouble() ??
+            (req['pickupLocation']?['longitude'] as num?)?.toDouble() ??
+            (req['pickupLng'] as num?)?.toDouble() ??
+            78.4867;
+        final dLat = (trip['dropLocation']?['latitude'] as num?)?.toDouble() ??
+            (req['dropLocation']?['latitude'] as num?)?.toDouble() ??
+            (req['dropLat'] as num?)?.toDouble() ??
+            17.4435;
+        final dLng = (trip['dropLocation']?['longitude'] as num?)?.toDouble() ??
+            (req['dropLocation']?['longitude'] as num?)?.toDouble() ??
+            (req['dropLng'] as num?)?.toDouble() ??
+            78.3808;
 
         return Column(
           children: [
@@ -621,24 +676,19 @@ class _TripsScreenState extends State<TripsScreen>
                 color: AppColors.accentGreenDark,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'ONGOING TRIP',
-                    style: AppTypography.caption(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
+              child: SafeHeaderRow(
+                title: 'ONGOING TRIP',
+                titleStyle: AppTypography.caption(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+                trailing: Text(
+                  'Trip ID: $shortTripId',
+                  style: AppTypography.caption(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
                   ),
-                  Text(
-                    'Trip ID: $shortTripId',
-                    style: AppTypography.caption(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
 
@@ -655,31 +705,26 @@ class _TripsScreenState extends State<TripsScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '$vehicle Transfer',
-                        style: AppTypography.h3(
-                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                  SafeHeaderRow(
+                    title: '$vehicle Transfer',
+                    titleStyle: AppTypography.h3(
+                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    trailing: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.accentGreenDark.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(AppRadius.xs),
+                      ),
+                      child: Text(
+                        status,
+                        style: AppTypography.caption(
+                          color: isDark ? AppColors.accentGreen : AppColors.accentGreenDark,
                           fontWeight: FontWeight.bold,
-                        ),
+                        ).copyWith(fontSize: 10),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.accentGreenDark.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(AppRadius.xs),
-                        ),
-                        child: Text(
-                          status,
-                          style: AppTypography.caption(
-                            color: isDark ? AppColors.accentGreen : AppColors.accentGreenDark,
-                            fontWeight: FontWeight.bold,
-                          ).copyWith(fontSize: 10),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.md),
 
@@ -743,39 +788,17 @@ class _TripsScreenState extends State<TripsScreen>
                   ),
                   const SizedBox(height: AppSpacing.lg),
 
-                  // Map Preview
-                  Container(
-                    height: 140,
-                    decoration: BoxDecoration(
-                      color: isDark ? AppColors.surfaceElevatedDark : AppColors.borderLight,
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    child: Stack(
-                      children: [
-                        Center(
-                          child: Icon(
-                            Icons.map_outlined,
-                            size: 64,
-                            color: isDark ? AppColors.textMutedDark : AppColors.infoContainer,
-                          ),
-                        ),
-                        Positioned(
-                          bottom: 8,
-                          right: 8,
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: const BoxDecoration(
-                              color: AppColors.primary,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.navigation_outlined,
-                              size: 16,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ],
+                  // ── Real Live Google Route Map Preview ──────────────────────
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    child: GoogleRouteMapWidget(
+                      pickupLat: pLat,
+                      pickupLng: pLng,
+                      dropLat: dLat,
+                      dropLng: dLng,
+                      pickupAddress: pickup,
+                      dropAddress: drop,
+                      height: 160,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
@@ -790,15 +813,14 @@ class _TripsScreenState extends State<TripsScreen>
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildStepNode(title: 'Assigned', isDone: true, isDark: isDark),
+                      Flexible(child: _buildStepNode(title: 'Assigned', isDone: true, isDark: isDark)),
                       Expanded(child: _buildStepLine(isDone: isArrived || isInProgress, isDark: isDark)),
-                      _buildStepNode(title: 'Arrived', isDone: isArrived || isInProgress, isActive: isArrived, isDark: isDark),
+                      Flexible(child: _buildStepNode(title: 'Arrived', isDone: isArrived || isInProgress, isActive: isArrived, isDark: isDark)),
                       Expanded(child: _buildStepLine(isDone: isInProgress, isDark: isDark)),
-                      _buildStepNode(title: 'In Progress', isDone: isInProgress, isActive: isInProgress, isDark: isDark),
+                      Flexible(child: _buildStepNode(title: 'In Progress', isDone: isInProgress, isActive: isInProgress, isDark: isDark)),
                       Expanded(child: _buildStepLine(isDone: false, isDark: isDark)),
-                      _buildStepNode(title: 'Completed', isDone: false, isDark: isDark),
+                      Flexible(child: _buildStepNode(title: 'Completed', isDone: false, isDark: isDark)),
                     ],
                   ),
                   const SizedBox(height: AppSpacing.lg),
@@ -810,6 +832,7 @@ class _TripsScreenState extends State<TripsScreen>
 
                   // Passenger & Payout Row
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
                         child: Column(
@@ -820,23 +843,32 @@ class _TripsScreenState extends State<TripsScreen>
                               style: AppTypography.caption(
                                 color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
+                            const SizedBox(height: 2),
                             Text(
                               passengerName,
                               style: AppTypography.body(
                                 color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                 fontWeight: FontWeight.bold,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
+                            const SizedBox(height: 2),
                             Text(
                               passengerPhone,
                               style: AppTypography.caption(
                                 color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
                       ),
+                      const SizedBox(width: 12),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
@@ -1022,16 +1054,7 @@ class _TripsScreenState extends State<TripsScreen>
                 req['dropLocation']?['address'] ??
                 'Drop Location';
             final vehicle = req['vehicleType']?.toString() ?? 'Sedan';
-            final rawAmount = trip['totalDriverEarnings'] ??
-                trip['driverRate'] ??
-                trip['driverEarnings'] ??
-                trip['fare'] ??
-                req['ratePerVehicle'] ??
-                req['budget'];
-            final num parsedPayout = rawAmount != null
-                ? ((rawAmount is num) ? rawAmount : (num.tryParse(rawAmount.toString()) ?? 0))
-                : 0;
-            final payout = parsedPayout > 0 ? '₹${parsedPayout.toStringAsFixed(0)}' : '₹--';
+            final payout = DriverService.resolveDriverPayoutFormatted(trip);
             final time = trip['completedAt'] != null
                 ? trip['completedAt'].toString().split('T').first
                 : 'Completed';
@@ -1231,6 +1254,8 @@ class _TripsScreenState extends State<TripsScreen>
         const SizedBox(height: 4),
         Text(
           title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
             fontSize: 10,
             fontWeight: isDone || isActive ? FontWeight.bold : FontWeight.w500,

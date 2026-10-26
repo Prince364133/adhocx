@@ -49,7 +49,10 @@ class _DriverSubmitBidSheetState extends State<DriverSubmitBidSheet> {
   @override
   void initState() {
     super.initState();
-    final suggested = (widget.opportunity['suggestedBudget'] ?? widget.opportunity['offeredPrice'] ?? 3500) as num;
+    final resolved = DriverService.resolveDriverPayout(widget.opportunity);
+    final suggested = resolved > 0
+        ? resolved
+        : ((widget.opportunity['suggestedBudget'] ?? widget.opportunity['offeredPrice'] ?? 3500) as num).toDouble();
     _bidAmountController = TextEditingController(text: suggested.toInt().toString());
     _etaController = TextEditingController(text: '15');
     _notesController = TextEditingController();
@@ -117,7 +120,10 @@ class _DriverSubmitBidSheetState extends State<DriverSubmitBidSheet> {
     final vehicle = req?['vehicleType'] ?? op['vehicleType'] ?? 'Sedan';
     final pickup = req?['pickupAddress'] ?? op['pickup'] ?? op['pickupAddress'] ?? 'Pickup';
     final drop = req?['dropAddress'] ?? op['drop'] ?? op['dropAddress'] ?? 'Destination';
-    final targetBudget = (op['suggestedBudget'] ?? op['offeredPrice'] ?? req?['budgetPerVehicle'] ?? 3500) as num;
+    final resolvedBudget = DriverService.resolveDriverPayout(op);
+    final targetBudget = resolvedBudget > 0
+        ? resolvedBudget
+        : ((op['suggestedBudget'] ?? op['offeredPrice'] ?? 3500) as num).toDouble();
 
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),

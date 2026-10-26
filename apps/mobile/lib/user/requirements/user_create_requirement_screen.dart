@@ -661,86 +661,35 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                                 ),
                               ),
                               const SizedBox(height: 24),
-                              LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final isStacked = constraints.maxWidth < 360;
-                                  if (isStacked) {
-                                    return Column(
-                                      children: [
-                                        SizedBox(
-                                          width: double.infinity,
-                                          child: ElevatedButton.icon(
-                                            onPressed: _openAddCabSheet,
-                                            icon: const Icon(Icons.add_rounded, size: 20),
-                                            label: const Text('Add First Cab', style: TextStyle(fontWeight: FontWeight.bold)),
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: AppColors.primary,
-                                              foregroundColor: Colors.white,
-                                              padding: const EdgeInsets.symmetric(vertical: 14),
-                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 10),
-                                        SizedBox(
-                                          width: double.infinity,
-                                          child: OutlinedButton.icon(
-                                            onPressed: _showSavedTemplatesBottomSheet,
-                                            icon: const Icon(Icons.bookmark_rounded, size: 18),
-                                            label: const Text('Saved Templates', style: TextStyle(fontWeight: FontWeight.bold)),
-                                            style: OutlinedButton.styleFrom(
-                                              foregroundColor: AppColors.primary,
-                                              padding: const EdgeInsets.symmetric(vertical: 14),
-                                              side: const BorderSide(color: AppColors.primary),
-                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    );
-                                  }
-                                  return Row(
-                                    children: [
-                                      Expanded(
-                                        child: ElevatedButton.icon(
-                                          onPressed: _openAddCabSheet,
-                                          icon: const Icon(Icons.add_rounded, size: 18),
-                                          label: const Text(
-                                            'Add First Cab',
-                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: AppColors.primary,
-                                            foregroundColor: Colors.white,
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
-                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                                          ),
-                                        ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      onPressed: _openAddCabSheet,
+                                      icon: const Icon(Icons.add_rounded, size: 20),
+                                      label: const Text('Add First Cab', style: TextStyle(fontWeight: FontWeight.bold)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.primary,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(vertical: 14),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                                       ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: OutlinedButton.icon(
-                                          onPressed: _showSavedTemplatesBottomSheet,
-                                          icon: const Icon(Icons.bookmark_rounded, size: 18),
-                                          label: const Text(
-                                            'Saved Templates',
-                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          style: OutlinedButton.styleFrom(
-                                            foregroundColor: AppColors.primary,
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
-                                            side: const BorderSide(color: AppColors.primary),
-                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: AppColors.primary),
+                                      borderRadius: BorderRadius.circular(AppRadius.md),
+                                    ),
+                                    child: IconButton(
+                                      onPressed: _showSavedTemplatesBottomSheet,
+                                      icon: const Icon(Icons.bookmark_rounded, color: AppColors.primary),
+                                      tooltip: 'Saved Templates',
+                                      padding: const EdgeInsets.all(12),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -768,15 +717,13 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                TextButton.icon(
+                                IconButton(
                                   onPressed: _showSavedTemplatesBottomSheet,
-                                  style: TextButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                    minimumSize: Size.zero,
-                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                  ),
-                                  icon: const Icon(Icons.bookmarks_outlined, size: 14, color: AppColors.primary),
-                                  label: const Text('Templates', style: TextStyle(fontSize: 11, color: AppColors.primary)),
+                                  icon: const Icon(Icons.bookmarks_outlined, size: 18, color: AppColors.primary),
+                                  tooltip: 'Saved Templates',
+                                  visualDensity: VisualDensity.compact,
+                                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                                  constraints: const BoxConstraints(),
                                 ),
                                 const SizedBox(width: 4),
                                 TextButton(

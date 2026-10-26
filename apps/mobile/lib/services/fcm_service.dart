@@ -1,11 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
-import 'package:go_router/go_router.dart';
 import './local_notification_service.dart';
-import './in_app_message_service.dart';
 import '../routes/app_routes.dart';
 import '../utils/dispatch_sound_player.dart';
 
@@ -86,13 +85,7 @@ class FcmService {
             DispatchSoundPlayer.playNotificationChime(title: title, body: body);
           }
 
-          // Show in-app animated message banner inside running application
-          InAppMessageService.instance.showInAppNotification(
-            title: title,
-            body: body,
-            data: message.data,
-            playSound: false, // already played above
-          );
+          // Native Android heads-up notification is displayed; custom in-app banner removed to avoid duplicate notification
 
           LocalNotificationService.instance.showIncomingRideNotification(
             title: title,
@@ -101,21 +94,28 @@ class FcmService {
           );
         });
 
-        // 5. App opened from notification in system tray
+        // 5. App opened from notification in system tray (while backgrounded)
         FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
           debugPrint('📬 [FCM ON MESSAGE OPENED APP] ${message.data}');
-          final targetRoute = message.data['route']?.toString();
           final navContext = rootNavigatorKey.currentContext;
           if (navContext != null && navContext.mounted) {
-            if (targetRoute != null && targetRoute.isNotEmpty) {
-              navContext.push(targetRoute);
-            } else {
-              navContext.push(AppRoutes.notificationsFeedScreen);
-            }
+            AppRoutes.handleNotificationNavigation(navContext, message.data);
           }
         });
 
-        // 6. Background message handler
+        // 6. App launched from terminated state via notification click
+        final initialMessage = await messaging.getInitialMessage();
+        if (initialMessage != null) {
+          debugPrint('📬 [FCM INITIAL MESSAGE] ${initialMessage.data}');
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final navContext = rootNavigatorKey.currentContext;
+            if (navContext != null && navContext.mounted) {
+              AppRoutes.handleNotificationNavigation(navContext, initialMessage.data);
+            }
+          });
+        }
+
+        // 7. Background message handler
         FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
       }
 

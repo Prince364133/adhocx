@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { Star, X, Mail } from 'lucide-react';
-import { adminApi } from '../../lib/api/client';
+import { adminApi, resolveDocumentUrl } from '../../lib/api/client';
 import { DriverListItem, DriverDetail } from '../../lib/api/types';
 import {
   PageHeader,
@@ -77,29 +77,38 @@ export default function DriversPage() {
 
       let docs: any[] = [];
       const profilePhoto = detail.profilePhotoUrl || detail.kycDocuments?.profilePhotoUrl;
-      if (Array.isArray(detail.kycDocuments) && detail.kycDocuments.length > 0) {
-        docs = detail.kycDocuments.map((doc: any, idx: number) => ({
-          id: `${detail.id}_doc_${idx}`,
+      const kycDocsArray = Array.isArray(detail.kycDocuments?.documents)
+        ? detail.kycDocuments.documents
+        : Array.isArray(detail.kycDocuments)
+        ? detail.kycDocuments
+        : [];
+
+      if (kycDocsArray.length > 0) {
+        docs = kycDocsArray.map((doc: any, idx: number) => ({
+          id: doc.id || `${detail.id}_doc_${idx}`,
           documentType: doc.type || doc.documentType || 'DOCUMENT',
           title: doc.title || (doc.type || doc.documentType)?.replace(/_/g, ' ') || `Document ${idx + 1}`,
-          fileUrl: doc.url || doc.fileUrl,
+          fileUrl: resolveDocumentUrl(doc.url || doc.fileUrl),
           verified: detail.verificationStatus === 'VERIFIED',
-          createdAt: detail.updatedAt || detail.createdAt,
+          createdAt: doc.uploadedAt || detail.updatedAt || detail.createdAt,
         }));
       } else if (Array.isArray(detail.documents) && detail.documents.length > 0) {
-        docs = detail.documents;
+        docs = detail.documents.map((doc: any) => ({
+          ...doc,
+          fileUrl: resolveDocumentUrl(doc.fileUrl || doc.url),
+        }));
       } else {
         docs = [
-          ...(profilePhoto ? [{ id: `${detail.id}_profile_photo`, documentType: 'PROFILE_PHOTO', title: 'Profile Photo / Selfie', fileUrl: profilePhoto, verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
-          ...(detail.dlFrontUrl ? [{ id: `${detail.id}_dl_front`, documentType: 'DRIVING_LICENSE_FRONT', title: 'Driving License (Front)', fileUrl: detail.dlFrontUrl, verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
-          ...(detail.dlBackUrl ? [{ id: `${detail.id}_dl_back`, documentType: 'DRIVING_LICENSE_BACK', title: 'Driving License (Back)', fileUrl: detail.dlBackUrl, verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
-          ...(detail.rcFrontUrl ? [{ id: `${detail.id}_rc_front`, documentType: 'RC_FRONT', title: 'Vehicle RC (Front)', fileUrl: detail.rcFrontUrl, verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : (detail.rcDocUrl ? [{ id: `${detail.id}_rc`, documentType: 'RC_BOOK', title: 'Vehicle RC Book', fileUrl: detail.rcDocUrl, verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : [])),
-          ...(detail.rcBackUrl ? [{ id: `${detail.id}_rc_back`, documentType: 'RC_BACK', title: 'Vehicle RC (Back)', fileUrl: detail.rcBackUrl, verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
-          ...(detail.insuranceDocUrl ? [{ id: `${detail.id}_ins`, documentType: 'INSURANCE', title: 'Vehicle Insurance', fileUrl: detail.insuranceDocUrl, verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
-          ...(detail.vehiclePhotoUrl ? [{ id: `${detail.id}_veh`, documentType: 'VEHICLE_PHOTO', title: 'Vehicle Photo', fileUrl: detail.vehiclePhotoUrl, verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
-          ...(detail.aadharFrontUrl ? [{ id: `${detail.id}_aadhar_front`, documentType: 'AADHAR_FRONT', title: 'Aadhar Card (Front)', fileUrl: detail.aadharFrontUrl, verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
-          ...(detail.aadharBackUrl ? [{ id: `${detail.id}_aadhar_back`, documentType: 'AADHAR_BACK', title: 'Aadhar Card (Back)', fileUrl: detail.aadharBackUrl, verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
-          ...(detail.panDocUrl ? [{ id: `${detail.id}_pan`, documentType: 'PAN_CARD', title: 'PAN Card', fileUrl: detail.panDocUrl, verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
+          ...(profilePhoto ? [{ id: `${detail.id}_profile_photo`, documentType: 'PROFILE_PHOTO', title: 'Profile Photo / Selfie', fileUrl: resolveDocumentUrl(profilePhoto), verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
+          ...(detail.dlFrontUrl ? [{ id: `${detail.id}_dl_front`, documentType: 'DRIVING_LICENSE_FRONT', title: 'Driving License (Front)', fileUrl: resolveDocumentUrl(detail.dlFrontUrl), verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
+          ...(detail.dlBackUrl ? [{ id: `${detail.id}_dl_back`, documentType: 'DRIVING_LICENSE_BACK', title: 'Driving License (Back)', fileUrl: resolveDocumentUrl(detail.dlBackUrl), verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
+          ...(detail.rcFrontUrl ? [{ id: `${detail.id}_rc_front`, documentType: 'RC_FRONT', title: 'Vehicle RC (Front)', fileUrl: resolveDocumentUrl(detail.rcFrontUrl), verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : (detail.rcDocUrl ? [{ id: `${detail.id}_rc`, documentType: 'RC_BOOK', title: 'Vehicle RC Book', fileUrl: resolveDocumentUrl(detail.rcDocUrl), verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : [])),
+          ...(detail.rcBackUrl ? [{ id: `${detail.id}_rc_back`, documentType: 'RC_BACK', title: 'Vehicle RC (Back)', fileUrl: resolveDocumentUrl(detail.rcBackUrl), verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
+          ...(detail.insuranceDocUrl ? [{ id: `${detail.id}_ins`, documentType: 'INSURANCE', title: 'Vehicle Insurance', fileUrl: resolveDocumentUrl(detail.insuranceDocUrl), verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
+          ...(detail.vehiclePhotoUrl ? [{ id: `${detail.id}_veh`, documentType: 'VEHICLE_PHOTO', title: 'Vehicle Photo', fileUrl: resolveDocumentUrl(detail.vehiclePhotoUrl), verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
+          ...(detail.aadharFrontUrl ? [{ id: `${detail.id}_aadhar_front`, documentType: 'AADHAR_FRONT', title: 'Aadhar Card (Front)', fileUrl: resolveDocumentUrl(detail.aadharFrontUrl), verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
+          ...(detail.aadharBackUrl ? [{ id: `${detail.id}_aadhar_back`, documentType: 'AADHAR_BACK', title: 'Aadhar Card (Back)', fileUrl: resolveDocumentUrl(detail.aadharBackUrl), verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
+          ...(detail.panDocUrl ? [{ id: `${detail.id}_pan`, documentType: 'PAN_CARD', title: 'PAN Card', fileUrl: resolveDocumentUrl(detail.panDocUrl), verified: detail.verificationStatus === 'VERIFIED', createdAt: detail.createdAt }] : []),
         ];
       }
 
@@ -108,7 +117,7 @@ export default function DriversPage() {
           id: `${detail.id}_profile_photo`,
           documentType: 'PROFILE_PHOTO',
           title: 'Profile Photo / Selfie',
-          fileUrl: profilePhoto,
+          fileUrl: resolveDocumentUrl(profilePhoto),
           verified: detail.verificationStatus === 'VERIFIED',
           createdAt: detail.createdAt,
         });

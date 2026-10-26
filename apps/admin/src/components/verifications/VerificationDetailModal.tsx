@@ -17,7 +17,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { VerificationItem, DriverKycDocument } from '../../lib/api/types';
-import { adminApi } from '../../lib/api/client';
+import { adminApi, resolveDocumentUrl } from '../../lib/api/client';
 import { DocumentPreviewModal } from './DocumentPreviewModal';
 
 interface DetailModalProps {
@@ -581,10 +581,19 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
                         }}
                       >
                         <img
-                          src={doc.fileUrl}
+                          src={resolveDocumentUrl(doc.fileUrl)}
                           alt={doc.title}
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                           onError={(e) => {
+                            const currentSrc = e.currentTarget.src;
+                            if ((currentSrc.includes('localhost:') || currentSrc.includes(':7002/uploads/')) && !e.currentTarget.dataset.retried) {
+                              e.currentTarget.dataset.retried = 'true';
+                              const filePart = currentSrc.split('/uploads/')[1];
+                              if (filePart) {
+                                e.currentTarget.src = `https://api.adhocx.com/uploads/${filePart}`;
+                                return;
+                              }
+                            }
                             e.currentTarget.style.display = 'none';
                           }}
                         />

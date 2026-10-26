@@ -210,7 +210,7 @@ class _SavedTemplatesModalState extends State<SavedTemplatesModal> {
                                 ),
                                 const SizedBox(height: 6),
                                 const Text(
-                                  'Add cabs to your cart, name your cart, and tap "Save as Template" to run it anytime.',
+                                  'Add cabs to your cart, name your cart, and tap the bookmark icon to save and run it anytime.',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(fontSize: 13, color: AppColors.slate500),
                                 ),

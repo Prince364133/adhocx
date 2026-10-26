@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:go_router/go_router.dart';
+import '../routes/app_routes.dart';
 
 /// Local Notification Service for showing high-priority heads-up alerts
 /// on Android and iOS when ride dispatches and offers arrive.
@@ -38,6 +41,9 @@ class LocalNotificationService {
         settings: initSettings,
         onDidReceiveNotificationResponse: (details) {
           debugPrint('🔔 [NOTIFICATION CLICK] Payload: ${details.payload}');
+          if (details.payload != null && details.payload!.isNotEmpty) {
+            _handlePayloadNavigation(details.payload!);
+          }
         },
       );
 
@@ -61,6 +67,42 @@ class LocalNotificationService {
       debugPrint('✅ [LOCAL NOTIFICATIONS] Initialized successfully with high-priority channel');
     } catch (e) {
       debugPrint('⚠️ [LOCAL NOTIFICATIONS] Init warning: $e');
+    }
+  }
+
+  void _handlePayloadNavigation(String rawPayload) {
+    try {
+      final navContext = rootNavigatorKey.currentContext;
+      if (navContext == null || !navContext.mounted) return;
+
+      Map<String, dynamic>? data;
+      try {
+        final decoded = jsonDecode(rawPayload);
+        if (decoded is Map<String, dynamic>) {
+          data = decoded;
+        } else if (decoded is Map) {
+          data = Map<String, dynamic>.from(decoded);
+        }
+      } catch (_) {}
+
+      if (data != null) {
+        AppRoutes.handleNotificationNavigation(navContext, data);
+      } else if (rawPayload.isNotEmpty) {
+        if (rawPayload.startsWith('/')) {
+          AppRoutes.handleNotificationNavigation(navContext, {'route': rawPayload});
+        } else {
+          AppRoutes.handleNotificationNavigation(navContext, {
+            'id': rawPayload,
+            'offerId': rawPayload,
+            'tripId': rawPayload,
+            'requirementId': rawPayload,
+          });
+        }
+      } else {
+        navContext.push(AppRoutes.notificationsFeedScreen);
+      }
+    } catch (e) {
+      debugPrint('⚠️ [LOCAL NOTIFICATION NAV ERROR] $e');
     }
   }
 

@@ -368,17 +368,7 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
     final req = offer['requirement'] as Map<String, dynamic>?;
 
     // Financial & vehicle specs
-    final rawRate = offer['offeredRate'] ??
-        offer['suggestedBudget'] ??
-        offer['offeredPrice'] ??
-        offer['driverRate'] ??
-        req?['ratePerVehicle'] ??
-        req?['budget'] ??
-        req?['suggestedBudget'] ??
-        offer['zonal']?['driverView']?['rate'];
-    final num rate = (rawRate != null && rawRate is num)
-        ? rawRate
-        : (num.tryParse(rawRate?.toString() ?? '') ?? 0);
+    final num rate = DriverService.resolveDriverPayout(offer);
     final vehicle = (offer['vehicleType'] ?? req?['vehicleType'] ?? 'Sedan').toString();
     final pickup = (offer['pickupLocation']?['address'] ??
         offer['pickup'] ??

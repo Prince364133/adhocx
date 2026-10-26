@@ -72,6 +72,8 @@ export function getApiBaseUrl(): string {
 
 const API_BASE_URL = getApiBaseUrl();
 
+export { resolveDocumentUrl, handleDocumentImageError } from './resolveDocumentUrl';
+
 export function getStoredAdminToken(): string | null {
   if (typeof window === 'undefined') return null;
   return localStorage.getItem('adhocx_admin_token');

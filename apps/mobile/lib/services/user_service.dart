@@ -300,9 +300,19 @@ class UserService {
   // Booker / User Trips
   Future<List<dynamic>> getTrips({String? status}) async {
     await _ensureSession();
-    final query = status != null ? {'status': status} : null;
-    final response = await _api.get('/trips', queryParameters: query);
-    return response is List ? response : [];
+    try {
+      final query = status != null ? {'status': status} : null;
+      final response = await _api.get('/trips', queryParameters: query);
+      if (response is List) return response;
+      if (response is Map) {
+        if (response['items'] is List) return response['items'] as List<dynamic>;
+        if (response['data'] is List) return response['data'] as List<dynamic>;
+        if (response['trips'] is List) return response['trips'] as List<dynamic>;
+      }
+      return [];
+    } catch (_) {
+      return [];
+    }
   }
 
   Future<dynamic> getTrip(String tripId) async {
@@ -504,12 +514,35 @@ class UserService {
   Future<List<Map<String, dynamic>>> getPricingTiers({bool forceRefresh = false}) async {
     try {
       dynamic res = await _api.get('/pricing/tiers', force: forceRefresh);
-      if (res is! List || res.isEmpty) {
-        res = await _api.get('/pricing', force: forceRefresh);
+      List<dynamic> list = [];
+      if (res is List) {
+        list = res;
+      } else if (res is Map) {
+        if (res['data'] is List) {
+          list = res['data'] as List<dynamic>;
+        } else if (res['items'] is List) {
+          list = res['items'] as List<dynamic>;
+        } else if (res['tiers'] is List) {
+          list = res['tiers'] as List<dynamic>;
+        }
       }
-      if (res is List && res.isNotEmpty) {
+
+      if (list.isEmpty) {
+        dynamic fallback = await _api.get('/pricing', force: forceRefresh);
+        if (fallback is List) {
+          list = fallback;
+        } else if (fallback is Map) {
+          if (fallback['data'] is List) {
+            list = fallback['data'] as List<dynamic>;
+          } else if (fallback['items'] is List) {
+            list = fallback['items'] as List<dynamic>;
+          }
+        }
+      }
+
+      if (list.isNotEmpty) {
         return List<Map<String, dynamic>>.from(
-          res.map((item) => Map<String, dynamic>.from(item as Map)),
+          list.whereType<Map>().map((item) => Map<String, dynamic>.from(item)),
         );
       }
     } catch (_) {}

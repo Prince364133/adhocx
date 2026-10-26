@@ -28,16 +28,38 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
   void initState() {
     super.initState();
     _activeOffer = widget.offer;
-    if (_activeOffer == null) {
-      _loadFirstOffer();
+    final expSec = int.tryParse(_activeOffer?['expiresInSeconds']?.toString() ?? '');
+    if (expSec != null && expSec > 0) {
+      _secondsRemaining = expSec;
+    }
+
+    final hasFullDetails = _activeOffer != null &&
+        (_activeOffer!['pickupLocation'] != null ||
+            _activeOffer!['pickupAddress'] != null ||
+            _activeOffer!['rate'] != null ||
+            _activeOffer!['offeredPrice'] != null);
+
+    if (!hasFullDetails) {
+      _loadOfferDetails();
     }
     _startTimer();
   }
 
-  Future<void> _loadFirstOffer() async {
+  Future<void> _loadOfferDetails() async {
     try {
-      final list = await DriverService.instance.getOffers();
+      final targetId = widget.offer?['id']?.toString() ?? widget.offer?['offerId']?.toString();
+      final list = await DriverService.instance.getOffers(forceRefresh: true);
       if (list.isNotEmpty && mounted) {
+        if (targetId != null && targetId.isNotEmpty) {
+          final match = list.firstWhere(
+            (o) => o is Map && (o['id']?.toString() == targetId || o['offerId']?.toString() == targetId),
+            orElse: () => list.first,
+          );
+          if (match is Map) {
+            setState(() => _activeOffer = Map<String, dynamic>.from(match));
+            return;
+          }
+        }
         setState(() => _activeOffer = list.first as Map<String, dynamic>);
       }
     } catch (_) {}
@@ -257,20 +279,17 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                       Builder(
                         builder: (context) {
                           final req = _activeOffer?['requirement'] as Map<String, dynamic>?;
-                          final title = req?['title'] as String? ?? 'Trip Requirement';
-                          final vehicle = req?['vehicleType'] as String? ?? 'Sedan';
-                          final pickup = req?['pickupAddress'] as String? ?? _activeOffer?['pickup'] as String? ?? 'Pickup address';
-                          final drop = req?['dropAddress'] as String? ?? _activeOffer?['drop'] as String? ?? 'Drop address';
-                          final rawEarn = _activeOffer?['offeredPrice'] ??
-                              _activeOffer?['offeredRate'] ??
-                              _activeOffer?['suggestedBudget'] ??
-                              _activeOffer?['driverRate'] ??
-                              req?['ratePerVehicle'] ??
-                              req?['budgetPerVehicle'];
-                          final num parsedEarn = rawEarn != null
-                              ? ((rawEarn is num) ? rawEarn : (num.tryParse(rawEarn.toString()) ?? 0))
-                              : 0;
-                          final earnings = parsedEarn > 0 ? '₹ ${parsedEarn.toStringAsFixed(0)}' : '₹ --';
+                          final title = req?['title'] as String? ?? _activeOffer?['title'] as String? ?? 'Trip Requirement';
+                          final vehicle = req?['vehicleType'] as String? ?? _activeOffer?['vehicleType'] as String? ?? 'Sedan';
+                          final pickup = req?['pickupAddress'] as String? ??
+                              _activeOffer?['pickupAddress'] as String? ??
+                              _activeOffer?['pickup'] as String? ??
+                              'Pickup address';
+                          final drop = req?['dropAddress'] as String? ??
+                              _activeOffer?['dropAddress'] as String? ??
+                              _activeOffer?['drop'] as String? ??
+                              'Drop address';
+                          final earnings = DriverService.resolveDriverPayoutFormatted(_activeOffer);
 
                           return Container(
                             padding: const EdgeInsets.all(AppSpacing.lg),

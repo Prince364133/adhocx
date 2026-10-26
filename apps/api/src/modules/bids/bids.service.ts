@@ -317,6 +317,7 @@ export class BidsService {
         },
         include: {
           vendor: true,
+          zonalQuote: true,
           bids: {
             where: { driverId: driver.id },
           },
@@ -353,39 +354,45 @@ export class BidsService {
         return true;
       });
 
-      return filteredRequirements.map((req) => ({
-        id: req.id,
-        requirementId: req.id,
-        fulfillmentMode: req.fulfillmentMode,
-        vehicleType: req.vehicleType,
-        pickupLocation: {
-          latitude: Number(req.pickupLat),
-          longitude: Number(req.pickupLng),
-          address: req.pickupAddress,
-        },
-        dropLocation: {
-          latitude: Number(req.dropLat),
-          longitude: Number(req.dropLng),
-          address: req.dropAddress,
-        },
-        pickup: req.pickupAddress,
-        drop: req.dropAddress,
-        reportingTime: req.reportingTime.toISOString(),
-        suggestedBudget: Number(req.suggestedBudget || req.ratePerVehicle || 0),
-        offeredPrice: Number(req.suggestedBudget || req.ratePerVehicle || 0),
-        totalAmount: Number(req.totalAmount || 0),
-        notes: req.notes,
-        vendorOrganization: req.vendor.organizationName,
-        totalBidsCount: req._count.bids,
-        hasMyBid: req.bids.length > 0,
-        myBid: req.bids.length > 0 ? {
-          id: req.bids[0].id,
-          bidAmount: Number(req.bids[0].bidAmount),
-          etaMinutes: req.bids[0].etaMinutes,
-          status: req.bids[0].status,
-        } : null,
-        createdAt: req.createdAt.toISOString(),
-      }));
+      return filteredRequirements.map((req) => {
+        const driverBudget = (req as any).zonalQuote?.driverFarePaise
+          ? (req as any).zonalQuote.driverFarePaise / 100
+          : Math.round(Number(req.suggestedBudget || req.ratePerVehicle || 0) * 0.85);
+
+        return {
+          id: req.id,
+          requirementId: req.id,
+          fulfillmentMode: req.fulfillmentMode,
+          vehicleType: req.vehicleType,
+          pickupLocation: {
+            latitude: Number(req.pickupLat),
+            longitude: Number(req.pickupLng),
+            address: req.pickupAddress,
+          },
+          dropLocation: {
+            latitude: Number(req.dropLat),
+            longitude: Number(req.dropLng),
+            address: req.dropAddress,
+          },
+          pickup: req.pickupAddress,
+          drop: req.dropAddress,
+          reportingTime: req.reportingTime.toISOString(),
+          suggestedBudget: driverBudget,
+          offeredPrice: driverBudget,
+          totalAmount: driverBudget,
+          notes: req.notes,
+          vendorOrganization: req.vendor.organizationName,
+          totalBidsCount: req._count.bids,
+          hasMyBid: req.bids.length > 0,
+          myBid: req.bids.length > 0 ? {
+            id: req.bids[0].id,
+            bidAmount: Number(req.bids[0].bidAmount),
+            etaMinutes: req.bids[0].etaMinutes,
+            status: req.bids[0].status,
+          } : null,
+          createdAt: req.createdAt.toISOString(),
+        };
+      });
     } catch (err: any) {
       this.logger.error(`Failed to fetch bidding opportunities: ${err.message}`);
       return [];

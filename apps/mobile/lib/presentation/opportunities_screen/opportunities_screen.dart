@@ -283,16 +283,15 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                       100,
                     ),
                     separator: const SizedBox(height: AppSpacing.md),
-                    mockBuilder: (context, index) => _buildOpportunityCard(
-                      {
-                        'title': 'Fleet Corporate Dispatch',
-                        'vehicleType': driverCategoryDisplay,
-                        'pickup': 'Cyber City, Building 10, DLF Phase 2, Gurugram',
-                        'drop': 'Indira Gandhi International Airport, Terminal 3, New Delhi',
-                        'offeredPrice': 1450.0,
-                        'fulfillmentMode': 'DIRECT_DISPATCH',
-                      },
-                      isDark,
+                    mockBuilder: (context, index) => Container(
+                      height: 140,
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                        border: Border.all(
+                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                        ),
+                      ),
                     ),
                     child: filteredOps.isEmpty
                         ? RefreshIndicator(
@@ -370,18 +369,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
 
     final pickup = req?['pickupAddress'] as String? ?? op['pickup'] as String? ?? op['pickupLocation']?['address'] as String? ?? 'Pickup location';
     final drop = req?['dropAddress'] as String? ?? op['drop'] as String? ?? op['dropLocation']?['address'] as String? ?? 'Destination location';
-    final rawBudget = op['offeredPrice'] ??
-        op['offerAmount'] ??
-        op['offeredRate'] ??
-        op['driverRate'] ??
-        req?['ratePerVehicle'] ??
-        req?['budgetPerVehicle'] ??
-        req?['suggestedBudget'] ??
-        op['suggestedBudget'];
-    final num budgetVal = rawBudget != null
-        ? ((rawBudget is num) ? rawBudget : (num.tryParse(rawBudget.toString()) ?? 0))
-        : 0;
-    final earnings = budgetVal > 0 ? '₹ ${budgetVal.toInt()}' : '₹ --';
+    final earnings = DriverService.resolveDriverPayoutFormatted(op);
     final opColor = AppColors.primary;
 
     return Container(

@@ -167,8 +167,8 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen> {
               extra: trip,
               isUnread: true,
             ));
-          } else if (status == 'COMPLETED') {
-            final earnings = trip['driverEarnings'] ?? trip['agreedRate'] ?? 1200;
+            final num earnVal = DriverService.resolveDriverPayout(trip);
+            final earnings = earnVal > 0 ? earnVal.toStringAsFixed(0) : (trip['driverEarnings'] ?? trip['fare'] ?? '--').toString();
             items.add(NotificationItem(
               id: 'complete_$code',
               title: 'Trip Completed — ₹$earnings Credited',

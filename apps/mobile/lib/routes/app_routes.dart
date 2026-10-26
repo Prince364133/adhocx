@@ -54,7 +54,6 @@ import '../user/requirements/user_review_requirement_screen.dart';
 import '../user/requirements/user_requirement_posted_confirmation_screen.dart';
 import '../user/requirements/user_draft_requirements_screen.dart';
 import '../user/requirements/user_edit_requirement_screen.dart';
-import '../user/requirements/user_requirement_details_screen.dart';
 import '../user/fulfillment/user_fulfillment_status_screen.dart';
 import '../user/fulfillment/user_fulfillment_overview_screen.dart';
 import '../user/fulfillment/user_driver_matching_screen.dart';
@@ -275,6 +274,95 @@ class AppRoutes {
   static const String vendorTicketDetailsInProgressScreen = userTicketDetailsInProgressScreen;
   static const String vendorTicketDetailsResolvedScreen = userTicketDetailsResolvedScreen;
   static const String vendorAppSettingsScreen = userAppSettingsScreen;
+
+  /// Centralized Deep Link & Notification Route Resolver
+  /// Maps incoming REST-style notification routes (/offers/:id, /trips/:id, /requirements/:id, /wallet)
+  /// and push payloads into valid GoRouter destinations.
+  static void handleNotificationNavigation(BuildContext context, Map<String, dynamic> data) {
+    try {
+      final targetRoute = data['route']?.toString().trim();
+      final type = data['type']?.toString();
+      final offerId = data['offerId']?.toString() ?? data['id']?.toString();
+      final tripId = data['tripId']?.toString() ?? data['id']?.toString();
+      final requirementId = data['requirementId']?.toString();
+
+      // 1. Trip Offers / New Offers
+      if (type == 'TRIP_OFFER' ||
+          type == 'NEW_OFFER' ||
+          (targetRoute != null && (targetRoute.startsWith('/offers/') || targetRoute == '/offers' || targetRoute == AppRoutes.opportunityOfferScreen))) {
+        String? resolvedOfferId = offerId;
+        if (resolvedOfferId == null && targetRoute != null && targetRoute.startsWith('/offers/')) {
+          resolvedOfferId = targetRoute.replaceFirst('/offers/', '').split('?').first;
+        }
+        final Map<String, dynamic> offerExtra = Map<String, dynamic>.from(data);
+        if (resolvedOfferId != null && resolvedOfferId.isNotEmpty) {
+          offerExtra['id'] = resolvedOfferId;
+          offerExtra['offerId'] = resolvedOfferId;
+        }
+        final routeUrl = (resolvedOfferId != null && resolvedOfferId.isNotEmpty)
+            ? '/offers/$resolvedOfferId'
+            : AppRoutes.opportunityOfferScreen;
+        context.push(routeUrl, extra: offerExtra);
+        return;
+      }
+
+      // 2. Active Trips / Trip Details
+      if ((targetRoute != null && (targetRoute.startsWith('/trips/') || targetRoute == AppRoutes.tripDetailsScreen)) ||
+          (type != null && type.startsWith('TRIP_'))) {
+        String? resolvedTripId = tripId;
+        if (resolvedTripId == null && targetRoute != null && targetRoute.startsWith('/trips/')) {
+          final segments = targetRoute.replaceFirst('/trips/', '').split('?').first;
+          if (segments != 'details' && segments != 'chat') {
+            resolvedTripId = segments;
+          }
+        }
+        final Map<String, dynamic> tripExtra = Map<String, dynamic>.from(data);
+        if (resolvedTripId != null && resolvedTripId.isNotEmpty) {
+          tripExtra['tripId'] = resolvedTripId;
+          tripExtra['id'] = resolvedTripId;
+          context.push('/trips/$resolvedTripId', extra: tripExtra);
+        } else {
+          context.push(AppRoutes.userActiveTripScreen, extra: tripExtra);
+        }
+        return;
+      }
+
+      // 3. Requirements
+      if ((targetRoute != null && (targetRoute.startsWith('/requirements/') || targetRoute == AppRoutes.userRequirementDetailsScreen)) ||
+          requirementId != null) {
+        String? resolvedReqId = requirementId;
+        if (resolvedReqId == null && targetRoute != null && targetRoute.startsWith('/requirements/')) {
+          resolvedReqId = targetRoute.replaceFirst('/requirements/', '').split('?').first;
+        }
+        final Map<String, dynamic> reqExtra = Map<String, dynamic>.from(data);
+        if (resolvedReqId != null && resolvedReqId.isNotEmpty) {
+          reqExtra['requirementId'] = resolvedReqId;
+          reqExtra['id'] = resolvedReqId;
+          context.push('/requirements/$resolvedReqId', extra: reqExtra);
+        } else {
+          context.push(AppRoutes.userActiveTripScreen, extra: reqExtra);
+        }
+        return;
+      }
+
+      // 4. Wallet
+      if (targetRoute == '/wallet' || targetRoute == AppRoutes.walletScreen || type == 'WALLET_CREDIT' || type == 'PAYMENT_RECEIVED') {
+        context.push(AppRoutes.walletScreen);
+        return;
+      }
+
+      // 5. Explicit route from payload if it exists
+      if (targetRoute != null && targetRoute.isNotEmpty) {
+        context.push(targetRoute, extra: data);
+        return;
+      }
+
+      // 6. Default Fallback
+      context.push(AppRoutes.notificationsFeedScreen);
+    } catch (e) {
+      debugPrint('⚠️ [ROUTE RESOLVER ERROR] Failed to navigate notification: $e');
+    }
+  }
 }
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -337,7 +425,6 @@ final GoRouter appRouter = GoRouter(
         AppRoutes.onboardingDocumentsScreen,
         AppRoutes.onboardingReviewScreen,
         AppRoutes.welcomeSuccessScreen,
-        AppRoutes.waitlistGateScreen,
         AppRoutes.setPasswordScreen,
         AppRoutes.universalLocationSearchScreen,
         AppRoutes.universalLocationPickerScreen,
@@ -771,8 +858,12 @@ final GoRouter appRouter = GoRouter(
           reqId = rawExtra;
         }
 
-        reqId ??= state.uri.queryParameters['id'];
-        return UserRequirementDetailsScreen(requirementId: reqId, initialData: initialData);
+        reqId ??= state.uri.queryParameters['id'] ?? state.uri.queryParameters['requirementId'];
+        return UserActiveTripScreen(
+          requirementId: reqId,
+          initialData: initialData,
+          tripId: initialData?['tripId'] as String?,
+        );
       },
     ),
     GoRoute(
@@ -821,10 +912,88 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.userActiveTripScreen,
-      builder: (context, state) => UserActiveTripScreen(
-        trip: state.extra as Map<String, dynamic>?,
-        tripId: state.uri.queryParameters['id'],
-      ),
+      builder: (context, state) {
+        String? id;
+        Map<String, dynamic>? extraMap;
+        final rawExtra = state.extra;
+        if (rawExtra is Map<String, dynamic>) {
+          extraMap = rawExtra;
+          id = extraMap['id'] as String? ?? extraMap['tripId'] as String? ?? extraMap['requirementId'] as String?;
+        } else if (rawExtra is Map) {
+          extraMap = Map<String, dynamic>.from(rawExtra);
+          id = extraMap['id'] as String? ?? extraMap['tripId'] as String? ?? extraMap['requirementId'] as String?;
+        } else if (rawExtra is String) {
+          id = rawExtra;
+        }
+        id ??= state.uri.queryParameters['id'] ?? state.uri.queryParameters['tripId'] ?? state.uri.queryParameters['requirementId'];
+
+        return UserActiveTripScreen(
+          trip: extraMap,
+          tripId: extraMap?['tripId'] as String? ?? id,
+          requirementId: extraMap?['requirementId'] as String? ?? id,
+          initialData: extraMap,
+        );
+      },
+    ),
+    // Deep Link & Notification Aliases
+    GoRoute(
+      path: '/offers/:id',
+      builder: (context, state) {
+        final offerId = state.pathParameters['id'];
+        final rawExtra = state.extra;
+        final extraMap = rawExtra is Map<String, dynamic>
+            ? rawExtra
+            : (rawExtra is Map ? Map<String, dynamic>.from(rawExtra) : null);
+        return OpportunityOfferScreen(
+          offer: extraMap ?? {'id': offerId, 'offerId': offerId},
+        );
+      },
+    ),
+    GoRoute(
+      path: '/offers',
+      builder: (context, state) {
+        final offerId = state.uri.queryParameters['id'] ?? state.uri.queryParameters['offerId'];
+        final rawExtra = state.extra;
+        final extraMap = rawExtra is Map<String, dynamic>
+            ? rawExtra
+            : (rawExtra is Map ? Map<String, dynamic>.from(rawExtra) : null);
+        return OpportunityOfferScreen(
+          offer: extraMap ?? (offerId != null ? {'id': offerId, 'offerId': offerId} : null),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/trips/:id',
+      builder: (context, state) {
+        final tripId = state.pathParameters['id'];
+        final rawExtra = state.extra;
+        final extraMap = rawExtra is Map<String, dynamic>
+            ? rawExtra
+            : (rawExtra is Map ? Map<String, dynamic>.from(rawExtra) : null);
+        return UserActiveTripScreen(
+          trip: extraMap,
+          tripId: tripId,
+          initialData: extraMap,
+        );
+      },
+    ),
+    GoRoute(
+      path: '/requirements/:id',
+      builder: (context, state) {
+        final reqId = state.pathParameters['id'];
+        final rawExtra = state.extra;
+        final extraMap = rawExtra is Map<String, dynamic>
+            ? rawExtra
+            : (rawExtra is Map ? Map<String, dynamic>.from(rawExtra) : null);
+        return UserActiveTripScreen(
+          requirementId: reqId,
+          initialData: extraMap,
+        );
+      },
+    ),
+    GoRoute(
+      path: '/wallet',
+      redirect: (context, state) => AppRoutes.walletScreen,
     ),
     GoRoute(
       path: AppRoutes.userTripDetailsUpcomingScreen,

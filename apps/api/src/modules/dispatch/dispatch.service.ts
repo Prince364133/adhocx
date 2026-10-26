@@ -18,6 +18,7 @@ import { GoogleMapsService } from '../locations/google-maps.service';
 import { DispatchSchedulerService } from './dispatch-scheduler.service';
 import { DriverBehaviorService } from './driver-behavior.service';
 import { DispatchConfig } from './dispatch.config';
+import { ZonalPricingService } from '../pricing/zonal-pricing.service';
 
 export interface DispatchResult {
   requirementId: string;
@@ -62,6 +63,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     @Optional() private readonly redis?: RedisService,
     @Optional() private readonly scheduler?: DispatchSchedulerService,
     @Optional() private readonly behavior?: DriverBehaviorService,
+    @Optional() private readonly zonalPricing?: ZonalPricingService,
   ) {}
 
   onModuleInit() {
@@ -293,9 +295,11 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       return this.markSupplyExhausted(requirement, remaining, 'wave_limit');
     }
 
-    // Keep at most remaining*2 live offers: a decline/expiry replaces offers one-for-one
-    // instead of stacking a fresh full wave on top of offers still counting down.
-    const offerBudget = remaining * 2 - liveOffers;
+    // Uber-grade Sequential Dispatch:
+    // For single-vehicle requests, dispatch strictly 1-by-1 (offerBudget = 1) to prevent race conditions.
+    // For multi-vehicle requirements (e.g. 5 cabs for corporate shift), dispatch up to 'remaining'.
+    const targetLiveOffers = requirement.quantity === 1 ? 1 : remaining;
+    const offerBudget = Math.max(0, targetLiveOffers - liveOffers);
     if (offerBudget <= 0) {
       this.logger.debug(`Requirement ${requirementId} already has ${liveOffers} live offers; no new wave needed`);
       return noop(requirement.status as RequirementStatus);
@@ -304,19 +308,29 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     const pickupLat = Number(requirement.pickupLat);
     const pickupLng = Number(requirement.pickupLng);
 
-    // Phase A candidate retrieval: H3 k=2 disk, widening to radial search when supply is thin
+    // Concentric Progressive H3 Wave Expansion:
+    // Wave 1: k=1 (~1.2 km radius)
+    // Wave 2: k=2 (~2.4 km radius)
+    // Wave 3: k=3 (~4.5 km radius)
+    // Wave 4: k=4 (~7.5 km radius)
+    // Wave 5+: k=5 (~12 km radius)
+    const currentWaveNumber = wavesSoFar + 1;
+    const kRing = Math.min(5, Math.max(1, currentWaveNumber));
+
     const nearbyCandidates = await this.locationsService.findNearbyDriversByH3(
       pickupLat,
       pickupLng,
-      2,
+      kRing,
       requirement.vehicleType as unknown as VehicleType,
     );
 
-    if (nearbyCandidates.length < 3) {
+    // If supply in the current H3 disk is thin, expand gradually within a realistic urban boundary (max 15 km)
+    if (nearbyCandidates.length === 0) {
+      const maxSearchRadiusKm = Math.min(15, 3 + currentWaveNumber * 2.5);
       const radialCandidates = await this.locationsService.findNearbyDrivers(
         pickupLat,
         pickupLng,
-        100,
+        maxSearchRadiusKm,
         requirement.vehicleType as unknown as VehicleType,
       );
       const existingIds = new Set(nearbyCandidates.map((c) => c.driverId));
@@ -541,13 +555,38 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     const offerTtlMs = DispatchConfig.offerTtlMs;
     const expiresInSeconds = Math.round(offerTtlMs / 1000);
     const expiresAt = new Date(Date.now() + offerTtlMs);
-    const driverOfferedRate = requirement.zonalQuote
-      ? requirement.zonalQuote.driverFarePaise / 100
-      : Number(requirement.ratePerVehicle ?? 0);
-    const h3PickupCell = this.locationsService.latLngToH3(pickupLat, pickupLng);
-
     const dropLat = Number(requirement.dropLat || 0);
     const dropLng = Number(requirement.dropLng || 0);
+
+    let driverOfferedRate = 0;
+    if (requirement.zonalQuote && requirement.zonalQuote.driverFarePaise > 0) {
+      driverOfferedRate = requirement.zonalQuote.driverFarePaise / 100;
+    } else {
+      // Look up authoritative driver rate card so vendor pricing is strictly protected
+      const vType = requirement.vehicleType || 'SEDAN';
+      if (this.zonalPricing && pickupLat && dropLat) {
+        try {
+          const calculatedQuote = (this.zonalPricing as any).calculateQuote?.({
+            pickupLat,
+            pickupLng,
+            dropLat,
+            dropLng,
+            pickupAddress: requirement.pickupAddress,
+            dropAddress: requirement.dropAddress,
+            vehicleType: vType as any,
+          });
+          if (calculatedQuote && calculatedQuote.driverFarePaise > 0) {
+            driverOfferedRate = calculatedQuote.driverFarePaise / 100;
+          }
+        } catch (_) {}
+      }
+      if (driverOfferedRate <= 0) {
+        // Enforce 15% platform margin ceiling; drivers must NEVER see 100% vendor price
+        const vendorRate = Number(requirement.ratePerVehicle ?? 0);
+        driverOfferedRate = Math.round(vendorRate * 0.85);
+      }
+    }
+    const h3PickupCell = this.locationsService.latLngToH3(pickupLat, pickupLng);
 
     // Compute real road driving distance and traffic ETA between pickup and dropoff
     const maps = this.googleMapsService || new GoogleMapsService();
@@ -606,7 +645,9 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
           tripEtaMinutes: tripRoute.durationMinutes,
           hasEscort,
           escortRequired: hasEscort,
-          reportingTime: requirement.reportingTime.toISOString(),
+          reportingTime: requirement.reportingTime
+            ? new Date(requirement.reportingTime).toISOString()
+            : new Date().toISOString(),
           expiresAt: expiresAt.toISOString(),
           expiresInSeconds,
           pickupEtaMinutes: candidate.hasLocation ? candidate.etaMinutes : undefined,

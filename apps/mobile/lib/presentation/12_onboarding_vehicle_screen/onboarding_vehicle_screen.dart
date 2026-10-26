@@ -40,53 +40,27 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
   final Map<String, bool> _uploadingState = {};
   final ImagePicker _picker = ImagePicker();
 
-  List<Map<String, dynamic>> _vehicleOptions = [
+  List<Map<String, dynamic>> _vehicleOptions = <Map<String, dynamic>>[
     {
       'id': 'SEDAN',
       'label': 'Prime Sedan',
-      'subtitle': '4 + 1 Passengers • Ac Commercial',
+      'subtitle': 'Dzire, Etios, Aura (4+1 Seater)',
       'icon': Icons.directions_car_rounded,
-      'perKmRate': 14.5,
-      'baseFare': 800.0,
-      'baseKm': 40,
-      'driverSharePercent': 90,
-      'description': 'Compact & executive 4-seater sedans (Dzire, Aura, Etios)',
     },
     {
       'id': 'SUV',
-      'label': 'SUV 7 Seater',
-      'subtitle': '6 + 1 Passengers • Extra Luggage',
+      'label': 'Prime SUV',
+      'subtitle': 'Innova, Ertiga, Carens (6+1 Seater)',
       'icon': Icons.airport_shuttle_rounded,
-      'perKmRate': 19.0,
-      'baseFare': 1400.0,
-      'baseKm': 40,
-      'driverSharePercent': 90,
-      'description': '6-7 seater commercial SUVs (Innova Crysta, Ertiga, Carens)',
     },
     {
       'id': 'HATCHBACK',
-      'label': 'Compact Hatchback',
-      'subtitle': '4 + 1 Passengers • City Budget',
-      'icon': Icons.directions_car_rounded,
-      'perKmRate': 11.0,
-      'baseFare': 500.0,
-      'baseKm': 20,
-      'driverSharePercent': 90,
-      'description': 'Budget city runabout cabs (WagonR, Tiago, Celerio)',
-    },
-    {
-      'id': 'BUS',
-      'label': 'Commercial Coach Bus',
-      'subtitle': '24 - 40 Passengers • Coach Bus',
-      'icon': Icons.directions_bus_rounded,
-      'perKmRate': 45.0,
-      'baseFare': 6500.0,
-      'baseKm': 100,
-      'driverSharePercent': 88,
-      'description': 'High-capacity commercial coaches & mini-coaches',
+      'label': 'Mini Hatchback',
+      'subtitle': 'WagonR, Swift (4+1 Seater)',
+      'icon': Icons.electric_car_rounded,
     },
   ];
-  bool _loadingCategories = true;
+  bool _loadingCategories = false;
 
   @override
   void initState() {
@@ -198,6 +172,8 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
               icon = Icons.airport_shuttle_rounded;
             } else if (vType == 'TEMPO_TRAVELLER' || vType == 'TATA_ACE' || vType == 'PICKUP_TRUCK' || iconKey == 'truck') {
               icon = Icons.local_shipping_rounded;
+            } else if (vType == 'HATCHBACK') {
+              icon = Icons.electric_car_rounded;
             }
 
             return {
@@ -205,10 +181,10 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
               'label': t['categoryLabel'] ?? vType,
               'subtitle': t['seatingCapacity'] ?? t['description'] ?? '',
               'icon': icon,
-              'perKmRate': (t['perKmRate'] as num?)?.toDouble() ?? 14.5,
-              'baseFare': (t['baseFare'] as num?)?.toDouble() ?? 800.0,
-              'baseKm': (t['baseKm'] as num?)?.toInt() ?? 40,
-              'driverSharePercent': (t['driverSharePercent'] as num?)?.toInt() ?? 90,
+              'perKmRate': (t['perKmRate'] as num?)?.toDouble() ?? 0.0,
+              'baseFare': (t['baseFare'] as num?)?.toDouble() ?? 0.0,
+              'baseKm': (t['baseKm'] as num?)?.toInt() ?? 0,
+              'driverSharePercent': (t['driverSharePercent'] as num?)?.toInt() ?? 0,
               'description': t['description'] ?? '',
             };
           }).toList();
@@ -643,7 +619,14 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                               child: DropdownButton<String>(
                                 value: _vehicleOptions.any((v) => v['id'] == _category)
                                     ? _category
-                                    : (_vehicleOptions.isNotEmpty ? _vehicleOptions.first['id'] as String : 'SEDAN'),
+                                    : (_vehicleOptions.isNotEmpty ? _vehicleOptions.first['id'] as String : null),
+                                hint: Text(
+                                  _loadingCategories ? 'Loading available cabs...' : 'Select vehicle category',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                  ),
+                                ),
                                 isExpanded: true,
                                 itemHeight: 64.0,
                                 icon: _loadingCategories

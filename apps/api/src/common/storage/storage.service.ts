@@ -157,8 +157,10 @@ export class StorageService {
       `File sanitized & saved locally: ${safeFilename} (${sanitized.size} bytes, sha256: ${sanitized.checksum.slice(0, 8)})`,
     );
 
+    const publicUrl = this.getPublicUrl(`/uploads/${safeFilename}`);
+
     return {
-      url: `/uploads/${safeFilename}`,
+      url: publicUrl,
       filename: safeFilename,
       originalName: sanitized.originalName,
       mimeType: sanitized.mimeType,
@@ -168,6 +170,22 @@ export class StorageService {
       detectedType: sanitized.detectedType,
       sanitizationApplied: sanitized.sanitizationApplied,
     };
+  }
+
+  getPublicUrl(relativePathOrUrl?: string | null): string {
+    if (!relativePathOrUrl || typeof relativePathOrUrl !== 'string') return '';
+    const trimmed = relativePathOrUrl.trim();
+    if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return '';
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) {
+      return trimmed;
+    }
+    const clean = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+    const base = (
+      this.configService?.get<string>('app.url') ||
+      process.env.APP_URL ||
+      'https://api.adhocx.com'
+    ).replace(/\/+$/, '');
+    return `${base}${clean}`;
   }
 
   async deleteFile(filename: string): Promise<void> {

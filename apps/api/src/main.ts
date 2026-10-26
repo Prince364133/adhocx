@@ -19,7 +19,7 @@ async function bootstrap() {
 
   // Global prefix (with direct exclusion for static uploads access)
   app.setGlobalPrefix(apiPrefix, {
-    exclude: ['uploads/:filename', 'uploads'],
+    exclude: ['uploads/:filename', 'uploads', 'api/v1/uploads/:filename'],
   });
 
   // Global validation pipe — enforces DTO validation

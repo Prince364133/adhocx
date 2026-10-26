@@ -8,6 +8,7 @@ import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/common/app_primary_button.dart';
+import '../../shared/widgets/google_route_map_widget.dart';
 
 /// Screen 2: Opportunity Details matching exact design mockup.
 class OpportunityDetailsScreen extends StatefulWidget {
@@ -73,19 +74,25 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
     final pickupAddr = (pickup?['address'] ?? offer['pickup'] ?? 'Pickup Location').toString();
     final dropAddr = (drop?['address'] ?? offer['drop'] ?? 'Drop Location').toString();
     final requirement = offer['requirement'] as Map<String, dynamic>?;
-    final rawPayout = offer['payoutAmount'] ??
-        offer['offeredRate'] ??
-        offer['suggestedBudget'] ??
-        offer['fare'] ??
-        offer['driverRate'] ??
-        requirement?['ratePerVehicle'] ??
-        requirement?['budgetPerVehicle'];
-    final num payoutVal = rawPayout != null
-        ? ((rawPayout is num) ? rawPayout : (num.tryParse(rawPayout.toString()) ?? 0))
-        : 0;
-    final payout = payoutVal > 0 ? payoutVal : (rawPayout ?? 0);
+    final payout = DriverService.resolveDriverPayout(offer);
     final rawId = (requirement?['id'] ?? offer['id'] ?? offer['requirementId'] ?? '').toString();
     final reqCode = rawId.length > 8 ? 'REQ-${rawId.substring(0, 8).toUpperCase()}' : rawId;
+    final pLat = (pickup?['latitude'] as num?)?.toDouble() ??
+        (pickup?['lat'] as num?)?.toDouble() ??
+        (requirement?['pickupLat'] as num?)?.toDouble() ??
+        17.3850;
+    final pLng = (pickup?['longitude'] as num?)?.toDouble() ??
+        (pickup?['lng'] as num?)?.toDouble() ??
+        (requirement?['pickupLng'] as num?)?.toDouble() ??
+        78.4867;
+    final dLat = (drop?['latitude'] as num?)?.toDouble() ??
+        (drop?['lat'] as num?)?.toDouble() ??
+        (requirement?['dropLat'] as num?)?.toDouble() ??
+        17.4435;
+    final dLng = (drop?['longitude'] as num?)?.toDouble() ??
+        (drop?['lng'] as num?)?.toDouble() ??
+        (requirement?['dropLng'] as num?)?.toDouble() ??
+        78.3808;
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -211,50 +218,17 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
                             ),
                             const SizedBox(height: AppSpacing.lg),
 
-                            // ── Interactive Map Preview Container ──────────────────
-                            Container(
-                              height: 180,
-                              decoration: BoxDecoration(
-                                color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                                borderRadius: BorderRadius.circular(AppRadius.lg),
-                                border: Border.all(
-                                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                                ),
-                              ),
-                              child: Stack(
-                                children: [
-                                  Center(
-                                    child: Icon(
-                                      Icons.map_outlined,
-                                      size: 80,
-                                      color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.3),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    bottom: 12,
-                                    right: 12,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight,
-                                        borderRadius: BorderRadius.circular(AppRadius.full),
-                                        border: Border.all(
-                                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        'Verified Route',
-                                        style: AppTypography.caption(
-                                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                            // ── Live Interactive Google Route Map Preview ──────
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(AppRadius.lg),
+                              child: GoogleRouteMapWidget(
+                                pickupLat: pLat,
+                                pickupLng: pLng,
+                                dropLat: dLat,
+                                dropLng: dLng,
+                                pickupAddress: pickupAddr,
+                                dropAddress: dropAddr,
+                                height: 180,
                               ),
                             ),
                             const SizedBox(height: AppSpacing.lg),
@@ -356,9 +330,8 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
                                           color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                                         ),
                                       ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '₹ $payout.00',
+                                        Text(
+                                          payout > 0 ? '₹ ${payout.toStringAsFixed(0)}' : '₹ --',
                                         style: AppTypography.h1(
                                           color: isDark ? AppColors.primaryLight : AppColors.primary,
                                           fontWeight: FontWeight.bold,

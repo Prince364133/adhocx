@@ -16,8 +16,11 @@ class TripDisputeDialog extends StatefulWidget {
   });
 
   static Future<bool?> show(BuildContext context, {required String tripId}) {
-    return showDialog<bool>(
+    return showModalBottomSheet<bool>(
       context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (ctx) => TripDisputeDialog(tripId: tripId),
     );
   }
@@ -83,17 +86,37 @@ class _TripDisputeDialogState extends State<TripDisputeDialog> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xl)),
-      backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+      ),
+      padding: EdgeInsets.only(
+        left: AppSpacing.lg,
+        right: AppSpacing.lg,
+        top: AppSpacing.md,
+        bottom: AppSpacing.xl + bottomInset,
+      ),
+      child: SafeArea(
+        top: false,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.borderSubtleDark : AppColors.borderSubtleLight,
+                    borderRadius: AppRadius.borderPill,
+                  ),
+                ),
+              ),
               Row(
                 children: [
                   Container(

@@ -36,14 +36,30 @@ export class UploadsController {
     }
 
     const cleanFilename = path.basename(filename);
-    const filePath = path.resolve(this.uploadDir, cleanFilename);
 
-    if (!filePath.startsWith(this.uploadDir)) {
-      throw new BadRequestException('Security violation: Attempted path traversal.');
+    // Check multiple candidate directories to handle Docker, monorepo root, or subpackage cwd
+    const candidateDirs = [
+      this.uploadDir,
+      path.resolve(process.cwd(), 'uploads'),
+      path.resolve(process.cwd(), 'apps/api/uploads'),
+      path.resolve(process.cwd(), '../../uploads'),
+      '/app/apps/api/uploads',
+      '/app/uploads',
+    ];
+
+    let resolvedPath: string | null = null;
+    for (const dir of candidateDirs) {
+      if (fs.existsSync(dir)) {
+        const potential = path.resolve(dir, cleanFilename);
+        if (potential.startsWith(path.resolve(dir)) && fs.existsSync(potential)) {
+          resolvedPath = potential;
+          break;
+        }
+      }
     }
 
-    if (!fs.existsSync(filePath)) {
-      this.logger.warn(`File not found: ${filePath}`);
+    if (!resolvedPath) {
+      this.logger.warn(`File not found: ${cleanFilename} (searched candidate directories)`);
       throw new NotFoundException(`File ${cleanFilename} not found on server.`);
     }
 
@@ -51,6 +67,6 @@ export class UploadsController {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     res.setHeader('Access-Control-Allow-Origin', '*');
 
-    return res.sendFile(filePath);
+    return res.sendFile(resolvedPath);
   }
 }

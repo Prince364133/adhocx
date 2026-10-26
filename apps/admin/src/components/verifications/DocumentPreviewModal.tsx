@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { ZoomIn, ZoomOut, RotateCw, X, FileText, ExternalLink } from 'lucide-react';
 import { DriverKycDocument } from '../../lib/api/types';
+import { resolveDocumentUrl, handleDocumentImageError } from '../../lib/api/client';
 
 interface PreviewModalProps {
   isOpen: boolean;
@@ -163,59 +164,85 @@ export const DocumentPreviewModal: React.FC<PreviewModalProps> = ({
             alignItems: 'center',
           }}
         >
-          {document.fileUrl.endsWith('.pdf') ? (
-            <div
-              style={{
-                width: '600px',
-                height: '400px',
-                background: 'var(--bg-surface-elevated)',
-                borderRadius: '8px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '1rem',
-              }}
-            >
-              <FileText size={48} color="var(--brand-primary)" />
-              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>PDF Document: {document.title}</span>
-              <a
-                href={document.fileUrl}
-                target="_blank"
-                rel="noreferrer"
-                style={{
-                  padding: '0.5rem 1rem',
-                  background: 'var(--brand-primary)',
-                  borderRadius: '6px',
-                  color: '#fff',
-                  fontWeight: 600,
-                  fontSize: '0.875rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                }}
-              >
-                <ExternalLink size={14} /> Open in New Tab
-              </a>
-            </div>
-          ) : (
-            <img
-              src={document.fileUrl}
-              alt={document.title}
-              style={{
-                maxWidth: '100%',
-                maxHeight: '65vh',
-                objectFit: 'contain',
-                borderRadius: '8px',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-              }}
-              onError={(e) => {
-                // Informative graphic if live document file cannot be loaded
-                e.currentTarget.src =
-                  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="600" height="380" viewBox="0 0 600 380"><rect width="600" height="380" fill="%230f172a"/><text x="50%" y="45%" fill="%23f43f5e" font-size="18" font-family="sans-serif" text-anchor="middle" font-weight="bold">DOCUMENT PREVIEW UNAVAILABLE</text><text x="50%" y="55%" fill="%2364748b" font-size="13" font-family="sans-serif" text-anchor="middle">Original document file could not be retrieved from secure storage</text></svg>';
-              }}
-            />
-          )}
+          {(() => {
+            const resolvedUrl = resolveDocumentUrl(document.fileUrl);
+            const isPdf = (resolvedUrl || '').toLowerCase().split('?')[0].endsWith('.pdf');
+
+            if (isPdf) {
+              return (
+                <div
+                  style={{
+                    width: '600px',
+                    height: '400px',
+                    background: 'var(--bg-surface-elevated)',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '1rem',
+                  }}
+                >
+                  <FileText size={48} color="var(--brand-primary)" />
+                  <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>PDF Document: {document.title}</span>
+                  <a
+                    href={resolvedUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      padding: '0.5rem 1rem',
+                      background: 'var(--brand-primary)',
+                      borderRadius: '6px',
+                      color: '#fff',
+                      fontWeight: 600,
+                      fontSize: '0.875rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                    }}
+                  >
+                    <ExternalLink size={14} /> Open in New Tab
+                  </a>
+                </div>
+              );
+            }
+
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                <img
+                  src={resolvedUrl}
+                  alt={document.title}
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: '65vh',
+                    objectFit: 'contain',
+                    borderRadius: '8px',
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                  }}
+                  onError={(e) => {
+                    handleDocumentImageError(e, document.title);
+                  }}
+                />
+                {resolvedUrl && (
+                  <a
+                    href={resolvedUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      color: '#94a3b8',
+                      fontSize: '0.75rem',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      textDecoration: 'underline',
+                    }}
+                  >
+                    <ExternalLink size={12} /> Open original asset in new window
+                  </a>
+                )}
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

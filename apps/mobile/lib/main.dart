@@ -182,11 +182,17 @@ class MyApp extends StatelessWidget {
           darkTheme: AppTheme.darkTheme,
           themeMode: themeProvider.themeMode,
           builder: (context, child) {
+            final mediaQuery = MediaQuery.of(context);
+            final safeScaler = mediaQuery.textScaler.clamp(
+              minScaleFactor: 0.85,
+              maxScaleFactor: 1.0,
+            );
             return MediaQuery(
-              data: MediaQuery.of(
-                context,
-              ).copyWith(textScaler: const TextScaler.linear(1.0)),
-              child: child ?? const SizedBox.shrink(),
+              data: mediaQuery.copyWith(textScaler: safeScaler),
+              child: DefaultTextStyle.merge(
+                overflow: TextOverflow.ellipsis,
+                child: child ?? const SizedBox.shrink(),
+              ),
             );
           },
           debugShowCheckedModeBanner: false,

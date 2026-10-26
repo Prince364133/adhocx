@@ -22,13 +22,10 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   final _yearController = TextEditingController();
   final _colorController = TextEditingController();
 
-  String _category = 'SEDAN';
+  String _category = '';
   bool _isSubmitting = false;
-  List<Map<String, dynamic>> _categories = [
-    {'id': 'SEDAN', 'label': 'Prime Sedan', 'perKmRate': 14.5, 'baseFare': 800.0},
-    {'id': 'SUV', 'label': 'SUV 7 Seater', 'perKmRate': 19.0, 'baseFare': 1400.0},
-    {'id': 'HATCHBACK', 'label': 'Compact Hatchback', 'perKmRate': 11.0, 'baseFare': 500.0},
-  ];
+  bool _isLoadingCategories = true;
+  List<Map<String, dynamic>> _categories = <Map<String, dynamic>>[];
 
   @override
   void initState() {
@@ -37,19 +34,29 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   }
 
   Future<void> _loadCategories() async {
+    if (mounted) setState(() => _isLoadingCategories = true);
     try {
       final tiers = await DriverService.instance.getVehicleCategories(forceRefresh: true);
-      if (tiers.isNotEmpty && mounted) {
+      final activeTiers = tiers.where((t) => t['isActive'] != false).toList();
+      if (activeTiers.isNotEmpty && mounted) {
         setState(() {
-          _categories = tiers.map((t) => {
+          _categories = activeTiers.map((t) => {
             'id': (t['vehicleType'] as String? ?? 'SEDAN').toUpperCase(),
             'label': t['categoryLabel'] ?? t['vehicleType'] ?? 'Vehicle',
-            'perKmRate': (t['perKmRate'] as num?)?.toDouble() ?? 14.5,
-            'baseFare': (t['baseFare'] as num?)?.toDouble() ?? 800.0,
+            'perKmRate': (t['perKmRate'] as num?)?.toDouble() ?? 0.0,
+            'baseFare': (t['baseFare'] as num?)?.toDouble() ?? 0.0,
           }).toList();
+          if ((_category.isEmpty || !_categories.any((c) => c['id'] == _category)) && _categories.isNotEmpty) {
+            _category = _categories.first['id'] as String;
+          }
+          _isLoadingCategories = false;
         });
+        return;
       }
     } catch (_) {}
+    if (mounted) {
+      setState(() => _isLoadingCategories = false);
+    }
   }
 
   @override
@@ -147,58 +154,80 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                       ),
                       const SizedBox(height: 6),
 
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: _categories.map((cat) {
-                            final catId = cat['id'] as String;
-                            final isSelected = _category.toUpperCase() == catId.toUpperCase();
-                            return GestureDetector(
-                              onTap: () => setState(() => _category = catId),
-                              child: Container(
-                                margin: const EdgeInsets.only(right: 8),
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? (isDark ? AppColors.primary.withValues(alpha: 0.25) : AppColors.primaryLight.withValues(alpha: 0.15))
-                                      : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
-                                  borderRadius: BorderRadius.circular(AppRadius.md),
-                                  border: Border.all(
+                      if (_isLoadingCategories && _categories.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          child: Row(
+                            children: [
+                              SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                              SizedBox(width: 10),
+                              Text('Loading available categories...', style: TextStyle(fontSize: 12)),
+                            ],
+                          ),
+                        )
+                      else if (_categories.isEmpty)
+                        Row(
+                          children: [
+                            const Text('No categories available.', style: TextStyle(fontSize: 12)),
+                            TextButton(
+                              onPressed: _loadCategories,
+                              child: const Text('Retry', style: TextStyle(fontSize: 12)),
+                            ),
+                          ],
+                        )
+                      else
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: _categories.map((cat) {
+                              final catId = cat['id'] as String;
+                              final isSelected = _category.toUpperCase() == catId.toUpperCase();
+                              return GestureDetector(
+                                onTap: () => setState(() => _category = catId),
+                                child: Container(
+                                  margin: const EdgeInsets.only(right: 8),
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                  decoration: BoxDecoration(
                                     color: isSelected
-                                        ? (isDark ? AppColors.primaryLight : AppColors.primary)
-                                        : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                                    width: isSelected ? 1.5 : 1,
+                                        ? (isDark ? AppColors.primary.withValues(alpha: 0.25) : AppColors.primaryLight.withValues(alpha: 0.15))
+                                        : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
+                                    borderRadius: BorderRadius.circular(AppRadius.md),
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                                          : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                                      width: isSelected ? 1.5 : 1,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        cat['label'] as String,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                          color: isSelected
+                                              ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                                              : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '₹${cat['perKmRate']}/km',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: isSelected ? AppColors.primary : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      cat['label'] as String,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                                        color: isSelected
-                                            ? (isDark ? AppColors.primaryLight : AppColors.primary)
-                                            : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      '₹${cat['perKmRate']}/km',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: isSelected ? AppColors.primary : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
-                                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          }).toList(),
+                              );
+                            }).toList(),
+                          ),
                         ),
-                      ),
                       const SizedBox(height: AppSpacing.lg),
 
                       _buildTextField(

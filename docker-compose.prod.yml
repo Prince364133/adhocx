@@ -72,6 +72,9 @@ services:
       interval: 15s
       timeout: 5s
       retries: 3
+    volumes:
+      - ./uploads:/app/apps/api/uploads
+      - ./uploads:/app/uploads
     networks:
       - adhocx_internal
 

@@ -67,48 +67,8 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
   final List<String> _additionalStops = [];
   late TextEditingController _notesController;
 
-  List<Map<String, dynamic>> _vehicleOptions = <Map<String, dynamic>>[
-    <String, dynamic>{
-      'id': 'SEDAN',
-      'label': 'Prime Sedan',
-      'subtitle': '4 + 1 Passengers • Ac Commercial',
-      'maxSeats': 4,
-      'baseRate': 800.0,
-      'baseKm': 40.0,
-      'perKmRate': 14.5,
-      'icon': Icons.directions_car_rounded,
-    },
-    <String, dynamic>{
-      'id': 'SUV',
-      'label': 'SUV 7 Seater',
-      'subtitle': '6 + 1 Passengers • Extra Luggage',
-      'maxSeats': 6,
-      'baseRate': 1400.0,
-      'baseKm': 40.0,
-      'perKmRate': 19.0,
-      'icon': Icons.airport_shuttle_rounded,
-    },
-    <String, dynamic>{
-      'id': 'HATCHBACK',
-      'label': 'Compact Hatchback',
-      'subtitle': '4 + 1 Passengers • City Budget',
-      'maxSeats': 4,
-      'baseRate': 500.0,
-      'baseKm': 20.0,
-      'perKmRate': 11.0,
-      'icon': Icons.electric_car_rounded,
-    },
-    <String, dynamic>{
-      'id': 'BUS',
-      'label': 'Commercial Coach Bus',
-      'subtitle': '24 - 40 Passengers • Coach Bus',
-      'maxSeats': 24,
-      'baseRate': 6500.0,
-      'baseKm': 100.0,
-      'perKmRate': 45.0,
-      'icon': Icons.directions_bus_rounded,
-    },
-  ];
+  List<Map<String, dynamic>> _vehicleOptions = <Map<String, dynamic>>[];
+  bool _isLoadingCabs = true;
 
   @override
   void initState() {
@@ -145,8 +105,8 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
       _additionalStops.addAll(item.additionalStops);
       _notesController = TextEditingController(text: item.additionalInfo);
     } else {
-      _vehicleType = 'SEDAN';
-      _vehicleLabel = 'Prime Sedan';
+      _vehicleType = '';
+      _vehicleLabel = '';
       _passengers = 4;
       final def = OfficeHubDetector.defaultLocationForHub(_officeHubId);
       _officeAddress = def['address'] as String;
@@ -178,35 +138,45 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
   }
 
   Future<void> _loadLivePricingTiers() async {
+    if (mounted) setState(() => _isLoadingCabs = true);
     try {
-      final tiers = await DriverService.instance.getVehicleCategories(forceRefresh: true);
-      if (tiers.isNotEmpty && mounted) {
+      var tiers = await DriverService.instance.getVehicleCategories(forceRefresh: true);
+      if (tiers.isEmpty) {
+        tiers = await UserService.instance.getPricingTiers(forceRefresh: true);
+      }
+      final activeTiers = tiers.where((t) => t['isActive'] != false).toList();
+      if (activeTiers.isNotEmpty && mounted) {
         setState(() {
-          _vehicleOptions = tiers.map((t) {
+          _vehicleOptions = activeTiers.map((t) {
             final vType = (t['vehicleType'] as String? ?? 'SEDAN').toUpperCase();
             final label = t['categoryLabel']?.toString() ?? vType;
             final seating = t['seatingCapacity']?.toString() ?? '4 + 1 Passengers';
-            int maxSeats = 4;
-            if (vType == 'SUV') {
-              maxSeats = 6;
-            } else if (vType == 'BUS') {
-              maxSeats = 24;
-            } else if (vType == 'TEMPO_TRAVELLER') {
-              maxSeats = 12;
-            } else if (seating.contains('6')) {
-              maxSeats = 6;
-            } else if (seating.contains('12')) {
-              maxSeats = 12;
-            } else if (seating.contains('24')) {
-              maxSeats = 24;
+            int maxSeats = (t['maxSeats'] as num?)?.toInt() ?? (t['seats'] as num?)?.toInt() ?? 4;
+            if (maxSeats <= 0) {
+              if (vType == 'SUV') {
+                maxSeats = 6;
+              } else if (vType == 'BUS') {
+                maxSeats = 24;
+              } else if (vType == 'TEMPO_TRAVELLER') {
+                maxSeats = 12;
+              } else if (seating.contains('6')) {
+                maxSeats = 6;
+              } else if (seating.contains('12')) {
+                maxSeats = 12;
+              } else if (seating.contains('24')) {
+                maxSeats = 24;
+              } else {
+                maxSeats = 4;
+              }
             }
 
             IconData icon = Icons.directions_car_rounded;
+            final iconKey = t['iconKey'] as String? ?? '';
             if (vType == 'SUV') {
               icon = Icons.airport_shuttle_rounded;
-            } else if (vType == 'BUS') {
+            } else if (vType == 'BUS' || iconKey == 'bus') {
               icon = Icons.directions_bus_rounded;
-            } else if (vType == 'TEMPO_TRAVELLER' || vType == 'TATA_ACE' || vType == 'PICKUP_TRUCK') {
+            } else if (vType == 'TEMPO_TRAVELLER' || vType == 'TATA_ACE' || vType == 'PICKUP_TRUCK' || iconKey == 'truck') {
               icon = Icons.local_shipping_rounded;
             } else if (vType == 'HATCHBACK') {
               icon = Icons.electric_car_rounded;
@@ -217,18 +187,35 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
               'label': label,
               'subtitle': seating,
               'maxSeats': maxSeats,
-              'baseRate': (t['baseFare'] as num?)?.toDouble() ?? 800.0,
-              'baseKm': (t['baseKm'] as num?)?.toDouble() ?? 40.0,
-              'perKmRate': (t['perKmRate'] as num?)?.toDouble() ?? 14.5,
+              'baseRate': (t['baseFare'] as num?)?.toDouble() ?? 0.0,
+              'baseKm': (t['baseKm'] as num?)?.toDouble() ?? 0.0,
+              'perKmRate': (t['perKmRate'] as num?)?.toDouble() ?? 0.0,
               'icon': icon,
             };
           }).toList();
+
+          // Auto-select first available live category if none set
+          if ((_vehicleType.isEmpty || !_vehicleOptions.any((v) => v['id'] == _vehicleType)) &&
+              _vehicleOptions.isNotEmpty) {
+            _vehicleType = _vehicleOptions.first['id'] as String;
+            _vehicleLabel = _vehicleOptions.first['label'] as String;
+            if (_passengers > _currentMaxSeats) {
+              _passengers = _currentMaxSeats;
+            }
+          }
+          _isLoadingCabs = false;
         });
         if (_locality != null && _pickupAddress.isNotEmpty) {
           _refreshLiveFare();
         }
+        return;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('⚠️ [ADD CAB] Error fetching live vehicle tiers: $e');
+    }
+    if (mounted) {
+      setState(() => _isLoadingCabs = false);
+    }
   }
 
   @override
@@ -247,12 +234,13 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
       return _vehicleOptions.first;
     }
     return <String, dynamic>{
-      'id': 'SEDAN',
-      'label': 'Prime Sedan',
+      'id': _vehicleType.isNotEmpty ? _vehicleType : '',
+      'label': _vehicleLabel.isNotEmpty ? _vehicleLabel : '',
       'maxSeats': 4,
-      'baseRate': 800.0,
-      'baseKm': 40.0,
-      'perKmRate': 14.5,
+      'baseRate': 0.0,
+      'baseKm': 0.0,
+      'perKmRate': 0.0,
+      'icon': Icons.directions_car_rounded,
     };
   }
 
@@ -312,7 +300,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
           officeHubId: _officeHubId,
           direction: _direction,
           localityId: localityId,
-          vehicleType: _vehicleType == 'SUV' ? 'SUV' : 'SEDAN',
+          vehicleType: _vehicleType.isNotEmpty ? _vehicleType : 'SEDAN',
           hasEscort: _hasEscort,
           pickupLat: effectivePickupLat,
           pickupLng: effectivePickupLng,
@@ -645,82 +633,142 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
                   ),
                   const SizedBox(height: 8),
 
-                  // Horizontal vehicle selection cards
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: _vehicleOptions.map((opt) {
-                        final isSelected = opt['id'] == _vehicleType;
-                        return GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _zonalQuote = null;
-                              _vehicleType = opt['id'] as String;
-                              _vehicleLabel = opt['label'] as String;
-                              if (_passengers > _currentMaxSeats) {
-                                _passengers = _currentMaxSeats;
-                              }
-                            });
-                            _refreshLiveFare();
-                          },
-                          child: Container(
+                  // Horizontal vehicle selection cards (Direct live DB data)
+                  if (_isLoadingCabs && _vehicleOptions.isEmpty)
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: List.generate(
+                          3,
+                          (index) => Container(
                             width: 140,
+                            height: 88,
                             margin: const EdgeInsets.only(right: 10),
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppColors.primary.withValues(alpha: 0.1)
-                                  : (isDark ? AppColors.bgDark : AppColors.bgLight),
+                              color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                               borderRadius: BorderRadius.circular(AppRadius.md),
                               border: Border.all(
-                                color: isSelected
-                                    ? AppColors.primary
-                                    : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                                width: isSelected ? 2 : 1,
+                                color: isDark ? AppColors.borderDark : AppColors.borderLight,
                               ),
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Icon(
-                                      opt['icon'] as IconData,
-                                      color: isSelected ? AppColors.primary : AppColors.slate500,
-                                      size: 22,
-                                    ),
-                                    if (isSelected)
-                                      const Icon(Icons.check_circle_rounded,
-                                          color: AppColors.primary, size: 16),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  opt['label'] as String,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
-                                    color: isSelected ? AppColors.primary : null,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Max ${opt['maxSeats']} seats',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                                  ),
-                                ),
-                              ],
+                            child: const Center(
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
                             ),
                           ),
-                        );
-                      }).toList(),
+                        ),
+                      ),
+                    )
+                  else if (_vehicleOptions.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        border: Border.all(
+                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline_rounded, size: 20, color: AppColors.warning),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Unable to load available cabs from server.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: _loadLivePricingTiers,
+                            child: const Text('Retry', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: _vehicleOptions.map((opt) {
+                          final isSelected = opt['id'] == _vehicleType;
+                          return GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _zonalQuote = null;
+                                _vehicleType = opt['id'] as String;
+                                _vehicleLabel = opt['label'] as String;
+                                if (_passengers > _currentMaxSeats) {
+                                  _passengers = _currentMaxSeats;
+                                }
+                              });
+                              _refreshLiveFare();
+                            },
+                            child: Container(
+                              width: 140,
+                              margin: const EdgeInsets.only(right: 10),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppColors.primary.withValues(alpha: 0.1)
+                                    : (isDark ? AppColors.bgDark : AppColors.bgLight),
+                                borderRadius: BorderRadius.circular(AppRadius.md),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? AppColors.primary
+                                      : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                                  width: isSelected ? 2 : 1,
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Icon(
+                                        opt['icon'] as IconData,
+                                        color: isSelected ? AppColors.primary : AppColors.slate500,
+                                        size: 22,
+                                      ),
+                                      if (isSelected)
+                                        const Icon(Icons.check_circle_rounded,
+                                            color: AppColors.primary, size: 16),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    opt['label'] as String,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                      color: isSelected ? AppColors.primary : null,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Max ${opt['maxSeats']} seats',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
                     ),
-                  ),
 
                   const SizedBox(height: AppSpacing.lg),
 

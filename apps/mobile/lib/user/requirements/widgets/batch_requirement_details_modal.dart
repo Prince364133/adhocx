@@ -318,14 +318,24 @@ class _BatchRequirementDetailsModalState extends State<BatchRequirementDetailsMo
                           color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                       ),
-                      OutlinedButton.icon(
-                        onPressed: _isSavingTemplate ? null : _saveBatchAsTemplate,
-                        icon: const Icon(Icons.bookmark_add_outlined, size: 16),
-                        label: const Text('Save as Template', style: TextStyle(fontSize: 11)),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.primary,
-                          side: const BorderSide(color: AppColors.primary),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: AppColors.primary),
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                        ),
+                        child: IconButton(
+                          onPressed: _isSavingTemplate ? null : _saveBatchAsTemplate,
+                          icon: _isSavingTemplate
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                                )
+                              : const Icon(Icons.bookmark_add_outlined, size: 18, color: AppColors.primary),
+                          tooltip: 'Save as Template',
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.all(6),
+                          constraints: const BoxConstraints(),
                         ),
                       ),
                     ],

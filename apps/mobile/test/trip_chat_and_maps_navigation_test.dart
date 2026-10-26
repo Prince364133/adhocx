@@ -64,6 +64,43 @@ void main() {
       expect(find.byTooltip('Chat with User'), findsOneWidget);
     });
 
+    testWidgets('bypasses placeholder "Partner" and displays real user name from nested user object', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final tripWithPlaceholder = {
+        'id': 'TRP-HYD-9999',
+        'status': 'ASSIGNED',
+        'driverRate': 800.0,
+        'pickupLocation': {'latitude': 17.3850, 'longitude': 78.4867, 'address': 'Kokapet'},
+        'dropLocation': {'latitude': 17.4435, 'longitude': 78.3808, 'address': 'Begumpet'},
+        'vendorName': 'Partner',
+        'vendorOrganizationName': 'Corporate Partner',
+        'vendor': {
+          'user': {
+            'fullName': 'Suresh Reddy',
+            'phone': '+91 91234 56789',
+          },
+        },
+      };
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TripDetailsScreen(initialTrip: tripWithPlaceholder),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.text('User: Suresh Reddy'), findsOneWidget);
+      expect(find.text('User: Partner'), findsNothing);
+      expect(find.text('+91 91234 56789'), findsOneWidget);
+    });
+
     testWidgets('renders GoogleRouteMapWidget instead of static placeholder icon', (tester) async {
       await tester.pumpWidget(
         MaterialApp(

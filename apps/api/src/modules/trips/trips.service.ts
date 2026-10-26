@@ -33,6 +33,7 @@ import { AuditService } from '../audit/audit.service';
 import { LocationsService } from '../locations/locations.service';
 import { findPendingReviewTrip } from '../reviews/pending-review';
 import { DispatchConfig } from '../dispatch/dispatch.config';
+import { sanitizeRealName } from '../../common';
 
 @Injectable()
 export class TripsService {
@@ -66,7 +67,19 @@ export class TripsService {
 
     const trips = await this.db.trip.findMany({
       where,
-      include: { requirement: true, driver: { include: { user: true } } },
+      include: {
+        requirement: {
+          include: {
+            vendor: {
+              include: { user: true },
+            },
+          },
+        },
+        vendor: {
+          include: { user: true },
+        },
+        driver: { include: { user: true } },
+      },
       skip,
       take: limit,
       orderBy: { createdAt: 'desc' },
@@ -95,7 +108,19 @@ export class TripsService {
 
     const trips = await this.db.trip.findMany({
       where,
-      include: { requirement: true, driver: { include: { user: true } } },
+      include: {
+        requirement: {
+          include: {
+            vendor: {
+              include: { user: true },
+            },
+          },
+        },
+        vendor: {
+          include: { user: true },
+        },
+        driver: { include: { user: true } },
+      },
       skip,
       take: limit,
       orderBy: { createdAt: 'desc' },
@@ -168,15 +193,22 @@ export class TripsService {
 
     const baseDto = this.mapToDto(trip);
 
-    const driverFullName = trip.driver?.fullName || trip.driver?.user?.fullName || 'Driver';
+    const driverFullName =
+      sanitizeRealName(trip.driver?.fullName) ||
+      sanitizeRealName(trip.driver?.user?.fullName) ||
+      'Driver';
     const driverPhoneNumber = trip.driver?.phone || trip.driver?.user?.phone || undefined;
     const vehiclePlateNumber = trip.driver?.vehiclePlate || undefined;
     const vehicleModelName = trip.driver?.vehicleModel || trip.vehicleType || undefined;
 
     const vendorRecord = trip.requirement?.vendor || (trip as any).vendor;
-    const vendorFullName = vendorRecord?.fullName || vendorRecord?.user?.fullName || vendorRecord?.organizationName || 'User';
+    const vendorFullName =
+      sanitizeRealName(vendorRecord?.user?.fullName) ||
+      sanitizeRealName(vendorRecord?.fullName) ||
+      sanitizeRealName(vendorRecord?.organizationName) ||
+      'Customer';
     const vendorPhoneNumber = vendorRecord?.phone || vendorRecord?.user?.phone || undefined;
-    const vendorOrgName = vendorRecord?.organizationName || undefined;
+    const vendorOrgName = sanitizeRealName(vendorRecord?.organizationName) || undefined;
 
     return {
       ...baseDto,
@@ -209,6 +241,34 @@ export class TripsService {
           phone: driverPhoneNumber,
         },
       },
+      ...(trip.requirement
+        ? {
+            requirement: {
+              id: trip.requirement.id,
+              vehicleType: trip.requirement.vehicleType,
+              pickupAddress: trip.requirement.pickupAddress,
+              dropAddress: trip.requirement.dropAddress,
+              reportingTime: trip.requirement.reportingTime?.toISOString(),
+              distanceKm: (trip.requirement as any)?.distanceKm ? Number((trip.requirement as any).distanceKm) : undefined,
+              durationMinutes: (trip.requirement as any)?.durationMinutes ? Number((trip.requirement as any).durationMinutes) : undefined,
+              pickupLat: trip.requirement.pickupLat ? Number(trip.requirement.pickupLat) : undefined,
+              pickupLng: trip.requirement.pickupLng ? Number(trip.requirement.pickupLng) : undefined,
+              dropLat: trip.requirement.dropLat ? Number(trip.requirement.dropLat) : undefined,
+              dropLng: trip.requirement.dropLng ? Number(trip.requirement.dropLng) : undefined,
+              // Strictly protect vendor pricing from drivers:
+              ratePerVehicle: Number(baseDto.driverRate || baseDto.driverEarnings),
+              budgetPerVehicle: Number(baseDto.driverRate || baseDto.driverEarnings),
+              suggestedBudget: Number(baseDto.driverRate || baseDto.driverEarnings),
+              totalAmount: Number(baseDto.driverRate || baseDto.driverEarnings),
+              notes: trip.requirement.notes,
+              vendor: {
+                organizationName: vendorOrgName,
+                fullName: vendorFullName,
+                phone: vendorPhoneNumber,
+              },
+            },
+          }
+        : {}),
       events: trip.events.map((e) => ({
         id: e.id,
         tripId: e.tripId,
@@ -359,6 +419,15 @@ export class TripsService {
   async markArrived(id: string, driverUserId: string): Promise<TripResponseDto> {
     const trip = await this.findAndVerifyDriverTrip(id, driverUserId);
 
+    if (trip.status === TripStatus.COMPLETED || trip.status === TripStatus.CANCELLED) {
+      throw new BadRequestException(`Trip is already ${trip.status.toLowerCase()}. Please refresh your trips.`);
+    }
+
+    if (trip.status === TripStatus.ARRIVED) {
+      // Idempotent retry: driver already marked arrived
+      return this.mapToDto(trip);
+    }
+
     validateTripTransition(trip.status as TripStatus, TripStatus.ARRIVED);
 
     const updated = await this.db.trip.update({
@@ -394,6 +463,19 @@ export class TripsService {
       otp: updated.otp,
       reportingTime: updated.reportingTime.toISOString(),
     });
+    if (updated.requirement?.vendor?.userId) {
+      this.notifications.emitEvent(`user:${updated.requirement.vendor.userId}`, 'TRIP_DRIVER_ARRIVED', {
+        tripId: id,
+        driverName: updated.driver.fullName,
+        vehiclePlate: updated.driver.vehiclePlate,
+        otp: updated.otp,
+        reportingTime: updated.reportingTime.toISOString(),
+      });
+    }
+
+    // Notify driver in real-time
+    this.notifications.emitEvent(`driver:${updated.driverId}`, 'TRIP_ARRIVED', { tripId: id });
+    this.notifications.emitEvent(`user:${driverUserId}`, 'TRIP_ARRIVED', { tripId: id });
 
     // FCM Push to Vendor: Driver Arrived with OTP
     if (updated.requirement?.vendor?.userId) {
@@ -471,12 +553,14 @@ export class TripsService {
       });
     }
 
-    // Emit real-time event to vendor
+    // Emit real-time event to vendor and driver
     this.notifications.emitEvent(`vendor:${updated.vendorId}`, 'TRIP_STARTED', {
       tripId: id,
       startedAt: now.toISOString(),
       pickupLocation: dto.currentLocation,
     });
+    this.notifications.emitEvent(`driver:${trip.driverId}`, 'TRIP_STARTED', { tripId: id });
+    this.notifications.emitEvent(`user:${driverUserId}`, 'TRIP_STARTED', { tripId: id });
 
     // FCM Push to Vendor: Trip Started
     const vendorRecord = await this.db.vendor.findUnique({
@@ -773,6 +857,10 @@ export class TripsService {
       tripId: id,
       totalEarnings: totalDriverEarnings,
     });
+    this.notifications.emitEvent(`user:${driverUserId}`, 'TRIP_COMPLETED', {
+      tripId: id,
+      totalEarnings: totalDriverEarnings,
+    });
 
     // FCM Push to Driver: Trip Completed with earnings
     this.notifications.sendPushToUser(driverUserId, {
@@ -790,6 +878,12 @@ export class TripsService {
       select: { userId: true },
     });
     if (vendorUser?.userId) {
+      this.notifications.emitEvent(`user:${vendorUser.userId}`, 'TRIP_COMPLETED', {
+        tripId: id,
+        requirementId: updated.requirementId,
+        completedAt: now.toISOString(),
+        ...(zonalQuote ? {} : { totalEarnings: totalDriverEarnings }),
+      });
       this.notifications.sendPushToUser(vendorUser.userId, {
         title: '✅ Trip Delivered!',
         body: `Trip #${id.substring(0, 8)} completed successfully. You can now submit your driver rating.`,
@@ -823,7 +917,10 @@ export class TripsService {
   ): Promise<TripResponseDto> {
     const trip = await this.db.trip.findUnique({
       where: { id },
-      include: { requirement: true },
+      include: {
+        requirement: { include: { vendor: true } },
+        driver: true,
+      },
     });
 
     if (!trip) {
@@ -968,10 +1065,23 @@ export class TripsService {
       requirementId: updated.requirementId,
       reason: dto.reason,
     });
+    if (trip.requirement?.vendor?.userId) {
+      this.notifications.emitEvent(`user:${trip.requirement.vendor.userId}`, 'TRIP_CANCELLED', {
+        tripId: id,
+        requirementId: updated.requirementId,
+        reason: dto.reason,
+      });
+    }
     this.notifications.emitEvent(`driver:${updated.driverId}`, 'TRIP_CANCELLED', {
       tripId: id,
       reason: dto.reason,
     });
+    if (trip.driver?.userId) {
+      this.notifications.emitEvent(`user:${trip.driver.userId}`, 'TRIP_CANCELLED', {
+        tripId: id,
+        reason: dto.reason,
+      });
+    }
 
     await this.audit.log({
       userId,
@@ -1147,10 +1257,18 @@ export class TripsService {
   }
 
   private mapToDto(t: any): TripResponseDto {
-    const driverFullName = t.driver?.fullName || t.driver?.user?.fullName;
+    const driverFullName = sanitizeRealName(t.driver?.fullName) || sanitizeRealName(t.driver?.user?.fullName);
     const driverPhoneNumber = t.driver?.phone || t.driver?.user?.phone;
     const vehiclePlateNumber = t.driver?.vehiclePlate;
     const vehicleModelName = t.driver?.vehicleModel || t.vehicleType;
+
+    const vendorRecord = t.requirement?.vendor || t.vendor;
+    const vendorFullName =
+      sanitizeRealName(vendorRecord?.user?.fullName) ||
+      sanitizeRealName(vendorRecord?.fullName) ||
+      sanitizeRealName(vendorRecord?.organizationName);
+    const vendorPhoneNumber = vendorRecord?.phone || vendorRecord?.user?.phone;
+    const vendorOrgName = sanitizeRealName(vendorRecord?.organizationName);
 
     return {
       id: t.id,
@@ -1179,14 +1297,48 @@ export class TripsService {
       completedAt: t.completedAt?.toISOString(),
       cancelledAt: t.cancelledAt?.toISOString(),
       status: t.status as TripStatus,
-      driverRate: Number(t.driverRate),
-      fare: Number(t.driverRate),
-      driverEarnings: Number(t.totalDriverEarnings || t.driverRate),
+      driverRate: (() => {
+        let r = Number(t.driverRate || 0);
+        if (r <= 0) {
+          if (t.totalDriverEarnings && Number(t.totalDriverEarnings) > 0) {
+            r = Number(t.totalDriverEarnings);
+          } else if (t.requirement?.ratePerVehicle) {
+            r = Math.round(Number(t.requirement.ratePerVehicle) * 0.85);
+          }
+        }
+        return r;
+      })(),
+      fare: (() => {
+        let r = Number(t.driverRate || 0);
+        if (r <= 0) {
+          if (t.totalDriverEarnings && Number(t.totalDriverEarnings) > 0) {
+            r = Number(t.totalDriverEarnings);
+          } else if (t.requirement?.ratePerVehicle) {
+            r = Math.round(Number(t.requirement.ratePerVehicle) * 0.85);
+          }
+        }
+        return r;
+      })(),
+      driverEarnings: Number(t.totalDriverEarnings || t.driverRate || (t.requirement?.ratePerVehicle ? Math.round(Number(t.requirement.ratePerVehicle) * 0.85) : 0)),
       tollCharges: t.tollCharges ? Number(t.tollCharges) : undefined,
       parkingCharges: t.parkingCharges ? Number(t.parkingCharges) : undefined,
-      totalDriverEarnings: Number(t.totalDriverEarnings || 0),
+      totalDriverEarnings: Number(t.totalDriverEarnings || t.driverRate || (t.requirement?.ratePerVehicle ? Math.round(Number(t.requirement.ratePerVehicle) * 0.85) : 0)),
       createdAt: t.createdAt.toISOString(),
       updatedAt: t.updatedAt.toISOString(),
+      vendorName: vendorFullName,
+      vendorPhone: vendorPhoneNumber,
+      vendorOrganizationName: vendorOrgName,
+      requesterName: vendorFullName,
+      ...(vendorRecord
+        ? {
+            vendor: {
+              id: t.vendorId,
+              organizationName: vendorOrgName,
+              fullName: vendorFullName,
+              phone: vendorPhoneNumber,
+            },
+          }
+        : {}),
       ...(t.driver
         ? {
             driver: {

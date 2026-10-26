@@ -93,14 +93,16 @@ class UserModel {
     final dStatus = driverProf?['verificationStatus']?.toString().toUpperCase();
     final vStatus = vendorProf?['verificationStatus']?.toString().toUpperCase();
 
+    final String? vAddress = vendorProf?['address']?.toString().trim();
+    final String? vOrg = vendorProf?['organizationName']?.toString().trim();
+    final bool hasValidOrg = vOrg != null && vOrg.isNotEmpty && !isPlaceholderName(vOrg);
+    final bool hasValidAddress = vAddress != null && vAddress.isNotEmpty;
+
     final bool hasVendorSubmission = vendorProf != null &&
         (vStatus == 'UNDER_REVIEW' ||
-         vStatus == 'PENDING' ||
          vStatus == 'VERIFIED' ||
-         vStatus == 'REJECTED' ||
-         (vendorProf['address'] != null && vendorProf['address'].toString().trim().isNotEmpty) ||
-         (vendorProf['organizationName'] != null &&
-          vendorProf['organizationName'].toString().trim().isNotEmpty));
+         (vStatus == 'REJECTED' && hasValidAddress) ||
+         (hasValidAddress && hasValidOrg));
 
     final bool hasDriverSubmission = driverProf != null &&
         (dStatus == 'UNDER_REVIEW' ||
@@ -109,8 +111,10 @@ class UserModel {
          (driverProf['vehiclePlate'] != null && driverProf['vehiclePlate'].toString().trim().isNotEmpty) ||
          driverProf['dlFrontUrl'] != null);
 
-    final bool isOb = data['isOnboarded'] == true ||
-        root['isOnboarded'] == true ||
+    final bool isOb = (data['isOnboarded'] == true || root['isOnboarded'] == true) &&
+        (data['role'] == 'DRIVER' || root['role'] == 'DRIVER'
+            ? (hasDriverSubmission || dStatus == 'UNDER_REVIEW' || dStatus == 'VERIFIED')
+            : (hasVendorSubmission || vStatus == 'UNDER_REVIEW' || vStatus == 'VERIFIED')) ||
         hasVendorSubmission ||
         hasDriverSubmission ||
         dStatus == 'UNDER_REVIEW' ||
@@ -207,7 +211,7 @@ class UserModel {
   bool get isRejected => verificationStatus == 'REJECTED';
   bool get isUnderReview =>
       verificationStatus == 'UNDER_REVIEW' ||
-      (isOnboarded && !isVerified && !isRejected);
+      (isOnboarded && !isVerified && !isRejected && verificationStatus != 'PENDING');
   bool get isPending => verificationStatus == 'PENDING' || isUnderReview;
 
   String? get rejectionReason {

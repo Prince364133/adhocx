@@ -19,9 +19,9 @@ export type PenaltyMode = 'enforce' | 'shadow' | 'off';
 const DEFAULT_REVIEW_GATE_START_AT = '2026-10-12T00:00:00.000Z';
 
 export const DispatchConfig = {
-  /** Offer countdown window per wave. */
+  /** Offer countdown window per wave (18s Uber-grade golden window). */
   get offerTtlMs(): number {
-    return Math.max(1000, num(process.env.OFFER_TTL_MS, 30000));
+    return Math.max(1000, num(process.env.OFFER_TTL_MS, 18000));
   },
   /** Automatic waves allowed before the requirement is marked NO_DRIVER_AVAILABLE (manual retry resets). */
   get maxWaves(): number {

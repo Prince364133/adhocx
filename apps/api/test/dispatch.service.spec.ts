@@ -114,9 +114,9 @@ describe('DispatchService Unit Tests', () => {
 
     const result = await service.dispatchRequirement('req-1');
 
-    expect(result.offersCreated).toBe(2);
+    expect(result.offersCreated).toBe(1);
     expect(result.status).toBe(RequirementStatus.DISPATCHING);
-    expect(db.offer.create).toHaveBeenCalledTimes(2);
+    expect(db.offer.create).toHaveBeenCalledTimes(1);
     expect(notifications.emitEvent).toHaveBeenCalledWith(
       'driver:drv-1',
       'OFFER_RECEIVED',
