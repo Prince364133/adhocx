@@ -22,6 +22,8 @@ import '../../services/permission_service.dart';
 import '../../services/location_monitor_service.dart';
 import '../../utils/vehicle_utils.dart';
 import '../../services/language_service.dart';
+import '../common/app_update_banner.dart';
+import '../../services/app_update_service.dart';
 
 enum DriverHomeState { offline, available, offerAttention, assignedTrip, activeTrip, completedTrip }
 
@@ -54,6 +56,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadLiveDriverData();
     _startAutoRefresh();
     _listenToTripLifecycleEvents();
+    AppUpdateService.instance.checkForUpdate();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkStartupPermissionStatus();
     });
@@ -173,6 +176,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 _currentState = DriverHomeState.available;
               }
               _ensureRealtimeConnected();
+              GlobalDispatchOverlayService.instance.startAssistiveBubble();
               if (!LocationMonitorService.instance.isMonitoring) {
                 LocationMonitorService.instance.startMonitoring(
                   onAutoOffline: () {
@@ -180,6 +184,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       setState(() {
                         _currentState = DriverHomeState.offline;
                       });
+                      GlobalDispatchOverlayService.instance.stopAssistiveBubble();
                       Fluttertoast.showToast(
                         msg: 'GPS was turned off. You have been automatically set to OFFLINE.',
                         backgroundColor: AppColors.error,
@@ -207,6 +212,7 @@ class _HomeScreenState extends State<HomeScreen> {
           if (inProgressTrip != null) {
             _liveTrip = inProgressTrip as Map<String, dynamic>;
             _currentState = DriverHomeState.activeTrip;
+            GlobalDispatchOverlayService.instance.syncActiveTripToBubble(_liveTrip);
             return;
           }
 
@@ -218,6 +224,7 @@ class _HomeScreenState extends State<HomeScreen> {
           if (assignedTrip != null) {
             _liveTrip = assignedTrip as Map<String, dynamic>;
             _currentState = DriverHomeState.assignedTrip;
+            GlobalDispatchOverlayService.instance.syncActiveTripToBubble(_liveTrip);
             return;
           }
 
@@ -328,8 +335,8 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       final newStatus = goOnline ? 'AVAILABLE' : 'OFFLINE';
-      final lat = currentPos?.latitude ?? 28.4950;
-      final lng = currentPos?.longitude ?? 77.0895;
+      final lat = currentPos?.latitude ?? 17.4435;
+      final lng = currentPos?.longitude ?? 78.3772;
 
       await DriverService.instance.updateAvailability(newStatus, lat: lat, lng: lng);
 
@@ -340,6 +347,7 @@ class _HomeScreenState extends State<HomeScreen> {
         if (goOnline) {
           _ensureRealtimeConnected();
           GlobalDispatchOverlayService.promptAndroidOverlayPermission(context);
+          GlobalDispatchOverlayService.instance.startAssistiveBubble();
 
           // Start GPS background monitor: auto-switches to OFFLINE if GPS is switched off
           LocationMonitorService.instance.startMonitoring(
@@ -348,6 +356,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 setState(() {
                   _currentState = DriverHomeState.offline;
                 });
+                GlobalDispatchOverlayService.instance.stopAssistiveBubble();
                 Fluttertoast.showToast(
                   msg: 'GPS was turned off. You have been automatically switched to OFFLINE.',
                   backgroundColor: AppColors.error,
@@ -359,6 +368,7 @@ class _HomeScreenState extends State<HomeScreen> {
         } else {
           LocationMonitorService.instance.stopMonitoring();
           GlobalDispatchOverlayService.instance.stopRealtimeListener();
+          GlobalDispatchOverlayService.instance.stopAssistiveBubble();
         }
         Fluttertoast.showToast(
           msg: goOnline ? 'You are now ONLINE & Available for trips' : 'You are now OFFLINE',
@@ -565,6 +575,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
+
+                // ── App Update Notice Banner ─────────────────────────────────
+                const AppUpdateBanner(),
 
                 // ── Dynamic State Body ───────────────────────────────────────
                 Expanded(

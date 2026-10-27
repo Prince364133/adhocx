@@ -20,6 +20,7 @@
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
     
     <!-- Required permissions for taking KYC Selfies -->
     <uses-permission android:name="android.permission.CAMERA"/>
@@ -75,6 +76,16 @@
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyB8uEHtGy96QPbx3eIxG0s0_WYlWpB8QVI" />
+
+        <!-- Overlay Service for Assistive Floating Bubble & Full-Screen Trip Alert Dispatch Sheet over other apps -->
+        <service 
+            android:name="flutter.overlay.window.flutter_overlay_window.OverlayService" 
+            android:exported="false" 
+            android:foregroundServiceType="specialUse">
+            <property 
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" 
+                android:value="AdhocX Driver Assistive Floating Bubble for incoming trip offers and navigation overlay." />
+        </service>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_overlay_window/flutter_overlay_window.dart';
+import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -24,6 +26,7 @@ import './permission_service.dart';
 /// 2. Presenting incoming trip offers anywhere across the app via [rootNavigatorKey].
 /// 3. Cross-platform audible and haptic dispatch chime alerts.
 /// 4. Android SYSTEM_ALERT_WINDOW ("Display over other apps") permission flow.
+/// 5. Assistive Floating Bubble & 30-Second Countdown Overlay over other apps.
 class GlobalDispatchOverlayService {
   GlobalDispatchOverlayService._();
   static final GlobalDispatchOverlayService instance = GlobalDispatchOverlayService._();
@@ -41,10 +44,14 @@ class GlobalDispatchOverlayService {
   static const int _maxReconnectAttempts = 10;
   bool _isPaymentFlowActive = false;
 
+  bool _isBubbleActive = false;
+  StreamSubscription? _overlayActionSub;
+
   bool get isShowingOffer => _isShowingOffer;
   String? get activeOfferId => _activeOfferId;
   bool get isListening => _isListening;
   bool get isPaymentFlowActive => _isPaymentFlowActive;
+  bool get isBubbleActive => _isBubbleActive;
 
   /// Call this when entering a payment flow (Razorpay, wallet top-up) to
   /// prevent SSE reconnect loops from flooding the network.
@@ -192,6 +199,109 @@ class GlobalDispatchOverlayService {
     debugPrint('⚪ [SSE STREAM STOPPED] Disconnected driver event stream');
   }
 
+  /// Starts the Android Assistive Floating Bubble that draws over other apps.
+  /// Remains visible until the driver toggles OFFLINE.
+  Future<void> startAssistiveBubble() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    try {
+      final isGranted = await FlutterOverlayWindow.isPermissionGranted();
+      if (isGranted != true) {
+        debugPrint('⚠️ [OverlayService] SYSTEM_ALERT_WINDOW permission not granted yet');
+        return;
+      }
+
+      final isActive = await FlutterOverlayWindow.isActive();
+      if (!isActive) {
+        await FlutterOverlayWindow.showOverlay(
+          height: 72,
+          width: 72,
+          enableDrag: true,
+          overlayTitle: 'AdhocX Driver Online',
+          overlayContent: 'Assistive floating bubble is active',
+          flag: OverlayFlag.defaultFlag,
+          alignment: OverlayAlignment.centerRight,
+          visibility: NotificationVisibility.visibilityPublic,
+          positionGravity: PositionGravity.auto,
+        );
+      }
+      _isBubbleActive = true;
+      _listenToOverlayActions();
+      debugPrint('🟢 [OverlayService] Assistive floating bubble activated');
+    } catch (e) {
+      debugPrint('⚠️ [OverlayService] Failed to start assistive bubble: $e');
+    }
+  }
+
+  /// Closes and destroys the Android Assistive Floating Bubble (when driver goes OFFLINE).
+  Future<void> stopAssistiveBubble() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    try {
+      _overlayActionSub?.cancel();
+      _overlayActionSub = null;
+      _isBubbleActive = false;
+      await FlutterOverlayWindow.closeOverlay();
+      debugPrint('⚪ [OverlayService] Assistive floating bubble closed');
+    } catch (e) {
+      debugPrint('⚠️ [OverlayService] Error closing overlay: $e');
+    }
+  }
+
+  /// Syncs active ongoing trip details to the floating assistive bubble (HUD)
+  Future<void> syncActiveTripToBubble(Map<String, dynamic>? tripData) async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    try {
+      final isOverlayActive = await FlutterOverlayWindow.isActive();
+      if (isOverlayActive) {
+        if (tripData != null) {
+          await FlutterOverlayWindow.shareData(jsonEncode({
+            'type': 'ACTIVE_TRIP_UPDATE',
+            'trip': tripData,
+          }));
+        } else {
+          await FlutterOverlayWindow.shareData(jsonEncode({
+            'type': 'TRIP_COMPLETED',
+          }));
+        }
+      }
+    } catch (_) {}
+  }
+
+  void _listenToOverlayActions() {
+    _overlayActionSub?.cancel();
+    _overlayActionSub = FlutterOverlayWindow.overlayListener.listen((data) async {
+      if (data == null) return;
+      try {
+        final decoded = data is Map ? Map<String, dynamic>.from(data) : jsonDecode(data.toString());
+        final action = decoded['action']?.toString();
+        final offerId = decoded['offerId']?.toString();
+
+        debugPrint('📲 [OverlayAction Received] Action: $action | OfferId: $offerId');
+
+        if (action == 'ACCEPT_OFFER' && offerId != null) {
+          DispatchSoundPlayer.stopAlert();
+          dismissCurrentOffer(offerId: offerId);
+          final res = await DriverService.instance.acceptOffer(offerId);
+          if (res != null) {
+            final navContext = rootNavigatorKey.currentContext;
+            if (navContext != null && navContext.mounted) {
+              final tripId = decoded['offerData']?['tripId'] ?? offerId;
+              navContext.push('/trips/$tripId');
+            }
+          }
+        } else if (action == 'DECLINE_OFFER' && offerId != null) {
+          DispatchSoundPlayer.stopAlert();
+          dismissCurrentOffer(offerId: offerId);
+          await DriverService.instance.declineOffer(offerId);
+        } else if (action == 'OFFER_EXPIRED' || action == 'DISMISS_OFFER') {
+          DispatchSoundPlayer.stopAlert();
+          dismissCurrentOffer(offerId: offerId);
+        }
+      } catch (e) {
+        debugPrint('⚠️ [OverlayAction Error] $e');
+      }
+    });
+  }
+
   /// Display an incoming trip offer bottom sheet anywhere in the application.
   Future<bool?> showIncomingOffer(Map<String, dynamic> offerData) async {
     final offerId = (offerData['id'] ?? offerData['offerId']) as String? ?? '';
@@ -210,19 +320,13 @@ class GlobalDispatchOverlayService {
       return null;
     }
 
-    final context = rootNavigatorKey.currentContext;
-    if (context == null || !context.mounted) {
-      debugPrint('⚠️ [OverlayService] Root navigator context unavailable to display offer $offerId');
-      return null;
-    }
-
     _isShowingOffer = true;
     _activeOfferId = offerId;
 
-    // Trigger audible chime and haptic burst
+    // 1. Trigger audible chime and repeating attention vibration
     DispatchSoundPlayer.playIncomingOfferAlert();
 
-    // Trigger heads-up notification with sound & vibration
+    // 2. Trigger heads-up notification with sound & vibration
     final pickup = (req?['pickupLocation'] ?? offerData['pickupLocation'] ?? 'Pickup available').toString();
     final rate = (offerData['offeredRate'] ?? req?['ratePerVehicle'] ?? '').toString();
     final bodyText = rate.isNotEmpty ? '₹$rate • Pickup: $pickup' : 'Pickup: $pickup';
@@ -239,9 +343,30 @@ class GlobalDispatchOverlayService {
       payload: jsonEncode(payloadMap),
     );
 
-    // Delivery receipt: the driver actually saw this offer (unseen expiries are not penalized)
+    // 3. Forward to Android Floating Overlay Window if active
+    try {
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        final isOverlayActive = await FlutterOverlayWindow.isActive();
+        if (isOverlayActive) {
+          await FlutterOverlayWindow.shareData(jsonEncode({
+            'type': 'OFFER_RECEIVED',
+            ...offerData,
+          }));
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ [OverlayService] ShareData with floating bubble failed: $e');
+    }
+
+    // 4. Delivery receipt: the driver actually saw this offer (unseen expiries are not penalized)
     if (offerId.isNotEmpty) {
       unawaited(DriverService.instance.markOfferSeen(offerId));
+    }
+
+    final context = rootNavigatorKey.currentContext;
+    if (context == null || !context.mounted) {
+      debugPrint('ℹ️ [OverlayService] App in background: offer $offerId alerted via floating bubble & heads-up push');
+      return null;
     }
 
     try {
@@ -272,6 +397,15 @@ class GlobalDispatchOverlayService {
       return;
     }
 
+    try {
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        FlutterOverlayWindow.shareData(jsonEncode({
+          'type': 'DISMISS_OFFER',
+          'offerId': offerId,
+        }));
+      }
+    } catch (_) {}
+
     final navState = rootNavigatorKey.currentState;
     if (navState != null && navState.canPop()) {
       navState.pop();
@@ -290,14 +424,21 @@ class GlobalDispatchOverlayService {
         showIncomingOffer(payload);
         break;
       case 'TRIP_COMPLETED':
-      case 'TRIP_STARTED':
-      case 'TRIP_ARRIVED':
-      case 'TRIP_ASSIGNED':
       case 'TRIP_CANCELLED':
         DriverService.instance.notifyTripChanged(
           tripId: payload['tripId']?.toString(),
           status: event.replaceFirst('TRIP_', ''),
         );
+        syncActiveTripToBubble(null);
+        break;
+      case 'TRIP_STARTED':
+      case 'TRIP_ARRIVED':
+      case 'TRIP_ASSIGNED':
+        DriverService.instance.notifyTripChanged(
+          tripId: payload['tripId']?.toString(),
+          status: event.replaceFirst('TRIP_', ''),
+        );
+        syncActiveTripToBubble(payload);
         break;
       case 'NEW_NOTIFICATION':
         final type = payload['type'];
@@ -417,7 +558,9 @@ class GlobalDispatchOverlayService {
                       final prefs = await SharedPreferences.getInstance();
                       await prefs.setBool('overlay_permission_prompted', true);
                       final status = await Permission.systemAlertWindow.request();
-                      if (!status.isGranted) {
+                      if (status.isGranted) {
+                        await GlobalDispatchOverlayService.instance.startAssistiveBubble();
+                      } else {
                         await openAppSettings();
                       }
                     } catch (_) {

@@ -34,6 +34,7 @@ import { CouponsModule } from './modules/coupons/coupons.module';
 import { BlogsModule } from './modules/blogs/blogs.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { LeadsModule } from './modules/leads/leads.module';
+import { AppUpdateModule } from './modules/app-update/app-update.module';
 
 @Module({
   imports: [
@@ -78,6 +79,7 @@ import { LeadsModule } from './modules/leads/leads.module';
     BlogsModule,
     SubscriptionsModule,
     LeadsModule,
+    AppUpdateModule,
   ],
   controllers: [AppController],
 })

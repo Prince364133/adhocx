@@ -15,15 +15,15 @@ class DispatchSoundPlayer {
 
   /// Play the incoming trip dispatch alert sound and continuous attention vibration
   static Future<void> playIncomingOfferAlert() async {
-    // 1. Hardware vibration pattern on Mobile
+    // 1. Hardware continuous repeating vibration pattern on Mobile
     if (!kIsWeb) {
       try {
         final hasVibrator = await Vibration.hasVibrator();
         if (hasVibrator == true) {
-          // Strong 3-burst alert vibration pattern: pause 0ms, buzz 500ms, pause 200ms, buzz 500ms, pause 200ms, buzz 500ms
+          // Continuous repeating attention pulse: buzz 800ms, pause 400ms, repeating until stopAlert()
           await Vibration.vibrate(
-            pattern: [0, 500, 200, 500, 200, 500],
-            intensities: [0, 255, 0, 255, 0, 255],
+            pattern: [0, 800, 400, 800, 400],
+            repeat: 0,
           );
         } else {
           HapticFeedback.heavyImpact();
@@ -36,11 +36,12 @@ class DispatchSoundPlayer {
       }
     }
 
-    // 2. Audio Chime Playback
+    // 2. Audio Chime Continuous Playback
     if (!kIsWeb) {
       try {
         _audioPlayer ??= AudioPlayer();
         await _audioPlayer?.stop();
+        await _audioPlayer?.setReleaseMode(ReleaseMode.loop);
         await _audioPlayer?.setVolume(1.0);
         await _audioPlayer?.play(AssetSource('sounds/dispatch_alert.wav'));
       } catch (e) {

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_overlay_window/flutter_overlay_window.dart';
+import 'package:vibration/vibration.dart';
 import './local_notification_service.dart';
 import '../routes/app_routes.dart';
 import '../utils/dispatch_sound_player.dart';
@@ -12,6 +14,39 @@ import '../utils/dispatch_sound_player.dart';
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint('📬 [FCM BACKGROUND MESSAGE] ${message.messageId} - ${message.data}');
+  final type = message.data['type']?.toString();
+  if (type == 'TRIP_OFFER' || type == 'NEW_OFFER' || message.data.containsKey('offerId')) {
+    // 1. Continuous repeating hardware vibration pattern
+    try {
+      final hasVib = await Vibration.hasVibrator();
+      if (hasVib == true) {
+        await Vibration.vibrate(
+          pattern: [0, 800, 400, 800, 400],
+          repeat: 0,
+        );
+      }
+    } catch (_) {}
+
+    // 2. Forward to Floating Assistive Bubble if active on Android
+    try {
+      final isActive = await FlutterOverlayWindow.isActive();
+      if (isActive) {
+        await FlutterOverlayWindow.shareData(jsonEncode({
+          'type': 'OFFER_RECEIVED',
+          ...message.data,
+        }));
+      }
+    } catch (_) {}
+
+    // 3. Heads-up full-screen call-style notification
+    final title = message.notification?.title ?? message.data['title'] ?? '🚖 New Trip Requirement Available!';
+    final body = message.notification?.body ?? message.data['body'] ?? 'Tap to view and accept guaranteed payout trip.';
+    await LocalNotificationService.instance.showIncomingRideNotification(
+      title: title,
+      body: body,
+      payload: jsonEncode(message.data),
+    );
+  }
 }
 
 /// Centralized FCM Push Notification Service for Mobile Client

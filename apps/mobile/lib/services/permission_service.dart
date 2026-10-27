@@ -119,10 +119,16 @@ class PermissionService {
   Future<bool> isLocationPermissionGranted() async {
     if (kIsWeb) return true;
     try {
-      final status = await Permission.locationWhenInUse.status;
-      return status.isGranted;
+      final permission = await Geolocator.checkPermission();
+      return permission == LocationPermission.always ||
+          permission == LocationPermission.whileInUse;
     } catch (_) {
-      return true;
+      try {
+        final status = await Permission.locationWhenInUse.status;
+        return status.isGranted;
+      } catch (_) {
+        return false;
+      }
     }
   }
 
@@ -137,25 +143,59 @@ class PermissionService {
   }
 
   /// Get current device GPS position.
-  /// Returns null if location is unavailable or permission denied.
-  Future<Position?> getCurrentPosition() async {
+  /// If [requestIfDenied] is true, prompts OS permission dialog if not yet granted.
+  /// Uses [Geolocator.getLastKnownPosition] as an instant fallback if high-accuracy GPS fix times out.
+  Future<Position?> getCurrentPosition({bool requestIfDenied = true}) async {
     if (kIsWeb) return null;
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) return null;
-
-      final permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
+      if (!serviceEnabled) {
+        debugPrint('📍 [PermissionService] Location service (GPS) is disabled on device');
         return null;
       }
 
-      return await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 10),
-        ),
-      );
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied && requestIfDenied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        debugPrint('📍 [PermissionService] Location permission not granted: $permission');
+        return null;
+      }
+
+      // 1. Try fast last known position first as immediate candidate
+      Position? lastPosition;
+      try {
+        lastPosition = await Geolocator.getLastKnownPosition();
+      } catch (e) {
+        debugPrint('📍 [PermissionService] getLastKnownPosition error: $e');
+      }
+
+      // 2. Fetch fresh high-accuracy GPS fix with a 6-second timeout
+      try {
+        final currentPosition = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            timeLimit: Duration(seconds: 6),
+          ),
+        );
+        return currentPosition;
+      } catch (timeoutOrError) {
+        debugPrint('📍 [PermissionService] High accuracy fix timed out, checking fallback: $timeoutOrError');
+        if (lastPosition != null) {
+          return lastPosition;
+        }
+
+        // 3. Fallback to medium/network accuracy
+        return await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium,
+            timeLimit: Duration(seconds: 4),
+          ),
+        );
+      }
     } catch (e) {
       debugPrint('📍 [PermissionService] getCurrentPosition error: $e');
       return null;

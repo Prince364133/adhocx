@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/location_service.dart';
 import '../../services/permission_service.dart';
@@ -42,6 +43,8 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
   bool _isSearching = false;
   bool _isLoadingSearch = false;
   bool _isLoadingCategoryPlaces = false;
+  bool _isFetchingGps = false;
+  bool _hasLocationPermission = false;
   String _selectedCategory = 'All';
   Timer? _debounceTimer;
 
@@ -63,10 +66,8 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
   @override
   void initState() {
     super.initState();
-    final defaultLat = widget.initialLat ?? 28.4950;
-    final defaultLng = widget.initialLng ?? 77.0895;
-    _currentLat = defaultLat;
-    _currentLng = defaultLng;
+    _currentLat = widget.initialLat;
+    _currentLng = widget.initialLng;
     final defaultAddress = widget.initialAddress != null && widget.initialAddress!.isNotEmpty
         ? widget.initialAddress!
         : 'Select Location';
@@ -74,8 +75,8 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
     _selectedLocation = LocationModel(
       title: defaultAddress.split(',').first.trim(),
       fullAddress: defaultAddress,
-      latitude: defaultLat,
-      longitude: defaultLng,
+      latitude: widget.initialLat ?? 17.4435,
+      longitude: widget.initialLng ?? 78.3772,
       category: 'SAVED',
       icon: LocationService.getIconForCategory('SAVED', defaultAddress),
     );
@@ -99,20 +100,24 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
     }
 
     try {
-      final pos = await PermissionService.instance.getCurrentPosition();
-      if (pos != null) {
-        _currentLat = pos.latitude;
-        _currentLng = pos.longitude;
-        final rev = await _locationService.reverseGeocode(pos.latitude, pos.longitude);
-        if (rev.city != null && rev.city!.isNotEmpty) {
-          _currentCity = rev.city;
+      final isGranted = await PermissionService.instance.isLocationPermissionGranted();
+      if (isGranted) {
+        final pos = await PermissionService.instance.getCurrentPosition(requestIfDenied: false);
+        if (pos != null) {
+          _hasLocationPermission = true;
+          _currentLat = pos.latitude;
+          _currentLng = pos.longitude;
+          final rev = await _locationService.reverseGeocode(pos.latitude, pos.longitude);
+          if (rev.city != null && rev.city!.isNotEmpty) {
+            _currentCity = rev.city;
+          }
         }
       }
     } catch (e) {
       debugPrint('Location detection error: $e');
     }
 
-    // If city is still null, try reverse geocode from initial coords
+    // If city is still null and initial coordinates were provided
     if (_currentCity == null && _currentLat != null && _currentLng != null) {
       try {
         final rev = await _locationService.reverseGeocode(_currentLat!, _currentLng!);
@@ -122,11 +127,16 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
       } catch (_) {}
     }
 
+    // Fallback: If no location permission or location unavailable, default to Hyderabad
+    if (!_hasLocationPermission && (_currentCity == null || _currentCity!.isEmpty)) {
+      _currentCity = 'Hyderabad';
+    }
+
     final places = await _locationService.fetchCategoryPlaces(
       'All',
       lat: _currentLat,
       lon: _currentLng,
-      cityName: _currentCity,
+      cityName: _hasLocationPermission ? _currentCity : 'Hyderabad',
     );
 
     if (mounted) {
@@ -146,7 +156,7 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
       category,
       lat: _currentLat,
       lon: _currentLng,
-      cityName: _currentCity,
+      cityName: _hasLocationPermission ? _currentCity : 'Hyderabad',
     );
     if (mounted) {
       setState(() {
@@ -405,25 +415,74 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
   }
 
   Future<void> _fetchCurrentGpsLocation() async {
-    setState(() => _isLoadingSearch = true);
-    try {
-      final pos = await PermissionService.instance.getCurrentPosition();
-      final lat = pos != null ? pos.latitude : (_currentLat ?? _selectedLocation.latitude);
-      final lng = pos != null ? pos.longitude : (_currentLng ?? _selectedLocation.longitude);
-      _currentLat = lat;
-      _currentLng = lng;
+    if (_isFetchingGps) return;
+    setState(() => _isFetchingGps = true);
 
-      final loc = await _locationService.reverseGeocode(lat, lng);
+    try {
+      final serviceEnabled = await PermissionService.instance.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        setState(() => _isFetchingGps = false);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Device location (GPS) is turned off.'),
+            action: SnackBarAction(
+              label: 'Turn On',
+              onPressed: () => PermissionService.instance.openLocationSettings(),
+            ),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        return;
+      }
+
+      final pos = await PermissionService.instance.getCurrentPosition(requestIfDenied: true);
+      if (pos == null) {
+        setState(() => _isFetchingGps = false);
+        final isGranted = await PermissionService.instance.isLocationPermissionGranted();
+        if (!mounted) return;
+        if (!isGranted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Location permission is required to fetch current GPS location.'),
+              action: SnackBarAction(
+                label: 'Settings',
+                onPressed: () => Geolocator.openAppSettings(),
+              ),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not acquire GPS fix. Showing Hyderabad places.'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+
+      _currentLat = pos.latitude;
+      _currentLng = pos.longitude;
+      _hasLocationPermission = true;
+
+      final loc = await _locationService.reverseGeocode(pos.latitude, pos.longitude);
       if (loc.city != null && loc.city!.isNotEmpty) {
         _currentCity = loc.city;
       }
 
       if (mounted) {
-        setState(() => _isLoadingSearch = false);
+        setState(() {
+          _isFetchingGps = false;
+          _selectedLocation = loc;
+        });
+        _loadCategoryPlaces(_selectedCategory);
         _selectLocation(loc);
       }
     } catch (e) {
-      if (mounted) setState(() => _isLoadingSearch = false);
+      debugPrint('Error fetching current GPS location: $e');
+      if (mounted) setState(() => _isFetchingGps = false);
     }
   }
 
@@ -475,8 +534,17 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
         ),
         actions: [
           IconButton(
-            onPressed: _fetchCurrentGpsLocation,
-            icon: Icon(Icons.my_location_rounded, color: AppColors.primary),
+            onPressed: _isFetchingGps ? null : _fetchCurrentGpsLocation,
+            icon: _isFetchingGps
+                ? SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primary,
+                    ),
+                  )
+                : Icon(Icons.my_location_rounded, color: AppColors.primary),
             tooltip: 'GPS Current Location',
           ),
         ],
@@ -677,8 +745,8 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
                     _selectLocation(LocationModel(
                       title: query.split(',').first.trim(),
                       fullAddress: query,
-                      latitude: _currentLat ?? 28.4950,
-                      longitude: _currentLng ?? 77.0895,
+                      latitude: _currentLat ?? 17.4435,
+                      longitude: _currentLng ?? 78.3772,
                       category: 'CUSTOM',
                     ));
                   },
@@ -776,12 +844,15 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
             child: _buildQuickActionButton(
               icon: Icons.my_location_rounded,
               label: 'Use Current Location',
-              subtitle: _currentCity != null
-                  ? 'Biased to $_currentCity • Live GPS Google Maps'
-                  : 'Tap to fetch precise GPS coordinates',
+              subtitle: _isFetchingGps
+                  ? 'Acquiring GPS fix via Google Maps...'
+                  : (_hasLocationPermission && _currentCity != null
+                      ? 'Near $_currentCity • Tap to update GPS'
+                      : 'Tap to fetch precise GPS coordinates'),
               color: AppColors.primary,
               onTap: _fetchCurrentGpsLocation,
               isDark: isDark,
+              isLoading: _isFetchingGps,
             ),
           ),
 
@@ -863,15 +934,62 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
             const SizedBox(height: AppSpacing.sm),
           ],
 
-          // Category Discovery Pills
+          // Category Discovery Pills Header
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            child: Text(
-              'Popular Landmarks & Transit Hubs',
-              style: AppTypography.h4(
-                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                fontWeight: FontWeight.bold,
-              ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    'Popular Landmarks & Transit Hubs',
+                    style: AppTypography.h4(
+                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: _hasLocationPermission
+                        ? AppColors.primary.withValues(alpha: 0.12)
+                        : (isDark ? AppColors.surfaceDark : AppColors.slate200),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                    border: Border.all(
+                      color: _hasLocationPermission
+                          ? AppColors.primary.withValues(alpha: 0.3)
+                          : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _hasLocationPermission ? Icons.near_me_rounded : Icons.location_city_rounded,
+                        size: 11,
+                        color: _hasLocationPermission ? AppColors.primary : AppColors.slate600,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _hasLocationPermission
+                            ? (_currentCity != null ? 'Near $_currentCity' : 'Nearby')
+                            : 'Hyderabad',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: _hasLocationPermission
+                              ? (isDark ? Colors.tealAccent : AppColors.primary)
+                              : (isDark ? AppColors.textMutedDark : AppColors.slate700),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 6),
@@ -1018,9 +1136,10 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
     required Color color,
     required VoidCallback onTap,
     required bool isDark,
+    bool isLoading = false,
   }) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: isLoading ? null : onTap,
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -1043,7 +1162,16 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
                 color: color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
-              child: Icon(icon, color: color, size: 20),
+              child: isLoading
+                  ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: color,
+                      ),
+                    )
+                  : Icon(icon, color: color, size: 20),
             ),
             const SizedBox(width: 8),
             Expanded(

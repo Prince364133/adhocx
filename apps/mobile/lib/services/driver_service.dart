@@ -421,8 +421,8 @@ class DriverService {
       body: {
         'otp': otp,
         'currentLocation': {
-          'latitude': lat ?? 28.6139,
-          'longitude': lng ?? 77.2090,
+          'latitude': lat ?? 17.4435,
+          'longitude': lng ?? 78.3772,
         },
       },
     );

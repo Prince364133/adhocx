@@ -24,6 +24,10 @@ import './services/local_notification_service.dart';
 import './services/fcm_service.dart';
 import './core/networking/api_client.dart';
 import './core/security/security_service.dart';
+import './services/app_update_service.dart';
+
+// Overlay entry-point export for flutter_overlay_window
+export './presentation/overlay/driver_bubble_overlay.dart' show overlayMain;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,12 +48,18 @@ void main() async {
     AppLogger.debug('Firebase initialization notice: $e', tag: 'MAIN');
   }
 
-  // Initialize Local Notifications for urgent dispatch alerts
+  // Initialize Local Notifications for urgent dispatch alerts and app update notifications
   try {
     await LocalNotificationService.instance.initialize();
   } catch (e) {
     AppLogger.debug('Local notification init skipped: $e', tag: 'MAIN');
   }
+
+  // Asynchronously query authoritative backend for app updates
+  AppUpdateService.instance.checkForUpdate().catchError((e) {
+    AppLogger.debug('Initial app update check notice: $e', tag: 'MAIN');
+    return null;
+  });
 
   // Route uncaught framework errors to structured logger
   FlutterError.onError = (FlutterErrorDetails details) {

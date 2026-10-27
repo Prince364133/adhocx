@@ -14,6 +14,8 @@ import '../../shared/theme/theme_provider.dart';
 import '../../shared/widgets/app_primary_button.dart';
 import '../../shared/widgets/app_profile_avatar.dart';
 import '../../shared/widgets/pending_review_gate.dart';
+import '../../presentation/common/app_update_banner.dart';
+import '../../services/app_update_service.dart';
 
 class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
@@ -38,6 +40,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> with WidgetsBindingObse
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    AppUpdateService.instance.checkForUpdate();
     _loadDashboardData();
   }
 
@@ -146,6 +149,9 @@ class _UserHomeScreenState extends State<UserHomeScreen> with WidgetsBindingObse
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const AppUpdateBanner(
+                  margin: EdgeInsets.only(bottom: AppSpacing.sm),
+                ),
                 // Header Row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,

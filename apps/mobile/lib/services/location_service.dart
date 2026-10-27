@@ -48,8 +48,8 @@ class LocationModel {
     return LocationModel(
       title: title,
       fullAddress: fullAddress,
-      latitude: (map['latitude'] as num?)?.toDouble() ?? 28.4950,
-      longitude: (map['longitude'] as num?)?.toDouble() ?? 77.0895,
+      latitude: (map['latitude'] as num?)?.toDouble() ?? 17.4435,
+      longitude: (map['longitude'] as num?)?.toDouble() ?? 78.3772,
       city: map['city'] as String?,
       state: map['state'] as String?,
       postcode: map['postcode'] as String?,
@@ -76,9 +76,20 @@ class LocationService {
   static const String _routesBase = 'https://routes.googleapis.com/directions/v2:computeRoutes';
   static const String _recentStorageKey = 'adhocx_recent_locations_v2';
 
+  /// Official Google Play Store App Signing Key Certificates:
+  /// SHA-1 Fingerprints:
+  /// 1. D8:E6:4F:C8:27:A1:FC:76:86:25:D7:8E:98:A8:ED:F2:45:3D:82:48 (Primary)
+  /// 2. CE:1F:B5:B6:08:EE:81:08:F9:56:E0:61:8F:D3:73:1B:FC:B5:8C:1C
+  /// 3. 26:02:F9:38:F5:24:B5:97:67:70:D7:85:A6:FD:EC:B8:84:DC:8B:86
+  /// SHA-256 Fingerprints:
+  /// 1. D5:9A:46:A2:7D:33:AC:39:84:A4:50:B2:5A:59:E2:31:93:45:A8:55:D4:23:41:C5:FA:F2:82:DB:31:F5:09:4F
+  /// 2. E2:39:F1:F9:3C:B6:79:C4:B1:0F:4F:D3:B0:0C:C7:BF:CC:41:81:6E:59:0A:55:B8:5E:CD:85:C5:20:5C:B6:30
+  /// 3. 69:41:27:BD:FE:E0:A5:18:14:B4:89:8B:BB:57:D3:54:1F:45:90:71:CB:C8:2B:7F:56:EB:92:75:7C:B9:22:14
+  static const String googlePlayAppSigningCertSha1 = 'D8E64FC827A1FC768625D78E98A8EDF2453D8248';
+
   static const Map<String, String> _googleAndroidHeaders = {
     'X-Android-Package': 'com.adhocx.app',
-    'X-Android-Cert': 'B7BB9291B31A52458392C815D6920702CB112796',
+    'X-Android-Cert': googlePlayAppSigningCertSha1,
   };
 
   /// Standard Google Maps API headers for Places & Routes (New)
@@ -86,7 +97,7 @@ class LocationService {
     'Content-Type': 'application/json',
     'X-Goog-Api-Key': googleMapsApiKey,
     'X-Android-Package': 'com.adhocx.app',
-    'X-Android-Cert': 'B7BB9291B31A52458392C815D6920702CB112796',
+    'X-Android-Cert': googlePlayAppSigningCertSha1,
   };
 
   /// Determine icon based on category or place title keywords
@@ -219,8 +230,8 @@ class LocationService {
     final seenKeys = <String>{};
 
     try {
-      final biasLat = lat ?? 28.6139;
-      final biasLon = lon ?? 77.2090;
+      final biasLat = lat ?? 17.4435;
+      final biasLon = lon ?? 78.3772;
 
       final body = {
         'textQuery': cleanQuery,
@@ -316,9 +327,14 @@ class LocationService {
     return results;
   }
 
-  /// Live Category Places from Google Places API (New) dynamically biased to user city and lat/lon
+  /// Live Category Places from Google Places API (New) dynamically biased to user coordinates or city
   Future<List<LocationModel>> fetchCategoryPlaces(String category, {double? lat, double? lon, String? cityName}) async {
-    final citySuffix = (cityName != null && cityName.trim().isNotEmpty) ? ' in ${cityName.trim()}' : ' in Delhi NCR';
+    final hasUserCoords = lat != null && lon != null;
+    final city = (cityName != null && cityName.trim().isNotEmpty)
+        ? cityName.trim()
+        : (hasUserCoords ? '' : 'Hyderabad');
+    final citySuffix = city.isNotEmpty ? ' in $city' : '';
+
     String searchQuery;
     switch (category) {
       case 'Airports':
@@ -328,29 +344,29 @@ class LocationService {
         searchQuery = 'tech park cyber park IT park business hub$citySuffix';
         break;
       case 'Railway Stations':
-        searchQuery = 'railway station junction terminal$citySuffix';
+        searchQuery = 'railway station train junction terminal$citySuffix';
         break;
       case 'Metro Hubs':
-        searchQuery = 'metro station rapid metro$citySuffix';
+        searchQuery = 'metro station rapid transit station$citySuffix';
         break;
       case 'Commercial Hubs':
         searchQuery = 'shopping mall commercial center market$citySuffix';
         break;
       case 'Hospitals':
-        searchQuery = 'hospital medical center super speciality hospital$citySuffix';
+        searchQuery = 'super speciality hospital medical center$citySuffix';
         break;
       case 'Hotels':
         searchQuery = 'luxury hotel 5 star resort inn$citySuffix';
         break;
       default:
-        searchQuery = 'popular transit hubs airports tech parks$citySuffix';
+        searchQuery = 'popular transit hubs tech parks airports railway stations$citySuffix';
         break;
     }
 
     final results = <LocationModel>[];
     final seenKeys = <String>{};
-    final biasLat = lat ?? 28.6139;
-    final biasLon = lon ?? 77.2090;
+    final biasLat = lat ?? 17.4435;
+    final biasLon = lon ?? 78.3772;
 
     try {
       final body = {
@@ -553,96 +569,173 @@ class LocationService {
     }
   }
 
-  /// Curated Fast Fallback Dataset (Google Maps Verified Locations in NCR / India)
+  /// Curated Fast Fallback Dataset (Google Maps Verified Locations in Hyderabad / Telangana)
   List<LocationModel> _getCuratedFallbackPlaces() {
     return const [
       LocationModel(
-        title: 'DLF Cyber City',
-        fullAddress: 'DLF Cyber City, DLF Phase 2, Sector 24, Gurugram, Haryana 122002',
-        latitude: 28.4950,
-        longitude: 77.0895,
-        city: 'Gurugram',
-        state: 'Haryana',
-        postcode: '122002',
+        title: 'Cyber Towers',
+        fullAddress: 'Hitech City Main Rd, Patrika Nagar, HITEC City, Hyderabad, Telangana 500081',
+        latitude: 17.4504,
+        longitude: 78.3808,
+        city: 'Hyderabad',
+        state: 'Telangana',
+        postcode: '500081',
         category: 'Tech Parks',
         icon: Icons.business_rounded,
       ),
       LocationModel(
-        title: 'IGI Airport Terminal 3',
-        fullAddress: 'Indira Gandhi International Airport, Terminal 3, New Delhi, Delhi 110037',
-        latitude: 28.5562,
-        longitude: 77.1000,
-        city: 'New Delhi',
-        state: 'Delhi',
-        postcode: '110037',
+        title: 'Raheja Mindspace IT Park',
+        fullAddress: 'Building No. 12B, Mindspace, HITEC City, Madhapur, Hyderabad, Telangana 500081',
+        latitude: 17.4399,
+        longitude: 78.3800,
+        city: 'Hyderabad',
+        state: 'Telangana',
+        postcode: '500081',
+        category: 'Tech Parks',
+        icon: Icons.business_rounded,
+      ),
+      LocationModel(
+        title: 'Kokapet SEZ (GAR Infobahn)',
+        fullAddress: 'GAR Infobahn, Kokapet, Gandipet, Hyderabad, Telangana 500075',
+        latitude: 17.4086,
+        longitude: 78.3304,
+        city: 'Hyderabad',
+        state: 'Telangana',
+        postcode: '500075',
+        category: 'Tech Parks',
+        icon: Icons.business_rounded,
+      ),
+      LocationModel(
+        title: 'Financial District (Waverock)',
+        fullAddress: 'Nanakramguda, Gachibowli, Hyderabad, Telangana 500032',
+        latitude: 17.4195,
+        longitude: 78.3420,
+        city: 'Hyderabad',
+        state: 'Telangana',
+        postcode: '500032',
+        category: 'Tech Parks',
+        icon: Icons.business_rounded,
+      ),
+      LocationModel(
+        title: 'Rajiv Gandhi International Airport (RGIA)',
+        fullAddress: 'Shamshabad, Hyderabad, Telangana 500409',
+        latitude: 17.2403,
+        longitude: 78.4294,
+        city: 'Hyderabad',
+        state: 'Telangana',
+        postcode: '500409',
         category: 'Airports',
         icon: Icons.local_airport_rounded,
       ),
       LocationModel(
-        title: 'New Delhi Railway Station (NDLS)',
-        fullAddress: 'Bhavbhuti Marg, Ratan Lal Market, Kamla Market, Ajmeri Gate, New Delhi 110006',
-        latitude: 28.6430,
-        longitude: 77.2195,
-        city: 'New Delhi',
-        state: 'Delhi',
-        postcode: '110006',
+        title: 'Begumpet Airport',
+        fullAddress: 'Begumpet Airport Road, Prakash Nagar, Begumpet, Hyderabad, Telangana 500016',
+        latitude: 17.4531,
+        longitude: 78.4676,
+        city: 'Hyderabad',
+        state: 'Telangana',
+        postcode: '500016',
+        category: 'Airports',
+        icon: Icons.local_airport_rounded,
+      ),
+      LocationModel(
+        title: 'Secunderabad Railway Station',
+        fullAddress: 'Station Road, Railway Colony, Secunderabad, Telangana 500003',
+        latitude: 17.4338,
+        longitude: 78.5015,
+        city: 'Secunderabad',
+        state: 'Telangana',
+        postcode: '500003',
         category: 'Railway Stations',
         icon: Icons.train_rounded,
       ),
       LocationModel(
-        title: 'Connaught Place (Inner Circle)',
-        fullAddress: 'Connaught Place, Block A, Central Secretariat, New Delhi, Delhi 110001',
-        latitude: 28.6315,
-        longitude: 77.2167,
-        city: 'New Delhi',
-        state: 'Delhi',
-        postcode: '110001',
-        category: 'Commercial Hubs',
-        icon: Icons.storefront_rounded,
+        title: 'Hyderabad Deccan Railway Station (Nampally)',
+        fullAddress: 'Red Hills, Nampally, Hyderabad, Telangana 500001',
+        latitude: 17.3926,
+        longitude: 78.4697,
+        city: 'Hyderabad',
+        state: 'Telangana',
+        postcode: '500001',
+        category: 'Railway Stations',
+        icon: Icons.train_rounded,
       ),
       LocationModel(
-        title: 'Worldmark Aerocity',
-        fullAddress: 'Worldmark 1, Asset Area 11, Hospitality District, Aerocity, New Delhi 110037',
-        latitude: 28.5505,
-        longitude: 77.1216,
-        city: 'New Delhi',
-        state: 'Delhi',
-        postcode: '110037',
-        category: 'Commercial Hubs',
-        icon: Icons.business_rounded,
-      ),
-      LocationModel(
-        title: 'Noida Electronic City (Sector 62)',
-        fullAddress: 'Sector 62, Noida, Gautam Buddha Nagar, Uttar Pradesh 201309',
-        latitude: 28.6280,
-        longitude: 77.3649,
-        city: 'Noida',
-        state: 'Uttar Pradesh',
-        postcode: '201309',
-        category: 'Tech Parks',
-        icon: Icons.business_rounded,
-      ),
-      LocationModel(
-        title: 'Millennium City Centre Metro Station',
-        fullAddress: 'Sector 29, Gurugram, Haryana 122001',
-        latitude: 28.4593,
-        longitude: 77.0726,
-        city: 'Gurugram',
-        state: 'Haryana',
-        postcode: '122001',
+        title: 'Raidurg Metro Station',
+        fullAddress: 'Mindspace Junction, HITEC City, Hyderabad, Telangana 500081',
+        latitude: 17.4402,
+        longitude: 78.3758,
+        city: 'Hyderabad',
+        state: 'Telangana',
+        postcode: '500081',
         category: 'Metro Hubs',
         icon: Icons.directions_subway_rounded,
       ),
       LocationModel(
-        title: 'Medanta - The Medicity',
-        fullAddress: 'CH Bakhtawar Singh Rd, Near Rajiv Chowk, Sector 38, Gurugram, Haryana 122001',
-        latitude: 28.4390,
-        longitude: 77.0425,
-        city: 'Gurugram',
-        state: 'Haryana',
-        postcode: '122001',
+        title: 'Hitec City Metro Station',
+        fullAddress: 'Hitech City Rd, Cyber Towers, HITEC City, Hyderabad, Telangana 500081',
+        latitude: 17.4500,
+        longitude: 78.3820,
+        city: 'Hyderabad',
+        state: 'Telangana',
+        postcode: '500081',
+        category: 'Metro Hubs',
+        icon: Icons.directions_subway_rounded,
+      ),
+      LocationModel(
+        title: 'Inorbit Mall Cyberabad',
+        fullAddress: 'APIIC Software Layout, Mindspace, Madhapur, Hyderabad, Telangana 500081',
+        latitude: 17.4343,
+        longitude: 78.3868,
+        city: 'Hyderabad',
+        state: 'Telangana',
+        postcode: '500081',
+        category: 'Commercial Hubs',
+        icon: Icons.storefront_rounded,
+      ),
+      LocationModel(
+        title: 'Sarath City Capital Mall',
+        fullAddress: 'Gachibowli - Miyapur Rd, Whitefields, Kondapur, Hyderabad, Telangana 500084',
+        latitude: 17.4578,
+        longitude: 78.3638,
+        city: 'Hyderabad',
+        state: 'Telangana',
+        postcode: '500084',
+        category: 'Commercial Hubs',
+        icon: Icons.storefront_rounded,
+      ),
+      LocationModel(
+        title: 'AIG Hospitals (Gachibowli)',
+        fullAddress: '1-66/AIG/2 to 5, Mindspace Rd, Gachibowli, Hyderabad, Telangana 500032',
+        latitude: 17.4427,
+        longitude: 78.3619,
+        city: 'Hyderabad',
+        state: 'Telangana',
+        postcode: '500032',
         category: 'Hospitals',
         icon: Icons.local_hospital_rounded,
+      ),
+      LocationModel(
+        title: 'Apollo Hospitals (Jubilee Hills)',
+        fullAddress: 'Road No. 72, Opposite Bharatiya Vidya Bhavan, Jubilee Hills, Hyderabad, Telangana 500033',
+        latitude: 17.4184,
+        longitude: 78.4111,
+        city: 'Hyderabad',
+        state: 'Telangana',
+        postcode: '500033',
+        category: 'Hospitals',
+        icon: Icons.local_hospital_rounded,
+      ),
+      LocationModel(
+        title: 'ITC Kohenur, a Luxury Collection Hotel',
+        fullAddress: 'Plot No. 5, Survey No. 83/1, Hyderabad Knowledge City, Madhapur, Hyderabad, Telangana 500081',
+        latitude: 17.4336,
+        longitude: 78.3827,
+        city: 'Hyderabad',
+        state: 'Telangana',
+        postcode: '500081',
+        category: 'Hotels',
+        icon: Icons.hotel_rounded,
       ),
     ];
   }

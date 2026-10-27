@@ -1,7 +1,7 @@
 name: adhocx
 description: AdhocX Driver - Corporate Fleet & Duty Network
 publish_to: none
-version: 1.0.22+29
+version: 1.0.24+31
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -43,10 +43,12 @@ dependencies:
   flutter_local_notifications: ^22.3.1
   firebase_core: ^4.15.0
   firebase_messaging: ^16.7.0
+  flutter_overlay_window: ^0.5.0
   flutter_secure_storage: ^11.2.0
   file_picker: ^13.1.0
   csv: ^8.0.0
   excel: ^4.0.6
+  package_info_plus: ^10.2.2
 
 dev_dependencies:
   flutter_test:    # CRITICAL: Required for Flutter project testing - DO NOT REMOVE
