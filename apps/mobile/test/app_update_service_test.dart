@@ -40,8 +40,8 @@ void main() {
     test('Gracefully handles empty or partial JSON with resilient defaults', () {
       final info = AppUpdateInfo.fromJson({});
 
-      expect(info.latestVersion, equals('1.0.24'));
-      expect(info.latestVersionCode, equals(31));
+      expect(info.latestVersion, equals('1.0.25'));
+      expect(info.latestVersionCode, equals(32));
       expect(info.hasUpdate, isFalse);
       expect(info.forceUpdate, isFalse);
       expect(info.releaseNotes, isEmpty);

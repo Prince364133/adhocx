@@ -42,8 +42,8 @@ class AppUpdateInfo {
     }
 
     return AppUpdateInfo(
-      latestVersion: json['latestVersion']?.toString() ?? '1.0.24',
-      latestVersionCode: int.tryParse(json['latestVersionCode']?.toString() ?? '31') ?? 31,
+      latestVersion: json['latestVersion']?.toString() ?? '1.0.25',
+      latestVersionCode: int.tryParse(json['latestVersionCode']?.toString() ?? '32') ?? 32,
       minSupportedVersionCode: int.tryParse(json['minSupportedVersionCode']?.toString() ?? '25') ?? 25,
       hasUpdate: json['hasUpdate'] == true,
       forceUpdate: json['forceUpdate'] == true,
@@ -215,11 +215,11 @@ class AppUpdateService extends ChangeNotifier {
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       _installedVersionName = packageInfo.version;
-      _installedVersionCode = int.tryParse(packageInfo.buildNumber) ?? 31;
+      _installedVersionCode = int.tryParse(packageInfo.buildNumber) ?? 32;
     } catch (_) {
       // Fallback defaults matching pubspec.yaml
-      _installedVersionName ??= '1.0.24';
-      _installedVersionCode ??= 31;
+      _installedVersionName ??= '1.0.25';
+      _installedVersionCode ??= 32;
     }
   }
 }
