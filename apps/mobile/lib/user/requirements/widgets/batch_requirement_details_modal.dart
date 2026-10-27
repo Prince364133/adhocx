@@ -123,7 +123,7 @@ class _BatchRequirementDetailsModalState extends State<BatchRequirementDetailsMo
             id: 'tmpl_cab_${DateTime.now().millisecondsSinceEpoch}_$i',
             vehicleType: vehicleType,
             vehicleLabel: vehicleType == 'SUV' ? 'SUV 7 Seater' : 'Prime Sedan',
-            passengers: 4,
+            passengers: vehicleType == 'SUV' ? 7 : 4,
             direction: direction,
             officeHubId: detectedHub,
             officeAddress: officeAddress,

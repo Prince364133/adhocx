@@ -162,6 +162,7 @@ export class PricingTierDto {
   vehicleType!: string;
   categoryLabel!: string;
   seatingCapacity!: string;
+  maxSeats?: number;
   description!: string;
   baseFare!: number;
   baseKm!: number;

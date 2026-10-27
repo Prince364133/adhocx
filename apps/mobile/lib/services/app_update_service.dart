@@ -218,8 +218,8 @@ class AppUpdateService extends ChangeNotifier {
       _installedVersionCode = int.tryParse(packageInfo.buildNumber) ?? 32;
     } catch (_) {
       // Fallback defaults matching pubspec.yaml
-      _installedVersionName ??= '1.0.25';
-      _installedVersionCode ??= 32;
+      _installedVersionName ??= '1.0.26';
+      _installedVersionCode ??= 33;
     }
   }
 }

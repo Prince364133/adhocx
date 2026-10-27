@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../services/edge_case_manager.dart';
 import '../../services/permission_service.dart';
 import '../../theme/app_colors.dart';
@@ -14,7 +15,9 @@ import '../../widgets/common/app_primary_button.dart';
 /// - Details the core features that use location data (dispatch, navigation, trip safety).
 /// - Contains mandatory background disclosure phrasing ("even when the app is closed or not in use").
 /// - Requires explicit affirmative user action ('AGREE & CONTINUE') BEFORE runtime permissions are requested.
-/// - Allows the user to decline ('NOT NOW') without triggering any OS runtime permission prompts.
+/// - Allows the user to decline ('Not Now') without triggering any OS runtime permission prompts.
+/// - Concise and compact layout so affirmative CTA is immediately visible without scrolling.
+/// - Provides link to comprehensive website privacy & location policy.
 class LocationPermissionModal extends StatefulWidget {
   const LocationPermissionModal({super.key});
 
@@ -33,7 +36,7 @@ class _LocationPermissionModalState extends State<LocationPermissionModal> {
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: maxSheetHeight),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.lg),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
         decoration: BoxDecoration(
           color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
@@ -45,200 +48,207 @@ class _LocationPermissionModalState extends State<LocationPermissionModal> {
             ),
           ],
         ),
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Top drag pill
-              Container(
-                width: 44,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                  borderRadius: BorderRadius.circular(3),
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Top drag pill
+                Container(
+                  width: 38,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.sm),
 
-              // Animated/Prominent Icon Badge
-              Container(
-                width: 68,
-                height: 68,
-                decoration: BoxDecoration(
-                  color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.location_on_rounded,
-                  color: isDark ? AppColors.primaryLight : AppColors.primary,
-                  size: 38,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-
-              // Main Policy Title
-              Text(
-                'Location Access & Prominent Disclosure',
-                style: AppTypography.h2(
-                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 6),
-
-              // Badge indicator
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  'Required for Driver Duty Matching & Navigation',
-                  style: AppTypography.caption(
+                // Icon Badge
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.location_on_rounded,
                     color: isDark ? AppColors.primaryLight : AppColors.primary,
-                    fontWeight: FontWeight.w600,
+                    size: 26,
                   ),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.xs),
 
-              // Introduction
-              Text(
-                'AdhocX Driver accesses and collects your device\'s precise location data to deliver core corporate fleet and passenger transport features:',
-                style: AppTypography.body(
-                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.lg),
-
-              // Itemized Feature List
-              _buildFeatureItem(
-                context,
-                icon: Icons.radar_rounded,
-                title: 'Real-Time Duty Dispatch Matching',
-                description: 'Identifies your vehicle\'s live location to discover and match nearby corporate cab bookings and duty opportunities.',
-                isDark: isDark,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-
-              _buildFeatureItem(
-                context,
-                icon: Icons.navigation_rounded,
-                title: 'Turn-by-Turn Road Navigation',
-                description: 'Provides live road navigation and route guidance to passenger pickup locations and company destinations.',
-                isDark: isDark,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-
-              _buildFeatureItem(
-                context,
-                icon: Icons.security_rounded,
-                title: 'Live Route Tracking & Passenger Safety',
-                description: 'Calculates accurate road distance, traffic-aware ETA, and shares live trip progress with passengers and enterprise fleet managers.',
-                isDark: isDark,
-              ),
-              const SizedBox(height: AppSpacing.md),
-
-              // Background Location Mandatory Google Play Disclosure Box
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: (isDark ? AppColors.primary : AppColors.primary).withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  border: Border.all(
-                    color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.3),
-                    width: 1,
+                // Main Policy Title (No truncation, wraps cleanly)
+                Text(
+                  'Location Access & Prominent Disclosure',
+                  style: AppTypography.h2(
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 17,
+                    overflow: TextOverflow.visible,
                   ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
                 ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      Icons.schedule_rounded,
+                const SizedBox(height: 4),
+
+                // Badge indicator
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    'Required for Driver Duty Matching & Navigation',
+                    style: AppTypography.caption(
                       color: isDark ? AppColors.primaryLight : AppColors.primary,
-                      size: 24,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
                     ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Background Location Disclosure',
-                            style: AppTypography.body(
-                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'AdhocX Driver collects location data to enable duty dispatch matching, turn-by-turn navigation, and live trip tracking even when the app is closed or not in use (while you are Online or on an Active Duty).',
-                            style: AppTypography.caption(
-                              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'This ensures you never miss a corporate duty dispatch offer and passengers can track their cab arrival even if you switch apps or lock your screen.',
-                            style: AppTypography.caption(
-                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-
-              // Privacy & Data Security Assurance
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.lock_outline_rounded,
-                    color: AppColors.accentGreenDark,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Your location data is encrypted in transit (TLS 1.3), accessed only when you are Online or on duty, and is NEVER sold or shared with third parties for advertising.',
-                      style: AppTypography.caption(
-                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.xl),
-
-              // Affirmative Consent Button
-              AppPrimaryButton(
-                text: _isRequesting ? 'REQUESTING PERMISSION...' : 'AGREE & CONTINUE',
-                isLoading: _isRequesting,
-                onPressed: _isRequesting ? null : _handleAffirmativeConsent,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-
-              // Negative / Dismiss Button (Strictly does NOT prompt OS runtime permission)
-              TextButton(
-                onPressed: _handleDeclineConsent,
-                child: Text(
-                  'Not Now',
-                  style: AppTypography.body(
-                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                   ),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-            ],
+                const SizedBox(height: AppSpacing.sm),
+
+                // Itemized Feature List (Concise)
+                _buildFeatureItem(
+                  context,
+                  icon: Icons.radar_rounded,
+                  title: 'Real-Time Duty Dispatch Matching',
+                  description: 'Matches vehicle location to nearby corporate bookings.',
+                  isDark: isDark,
+                ),
+                const SizedBox(height: 6),
+
+                _buildFeatureItem(
+                  context,
+                  icon: Icons.navigation_rounded,
+                  title: 'Turn-by-Turn Road Navigation',
+                  description: 'Live route guidance to passenger pickups.',
+                  isDark: isDark,
+                ),
+                const SizedBox(height: 6),
+
+                _buildFeatureItem(
+                  context,
+                  icon: Icons.security_rounded,
+                  title: 'Live Route Tracking & Passenger Safety',
+                  description: 'Calculates ETA and shares live trip progress.',
+                  isDark: isDark,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+
+                // Background Location Mandatory Google Play Disclosure Box
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    border: Border.all(
+                      color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.25),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.schedule_rounded,
+                        color: isDark ? AppColors.primaryLight : AppColors.primary,
+                        size: 18,
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Background Location Disclosure',
+                              style: AppTypography.body(
+                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'AdhocX Driver collects location data to enable duty dispatch matching, turn-by-turn navigation, and live trip tracking even when the app is closed or not in use (while you are Online or on an Active Duty).',
+                              style: AppTypography.caption(
+                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+
+                // Website Privacy & Location Policy Link
+                InkWell(
+                  onTap: () => launchUrl(
+                    Uri.parse('https://adhocx.com/privacy'),
+                    mode: LaunchMode.externalApplication,
+                  ),
+                  borderRadius: BorderRadius.circular(4),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'View complete Location & Privacy Policy on website',
+                          style: AppTypography.caption(
+                            color: isDark ? AppColors.primaryLight : AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 11,
+                          ).copyWith(decoration: TextDecoration.underline),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.open_in_new_rounded,
+                          size: 12,
+                          color: isDark ? AppColors.primaryLight : AppColors.primary,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+
+                // Affirmative Consent Button (Visible without scrolling)
+                AppPrimaryButton(
+                  text: _isRequesting ? 'REQUESTING PERMISSION...' : 'AGREE & CONTINUE',
+                  isLoading: _isRequesting,
+                  onPressed: _isRequesting ? null : _handleAffirmativeConsent,
+                ),
+                const SizedBox(height: 2),
+
+                // Negative / Dismiss Button (Strictly does NOT prompt OS runtime permission)
+                TextButton(
+                  onPressed: _handleDeclineConsent,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    'Not Now',
+                    style: AppTypography.body(
+                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -256,18 +266,18 @@ class _LocationPermissionModalState extends State<LocationPermissionModal> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          padding: const EdgeInsets.all(6),
+          padding: const EdgeInsets.all(5),
           decoration: BoxDecoration(
             color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(6),
           ),
           child: Icon(
             icon,
-            size: 20,
+            size: 16,
             color: isDark ? AppColors.primaryLight : AppColors.primary,
           ),
         ),
-        const SizedBox(width: AppSpacing.sm),
+        const SizedBox(width: AppSpacing.xs),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -277,13 +287,14 @@ class _LocationPermissionModalState extends State<LocationPermissionModal> {
                 style: AppTypography.body(
                   color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                   fontWeight: FontWeight.w600,
+                  fontSize: 13,
                 ),
               ),
-              const SizedBox(height: 2),
               Text(
                 description,
                 style: AppTypography.caption(
                   color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                  fontSize: 11,
                 ),
               ),
             ],
@@ -296,7 +307,6 @@ class _LocationPermissionModalState extends State<LocationPermissionModal> {
   Future<void> _handleAffirmativeConsent() async {
     setState(() => _isRequesting = true);
     try {
-      // Step: User gave affirmative consent on prominent disclosure -> Now trigger runtime permission from OS
       final granted = await PermissionService.instance.requestLocationPermission();
       if (mounted) {
         if (granted) {
@@ -324,7 +334,6 @@ class _LocationPermissionModalState extends State<LocationPermissionModal> {
   }
 
   void _handleDeclineConsent() {
-    // Strictly dismiss without calling any OS runtime permission request
     EdgeCaseManager.instance.dismissLocationDisclosureModal();
     Fluttertoast.showToast(
       msg: 'Location access is required to receive trip offers.',

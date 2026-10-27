@@ -77,6 +77,14 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyB8uEHtGy96QPbx3eIxG0s0_WYlWpB8QVI" />
 
+        <!-- Firebase Cloud Messaging Default Notification Icon & Accent Color -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/notification_icon" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/primary" />
+
         <!-- Overlay Service for Assistive Floating Bubble & Full-Screen Trip Alert Dispatch Sheet over other apps -->
         <service 
             android:name="flutter.overlay.window.flutter_overlay_window.OverlayService" 

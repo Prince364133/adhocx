@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
@@ -26,10 +27,12 @@ import './permission_service.dart';
 /// 2. Presenting incoming trip offers anywhere across the app via [rootNavigatorKey].
 /// 3. Cross-platform audible and haptic dispatch chime alerts.
 /// 4. Android SYSTEM_ALERT_WINDOW ("Display over other apps") permission flow.
-/// 5. Assistive Floating Bubble & 30-Second Countdown Overlay over other apps.
+/// 5. Assistive Floating Bubble & Bottom Sheet Overlay over other apps.
 class GlobalDispatchOverlayService {
   GlobalDispatchOverlayService._();
   static final GlobalDispatchOverlayService instance = GlobalDispatchOverlayService._();
+
+  static const MethodChannel _foregroundChannel = MethodChannel('com.adhocx.app/foreground');
 
   bool _isShowingOffer = false;
   String? _activeOfferId;
@@ -46,6 +49,8 @@ class GlobalDispatchOverlayService {
 
   bool _isBubbleActive = false;
   StreamSubscription? _overlayActionSub;
+  Map<String, dynamic>? _lastActiveTrip;
+  List<Map<String, dynamic>> _lastOffers = [];
 
   bool get isShowingOffer => _isShowingOffer;
   String? get activeOfferId => _activeOfferId;
@@ -213,19 +218,28 @@ class GlobalDispatchOverlayService {
       final isActive = await FlutterOverlayWindow.isActive();
       if (!isActive) {
         await FlutterOverlayWindow.showOverlay(
-          height: 72,
-          width: 72,
+          height: 250,
+          width: 250,
           enableDrag: true,
           overlayTitle: 'AdhocX Driver Online',
           overlayContent: 'Assistive floating bubble is active',
           flag: OverlayFlag.defaultFlag,
-          alignment: OverlayAlignment.centerRight,
+          alignment: OverlayAlignment.bottomRight,
           visibility: NotificationVisibility.visibilityPublic,
           positionGravity: PositionGravity.auto,
+          startPosition: const OverlayPosition(0, 150),
         );
       }
       _isBubbleActive = true;
       _listenToOverlayActions();
+
+      // Proactively sync latest state to overlay
+      if (_lastActiveTrip != null) {
+        await syncActiveTripToBubble(_lastActiveTrip);
+      }
+      if (_lastOffers.isNotEmpty) {
+        await syncOffersToBubble(_lastOffers);
+      }
       debugPrint('🟢 [OverlayService] Assistive floating bubble activated');
     } catch (e) {
       debugPrint('⚠️ [OverlayService] Failed to start assistive bubble: $e');
@@ -246,8 +260,9 @@ class GlobalDispatchOverlayService {
     }
   }
 
-  /// Syncs active ongoing trip details to the floating assistive bubble (HUD)
+  /// Syncs active ongoing trip details to the floating assistive bubble and bottom sheet
   Future<void> syncActiveTripToBubble(Map<String, dynamic>? tripData) async {
+    _lastActiveTrip = tripData;
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
     try {
       final isOverlayActive = await FlutterOverlayWindow.isActive();
@@ -266,6 +281,29 @@ class GlobalDispatchOverlayService {
     } catch (_) {}
   }
 
+  /// Syncs list of available incoming ride opportunities to the overlay bottom sheet
+  Future<void> syncOffersToBubble(List<dynamic> offers) async {
+    _lastOffers = offers.map((o) => Map<String, dynamic>.from(o as Map)).toList();
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    try {
+      final isOverlayActive = await FlutterOverlayWindow.isActive();
+      if (isOverlayActive) {
+        await FlutterOverlayWindow.shareData(jsonEncode({
+          'type': 'OFFERS_LIST_UPDATE',
+          'offers': _lastOffers,
+        }));
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _bringAppToFront() async {
+    try {
+      await _foregroundChannel.invokeMethod('bringToFront');
+    } catch (e) {
+      debugPrint('⚠️ [Foreground Channel] Error bringing app to front: $e');
+    }
+  }
+
   void _listenToOverlayActions() {
     _overlayActionSub?.cancel();
     _overlayActionSub = FlutterOverlayWindow.overlayListener.listen((data) async {
@@ -277,24 +315,87 @@ class GlobalDispatchOverlayService {
 
         debugPrint('📲 [OverlayAction Received] Action: $action | OfferId: $offerId');
 
-        if (action == 'ACCEPT_OFFER' && offerId != null) {
+        if (action == 'REQUEST_STATE_SYNC') {
+          // 1. Send active trip state
+          if (_lastActiveTrip != null) {
+            await FlutterOverlayWindow.shareData(jsonEncode({
+              'type': 'ACTIVE_TRIP_UPDATE',
+              'trip': _lastActiveTrip,
+            }));
+          } else {
+            await FlutterOverlayWindow.shareData(jsonEncode({
+              'type': 'TRIP_COMPLETED',
+            }));
+          }
+
+          // 2. Send available offers
+          if (_lastOffers.isNotEmpty) {
+            await FlutterOverlayWindow.shareData(jsonEncode({
+              'type': 'OFFERS_LIST_UPDATE',
+              'offers': _lastOffers,
+            }));
+          } else {
+            // Proactively query backend to populate offers and trips
+            try {
+              final trips = await DriverService.instance.getTrips();
+              final activeTrip = trips.firstWhere(
+                (t) =>
+                    t['status'] == 'IN_PROGRESS' ||
+                    t['status'] == 'ARRIVED' ||
+                    t['status'] == 'ASSIGNED' ||
+                    t['status'] == 'DRIVER_ASSIGNED',
+                orElse: () => null,
+              );
+              if (activeTrip != null) {
+                _lastActiveTrip = Map<String, dynamic>.from(activeTrip as Map);
+                await FlutterOverlayWindow.shareData(jsonEncode({
+                  'type': 'ACTIVE_TRIP_UPDATE',
+                  'trip': _lastActiveTrip,
+                }));
+              }
+
+              final rawOffers = await DriverService.instance.getOffers();
+              _lastOffers = rawOffers.map((o) => Map<String, dynamic>.from(o as Map)).toList();
+              await FlutterOverlayWindow.shareData(jsonEncode({
+                'type': 'OFFERS_LIST_UPDATE',
+                'offers': _lastOffers,
+              }));
+            } catch (_) {}
+          }
+        } else if (action == 'ACCEPT_OFFER' && offerId != null) {
           DispatchSoundPlayer.stopAlert();
           dismissCurrentOffer(offerId: offerId);
           final res = await DriverService.instance.acceptOffer(offerId);
           if (res != null) {
+            _lastOffers.removeWhere((o) => (o['id'] ?? o['offerId'])?.toString() == offerId);
+            syncOffersToBubble(_lastOffers);
+            await _bringAppToFront();
             final navContext = rootNavigatorKey.currentContext;
             if (navContext != null && navContext.mounted) {
-              final tripId = decoded['offerData']?['tripId'] ?? offerId;
+              final tripId = decoded['offerData']?['tripId'] ?? res['tripId'] ?? offerId;
               navContext.push('/trips/$tripId');
             }
           }
         } else if (action == 'DECLINE_OFFER' && offerId != null) {
           DispatchSoundPlayer.stopAlert();
           dismissCurrentOffer(offerId: offerId);
+          _lastOffers.removeWhere((o) => (o['id'] ?? o['offerId'])?.toString() == offerId);
+          syncOffersToBubble(_lastOffers);
           await DriverService.instance.declineOffer(offerId);
         } else if (action == 'OFFER_EXPIRED' || action == 'DISMISS_OFFER') {
           DispatchSoundPlayer.stopAlert();
           dismissCurrentOffer(offerId: offerId);
+        } else if (action == 'OPEN_TRIP_IN_APP') {
+          final tripId = decoded['tripId']?.toString();
+          await _bringAppToFront();
+          if (tripId != null) {
+            final navContext = rootNavigatorKey.currentContext;
+            if (navContext != null && navContext.mounted) {
+              navContext.push('/trips/$tripId');
+            }
+          }
+        } else if (action == 'BRING_APP_TO_FRONT') {
+          await _bringAppToFront();
         }
       } catch (e) {
         debugPrint('⚠️ [OverlayAction Error] $e');

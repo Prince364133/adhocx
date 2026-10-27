@@ -40,6 +40,26 @@ class VehicleUtils {
     }
   }
 
+  /// Returns standard maximum passenger seating capacity for a vehicle category.
+  /// SUV is 7 seats, Sedan and Hatchback are 4 seats.
+  static int getMaxSeats(String? vehicleType, [int? fallbackSeats]) {
+    final norm = normalizeVehicleCategory(vehicleType);
+    switch (norm) {
+      case 'SUV':
+        return 7;
+      case 'SEDAN':
+        return 4;
+      case 'HATCHBACK':
+        return 4;
+      case 'TEMPO_TRAVELLER':
+        return 12;
+      case 'BUS':
+        return 24;
+      default:
+        return fallbackSeats ?? 4;
+    }
+  }
+
   /// Checks if a driver's vehicle is strictly compatible with a trip/opportunity requirement.
   /// A Sedan driver CANNOT see or accept SUV or Hatchback requirements.
   static bool isCompatible({

@@ -230,6 +230,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
           // Neither active nor assigned trip exists: clear stale trip and release driver state!
           _liveTrip = null;
+          GlobalDispatchOverlayService.instance.syncActiveTripToBubble(null);
           if (_currentState == DriverHomeState.assignedTrip || _currentState == DriverHomeState.activeTrip) {
             _currentState = DriverHomeState.available;
           }
@@ -254,6 +255,9 @@ class _HomeScreenState extends State<HomeScreen> {
               requiredVehicle: reqVType,
             );
           }).toList();
+
+          // Sync filtered dispatch offers to floating overlay window
+          GlobalDispatchOverlayService.instance.syncOffersToBubble(sentOffers);
 
           if (sentOffers.isNotEmpty) {
             final activeOffer = sentOffers.first as Map<String, dynamic>;
@@ -663,22 +667,26 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: AppSpacing.lg),
               SizedBox(
                 width: double.infinity,
-                height: 44,
+                height: 48,
                 child: ElevatedButton(
                   onPressed: () => _toggleOnline(true),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
                   ),
-                  child: Text(
-                    context.tr('GO ONLINE'),
-                    style: AppTypography.body(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
+                  child: Center(
+                    child: Text(
+                      context.tr('GO ONLINE'),
+                      style: AppTypography.button(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        overflow: TextOverflow.visible,
+                      ).copyWith(height: 1.1),
                     ),
                   ),
                 ),
@@ -879,22 +887,26 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: AppSpacing.lg),
               SizedBox(
                 width: double.infinity,
-                height: 44,
+                height: 48,
                 child: OutlinedButton(
                   onPressed: () => _toggleOnline(false),
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(
                       color: isDark ? AppColors.borderDark : AppColors.borderLight,
                     ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
                   ),
-                  child: Text(
-                    context.tr('GO OFFLINE'),
-                    style: AppTypography.body(
-                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                      fontWeight: FontWeight.bold,
+                  child: Center(
+                    child: Text(
+                      context.tr('GO OFFLINE'),
+                      style: AppTypography.button(
+                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                        fontWeight: FontWeight.bold,
+                        overflow: TextOverflow.visible,
+                      ).copyWith(height: 1.1),
                     ),
                   ),
                 ),

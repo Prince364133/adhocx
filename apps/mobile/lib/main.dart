@@ -26,8 +26,19 @@ import './core/networking/api_client.dart';
 import './core/security/security_service.dart';
 import './services/app_update_service.dart';
 
-// Overlay entry-point export for flutter_overlay_window
-export './presentation/overlay/driver_bubble_overlay.dart' show overlayMain;
+import './presentation/overlay/driver_bubble_overlay.dart';
+
+// Overlay entry-point for flutter_overlay_window (runs in dedicated background isolate)
+@pragma("vm:entry-point")
+void overlayMain() {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(
+    const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: DriverAssistiveBubbleOverlay(),
+    ),
+  );
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

@@ -8,6 +8,7 @@ export interface VehiclePricingTierDto {
   vehicleType: string;
   categoryLabel: string;
   seatingCapacity: string;
+  maxSeats?: number;
   description: string;
   iconKey?: string | null;
   baseFare: number;
@@ -20,6 +21,17 @@ export interface VehiclePricingTierDto {
   isActive: boolean;
   updatedAt: string;
   updatedBy?: string | null;
+}
+
+export function calculateTierMaxSeats(vehicleType: string, seatingCapacity: string = ''): number {
+  const norm = (vehicleType || '').toUpperCase();
+  if (norm.includes('SUV') || norm.includes('7')) return 7;
+  if (norm.includes('TEMPO')) return 12;
+  if (norm.includes('BUS')) return 24;
+  if (seatingCapacity.includes('7') || seatingCapacity.includes('6 + 1')) return 7;
+  if (seatingCapacity.includes('12')) return 12;
+  if (seatingCapacity.includes('24')) return 24;
+  return 4;
 }
 
 export interface PlatformPolicyConfigDto {
@@ -35,6 +47,7 @@ export const DEFAULT_PRICING_TIERS: Record<VehicleType, Omit<VehiclePricingTierD
     vehicleType: VehicleType.SEDAN,
     categoryLabel: 'Prime Sedan',
     seatingCapacity: '4 + 1 Passengers',
+    maxSeats: 4,
     description: 'Compact & executive 4-seater sedans (Dzire, Aura, Etios, Tigor)',
     baseFare: 800,
     baseKm: 40,
@@ -48,6 +61,7 @@ export const DEFAULT_PRICING_TIERS: Record<VehicleType, Omit<VehiclePricingTierD
     vehicleType: VehicleType.SUV,
     categoryLabel: 'SUV 7 Seater',
     seatingCapacity: '6 + 1 Passengers',
+    maxSeats: 7,
     description: '6-7 seater commercial SUVs (Innova Crysta, Ertiga, Carens, Marazzo)',
     baseFare: 1400,
     baseKm: 40,
@@ -61,6 +75,7 @@ export const DEFAULT_PRICING_TIERS: Record<VehicleType, Omit<VehiclePricingTierD
     vehicleType: VehicleType.TEMPO_TRAVELLER,
     categoryLabel: 'Tempo Mini Coach',
     seatingCapacity: '12 - 16 Passengers',
+    maxSeats: 12,
     description: '12-16 seater minibuses for corporate team transport & pilgrimages',
     baseFare: 3200,
     baseKm: 80,
@@ -198,6 +213,7 @@ export class PricingService implements OnModuleInit {
           vehicleType: t.vehicleType,
           categoryLabel: t.categoryLabel,
           seatingCapacity: t.seatingCapacity,
+          maxSeats: calculateTierMaxSeats(t.vehicleType, t.seatingCapacity),
           description: t.description,
           iconKey: t.iconKey,
           baseFare: Number(t.baseFare),
@@ -242,6 +258,7 @@ export class PricingService implements OnModuleInit {
             vehicleType: t.vehicleType,
             categoryLabel: t.categoryLabel,
             seatingCapacity: t.seatingCapacity,
+            maxSeats: calculateTierMaxSeats(t.vehicleType, t.seatingCapacity),
             description: t.description,
             iconKey: t.iconKey,
             baseFare: Number(t.baseFare),
@@ -287,6 +304,7 @@ export class PricingService implements OnModuleInit {
             vehicleType: tier.vehicleType,
             categoryLabel: tier.categoryLabel,
             seatingCapacity: tier.seatingCapacity,
+            maxSeats: calculateTierMaxSeats(tier.vehicleType, tier.seatingCapacity),
             description: tier.description,
             iconKey: tier.iconKey,
             baseFare: Number(tier.baseFare),

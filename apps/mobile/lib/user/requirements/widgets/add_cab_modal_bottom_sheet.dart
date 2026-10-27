@@ -151,17 +151,15 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
             final vType = (t['vehicleType'] as String? ?? 'SEDAN').toUpperCase();
             final label = t['categoryLabel']?.toString() ?? vType;
             final seating = t['seatingCapacity']?.toString() ?? '4 + 1 Passengers';
-            int maxSeats = (t['maxSeats'] as num?)?.toInt() ?? (t['seats'] as num?)?.toInt() ?? 4;
-            if (maxSeats <= 0) {
-              if (vType == 'SUV') {
-                maxSeats = 6;
-              } else if (vType == 'BUS') {
-                maxSeats = 24;
-              } else if (vType == 'TEMPO_TRAVELLER') {
-                maxSeats = 12;
-              } else if (seating.contains('6')) {
-                maxSeats = 6;
-              } else if (seating.contains('12')) {
+            int maxSeats = (t['maxSeats'] as num?)?.toInt() ?? (t['seats'] as num?)?.toInt() ?? 0;
+            if (vType == 'SUV' || label.toUpperCase().contains('SUV') || label.contains('7') || seating.contains('7') || seating.contains('6 + 1')) {
+              maxSeats = 7;
+            } else if (vType == 'BUS' || label.toUpperCase().contains('BUS')) {
+              maxSeats = 24;
+            } else if (vType == 'TEMPO_TRAVELLER' || label.toUpperCase().contains('TEMPO')) {
+              maxSeats = 12;
+            } else if (maxSeats <= 0) {
+              if (seating.contains('12')) {
                 maxSeats = 12;
               } else if (seating.contains('24')) {
                 maxSeats = 24;
@@ -233,14 +231,17 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
     if (_vehicleOptions.isNotEmpty) {
       return _vehicleOptions.first;
     }
+    final isSuv = _vehicleType.toUpperCase() == 'SUV' ||
+        _vehicleLabel.toUpperCase().contains('SUV') ||
+        _vehicleLabel.contains('7');
     return <String, dynamic>{
       'id': _vehicleType.isNotEmpty ? _vehicleType : '',
       'label': _vehicleLabel.isNotEmpty ? _vehicleLabel : '',
-      'maxSeats': 4,
+      'maxSeats': isSuv ? 7 : 4,
       'baseRate': 0.0,
       'baseKm': 0.0,
       'perKmRate': 0.0,
-      'icon': Icons.directions_car_rounded,
+      'icon': isSuv ? Icons.airport_shuttle_rounded : Icons.directions_car_rounded,
     };
   }
 
@@ -705,8 +706,9 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
                                 _zonalQuote = null;
                                 _vehicleType = opt['id'] as String;
                                 _vehicleLabel = opt['label'] as String;
-                                if (_passengers > _currentMaxSeats) {
-                                  _passengers = _currentMaxSeats;
+                                final newMax = (opt['maxSeats'] as num?)?.toInt() ?? 4;
+                                if (_passengers > newMax) {
+                                  _passengers = newMax;
                                 }
                               });
                               _refreshLiveFare();

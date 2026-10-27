@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' show Color;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:go_router/go_router.dart';
 import '../routes/app_routes.dart';
@@ -31,7 +32,7 @@ class LocalNotificationService {
     }
 
     try {
-      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const androidSettings = AndroidInitializationSettings('notification_icon');
       const darwinSettings = DarwinInitializationSettings(
         requestAlertPermission: true,
         requestBadgePermission: true,
@@ -149,6 +150,9 @@ class LocalNotificationService {
         _dispatchChannelId,
         _dispatchChannelName,
         channelDescription: _dispatchChannelDesc,
+        icon: 'notification_icon',
+        largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+        color: const Color(0xFF5B42F3),
         importance: Importance.max,
         priority: Priority.high,
         enableVibration: true,
@@ -204,6 +208,9 @@ class LocalNotificationService {
         _updatesChannelId,
         _updatesChannelName,
         channelDescription: _updatesChannelDesc,
+        icon: 'notification_icon',
+        largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+        color: Color(0xFF5B42F3),
         importance: Importance.defaultImportance,
         priority: Priority.defaultPriority,
         playSound: true,
