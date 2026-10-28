@@ -324,7 +324,7 @@ class GlobalDispatchOverlayService {
           // 0. Send driver metadata & theme
           try {
             final currentUser = AuthService.instance.currentUser;
-            final driverName = currentUser?.fullName ?? currentUser?.name;
+            final driverName = currentUser?.fullName;
             final prefs = await SharedPreferences.getInstance();
             final storedTheme = prefs.getString('app_theme_mode') ?? 'system';
             await FlutterOverlayWindow.shareData(jsonEncode({
