@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../routes/app_routes.dart';
 import '../../services/user_service.dart';
 import '../../shared/animations/app_bouncing_wrapper.dart';
 import '../../shared/theme/app_colors.dart';
@@ -12,6 +13,7 @@ import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/trip_rating_bottom_sheet.dart';
 import '../../shared/widgets/app_profile_avatar.dart';
 import '../../core/utils/app_toast.dart';
+import '../../utils/vehicle_utils.dart';
 import '../requirements/user_bids_bottom_sheet.dart';
 
 /// Unified Active Trip Tracking Screen
@@ -58,13 +60,24 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
 
     // Seed initial data if available
     if (widget.initialData != null && widget.initialData!.isNotEmpty) {
-      if (widget.initialData!['pickupLocation'] != null ||
-          widget.initialData!['dropLocation'] != null ||
-          widget.initialData!['status'] != null) {
-        _requirement = widget.initialData;
-        _trip = widget.trip ?? widget.initialData;
-        _isLoading = false;
+      final initial = widget.initialData!;
+      _requirement = initial;
+
+      // Only treat initialData as a Trip if it contains verified driver assignment
+      final bool hasDriverInfo = initial['driverId'] != null ||
+          initial['driver'] != null ||
+          initial['driverName'] != null ||
+          (initial['assignedDrivers'] is List && (initial['assignedDrivers'] as List).isNotEmpty);
+
+      final bool isTripEntity = initial['tripId'] != null ||
+          (widget.tripId != null && widget.tripId == initial['id']);
+
+      if (widget.trip != null && widget.trip!.isNotEmpty) {
+        _trip = widget.trip;
+      } else if (isTripEntity && hasDriverInfo) {
+        _trip = initial;
       }
+      _isLoading = false;
     } else if (widget.trip != null && widget.trip!.isNotEmpty) {
       _trip = widget.trip;
       _isLoading = false;
@@ -83,7 +96,15 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
 
   void _startPeriodicRefresh() {
     _refreshTimer?.cancel();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 8), (_) {
+    // Fast 3-second polling while searching so driver acceptance transitions immediately
+    final isSearchingMode = _trip == null &&
+        (_requirement?['status'] == 'DISPATCHING' ||
+            _requirement?['status'] == 'POSTED' ||
+            _requirement?['status'] == 'OPEN');
+
+    final interval = isSearchingMode ? const Duration(seconds: 3) : const Duration(seconds: 6);
+
+    _refreshTimer = Timer.periodic(interval, (_) {
       final status = _trip?['status']?.toString() ?? _requirement?['status']?.toString();
       if (status != 'COMPLETED' && status != 'CANCELLED' && status != 'EXPIRED') {
         _loadData(silent: true);
@@ -203,6 +224,30 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
         } catch (_) {}
       }
 
+      // If requirement is assigned/fulfilled but trip wasn't embedded, match from active user trips
+      if (!tripLoaded && reqLoaded && mounted) {
+        final reqStatus = _requirement?['status']?.toString();
+        if (reqStatus == 'ASSIGNED' || reqStatus == 'FULFILLED' || reqStatus == 'PARTIALLY_FULFILLED') {
+          try {
+            final allTrips = await UserService.instance.getTrips();
+            final matching = allTrips.where((t) {
+              if (t is Map) {
+                return t['requirementId']?.toString() == reqTargetId;
+              }
+              return false;
+            }).toList();
+            if (matching.isNotEmpty && mounted) {
+              setState(() {
+                _trip = Map<String, dynamic>.from(matching.first as Map);
+                _errorMessage = null;
+              });
+              tripLoaded = true;
+              _checkTripCompletionPrompt();
+            }
+          } catch (_) {}
+        }
+      }
+
       // 3. Fallback: query active user trips if nothing was loaded
       if (!tripLoaded && !reqLoaded && mounted) {
         final list = await UserService.instance.getTrips();
@@ -288,6 +333,24 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
         );
       }
     }
+  }
+
+  void _openChatWithDriver(Map<String, dynamic> trip, String driverName, String driverPhone) {
+    final tripId = trip['id'] ?? trip['tripId'] ?? widget.tripId;
+    if (tripId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Chat is available once driver is assigned.')),
+      );
+      return;
+    }
+    context.push(AppRoutes.tripChatScreen, extra: {
+      'tripId': tripId,
+      'otherPartyName': driverName,
+      'otherPartyPhone': driverPhone,
+      'otherPartyRole': 'DRIVER',
+      'status': trip['status'] ?? 'IN_PROGRESS',
+      'trip': trip,
+    });
   }
 
   void _showDisputeDialog() {
@@ -991,72 +1054,162 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
     final trip = _trip ?? {};
     final req = _requirement ?? {};
 
-    final status = (trip['status'] ?? req['status'] ?? 'IN_PROGRESS').toString();
-    final isSearching = _trip == null && (status == 'POSTED' || status == 'DISPATCHING' || status == 'OPEN');
-    final isNoDriver = status == 'NO_DRIVER_AVAILABLE';
+    // Determine the true operational status
+    final String status = (_trip != null
+            ? _trip!['status']
+            : (_requirement != null ? _requirement!['status'] : 'POSTED'))
+        ?.toString() ?? 'POSTED';
 
     final driver = trip['driver'] as Map<String, dynamic>?;
     final driverUser = driver?['user'] as Map<String, dynamic>?;
-    final driverName = (trip['driverName'] ?? driverUser?['fullName'] ?? driver?['fullName'] ?? 'Simplicion').toString();
-    final driverPhone = (trip['driverPhone'] ?? driver?['phone'] ?? driverUser?['phone'] ?? '—').toString();
-    final vehiclePlate = (trip['vehiclePlate'] ?? driver?['vehiclePlate'] ?? 'SDFDSDF31').toString();
-    final vehicleModel = (trip['vehicleModel'] ?? driver?['vehicleModel'] ?? req['vehicleType'] ?? trip['vehicleType'] ?? 'Toyota Etios').toString();
-    final rating = (driver?['averageRating'] ?? driver?['rating'] ?? trip['rating'] ?? 5.0).toString();
-    final otp = (trip['startOtp'] ?? trip['otp'] ?? req['startOtp'] ?? '—').toString();
+
+    // Resolve real driver name without mock fallbacks
+    final rawDriverName = (trip['driverName'] ??
+            driverUser?['fullName'] ??
+            driver?['fullName'] ??
+            driver?['name'] ??
+            trip['assignedDriver']?['name'])
+        ?.toString()
+        .trim();
+
+    final bool hasValidDriverName = rawDriverName != null &&
+        rawDriverName.isNotEmpty &&
+        rawDriverName != 'Simplicion' &&
+        rawDriverName != 'Assigned Driver' &&
+        rawDriverName != '—' &&
+        rawDriverName != 'null';
+
+    final bool isAssignedLifecycleStatus = status == 'ASSIGNED' ||
+        status == 'ACCEPTED' ||
+        status == 'ARRIVED' ||
+        status == 'IN_PROGRESS' ||
+        status == 'COMPLETED';
+
+    final bool hasAssignedDriver = isAssignedLifecycleStatus &&
+        (hasValidDriverName || trip['driverId'] != null || trip['driver'] != null);
+
+    final bool isCancelled = status == 'CANCELLED';
+    final bool isExpired = status == 'EXPIRED';
+    final bool isNoDriver = status == 'NO_DRIVER_AVAILABLE';
+    final bool isSearching = !hasAssignedDriver &&
+        !isCancelled &&
+        !isExpired &&
+        !isNoDriver &&
+        (status == 'POSTED' ||
+            status == 'DISPATCHING' ||
+            status == 'OPEN' ||
+            status == 'PENDING');
+
+    final bool isCompleted = status == 'COMPLETED';
+    final bool isArrived = status == 'ARRIVED' || status == 'IN_PROGRESS' || status == 'COMPLETED';
+    final bool isStarted = status == 'IN_PROGRESS' || status == 'COMPLETED';
+
+    final String driverName = hasAssignedDriver ? (rawDriverName ?? 'Assigned Driver') : '';
+    final String rawDriverPhone = (trip['driverPhone'] ?? driver?['phone'] ?? driverUser?['phone'])?.toString() ?? '';
+    final String driverPhone = (rawDriverPhone.isNotEmpty && rawDriverPhone != '—' && rawDriverPhone != 'null') ? rawDriverPhone : '';
+    final String rawVehiclePlate = (trip['vehiclePlate'] ?? driver?['vehiclePlate'])?.toString() ?? '';
+    final String vehiclePlate = (rawVehiclePlate.isNotEmpty && rawVehiclePlate != 'SDFDSDF31' && rawVehiclePlate != '—')
+        ? rawVehiclePlate
+        : 'Verified Fleet';
+    final String vehicleModel = (trip['vehicleModel'] ??
+            driver?['vehicleModel'] ??
+            req['vehicleType'] ??
+            trip['vehicleType'] ??
+            'Commercial Sedan')
+        .toString();
+    final String rating = (driver?['averageRating'] ?? driver?['rating'] ?? trip['rating'] ?? 5.0).toString();
+    final String otp = (trip['startOtp'] ?? trip['otp'] ?? req['startOtp'] ?? '').toString();
+
+    String extractAddress(dynamic loc) {
+      if (loc == null) return '—';
+      if (loc is String && loc.trim().isNotEmpty) return loc.trim();
+      if (loc is Map) {
+        return (loc['address'] ??
+                loc['formattedAddress'] ??
+                loc['name'] ??
+                loc['title'] ??
+                '—')
+            .toString();
+      }
+      return loc.toString();
+    }
+
+    final pickupAddr = extractAddress(trip['pickupLocation'] ??
+        req['pickupLocation'] ??
+        trip['pickupAddress'] ??
+        req['pickupAddress'] ??
+        trip['pickup'] ??
+        req['pickup']);
+
+    final dropAddr = extractAddress(trip['dropLocation'] ??
+        req['dropLocation'] ??
+        trip['dropAddress'] ??
+        req['dropAddress'] ??
+        trip['drop'] ??
+        req['drop']);
 
     final rateNum = _parseNum(req['ratePerVehicle'] ?? trip['agreedRate'] ?? req['suggestedBudget'] ?? req['totalAmount'], 800.0);
     final rateStr = '₹${rateNum.toStringAsFixed(0)}';
     final vehicleCategory = (req['vehicleType'] ?? trip['vehicleType'] ?? 'Sedan').toString();
+    final vehicleLabel = VehicleUtils.getDisplayLabel(vehicleCategory);
+    final int maxSeats = VehicleUtils.getMaxSeats(vehicleCategory);
+    final String seatSpecText = '$maxSeats Passenger Seats';
     final requiredQty = _parseNum(req['quantity'] ?? req['requiredQuantity'], 1).toInt();
     final assignedDrivers = req['assignedDrivers'] is List ? (req['assignedDrivers'] as List) : [];
+    final wave = req['dispatchWaves']?.toString() ?? '1';
+
+    final dispatchedAt = req['createdAt'] ?? trip['createdAt'];
+    final dispatchedTimeStr = _formatDateTime(dispatchedAt?.toString());
+    final reportingAt = req['reportingTime'] ?? trip['reportingTime'];
+    final reportingTimeStr = (reportingAt != null && reportingAt.toString().isNotEmpty)
+        ? _formatDateTime(reportingAt.toString())
+        : 'Immediate Pickup';
 
     final rawTripId = trip['id']?.toString() ?? widget.tripId;
     final rawReqId = req['id']?.toString() ?? widget.requirementId;
-    final displayCode = rawTripId != null && rawTripId.length > 8
+    final displayCode = (hasAssignedDriver && rawTripId != null && rawTripId.length > 8)
         ? 'TRIP-${rawTripId.substring(0, 8).toUpperCase()}'
         : (rawReqId != null && rawReqId.length > 8
             ? 'REQ-${rawReqId.substring(0, 8).toUpperCase()}'
-            : 'TRIP-E2D1A5D3');
+            : (rawTripId != null && rawTripId.length > 8
+                ? 'TRIP-${rawTripId.substring(0, 8).toUpperCase()}'
+                : 'REQ-ACTIVE'));
 
-    // Pickup & Drop
-    final pickup = trip['pickupLocation'] ?? req['pickupLocation'];
-    final drop = trip['dropLocation'] ?? req['dropLocation'];
-    String pickupAddr = 'Gar Laxmi Infobahn, 12th Floor-Tower-2, Sy no.107(P, Village, Kokapet, Hyderabad, Telangana 500075, India';
-    String dropAddr = 'Begumpet, Hyderabad, Telangana';
-
-    if (pickup is Map) {
-      pickupAddr = (pickup['address'] ?? pickup['fullAddress'] ?? pickupAddr).toString();
-    } else if (pickup is String && pickup.isNotEmpty) {
-      pickupAddr = pickup;
-    } else if (trip['pickupAddress'] != null) {
-      pickupAddr = trip['pickupAddress'].toString();
-    } else if (req['pickupAddress'] != null) {
-      pickupAddr = req['pickupAddress'].toString();
+    final String headerTitle;
+    if (hasAssignedDriver) {
+      headerTitle = isCompleted ? 'Trip Completed' : 'Active Fleet Trip';
+    } else if (isSearching) {
+      headerTitle = 'Finding Your Driver';
+    } else if (isCancelled) {
+      headerTitle = 'Requirement Cancelled';
+    } else if (isExpired) {
+      headerTitle = 'Requirement Expired';
+    } else if (isNoDriver) {
+      headerTitle = 'No Driver Available';
+    } else {
+      headerTitle = 'Requirement Details';
     }
 
-    if (drop is Map) {
-      dropAddr = (drop['address'] ?? drop['fullAddress'] ?? dropAddr).toString();
-    } else if (drop is String && drop.isNotEmpty) {
-      dropAddr = drop;
-    } else if (trip['dropAddress'] != null) {
-      dropAddr = trip['dropAddress'].toString();
-    } else if (req['dropAddress'] != null) {
-      dropAddr = req['dropAddress'].toString();
-    }
-
-    final isAssigned = status == 'ASSIGNED' || status == 'ACCEPTED' || status == 'ARRIVED' || status == 'IN_PROGRESS' || status == 'COMPLETED';
-    final isArrived = status == 'ARRIVED' || status == 'IN_PROGRESS' || status == 'COMPLETED';
-    final isStarted = status == 'IN_PROGRESS' || status == 'COMPLETED';
-    final isCompleted = status == 'COMPLETED';
+    final String appBarTitle = isSearching
+        ? 'Finding Your Driver'
+        : (isCancelled
+            ? 'Requirement Cancelled'
+            : (hasAssignedDriver ? 'Active Trip Tracking' : 'Booking Details'));
 
     Color statusColor = AppColors.primary;
     if (status == 'ARRIVED') statusColor = AppColors.warning;
     if (status == 'IN_PROGRESS') statusColor = AppColors.info;
     if (status == 'COMPLETED') statusColor = AppColors.success;
     if (status == 'CANCELLED' || status == 'EXPIRED') statusColor = AppColors.error;
+    if (status == 'NO_DRIVER_AVAILABLE') statusColor = AppColors.warning;
+    if (isSearching) statusColor = AppColors.primary;
+
+    final String statusLabel = isSearching
+        ? 'SEARCHING'
+        : (isNoDriver ? 'NO DRIVER FOUND' : status.replaceAll('_', ' '));
 
     final timelineSteps = [
-      {'time': 'Assigned', 'title': 'Driver Assigned & Accepted', 'isDone': isAssigned, 'isCurrent': status == 'ACCEPTED' || status == 'ASSIGNED'},
+      {'time': 'Assigned', 'title': 'Driver Assigned & Accepted', 'isDone': isAssignedLifecycleStatus, 'isCurrent': status == 'ACCEPTED' || status == 'ASSIGNED'},
       {'time': 'Arrived', 'title': 'Driver Arrived at Pickup Location', 'isDone': isArrived, 'isCurrent': status == 'ARRIVED'},
       {'time': 'In-Transit', 'title': 'Trip In Progress with Live Telemetry', 'isDone': isStarted, 'isCurrent': status == 'IN_PROGRESS'},
       {'time': 'Completed', 'title': 'Dropoff & Trip Settlement', 'isDone': isCompleted, 'isCurrent': status == 'COMPLETED'},
@@ -1074,7 +1227,7 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
           icon: Icon(Icons.arrow_back, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
         ),
         title: Text(
-          'Active Trip Tracking',
+          appBarTitle,
           style: AppTypography.h3(
             color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
             fontWeight: FontWeight.bold,
@@ -1131,7 +1284,7 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  isSearching ? 'Requirement Dispatch' : 'Fleet Trip Details',
+                                  headerTitle,
                                   style: AppTypography.h3(
                                     color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                     fontWeight: FontWeight.bold,
@@ -1175,7 +1328,7 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
                                       ),
                                     ),
                                   Text(
-                                    status.replaceAll('_', ' '),
+                                    statusLabel,
                                     style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 12),
                                   ),
                                 ],
@@ -1186,7 +1339,7 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
 
                         const SizedBox(height: 10),
 
-                        // ── Minimalist Metadata Pills (Merged from Screen 1) ────
+                        // ── Minimalist Metadata Pills ────
                         Wrap(
                           spacing: 8,
                           runSpacing: 6,
@@ -1211,7 +1364,7 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
                               ),
                             ),
 
-                            // Vehicle Category Pill
+                            // Vehicle Category & Seat Capacity Pill
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
@@ -1220,7 +1373,7 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
                                 border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
                               ),
                               child: Text(
-                                '$vehicleCategory • $requiredQty Veh',
+                                '$vehicleLabel • $seatSpecText • $requiredQty Veh',
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
@@ -1251,34 +1404,278 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
 
                         const SizedBox(height: AppSpacing.md),
 
-                        // ── Searching / Dispatching Wave Banner ─────────────────
+                        // ── Searching / Dispatching Radar Card ─────────────────
                         if (isSearching) ...[
                           Container(
                             padding: const EdgeInsets.all(AppSpacing.md),
                             decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.12),
+                              gradient: LinearGradient(
+                                colors: [
+                                  AppColors.primary.withValues(alpha: isDark ? 0.2 : 0.08),
+                                  AppColors.accentPurple.withValues(alpha: isDark ? 0.15 : 0.04),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
                               borderRadius: BorderRadius.circular(AppRadius.lg),
                               border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
                             ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    AnimatedBuilder(
+                                      animation: _pulseController,
+                                      builder: (context, _) => Container(
+                                        width: 36,
+                                        height: 36,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: AppColors.primary.withValues(alpha: 0.2 + (_pulseController.value * 0.2)),
+                                          border: Border.all(
+                                            color: AppColors.primary.withValues(alpha: 0.4 + (_pulseController.value * 0.4)),
+                                            width: 2,
+                                          ),
+                                        ),
+                                        child: const Icon(Icons.radar_rounded, color: AppColors.primary, size: 20),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  'Broadcasting Dispatch Waves',
+                                                  style: AppTypography.body(
+                                                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.primary.withValues(alpha: 0.2),
+                                                  borderRadius: BorderRadius.circular(AppRadius.xs),
+                                                ),
+                                                child: Text(
+                                                  'Wave $wave of 5',
+                                                  style: const TextStyle(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: AppColors.primary,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 3),
+                                          Text(
+                                            'Pinging verified drivers sequentially. Once any driver accepts, dispatch cuts off instantly and OTP is generated.',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: isDark ? AppColors.textSecondaryDark : AppColors.slate700,
+                                              height: 1.3,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                const Divider(height: 1),
+                                const SizedBox(height: 10),
+                                // Vehicle Sizing & Timing Grid
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text('VEHICLE & CAPACITY', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontSize: 10, fontWeight: FontWeight.bold)),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            '$vehicleLabel • $seatSpecText',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text('DISPATCHED AT', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontSize: 10, fontWeight: FontWeight.bold)),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            dispatchedTimeStr,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text('REPORTING SCHEDULE', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontSize: 10, fontWeight: FontWeight.bold)),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            reportingTimeStr,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text('ESCROW SECURED', style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontSize: 10, fontWeight: FontWeight.bold)),
+                                          const SizedBox(height: 2),
+                                          const Text(
+                                            '100% Guaranteed Fare',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.success,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: () => _confirmCancelRequirement(context, rawReqId ?? ''),
+                                    icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.error),
+                                    label: const Text('Cancel Requirement & Refund Escrow', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold, fontSize: 12)),
+                                    style: OutlinedButton.styleFrom(
+                                      side: BorderSide(color: AppColors.error.withValues(alpha: 0.5)),
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                        ],
+
+                        // ── Cancelled Summary Card ──────────────────────────────
+                        if (isCancelled) ...[
+                          Container(
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            decoration: BoxDecoration(
+                              color: AppColors.error.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(AppRadius.lg),
+                              border: Border.all(color: AppColors.error.withValues(alpha: 0.35)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(Icons.cancel_outlined, color: AppColors.error, size: 28),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            'Booking Cancelled',
+                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.error),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            'This requirement was cancelled before any driver was assigned. No driver was dispatched.',
+                                            style: TextStyle(fontSize: 11, color: isDark ? AppColors.textSecondaryDark : AppColors.slate700),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? AppColors.surfaceDark : Colors.white,
+                                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                                    border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.account_balance_wallet_outlined, size: 16, color: AppColors.success),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'Full escrow refund ($rateStr) was credited back to your wallet.',
+                                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.success),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                        ],
+
+                        // ── Expired Summary Card ──────────────────────────────
+                        if (isExpired) ...[
+                          Container(
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            decoration: BoxDecoration(
+                              color: AppColors.slate500.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(AppRadius.lg),
+                              border: Border.all(color: AppColors.slate500.withValues(alpha: 0.35)),
+                            ),
                             child: Row(
                               children: [
-                                const SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(strokeWidth: 2.5),
-                                ),
-                                const SizedBox(width: 12),
+                                const Icon(Icons.timer_off_outlined, color: AppColors.slate500, size: 28),
+                                const SizedBox(width: 10),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       const Text(
-                                        'Broadcasting Dispatch Waves',
-                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primary),
+                                        'Requirement Expired',
+                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.slate500),
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
-                                        'Contacting verified drivers in the region. Tap below to see details.',
+                                        'Reporting time elapsed without assignment. Escrow funds returned to wallet.',
                                         style: TextStyle(fontSize: 11, color: isDark ? AppColors.textSecondaryDark : AppColors.slate700),
                                       ),
                                     ],
@@ -1299,33 +1696,55 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
                               borderRadius: BorderRadius.circular(AppRadius.lg),
                               border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
                             ),
-                            child: Row(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 26),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'No Drivers Accepted',
-                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.warning),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 26),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            'No Drivers Accepted',
+                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.warning),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            'All 5 dispatch waves completed without driver acceptance. You can retry dispatch or cancel for escrow refund.',
+                                            style: TextStyle(fontSize: 11, color: isDark ? AppColors.textSecondaryDark : AppColors.slate700),
+                                          ),
+                                        ],
                                       ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        'Window elapsed without acceptance. You can retry dispatch or cancel for escrow refund.',
-                                        style: TextStyle(fontSize: 11, color: isDark ? AppColors.textSecondaryDark : AppColors.slate700),
-                                      ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
-                                ElevatedButton(
-                                  onPressed: () => _handleRetryDispatch(context, rawReqId ?? ''),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.warning,
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                  ),
-                                  child: const Text('Retry', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: ElevatedButton(
+                                        onPressed: () => _handleRetryDispatch(context, rawReqId ?? ''),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColors.warning,
+                                          padding: const EdgeInsets.symmetric(vertical: 8),
+                                        ),
+                                        child: const Text('Retry Dispatch Waves', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: OutlinedButton(
+                                        onPressed: () => _confirmCancelRequirement(context, rawReqId ?? ''),
+                                        style: OutlinedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(vertical: 8),
+                                        ),
+                                        child: const Text('Cancel & Refund', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -1469,8 +1888,8 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
                           const SizedBox(height: AppSpacing.xs),
                         ],
 
-                        // ── Driver Profile Card (Minimalist & Matching Screens) ──
-                        if (!isSearching) ...[
+                        // ── Driver Profile Card (Only shown when a driver is actually assigned & accepted) ──
+                        if (hasAssignedDriver) ...[
                           Container(
                             padding: const EdgeInsets.all(AppSpacing.md),
                             decoration: BoxDecoration(
@@ -1524,37 +1943,58 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
-                                        '$vehiclePlate • $vehicleModel',
+                                        '$vehiclePlate • $vehicleModel ($seatSpecText)',
                                         style: AppTypography.caption(
                                           color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                                         ),
                                       ),
                                       if (driverPhone != '—')
-                                        InkWell(
-                                          onTap: () => _callDriver(driverPhone),
-                                          child: Text(
-                                            'Phone: $driverPhone',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: isDark ? AppColors.primary : AppColors.primaryDark,
-                                              fontWeight: FontWeight.w600,
-                                              decoration: TextDecoration.underline,
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 2.0),
+                                          child: InkWell(
+                                            onTap: () => _callDriver(driverPhone),
+                                            child: Text(
+                                              'Phone: $driverPhone',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: isDark ? AppColors.primary : AppColors.primaryDark,
+                                                fontWeight: FontWeight.w600,
+                                                decoration: TextDecoration.underline,
+                                              ),
                                             ),
                                           ),
                                         ),
                                     ],
                                   ),
                                 ),
-                                AppBouncingWrapper(
-                                  onTap: () => _callDriver(driverPhone),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primary.withValues(alpha: 0.15),
-                                      shape: BoxShape.circle,
+                                // Communication Actions: Chat & Call Buttons
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    AppBouncingWrapper(
+                                      onTap: () => _openChatWithDriver(trip, driverName, driverPhone),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.accentBlue.withValues(alpha: 0.15),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.accentBlue, size: 18),
+                                      ),
                                     ),
-                                    child: const Icon(Icons.phone, color: AppColors.primary, size: 20),
-                                  ),
+                                    const SizedBox(width: 8),
+                                    AppBouncingWrapper(
+                                      onTap: () => _callDriver(driverPhone),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primary.withValues(alpha: 0.15),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(Icons.phone, color: AppColors.primary, size: 18),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -1562,8 +2002,8 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
                           const SizedBox(height: AppSpacing.md),
                         ],
 
-                        // ── Start OTP Verification Card ─────────────────────────
-                        if (!isCompleted && otp != '—') ...[
+                        // ── Start OTP Verification Card (Only visible once driver is assigned) ──
+                        if (hasAssignedDriver && !isCompleted && otp.isNotEmpty && otp != '—') ...[
                           Container(
                             padding: const EdgeInsets.all(AppSpacing.md),
                             decoration: BoxDecoration(
@@ -1701,100 +2141,101 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
                           ),
                         ),
 
-                        const SizedBox(height: AppSpacing.lg),
-
-                        // ── Timeline Stepper Section ─────────────────────────────
-                        Text(
-                          'Trip Lifecycle',
-                          style: AppTypography.h3(
-                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                            fontWeight: FontWeight.bold,
+                        // ── Timeline Stepper Section (Only shown when driver is assigned & accepted) ──
+                        if (hasAssignedDriver) ...[
+                          const SizedBox(height: AppSpacing.lg),
+                          Text(
+                            'Trip Lifecycle',
+                            style: AppTypography.h3(
+                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
+                          const SizedBox(height: AppSpacing.sm),
 
-                        Container(
-                          padding: const EdgeInsets.all(AppSpacing.md),
-                          decoration: BoxDecoration(
-                            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                            borderRadius: BorderRadius.circular(AppRadius.lg),
-                            border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                          ),
-                          child: Column(
-                            children: List.generate(timelineSteps.length, (index) {
-                              final step = timelineSteps[index];
-                              final isDone = step['isDone'] == true;
-                              final isCurrent = step['isCurrent'] == true;
-                              final isLast = index == timelineSteps.length - 1;
+                          Container(
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            decoration: BoxDecoration(
+                              color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                              borderRadius: BorderRadius.circular(AppRadius.lg),
+                              border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                            ),
+                            child: Column(
+                              children: List.generate(timelineSteps.length, (index) {
+                                final step = timelineSteps[index];
+                                final isDone = step['isDone'] == true;
+                                final isCurrent = step['isCurrent'] == true;
+                                final isLast = index == timelineSteps.length - 1;
 
-                              return Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  SizedBox(
-                                    width: 80,
-                                    child: Text(
-                                      step['time'] as String,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                        color: isDone ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight) : AppColors.slate400,
-                                      ),
-                                    ),
-                                  ),
-                                  Column(
-                                    children: [
-                                      if (isCurrent)
-                                        AnimatedBuilder(
-                                          animation: _pulseController,
-                                          builder: (context, _) {
-                                            return Container(
-                                              width: 14,
-                                              height: 14,
-                                              decoration: BoxDecoration(
-                                                color: AppColors.primary,
-                                                shape: BoxShape.circle,
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: AppColors.primary.withValues(alpha: _pulseController.value * 0.7),
-                                                    blurRadius: 10,
-                                                    spreadRadius: 2,
-                                                  ),
-                                                ],
-                                              ),
-                                            );
-                                          },
-                                        )
-                                      else
-                                        Container(
-                                          width: 12,
-                                          height: 12,
-                                          decoration: BoxDecoration(
-                                            color: isDone ? AppColors.primary : (isDark ? AppColors.slate700 : AppColors.slate400),
-                                            shape: BoxShape.circle,
-                                          ),
-                                        ),
-                                      if (!isLast) Container(width: 2, height: 32, color: isDone ? AppColors.primary : (isDark ? AppColors.slate800 : AppColors.slate300)),
-                                    ],
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Padding(
-                                      padding: const EdgeInsets.only(bottom: 16.0),
+                                return Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    SizedBox(
+                                      width: 80,
                                       child: Text(
-                                        step['title'] as String,
+                                        step['time'] as String,
                                         style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: isDone ? FontWeight.bold : FontWeight.normal,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
                                           color: isDone ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight) : AppColors.slate400,
                                         ),
                                       ),
                                     ),
-                                  ),
-                                ],
-                              );
-                            }),
+                                    Column(
+                                      children: [
+                                        if (isCurrent)
+                                          AnimatedBuilder(
+                                            animation: _pulseController,
+                                            builder: (context, _) {
+                                              return Container(
+                                                width: 14,
+                                                height: 14,
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.primary,
+                                                  shape: BoxShape.circle,
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: AppColors.primary.withValues(alpha: _pulseController.value * 0.7),
+                                                      blurRadius: 10,
+                                                      spreadRadius: 2,
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                            },
+                                          )
+                                        else
+                                          Container(
+                                            width: 12,
+                                            height: 12,
+                                            decoration: BoxDecoration(
+                                              color: isDone ? AppColors.primary : (isDark ? AppColors.slate700 : AppColors.slate400),
+                                              shape: BoxShape.circle,
+                                            ),
+                                          ),
+                                        if (!isLast) Container(width: 2, height: 32, color: isDone ? AppColors.primary : (isDark ? AppColors.slate800 : AppColors.slate300)),
+                                      ],
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(bottom: 16.0),
+                                        child: Text(
+                                          step['title'] as String,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: isDone ? FontWeight.bold : FontWeight.normal,
+                                            color: isDone ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight) : AppColors.slate400,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }),
+                            ),
                           ),
-                        ),
+                        ],
 
                         const SizedBox(height: AppSpacing.lg),
 

@@ -19,7 +19,6 @@ import '../utils/vehicle_utils.dart';
 import './auth_service.dart';
 import './driver_service.dart';
 import './local_notification_service.dart';
-import './permission_service.dart';
 
 /// Global Dispatch Overlay Service for AdhocX Driver App.
 /// Decoupled singleton that manages:
@@ -217,9 +216,14 @@ class GlobalDispatchOverlayService {
 
       final isActive = await FlutterOverlayWindow.isActive();
       if (!isActive) {
+        // Compute pixel size for initial showOverlay because Android WindowSetup treats width & height as raw pixels.
+        // On modern screens (e.g. 2.75x - 3.5x density), 76 dp = ~210-266 raw pixels.
+        final pixelRatio = WidgetsBinding.instance.platformDispatcher.views.firstOrNull?.devicePixelRatio ?? 3.0;
+        final bubblePixels = (76 * pixelRatio).round();
+
         await FlutterOverlayWindow.showOverlay(
-          height: 76,
-          width: 76,
+          height: bubblePixels,
+          width: bubblePixels,
           enableDrag: true,
           overlayTitle: 'AdhocX Driver Online',
           overlayContent: 'Assistive floating bubble is active',
@@ -229,6 +233,9 @@ class GlobalDispatchOverlayService {
           positionGravity: PositionGravity.none,
           startPosition: const OverlayPosition(0, 150),
         );
+
+        // Immediately ensure standard dp size via resizeOverlay (which uses dpToPx on native Android):
+        await FlutterOverlayWindow.resizeOverlay(76, 76, true);
       }
       _isBubbleActive = true;
       _listenToOverlayActions();
@@ -604,118 +611,116 @@ class GlobalDispatchOverlayService {
     }
   }
 
-  /// Android SYSTEM_ALERT_WINDOW In-App Onboarding Dialog
-  /// Guides driver to enable "Display over other apps" so they never miss an alert while using Google Maps/Waze.
-  static Future<void> promptAndroidOverlayPermission(BuildContext context, {bool force = false}) async {
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+  /// Mandatory Check & Enforcement for SYSTEM_ALERT_WINDOW ("Display over other apps").
+  /// Directly opens system settings if not granted, and if denied, shows a mandatory explanation modal.
+  /// Returns `true` if permission is granted, `false` otherwise.
+  static Future<bool> ensureOverlayPermissionMandatory(BuildContext context) async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return true;
 
-    // 1. If already granted by the system, never prompt again
-    final isGranted = await PermissionService.instance.isOverlayPermissionGranted();
-    if (isGranted) return;
+    bool isGranted = await FlutterOverlayWindow.isPermissionGranted();
+    if (isGranted) return true;
 
-    // 2. If user already dismissed or was previously prompted, do not nag repeatedly on every online switch
-    if (!force) {
+    // 1. Directly request / open system settings as requested without just a soft prompt:
+    try {
+      await FlutterOverlayWindow.requestPermission();
+    } catch (_) {
       try {
-        final prefs = await SharedPreferences.getInstance();
-        final hasPrompted = prefs.getBool('overlay_permission_prompted') ?? false;
-        if (hasPrompted) return;
+        await openAppSettings();
       } catch (_) {}
     }
 
-    if (!context.mounted) return;
+    // 2. Re-check after user returns from system settings
+    isGranted = await FlutterOverlayWindow.isPermissionGranted();
+    if (isGranted) return true;
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    await showModalBottomSheet(
-      context: context,
-      useRootNavigator: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: SafeArea(
-          top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.layers_outlined, size: 32, color: AppColors.primary),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                'Enable Floating Trip Alerts',
-                style: AppTypography.h2(
-                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                'Allow AdhocX to "Display over other apps" so you can receive and accept high-paying trips in 1-tap while navigating in Google Maps or Waze.',
-                textAlign: TextAlign.center,
-                style: AppTypography.caption(
-                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    Navigator.of(ctx).pop();
-                    try {
-                      final prefs = await SharedPreferences.getInstance();
-                      await prefs.setBool('overlay_permission_prompted', true);
-                      final status = await Permission.systemAlertWindow.request();
-                      if (status.isGranted) {
-                        await GlobalDispatchOverlayService.instance.startAssistiveBubble();
-                      } else {
-                        await openAppSettings();
-                      }
-                    } catch (_) {
-                      try {
-                        await openAppSettings();
-                      } catch (_) {}
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+    // 3. If still denied, show firm mandatory bottom sheet explaining that it is required to go online
+    if (context.mounted) {
+      await showModalBottomSheet(
+        context: context,
+        useRootNavigator: true,
+        isDismissible: false,
+        enableDrag: false,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) {
+          final isDark = Theme.of(ctx).brightness == Brightness.dark;
+          return Container(
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.layers_rounded, size: 32, color: AppColors.error),
                   ),
-                  child: const Text('OPEN SETTINGS & ENABLE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                ),
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    'Permission Mandatory',
+                    style: AppTypography.h2(
+                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'To go online and receive floating trip dispatches while using Google Maps or other apps, "Display over other apps" permission is mandatory. Please turn it on in Settings.',
+                    textAlign: TextAlign.center,
+                    style: AppTypography.caption(
+                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        Navigator.of(ctx).pop();
+                        try {
+                          await FlutterOverlayWindow.requestPermission();
+                        } catch (_) {
+                          try {
+                            await openAppSettings();
+                          } catch (_) {}
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                      ),
+                      child: const Text('OPEN SETTINGS & ENABLE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: Text('Cancel (Stay Offline)', style: TextStyle(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
+                  ),
+                ],
               ),
-              const SizedBox(height: AppSpacing.sm),
-              TextButton(
-                onPressed: () async {
-                  Navigator.of(ctx).pop();
-                  try {
-                    final prefs = await SharedPreferences.getInstance();
-                    await prefs.setBool('overlay_permission_prompted', true);
-                  } catch (_) {}
-                },
-                child: Text('Maybe Later', style: TextStyle(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+            ),
+          );
+        },
+      );
 
-    // Save flag even if dismissed by tapping outside or swiping down
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('overlay_permission_prompted', true);
-    } catch (_) {}
+      isGranted = await FlutterOverlayWindow.isPermissionGranted();
+    }
+
+    return isGranted;
+  }
+
+  /// Backward-compatible alias for existing call sites
+  static Future<void> promptAndroidOverlayPermission(BuildContext context, {bool force = false}) async {
+    await ensureOverlayPermissionMandatory(context);
   }
 }

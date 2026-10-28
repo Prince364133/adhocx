@@ -101,7 +101,7 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
       if (context.canPop()) {
         context.pop();
       } else {
-        context.go(AppRoutes.opportunitiesScreen);
+        context.go(AppRoutes.homeScreen);
       }
     }
   }
@@ -175,7 +175,7 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                           if (context.canPop()) {
                             context.pop();
                           } else {
-                            context.go(AppRoutes.opportunitiesScreen);
+                            context.go(AppRoutes.homeScreen);
                           }
                         },
                         icon: Icon(

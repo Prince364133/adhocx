@@ -185,10 +185,15 @@ class _GlobalStateGalleryScreenState extends State<GlobalStateGalleryScreen> {
               _buildTriggerTile(
                 context,
                 title: 'Session Expired Modal',
-                subtitle: 'Re-authenticate session popup',
+                subtitle: 'Re-authenticate session bottom sheet',
                 icon: Icons.lock_clock_outlined,
                 onTap: () {
-                  showDialog(context: context, builder: (_) => const SessionExpiredDialog());
+                  showModalBottomSheet(
+                    context: context,
+                    useRootNavigator: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => const SessionExpiredDialog(),
+                  );
                 },
                 isDark: isDark,
               ),

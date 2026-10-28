@@ -59,6 +59,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
   String _dropInstructions = '';
 
   // Date and Time
+  bool _isScheduled = false;
   String _pickupDate = '';
   String _pickupTime = '';
   late DateTime _reportingDateTime;
@@ -102,6 +103,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
       _pickupDate = item.pickupDate;
       _pickupTime = item.pickupTime;
       _reportingDateTime = item.reportingDateTime;
+      _isScheduled = item.isScheduled || item.reportingDateTime.isAfter(DateTime.now().add(const Duration(minutes: 5)));
       _additionalStops.addAll(item.additionalStops);
       _notesController = TextEditingController(text: item.additionalInfo);
     } else {
@@ -113,15 +115,12 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
       _officeLat = (def['lat'] as num).toDouble();
       _officeLng = (def['lng'] as num).toDouble();
 
-      final now = DateTime.now().add(const Duration(hours: 4));
+      final now = DateTime.now();
+      _isScheduled = false;
       _reportingDateTime = now;
       _pickupDate =
           '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-      final hour = now.hour;
-      final minute = now.minute.toString().padLeft(2, '0');
-      final period = hour >= 12 ? 'PM' : 'AM';
-      final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
-      _pickupTime = '${displayHour.toString().padLeft(2, '0')}:$minute $period';
+      _pickupTime = 'Now (ASAP)';
       _notesController = TextEditingController();
     }
     final hasExistingLocation = widget.existingItem != null &&
@@ -388,6 +387,22 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
     }
   }
 
+  void _selectRideNow() {
+    setState(() {
+      _isScheduled = false;
+      final now = DateTime.now();
+      _reportingDateTime = now;
+      _pickupDate =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      _pickupTime = 'Now (ASAP)';
+    });
+  }
+
+  Future<void> _selectScheduleLater() async {
+    setState(() => _isScheduled = true);
+    await _openSelectDateTimeSubSheet();
+  }
+
   Future<void> _openSelectDateTimeSubSheet() async {
     final result = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
@@ -395,14 +410,17 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => SelectDateTimeSubBottomSheet(
-        initialDate: _pickupDate,
-        initialTime: _pickupTime,
-        initialDateTime: _reportingDateTime,
+        initialDate: _pickupDate.contains('ASAP') ? '' : _pickupDate,
+        initialTime: _pickupTime.contains('ASAP') ? '' : _pickupTime,
+        initialDateTime: _reportingDateTime.isBefore(DateTime.now())
+            ? DateTime.now().add(const Duration(hours: 2))
+            : _reportingDateTime,
       ),
     );
 
     if (result != null && mounted) {
       setState(() {
+        _isScheduled = true;
         _pickupDate = (result['pickupDate'] as String?) ?? _pickupDate;
         _pickupTime = (result['pickupTime'] as String?) ?? _pickupTime;
         _reportingDateTime = (result['reportingDateTime'] as DateTime?) ?? _reportingDateTime;
@@ -511,6 +529,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
       dropInstructions: _dropInstructions,
       tripType: _tripType,
       hasEscort: _hasEscort,
+      isScheduled: _isScheduled,
       pickupDate: _pickupDate,
       pickupTime: _pickupTime,
       reportingDateTime: _reportingDateTime,
@@ -1083,64 +1102,270 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
 
                   const SizedBox(height: AppSpacing.lg),
 
-                  // ── 4. Schedule (Select Date & Time Tile/Button) ─────────────
-                  Text(
-                    'Trip Schedule (Date & Time) *',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-
-                  InkWell(
-                    onTap: _openSelectDateTimeSubSheet,
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.bgDark : AppColors.bgLight,
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                  // ── 4. Trip Timing & Scheduling (Option Partition) ──────────
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Trip Timing & Schedule *',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                          ),
+                        ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Row(
+                      if (_isScheduled) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(AppRadius.pill),
+                          ),
+                          child: const Text(
+                            'Scheduled for Later',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Option Partition (Ride Now vs Schedule for Later)
+                  Row(
+                    children: [
+                      // Option 1: Ride Now (ASAP)
+                      Expanded(
+                        child: InkWell(
+                          onTap: _selectRideNow,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: !_isScheduled
+                                  ? AppColors.primary.withValues(alpha: 0.08)
+                                  : (isDark ? AppColors.bgDark : AppColors.bgLight),
+                              borderRadius: BorderRadius.circular(AppRadius.md),
+                              border: Border.all(
+                                color: !_isScheduled
+                                    ? AppColors.primary
+                                    : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                                width: !_isScheduled ? 1.5 : 1,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Icon(Icons.calendar_today_rounded, size: 18, color: AppColors.primary),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    '$_pickupDate  •  $_pickupTime',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(5),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.warning.withValues(alpha: 0.15),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.bolt_rounded, size: 14, color: AppColors.warning),
+                                    ),
+                                    if (!_isScheduled)
+                                      const Icon(Icons.check_circle_rounded, size: 14, color: AppColors.primary),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'Ride Now',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Instant dispatch',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Row(
-                            children: [
-                              Text(
-                                'Change',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.primary,
-                                ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+
+                      // Option 2: Schedule for Later
+                      Expanded(
+                        child: InkWell(
+                          onTap: _selectScheduleLater,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: _isScheduled
+                                  ? AppColors.primary.withValues(alpha: 0.08)
+                                  : (isDark ? AppColors.bgDark : AppColors.bgLight),
+                              borderRadius: BorderRadius.circular(AppRadius.md),
+                              border: Border.all(
+                                color: _isScheduled
+                                    ? AppColors.primary
+                                    : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                                width: _isScheduled ? 1.5 : 1,
                               ),
-                              const Icon(Icons.chevron_right, size: 18, color: AppColors.primary),
-                            ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(5),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary.withValues(alpha: 0.15),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.schedule_rounded, size: 14, color: AppColors.primary),
+                                    ),
+                                    if (_isScheduled)
+                                      const Icon(Icons.check_circle_rounded, size: 14, color: AppColors.primary),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'Schedule for Later',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Pick date & time',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // Display timing detail according to partition selection
+                  if (_isScheduled) ...[
+                    InkWell(
+                      onTap: _openSelectDateTimeSubSheet,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppColors.bgDark : AppColors.bgLight,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.calendar_today_rounded, size: 18, color: AppColors.primary),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      '$_pickupDate  •  $_pickupTime',
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Row(
+                              children: [
+                                Text(
+                                  'Change',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                Icon(Icons.chevron_right, size: 18, color: AppColors.primary),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.notifications_active_outlined, size: 14, color: AppColors.primary),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Drivers will be dispatched automatically. We will notify you 30 seconds before dispatch begins.',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                height: 1.25,
+                              ),
+                            ),
                           ),
                         ],
                       ),
                     ),
-                  ),
+                  ] else ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                        border: Border.all(color: AppColors.success.withValues(alpha: 0.2)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.flash_on_rounded, size: 14, color: AppColors.success),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Instant Booking: Drivers will be matched immediately upon review & deploy.',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
 
                   const SizedBox(height: AppSpacing.lg),
 

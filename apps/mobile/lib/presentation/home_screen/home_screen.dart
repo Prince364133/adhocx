@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
@@ -121,7 +122,7 @@ class _HomeScreenState extends State<HomeScreen> {
         silent ? Future.value(null) : DriverService.instance.getProfile(forceRefresh: forceFetch).catchError((_) => null),
         silent ? Future.value(null) : DriverService.instance.getWalletSummary(forceRefresh: forceFetch).catchError((_) => null),
         DriverService.instance.getOffers(forceRefresh: forceFetch).catchError((_) => []),
-        DriverService.instance.getBiddingOpportunities(forceRefresh: forceFetch).catchError((_) => []),
+        Future.value([]),
         DriverService.instance.getTrips(forceRefresh: forceFetch).catchError((_) => []),
         silent ? Future.value(null) : DriverService.instance.getPolicyConfig(forceRefresh: forceFetch).catchError((_) => null),
       ]);
@@ -336,6 +337,21 @@ class _HomeScreenState extends State<HomeScreen> {
             return;
           }
         }
+        // MANDATORY: Check & Enforce "Display Over Other Apps" (Overlay Permission)
+        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+          if (!mounted) return;
+          final hasOverlay = await GlobalDispatchOverlayService.ensureOverlayPermissionMandatory(context);
+          if (!hasOverlay) {
+            if (mounted) {
+              Fluttertoast.showToast(
+                msg: 'Display over other apps permission is mandatory to go online.',
+                backgroundColor: AppColors.error,
+                toastLength: Toast.LENGTH_LONG,
+              );
+            }
+            return;
+          }
+        }
       }
 
       final newStatus = goOnline ? 'AVAILABLE' : 'OFFLINE';
@@ -350,7 +366,6 @@ class _HomeScreenState extends State<HomeScreen> {
         });
         if (goOnline) {
           _ensureRealtimeConnected();
-          GlobalDispatchOverlayService.promptAndroidOverlayPermission(context);
           GlobalDispatchOverlayService.instance.startAssistiveBubble();
 
           // Start GPS background monitor: auto-switches to OFFLINE if GPS is switched off

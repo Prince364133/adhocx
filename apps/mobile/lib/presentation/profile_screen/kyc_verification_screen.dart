@@ -243,8 +243,11 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     bool showBack = false;
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
           final currentUrl = (showBack && backUrl != null && backUrl.isNotEmpty) ? backUrl : frontUrl;
@@ -254,16 +257,29 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
               : ((showBack && docType == 'AADHAR_FRONT') ? 'AADHAR_BACK' : docType);
           final hasBothSides = (frontUrl != null && frontUrl.isNotEmpty) && (backUrl != null && backUrl.isNotEmpty);
 
-          return Dialog(
-            backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
-            insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
+          return Container(
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+            ),
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: SafeArea(
+              top: false,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  Center(
+                    child: Container(
+                      width: 38,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.borderSubtleDark : AppColors.borderSubtleLight,
+                        borderRadius: AppRadius.borderPill,
+                      ),
+                    ),
+                  ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [

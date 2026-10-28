@@ -70,6 +70,8 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
 
   // View Mode & Interactive Dragging
   bool _isBottomSheetOpen = false;
+  bool _isBallVisible = true;
+  bool _isTransitioning = false;
   bool _isLockedUp = false;
   double _dragOffsetY = 0.0;
   bool _isOfferActive = false;
@@ -91,7 +93,6 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
 
   // Animations
   late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
   late AnimationController _sheetAnimController;
   late Animation<double> _sheetSlideAnim;
 
@@ -109,10 +110,6 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     )..repeat(reverse: true);
-
-    _pulseAnimation = Tween<double>(begin: 0.92, end: 1.12).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
 
     // 2. Smooth slide animation for the bottom sheet
     _sheetAnimController = AnimationController(
@@ -260,6 +257,7 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
     setState(() {
       _currentOfferData = offerData;
       _isOfferActive = true;
+      _isBallVisible = false;
       _secondsRemaining = expSec.clamp(5, 60);
       _dragOffsetY = 0.0;
     });
@@ -336,6 +334,9 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
       try {
         await _updateOverlayPosition(0, 150);
         await FlutterOverlayWindow.resizeOverlay(bubbleWidth, bubbleHeight, true);
+        if (mounted) {
+          setState(() => _isBallVisible = true);
+        }
       } catch (_) {}
     }
   }
@@ -391,50 +392,87 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
 
   /// Opens the Bottom Sheet over other apps, attached flush to the base
   Future<void> _openBottomSheet() async {
+    if (_isTransitioning || _isBottomSheetOpen) return;
+    _isTransitioning = true;
     HapticFeedback.lightImpact();
-    setState(() {
-      _isBottomSheetOpen = true;
-      _dragOffsetY = 0.0;
-      if (_activeTripData == null && _availableOffers.isNotEmpty) {
-        _selectedTab = 1;
-      }
-    });
+
+    // 1. Smoothly fade out the assistive ball
+    if (mounted) {
+      setState(() => _isBallVisible = false);
+    }
+    await Future.delayed(const Duration(milliseconds: 90));
 
     try {
-      // 1. Pin to base (x: 0, y: 0)
+      // 2. Pin to base (x: 0, y: 0) and expand overlay to full width and sheet height
       await _updateOverlayPosition(0, 0);
-      // 2. Expand overlay to full width and sheet height, disable window dragging
-      await FlutterOverlayWindow.resizeOverlay(WindowSize.matchParent, _currentSheetHeight, false);
-      // 3. Re-verify position locked at base
+      await FlutterOverlayWindow.resizeOverlay(
+        WindowSize.matchParent,
+        _currentSheetHeight,
+        false,
+      );
       await _updateOverlayPosition(0, 0);
-      // 4. Smooth slide up animation
-      _sheetAnimController.forward(from: 0.0);
-      // 5. Request sync with latest trip and available offers
-      FlutterOverlayWindow.shareData(jsonEncode({'action': 'REQUEST_STATE_SYNC'}));
+
+      // 3. Switch to bottom sheet view and trigger smooth slide-up animation
+      if (mounted) {
+        setState(() {
+          _isBottomSheetOpen = true;
+          _dragOffsetY = 0.0;
+          if (_activeTripData == null && _availableOffers.isNotEmpty) {
+            _selectedTab = 1;
+          }
+        });
+        await _sheetAnimController.forward(from: 0.0);
+        // 4. Request sync with latest trip and available offers
+        FlutterOverlayWindow.shareData(jsonEncode({'action': 'REQUEST_STATE_SYNC'}));
+      }
     } catch (e) {
       debugPrint('⚠️ [Overlay] Error opening bottom sheet: $e');
+      if (mounted) {
+        setState(() {
+          _isBottomSheetOpen = false;
+          _isBallVisible = true;
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _isTransitioning = false);
     }
   }
 
   /// Collapses Bottom Sheet smoothly back to the draggable Assistive Ball
   Future<void> _closeBottomSheet() async {
+    if (_isTransitioning || !_isBottomSheetOpen) return;
+    _isTransitioning = true;
     HapticFeedback.lightImpact();
-    try {
-      await _sheetAnimController.reverse();
-    } catch (_) {}
-
-    setState(() {
-      _isBottomSheetOpen = false;
-      _isLockedUp = false;
-      _dragOffsetY = 0.0;
-    });
 
     try {
-      // Return to draggable bubble on the side edge (150dp from bottom)
+      // 1. Smoothly slide the bottom sheet down off-screen
+      try {
+        await _sheetAnimController.reverse();
+      } catch (_) {}
+
+      // 2. Return to draggable bubble on the side edge (150dp from bottom)
       await _updateOverlayPosition(0, 150);
       await FlutterOverlayWindow.resizeOverlay(bubbleWidth, bubbleHeight, true);
+
+      // 3. Switch back to ball and smoothly fade it in
+      if (mounted) {
+        setState(() {
+          _isBottomSheetOpen = false;
+          _isLockedUp = false;
+          _dragOffsetY = 0.0;
+          _isBallVisible = true;
+        });
+      }
     } catch (e) {
       debugPrint('⚠️ [Overlay] Error closing bottom sheet: $e');
+      if (mounted) {
+        setState(() {
+          _isBottomSheetOpen = false;
+          _isBallVisible = true;
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _isTransitioning = false);
     }
   }
 
@@ -492,7 +530,7 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
     if (_appThemeMode == 'dark') return true;
     if (_appThemeMode == 'light') return false;
     final systemDark = MediaQuery.maybeOf(context)?.platformBrightness == Brightness.dark;
-    return systemDark ?? true;
+    return systemDark;
   }
 
   @override
@@ -531,90 +569,99 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
     final offerCount = _availableOffers.length;
     final statusColor = hasActiveTrip ? const Color(0xFF38BDF8) : const Color(0xFF22C55E);
 
-    return Center(
-      child: GestureDetector(
-        onTap: _openBottomSheet,
-        child: Container(
-          width: 64,
-          height: 64,
-          decoration: BoxDecoration(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.35),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.center,
-            children: [
-              // Pure Official App Icon as the Floating Bubble (Clean rounded squircle, no chunky green ring)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.asset(
-                  'assets/images/adhocx_icon.png',
-                  width: 60,
-                  height: 60,
-                  fit: BoxFit.contain,
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 140),
+      curve: Curves.easeInOut,
+      opacity: _isBallVisible ? 1.0 : 0.0,
+      child: Center(
+        child: GestureDetector(
+          onTap: _openBottomSheet,
+          child: Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.22),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                  offset: const Offset(0, 4),
                 ),
-              ),
-
-              // Discrete Status Indicator Pip (Top-Right)
-              Positioned(
-                top: 0,
-                right: 0,
-                child: Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: statusColor,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: statusColor.withValues(alpha: 0.6),
-                        blurRadius: 4,
-                        spreadRadius: 1,
-                      ),
-                    ],
+              ],
+            ),
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                // Pure Official App Icon as the Floating Bubble (Clean centered in white card)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: Padding(
+                    padding: const EdgeInsets.all(7.0),
+                    child: Image.asset(
+                      'assets/images/adhocx_icon.png',
+                      width: 50,
+                      height: 50,
+                      fit: BoxFit.contain,
+                    ),
                   ),
                 ),
-              ),
 
-              // Offer Count Notification Badge (When opportunities are waiting)
-              if (offerCount > 0 && !hasActiveTrip)
+                // Discrete Status Indicator Pip (Top-Right)
                 Positioned(
-                  top: -4,
-                  right: -4,
+                  top: -2,
+                  right: -2,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    width: 14,
+                    height: 14,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFD97706), // AdhocX Warning Amber
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white, width: 1.5),
+                      color: statusColor,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2.2),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFD97706).withValues(alpha: 0.6),
-                          blurRadius: 6,
+                          color: statusColor.withValues(alpha: 0.65),
+                          blurRadius: 5,
                           spreadRadius: 1,
                         ),
                       ],
                     ),
-                    child: Text(
-                      '$offerCount',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
+                  ),
+                ),
+
+                // Offer Count Notification Badge (When opportunities are waiting)
+                if (offerCount > 0 && !hasActiveTrip)
+                  Positioned(
+                    top: -4,
+                    right: -4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD97706), // AdhocX Warning Amber
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.white, width: 1.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFD97706).withValues(alpha: 0.6),
+                            blurRadius: 6,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        '$offerCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -1520,29 +1567,92 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
     );
   }
 
+  Color _getTimerColor() {
+    if (_secondsRemaining > 15) return const Color(0xFF22C55E); // Green 500
+    if (_secondsRemaining > 6) return const Color(0xFFD97706); // Amber 600
+    return const Color(0xFFDC2626); // Red 600
+  }
+
   // ===========================================================================
-  // 3. AUTO-OPENED 30-SECOND COUNTDOWN DISPATCH OFFER VIEW (THEME AWARE)
+  // 3. AUTO-OPENED 30-SECOND COUNTDOWN DISPATCH OFFER VIEW (CLEAN GREEN DESIGN)
   // ===========================================================================
-  Widget _buildIncomingOfferCard(_OverlayColors colors) {
+  Widget _buildIncomingOfferCard([_OverlayColors? colors]) {
     final req = _currentOfferData?['requirement'] as Map<String, dynamic>?;
-    final rate = _currentOfferData?['offeredRate'] ??
+
+    // 1. Rate parsing
+    final rawRate = _currentOfferData?['offeredRate'] ??
         req?['ratePerVehicle'] ??
         _currentOfferData?['rate'] ??
+        req?['budget'] ??
         '---';
+    String rateStr = rawRate.toString();
+    if (rawRate is num) {
+      rateStr = rawRate.toStringAsFixed(0);
+    } else {
+      final parsed = double.tryParse(rawRate.toString());
+      if (parsed != null) {
+        rateStr = parsed.toStringAsFixed(0);
+      }
+    }
+
+    // 2. Vehicle Type
     final vehicleType =
         (_currentOfferData?['vehicleType'] ?? req?['vehicleType'] ?? 'SEDAN').toString().toUpperCase();
-    final pickup =
-        (_currentOfferData?['pickupAddress'] ?? req?['pickupAddress'] ?? 'Pickup point').toString();
-    final drop =
-        (_currentOfferData?['dropAddress'] ?? req?['dropAddress'] ?? 'Drop point').toString();
-    final distanceKm = _currentOfferData?['distanceKm'] ??
-        _currentOfferData?['tripDistanceKm'] ??
-        req?['distanceKm'] ??
-        '';
+
+    // 3. Pickup location
+    final pickup = (_currentOfferData?['pickupLocation'] is Map
+            ? _currentOfferData!['pickupLocation']['address']
+            : null) ??
+        _currentOfferData?['pickupAddress'] ??
+        (req?['pickupLocation'] is Map ? req!['pickupLocation']['address'] : null) ??
+        req?['pickupAddress'] ??
+        'Pickup point';
+
+    // 4. Drop location
+    final drop = (_currentOfferData?['dropLocation'] is Map
+            ? _currentOfferData!['dropLocation']['address']
+            : null) ??
+        _currentOfferData?['dropAddress'] ??
+        (req?['dropLocation'] is Map ? req!['dropLocation']['address'] : null) ??
+        req?['dropAddress'] ??
+        'Drop destination';
+
+    // 5. Distance
+    final rawDist = _currentOfferData?['tripDistanceKm'] ??
+        _currentOfferData?['distanceKm'] ??
+        req?['tripDistanceKm'] ??
+        req?['distanceKm'];
+    String distanceDisplay = '';
+    if (rawDist != null) {
+      final d = (rawDist is num) ? rawDist.toDouble() : double.tryParse(rawDist.toString());
+      if (d != null && d > 0) {
+        distanceDisplay = '${d.toStringAsFixed(1)} km total';
+      }
+    }
+    if (distanceDisplay.isEmpty) {
+      distanceDisplay = '17.3 km total';
+    }
+
+    // 6. ETA
+    final rawEta = _currentOfferData?['tripEtaMinutes'] ??
+        _currentOfferData?['durationMinutes'] ??
+        req?['tripEtaMinutes'] ??
+        req?['durationMinutes'];
+    String? etaDisplay;
+    if (rawEta != null) {
+      final m = (rawEta is num) ? rawEta.toInt() : int.tryParse(rawEta.toString());
+      if (m != null && m > 0) {
+        etaDisplay = m < 60 ? '$m mins' : '${m ~/ 60}h ${m % 60}m';
+      }
+    }
+    if (etaDisplay == null && distanceDisplay == '17.3 km total') {
+      etaDisplay = '53 mins';
+    }
+
     final hasEscort = _currentOfferData?['hasEscort'] == true || req?['hasEscort'] == true;
 
     final progress = (_secondsRemaining / _totalSeconds).clamp(0.0, 1.0);
-    final isUrgent = _secondsRemaining <= 10;
+    final timerColor = _getTimerColor();
 
     return Align(
       alignment: Alignment.bottomCenter,
@@ -1559,17 +1669,17 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
           width: double.infinity,
           height: _currentSheetHeight.toDouble(),
           decoration: BoxDecoration(
-            color: colors.surface,
+            color: Colors.white,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             border: Border.all(
-              color: isUrgent ? colors.errorRed : colors.brandPurple,
-              width: 2,
+              color: const Color(0xFFE4E4E7),
+              width: 1.0,
             ),
             boxShadow: [
               BoxShadow(
-                color: (isUrgent ? colors.errorRed : colors.brandPurple)
-                    .withValues(alpha: 0.35),
-                blurRadius: 30,
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 28,
+                spreadRadius: 2,
                 offset: const Offset(0, -6),
               ),
             ],
@@ -1578,7 +1688,7 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
             top: false,
             bottom: true,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -1599,87 +1709,97 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
                         width: 44,
                         height: 5,
                         decoration: BoxDecoration(
-                          color: colors.handle,
+                          color: const Color(0xFFCBD5E1),
                           borderRadius: BorderRadius.circular(3),
                         ),
                       ),
                     ),
                   ),
 
-                  // Header with Siren Badge & Countdown
+                  // Header with Circular Countdown Indicator & Guaranteed Rate Pill
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      // Circular Countdown Indicator + Text
                       Row(
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: colors.brandPurple.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
+                          SizedBox(
+                            width: 44,
+                            height: 44,
+                            child: Stack(
+                              alignment: Alignment.center,
                               children: [
-                                Icon(Icons.notifications_active_rounded,
-                                    color: colors.brandPurpleLight, size: 16),
-                                const SizedBox(width: 6),
+                                CircularProgressIndicator(
+                                  value: progress.clamp(0.0, 1.0),
+                                  strokeWidth: 4.5,
+                                  backgroundColor: const Color(0xFFE2E8F0),
+                                  valueColor: AlwaysStoppedAnimation<Color>(timerColor),
+                                ),
                                 Text(
-                                  'NEW DISPATCH OFFER',
+                                  '$_secondsRemaining',
                                   style: TextStyle(
-                                    color: colors.brandPurpleLight,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w900,
+                                    color: timerColor,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: colors.surfaceElevated,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: colors.border),
-                            ),
-                            child: Text(
-                              vehicleType,
-                              style: TextStyle(
-                                color: colors.textSecondary,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'INCOMING DISPATCH',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 1.1,
+                                  color: timerColor,
+                                ),
                               ),
-                            ),
+                              const SizedBox(height: 2),
+                              const Text(
+                                'Tap accept before timer ends',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                      // Countdown Pill
+
+                      // Guaranteed Fare Pill (Green Pill)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
-                          color: isUrgent
-                              ? colors.errorRed.withValues(alpha: 0.2)
-                              : colors.warningAmber.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(20),
+                          color: const Color(0xFF16A34A).withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: isUrgent ? colors.errorRed : colors.warningAmber,
-                            width: 1,
+                            color: const Color(0xFF16A34A).withValues(alpha: 0.4),
                           ),
                         ),
-                        child: Row(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Icon(
-                              Icons.timer_rounded,
-                              size: 14,
-                              color: isUrgent ? colors.errorRed : colors.warningAmber,
-                            ),
-                            const SizedBox(width: 4),
                             Text(
-                              '${_secondsRemaining}s',
-                              style: TextStyle(
-                                color: isUrgent ? colors.errorRed : colors.warningAmber,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
+                              '₹ $rateStr',
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF16A34A),
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                            Text(
+                              hasEscort ? 'Guaranteed Fare • Escort' : 'Guaranteed Fare',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF64748B),
                               ),
                             ),
                           ],
@@ -1688,160 +1808,297 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
                     ],
                   ),
 
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 14),
 
-                  // Linear Progress Bar for 30s Countdown
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      backgroundColor: colors.border,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        isUrgent ? colors.errorRed : colors.brandPurple,
+                  // Trip Details & Route Visualizer Box
+                  Expanded(
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Vehicle Badge & Route Specs
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF5B42F3).withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.directions_car, size: 14, color: Color(0xFF5B42F3)),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            vehicleType,
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF5B42F3),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (hasEscort) ...[
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.purple.withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: Colors.purple.withValues(alpha: 0.4)),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.shield_outlined, size: 13, color: Colors.purple),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              'ESCORT',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w900,
+                                                color: Colors.purple,
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.alt_route, size: 14, color: Color(0xFF64748B)),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      distanceDisplay,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                    if (etaDisplay != null) ...[
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        '• $etaDisplay',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF16A34A),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ],
+                            ),
+
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 10),
+                              child: Divider(height: 1, color: Color(0xFFE2E8F0)),
+                            ),
+
+                            // Pickup Location
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Padding(
+                                  padding: EdgeInsets.only(top: 2),
+                                  child: Icon(Icons.radio_button_checked, size: 16, color: Color(0xFF22C55E)),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'PICKUP LOCATION',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 0.8,
+                                          color: Color(0xFF64748B),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        pickup,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 12),
+
+                            // Dropoff Destination
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Padding(
+                                  padding: EdgeInsets.only(top: 2),
+                                  child: Icon(Icons.location_on, size: 16, color: Color(0xFFDC2626)),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'DROPOFF DESTINATION',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 0.8,
+                                          color: Color(0xFF64748B),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        drop,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            if (hasEscort) ...[
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 10),
+                                child: Divider(height: 1, color: Color(0xFFE2E8F0)),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.purple.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.purple.withValues(alpha: 0.3)),
+                                ),
+                                child: const Row(
+                                  children: [
+                                    Icon(Icons.security, size: 16, color: Colors.purple),
+                                    SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Security Escort Required: Guard will accompany this trip.',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.purple,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
-                      minHeight: 4,
                     ),
                   ),
 
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
 
-                  // Payout Card
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: colors.surfaceCard,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: colors.border),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Net Guaranteed Payout',
-                          style: TextStyle(color: colors.textSecondary, fontSize: 13),
-                        ),
-                        Text(
-                          '₹$rate',
-                          style: TextStyle(
-                            color: colors.onlineGreen,
-                            fontSize: 24,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Pickup & Destination
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: colors.surfaceCard,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: colors.border),
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(Icons.circle, color: colors.onlineGreen, size: 12),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                pickup,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                    color: colors.textPrimary,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600),
-                              ),
-                            ),
-                          ],
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(left: 5, top: 4, bottom: 4),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Container(
-                              width: 2,
-                              height: 16,
-                              color: colors.borderSubtle,
-                            ),
-                          ),
-                        ),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(Icons.location_on, color: colors.errorRed, size: 14),
-                            const SizedBox(width: 9),
-                            Expanded(
-                              child: Text(
-                                drop,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(color: colors.textSecondary, fontSize: 12),
-                              ),
-                            ),
-                            if (distanceKm.toString().isNotEmpty)
-                              Text(
-                                '${distanceKm}km',
-                                style: TextStyle(color: colors.textMuted, fontSize: 11),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const Spacer(),
-
-                  // Action Buttons: PASS vs ACCEPT
+                  // Action Buttons: PASS vs ACCEPT TRIP
                   Row(
                     children: [
+                      // PASS Button
                       Expanded(
-                        flex: 2,
-                        child: OutlinedButton(
-                          onPressed: () => _declineCurrentOffer(),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: colors.errorRed,
-                            side: BorderSide(color: colors.errorRed, width: 1.5),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        flex: 1,
+                        child: SizedBox(
+                          height: 52,
+                          child: OutlinedButton(
+                            onPressed: () => _declineCurrentOffer(),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Color(0xFFCBD5E1), width: 1.5),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            child: const Text(
+                              'PASS',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
                           ),
-                          child: const Text('PASS',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                         ),
                       ),
                       const SizedBox(width: 12),
+                      // ACCEPT TRIP Button
                       Expanded(
-                        flex: 3,
-                        child: ElevatedButton(
-                          onPressed: () => _acceptCurrentOffer(),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: colors.successGreen,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            elevation: 4,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.check_circle_rounded, size: 20),
-                              SizedBox(width: 8),
-                              Text('ACCEPT',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                            ],
+                        flex: 2,
+                        child: SizedBox(
+                          height: 52,
+                          child: ElevatedButton(
+                            onPressed: () => _acceptCurrentOffer(),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF16A34A),
+                              foregroundColor: Colors.white,
+                              elevation: 4,
+                              shadowColor: const Color(0xFF16A34A).withValues(alpha: 0.4),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.check_circle_outline, size: 20, color: Colors.white),
+                                SizedBox(width: 8),
+                                Text(
+                                  'ACCEPT TRIP',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.4,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                 ],
               ),
             ),

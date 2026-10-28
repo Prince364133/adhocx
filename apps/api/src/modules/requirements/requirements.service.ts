@@ -5,6 +5,7 @@ import {
   BadRequestException,
   ConflictException,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import {
   CreateRequirementDto,
@@ -26,6 +27,7 @@ import {
 } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
 import { DispatchService } from '../dispatch/dispatch.service';
+import { DispatchSchedulerService } from '../dispatch/dispatch-scheduler.service';
 import { PricingService } from '../pricing/pricing.service';
 import { ZonalPricingService } from '../pricing/zonal-pricing.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -45,6 +47,7 @@ export class RequirementsService {
     private readonly zonalPricing: ZonalPricingService,
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
+    @Optional() private readonly scheduler?: DispatchSchedulerService,
   ) {}
 
   /**
@@ -307,13 +310,44 @@ export class RequirementsService {
       });
       this.logger.log(`Requirement ${requirement.id} opened for bidding (Mode: BIDDING)`);
     } else {
-      // Direct Dispatch Mode: Auto-trigger progressive dispatch waves
-      try {
-        await this.dispatchService.dispatchRequirement(requirement.id);
-      } catch (err: any) {
-        this.logger.error(`Auto-dispatch failed for requirement ${requirement.id}: ${err.message}`);
+      const reportingTimeMs = requirement.reportingTime.getTime();
+      const nowMs = Date.now();
+      const isScheduled = dto.isScheduled === true || (reportingTimeMs - nowMs > 5 * 60 * 1000);
+
+      if (isScheduled && this.scheduler) {
+        // Scheduled Mode: Defer progressive dispatch until the scheduled departure window.
+        // If an explicit trigger time was requested, respect it; otherwise lead dispatch by 15 mins (or at reportingTime).
+        let dispatchAtMs = dto.scheduledTriggerTime
+          ? new Date(dto.scheduledTriggerTime).getTime()
+          : (reportingTimeMs - nowMs > 15 * 60 * 1000 ? reportingTimeMs - (15 * 60 * 1000) : reportingTimeMs);
+        dispatchAtMs = Math.max(nowMs + 1000, dispatchAtMs);
+
+        // Pre-dispatch notification fires exactly 30 seconds before dispatchAtMs
+        const notifyAtMs = Math.max(nowMs + 500, dispatchAtMs - (30 * 1000));
+
+        await this.scheduler.schedule(`schedule-notify:${requirement.id}`, notifyAtMs);
+        await this.scheduler.schedule(`schedule-dispatch:${requirement.id}`, dispatchAtMs);
+
+        this.notifications.emitEvent(`vendor:${vendor.id}`, 'REQUIREMENT_SCHEDULED', {
+          requirementId: requirement.id,
+          reportingTime: requirement.reportingTime.toISOString(),
+          dispatchAt: new Date(dispatchAtMs).toISOString(),
+          notifyAt: new Date(notifyAtMs).toISOString(),
+          message: 'Ride scheduled successfully. You will receive an alert 30 seconds before driver dispatch begins.',
+        });
+
+        this.logger.log(
+          `Requirement ${requirement.id} scheduled: notify at ${new Date(notifyAtMs).toISOString()}, dispatch at ${new Date(dispatchAtMs).toISOString()}`,
+        );
+      } else {
+        // Direct Dispatch Mode: Auto-trigger progressive dispatch waves
+        try {
+          await this.dispatchService.dispatchRequirement(requirement.id);
+        } catch (err: any) {
+          this.logger.error(`Auto-dispatch failed for requirement ${requirement.id}: ${err.message}`);
+        }
+        this.logger.log(`Requirement ${requirement.id} submitted for progressive dispatch (Mode: DIRECT_DISPATCH)`);
       }
-      this.logger.log(`Requirement ${requirement.id} submitted for progressive dispatch (Mode: DIRECT_DISPATCH)`);
     }
 
     return this.mapToDto(zonalSnapshot ? { ...requirement, zonalQuote: { ...zonalSnapshot, requirementId: requirement.id } } : requirement);
@@ -852,10 +886,18 @@ export class RequirementsService {
       },
     });
 
+    // Cancel scheduled delayed timers if any exist
+    if (this.scheduler) {
+      await this.scheduler.cancel(`schedule-notify:${id}`);
+      await this.scheduler.cancel(`schedule-dispatch:${id}`);
+    }
+
     return this.mapToDto(updated);
   }
 
   private mapToDto(r: any, viewer: 'VENDOR' | 'ADMIN' = 'VENDOR'): RequirementResponseDto {
+    const reportingTimeMs = new Date(r.reportingTime).getTime();
+    const isScheduled = reportingTimeMs - Date.now() > 5 * 60 * 1000;
     return {
       id: r.id,
       vendorId: r.vendorId,
@@ -879,6 +921,7 @@ export class RequirementsService {
       totalAmount: Number(r.totalAmount),
       status: r.status as RequirementStatus,
       notes: r.notes || undefined,
+      isScheduled,
       zonalQuote: r.zonalQuote ? (this.zonalPricing.quoteView(r.zonalQuote, viewer) as Record<string, unknown>) : undefined,
       createdAt: r.createdAt.toISOString(),
       updatedAt: r.updatedAt.toISOString(),

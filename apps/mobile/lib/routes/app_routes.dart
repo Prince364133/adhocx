@@ -20,7 +20,6 @@ import '../presentation/home_screen/home_screen.dart';
 import '../presentation/driver_score_screen/driver_score_screen.dart';
 import '../presentation/kyc_upload_screen/kyc_upload_screen.dart';
 import '../presentation/notifications_screen/notifications_feed_screen.dart';
-import '../presentation/opportunities_screen/opportunities_screen.dart';
 import '../presentation/opportunities_screen/opportunity_details_screen.dart';
 import '../presentation/opportunities_screen/opportunity_offer_screen.dart';
 import '../presentation/profile_screen/add_vehicle_screen.dart';
@@ -715,6 +714,10 @@ final GoRouter appRouter = GoRouter(
 
     // ── Opportunities & Trip Dispatch Detail Routes ─────────────────────────
     GoRoute(
+      path: AppRoutes.opportunitiesScreen,
+      redirect: (context, state) => AppRoutes.homeScreen,
+    ),
+    GoRoute(
       path: AppRoutes.opportunityDetailsScreen,
       builder: (context, state) => OpportunityDetailsScreen(offer: state.extra as Map<String, dynamic>?),
     ),
@@ -1135,7 +1138,7 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const GlobalStateGalleryScreen(),
     ),
 
-    // ── Core Operations Shell (Home, Opportunities, Trips, Earnings, Profile) 
+    // ── Core Operations Shell (Home, Trips, Earnings, Profile) 
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) =>
           AppScaffold(navigationShell: navigationShell),
@@ -1145,14 +1148,6 @@ final GoRouter appRouter = GoRouter(
             GoRoute(
               path: AppRoutes.homeScreen,
               builder: (context, state) => const HomeScreen(),
-            ),
-          ],
-        ),
-        StatefulShellBranch(
-          routes: [
-            GoRoute(
-              path: AppRoutes.opportunitiesScreen,
-              builder: (context, state) => const OpportunitiesScreen(),
             ),
           ],
         ),

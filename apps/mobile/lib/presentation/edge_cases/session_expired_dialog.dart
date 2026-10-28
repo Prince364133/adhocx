@@ -8,7 +8,7 @@ import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/common/app_primary_button.dart';
 
-/// Imperative Dialog displayed when User Session is Expired.
+/// Bottom Sheet displayed when User Session is Expired.
 class SessionExpiredDialog extends StatelessWidget {
   const SessionExpiredDialog({super.key});
 
@@ -16,37 +16,53 @@ class SessionExpiredDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Dialog(
-      backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+      ),
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: SafeArea(
+        top: false,
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.error.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.lock_clock_outlined,
-                color: AppColors.error,
-                size: 32,
+            Center(
+              child: Container(
+                width: 38,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.borderSubtleDark : AppColors.borderSubtleLight,
+                  borderRadius: AppRadius.borderPill,
+                ),
               ),
             ),
-            const SizedBox(height: AppSpacing.lg),
-
+            Center(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.lock_clock_outlined,
+                  color: AppColors.error,
+                  size: 32,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
             Text(
               'Session Expired',
+              textAlign: TextAlign.center,
               style: AppTypography.h3(
                 color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 6),
-
             Text(
               'Your login session has ended for security reasons. Please sign in again to continue driving.',
               style: AppTypography.body(
@@ -55,7 +71,6 @@ class SessionExpiredDialog extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.xl),
-
             AppPrimaryButton(
               text: 'SIGN IN AGAIN',
               onPressed: () {

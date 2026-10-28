@@ -38,22 +38,106 @@ class _SavedTemplatesModalState extends State<SavedTemplatesModal> {
   }
 
   Future<void> _deleteTemplate(FleetTemplate template) async {
-    final confirm = await showDialog<bool>(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final confirm = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Template'),
-        content: Text('Are you sure you want to delete "${template.name}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+        ),
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.borderSubtleDark : AppColors.borderSubtleLight,
+                    borderRadius: AppRadius.borderPill,
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 24),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Delete Template',
+                          style: AppTypography.h3(
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Remove saved route configuration',
+                          style: AppTypography.caption(
+                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                'Are you sure you want to delete "${template.name}"? This action cannot be undone.',
+                style: AppTypography.body(
+                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              SizedBox(
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(sheetCtx, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.error,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: const Text('Delete Template', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              TextButton(
+                onPressed: () => Navigator.pop(sheetCtx, false),
+                child: Text(
+                  'Cancel',
+                  style: AppTypography.body(
+                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
-          ),
-        ],
+        ),
       ),
     );
 
@@ -65,29 +149,131 @@ class _SavedTemplatesModalState extends State<SavedTemplatesModal> {
   }
 
   Future<void> _renameTemplate(FleetTemplate template) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final controller = TextEditingController(text: template.name);
-    final newName = await showDialog<String>(
+
+    final newName = await showModalBottomSheet<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Rename Template'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'Template Name',
-            hintText: 'e.g. Corporate Transfer to Malakpet',
+      useRootNavigator: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        final bottomInset = MediaQuery.of(sheetCtx).viewInsets.bottom;
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+          padding: EdgeInsets.only(
+            left: AppSpacing.xl,
+            right: AppSpacing.xl,
+            top: AppSpacing.xl,
+            bottom: AppSpacing.xl + bottomInset,
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text('Save'),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 38,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.borderSubtleDark : AppColors.borderSubtleLight,
+                      borderRadius: AppRadius.borderPill,
+                    ),
+                  ),
+                ),
+                Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.edit_rounded, color: AppColors.primary, size: 22),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Rename Template',
+                            style: AppTypography.h3(
+                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Update name for saved route setup',
+                            style: AppTypography.caption(
+                              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  style: TextStyle(
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Template Name',
+                    hintText: 'e.g. Corporate Transfer to Malakpet',
+                    filled: true,
+                    fillColor: isDark ? AppColors.bgDark : AppColors.bgLight,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      borderSide: BorderSide(
+                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                SizedBox(
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(sheetCtx, controller.text.trim()),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                TextButton(
+                  onPressed: () => Navigator.pop(sheetCtx),
+                  child: Text(
+                    'Cancel',
+                    style: AppTypography.body(
+                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ],
-      ),
+        );
+      },
     );
 
     if (newName != null && newName.isNotEmpty && newName != template.name) {

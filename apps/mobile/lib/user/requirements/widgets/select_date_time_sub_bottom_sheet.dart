@@ -124,6 +124,7 @@ class _SelectDateTimeSubBottomSheetState extends State<SelectDateTimeSubBottomSh
       'pickupDate': _formattedDateString,
       'pickupTime': _formattedTimeString,
       'reportingDateTime': _fullDateTime,
+      'isScheduled': true,
     });
   }
 
@@ -162,18 +163,24 @@ class _SelectDateTimeSubBottomSheetState extends State<SelectDateTimeSubBottomSh
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Icon(Icons.calendar_month_rounded, color: AppColors.primary, size: 22),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Select Date & Time',
-                      style: AppTypography.h4(
-                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                        fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Row(
+                    children: [
+                      const Icon(Icons.calendar_month_rounded, color: AppColors.primary, size: 22),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Select Date & Time',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.h4(
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
@@ -308,6 +315,45 @@ class _SelectDateTimeSubBottomSheetState extends State<SelectDateTimeSubBottomSh
                         onPressed: () => _applySpecificTime(1, 8, 30),
                       ),
                     ],
+                  ),
+
+                  const SizedBox(height: AppSpacing.lg),
+
+                  // 30-Second Pre-Dispatch Alert Notice
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.notifications_active_outlined, color: AppColors.primary, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Automated Driver Dispatch Guarantee',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primary),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                'AdhocX will automatically search and match drivers for your trip. You will receive an advance notification 30 seconds before dispatch begins.',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),

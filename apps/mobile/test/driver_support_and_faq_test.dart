@@ -64,18 +64,18 @@ void main() {
       expect(find.text('Earnings & Payouts'), findsOneWidget);
 
       // Verify FAQ item presence
-      final questionFinder = find.text('How do I accept or bid on trip requirements?');
+      final questionFinder = find.text('How do I accept incoming trip requirements?');
       expect(questionFinder, findsOneWidget);
 
       // Initially, the answer should not be visible
-      expect(find.textContaining('Opportunities tab from the bottom navigation'), findsNothing);
+      expect(find.textContaining('incoming ride requirements appear automatically'), findsNothing);
 
       // Tap to expand
       await tester.tap(questionFinder);
       await tester.pumpAndSettle();
 
       // Answer should now be visible
-      expect(find.textContaining('Opportunities tab from the bottom navigation'), findsOneWidget);
+      expect(find.textContaining('incoming ride requirements appear automatically'), findsOneWidget);
     });
   });
 

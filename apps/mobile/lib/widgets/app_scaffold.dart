@@ -54,12 +54,14 @@ class AppScaffold extends StatelessWidget {
                     ),
                   ),
 
-                // Session Expired Dialog Modal
+                // Session Expired Bottom Sheet Modal
                 if (!mgr.isSessionValid)
-                  Container(
-                    color: Colors.black54,
-                    alignment: Alignment.center,
-                    child: const SessionExpiredDialog(),
+                  Positioned.fill(
+                    child: Container(
+                      color: Colors.black54,
+                      alignment: Alignment.bottomCenter,
+                      child: const SessionExpiredDialog(),
+                    ),
                   ),
               ],
             ),

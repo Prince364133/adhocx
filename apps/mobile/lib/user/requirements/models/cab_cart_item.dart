@@ -20,6 +20,7 @@ class CabCartItem {
   String dropInstructions;
   String tripType; // 'One Way'
   bool hasEscort;
+  bool isScheduled;
   String pickupDate; // YYYY-MM-DD
   String pickupTime; // e.g. 07:14 PM
   DateTime reportingDateTime;
@@ -55,6 +56,7 @@ class CabCartItem {
     this.dropInstructions = '',
     this.tripType = 'One Way',
     this.hasEscort = false,
+    this.isScheduled = false,
     required this.pickupDate,
     required this.pickupTime,
     required this.reportingDateTime,
@@ -176,6 +178,7 @@ class CabCartItem {
     'dropInstructions': dropInstructions,
     'tripType': tripType,
     'hasEscort': hasEscort,
+    'isScheduled': isScheduled,
     'pickupDate': pickupDate,
     'pickupTime': pickupTime,
     'reportingDateTime': reportingDateTime.toIso8601String(),
@@ -196,6 +199,9 @@ class CabCartItem {
     } catch (_) {
       parsedReporting = DateTime.now().add(const Duration(hours: 4));
     }
+
+    final bool isSched = json['isScheduled'] == true ||
+        parsedReporting.isAfter(DateTime.now().add(const Duration(minutes: 5)));
 
     return CabCartItem(
       id: json['id']?.toString() ?? 'cab_${DateTime.now().millisecondsSinceEpoch}',
@@ -219,6 +225,7 @@ class CabCartItem {
       dropInstructions: json['dropInstructions']?.toString() ?? '',
       tripType: json['tripType']?.toString() ?? 'One Way',
       hasEscort: json['hasEscort'] == true,
+      isScheduled: isSched,
       pickupDate: json['pickupDate']?.toString() ?? '',
       pickupTime: json['pickupTime']?.toString() ?? '',
       reportingDateTime: parsedReporting,
@@ -288,6 +295,7 @@ class CabCartItem {
     String? dropInstructions,
     String? tripType,
     bool? hasEscort,
+    bool? isScheduled,
     String? pickupDate,
     String? pickupTime,
     DateTime? reportingDateTime,
@@ -323,6 +331,7 @@ class CabCartItem {
       dropInstructions: dropInstructions ?? this.dropInstructions,
       tripType: tripType ?? this.tripType,
       hasEscort: hasEscort ?? this.hasEscort,
+      isScheduled: isScheduled ?? this.isScheduled,
       pickupDate: pickupDate ?? this.pickupDate,
       pickupTime: pickupTime ?? this.pickupTime,
       reportingDateTime: reportingDateTime ?? this.reportingDateTime,

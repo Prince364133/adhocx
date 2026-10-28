@@ -217,82 +217,125 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
 
   void _showNonHubLocationDialog(LocationModel loc) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: AppColors.error.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.location_off_rounded, color: AppColors.error, size: 22),
-            ),
-            const SizedBox(width: 10),
-            const Expanded(
-              child: Text(
-                'Outside Office Hub Area',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-            ),
-          ],
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetCtx) => Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${loc.title} is not within our 2 official corporate office hubs:',
-              style: TextStyle(
-                fontSize: 13,
-                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-              ),
-            ),
-            const SizedBox(height: 12),
-            _buildHubInfoBullet(
-              '1. HITEC / Nanakramguda Hub',
-              'Cyber Towers, Madhapur, Raidurg, Financial District, Waverock',
-              AppColors.primary,
-            ),
-            const SizedBox(height: 8),
-            _buildHubInfoBullet(
-              '2. Kokapet Hub',
-              'Kokapet SEZ, GAR Infobahn, Neopolis, Golden Mile',
-              AppColors.accentPurple,
-            ),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.bgDark : AppColors.slate100,
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-              ),
-              child: Text(
-                'Tip: If ${loc.title} is the employee\'s home or drop location, please select it under "Employee Home / Locality" in the route settings.',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontStyle: FontStyle.italic,
-                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.borderSubtleDark : AppColors.borderSubtleLight,
+                    borderRadius: AppRadius.borderPill,
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-            ),
-            child: const Text('Got it, choose another'),
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.location_off_rounded, color: AppColors.error, size: 22),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Outside Office Hub Area',
+                          style: AppTypography.h3(
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Requires office hub selection',
+                          style: AppTypography.caption(
+                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                '${loc.title} is not within our 2 official corporate office hubs:',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildHubInfoBullet(
+                '1. HITEC / Nanakramguda Hub',
+                'Cyber Towers, Madhapur, Raidurg, Financial District, Waverock',
+                AppColors.primary,
+              ),
+              const SizedBox(height: 8),
+              _buildHubInfoBullet(
+                '2. Kokapet Hub',
+                'Kokapet SEZ, GAR Infobahn, Neopolis, Golden Mile',
+                AppColors.accentPurple,
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.bgDark : AppColors.slate100,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  border: Border.all(
+                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                  ),
+                ),
+                child: Text(
+                  'Tip: If ${loc.title} is the employee\'s home or drop location, please select it under "Employee Home / Locality" in the route settings.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              SizedBox(
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(sheetCtx),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                    elevation: 0,
+                  ),
+                  child: const Text('Got it, choose another', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

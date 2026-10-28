@@ -27,28 +27,22 @@ class _AppNavigationState extends State<AppNavigation> {
       branchIndex: 0,
     ),
     _TabSpec(
-      label: 'Opportunities',
-      icon: 'explore_outlined',
-      selectedIcon: 'explore',
-      branchIndex: 1,
-    ),
-    _TabSpec(
       label: 'Trips',
       icon: 'directions_car',
       selectedIcon: 'directions_car',
-      branchIndex: 2,
+      branchIndex: 1,
     ),
     _TabSpec(
       label: 'Earnings',
       icon: 'account_balance_wallet',
       selectedIcon: 'account_balance_wallet',
-      branchIndex: 3,
+      branchIndex: 2,
     ),
     _TabSpec(
       label: 'Profile',
       icon: 'person_outline',
       selectedIcon: 'person',
-      branchIndex: 4,
+      branchIndex: 3,
     ),
   ];
 

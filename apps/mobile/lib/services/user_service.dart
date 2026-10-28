@@ -34,12 +34,14 @@ class UserService {
     String? title,
     int? requiredQuantity,
     DateTime? scheduledPickupTime,
+    bool? isScheduled,
     String? couponCode,
     String? zonalQuoteId,
   }) async {
     await _ensureSession();
     final effectiveQuantity = requiredQuantity ?? quantity;
     final effectiveReportingTime = scheduledPickupTime ?? reportingTime;
+    final effectiveIsScheduled = isScheduled ?? (scheduledPickupTime != null || effectiveReportingTime.isAfter(DateTime.now().add(const Duration(minutes: 5))));
     // Corporate zonal trips are priced server-side from the stored quote; never send a client amount.
     final effectiveBudget = zonalQuoteId != null ? null : (ratePerVehicle ?? budgetPerVehicle ?? suggestedBudget);
     final combinedNotes = [
@@ -65,6 +67,7 @@ class UserService {
         },
         'reportingTime': effectiveReportingTime.toIso8601String(),
         'fulfillmentMode': fulfillmentMode,
+        'isScheduled': effectiveIsScheduled,
         if (effectiveBudget != null) 'ratePerVehicle': effectiveBudget,
         if (suggestedBudget != null) 'suggestedBudget': suggestedBudget,
         if (combinedNotes.isNotEmpty) 'notes': combinedNotes,

@@ -169,24 +169,107 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
 
   Future<void> _confirmCancelRequirement(BuildContext context, String rawId) async {
     final messenger = ScaffoldMessenger.of(context);
-    final confirm = await showDialog<bool>(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final confirm = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Cancel Searching?'),
-        content: const Text(
-          'Are you sure you want to stop searching for drivers? This will immediately cancel dispatch waves and return any escrow funds to your wallet.',
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Keep Searching'),
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.borderSubtleDark : AppColors.borderSubtleLight,
+                    borderRadius: AppRadius.borderPill,
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.cancel_outlined, color: AppColors.error, size: 24),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Cancel Searching?',
+                          style: AppTypography.h3(
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Stop dispatch broadcast and reclaim funds',
+                          style: AppTypography.caption(
+                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                'Are you sure you want to stop searching for drivers? This will immediately cancel dispatch waves and return any escrow funds to your wallet.',
+                style: AppTypography.body(
+                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              SizedBox(
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(sheetCtx, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.error,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: const Text('Stop & Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              TextButton(
+                onPressed: () => Navigator.pop(sheetCtx, false),
+                child: Text(
+                  'Keep Searching',
+                  style: AppTypography.body(
+                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Stop & Cancel', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-        ],
+        ),
       ),
     );
 
@@ -448,7 +531,10 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
     final isExpired = status == 'EXPIRED';
     final isNoDriver = status == 'NO_DRIVER_AVAILABLE';
     final isPartiallyFulfilled = status == 'PARTIALLY_FULFILLED';
-    final isSearching = !isFulfilled && !isCancelled && !isExpired && !isNoDriver && (status == 'POSTED' || status == 'DISPATCHING' || status == 'OPEN');
+    final reportingTimeStr = (req?['reportingTime'] ?? req?['scheduledPickupTime'])?.toString();
+    final reportingTime = reportingTimeStr != null ? DateTime.tryParse(reportingTimeStr) : null;
+    final isScheduled = (req?['isScheduled'] == true || status == 'SCHEDULED' || (reportingTime != null && reportingTime.isAfter(DateTime.now().add(const Duration(minutes: 3))))) && !isFulfilled && !isCancelled && !isExpired;
+    final isSearching = !isScheduled && !isFulfilled && !isCancelled && !isExpired && !isNoDriver && (status == 'POSTED' || status == 'DISPATCHING' || status == 'OPEN');
 
     final offers = req?['offers'] is List ? (req!['offers'] as List) : [];
     final driversApproachedCount = _parseNum(req?['driversApproachedCount'] ?? offers.length, offers.length).toInt();
@@ -585,12 +671,16 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: statusColor.withValues(alpha: 0.15),
+                                      color: (isScheduled ? AppColors.starAmber : statusColor).withValues(alpha: 0.15),
                                       borderRadius: BorderRadius.circular(AppRadius.sm),
                                     ),
                                     child: Text(
-                                      status.replaceAll('_', ' '),
-                                      style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 12),
+                                      isScheduled ? 'SCHEDULED' : status.replaceAll('_', ' '),
+                                      style: TextStyle(
+                                        color: isScheduled ? AppColors.starAmber : statusColor,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
                                     ),
                                   ),
                                   Text(
@@ -670,7 +760,36 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               const SizedBox(height: 10),
-                              if (isSearching) ...[
+                              if (isScheduled) ...[
+                                Container(
+                                  padding: const EdgeInsets.all(AppSpacing.sm),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? const Color(0xFF2A2213) : const Color(0xFFFFFBEB),
+                                    borderRadius: BorderRadius.circular(AppRadius.md),
+                                    border: Border.all(
+                                      color: isDark ? const Color(0xFF78350F) : const Color(0xFFFDE68A),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(Icons.alarm_on_rounded, size: 18, color: AppColors.starAmber),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'This ride is scheduled for this timing. We will notify you before 30 seconds for dispatching the rides.',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            height: 1.35,
+                                            fontWeight: FontWeight.w600,
+                                            color: isDark ? const Color(0xFFFDE047) : const Color(0xFFB45309),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ] else if (isSearching) ...[
                                 Row(
                                   children: [
                                     const SizedBox(

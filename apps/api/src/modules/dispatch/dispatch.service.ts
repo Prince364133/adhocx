@@ -88,7 +88,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /** Routes due scheduler jobs. Members: `wave:<reqId>:<wave>` or `redispatch:<reqId>`. */
+  /** Routes due scheduler jobs. Members: `wave:<reqId>:<wave>`, `redispatch:<reqId>`, `schedule-notify:<reqId>`, `schedule-dispatch:<reqId>`. */
   async handleScheduledJob(member: string): Promise<void> {
     const [kind, requirementId] = member.split(':');
     if (!requirementId) return;
@@ -96,6 +96,97 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       await this.reapExpiredOffersAndRedispatch(requirementId);
     } else if (kind === 'redispatch') {
       await this.dispatchRequirement(requirementId);
+    } else if (kind === 'schedule-notify') {
+      await this.handleScheduledPreDispatchAlert(requirementId);
+    } else if (kind === 'schedule-dispatch') {
+      await this.handleScheduledTriggerDispatch(requirementId);
+    }
+  }
+
+  /**
+   * Fires exactly 30 seconds before scheduled driver dispatch begins.
+   * Emits real-time event and sends in-app alert to corporate vendor/booker.
+   */
+  async handleScheduledPreDispatchAlert(requirementId: string): Promise<void> {
+    try {
+      const requirement = await this.db.requirement.findUnique({
+        where: { id: requirementId },
+        include: { vendor: true },
+      });
+      if (!requirement) return;
+
+      // Do not alert if already cancelled, fulfilled, or completed
+      if (
+        requirement.status === RequirementStatus.CANCELLED ||
+        requirement.status === RequirementStatus.COMPLETED ||
+        requirement.status === RequirementStatus.FULFILLED
+      ) {
+        return;
+      }
+
+      const alertPayload = {
+        requirementId: requirement.id,
+        vehicleType: requirement.vehicleType,
+        pickupAddress: requirement.pickupAddress,
+        dropAddress: requirement.dropAddress,
+        reportingTime: requirement.reportingTime.toISOString(),
+        secondsRemaining: 30,
+        message: 'Hey, we are initiating your ride dispatch and finding drivers in 30 seconds.',
+      };
+
+      // 1. Real-time event to vendor channel
+      this.notifications.emitEvent(`vendor:${requirement.vendorId}`, 'SCHEDULED_RIDE_DISPATCH_ALERT', alertPayload);
+
+      // 2. Real-time event and push to user channel
+      if (requirement.vendor?.userId) {
+        this.notifications.emitEvent(`user:${requirement.vendor.userId}`, 'SCHEDULED_RIDE_DISPATCH_ALERT', alertPayload);
+        await this.notifications.sendPushToUser(requirement.vendor.userId, {
+          title: 'Trip Dispatch Alert: 30 Seconds',
+          body: 'Hey, we are initiating your ride dispatch and finding drivers in 30 seconds.',
+          data: alertPayload,
+          saveInApp: true,
+        });
+      }
+
+      this.logger.log(`[Schedule] Pre-dispatch 30s alert emitted for requirement ${requirementId}`);
+    } catch (err: any) {
+      this.logger.error(`Failed to handle pre-dispatch alert for ${requirementId}: ${err.message}`);
+    }
+  }
+
+  /**
+   * Fires at scheduled dispatch time: triggers progressive dispatch waves to locate drivers.
+   */
+  async handleScheduledTriggerDispatch(requirementId: string): Promise<void> {
+    try {
+      const requirement = await this.db.requirement.findUnique({
+        where: { id: requirementId },
+        include: { vendor: true },
+      });
+      if (!requirement) return;
+
+      if (
+        requirement.status === RequirementStatus.CANCELLED ||
+        requirement.status === RequirementStatus.COMPLETED ||
+        requirement.status === RequirementStatus.FULFILLED
+      ) {
+        return;
+      }
+
+      this.logger.log(`[Schedule] Automated driver dispatch triggered for requirement ${requirementId}`);
+      await this.dispatchRequirement(requirementId);
+
+      const startedPayload = {
+        requirementId: requirement.id,
+        status: RequirementStatus.DISPATCHING,
+        message: 'Automated driver matching is now active for your scheduled trip.',
+      };
+      this.notifications.emitEvent(`vendor:${requirement.vendorId}`, 'SCHEDULED_RIDE_DISPATCHING', startedPayload);
+      if (requirement.vendor?.userId) {
+        this.notifications.emitEvent(`user:${requirement.vendor.userId}`, 'SCHEDULED_RIDE_DISPATCHING', startedPayload);
+      }
+    } catch (err: any) {
+      this.logger.error(`Failed to handle scheduled dispatch for ${requirementId}: ${err.message}`);
     }
   }
 

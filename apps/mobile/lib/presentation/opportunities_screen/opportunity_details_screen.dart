@@ -123,7 +123,7 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
                           if (context.canPop()) {
                             context.pop();
                           } else {
-                            context.go(AppRoutes.opportunitiesScreen);
+                            context.go(AppRoutes.homeScreen);
                           }
                         },
                         icon: Icon(

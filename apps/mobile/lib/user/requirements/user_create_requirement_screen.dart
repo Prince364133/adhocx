@@ -373,83 +373,143 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
     final List<String> deploymentLogs = [];
     final List<bool> completedFlags = List.filled(draft.cabs.length, false);
 
-    showDialog(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: false,
+      useRootNavigator: true,
+      isDismissible: false,
+      enableDrag: false,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (dialogCtx) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xl)),
-              title: Row(
-                children: [
-                  const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2.5),
-                  ),
-                  const SizedBox(width: 12),
-                  const Text('Parallel Fleet Dispatch', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                ],
+            return Container(
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
               ),
-              content: SizedBox(
-                width: double.maxFinite,
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              child: SafeArea(
+                top: false,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      'Broadcasting ${draft.cabs.length} cabs to verified drivers in parallel...',
-                      style: const TextStyle(fontSize: 12, color: AppColors.slate600),
-                    ),
-                    const SizedBox(height: 14),
-                    ...List.generate(draft.cabs.length, (idx) {
-                      final cab = draft.cabs[idx];
-                      final isDone = completedFlags[idx];
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    Center(
+                      child: Container(
+                        width: 38,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: AppSpacing.md),
                         decoration: BoxDecoration(
-                          color: isDone
-                              ? AppColors.success.withValues(alpha: 0.1)
-                              : AppColors.primary.withValues(alpha: 0.06),
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                          border: Border.all(
-                            color: isDone
-                                ? AppColors.success.withValues(alpha: 0.3)
-                                : AppColors.primary.withValues(alpha: 0.2),
-                          ),
+                          color: isDark ? AppColors.borderSubtleDark : AppColors.borderSubtleLight,
+                          borderRadius: AppRadius.borderPill,
                         ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              isDone ? Icons.check_circle_rounded : Icons.search_rounded,
-                              size: 18,
-                              color: isDone ? AppColors.success : AppColors.primary,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Cab #${idx + 1}: ${cab.vehicleLabel} (${cab.pickupShort} → ${cab.dropShort})',
-                                style: TextStyle(
-                                  fontSize: 12,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const CircularProgressIndicator(strokeWidth: 2.5),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Parallel Fleet Dispatch',
+                                style: AppTypography.h3(
+                                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                   fontWeight: FontWeight.bold,
-                                  color: isDone ? AppColors.success : null,
                                 ),
                               ),
-                            ),
-                            Text(
-                              isDone ? 'Dispatched' : 'Searching...',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: isDone ? AppColors.success : AppColors.primary,
+                              const SizedBox(height: 2),
+                              Text(
+                                'Broadcasting ${draft.cabs.length} cabs in parallel...',
+                                style: AppTypography.caption(
+                                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(context).size.height * 0.4,
+                      ),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: draft.cabs.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        itemBuilder: (context, idx) {
+                          final cab = draft.cabs[idx];
+                          final isDone = completedFlags[idx];
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: isDone
+                                  ? AppColors.success.withValues(alpha: 0.08)
+                                  : (isDark ? AppColors.bgDark : AppColors.slate100),
+                              borderRadius: BorderRadius.circular(AppRadius.md),
+                              border: Border.all(
+                                color: isDone
+                                    ? AppColors.success.withValues(alpha: 0.3)
+                                    : (isDark ? AppColors.borderDark : AppColors.borderLight),
                               ),
                             ),
-                          ],
-                        ),
-                      );
-                    }),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  isDone ? Icons.check_circle_rounded : Icons.search_rounded,
+                                  size: 18,
+                                  color: isDone ? AppColors.success : AppColors.primary,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'Cab #${idx + 1}: ${cab.vehicleLabel} (${cab.pickupShort} → ${cab.dropShort})',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDone
+                                          ? AppColors.success
+                                          : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: (isDone ? AppColors.success : AppColors.primary).withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                                  ),
+                                  child: Text(
+                                    isDone ? 'Dispatched' : 'Searching...',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDone ? AppColors.success : AppColors.primary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -486,6 +546,7 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
               dropLat: cab.dropLat != 0.0 ? cab.dropLat : 17.3850,
               dropLng: cab.dropLng != 0.0 ? cab.dropLng : 78.4867,
               reportingTime: cab.reportingDateTime,
+              isScheduled: cab.isScheduled,
               ratePerVehicle: cab.estimatedFare,
               notes: cab.buildFormattedNotes(
                 batchId: batchId,

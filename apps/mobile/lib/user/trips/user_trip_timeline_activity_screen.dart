@@ -60,7 +60,7 @@ class _UserTripTimelineActivityScreenState extends State<UserTripTimelineActivit
 
     final events = [
       {'title': 'Requirement Dispatched to Drivers', 'time': 'Live Event', 'isDone': true},
-      {'title': 'Driver $driverName Assigned & Accepted', 'time': isAssigned ? 'Confirmed' : 'Pending', 'isDone': isAssigned},
+      {'title': isAssigned ? 'Driver $driverName Assigned & Accepted' : 'Driver Sourcing & Assignment', 'time': isAssigned ? 'Confirmed' : 'Pending', 'isDone': isAssigned},
       {'title': 'Driver En Route to Pickup Location', 'time': isAssigned ? 'Active' : 'Pending', 'isDone': isAssigned},
       {'title': 'Driver Arrived at Pickup', 'time': isArrived ? 'Arrived' : 'Pending', 'isDone': isArrived},
       {'title': 'Trip In-Transit (OTP Verified)', 'time': isStarted ? 'Started' : 'Pending', 'isDone': isStarted},

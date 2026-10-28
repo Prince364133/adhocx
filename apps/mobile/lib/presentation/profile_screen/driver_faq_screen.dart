@@ -45,9 +45,9 @@ class _DriverFaqScreenState extends State<DriverFaqScreen> {
   final List<FaqItem> _faqList = const [
     FaqItem(
       category: 'Trips & Bidding',
-      question: 'How do I accept or bid on trip requirements?',
+      question: 'How do I accept incoming trip requirements?',
       answer:
-          'Open the Opportunities tab from the bottom navigation. Browse available trips matching your vehicle category. Tap "Place Bid" to enter your best rate or "Accept" if an instant dispatch price is available. Once matched by the passenger or corporate client, the trip moves to your Trips screen with turn-by-turn navigation guidance.',
+          'When you are online, incoming ride requirements appear automatically as a real-time dispatch alert on your screen with net earnings and route details. Tap "Accept" within the countdown window to claim the trip. Once accepted, the trip moves to your Trips screen with turn-by-turn navigation guidance.',
     ),
     FaqItem(
       category: 'Earnings & Payouts',

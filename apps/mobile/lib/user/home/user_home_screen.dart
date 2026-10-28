@@ -401,98 +401,184 @@ class _UserHomeScreenState extends State<UserHomeScreen> with WidgetsBindingObse
 
                 const SizedBox(height: AppSpacing.xl),
 
-                // Recent Requirements Header
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Recent Requirements',
-                      style: AppTypography.h3(
-                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () => context.go(AppRoutes.userRequirementsScreen),
-                      child: const Text(
-                        'View all',
-                        style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ],
-                ),
+                // Separate Scheduled Requirements from Instant / Active ones
+                () {
+                  final allReqs = _recentRequirements.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+                  final scheduledReqs = allReqs.where(_isRequirementScheduled).toList();
+                  final instantReqs = allReqs.where((r) => !_isRequirementScheduled(r)).toList();
 
-                const SizedBox(height: AppSpacing.xs),
-
-                // Live Requirements List
-                if (_isLoading)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(AppSpacing.xl),
-                      child: CircularProgressIndicator(color: AppColors.primary),
-                    ),
-                  )
-                else if (_recentRequirements.isEmpty)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(AppSpacing.xl),
-                    decoration: BoxDecoration(
-                      color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                      borderRadius: BorderRadius.circular(AppRadius.lg),
-                      border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                    ),
-                    child: Column(
-                      children: [
-                        Icon(Icons.drive_eta_outlined, size: 48, color: AppColors.textMutedLight),
-                        const SizedBox(height: AppSpacing.sm),
-                        Text(
-                          'No Active Requirements Yet',
-                          style: AppTypography.h4(
-                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                            fontWeight: FontWeight.bold,
-                          ),
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Scheduled Trips Section (Dedicated if scheduled rides exist)
+                      if (scheduledReqs.isNotEmpty) ...[
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.starAmber.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                                  ),
+                                  child: const Icon(Icons.alarm_on_rounded, size: 18, color: AppColors.starAmber),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Scheduled Trips',
+                                  style: AppTypography.h3(
+                                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.starAmber.withValues(alpha: 0.18),
+                                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                                  ),
+                                  child: Text(
+                                    '${scheduledReqs.length} PENDING',
+                                    style: TextStyle(
+                                      color: isDark ? const Color(0xFFFDE047) : const Color(0xFFB45309),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            TextButton(
+                              onPressed: () => context.go(AppRoutes.userRequirementsScreen),
+                              child: const Text(
+                                'View all',
+                                style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Post your first corporate or bulk ride requirement below.',
-                          textAlign: TextAlign.center,
-                          style: AppTypography.caption(
-                            color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                          ),
-                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        ...scheduledReqs.take(3).map((req) => _buildScheduledTripCard(context, req: req, isDark: isDark)),
+                        const SizedBox(height: AppSpacing.lg),
                       ],
-                    ),
-                  )
-                else
-                  ..._recentRequirements.take(4).map((req) {
-                    final String title = req['pickupAddress'] ?? 'Bulk Ride Transfer';
-                    final int qty = req['quantity'] ?? 1;
-                    final int assigned = req['assignedQuantity'] ?? 0;
-                    final String status = req['status'] ?? 'POSTED';
-                    final String vehicle = req['vehicleType'] ?? 'Sedan';
 
-                    Color statusColor = AppColors.info;
-                    if (status == 'FULFILLED' || status == 'COMPLETED') statusColor = AppColors.success;
-                    if (status == 'PARTIALLY_FULFILLED') statusColor = AppColors.warning;
-                    if (status == 'CANCELLED') statusColor = AppColors.error;
-
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                      child: _buildRequirementCard(
-                        context,
-                        title: '$vehicle ($qty Vehicles)',
-                        subtitle: title,
-                        status: status.replaceAll('_', ' '),
-                        progressText: '$assigned/$qty',
-                        statusColor: statusColor,
-                        isDark: isDark,
-                        onTap: () => context.push(
-                          AppRoutes.userRequirementDetailsScreen,
-                          extra: {'id': req['id']},
-                        ),
+                      // Recent Requirements Header
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            scheduledReqs.isNotEmpty ? 'Instant & Live Requirements' : 'Recent Requirements',
+                            style: AppTypography.h3(
+                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => context.go(AppRoutes.userRequirementsScreen),
+                            child: const Text(
+                              'View all',
+                              style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
                       ),
-                    );
-                  }),
+
+                      const SizedBox(height: AppSpacing.xs),
+
+                      // Live Requirements List
+                      if (_isLoading)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(AppSpacing.xl),
+                            child: CircularProgressIndicator(color: AppColors.primary),
+                          ),
+                        )
+                      else if (_recentRequirements.isEmpty)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(AppSpacing.xl),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                            borderRadius: BorderRadius.circular(AppRadius.lg),
+                            border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                          ),
+                          child: Column(
+                            children: [
+                              Icon(Icons.drive_eta_outlined, size: 48, color: AppColors.textMutedLight),
+                              const SizedBox(height: AppSpacing.sm),
+                              Text(
+                                'No Active Requirements Yet',
+                                style: AppTypography.h4(
+                                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Post your first corporate or bulk ride requirement below.',
+                                textAlign: TextAlign.center,
+                                style: AppTypography.caption(
+                                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else if (instantReqs.isEmpty && scheduledReqs.isNotEmpty)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                            borderRadius: BorderRadius.circular(AppRadius.md),
+                            border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'No ongoing live dispatches. Your scheduled trips will begin dispatch automatically.',
+                              textAlign: TextAlign.center,
+                              style: AppTypography.caption(
+                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        ...instantReqs.take(4).map((req) {
+                          final String title = req['pickupAddress'] ?? 'Bulk Ride Transfer';
+                          final int qty = (req['quantity'] ?? 1) as int;
+                          final int assigned = (req['assignedQuantity'] ?? 0) as int;
+                          final String status = req['status'] ?? 'POSTED';
+                          final String vehicle = req['vehicleType'] ?? 'Sedan';
+
+                          Color statusColor = AppColors.info;
+                          if (status == 'FULFILLED' || status == 'COMPLETED') statusColor = AppColors.success;
+                          if (status == 'PARTIALLY_FULFILLED') statusColor = AppColors.warning;
+                          if (status == 'CANCELLED') statusColor = AppColors.error;
+
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                            child: _buildRequirementCard(
+                              context,
+                              title: '$vehicle ($qty Vehicles)',
+                              subtitle: title,
+                              status: status.replaceAll('_', ' '),
+                              progressText: '$assigned/$qty',
+                              statusColor: statusColor,
+                              isDark: isDark,
+                              onTap: () => context.push(
+                                AppRoutes.userRequirementDetailsScreen,
+                                extra: {'id': req['id']},
+                              ),
+                            ),
+                          );
+                        }),
+                    ],
+                  );
+                }(),
 
                 const SizedBox(height: AppSpacing.xl),
 
@@ -617,4 +703,249 @@ class _UserHomeScreenState extends State<UserHomeScreen> with WidgetsBindingObse
       ),
     );
   }
+
+  bool _isRequirementScheduled(Map<String, dynamic> req) {
+    if (req['isScheduled'] == true) return true;
+    final status = req['status']?.toString();
+    if (status == 'CANCELLED' || status == 'COMPLETED' || status == 'FULFILLED') return false;
+    final reportingTimeStr = req['reportingTime']?.toString() ?? req['scheduledPickupTime']?.toString();
+    if (reportingTimeStr == null) return false;
+    final reportingTime = DateTime.tryParse(reportingTimeStr);
+    if (reportingTime == null) return false;
+    return reportingTime.isAfter(DateTime.now().add(const Duration(minutes: 3)));
+  }
+
+  static String _getMonth(int month) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return (month >= 1 && month <= 12) ? months[month - 1] : '';
+  }
+
+  static String _formatTime(DateTime dt) {
+    final hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final ampm = dt.hour >= 12 ? 'PM' : 'AM';
+    return '$hour:$minute $ampm';
+  }
+
+  static String _formatScheduleDateTime(DateTime dt) {
+    final now = DateTime.now();
+    final isToday = dt.year == now.year && dt.month == now.month && dt.day == now.day;
+    final tomorrow = now.add(const Duration(days: 1));
+    final isTomorrow = dt.year == tomorrow.year && dt.month == tomorrow.month && dt.day == tomorrow.day;
+
+    final timeStr = _formatTime(dt);
+    if (isToday) return 'Today • $timeStr';
+    if (isTomorrow) return 'Tomorrow • $timeStr';
+    return '${dt.day} ${_getMonth(dt.month)} ${dt.year} • $timeStr';
+  }
+
+  Widget _buildScheduledTripCard(
+    BuildContext context, {
+    required Map<String, dynamic> req,
+    required bool isDark,
+  }) {
+    final String pickup = (req['pickupAddress'] ?? req['pickupLocation']?['address'] ?? 'Pickup Location').toString();
+    final String drop = (req['dropAddress'] ?? req['dropLocation']?['address'] ?? 'Drop Location').toString();
+    final int qty = (req['quantity'] ?? req['requiredQuantity'] ?? 1) as int;
+    final String vehicle = (req['vehicleType'] ?? 'Sedan').toString();
+    final String reportingTimeStr = (req['reportingTime'] ?? req['scheduledPickupTime'] ?? '').toString();
+    final DateTime? reportingTime = DateTime.tryParse(reportingTimeStr);
+    final String formattedTime = reportingTime != null ? _formatScheduleDateTime(reportingTime.toLocal()) : 'Scheduled';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: isDark ? AppColors.starAmber.withValues(alpha: 0.35) : AppColors.starAmber.withValues(alpha: 0.5),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.starAmber.withValues(alpha: isDark ? 0.08 : 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => context.push(
+            AppRoutes.userRequirementDetailsScreen,
+            extra: {'id': req['id']},
+          ),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Top Header: Vehicle Type & Scheduled Badge
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: AppColors.starAmber.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                          ),
+                          child: const Icon(Icons.directions_car_filled_outlined, size: 16, color: AppColors.starAmber),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '$vehicle • $qty Vehicle${qty > 1 ? "s" : ""}',
+                          style: AppTypography.h4(
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.starAmber.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.schedule_rounded, size: 12, color: AppColors.starAmber),
+                          const SizedBox(width: 4),
+                          Text(
+                            'SCHEDULED',
+                            style: TextStyle(
+                              color: isDark ? const Color(0xFFFDE047) : const Color(0xFFB45309),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: AppSpacing.sm),
+
+                // Route details
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Column(
+                      children: [
+                        const Icon(Icons.circle, size: 8, color: AppColors.success),
+                        Container(
+                          width: 1,
+                          height: 18,
+                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                          margin: const EdgeInsets.symmetric(vertical: 2),
+                        ),
+                        const Icon(Icons.square, size: 8, color: AppColors.error),
+                      ],
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            pickup,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            drop,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: AppSpacing.sm),
+
+                // Scheduled timing pill
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.slate800 : AppColors.slate100,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.access_time_filled, size: 14, color: AppColors.primary),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Pickup: $formattedTime',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                // Prominent Status Callout matching user's exact specification
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF2A2213) : const Color(0xFFFFFBEB),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    border: Border.all(
+                      color: isDark ? const Color(0xFF78350F) : const Color(0xFFFDE68A),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.alarm_on_rounded, size: 16, color: AppColors.starAmber),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'This ride is scheduled for this timing. We will notify you before 30 seconds for dispatching the rides.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            height: 1.35,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? const Color(0xFFFDE047) : const Color(0xFFB45309),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
+

@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsInt,
@@ -61,6 +62,16 @@ export class CreateRequirementDto {
   @IsOptional()
   @IsUUID('4', { message: 'zonalQuoteId must be a valid quote ID' })
   zonalQuoteId?: string;
+
+  /** True if the user selected a scheduled departure for later. */
+  @IsOptional()
+  @IsBoolean()
+  isScheduled?: boolean;
+
+  /** Optional explicit ISO trigger timestamp for when driver dispatch should begin. */
+  @IsOptional()
+  @IsDateString({}, { message: 'scheduledTriggerTime must be a valid ISO date string' })
+  scheduledTriggerTime?: string;
 }
 
 export class RequirementResponseDto {
@@ -78,6 +89,8 @@ export class RequirementResponseDto {
   totalAmount!: number;
   status!: RequirementStatus;
   notes?: string;
+  isScheduled?: boolean;
+  scheduledTriggerTime?: string;
   /** Audience-filtered zonal quote snapshot (vendors never receive driver payout or margin). */
   zonalQuote?: Record<string, unknown>;
   createdAt!: string;
