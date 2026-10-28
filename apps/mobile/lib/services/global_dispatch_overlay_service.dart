@@ -218,8 +218,8 @@ class GlobalDispatchOverlayService {
       final isActive = await FlutterOverlayWindow.isActive();
       if (!isActive) {
         await FlutterOverlayWindow.showOverlay(
-          height: 250,
-          width: 250,
+          height: 76,
+          width: 76,
           enableDrag: true,
           overlayTitle: 'AdhocX Driver Online',
           overlayContent: 'Assistive floating bubble is active',
