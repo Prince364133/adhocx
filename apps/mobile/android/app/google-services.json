@@ -18,23 +18,7 @@
           "client_type": 1,
           "android_info": {
             "package_name": "com.adhocx.app",
-            "certificate_hash": "d8e64fc827a1fc768625d78e98a8edf2453d8248"
-          }
-        },
-        {
-          "client_id": "886573696369-71b25h9oo9e0bjph84okjqd6k1ld7lmm.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.adhocx.app",
-            "certificate_hash": "ce1fb5b608ee8108f956e0618fd3731bfcb58c1c"
-          }
-        },
-        {
-          "client_id": "886573696369-71b25h9oo9e0bjph84okjqd6k1ld7lmm.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.adhocx.app",
-            "certificate_hash": "2602f938f524b5976770d785a6fdecb884dc8b86"
+            "certificate_hash": "b7bb9291b31a52458392c815d6920702cb112796"
           }
         },
         {

@@ -4,6 +4,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:vibration/vibration.dart';
 
@@ -20,30 +21,33 @@ void overlayMain() {
   );
 }
 
+/// Dynamic Theme Token Helper for the Floating Overlay.
+/// Adapts seamlessly between Dark OLED and Clean White / Light modes.
+class _OverlayColors {
+  final bool isDark;
+  const _OverlayColors({required this.isDark});
+
+  Color get surface => isDark ? const Color(0xFF101014) : Colors.white;
+  Color get surfaceElevated => isDark ? const Color(0xFF18181B) : const Color(0xFFF4F4F5);
+  Color get surfaceCard => isDark ? const Color(0xFF18181B) : const Color(0xFFFAFAFA);
+  Color get border => isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7);
+  Color get borderSubtle => isDark ? const Color(0xFF3F3F46) : const Color(0xFFD4D4D8);
+  Color get handle => isDark ? const Color(0xFF3F3F46) : const Color(0xFFD4D4D8);
+  Color get textPrimary => isDark ? Colors.white : const Color(0xFF18181B);
+  Color get textSecondary => isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A);
+  Color get textMuted => isDark ? const Color(0xFF71717A) : const Color(0xFFA1A1AA);
+  Color get tabUnselected => isDark ? const Color(0xFF18181B) : const Color(0xFFF4F4F5);
+
+  Color get brandPurple => const Color(0xFF5B42F3);
+  Color get brandPurpleLight => const Color(0xFF7C68F5);
+  Color get onlineGreen => const Color(0xFF22C55E);
+  Color get activeTripSky => const Color(0xFF38BDF8);
+  Color get warningAmber => const Color(0xFFD97706);
+  Color get errorRed => const Color(0xFFDC2626);
+  Color get successGreen => const Color(0xFF16A34A);
+}
+
 /// Floating Assistive Ball & Live Bottom Sheet for AdhocX Drivers.
-///
-/// Strictly adheres to:
-/// - docs/04_DESIGN_SYSTEM.md (AdhocX Royal Brand Purple #5B42F3, OLED Dark #101014 / #18181B,
-///   Neutral Gray Borders #27272A, Emerald Green #22C55E, Amber #D97706, Inter Typography)
-/// - docs/05_UI_UX_GUIDELINES.md (Operational clarity, fast touch targets, smooth bottom-docked sheets)
-///
-/// Key Capabilities:
-/// 1. Assistive Ball:
-///    - Compact floating circle (76x76dp) featuring the official AdhocX app icon.
-///    - Pulsating status ring and active online indicator.
-///    - Draggable along screen edges; visible over any screen (e.g. Google Maps, Waze).
-///    - Live badge count when new ride offers are available.
-/// 2. Live Bottom Sheet (Opens on tap):
-///    - Docked seamlessly to the base of the screen (0px gap, no mid-screen floating).
-///    - Smooth vertical slide animation and swipe-down-to-dismiss gesture.
-///    - "Ongoing Ride" tab: Live trip status, corporate rider details, 1-tap call, pickup/drop,
-///      Start Ride OTP callout, and 1-tap Google Maps Navigation shortcut.
-///    - "Coming Rides" tab: List of incoming dispatch offers with guaranteed net earnings,
-///      vehicle type, distance, and 1-tap Accept / Pass buttons.
-/// 3. Auto-Open Dispatch Offer Alert:
-///    - When a new ride requirement is dispatched, automatically expands from base over any screen.
-///    - Hardware vibration + siren chime + 30-second live countdown timer.
-///    - 1-tap Accept / Pass controls.
 class DriverAssistiveBubbleOverlay extends StatefulWidget {
   const DriverAssistiveBubbleOverlay({super.key});
 
@@ -61,12 +65,19 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
   // Sizing Constants (dp)
   static const int bubbleWidth = 76;
   static const int bubbleHeight = 76;
-  static const int sheetHeight = 560;
+  static const int sheetHeightDefault = 540;
+  static const int sheetHeightExpanded = 720;
 
-  // View Mode: Compact Ball vs Bottom Sheet vs Incoming Offer Alert
+  // View Mode & Interactive Dragging
   bool _isBottomSheetOpen = false;
+  bool _isLockedUp = false;
+  double _dragOffsetY = 0.0;
   bool _isOfferActive = false;
   int _selectedTab = 0; // 0 = Ongoing Ride, 1 = Coming Rides
+
+  // Dynamic Driver Metadata & Theme
+  String _driverName = '';
+  String _appThemeMode = 'system';
 
   // State Data
   Map<String, dynamic>? _activeTripData;
@@ -87,11 +98,13 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
   StreamSubscription? _overlaySub;
   AudioPlayer? _overlayAudioPlayer;
 
+  int get _currentSheetHeight => _isLockedUp ? sheetHeightExpanded : sheetHeightDefault;
+
   @override
   void initState() {
     super.initState();
 
-    // 1. Pulsing ring animation for the assistive ball
+    // 1. Pulsing animation for subtle indicators
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
@@ -101,10 +114,10 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    // 2. Smooth slide animation for the bottom sheet (docked to base)
+    // 2. Smooth slide animation for the bottom sheet
     _sheetAnimController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 280),
+      duration: const Duration(milliseconds: 260),
     );
 
     _sheetSlideAnim = CurvedAnimation(
@@ -116,7 +129,10 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
     // 3. Listen to real-time events and state updates from the Main AdhocX App
     _overlaySub = FlutterOverlayWindow.overlayListener.listen(_handleMainAppMessage);
 
-    // 4. Initial positioning: Start as compact ball on the side (150dp from bottom)
+    // 4. Read cached driver name and theme preference from SharedPreferences
+    _loadCachedPreferences();
+
+    // 5. Initial positioning: Start as compact ball on the side (150dp from bottom)
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
         await _updateOverlayPosition(0, 150);
@@ -126,6 +142,27 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
         debugPrint('⚠️ [Overlay] Post-frame initialization notice: $e');
       }
     });
+  }
+
+  Future<void> _loadCachedPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final storedTheme = prefs.getString('app_theme_mode');
+      final storedUser = prefs.getString('auth_user') ?? prefs.getString('user_profile');
+      String? parsedName;
+      if (storedUser != null) {
+        try {
+          final userJson = jsonDecode(storedUser);
+          parsedName = userJson['fullName'] ?? userJson['name'];
+        } catch (_) {}
+      }
+      if (mounted) {
+        setState(() {
+          if (storedTheme != null && storedTheme.isNotEmpty) _appThemeMode = storedTheme;
+          if (parsedName != null && parsedName.isNotEmpty) _driverName = parsedName;
+        });
+      }
+    } catch (_) {}
   }
 
   /// Reliably updates the WindowManager position across overlay and plugin channels.
@@ -153,6 +190,20 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
       }
 
       final type = msg['type']?.toString();
+
+      // Extract synced driver name and theme mode if present
+      if (msg['driverName'] != null) {
+        final dName = msg['driverName'].toString().trim();
+        if (dName.isNotEmpty && _driverName != dName) {
+          setState(() => _driverName = dName);
+        }
+      }
+      if (msg['themeMode'] != null) {
+        final tMode = msg['themeMode'].toString().trim();
+        if (tMode.isNotEmpty && _appThemeMode != tMode) {
+          setState(() => _appThemeMode = tMode);
+        }
+      }
 
       if (type == 'OFFER_RECEIVED' ||
           type == 'TRIP_OFFER' ||
@@ -210,12 +261,14 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
       _currentOfferData = offerData;
       _isOfferActive = true;
       _secondsRemaining = expSec.clamp(5, 60);
+      _dragOffsetY = 0.0;
     });
 
     // 1. Expand overlay to full-width Bottom Sheet attached flush to the base (x:0, y:0)
     try {
       await _updateOverlayPosition(0, 0);
-      await FlutterOverlayWindow.resizeOverlay(WindowSize.matchParent, sheetHeight, false);
+      await FlutterOverlayWindow.resizeOverlay(WindowSize.matchParent, _currentSheetHeight, false);
+      await _updateOverlayPosition(0, 0);
       _sheetAnimController.forward(from: 0.0);
     } catch (_) {}
 
@@ -275,6 +328,7 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
       _isOfferActive = false;
       _currentOfferData = null;
       _secondsRemaining = 30;
+      _dragOffsetY = 0.0;
     });
 
     // If bottom sheet was not manually opened before this offer, collapse back to assistive ball
@@ -340,19 +394,22 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
     HapticFeedback.lightImpact();
     setState(() {
       _isBottomSheetOpen = true;
+      _dragOffsetY = 0.0;
       if (_activeTripData == null && _availableOffers.isNotEmpty) {
         _selectedTab = 1;
       }
     });
 
     try {
-      // 1. Move to x: 0, y: 0 (Gravity.BOTTOM pins it directly to the bottom base)
+      // 1. Pin to base (x: 0, y: 0)
       await _updateOverlayPosition(0, 0);
-      // 2. Expand overlay to full width and sheetHeight, disable window dragging
-      await FlutterOverlayWindow.resizeOverlay(WindowSize.matchParent, sheetHeight, false);
-      // 3. Smooth slide up animation
+      // 2. Expand overlay to full width and sheet height, disable window dragging
+      await FlutterOverlayWindow.resizeOverlay(WindowSize.matchParent, _currentSheetHeight, false);
+      // 3. Re-verify position locked at base
+      await _updateOverlayPosition(0, 0);
+      // 4. Smooth slide up animation
       _sheetAnimController.forward(from: 0.0);
-      // 4. Request sync with latest trip and available offers
+      // 5. Request sync with latest trip and available offers
       FlutterOverlayWindow.shareData(jsonEncode({'action': 'REQUEST_STATE_SYNC'}));
     } catch (e) {
       debugPrint('⚠️ [Overlay] Error opening bottom sheet: $e');
@@ -368,6 +425,8 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
 
     setState(() {
       _isBottomSheetOpen = false;
+      _isLockedUp = false;
+      _dragOffsetY = 0.0;
     });
 
     try {
@@ -377,6 +436,13 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
     } catch (e) {
       debugPrint('⚠️ [Overlay] Error closing bottom sheet: $e');
     }
+  }
+
+  /// Pull down to refresh handler for Ongoing & Coming rides
+  Future<void> _handlePullToRefresh() async {
+    HapticFeedback.lightImpact();
+    FlutterOverlayWindow.shareData(jsonEncode({'action': 'REQUEST_STATE_SYNC'}));
+    await Future.delayed(const Duration(milliseconds: 700));
   }
 
   Future<void> _launchGoogleMapsNavigation() async {
@@ -422,6 +488,13 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
     }
   }
 
+  bool _computeIsDark(BuildContext context) {
+    if (_appThemeMode == 'dark') return true;
+    if (_appThemeMode == 'light') return false;
+    final systemDark = MediaQuery.maybeOf(context)?.platformBrightness == Brightness.dark;
+    return systemDark ?? true;
+  }
+
   @override
   void dispose() {
     _countdownTimer?.cancel();
@@ -440,134 +513,118 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
 
   @override
   Widget build(BuildContext context) {
+    final colors = _OverlayColors(isDark: _computeIsDark(context));
+
     return Material(
       color: Colors.transparent,
       child: _isOfferActive
-          ? _buildIncomingOfferCard()
-          : (_isBottomSheetOpen ? _buildLiveBottomSheet() : _buildAssistiveBall()),
+          ? _buildIncomingOfferCard(colors)
+          : (_isBottomSheetOpen ? _buildLiveBottomSheet(colors) : _buildAssistiveBall()),
     );
   }
 
   // ===========================================================================
-  // 1. COMPACT FLOATING ASSISTIVE BALL (FEATURING OFFICIAL ADHOCX ICON)
+  // 1. COMPACT FLOATING ASSISTIVE BALL (CLEAN APP ICON • NO GREEN BORDER RING)
   // ===========================================================================
   Widget _buildAssistiveBall() {
     final hasActiveTrip = _activeTripData != null;
     final offerCount = _availableOffers.length;
-    // Status color: Cyan for active trip, Emerald Green for Online & available
-    final ringColor = hasActiveTrip ? const Color(0xFF38BDF8) : const Color(0xFF22C55E);
+    final statusColor = hasActiveTrip ? const Color(0xFF38BDF8) : const Color(0xFF22C55E);
 
     return Center(
       child: GestureDetector(
         onTap: _openBottomSheet,
-        child: AnimatedBuilder(
-          animation: _pulseAnimation,
-          builder: (context, child) {
-            return Container(
-              width: 68,
-              height: 68,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: hasActiveTrip
-                      ? [const Color(0xFF1E1E28), const Color(0xFF0F172A)]
-                      : [const Color(0xFF181820), const Color(0xFF0F0F14)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: ringColor.withValues(alpha: 0.35 * _pulseAnimation.value),
-                    blurRadius: 16 * _pulseAnimation.value,
-                    spreadRadius: 2.5 * _pulseAnimation.value,
-                  ),
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.70),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-                border: Border.all(
-                  color: ringColor,
-                  width: 2.5,
+        child: Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.35),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              // Pure Official App Icon as the Floating Bubble (Clean rounded squircle, no chunky green ring)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.asset(
+                  'assets/images/adhocx_icon.png',
+                  width: 60,
+                  height: 60,
+                  fit: BoxFit.contain,
                 ),
               ),
-              child: Stack(
-                alignment: Alignment.center,
-                clipBehavior: Clip.none,
-                children: [
-                  // Official AdhocX Brand Icon in the center
-                  Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Image.asset(
-                      'assets/images/adhocx_icon.png',
-                      fit: BoxFit.contain,
-                    ),
-                  ),
 
-                  // Online status glowing pip
-                  Positioned(
-                    top: 6,
-                    right: 7,
-                    child: Container(
-                      width: 9,
-                      height: 9,
-                      decoration: BoxDecoration(
-                        color: ringColor,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: ringColor,
-                            blurRadius: 6,
-                            spreadRadius: 2,
-                          ),
-                        ],
+              // Discrete Status Indicator Pip (Top-Right)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: statusColor,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: statusColor.withValues(alpha: 0.6),
+                        blurRadius: 4,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Offer Count Notification Badge (When opportunities are waiting)
+              if (offerCount > 0 && !hasActiveTrip)
+                Positioned(
+                  top: -4,
+                  right: -4,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD97706), // AdhocX Warning Amber
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.white, width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFD97706).withValues(alpha: 0.6),
+                          blurRadius: 6,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      '$offerCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                   ),
-
-                  // Offer count notification badge
-                  if (offerCount > 0 && !hasActiveTrip)
-                    Positioned(
-                      top: -4,
-                      right: -4,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFD97706), // AdhocX Warning Amber
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.white, width: 1.5),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFD97706).withValues(alpha: 0.6),
-                              blurRadius: 6,
-                              spreadRadius: 1,
-                            ),
-                          ],
-                        ),
-                        child: Text(
-                          '$offerCount',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            );
-          },
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   // ===========================================================================
-  // 2. LIVE BOTTOM SHEET (ATTACHED TO BASE • STRICT ADHOCX DESIGN MD)
+  // 2. LIVE BOTTOM SHEET (ATTACHED TO BASE • DRAG DOWN TO CLOSE • DRAG UP TO LOCK)
   // ===========================================================================
-  Widget _buildLiveBottomSheet() {
+  Widget _buildLiveBottomSheet(_OverlayColors colors) {
     final hasActiveTrip = _activeTripData != null;
     final offerCount = _availableOffers.length;
 
@@ -576,29 +633,30 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
       child: AnimatedBuilder(
         animation: _sheetSlideAnim,
         builder: (context, child) {
-          final dy = (1.0 - _sheetSlideAnim.value) * sheetHeight;
+          final slideOffset = (1.0 - _sheetSlideAnim.value) * _currentSheetHeight;
+          final interactiveOffset = _dragOffsetY > 0 ? _dragOffsetY : 0.0;
           return Transform.translate(
-            offset: Offset(0, dy),
+            offset: Offset(0, slideOffset + interactiveOffset),
             child: child,
           );
         },
         child: Container(
           width: double.infinity,
-          height: sheetHeight.toDouble(),
-          decoration: const BoxDecoration(
-            color: Color(0xFF101014), // Official AdhocX Dark OLED Surface
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          height: _currentSheetHeight.toDouble(),
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             border: Border(
-              top: BorderSide(color: Color(0xFF27272A), width: 1.5),
-              left: BorderSide(color: Color(0xFF27272A), width: 1.0),
-              right: BorderSide(color: Color(0xFF27272A), width: 1.0),
+              top: BorderSide(color: colors.border, width: 1.5),
+              left: BorderSide(color: colors.border, width: 1.0),
+              right: BorderSide(color: colors.border, width: 1.0),
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black87,
+                color: colors.isDark ? Colors.black87 : Colors.black26,
                 blurRadius: 32,
                 spreadRadius: 2,
-                offset: Offset(0, -8),
+                offset: const Offset(0, -8),
               ),
             ],
           ),
@@ -607,13 +665,47 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
             bottom: true,
             child: Column(
               children: [
-                // Top Drag Handle (Tap or swipe down to collapse back to floating ball)
+                // Top Drag Handle (Interactive Drag Up to Lock, Drag Down to Close)
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: _closeBottomSheet,
-                  onVerticalDragEnd: (details) {
-                    if (details.primaryVelocity != null && details.primaryVelocity! > 200) {
-                      _closeBottomSheet();
+                  onVerticalDragUpdate: (details) {
+                    setState(() {
+                      _dragOffsetY += details.delta.dy;
+                    });
+                  },
+                  onVerticalDragEnd: (details) async {
+                    final velocity = details.primaryVelocity ?? 0.0;
+                    if (_dragOffsetY > 70 || velocity > 250) {
+                      // Dragged down -> if locked up, drop to default; if default, close!
+                      if (_isLockedUp) {
+                        HapticFeedback.selectionClick();
+                        setState(() {
+                          _isLockedUp = false;
+                          _dragOffsetY = 0.0;
+                        });
+                        await FlutterOverlayWindow.resizeOverlay(
+                            WindowSize.matchParent, sheetHeightDefault, false);
+                        await _updateOverlayPosition(0, 0);
+                      } else {
+                        _closeBottomSheet();
+                      }
+                    } else if (_dragOffsetY < -50 || velocity < -250) {
+                      // Dragged up -> lock up expanded!
+                      if (!_isLockedUp) {
+                        HapticFeedback.mediumImpact();
+                        setState(() {
+                          _isLockedUp = true;
+                          _dragOffsetY = 0.0;
+                        });
+                        await FlutterOverlayWindow.resizeOverlay(
+                            WindowSize.matchParent, sheetHeightExpanded, false);
+                        await _updateOverlayPosition(0, 0);
+                      } else {
+                        setState(() => _dragOffsetY = 0.0);
+                      }
+                    } else {
+                      // Snap back to current state
+                      setState(() => _dragOffsetY = 0.0);
                     }
                   },
                   child: Container(
@@ -621,79 +713,115 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     alignment: Alignment.center,
                     child: Container(
-                      width: 40,
-                      height: 4.5,
+                      width: 44,
+                      height: 5,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF3F3F46), // Neutral zinc handle
+                        color: colors.handle,
                         borderRadius: BorderRadius.circular(3),
                       ),
                     ),
                   ),
                 ),
 
-                // Header Row: Official Brand Icon, Status, Open App & Minimize
+                // Header Row: Brand Icon, Online Pip, Driver Name, Open In App & Controls
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          // Official AdhocX Brand Icon
-                          Image.asset(
-                            'assets/images/adhocx_icon.png',
-                            width: 22,
-                            height: 22,
-                            fit: BoxFit.contain,
-                          ),
-                          const SizedBox(width: 8),
-                          // Online indicator dot
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: hasActiveTrip
-                                  ? const Color(0xFF38BDF8)
-                                  : const Color(0xFF22C55E),
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: (hasActiveTrip
-                                          ? const Color(0xFF38BDF8)
-                                          : const Color(0xFF22C55E))
-                                      .withValues(alpha: 0.6),
-                                  blurRadius: 6,
-                                  spreadRadius: 2,
+                      // Driver Info (Tap opens main app)
+                      Expanded(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: _bringAppToFront,
+                          child: Row(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(6),
+                                child: Image.asset(
+                                  'assets/images/adhocx_icon.png',
+                                  width: 24,
+                                  height: 24,
+                                  fit: BoxFit.contain,
                                 ),
-                              ],
-                            ),
+                              ),
+                              const SizedBox(width: 8),
+                              // Online Indicator Dot
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: hasActiveTrip ? colors.activeTripSky : colors.onlineGreen,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: (hasActiveTrip
+                                              ? colors.activeTripSky
+                                              : colors.onlineGreen)
+                                          .withValues(alpha: 0.6),
+                                      blurRadius: 5,
+                                      spreadRadius: 1.5,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              // Driver Name
+                              Flexible(
+                                child: Text(
+                                  _driverName.isNotEmpty
+                                      ? _driverName
+                                      : (hasActiveTrip ? 'Active Trip' : 'Online'),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: colors.textPrimary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            hasActiveTrip ? 'Active Trip in Progress' : 'AdhocX Driver Online',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.2,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                       Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Open App in Foreground
+                          // Open App in Foreground (Arrow Icon)
                           IconButton(
                             tooltip: 'Open AdhocX App',
-                            icon: const Icon(Icons.open_in_new_rounded,
-                                color: Color(0xFFA1A1AA), size: 20),
+                            icon: Icon(Icons.open_in_new_rounded,
+                                color: colors.textSecondary, size: 20),
                             onPressed: _bringAppToFront,
                           ),
-                          // Minimize to Ball
+                          // Expand / Lock Up Toggle
+                          IconButton(
+                            tooltip: _isLockedUp ? 'Restore Size' : 'Lock Up',
+                            icon: Icon(
+                              _isLockedUp
+                                  ? Icons.unfold_less_rounded
+                                  : Icons.unfold_more_rounded,
+                              color: colors.textSecondary,
+                              size: 20,
+                            ),
+                            onPressed: () async {
+                              HapticFeedback.selectionClick();
+                              setState(() {
+                                _isLockedUp = !_isLockedUp;
+                                _dragOffsetY = 0.0;
+                              });
+                              await FlutterOverlayWindow.resizeOverlay(
+                                  WindowSize.matchParent, _currentSheetHeight, false);
+                              await _updateOverlayPosition(0, 0);
+                            },
+                          ),
+                          // Minimize to Floating Ball
                           IconButton(
                             tooltip: 'Minimize to Ball',
-                            icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                                color: Color(0xFFA1A1AA), size: 26),
+                            icon: Icon(Icons.keyboard_arrow_down_rounded,
+                                color: colors.textSecondary, size: 26),
                             onPressed: _closeBottomSheet,
                           ),
                         ],
@@ -704,15 +832,15 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
 
                 const SizedBox(height: 6),
 
-                // Tab Selector: Ongoing Ride vs Coming Rides (Royal Purple Highlight)
+                // Tab Selector: Ongoing Ride vs Coming Rides
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Container(
                     padding: const EdgeInsets.all(3),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF18181B), // Elevated neutral card
+                      color: colors.tabUnselected,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF27272A)),
+                      border: Border.all(color: colors.border),
                     ),
                     child: Row(
                       children: [
@@ -726,7 +854,7 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
                               padding: const EdgeInsets.symmetric(vertical: 8),
                               decoration: BoxDecoration(
                                 color: _selectedTab == 0
-                                    ? const Color(0xFF5B42F3) // AdhocX Brand Royal Purple
+                                    ? colors.brandPurple // AdhocX Brand Royal Purple
                                     : Colors.transparent,
                                 borderRadius: BorderRadius.circular(9),
                               ),
@@ -737,20 +865,15 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
                                   Icon(
                                     Icons.directions_car_rounded,
                                     size: 16,
-                                    color: _selectedTab == 0
-                                        ? Colors.white
-                                        : const Color(0xFFA1A1AA),
+                                    color: _selectedTab == 0 ? Colors.white : colors.textSecondary,
                                   ),
                                   const SizedBox(width: 6),
                                   Text(
                                     'Ongoing Ride',
                                     style: TextStyle(
-                                      color: _selectedTab == 0
-                                          ? Colors.white
-                                          : const Color(0xFFA1A1AA),
-                                      fontWeight: _selectedTab == 0
-                                          ? FontWeight.bold
-                                          : FontWeight.w600,
+                                      color: _selectedTab == 0 ? Colors.white : colors.textSecondary,
+                                      fontWeight:
+                                          _selectedTab == 0 ? FontWeight.bold : FontWeight.w600,
                                       fontSize: 12,
                                     ),
                                   ),
@@ -759,8 +882,8 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
                                       margin: const EdgeInsets.only(left: 6),
                                       width: 6,
                                       height: 6,
-                                      decoration: const BoxDecoration(
-                                        color: Color(0xFF38BDF8),
+                                      decoration: BoxDecoration(
+                                        color: colors.activeTripSky,
                                         shape: BoxShape.circle,
                                       ),
                                     ),
@@ -779,7 +902,7 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
                               padding: const EdgeInsets.symmetric(vertical: 8),
                               decoration: BoxDecoration(
                                 color: _selectedTab == 1
-                                    ? const Color(0xFF5B42F3) // AdhocX Brand Royal Purple
+                                    ? colors.brandPurple // AdhocX Brand Royal Purple
                                     : Colors.transparent,
                                 borderRadius: BorderRadius.circular(9),
                               ),
@@ -790,20 +913,15 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
                                   Icon(
                                     Icons.bolt_rounded,
                                     size: 16,
-                                    color: _selectedTab == 1
-                                        ? Colors.white
-                                        : const Color(0xFFA1A1AA),
+                                    color: _selectedTab == 1 ? Colors.white : colors.textSecondary,
                                   ),
                                   const SizedBox(width: 6),
                                   Text(
                                     'Coming Rides',
                                     style: TextStyle(
-                                      color: _selectedTab == 1
-                                          ? Colors.white
-                                          : const Color(0xFFA1A1AA),
-                                      fontWeight: _selectedTab == 1
-                                          ? FontWeight.bold
-                                          : FontWeight.w600,
+                                      color: _selectedTab == 1 ? Colors.white : colors.textSecondary,
+                                      fontWeight:
+                                          _selectedTab == 1 ? FontWeight.bold : FontWeight.w600,
                                       fontSize: 12,
                                     ),
                                   ),
@@ -813,7 +931,7 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
                                       padding:
                                           const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFFD97706),
+                                        color: colors.warningAmber,
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
@@ -835,11 +953,13 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
                   ),
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
 
-                // Tab Content
+                // Tab Content (Both tabs support Pull-to-Refresh)
                 Expanded(
-                  child: _selectedTab == 0 ? _buildOngoingRideTab() : _buildComingRidesTab(),
+                  child: _selectedTab == 0
+                      ? _buildOngoingRideTab(colors)
+                      : _buildComingRidesTab(colors),
                 ),
               ],
             ),
@@ -850,58 +970,67 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
   }
 
   // ===========================================================================
-  // TAB 1: ONGOING RIDE VIEW (DESIGN SYSTEM TOKENS)
+  // TAB 1: ONGOING RIDE VIEW (PULL DOWN TO REFRESH • THEME AWARE)
   // ===========================================================================
-  Widget _buildOngoingRideTab() {
+  Widget _buildOngoingRideTab(_OverlayColors colors) {
     final trip = _activeTripData;
     if (trip == null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF18181B),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFF27272A)),
-                ),
-                child: const Icon(Icons.directions_car_filled_rounded,
-                    color: Color(0xFF71717A), size: 30),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'No Active Ongoing Ride',
-                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'When you accept a trip, live route navigation, passenger contact, and start OTP will appear here.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 12),
-              ),
-              if (_availableOffers.isNotEmpty) ...[
-                const SizedBox(height: 18),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    HapticFeedback.selectionClick();
-                    setState(() => _selectedTab = 1);
-                  },
-                  icon: const Icon(Icons.bolt_rounded, size: 16),
-                  label: Text('View Coming Rides (${_availableOffers.length})'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF5B42F3), // Brand Royal Purple
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      return RefreshIndicator(
+        color: colors.brandPurple,
+        backgroundColor: colors.surfaceElevated,
+        onRefresh: _handlePullToRefresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+          children: [
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 58,
+                    height: 58,
+                    decoration: BoxDecoration(
+                      color: colors.surfaceElevated,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: colors.border),
+                    ),
+                    child: Icon(Icons.directions_car_filled_rounded,
+                        color: colors.textMuted, size: 28),
                   ),
-                ),
-              ],
-            ],
-          ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'No Active Ongoing Ride',
+                    style: TextStyle(
+                        color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'When you accept a trip, live route navigation, passenger contact, and start OTP will appear here.\nPull down to check for updates.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: colors.textSecondary, fontSize: 12),
+                  ),
+                  if (_availableOffers.isNotEmpty) ...[
+                    const SizedBox(height: 18),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        HapticFeedback.selectionClick();
+                        setState(() => _selectedTab = 1);
+                      },
+                      icon: const Icon(Icons.bolt_rounded, size: 16),
+                      label: Text('View Coming Rides (${_availableOffers.length})'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colors.brandPurple,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -920,20 +1049,23 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
         (trip['dropLocation']?['address'] ?? trip['dropAddress'] ?? 'Drop destination').toString();
     final tripId = trip['id'] ?? trip['tripId'];
 
-    Color statusBadgeColor = const Color(0xFFD97706); // Warning Amber
+    Color statusBadgeColor = colors.warningAmber;
     String statusText = 'ON THE WAY TO PICKUP';
     if (isArrived) {
       statusBadgeColor = const Color(0xFF0284C7); // Info Sky Blue
       statusText = 'ARRIVED AT PICKUP LOCATION';
     } else if (isEnRouteToDrop) {
-      statusBadgeColor = const Color(0xFF16A34A); // Success Green
+      statusBadgeColor = colors.successGreen;
       statusText = 'RIDE IN PROGRESS TO DROP';
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+    return RefreshIndicator(
+      color: colors.brandPurple,
+      backgroundColor: colors.surfaceElevated,
+      onRefresh: _handlePullToRefresh,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         children: [
           // Status Chip & Trip ID
           Row(
@@ -959,7 +1091,7 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
               if (tripId != null)
                 Text(
                   '#${tripId.toString().substring(0, tripId.toString().length > 6 ? 6 : tripId.toString().length)}',
-                  style: const TextStyle(color: Color(0xFF71717A), fontSize: 11),
+                  style: TextStyle(color: colors.textMuted, fontSize: 11),
                 ),
             ],
           ),
@@ -970,9 +1102,9 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFF18181B), // Elevated neutral card
+              color: colors.surfaceCard,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFF27272A)),
+              border: Border.all(color: colors.border),
             ),
             child: Row(
               children: [
@@ -980,10 +1112,10 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF5B42F3).withValues(alpha: 0.15),
+                    color: colors.brandPurple.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.person_rounded, color: Color(0xFF7C68F5), size: 22),
+                  child: Icon(Icons.person_rounded, color: colors.brandPurpleLight, size: 22),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -992,12 +1124,12 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
                     children: [
                       Text(
                         rider.toString(),
-                        style: const TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                        style: TextStyle(
+                            color: colors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14),
                       ),
-                      const Text(
+                      Text(
                         'Corporate Verified Passenger',
-                        style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 11),
+                        style: TextStyle(color: colors.textSecondary, fontSize: 11),
                       ),
                     ],
                   ),
@@ -1005,9 +1137,9 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
                 if (riderPhone != null && riderPhone.isNotEmpty)
                   IconButton(
                     onPressed: () => _callPassenger(riderPhone),
-                    icon: const Icon(Icons.phone_rounded, color: Color(0xFF22C55E)),
+                    icon: Icon(Icons.phone_rounded, color: colors.onlineGreen),
                     style: IconButton.styleFrom(
-                      backgroundColor: const Color(0xFF22C55E).withValues(alpha: 0.15),
+                      backgroundColor: colors.onlineGreen.withValues(alpha: 0.15),
                     ),
                   ),
               ],
@@ -1022,28 +1154,28 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: const Color(0xFF22C55E).withValues(alpha: 0.12),
+                color: colors.onlineGreen.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF22C55E), width: 1.5),
+                border: Border.all(color: colors.onlineGreen, width: 1.5),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Row(
+                  Row(
                     children: [
-                      Icon(Icons.key_rounded, color: Color(0xFF22C55E), size: 18),
-                      SizedBox(width: 8),
+                      Icon(Icons.key_rounded, color: colors.onlineGreen, size: 18),
+                      const SizedBox(width: 8),
                       Text(
                         'START RIDE OTP:',
                         style: TextStyle(
-                            color: Color(0xFF22C55E), fontWeight: FontWeight.bold, fontSize: 12),
+                            color: colors.onlineGreen, fontWeight: FontWeight.bold, fontSize: 12),
                       ),
                     ],
                   ),
                   Text(
                     otp,
-                    style: const TextStyle(
-                      color: Color(0xFF22C55E),
+                    style: TextStyle(
+                      color: colors.onlineGreen,
                       fontSize: 18,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 2.0,
@@ -1053,39 +1185,41 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
               ),
             ),
 
-          // Route Details
+          // Route Details Card
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFF18181B), // Elevated neutral card
+              color: colors.surfaceCard,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFF27272A)),
+              border: Border.all(color: colors.border),
             ),
             child: Column(
               children: [
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Padding(
-                      padding: EdgeInsets.only(top: 2),
-                      child: Icon(Icons.circle, color: Color(0xFF22C55E), size: 12),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Icon(Icons.circle, color: colors.onlineGreen, size: 12),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'PICKUP',
                             style: TextStyle(
-                                color: Color(0xFF71717A), fontSize: 10, fontWeight: FontWeight.bold),
+                                color: colors.textMuted, fontSize: 10, fontWeight: FontWeight.bold),
                           ),
                           Text(
                             pickupAddress,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+                            style: TextStyle(
+                                color: colors.textPrimary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500),
                           ),
                         ],
                       ),
@@ -1099,33 +1233,35 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
                     child: Container(
                       width: 2,
                       height: 16,
-                      color: const Color(0xFF3F3F46),
+                      color: colors.borderSubtle,
                     ),
                   ),
                 ),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Padding(
-                      padding: EdgeInsets.only(top: 2),
-                      child: Icon(Icons.location_on_rounded, color: Color(0xFFDC2626), size: 14),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Icon(Icons.location_on, color: colors.errorRed, size: 14),
                     ),
                     const SizedBox(width: 9),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'DESTINATION',
+                          Text(
+                            'DROP OFF',
                             style: TextStyle(
-                                color: Color(0xFF71717A), fontSize: 10, fontWeight: FontWeight.bold),
+                                color: colors.textMuted, fontSize: 10, fontWeight: FontWeight.bold),
                           ),
                           Text(
                             dropAddress,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                color: Color(0xFFA1A1AA), fontSize: 12, fontWeight: FontWeight.w500),
+                            style: TextStyle(
+                                color: colors.textSecondary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500),
                           ),
                         ],
                       ),
@@ -1149,7 +1285,7 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
                   label: const Text('GOOGLE MAPS NAV',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF5B42F3), // AdhocX Brand Royal Purple
+                    backgroundColor: colors.brandPurple,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     elevation: 3,
@@ -1172,8 +1308,8 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
                   label: const Text('OPEN APP',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Color(0xFF3F3F46), width: 1.5),
+                    foregroundColor: colors.textPrimary,
+                    side: BorderSide(color: colors.borderSubtle, width: 1.5),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
@@ -1188,200 +1324,206 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
   }
 
   // ===========================================================================
-  // TAB 2: COMING RIDES (AVAILABLE DISPATCH OFFERS • DESIGN SYSTEM TOKENS)
+  // TAB 2: COMING RIDES (PULL DOWN TO REFRESH • NO REFRESH BUTTON • THEME AWARE)
   // ===========================================================================
-  Widget _buildComingRidesTab() {
+  Widget _buildComingRidesTab(_OverlayColors colors) {
     if (_availableOffers.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF18181B),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFF27272A)),
-                ),
-                child: const Icon(Icons.radar_rounded, color: Color(0xFF22C55E), size: 32),
+      return RefreshIndicator(
+        color: colors.brandPurple,
+        backgroundColor: colors.surfaceElevated,
+        onRefresh: _handlePullToRefresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+          children: [
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 58,
+                    height: 58,
+                    decoration: BoxDecoration(
+                      color: colors.surfaceElevated,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: colors.border),
+                    ),
+                    child: Icon(Icons.radar_rounded, color: colors.onlineGreen, size: 28),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Searching for Rides...',
+                    style: TextStyle(
+                        color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'You are Online & available to corporate riders nearby.\nPull down to check for new dispatch offers.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: colors.textSecondary, fontSize: 12),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Searching for Rides...',
-                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'You are Online & available to corporate riders nearby. New dispatch offers will appear here automatically.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 12),
-              ),
-              const SizedBox(height: 18),
-              OutlinedButton.icon(
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  FlutterOverlayWindow.shareData(jsonEncode({'action': 'REQUEST_STATE_SYNC'}));
-                },
-                icon: const Icon(Icons.refresh_rounded, size: 16),
-                label: const Text('Refresh'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF7C68F5),
-                  side: const BorderSide(color: Color(0xFF5B42F3)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: _availableOffers.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        final offer = _availableOffers[index];
-        final req = offer['requirement'] as Map<String, dynamic>?;
-        final rate = offer['offeredRate'] ?? req?['ratePerVehicle'] ?? offer['rate'] ?? '---';
-        final vehicleType =
-            (offer['vehicleType'] ?? req?['vehicleType'] ?? 'SEDAN').toString().toUpperCase();
-        final pickup =
-            (offer['pickupAddress'] ?? req?['pickupAddress'] ?? 'Pickup point').toString();
-        final drop =
-            (offer['dropAddress'] ?? req?['dropAddress'] ?? 'Drop destination').toString();
-        final distanceKm = offer['distanceKm'] ?? req?['distanceKm'] ?? '';
-        final hasEscort = offer['hasEscort'] == true || req?['hasEscort'] == true;
+    return RefreshIndicator(
+      color: colors.brandPurple,
+      backgroundColor: colors.surfaceElevated,
+      onRefresh: _handlePullToRefresh,
+      child: ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        itemCount: _availableOffers.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        itemBuilder: (context, index) {
+          final offer = _availableOffers[index];
+          final req = offer['requirement'] as Map<String, dynamic>?;
+          final rate = offer['offeredRate'] ?? req?['ratePerVehicle'] ?? offer['rate'] ?? '---';
+          final vehicleType =
+              (offer['vehicleType'] ?? req?['vehicleType'] ?? 'SEDAN').toString().toUpperCase();
+          final pickup =
+              (offer['pickupAddress'] ?? req?['pickupAddress'] ?? 'Pickup point').toString();
+          final drop =
+              (offer['dropAddress'] ?? req?['dropAddress'] ?? 'Drop destination').toString();
+          final distanceKm = offer['distanceKm'] ?? req?['distanceKm'] ?? '';
+          final hasEscort = offer['hasEscort'] == true || req?['hasEscort'] == true;
 
-        return Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: const Color(0xFF18181B), // Elevated neutral card
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFF27272A)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Top Rate & Vehicle Row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
+          return Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: colors.surfaceCard,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: colors.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Top Rate & Vehicle Row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: colors.onlineGreen.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '₹$rate NET',
+                            style: TextStyle(
+                                color: colors.onlineGreen,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: colors.surfaceElevated,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: colors.border),
+                          ),
+                          child: Text(
+                            vehicleType,
+                            style: TextStyle(
+                                color: colors.textSecondary,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (hasEscort)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF22C55E).withValues(alpha: 0.15),
+                          color: colors.warningAmber.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Text(
-                          '₹$rate NET',
-                          style: const TextStyle(
-                              color: Color(0xFF22C55E),
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13),
+                        child: Text('ESCORT',
+                            style: TextStyle(
+                                color: colors.warningAmber,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                    if (distanceKm.toString().isNotEmpty)
+                      Text('${distanceKm}km',
+                          style: TextStyle(color: colors.textSecondary, fontSize: 11)),
+                  ],
+                ),
+
+                const SizedBox(height: 8),
+
+                // Addresses
+                Text(
+                  'Pickup: $pickup',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      color: colors.textPrimary, fontSize: 12, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Drop: $drop',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: colors.textSecondary, fontSize: 11),
+                ),
+
+                const SizedBox(height: 10),
+
+                // Action Buttons: Pass vs Accept
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => _declineCurrentOffer(offer),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: colors.errorRed,
+                          side: BorderSide(color: colors.errorRed, width: 1),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
+                        child: const Text('PASS',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                       ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(6),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton(
+                        onPressed: () => _acceptCurrentOffer(offer),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: colors.successGreen,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
-                        child: Text(
-                          vehicleType,
-                          style: const TextStyle(
-                              color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold),
-                        ),
+                        child: const Text('ACCEPT RIDE',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                       ),
-                    ],
-                  ),
-                  if (hasEscort)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFD97706).withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Text('ESCORT',
-                          style: TextStyle(
-                              color: Color(0xFFD97706), fontSize: 9, fontWeight: FontWeight.bold)),
                     ),
-                  if (distanceKm.toString().isNotEmpty)
-                    Text('${distanceKm}km',
-                        style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 11)),
-                ],
-              ),
-
-              const SizedBox(height: 8),
-
-              // Addresses
-              Text(
-                'Pickup: $pickup',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Drop: $drop',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 11),
-              ),
-
-              const SizedBox(height: 10),
-
-              // Action Buttons: Pass vs Accept
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => _declineCurrentOffer(offer),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFFDC2626), // Error Red
-                        side: const BorderSide(color: Color(0xFFDC2626), width: 1),
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      child: const Text('PASS',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    flex: 2,
-                    child: ElevatedButton(
-                      onPressed: () => _acceptCurrentOffer(offer),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF16A34A), // Success Green
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      child: const Text('ACCEPT RIDE',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
   // ===========================================================================
-  // 3. AUTO-OPENED 30-SECOND COUNTDOWN DISPATCH OFFER VIEW
+  // 3. AUTO-OPENED 30-SECOND COUNTDOWN DISPATCH OFFER VIEW (THEME AWARE)
   // ===========================================================================
-  Widget _buildIncomingOfferCard() {
+  Widget _buildIncomingOfferCard(_OverlayColors colors) {
     final req = _currentOfferData?['requirement'] as Map<String, dynamic>?;
     final rate = _currentOfferData?['offeredRate'] ??
         req?['ratePerVehicle'] ??
@@ -1407,7 +1549,7 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
       child: AnimatedBuilder(
         animation: _sheetSlideAnim,
         builder: (context, child) {
-          final dy = (1.0 - _sheetSlideAnim.value) * sheetHeight;
+          final dy = (1.0 - _sheetSlideAnim.value) * _currentSheetHeight;
           return Transform.translate(
             offset: Offset(0, dy),
             child: child,
@@ -1415,17 +1557,17 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
         },
         child: Container(
           width: double.infinity,
-          height: sheetHeight.toDouble(),
+          height: _currentSheetHeight.toDouble(),
           decoration: BoxDecoration(
-            color: const Color(0xFF101014), // Official AdhocX Dark Surface
+            color: colors.surface,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             border: Border.all(
-              color: isUrgent ? const Color(0xFFDC2626) : const Color(0xFF5B42F3),
+              color: isUrgent ? colors.errorRed : colors.brandPurple,
               width: 2,
             ),
             boxShadow: [
               BoxShadow(
-                color: (isUrgent ? const Color(0xFFDC2626) : const Color(0xFF5B42F3))
+                color: (isUrgent ? colors.errorRed : colors.brandPurple)
                     .withValues(alpha: 0.35),
                 blurRadius: 30,
                 offset: const Offset(0, -6),
@@ -1451,114 +1593,137 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
                     },
                     child: Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
                       alignment: Alignment.center,
                       child: Container(
-                        width: 40,
-                        height: 4.5,
+                        width: 44,
+                        height: 5,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF3F3F46),
+                          color: colors.handle,
                           borderRadius: BorderRadius.circular(3),
                         ),
                       ),
                     ),
                   ),
 
-                  const SizedBox(height: 6),
-
-                  // Countdown and Urgent Alert Header
+                  // Header with Siren Badge & Countdown
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Row(
                         children: [
-                          Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              SizedBox(
-                                width: 44,
-                                height: 44,
-                                child: CircularProgressIndicator(
-                                  value: progress,
-                                  strokeWidth: 4,
-                                  backgroundColor: Colors.white12,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    isUrgent ? const Color(0xFFDC2626) : const Color(0xFF22C55E),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: colors.brandPurple.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.notifications_active_rounded,
+                                    color: colors.brandPurpleLight, size: 16),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'NEW DISPATCH OFFER',
+                                  style: TextStyle(
+                                    color: colors.brandPurpleLight,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                              ),
-                              Text(
-                                '${_secondsRemaining}s',
-                                style: TextStyle(
-                                  color: isUrgent ? const Color(0xFFDC2626) : Colors.white,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                          const SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'NEW TRIP DISPATCH ALERT',
-                                style: TextStyle(
-                                  color: Color(0xFF22C55E),
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 0.8,
-                                ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: colors.surfaceElevated,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: colors.border),
+                            ),
+                            child: Text(
+                              vehicleType,
+                              style: TextStyle(
+                                color: colors.textSecondary,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
                               ),
-                              Text(
-                                vehicleType,
-                                style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold),
-                              ),
-                            ],
+                            ),
                           ),
                         ],
                       ),
-                      if (hasEscort)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFD97706).withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFFD97706)),
+                      // Countdown Pill
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isUrgent
+                              ? colors.errorRed.withValues(alpha: 0.2)
+                              : colors.warningAmber.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isUrgent ? colors.errorRed : colors.warningAmber,
+                            width: 1,
                           ),
-                          child: const Text('ESCORT REQUIRED',
-                              style: TextStyle(
-                                  color: Color(0xFFD97706),
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.bold)),
                         ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.timer_rounded,
+                              size: 14,
+                              color: isUrgent ? colors.errorRed : colors.warningAmber,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${_secondsRemaining}s',
+                              style: TextStyle(
+                                color: isUrgent ? colors.errorRed : colors.warningAmber,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
 
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 8),
 
-                  // Guaranteed Net Earnings Banner
+                  // Linear Progress Bar for 30s Countdown
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      backgroundColor: colors.border,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        isUrgent ? colors.errorRed : colors.brandPurple,
+                      ),
+                      minHeight: 4,
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Payout Card
                   Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF22C55E).withValues(alpha: 0.12),
+                      color: colors.surfaceCard,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFF22C55E).withValues(alpha: 0.3)),
+                      border: Border.all(color: colors.border),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
+                        Text(
                           'Net Guaranteed Payout',
-                          style: TextStyle(color: Colors.white70, fontSize: 13),
+                          style: TextStyle(color: colors.textSecondary, fontSize: 13),
                         ),
                         Text(
                           '₹$rate',
-                          style: const TextStyle(
-                            color: Color(0xFF22C55E),
+                          style: TextStyle(
+                            color: colors.onlineGreen,
                             fontSize: 24,
                             fontWeight: FontWeight.w900,
                           ),
@@ -1573,24 +1738,26 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF18181B), // Elevated neutral card
+                      color: colors.surfaceCard,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFF27272A)),
+                      border: Border.all(color: colors.border),
                     ),
                     child: Column(
                       children: [
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.circle, color: Color(0xFF22C55E), size: 12),
+                            Icon(Icons.circle, color: colors.onlineGreen, size: 12),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
                                 pickup,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                    color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                                style: TextStyle(
+                                    color: colors.textPrimary,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600),
                               ),
                             ),
                           ],
@@ -1602,27 +1769,27 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
                             child: Container(
                               width: 2,
                               height: 16,
-                              color: const Color(0xFF3F3F46),
+                              color: colors.borderSubtle,
                             ),
                           ),
                         ),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.location_on, color: Color(0xFFDC2626), size: 14),
+                            Icon(Icons.location_on, color: colors.errorRed, size: 14),
                             const SizedBox(width: 9),
                             Expanded(
                               child: Text(
                                 drop,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 12),
+                                style: TextStyle(color: colors.textSecondary, fontSize: 12),
                               ),
                             ),
                             if (distanceKm.toString().isNotEmpty)
                               Text(
                                 '${distanceKm}km',
-                                style: const TextStyle(color: Color(0xFF71717A), fontSize: 11),
+                                style: TextStyle(color: colors.textMuted, fontSize: 11),
                               ),
                           ],
                         ),
@@ -1640,8 +1807,8 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
                         child: OutlinedButton(
                           onPressed: () => _declineCurrentOffer(),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFFDC2626), // Error Red
-                            side: const BorderSide(color: Color(0xFFDC2626), width: 1.5),
+                            foregroundColor: colors.errorRed,
+                            side: BorderSide(color: colors.errorRed, width: 1.5),
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
@@ -1655,7 +1822,7 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
                         child: ElevatedButton(
                           onPressed: () => _acceptCurrentOffer(),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF16A34A), // Success Green
+                            backgroundColor: colors.successGreen,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             elevation: 4,

@@ -226,7 +226,7 @@ class GlobalDispatchOverlayService {
           flag: OverlayFlag.defaultFlag,
           alignment: OverlayAlignment.bottomRight,
           visibility: NotificationVisibility.visibilityPublic,
-          positionGravity: PositionGravity.auto,
+          positionGravity: PositionGravity.none,
           startPosition: const OverlayPosition(0, 150),
         );
       }
@@ -267,14 +267,17 @@ class GlobalDispatchOverlayService {
     try {
       final isOverlayActive = await FlutterOverlayWindow.isActive();
       if (isOverlayActive) {
+        final driverName = AuthService.instance.currentUser?.fullName;
         if (tripData != null) {
           await FlutterOverlayWindow.shareData(jsonEncode({
             'type': 'ACTIVE_TRIP_UPDATE',
             'trip': tripData,
+            'driverName': driverName,
           }));
         } else {
           await FlutterOverlayWindow.shareData(jsonEncode({
             'type': 'TRIP_COMPLETED',
+            'driverName': driverName,
           }));
         }
       }
@@ -288,9 +291,11 @@ class GlobalDispatchOverlayService {
     try {
       final isOverlayActive = await FlutterOverlayWindow.isActive();
       if (isOverlayActive) {
+        final driverName = AuthService.instance.currentUser?.fullName;
         await FlutterOverlayWindow.shareData(jsonEncode({
           'type': 'OFFERS_LIST_UPDATE',
           'offers': _lastOffers,
+          'driverName': driverName,
         }));
       }
     } catch (_) {}
@@ -316,6 +321,19 @@ class GlobalDispatchOverlayService {
         debugPrint('📲 [OverlayAction Received] Action: $action | OfferId: $offerId');
 
         if (action == 'REQUEST_STATE_SYNC') {
+          // 0. Send driver metadata & theme
+          try {
+            final currentUser = AuthService.instance.currentUser;
+            final driverName = currentUser?.fullName ?? currentUser?.name;
+            final prefs = await SharedPreferences.getInstance();
+            final storedTheme = prefs.getString('app_theme_mode') ?? 'system';
+            await FlutterOverlayWindow.shareData(jsonEncode({
+              'type': 'METADATA_UPDATE',
+              'driverName': driverName,
+              'themeMode': storedTheme,
+            }));
+          } catch (_) {}
+
           // 1. Send active trip state
           if (_lastActiveTrip != null) {
             await FlutterOverlayWindow.shareData(jsonEncode({
