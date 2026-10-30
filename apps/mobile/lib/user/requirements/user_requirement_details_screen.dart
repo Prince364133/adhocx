@@ -532,8 +532,8 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
     final isNoDriver = status == 'NO_DRIVER_AVAILABLE';
     final isPartiallyFulfilled = status == 'PARTIALLY_FULFILLED';
     final reportingTimeStr = (req?['reportingTime'] ?? req?['scheduledPickupTime'])?.toString();
-    final reportingTime = reportingTimeStr != null ? DateTime.tryParse(reportingTimeStr) : null;
-    final isScheduled = (req?['isScheduled'] == true || status == 'SCHEDULED' || (reportingTime != null && reportingTime.isAfter(DateTime.now().add(const Duration(minutes: 3))))) && !isFulfilled && !isCancelled && !isExpired;
+    final reportingTime = reportingTimeStr != null ? DateTime.tryParse(reportingTimeStr)?.toLocal() : null;
+    final isScheduled = (req?['isScheduled'] == true || (req?['isScheduled'] != false && status == 'SCHEDULED') || (req?['isScheduled'] != false && reportingTime != null && reportingTime.isAfter(DateTime.now().add(const Duration(minutes: 5))))) && !isFulfilled && !isCancelled && !isExpired;
     final isSearching = !isScheduled && !isFulfilled && !isCancelled && !isExpired && !isNoDriver && (status == 'POSTED' || status == 'DISPATCHING' || status == 'OPEN');
 
     final offers = req?['offers'] is List ? (req!['offers'] as List) : [];

@@ -156,7 +156,99 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
     super.dispose();
   }
 
+  // =========================================================================
+  // AXIS BANK PAYMENT GATEWAY VERIFICATION MODE (TEMPORARY REVIEW TOGGLE)
+  // Set to false after Axis Bank verifies & approves direct payment gateway.
+  // DO NOT DELETE: Preserves all wallet & payment logic intact for reintroduction.
+  // =========================================================================
+  static const bool _isAxisBankVerificationMode = true;
+
+  void _showWaitingForPaymentIntegrationModal(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    Fluttertoast.showToast(
+      msg: 'Waiting for payment integration',
+      backgroundColor: AppColors.primary,
+      textColor: Colors.white,
+    );
+    showModalBottomSheet(
+      context: context,
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return SafeArea(
+          top: false,
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.slate700 : AppColors.slate300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.hourglass_top_rounded,
+                    color: AppColors.primary,
+                    size: 36,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Waiting for Payment Integration',
+                  style: AppTypography.h3(
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Application verification is in progress with Axis Bank. Payment gateway integration will be active immediately upon verification.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 1.5,
+                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: AppPrimaryButton(
+                    text: 'OK',
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _showTopUpBottomSheet() {
+    if (_isAxisBankVerificationMode) {
+      _showWaitingForPaymentIntegrationModal(context);
+      return;
+    }
     final amountController = TextEditingController(text: '5000');
     final topUpCouponController = TextEditingController();
     bool isProcessing = false;
@@ -570,6 +662,12 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
   }
 
   Future<void> _handleConfirmAndPost() async {
+    // Intercept in Axis Bank verification mode
+    if (_isAxisBankVerificationMode) {
+      _showWaitingForPaymentIntegrationModal(context);
+      return;
+    }
+
     final draft = context.read<RequirementDraftProvider>();
 
     // Corporate zonal bookings need a valid server quote.
@@ -645,7 +743,8 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
         dropAddress: draft.dropLocation.trim(),
         dropLat: draft.dropLat != 0.0 ? draft.dropLat : 28.5562,
         dropLng: draft.dropLng != 0.0 ? draft.dropLng : 77.1000,
-        reportingTime: draft.reportingDateTime,
+        reportingTime: draft.isScheduled ? draft.reportingDateTime : DateTime.now(),
+        isScheduled: draft.isScheduled,
         ratePerVehicle: draft.fulfillmentMode == 'DIRECT_DISPATCH' ? ratePerVehicle : null,
         suggestedBudget: draft.fulfillmentMode == 'BIDDING' ? draft.suggestedBudget : null,
         notes: combinedNotes.isNotEmpty ? combinedNotes : 'Standard Booking Requirement',
@@ -1121,100 +1220,172 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
 
                     const SizedBox(height: AppSpacing.md),
 
-                    // AdhocX Wallet Balance & Deduction Indicator
-                    Builder(
-                      builder: (context) {
-                        final ratePerVehicle = _getRatePerVehicle(draft);
-                        final rawTotal = draft.fulfillmentMode == 'BIDDING' ? draft.suggestedBudget : (draft.quantity * ratePerVehicle);
-                        final discount = ((_appliedCoupon?['discountAmount'] as num?)?.toDouble() ?? 0.0);
-                        final estTotal = (rawTotal - discount).clamp(0.0, double.infinity);
-                        final isInsufficient = _walletBalance != null && _walletBalance! < estTotal;
+                    // AdhocX Wallet Balance & Deduction Indicator (Hidden during Axis Bank verification)
+                    if (!_isAxisBankVerificationMode)
+                      Builder(
+                        builder: (context) {
+                          final ratePerVehicle = _getRatePerVehicle(draft);
+                          final rawTotal = draft.fulfillmentMode == 'BIDDING' ? draft.suggestedBudget : (draft.quantity * ratePerVehicle);
+                          final discount = ((_appliedCoupon?['discountAmount'] as num?)?.toDouble() ?? 0.0);
+                          final estTotal = (rawTotal - discount).clamp(0.0, double.infinity);
+                          final isInsufficient = _walletBalance != null && _walletBalance! < estTotal;
 
-                        return Container(
-                          padding: const EdgeInsets.all(AppSpacing.md),
-                          decoration: BoxDecoration(
-                            color: isInsufficient
-                                ? AppColors.error.withValues(alpha: 0.06)
-                                : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
-                            borderRadius: BorderRadius.circular(AppRadius.lg),
-                            border: Border.all(
+                          return Container(
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            decoration: BoxDecoration(
                               color: isInsufficient
-                                  ? AppColors.error.withValues(alpha: 0.5)
-                                  : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                              width: isInsufficient ? 1.5 : 1.0,
+                                  ? AppColors.error.withValues(alpha: 0.06)
+                                  : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
+                              borderRadius: BorderRadius.circular(AppRadius.lg),
+                              border: Border.all(
+                                color: isInsufficient
+                                    ? AppColors.error.withValues(alpha: 0.5)
+                                    : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                                width: isInsufficient ? 1.5 : 1.0,
+                              ),
                             ),
-                          ),
-                          child: Column(
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
+                            child: Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.account_balance_wallet_outlined,
+                                          color: isInsufficient ? AppColors.error : AppColors.primary,
+                                          size: 22,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'AdhocX Wallet (Platform Deductions)',
+                                              style: AppTypography.caption(
+                                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                              ),
+                                            ),
+                                            Text(
+                                              _isLoadingWallet
+                                                  ? 'Checking...'
+                                                  : '₹${(_walletBalance ?? 0.0).toStringAsFixed(2)} Available',
+                                              style: TextStyle(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.bold,
+                                                color: isInsufficient ? AppColors.error : AppColors.success,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                    OutlinedButton.icon(
+                                      onPressed: () {
+                                        _showTopUpBottomSheet();
+                                      },
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: isInsufficient ? AppColors.error : AppColors.primary,
+                                        side: BorderSide(color: isInsufficient ? AppColors.error : AppColors.primary),
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.full)),
+                                      ),
+                                      icon: const Icon(Icons.add_circle_outline, size: 14),
+                                      label: const Text('Top Up', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                    ),
+                                  ],
+                                ),
+                                if (isInsufficient) ...[
+                                  const SizedBox(height: 8),
                                   Row(
                                     children: [
-                                      Icon(
-                                        Icons.account_balance_wallet_outlined,
-                                        color: isInsufficient ? AppColors.error : AppColors.primary,
-                                        size: 22,
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'AdhocX Wallet (Platform Deductions)',
-                                            style: AppTypography.caption(
-                                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                                            ),
-                                          ),
-                                          Text(
-                                            _isLoadingWallet
-                                                ? 'Checking...'
-                                                : '₹${(_walletBalance ?? 0.0).toStringAsFixed(2)} Available',
-                                            style: TextStyle(
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.bold,
-                                              color: isInsufficient ? AppColors.error : AppColors.success,
-                                            ),
-                                          ),
-                                        ],
+                                      Icon(Icons.warning_amber_rounded, size: 14, color: AppColors.error),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          'Top up ₹${(estTotal - (_walletBalance ?? 0.0)).toStringAsFixed(0)} more to post this requirement.',
+                                          style: const TextStyle(fontSize: 11, color: AppColors.error, fontWeight: FontWeight.w600),
+                                        ),
                                       ),
                                     ],
                                   ),
-                                  OutlinedButton.icon(
-                                    onPressed: () {
-                                      _showTopUpBottomSheet();
-                                    },
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: isInsufficient ? AppColors.error : AppColors.primary,
-                                      side: BorderSide(color: isInsufficient ? AppColors.error : AppColors.primary),
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.full)),
-                                    ),
-                                    icon: const Icon(Icons.add_circle_outline, size: 14),
-                                    label: const Text('Top Up', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                                  ),
                                 ],
+                              ],
+                            ),
+                          );
+                        },
+                      )
+                    else
+                      InkWell(
+                        onTap: () => _showWaitingForPaymentIntegrationModal(context),
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                        child: Container(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight,
+                            borderRadius: BorderRadius.circular(AppRadius.lg),
+                            border: Border.all(
+                              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                              width: 1.0,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.hourglass_top_rounded,
+                                  color: AppColors.primary,
+                                  size: 20,
+                                ),
                               ),
-                              if (isInsufficient) ...[
-                                const SizedBox(height: 8),
-                                Row(
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Icon(Icons.warning_amber_rounded, size: 14, color: AppColors.error),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        'Top up ₹${(estTotal - (_walletBalance ?? 0.0)).toStringAsFixed(0)} more to post this requirement.',
-                                        style: const TextStyle(fontSize: 11, color: AppColors.error, fontWeight: FontWeight.w600),
+                                    Text(
+                                      'Payment Integration',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Waiting for payment integration',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                                       ),
                                     ),
                                   ],
                                 ),
-                              ],
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text(
+                                  'Pending Review',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
-                        );
-                      },
-                    ),
+                        ),
+                      ),
 
                     const SizedBox(height: AppSpacing.xl),
 
@@ -1235,7 +1406,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                         Expanded(
                           flex: 2,
                           child: AppPrimaryButton(
-                            text: 'Deploy Fleet Dispatch',
+                            text: 'Review & Deploy',
                             isLoading: _isSubmitting,
                             onPressed: _handleConfirmAndPost,
                           ),

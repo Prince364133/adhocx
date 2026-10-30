@@ -60,6 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
     AppUpdateService.instance.checkForUpdate();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkStartupPermissionStatus();
+      AppRoutes.checkAndHandlePendingNotification(context);
     });
   }
 

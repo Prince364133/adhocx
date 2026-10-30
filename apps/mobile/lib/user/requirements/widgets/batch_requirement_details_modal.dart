@@ -87,9 +87,9 @@ class _BatchRequirementDetailsModalState extends State<BatchRequirementDetailsMo
         final pickupAddress = it['pickupAddress']?.toString() ?? 'Office Hub';
         final dropAddress = it['dropAddress']?.toString() ?? 'Destination';
         final reportingTimeStr = it['reportingTime']?.toString();
-        DateTime reporting = DateTime.now().add(const Duration(hours: 4));
+        DateTime reporting = DateTime.now();
         if (reportingTimeStr != null) {
-          reporting = DateTime.tryParse(reportingTimeStr) ?? reporting;
+          reporting = (DateTime.tryParse(reportingTimeStr) ?? reporting).toLocal();
         }
 
         final fare = (it['ratePerVehicle'] as num?)?.toDouble() ??

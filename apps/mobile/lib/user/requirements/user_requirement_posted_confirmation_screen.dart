@@ -91,7 +91,7 @@ class _UserRequirementPostedConfirmationScreenState
     final dropShort = drop.split(',').first.trim();
 
     final reportingTimeStr = req?['reportingTime'] as String?;
-    final DateTime? reportingTime = reportingTimeStr != null ? DateTime.tryParse(reportingTimeStr) : null;
+    final DateTime? reportingTime = reportingTimeStr != null ? DateTime.tryParse(reportingTimeStr)?.toLocal() : null;
     final formattedTime = reportingTime != null
         ? '${reportingTime.day} ${_getMonth(reportingTime.month)} ${reportingTime.year} • ${_formatTime(reportingTime)}'
         : 'Immediate Dispatch';

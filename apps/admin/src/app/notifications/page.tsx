@@ -52,12 +52,13 @@ const VEHICLE_TYPES = [
 ];
 
 const PRESET_ROUTES = [
-  { label: 'Trip Details (/trips)', value: '/trips' },
-  { label: 'Requirements Board (/requirements)', value: '/requirements' },
-  { label: 'Driver Wallet (/wallet)', value: '/wallet' },
-  { label: 'Verification Center (/verifications)', value: '/verifications' },
+  { label: 'Trips Hub (/trips)', value: '/trips' },
+  { label: 'Requirements & Opportunities (/requirements)', value: '/requirements' },
+  { label: 'Driver Wallet & Booker Payments (/wallet)', value: '/wallet' },
+  { label: 'KYC & Verification Center (/verifications)', value: '/verifications' },
+  { label: 'Notifications Feed (/notifications)', value: '/notifications' },
   { label: 'Coupons & Promos (/coupons)', value: '/coupons' },
-  { label: 'Support Desk (/support)', value: '/support' },
+  { label: 'Help & Support Desk (/support)', value: '/support' },
 ];
 
 export default function NotificationsPage() {
@@ -101,9 +102,9 @@ export default function NotificationsPage() {
   const [customPayloadVal, setCustomPayloadVal] = useState('');
 
   // Filter State
-  const [targetRole, setTargetRole] = useState<'ALL' | 'DRIVER' | 'VENDOR' | 'ADMIN'>('DRIVER');
+  const [targetRole, setTargetRole] = useState<'ALL' | 'DRIVER' | 'VENDOR' | 'ADMIN'>('ALL');
   const [driverAvailability, setDriverAvailability] = useState<'ALL' | 'AVAILABLE' | 'BUSY' | 'OFFLINE'>('ALL');
-  const [verificationStatus, setVerificationStatus] = useState<'ALL' | 'VERIFIED' | 'PENDING' | 'REJECTED'>('VERIFIED');
+  const [verificationStatus, setVerificationStatus] = useState<'ALL' | 'VERIFIED' | 'PENDING' | 'REJECTED'>('ALL');
   const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
   const [cityFilter, setCityFilter] = useState('ALL');
   const [phoneFilter, setPhoneFilter] = useState('');
@@ -158,9 +159,9 @@ export default function NotificationsPage() {
     try {
       const filter: AudienceFilter = {
         role: targetRole,
-        availability: driverAvailability,
-        verificationStatus: verificationStatus,
-        vehicleTypes: selectedVehicles.length > 0 ? selectedVehicles : undefined,
+        availability: targetRole === 'DRIVER' ? driverAvailability : 'ALL',
+        verificationStatus: targetRole === 'DRIVER' ? verificationStatus : 'ALL',
+        vehicleTypes: targetRole === 'DRIVER' && selectedVehicles.length > 0 ? selectedVehicles : undefined,
         city: cityFilter !== 'ALL' ? cityFilter : undefined,
         phones: phoneFilter.trim() ? [phoneFilter.trim()] : undefined,
       };
@@ -195,9 +196,9 @@ export default function NotificationsPage() {
         priority,
         filter: {
           role: targetRole,
-          availability: driverAvailability,
-          verificationStatus: verificationStatus,
-          vehicleTypes: selectedVehicles.length > 0 ? selectedVehicles : undefined,
+          availability: targetRole === 'DRIVER' ? driverAvailability : 'ALL',
+          verificationStatus: targetRole === 'DRIVER' ? verificationStatus : 'ALL',
+          vehicleTypes: targetRole === 'DRIVER' && selectedVehicles.length > 0 ? selectedVehicles : undefined,
           city: cityFilter !== 'ALL' ? cityFilter : undefined,
           phones: phoneFilter.trim() ? [phoneFilter.trim()] : undefined,
         },

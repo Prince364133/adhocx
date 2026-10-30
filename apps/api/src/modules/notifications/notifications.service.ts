@@ -542,10 +542,17 @@ export class NotificationsService implements OnModuleInit {
       title,
       body,
       actionUrl: actionUrl || '',
+      route: actionUrl || '',
+      click_action: 'FLUTTER_NOTIFICATION_CLICK',
       imageUrl: imageUrl || '',
       timestamp: new Date().toISOString(),
       ...(data || {}),
     };
+    if (actionUrl) {
+      if (!stringData.actionUrl) stringData.actionUrl = actionUrl;
+      if (!stringData.route) stringData.route = actionUrl;
+    }
+    if (!stringData.click_action) stringData.click_action = 'FLUTTER_NOTIFICATION_CLICK';
 
     if (!this.fcmInitialized || !getApps().length) {
       this.logger.log(
@@ -600,7 +607,7 @@ export class NotificationsService implements OnModuleInit {
             color: '#5b42f3',
             sound: isUrgentDispatch ? 'adhocx_dispatch_alert' : 'default',
             channelId: isUrgentDispatch ? 'adhocx_trip_dispatch_urgent' : 'adhocx_operational_alerts',
-            clickAction: actionUrl || 'FLUTTER_NOTIFICATION_CLICK',
+            clickAction: 'FLUTTER_NOTIFICATION_CLICK',
             ...(imageUrl ? { imageUrl } : {}),
           },
         },
@@ -731,6 +738,7 @@ export class NotificationsService implements OnModuleInit {
     const title = this.queue ? this.queue.sanitizeText(rawTitle) : rawTitle;
     const body = this.queue ? this.queue.sanitizeText(rawBody) : rawBody;
     const { type = NotificationType.SYSTEM, data = {}, imageUrl, actionUrl, saveInApp = true, idempotencyKey } = payload;
+    const effectiveActionUrl = actionUrl || (data && (data.actionUrl || data.route)) || '';
 
     // Check user notification preferences if DB available
     let allowPush = true;
@@ -776,7 +784,11 @@ export class NotificationsService implements OnModuleInit {
             title,
             body,
             type: (type as unknown as NotificationType) || NotificationType.SYSTEM,
-            data: data ? JSON.parse(JSON.stringify(data)) : undefined,
+            data: {
+              ...(data ? JSON.parse(JSON.stringify(data)) : {}),
+              actionUrl: effectiveActionUrl || '',
+              route: effectiveActionUrl || '',
+            },
             imageUrl,
             idempotencyKey,
           },
@@ -823,10 +835,15 @@ export class NotificationsService implements OnModuleInit {
     for (const [k, v] of Object.entries(data)) {
       stringData[k] = typeof v === 'string' ? v : JSON.stringify(v);
     }
+    if (effectiveActionUrl) {
+      if (!stringData.actionUrl) stringData.actionUrl = effectiveActionUrl;
+      if (!stringData.route) stringData.route = effectiveActionUrl;
+    }
+    if (!stringData.click_action) stringData.click_action = 'FLUTTER_NOTIFICATION_CLICK';
 
     return this.sendPushToTokensSync(
       tokens,
-      { title, body, imageUrl, actionUrl },
+      { title, body, imageUrl, actionUrl: effectiveActionUrl },
       stringData,
       'high',
     );
@@ -904,7 +921,22 @@ export class NotificationsService implements OnModuleInit {
     }
 
     if (filter.phones && filter.phones.length > 0) {
-      userWhere.phone = { in: filter.phones };
+      const variants: string[] = [];
+      filter.phones.forEach((p) => {
+        const clean = p.trim();
+        if (!clean) return;
+        variants.push(clean);
+        if (!clean.startsWith('+')) {
+          variants.push(`+91${clean.replace(/^0+/, '')}`);
+        }
+        const digits = clean.replace(/\D/g, '');
+        if (digits.length >= 10) {
+          variants.push(digits.slice(-10));
+        }
+      });
+      userWhere.OR = [
+        { phone: { in: variants } },
+      ];
     }
 
     // Driver specific criteria
@@ -920,8 +952,19 @@ export class NotificationsService implements OnModuleInit {
     }
 
     if (Object.keys(driverConditions).length > 0) {
-      userWhere.driver = driverConditions;
-      userWhere.role = UserRole.DRIVER;
+      if (filter.role === UserRole.DRIVER) {
+        userWhere.driver = driverConditions;
+      } else if (!filter.role || filter.role === 'ALL') {
+        // If targeting ALL, non-drivers match unconditionally OR drivers match driverConditions
+        userWhere.AND = [
+          {
+            OR: [
+              { role: { not: UserRole.DRIVER } },
+              { role: UserRole.DRIVER, driver: driverConditions },
+            ],
+          },
+        ];
+      }
     }
 
     return { userWhere };
@@ -1025,6 +1068,8 @@ export class NotificationsService implements OnModuleInit {
       title,
       body,
       actionUrl: actionUrl || '',
+      route: actionUrl || '',
+      click_action: 'FLUTTER_NOTIFICATION_CLICK',
       imageUrl: imageUrl || '',
       ...(data || {}),
     };
@@ -1103,7 +1148,7 @@ export class NotificationsService implements OnModuleInit {
       return this.sendPushToTokensSync(
         [targetToken],
         { title, body, imageUrl, actionUrl },
-        data,
+        { actionUrl: actionUrl || '', route: actionUrl || '', click_action: 'FLUTTER_NOTIFICATION_CLICK', ...(data || {}) },
         'high',
       );
     }
@@ -1527,6 +1572,8 @@ export class NotificationsService implements OnModuleInit {
         title: '🌟 Welcome to AdhocX!',
         body: `Welcome ${name}! Your account as ${role} is ready. Complete your profile to get started.`,
         type: NotificationType.SYSTEM,
+        actionUrl: '/verifications',
+        data: { route: '/verifications' },
         saveInApp: true,
       });
     }

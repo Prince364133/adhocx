@@ -195,7 +195,99 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
     );
   }
 
+  // =========================================================================
+  // AXIS BANK PAYMENT GATEWAY VERIFICATION MODE (TEMPORARY REVIEW TOGGLE)
+  // Set to false after Axis Bank verifies & approves direct payment gateway.
+  // DO NOT DELETE: Preserves all wallet & payment logic intact for reintroduction.
+  // =========================================================================
+  static const bool _isAxisBankVerificationMode = true;
+
+  void _showWaitingForPaymentIntegrationModal(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    Fluttertoast.showToast(
+      msg: 'Waiting for payment integration',
+      backgroundColor: AppColors.primary,
+      textColor: Colors.white,
+    );
+    showModalBottomSheet(
+      context: context,
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return SafeArea(
+          top: false,
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.slate700 : AppColors.slate300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.hourglass_top_rounded,
+                    color: AppColors.primary,
+                    size: 36,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Waiting for Payment Integration',
+                  style: AppTypography.h3(
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Application verification is in progress with Axis Bank. Payment gateway integration will be active immediately upon verification.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 1.5,
+                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: AppPrimaryButton(
+                    text: 'OK',
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _showTopUpBottomSheet() {
+    if (_isAxisBankVerificationMode) {
+      _showWaitingForPaymentIntegrationModal(context);
+      return;
+    }
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final amountController = TextEditingController(text: '1000');
     bool isProcessing = false;
@@ -343,6 +435,12 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
   }
 
   Future<void> _handleDeployAllCabs() async {
+    // Intercept in Axis Bank verification mode
+    if (_isAxisBankVerificationMode) {
+      _showWaitingForPaymentIntegrationModal(context);
+      return;
+    }
+
     final draft = context.read<RequirementDraftProvider>();
     if (draft.cabs.isEmpty) {
       Fluttertoast.showToast(
@@ -545,7 +643,7 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
               dropAddress: cab.dropAddress,
               dropLat: cab.dropLat != 0.0 ? cab.dropLat : 17.3850,
               dropLng: cab.dropLng != 0.0 ? cab.dropLng : 78.4867,
-              reportingTime: cab.reportingDateTime,
+              reportingTime: cab.isScheduled ? cab.reportingDateTime : DateTime.now(),
               isScheduled: cab.isScheduled,
               ratePerVehicle: cab.estimatedFare,
               notes: cab.buildFormattedNotes(
@@ -1174,57 +1272,90 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
 
                     const SizedBox(height: 10),
 
-                    // Wallet Balance
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: isInsufficient
-                            ? AppColors.error.withValues(alpha: 0.08)
-                            : (isDark ? AppColors.bgDark : AppColors.slate100),
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                        border: Border.all(
+                    // Wallet Balance (Hidden during Axis Bank verification)
+                    if (!_isAxisBankVerificationMode)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
                           color: isInsufficient
-                              ? AppColors.error.withValues(alpha: 0.3)
-                              : Colors.transparent,
+                              ? AppColors.error.withValues(alpha: 0.08)
+                              : (isDark ? AppColors.bgDark : AppColors.slate100),
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: Border.all(
+                            color: isInsufficient
+                                ? AppColors.error.withValues(alpha: 0.3)
+                                : Colors.transparent,
+                          ),
                         ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.account_balance_wallet_outlined,
-                                  size: 16,
-                                  color: isInsufficient ? AppColors.error : AppColors.primary,
-                                ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    _isLoadingWallet
-                                        ? 'Checking Wallet...'
-                                        : 'Wallet: ₹${(_walletBalance ?? 0.0).toStringAsFixed(0)} Available',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: isInsufficient ? AppColors.error : null,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.account_balance_wallet_outlined,
+                                    size: 16,
+                                    color: isInsufficient ? AppColors.error : AppColors.primary,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      _isLoadingWallet
+                                          ? 'Checking Wallet...'
+                                          : 'Wallet: ₹${(_walletBalance ?? 0.0).toStringAsFixed(0)} Available',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: isInsufficient ? AppColors.error : null,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            InkWell(
+                              onTap: _showTopUpBottomSheet,
+                              child: const Text('+ Top Up', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      InkWell(
+                        onTap: () => _showWaitingForPaymentIntegrationModal(context),
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.surfaceElevatedDark : AppColors.slate100,
+                            borderRadius: BorderRadius.circular(AppRadius.md),
+                            border: Border.all(
+                              color: isDark ? AppColors.borderDark : AppColors.borderLight,
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          InkWell(
-                            onTap: _showTopUpBottomSheet,
-                            child: const Text('+ Top Up', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.hourglass_top_rounded, size: 16, color: AppColors.primary),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Waiting for payment integration',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                  ),
+                                ),
+                              ),
+                              const Text('Pending Review', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
-                    ),
 
                     const SizedBox(height: 10),
 

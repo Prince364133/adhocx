@@ -28,7 +28,7 @@ class RequirementDraftProvider extends ChangeNotifier {
   // Step 3: Date & Time Schedule
   String _pickupDate = '';
   String _pickupTime = '';
-  DateTime _reportingDateTime = DateTime.now().add(const Duration(hours: 4));
+  DateTime _reportingDateTime = DateTime.now();
 
   // Step 4 / Additional Options: Passengers & Stops & Notes
   int _passengers = 4;
@@ -56,7 +56,7 @@ class RequirementDraftProvider extends ChangeNotifier {
   }
 
   void _initDefaultDateTime() {
-    final now = DateTime.now().add(const Duration(hours: 4));
+    final now = DateTime.now();
     _reportingDateTime = now;
     _pickupDate = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     final hour = now.hour;
@@ -98,6 +98,7 @@ class RequirementDraftProvider extends ChangeNotifier {
   String? get returnDate => null;
   String? get returnTime => null;
   DateTime get reportingDateTime => _reportingDateTime;
+  bool get isScheduled => _reportingDateTime.isAfter(DateTime.now().add(const Duration(minutes: 5)));
 
   int get passengers => _passengers;
   String? get selectedLuggage => _selectedLuggage;

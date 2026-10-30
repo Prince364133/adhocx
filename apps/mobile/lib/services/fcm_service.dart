@@ -61,6 +61,28 @@ class FcmService {
   String? _lastApiBaseUrl;
   String? _lastUserToken;
 
+  /// Retrieve real Firebase FCM token with retry if needed
+  Future<String?> _retrieveRealToken(FirebaseMessaging messaging) async {
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      try {
+        final token = await messaging.getToken();
+        if (token != null && token.isNotEmpty) {
+          _fcmToken = token;
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('adhocx_fcm_token', token);
+          debugPrint('📱 [REAL FCM TOKEN] Token: ${_fcmToken?.substring(0, 20)}... (attempt $attempt)');
+          return token;
+        }
+      } catch (tokenErr) {
+        debugPrint('⚠️ [FCM GET TOKEN ATTEMPT $attempt NOTICE] $tokenErr');
+        if (attempt < 3) {
+          await Future.delayed(Duration(seconds: attempt * 2));
+        }
+      }
+    }
+    return null;
+  }
+
   /// Initialize FCM listeners and register token with backend API
   Future<void> initialize({required String apiBaseUrl, String? userToken}) async {
     _lastApiBaseUrl = apiBaseUrl;
@@ -85,22 +107,15 @@ class FcmService {
         debugPrint('🔔 [FCM PERMISSION STATUS] ${settings.authorizationStatus}');
 
         // 2. Retrieve real Firebase FCM registration token
-        try {
-          final token = await messaging.getToken();
-          if (token != null && token.isNotEmpty) {
-            _fcmToken = token;
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.setString('adhocx_fcm_token', token);
-            debugPrint('📱 [REAL FCM TOKEN] Token: ${_fcmToken?.substring(0, 20)}...');
-          }
-        } catch (tokenErr) {
-          debugPrint('⚠️ [FCM GET TOKEN NOTICE] $tokenErr');
-        }
+        await _retrieveRealToken(messaging);
 
         // 3. Listen to token refreshes
         messaging.onTokenRefresh.listen((newToken) {
           debugPrint('🔄 [FCM TOKEN REFRESHED] New token generated');
           _fcmToken = newToken;
+          SharedPreferences.getInstance().then((prefs) {
+            prefs.setString('adhocx_fcm_token', newToken);
+          });
           if (_lastApiBaseUrl != null && _lastUserToken != null) {
             registerTokenWithBackend(apiBaseUrl: _lastApiBaseUrl!, authToken: _lastUserToken!);
           }
@@ -120,8 +135,6 @@ class FcmService {
             DispatchSoundPlayer.playNotificationChime(title: title, body: body);
           }
 
-          // Native Android heads-up notification is displayed; custom in-app banner removed to avoid duplicate notification
-
           LocalNotificationService.instance.showIncomingRideNotification(
             title: title,
             body: body,
@@ -135,6 +148,8 @@ class FcmService {
           final navContext = rootNavigatorKey.currentContext;
           if (navContext != null && navContext.mounted) {
             AppRoutes.handleNotificationNavigation(navContext, message.data);
+          } else {
+            AppRoutes.pendingNotificationData = message.data;
           }
         });
 
@@ -142,6 +157,7 @@ class FcmService {
         final initialMessage = await messaging.getInitialMessage();
         if (initialMessage != null) {
           debugPrint('📬 [FCM INITIAL MESSAGE] ${initialMessage.data}');
+          AppRoutes.pendingNotificationData = initialMessage.data;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             final navContext = rootNavigatorKey.currentContext;
             if (navContext != null && navContext.mounted) {
@@ -154,15 +170,17 @@ class FcmService {
         FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
       }
 
-      // Fallback token for simulated / web environments if real token is absent
+      // Check saved token or generate fallback token for web / simulated environments only
       if (_fcmToken == null) {
         final prefs = await SharedPreferences.getInstance();
         String? savedToken = prefs.getString('adhocx_fcm_token');
-        if (savedToken == null) {
-          savedToken = 'fcm_tok_${DateTime.now().millisecondsSinceEpoch}_${(1000 + (DateTime.now().microsecond % 9000))}';
+        if (savedToken != null && !savedToken.startsWith('fcm_tok_')) {
+          _fcmToken = savedToken;
+        } else if (kIsWeb) {
+          savedToken ??= 'fcm_tok_${DateTime.now().millisecondsSinceEpoch}_${(1000 + (DateTime.now().microsecond % 9000))}';
           await prefs.setString('adhocx_fcm_token', savedToken);
+          _fcmToken = savedToken;
         }
-        _fcmToken = savedToken;
       }
 
       if (userToken != null && userToken.isNotEmpty) {
@@ -178,6 +196,24 @@ class FcmService {
     required String apiBaseUrl,
     required String authToken,
   }) async {
+    _lastApiBaseUrl = apiBaseUrl;
+    _lastUserToken = authToken;
+
+    // On real devices, if token is missing or still simulated, try to fetch the real FCM token now
+    if (!kIsWeb && (_fcmToken == null || _fcmToken!.startsWith('fcm_tok_'))) {
+      try {
+        final realToken = await FirebaseMessaging.instance.getToken();
+        if (realToken != null && realToken.isNotEmpty) {
+          _fcmToken = realToken;
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('adhocx_fcm_token', realToken);
+          debugPrint('📱 [FCM REFRESH BEFORE REGISTRATION] Acquired real token: ${_fcmToken?.substring(0, 20)}...');
+        }
+      } catch (e) {
+        debugPrint('⚠️ [FCM PRE-REGISTER TOKEN FETCH NOTICE] $e');
+      }
+    }
+
     if (_fcmToken == null) return false;
 
     try {

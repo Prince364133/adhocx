@@ -143,7 +143,11 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
         await this.notifications.sendPushToUser(requirement.vendor.userId, {
           title: 'Trip Dispatch Alert: 30 Seconds',
           body: 'Hey, we are initiating your ride dispatch and finding drivers in 30 seconds.',
-          data: alertPayload,
+          data: {
+            ...alertPayload,
+            route: `/requirements/${requirement.id}`,
+          },
+          actionUrl: `/requirements/${requirement.id}`,
           saveInApp: true,
         });
       }

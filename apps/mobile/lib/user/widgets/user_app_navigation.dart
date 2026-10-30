@@ -34,12 +34,16 @@ class _UserAppNavigationState extends State<UserAppNavigation> {
       selectedIcon: Icons.directions_car,
       branchIndex: 2,
     ),
+    // TEMPORARILY HIDDEN FOR AXIS BANK PG VERIFICATION - DO NOT DELETE
+    // Reintroduce after bank review is complete
+    /*
     _UserTabSpec(
       label: 'Payments',
       icon: Icons.account_balance_wallet_outlined,
       selectedIcon: Icons.account_balance_wallet,
       branchIndex: 3,
     ),
+    */
     _UserTabSpec(
       label: 'Profile',
       icon: Icons.person_outline,

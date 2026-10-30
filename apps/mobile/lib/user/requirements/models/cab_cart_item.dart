@@ -181,7 +181,7 @@ class CabCartItem {
     'isScheduled': isScheduled,
     'pickupDate': pickupDate,
     'pickupTime': pickupTime,
-    'reportingDateTime': reportingDateTime.toIso8601String(),
+    'reportingDateTime': reportingDateTime.toUtc().toIso8601String(),
     'additionalStops': additionalStops,
     'additionalInfo': additionalInfo,
     'distanceKm': distanceKm,
@@ -195,13 +195,12 @@ class CabCartItem {
   factory CabCartItem.fromJson(Map<String, dynamic> json) {
     DateTime parsedReporting;
     try {
-      parsedReporting = DateTime.parse(json['reportingDateTime']?.toString() ?? '');
+      parsedReporting = DateTime.parse(json['reportingDateTime']?.toString() ?? '').toLocal();
     } catch (_) {
-      parsedReporting = DateTime.now().add(const Duration(hours: 4));
+      parsedReporting = DateTime.now();
     }
 
-    final bool isSched = json['isScheduled'] == true ||
-        parsedReporting.isAfter(DateTime.now().add(const Duration(minutes: 5)));
+    final bool isSched = json['isScheduled'] == true;
 
     return CabCartItem(
       id: json['id']?.toString() ?? 'cab_${DateTime.now().millisecondsSinceEpoch}',

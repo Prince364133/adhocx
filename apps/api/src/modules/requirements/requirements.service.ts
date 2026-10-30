@@ -206,6 +206,34 @@ export class RequirementsService {
       );
     }
 
+    // Determine scheduling mode:
+    // If dto.isScheduled is explicitly false ("Ride Now"), it is ALWAYS immediate dispatch!
+    // Never force a "Ride Now" into a scheduled ride due to clock skew, timezone offset, or cart drafting delay.
+    const isExplicitlyInstant = dto.isScheduled === false;
+    const isExplicitlyScheduled = dto.isScheduled === true;
+
+    let parsedReportingTime: Date;
+    if (dto.reportingTime) {
+      const raw = dto.reportingTime.trim();
+      const hasTz = raw.endsWith('Z') || /[+-]\d{2}(:?\d{2})?$/.test(raw);
+      parsedReportingTime = hasTz ? new Date(raw) : new Date(`${raw}+05:30`);
+      if (isNaN(parsedReportingTime.getTime())) {
+        parsedReportingTime = new Date();
+      }
+    } else {
+      parsedReportingTime = new Date();
+    }
+
+    const now = new Date();
+    const nowMs = now.getTime();
+    // For Ride Now (instant dispatch), reportingTime is NOW.
+    const reportingTime = isExplicitlyInstant ? now : parsedReportingTime;
+    const reportingTimeMs = reportingTime.getTime();
+
+    const isScheduled = isExplicitlyInstant
+      ? false
+      : (isExplicitlyScheduled || (reportingTimeMs - nowMs > 5 * 60 * 1000));
+
     const { requirement, updatedVendor } = await this.db.$transaction(async (tx) => {
       // 1. Deduct totalAmount from vendor wallet balance
       const v = await tx.vendor.update({
@@ -229,7 +257,7 @@ export class RequirementsService {
           dropLat: dto.dropLocation.latitude,
           dropLng: dto.dropLocation.longitude,
           dropAddress: dto.dropLocation.address || 'Drop Location',
-          reportingTime: new Date(dto.reportingTime),
+          reportingTime,
           ratePerVehicle,
           suggestedBudget,
           totalAmount,
@@ -312,7 +340,7 @@ export class RequirementsService {
     } else {
       const reportingTimeMs = requirement.reportingTime.getTime();
       const nowMs = Date.now();
-      const isScheduled = dto.isScheduled === true || (reportingTimeMs - nowMs > 5 * 60 * 1000);
+      // Respect the determined isScheduled flag (never force Ride Now into scheduled)
 
       if (isScheduled && this.scheduler) {
         // Scheduled Mode: Defer progressive dispatch until the scheduled departure window.
@@ -897,7 +925,7 @@ export class RequirementsService {
 
   private mapToDto(r: any, viewer: 'VENDOR' | 'ADMIN' = 'VENDOR'): RequirementResponseDto {
     const reportingTimeMs = new Date(r.reportingTime).getTime();
-    const isScheduled = reportingTimeMs - Date.now() > 5 * 60 * 1000;
+    const isScheduled = r.status === RequirementStatus.POSTED && (reportingTimeMs - Date.now() > 5 * 60 * 1000);
     return {
       id: r.id,
       vendorId: r.vendorId,

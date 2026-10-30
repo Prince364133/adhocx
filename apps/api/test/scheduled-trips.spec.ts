@@ -172,6 +172,47 @@ describe('Scheduled Trips & Automated 30s Pre-Dispatch Simulation Suite', () => 
       expect(result.isScheduled).toBe(false);
       expect(result.id).toBe('11111111-1111-4111-8111-111111111111');
     });
+
+    it('forces immediate dispatch when isScheduled is false even if reportingTime has clock skew or timezone difference', async () => {
+      const now = new Date();
+      db.requirement.create.mockResolvedValue({
+        id: '11111111-1111-4111-8111-111111111111',
+        vendorId: 'vnd-1',
+        vehicleType: VehicleType.SEDAN,
+        quantity: 1,
+        assignedQuantity: 0,
+        pickupLat: 28.6139,
+        pickupLng: 77.2090,
+        pickupAddress: 'HITEC City, Hyderabad',
+        dropAddress: 'Gachibowli, Hyderabad',
+        reportingTime: now,
+        ratePerVehicle: 800,
+        totalAmount: 800,
+        status: RequirementStatus.POSTED,
+        createdAt: now,
+        updatedAt: now,
+        vendor: { id: 'vnd-1', userId: 'usr-vnd-1' },
+      });
+      const scheduleSpy = jest.spyOn(scheduler, 'schedule');
+      (dispatchService.dispatchRequirement as jest.Mock).mockClear();
+      scheduleSpy.mockClear();
+
+      const result = await requirementsService.createRequirement(
+        'usr-vnd-1',
+        {
+          vehicleType: VehicleType.SEDAN,
+          quantity: 1,
+          pickupLocation: { latitude: 28.6139, longitude: 77.2090, address: 'HITEC City, Hyderabad' },
+          dropLocation: { latitude: 28.6289, longitude: 77.3649, address: 'Gachibowli, Hyderabad' },
+          reportingTime: '2026-10-30T17:00:00.000',
+          isScheduled: false,
+        },
+      );
+
+      expect(dispatchService.dispatchRequirement).toHaveBeenCalled();
+      expect(scheduleSpy).not.toHaveBeenCalled();
+      expect(result.isScheduled).toBe(false);
+    });
   });
 
   describe('Simulation 2: Scheduled Ride Creation & Deferred Timers', () => {

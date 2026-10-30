@@ -103,7 +103,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
       _pickupDate = item.pickupDate;
       _pickupTime = item.pickupTime;
       _reportingDateTime = item.reportingDateTime;
-      _isScheduled = item.isScheduled || item.reportingDateTime.isAfter(DateTime.now().add(const Duration(minutes: 5)));
+      _isScheduled = item.isScheduled;
       _additionalStops.addAll(item.additionalStops);
       _notesController = TextEditingController(text: item.additionalInfo);
     } else {

@@ -404,7 +404,9 @@ export class TripsService {
           type: 'TRIP_CHAT_MESSAGE',
           tripId,
           senderId: userId,
+          route: `/trips/${tripId}/chat`,
         },
+        actionUrl: `/trips/${tripId}/chat`,
       }).catch(() => {});
     }
 

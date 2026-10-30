@@ -16,6 +16,14 @@ class LocalNotificationService {
   final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
   bool _isInitialized = false;
 
+  static const String _operationalChannelId = 'adhocx_operational_alerts';
+  static const String _operationalChannelName = 'AdhocX Operational Alerts';
+  static const String _operationalChannelDesc = 'Announcements, broadcasts, and operational alerts';
+
+  static const String _urgentDispatchChannelId = 'adhocx_trip_dispatch_urgent';
+  static const String _urgentDispatchChannelName = 'AdhocX Urgent Trip Dispatch';
+  static const String _urgentDispatchChannelDesc = 'Urgent ride requests and priority dispatch alerts';
+
   static const String _dispatchChannelId = 'dispatch_alerts';
   static const String _dispatchChannelName = 'Trip & Dispatch Alerts';
   static const String _dispatchChannelDesc = 'Urgent ride requests and dispatch notifications';
@@ -54,12 +62,58 @@ class LocalNotificationService {
         },
       );
 
+      // Check if the app was launched by tapping a local notification
+      try {
+        final launchDetails = await _plugin.getNotificationAppLaunchDetails();
+        if (launchDetails?.didNotificationLaunchApp == true && launchDetails?.notificationResponse?.payload != null) {
+          final rawPayload = launchDetails!.notificationResponse!.payload!;
+          debugPrint('🔔 [NOTIFICATION APP LAUNCH] Payload: $rawPayload');
+          try {
+            final decoded = jsonDecode(rawPayload);
+            if (decoded is Map<String, dynamic>) {
+              AppRoutes.pendingNotificationData = decoded;
+            } else if (decoded is Map) {
+              AppRoutes.pendingNotificationData = Map<String, dynamic>.from(decoded);
+            }
+          } catch (_) {
+            AppRoutes.pendingNotificationData = {'actionUrl': rawPayload, 'route': rawPayload};
+          }
+        }
+      } catch (e) {
+        debugPrint('⚠️ [LOCAL NOTIFICATION LAUNCH CHECK ERROR] $e');
+      }
+
       // Create Android Notification Channels
       final androidPlugin = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
       if (androidPlugin != null) {
         await androidPlugin.requestNotificationsPermission();
-        
-        // 1. Dispatch & Trip Alert Channel (Max Importance, Alarm sound, repeating vibration)
+
+        // 1. Operational & Broadcast Alerts Channel (High Importance, standard sound & vibrate)
+        final operationalChannel = AndroidNotificationChannel(
+          _operationalChannelId,
+          _operationalChannelName,
+          description: _operationalChannelDesc,
+          importance: Importance.high,
+          enableVibration: true,
+          playSound: true,
+        );
+        await androidPlugin.createNotificationChannel(operationalChannel);
+
+        // 2. Urgent Trip Dispatch Channel (Max Importance, Alarm sound, repeating vibration)
+        final urgentDispatchChannel = AndroidNotificationChannel(
+          _urgentDispatchChannelId,
+          _urgentDispatchChannelName,
+          description: _urgentDispatchChannelDesc,
+          importance: Importance.max,
+          enableVibration: true,
+          vibrationPattern: Int64List.fromList([0, 800, 400, 800, 400]),
+          playSound: true,
+          sound: const RawResourceAndroidNotificationSound('dispatch_alert'),
+          audioAttributesUsage: AudioAttributesUsage.alarm,
+        );
+        await androidPlugin.createNotificationChannel(urgentDispatchChannel);
+
+        // 3. Dispatch & Trip Alert Channel (Legacy compatibility)
         final dispatchChannel = AndroidNotificationChannel(
           _dispatchChannelId,
           _dispatchChannelName,
@@ -73,7 +127,7 @@ class LocalNotificationService {
         );
         await androidPlugin.createNotificationChannel(dispatchChannel);
 
-        // 2. App Updates Channel (Default Importance, standard notification)
+        // 4. App Updates Channel (Default Importance, standard notification)
         final updatesChannel = AndroidNotificationChannel(
           _updatesChannelId,
           _updatesChannelName,
@@ -86,7 +140,7 @@ class LocalNotificationService {
       }
 
       _isInitialized = true;
-      debugPrint('✅ [LOCAL NOTIFICATIONS] Initialized successfully with dispatch & update channels');
+      debugPrint('✅ [LOCAL NOTIFICATIONS] Initialized successfully with all operational, dispatch & update channels');
     } catch (e) {
       debugPrint('⚠️ [LOCAL NOTIFICATIONS] Init warning: $e');
     }
@@ -111,13 +165,21 @@ class LocalNotificationService {
       }
 
       final navContext = rootNavigatorKey.currentContext;
-      if (navContext == null || !navContext.mounted) return;
+      if (navContext == null || !navContext.mounted) {
+        // App is not ready yet, save as pending
+        if (data != null) {
+          AppRoutes.pendingNotificationData = data;
+        } else if (rawPayload.isNotEmpty) {
+          AppRoutes.pendingNotificationData = {'actionUrl': rawPayload, 'route': rawPayload};
+        }
+        return;
+      }
 
       if (data != null) {
         AppRoutes.handleNotificationNavigation(navContext, data);
       } else if (rawPayload.isNotEmpty) {
         if (rawPayload.startsWith('/')) {
-          AppRoutes.handleNotificationNavigation(navContext, {'route': rawPayload});
+          AppRoutes.handleNotificationNavigation(navContext, {'route': rawPayload, 'actionUrl': rawPayload});
         } else {
           AppRoutes.handleNotificationNavigation(navContext, {
             'id': rawPayload,
@@ -147,9 +209,9 @@ class LocalNotificationService {
       }
 
       final androidDetails = AndroidNotificationDetails(
-        _dispatchChannelId,
-        _dispatchChannelName,
-        channelDescription: _dispatchChannelDesc,
+        _urgentDispatchChannelId,
+        _urgentDispatchChannelName,
+        channelDescription: _urgentDispatchChannelDesc,
         icon: 'notification_icon',
         largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
         color: const Color(0xFF5B42F3),

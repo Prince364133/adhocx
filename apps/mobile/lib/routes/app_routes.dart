@@ -1,3 +1,4 @@
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -85,6 +86,21 @@ import '../user/support/user_raise_issue_screen.dart';
 import '../user/support/user_ticket_details_screen.dart';
 
 class AppRoutes {
+  /// Pending notification payload received while app was terminated or unauthenticated
+  static Map<String, dynamic>? pendingNotificationData;
+
+  /// Check and process any pending notification once router/auth is ready
+  static void checkAndHandlePendingNotification(BuildContext context) {
+    if (pendingNotificationData != null) {
+      final data = pendingNotificationData!;
+      pendingNotificationData = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) {
+          handleNotificationNavigation(context, data);
+        }
+      });
+    }
+  }
   static const String initial = '/';
   static const String splashScreen = '/splash';
   static const String languageSelectionScreen = '/language';
@@ -279,38 +295,75 @@ class AppRoutes {
   /// and push payloads into valid GoRouter destinations.
   static void handleNotificationNavigation(BuildContext context, Map<String, dynamic> data) {
     try {
-      final targetRoute = data['route']?.toString().trim();
-      final type = data['type']?.toString();
-      final offerId = data['offerId']?.toString() ?? data['id']?.toString();
-      final tripId = data['tripId']?.toString() ?? data['id']?.toString();
-      final requirementId = data['requirementId']?.toString();
+      debugPrint('🧭 [NOTIFICATION ROUTE RESOLVER] Raw data payload: $data');
 
-      // 1. Trip Offers / New Offers
+      final rawTargetRoute = data['actionUrl']?.toString().trim() ??
+          data['route']?.toString().trim() ??
+          data['targetRoute']?.toString().trim() ??
+          data['url']?.toString().trim() ??
+          data['path']?.toString().trim();
+      final type = data['type']?.toString().toUpperCase();
+      final offerId = data['offerId']?.toString() ?? data['id']?.toString();
+      final tripId = data['tripId']?.toString() ??
+          (type != null && type.startsWith('TRIP') && !type.contains('OFFER') ? data['id']?.toString() : null);
+      final requirementId = data['requirementId']?.toString();
+      final isDriver = AuthService.instance.currentUser?.isDriver ?? true;
+
+      // 1. External Web URLs (open in browser)
+      if (rawTargetRoute != null && (rawTargetRoute.startsWith('http://') || rawTargetRoute.startsWith('https://'))) {
+        final uri = Uri.tryParse(rawTargetRoute);
+        if (uri != null) {
+          launchUrl(uri, mode: LaunchMode.externalApplication).catchError((e) {
+            debugPrint('⚠️ [URL LAUNCH ERROR] $e');
+            return false;
+          });
+          return;
+        }
+      }
+
+      // 2. Trip Chat Message
+      if (type == 'TRIP_CHAT_MESSAGE' || (rawTargetRoute != null && rawTargetRoute.contains('/chat'))) {
+        final chatTripId = tripId ?? (rawTargetRoute != null ? rawTargetRoute.split('/')[2] : null);
+        final Map<String, dynamic> chatExtra = Map<String, dynamic>.from(data);
+        if (chatTripId != null) {
+          chatExtra['tripId'] = chatTripId;
+          context.push('/trips/$chatTripId/chat', extra: chatExtra);
+          return;
+        }
+        context.push(AppRoutes.tripChatScreen, extra: chatExtra);
+        return;
+      }
+
+      // 3. Trip Offers / Dispatch Opportunities
       if (type == 'TRIP_OFFER' ||
           type == 'NEW_OFFER' ||
-          (targetRoute != null && (targetRoute.startsWith('/offers/') || targetRoute == '/offers' || targetRoute == AppRoutes.opportunityOfferScreen))) {
+          type == 'NEW_BIDDING_OPPORTUNITY' ||
+          (rawTargetRoute != null && (rawTargetRoute.startsWith('/offers/') || rawTargetRoute == '/offers' || rawTargetRoute == AppRoutes.opportunityOfferScreen))) {
         String? resolvedOfferId = offerId;
-        if (resolvedOfferId == null && targetRoute != null && targetRoute.startsWith('/offers/')) {
-          resolvedOfferId = targetRoute.replaceFirst('/offers/', '').split('?').first;
+        if (resolvedOfferId == null && rawTargetRoute != null && rawTargetRoute.startsWith('/offers/')) {
+          resolvedOfferId = rawTargetRoute.replaceFirst('/offers/', '').split('?').first;
         }
         final Map<String, dynamic> offerExtra = Map<String, dynamic>.from(data);
         if (resolvedOfferId != null && resolvedOfferId.isNotEmpty) {
           offerExtra['id'] = resolvedOfferId;
           offerExtra['offerId'] = resolvedOfferId;
         }
-        final routeUrl = (resolvedOfferId != null && resolvedOfferId.isNotEmpty)
-            ? '/offers/$resolvedOfferId'
-            : AppRoutes.opportunityOfferScreen;
-        context.push(routeUrl, extra: offerExtra);
+        if (isDriver) {
+          final routeUrl = (resolvedOfferId != null && resolvedOfferId.isNotEmpty)
+              ? '/offers/$resolvedOfferId'
+              : AppRoutes.opportunityOfferScreen;
+          context.push(routeUrl, extra: offerExtra);
+        } else {
+          context.push(AppRoutes.userHomeScreen);
+        }
         return;
       }
 
-      // 2. Active Trips / Trip Details
-      if ((targetRoute != null && (targetRoute.startsWith('/trips/') || targetRoute == AppRoutes.tripDetailsScreen)) ||
-          (type != null && type.startsWith('TRIP_'))) {
+      // 4. Specific Trip Details (/trips/:id or tripId present)
+      if (tripId != null || (rawTargetRoute != null && rawTargetRoute.startsWith('/trips/') && rawTargetRoute != '/trips')) {
         String? resolvedTripId = tripId;
-        if (resolvedTripId == null && targetRoute != null && targetRoute.startsWith('/trips/')) {
-          final segments = targetRoute.replaceFirst('/trips/', '').split('?').first;
+        if (resolvedTripId == null && rawTargetRoute != null && rawTargetRoute.startsWith('/trips/')) {
+          final segments = rawTargetRoute.replaceFirst('/trips/', '').split('?').first;
           if (segments != 'details' && segments != 'chat') {
             resolvedTripId = segments;
           }
@@ -319,47 +372,123 @@ class AppRoutes {
         if (resolvedTripId != null && resolvedTripId.isNotEmpty) {
           tripExtra['tripId'] = resolvedTripId;
           tripExtra['id'] = resolvedTripId;
-          context.push('/trips/$resolvedTripId', extra: tripExtra);
+          if (isDriver) {
+            context.push(AppRoutes.tripDetailsScreen, extra: tripExtra);
+          } else {
+            context.push('/trips/$resolvedTripId', extra: tripExtra);
+          }
         } else {
-          context.push(AppRoutes.userActiveTripScreen, extra: tripExtra);
+          context.push(isDriver ? AppRoutes.tripsScreen : AppRoutes.userTripsScreen, extra: tripExtra);
         }
         return;
       }
 
-      // 3. Requirements
-      if ((targetRoute != null && (targetRoute.startsWith('/requirements/') || targetRoute == AppRoutes.userRequirementDetailsScreen)) ||
-          requirementId != null) {
+      // 5. General Trips screen (/trips, /user/trips, /trips-screen)
+      if (rawTargetRoute == '/trips' ||
+          rawTargetRoute == AppRoutes.tripsScreen ||
+          rawTargetRoute == AppRoutes.userTripsScreen ||
+          (type != null && type.startsWith('TRIP_'))) {
+        context.push(isDriver ? AppRoutes.tripsScreen : AppRoutes.userTripsScreen);
+        return;
+      }
+
+      // 6. Specific Requirement Details (/requirements/:id or requirementId present)
+      if (requirementId != null || (rawTargetRoute != null && rawTargetRoute.startsWith('/requirements/') && rawTargetRoute != '/requirements')) {
         String? resolvedReqId = requirementId;
-        if (resolvedReqId == null && targetRoute != null && targetRoute.startsWith('/requirements/')) {
-          resolvedReqId = targetRoute.replaceFirst('/requirements/', '').split('?').first;
+        if (resolvedReqId == null && rawTargetRoute != null && rawTargetRoute.startsWith('/requirements/')) {
+          resolvedReqId = rawTargetRoute.replaceFirst('/requirements/', '').split('?').first;
         }
         final Map<String, dynamic> reqExtra = Map<String, dynamic>.from(data);
         if (resolvedReqId != null && resolvedReqId.isNotEmpty) {
           reqExtra['requirementId'] = resolvedReqId;
           reqExtra['id'] = resolvedReqId;
-          context.push('/requirements/$resolvedReqId', extra: reqExtra);
+          if (isDriver) {
+            context.push(AppRoutes.opportunityOfferScreen, extra: reqExtra);
+          } else {
+            context.push('/requirements/$resolvedReqId', extra: reqExtra);
+          }
         } else {
-          context.push(AppRoutes.userActiveTripScreen, extra: reqExtra);
+          context.push(isDriver ? AppRoutes.opportunitiesScreen : AppRoutes.userRequirementsScreen, extra: reqExtra);
         }
         return;
       }
 
-      // 4. Wallet
-      if (targetRoute == '/wallet' || targetRoute == AppRoutes.walletScreen || type == 'WALLET_CREDIT' || type == 'PAYMENT_RECEIVED') {
-        context.push(AppRoutes.walletScreen);
+      // 7. General Requirements Board (/requirements, /opportunities)
+      if (rawTargetRoute == '/requirements' ||
+          rawTargetRoute == '/opportunities' ||
+          rawTargetRoute == AppRoutes.opportunitiesScreen ||
+          rawTargetRoute == AppRoutes.userRequirementsScreen ||
+          type == 'BID_UPDATE' ||
+          type == 'NEW_BID') {
+        context.push(isDriver ? AppRoutes.opportunitiesScreen : AppRoutes.userRequirementsScreen);
         return;
       }
 
-      // 5. Explicit route from payload if it exists
-      if (targetRoute != null && targetRoute.isNotEmpty) {
-        context.push(targetRoute, extra: data);
+      // 8. Driver Wallet & Booker Payments (/wallet, /payments)
+      if (rawTargetRoute == '/wallet' ||
+          rawTargetRoute == '/earnings' ||
+          rawTargetRoute == '/payments' ||
+          rawTargetRoute == AppRoutes.walletScreen ||
+          rawTargetRoute == AppRoutes.userPaymentsScreen ||
+          type == 'WALLET_CREDIT' ||
+          type == 'WALLET_UPDATE' ||
+          type == 'PAYMENT_RECEIVED') {
+        context.push(isDriver ? AppRoutes.walletScreen : AppRoutes.userPaymentsScreen);
         return;
       }
 
-      // 6. Default Fallback
+      // 9. Verification & KYC (/verifications, /kyc)
+      if (rawTargetRoute == '/verifications' ||
+          rawTargetRoute == '/kyc' ||
+          rawTargetRoute == AppRoutes.kycVerificationScreen ||
+          rawTargetRoute == AppRoutes.userAccountStatusScreen ||
+          type == 'KYC_UPDATE' ||
+          type == 'KYC_APPROVED' ||
+          type == 'KYC_REJECTED') {
+        context.push(isDriver ? AppRoutes.kycVerificationScreen : AppRoutes.userAccountStatusScreen);
+        return;
+      }
+
+      // 10. Help & Support (/support, /help)
+      if (rawTargetRoute == '/support' ||
+          rawTargetRoute == '/help' ||
+          rawTargetRoute == AppRoutes.helpSupportScreen ||
+          rawTargetRoute == AppRoutes.userSupportCenterScreen ||
+          type == 'SUPPORT_TICKET' ||
+          type == 'DISPUTE_UPDATE') {
+        context.push(isDriver ? AppRoutes.helpSupportScreen : AppRoutes.userSupportCenterScreen);
+        return;
+      }
+
+      // 11. Promos & Coupons (/coupons)
+      if (rawTargetRoute == '/coupons' || type == 'MARKETING_PROMO') {
+        context.push(isDriver ? AppRoutes.walletScreen : AppRoutes.userPaymentsScreen);
+        return;
+      }
+
+      // 12. Notifications Feed (/notifications)
+      if (rawTargetRoute == '/notifications' || rawTargetRoute == AppRoutes.notificationsFeedScreen) {
+        context.push(AppRoutes.notificationsFeedScreen);
+        return;
+      }
+
+      // 13. Explicit Custom Route fallback
+      if (rawTargetRoute != null && rawTargetRoute.isNotEmpty && rawTargetRoute.startsWith('/')) {
+        try {
+          context.push(rawTargetRoute, extra: data);
+          return;
+        } catch (routeErr) {
+          debugPrint('⚠️ [CUSTOM ROUTE NOT FOUND] $rawTargetRoute : $routeErr');
+        }
+      }
+
+      // 14. Default Fallback -> Notifications Feed Screen
       context.push(AppRoutes.notificationsFeedScreen);
     } catch (e) {
       debugPrint('⚠️ [ROUTE RESOLVER ERROR] Failed to navigate notification: $e');
+      try {
+        context.push(AppRoutes.notificationsFeedScreen);
+      } catch (_) {}
     }
   }
 }
@@ -461,10 +590,13 @@ final GoRouter appRouter = GoRouter(
         AppRoutes.onboardingVehicleScreen,
         AppRoutes.onboardingReviewScreen,
         AppRoutes.kycUploadScreen,
+        AppRoutes.kycVerificationScreen,
+        AppRoutes.notificationsFeedScreen,
         AppRoutes.profileScreen,
         AppRoutes.personalInfoScreen,
         AppRoutes.editPersonalInfoScreen,
         AppRoutes.helpSupportScreen,
+        AppRoutes.userSupportCenterScreen,
         AppRoutes.accountStatusScreen,
         AppRoutes.userAccountStatusScreen,
         AppRoutes.universalLocationSearchScreen,
@@ -973,6 +1105,12 @@ final GoRouter appRouter = GoRouter(
         final extraMap = rawExtra is Map<String, dynamic>
             ? rawExtra
             : (rawExtra is Map ? Map<String, dynamic>.from(rawExtra) : null);
+        final isDriver = AuthService.instance.currentUser?.isDriver ?? false;
+        if (isDriver) {
+          return TripDetailsScreen(
+            initialTrip: extraMap ?? (tripId != null ? {'id': tripId, 'tripId': tripId} : null),
+          );
+        }
         return UserActiveTripScreen(
           trip: extraMap,
           tripId: tripId,
@@ -995,8 +1133,58 @@ final GoRouter appRouter = GoRouter(
       },
     ),
     GoRoute(
+      path: '/trips',
+      redirect: (context, state) =>
+          AuthService.instance.currentUser?.isDriver == false
+              ? AppRoutes.userTripsScreen
+              : AppRoutes.tripsScreen,
+    ),
+    GoRoute(
+      path: '/requirements',
+      redirect: (context, state) =>
+          AuthService.instance.currentUser?.isDriver == false
+              ? AppRoutes.userRequirementsScreen
+              : AppRoutes.opportunitiesScreen,
+    ),
+    GoRoute(
       path: '/wallet',
-      redirect: (context, state) => AppRoutes.walletScreen,
+      redirect: (context, state) =>
+          AuthService.instance.currentUser?.isDriver == false
+              ? AppRoutes.userPaymentsScreen
+              : AppRoutes.walletScreen,
+    ),
+    GoRoute(
+      path: '/verifications',
+      redirect: (context, state) =>
+          AuthService.instance.currentUser?.isDriver == false
+              ? AppRoutes.userAccountStatusScreen
+              : AppRoutes.kycVerificationScreen,
+    ),
+    GoRoute(
+      path: '/coupons',
+      redirect: (context, state) =>
+          AuthService.instance.currentUser?.isDriver == false
+              ? AppRoutes.userPaymentsScreen
+              : AppRoutes.walletScreen,
+    ),
+    GoRoute(
+      path: '/support',
+      redirect: (context, state) =>
+          AuthService.instance.currentUser?.isDriver == false
+              ? AppRoutes.userSupportCenterScreen
+              : AppRoutes.helpSupportScreen,
+    ),
+    GoRoute(
+      path: '/trips/:id/chat',
+      builder: (context, state) {
+        final tripId = state.pathParameters['id'];
+        final rawExtra = state.extra;
+        final extraMap = rawExtra is Map<String, dynamic>
+            ? Map<String, dynamic>.from(rawExtra)
+            : (rawExtra is Map ? Map<String, dynamic>.from(rawExtra) : <String, dynamic>{});
+        extraMap['tripId'] = tripId;
+        return TripChatScreen(params: extraMap);
+      },
     ),
     GoRoute(
       path: AppRoutes.userTripDetailsUpcomingScreen,

@@ -42,6 +42,9 @@ class _UserHomeScreenState extends State<UserHomeScreen> with WidgetsBindingObse
     WidgetsBinding.instance.addObserver(this);
     AppUpdateService.instance.checkForUpdate();
     _loadDashboardData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) AppRoutes.checkAndHandlePendingNotification(context);
+    });
   }
 
   @override
@@ -706,13 +709,14 @@ class _UserHomeScreenState extends State<UserHomeScreen> with WidgetsBindingObse
 
   bool _isRequirementScheduled(Map<String, dynamic> req) {
     if (req['isScheduled'] == true) return true;
+    if (req['isScheduled'] == false) return false;
     final status = req['status']?.toString();
     if (status == 'CANCELLED' || status == 'COMPLETED' || status == 'FULFILLED') return false;
     final reportingTimeStr = req['reportingTime']?.toString() ?? req['scheduledPickupTime']?.toString();
     if (reportingTimeStr == null) return false;
-    final reportingTime = DateTime.tryParse(reportingTimeStr);
+    final reportingTime = DateTime.tryParse(reportingTimeStr)?.toLocal();
     if (reportingTime == null) return false;
-    return reportingTime.isAfter(DateTime.now().add(const Duration(minutes: 3)));
+    return reportingTime.isAfter(DateTime.now().add(const Duration(minutes: 5)));
   }
 
   static String _getMonth(int month) {

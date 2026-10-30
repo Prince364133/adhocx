@@ -65,35 +65,44 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen> {
         IconData icon = Icons.notifications_active_rounded;
         Color color = AppColors.primary;
         String routeTarget = '';
-        dynamic extra;
+        dynamic extra = n.data;
+
+        final data = n.data != null ? Map<String, dynamic>.from(n.data!) : <String, dynamic>{};
+        final actionUrl = data['actionUrl']?.toString().trim() ?? data['route']?.toString().trim();
+        if (actionUrl != null && actionUrl.isNotEmpty) {
+          routeTarget = actionUrl;
+        }
 
         final type = n.type?.toUpperCase() ?? '';
         if (type.contains('BID')) {
           icon = Icons.gavel_rounded;
           color = AppColors.accentBlue;
-          if (n.data != null && n.data!['requirementId'] != null) {
-            routeTarget = AppRoutes.userRequirementDetailsScreen;
-            extra = n.data!['requirementId'];
+          if (routeTarget.isEmpty && data['requirementId'] != null) {
+            routeTarget = '/requirements/${data['requirementId']}';
           }
         } else if (type.contains('TRIP')) {
           icon = Icons.directions_car_rounded;
           color = AppColors.primary;
-          if (n.data != null && n.data!['tripId'] != null) {
-            routeTarget = AppRoutes.tripDetailsScreen;
-            extra = {'id': n.data!['tripId']};
+          if (routeTarget.isEmpty && data['tripId'] != null) {
+            routeTarget = '/trips/${data['tripId']}';
           }
         } else if (type.contains('PAY') || type.contains('WALLET')) {
           icon = Icons.account_balance_wallet_rounded;
           color = AppColors.accentGreenDark;
-          routeTarget = AppRoutes.userPaymentsScreen;
+          if (routeTarget.isEmpty) routeTarget = '/wallet';
         } else if (type.contains('OFFER')) {
           icon = Icons.local_offer_rounded;
           color = AppColors.warning;
-          routeTarget = AppRoutes.opportunityOfferScreen;
+          if (routeTarget.isEmpty && data['offerId'] != null) {
+            routeTarget = '/offers/${data['offerId']}';
+          }
         } else if (type.contains('KYC') || type.contains('VERIF')) {
           icon = Icons.verified_user_rounded;
           color = AppColors.primary;
-          routeTarget = AppRoutes.kycVerificationScreen;
+          if (routeTarget.isEmpty) routeTarget = '/verifications';
+        } else if (type.contains('BROADCAST') || type.contains('SYSTEM')) {
+          icon = Icons.campaign_rounded;
+          color = AppColors.primary;
         }
 
         final now = DateTime.now();
@@ -354,9 +363,13 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen> {
                                         NotificationService.instance.markAsRead(item.id);
                                       }
                                     }
-                                    if (item.routeTarget.isNotEmpty && item.routeTarget != AppRoutes.notificationsFeedScreen) {
-                                      context.push(item.routeTarget, extra: item.extra);
-                                    }
+                                    final Map<String, dynamic> navPayload = {
+                                      'id': item.id,
+                                      'actionUrl': item.routeTarget,
+                                      'route': item.routeTarget,
+                                      if (item.extra is Map) ...(item.extra as Map),
+                                    };
+                                    AppRoutes.handleNotificationNavigation(context, navPayload);
                                   },
                                   borderRadius: BorderRadius.circular(AppRadius.lg),
                                   child: Container(
