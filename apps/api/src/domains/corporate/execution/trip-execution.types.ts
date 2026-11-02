@@ -27,6 +27,25 @@ export interface MarkNoShowDto {
   driverLongitude?: number;
 }
 
+export interface StartRouteDto {
+  driverId?: string;
+  driverLatitude?: number;
+  driverLongitude?: number;
+}
+
+export interface StartRouteResult {
+  routeId: string;
+  status: 'IN_TRANSIT';
+  startedAt: Date;
+  stopEtas: Array<{
+    stopId: string;
+    stopSequence: number;
+    employeeId: string;
+    etaMinutes: number;
+    etaAt: Date;
+  }>;
+}
+
 export interface RescheduleRequestDto {
   employeeId: string;
   newShiftTime?: string; // HH:mm

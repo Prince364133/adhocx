@@ -6,12 +6,14 @@ import {
   BadRequestException,
   NotFoundException,
   ConflictException,
+  Optional,
 } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service';
 import { RedisService } from '../../../redis/redis.service';
 import { NotificationsService } from '../../../modules/notifications/notifications.service';
 import { AuditService } from '../../../modules/audit/audit.service';
 import { LocationsService } from '../../../modules/locations/locations.service';
+import { CorporateRiderNotifier } from '../execution/corporate-rider-notifier.service';
 import {
   CorporateRouteOfferData,
   TrafficAdvancerResult,
@@ -72,6 +74,7 @@ export class CorporateDispatchService {
     @Optional()
     @Inject(TRAFFIC_ESTIMATOR_PORT)
     private readonly trafficEstimator?: ITrafficEstimatorPort,
+    @Optional() private readonly riderNotifier?: CorporateRiderNotifier,
   ) {}
 
   /**
@@ -676,6 +679,11 @@ export class CorporateDispatchService {
         driverPhone: driver.phone,
         status: 'ASSIGNED',
       });
+
+      // Employees: cab assigned with driver & vehicle details (never throws)
+      if (this.riderNotifier) {
+        await this.riderNotifier.notifyRouteAssigned(routeId);
+      }
 
       await this.audit.log({
         action: 'CORPORATE_ROUTE_OFFER_ACCEPTED',

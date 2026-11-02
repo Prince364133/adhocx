@@ -3,6 +3,8 @@ import {
   Logger,
   BadRequestException,
   NotFoundException,
+  ConflictException,
+  Optional,
 } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service';
 import { RedisService } from '../../../redis/redis.service';
@@ -18,7 +20,10 @@ import {
   BoardingQrTokenResult,
   RouteWaypointsResult,
   RescheduleRequestDto,
+  StartRouteDto,
+  StartRouteResult,
 } from './trip-execution.types';
+import { CorporateRiderNotifier } from './corporate-rider-notifier.service';
 
 @Injectable()
 export class CorporateTripExecutionService {
@@ -34,7 +39,111 @@ export class CorporateTripExecutionService {
     private readonly redis: RedisService,
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
-  ) {}
+    @Optional() riderNotifier?: CorporateRiderNotifier,
+  ) {
+    this.riderNotifier = riderNotifier ?? new CorporateRiderNotifier(db, redis, notifications);
+  }
+
+  private readonly riderNotifier: CorporateRiderNotifier;
+
+  /**
+   * Driver starts driving toward pickup 1. Transitions route ASSIGNED -> IN_TRANSIT and
+   * notifies every pickup employee with their individual ETA (EN_ROUTE) plus "you're next" for stop 1.
+   */
+  public async startRoute(routeId: string, dto: StartRouteDto = {}): Promise<StartRouteResult> {
+    const route: any = await this.db.corporateRoute.findUnique({
+      where: { id: routeId },
+      include: {
+        driver: true,
+        vehicle: true,
+        stops: { orderBy: { stopSequence: 'asc' } },
+      },
+    });
+
+    if (!route) {
+      throw new NotFoundException(`Corporate route ${routeId} not found`);
+    }
+
+    if (route.status !== 'ASSIGNED' || !route.driverId) {
+      throw new BadRequestException(
+        `Cannot start route: route must be ASSIGNED to a driver (current: ${route.status}${route.driverId ? '' : ', no driver'})`,
+      );
+    }
+
+    if (dto.driverId && dto.driverId !== route.driverId) {
+      throw new BadRequestException('This route is assigned to another driver');
+    }
+
+    // Atomic compare-and-set guards against double-start races
+    const { count } = await this.db.corporateRoute.updateMany({
+      where: { id: routeId, status: 'ASSIGNED' },
+      data: { status: 'IN_TRANSIT' },
+    });
+    if (count === 0) {
+      throw new ConflictException(`Route ${routeId} was already started`);
+    }
+
+    const startedAt = new Date();
+    const origin =
+      dto.driverLatitude !== undefined && dto.driverLongitude !== undefined
+        ? { latitude: dto.driverLatitude, longitude: dto.driverLongitude }
+        : undefined;
+    const etas = this.riderNotifier.computePickupEtas(route.stops, origin, startedAt);
+
+    this.notifications.emitEvent(`corporate:${route.tenantId}`, 'ROUTE_STARTED', {
+      routeId,
+      driverId: route.driverId,
+      startedAt,
+      pickups: etas.length,
+    });
+
+    await this.riderNotifier.notifyRouteStarted(route, etas);
+
+    this.logger.log(`Route ${routeId} started by driver ${route.driverId}; ${etas.length} employees notified`);
+
+    return {
+      routeId,
+      status: 'IN_TRANSIT',
+      startedAt,
+      stopEtas: etas.map((e) => ({
+        stopId: e.stopId,
+        stopSequence: e.stopSequence,
+        employeeId: e.employeeId,
+        etaMinutes: e.etaMinutes,
+        etaAt: e.etaAt,
+      })),
+    };
+  }
+
+  /** Fires "you're next" for the next pending employee pickup after `afterSequence`. */
+  private async notifyNextPickupApproaching(
+    routeId: string,
+    tenantId: string,
+    afterSequence: number,
+  ): Promise<void> {
+    try {
+      const next = await this.db.corporateRouteStop.findFirst({
+        where: {
+          routeId,
+          stopType: 'PICKUP',
+          status: 'PENDING',
+          employeeId: { not: null },
+          stopSequence: { gt: afterSequence },
+        },
+        orderBy: { stopSequence: 'asc' },
+      });
+      if (!next?.employeeId) return;
+      await this.riderNotifier.notifyApproaching({
+        routeId,
+        tenantId,
+        employeeId: next.employeeId,
+        stopId: next.id,
+        stopSequence: next.stopSequence,
+      });
+    } catch (err: any) {
+      this.logger.warn(`Approaching notification after stop #${afterSequence} failed: ${err?.message}`);
+    }
+  }
 
   /**
    * Driver marks arrival at an employee pickup stop (or office dropoff stop).
@@ -107,21 +216,26 @@ export class CorporateTripExecutionService {
       await client.set(timerKey, arrivalTime.toISOString(), 'EX', this.STOP_WAIT_BUFFER_SECONDS);
     }
 
-    // 4. Send real-time events & push notifications
+    // 4. Employee websocket + push (pickup: ARRIVED with OTP & 5-min timer; home drop: DROPPED)
     if (stop.employeeId) {
-      const employee = await this.db.corporateEmployee.findUnique({
-        where: { id: stop.employeeId },
-      });
-
-      if (employee) {
-        // Send SMS/Push with boarding OTP & 5-minute countdown alert
-        this.notifications.emitEvent(`employee:${employee.id}`, 'CAB_ARRIVED_AT_STOP', {
-          routeId,
-          stopId,
-          boardingOtp: stop.boardingOtp,
-          dwellSeconds: this.STOP_WAIT_BUFFER_SECONDS,
-          driverName: route.driverId,
-          message: `Your cab has arrived! 5-minute boarding timer started. Share OTP ${stop.boardingOtp} with your driver.`,
+      const ctx = {
+        routeId,
+        tenantId: route.tenantId,
+        employeeId: stop.employeeId,
+        stopId,
+        stopSequence: stop.stopSequence,
+      };
+      if (stop.stopType === 'DROPOFF') {
+        await this.riderNotifier.notifyDropped({ ...ctx, payload: { droppedAt: arrivalTime } });
+      } else {
+        await this.riderNotifier.notifyArrived({
+          ...ctx,
+          payload: {
+            boardingOtp: stop.boardingOtp,
+            dwellSeconds: this.STOP_WAIT_BUFFER_SECONDS,
+            arrivalTime,
+            driverId: route.driverId,
+          },
         });
       }
     }
@@ -218,12 +332,23 @@ export class CorporateTripExecutionService {
     });
 
     if (stop.employeeId) {
-      this.notifications.emitEvent(`employee:${stop.employeeId}`, 'BOARDING_CONFIRMED', {
+      const waitedSeconds = stop.actualArrivalTime
+        ? Math.max(
+            0,
+            Math.floor((departureTime.getTime() - new Date(stop.actualArrivalTime).getTime()) / 1000),
+          )
+        : 0;
+      await this.riderNotifier.notifyBoarded({
         routeId,
+        tenantId: stop.route.tenantId,
+        employeeId: stop.employeeId,
         stopId,
-        departureTime,
+        stopSequence: stop.stopSequence,
+        payload: { departureTime, waitedSeconds },
       });
     }
+
+    await this.notifyNextPickupApproaching(routeId, stop.route.tenantId, stop.stopSequence);
 
     return {
       stopId,
@@ -312,16 +437,25 @@ export class CorporateTripExecutionService {
       message: 'No-Show recorded. Depart immediately to next stop.',
     });
 
-    this.notifications.emitEvent(`corporate:${stop.route.tenantId}`, 'ATTENDANCE_NO_SHOW', {
-      routeId,
-      stopId,
-      employeeId: stop.employeeId,
-      employeeName: stop.employee?.fullName,
-      employeeCode: stop.employee?.employeeCode,
-      stopSequence: stop.stopSequence,
-      reason: reasonText,
-      recordedAt: departureTime,
-    });
+    // Employee (websocket + push with reason) and corporate dashboard ATTENDANCE_NO_SHOW
+    if (stop.employeeId) {
+      await this.riderNotifier.notifyNoShow({
+        routeId,
+        tenantId: stop.route.tenantId,
+        employeeId: stop.employeeId,
+        stopId,
+        stopSequence: stop.stopSequence,
+        payload: {
+          reason: reasonText,
+          recordedAt: departureTime,
+          waitedSeconds: elapsedSeconds,
+          employeeName: stop.employee?.fullName,
+          employeeCode: stop.employee?.employeeCode,
+        },
+      });
+    }
+
+    await this.notifyNextPickupApproaching(routeId, stop.route.tenantId, stop.stopSequence);
 
     await this.audit.log({
       action: 'CORPORATE_STOP_NO_SHOW',
@@ -377,10 +511,26 @@ export class CorporateTripExecutionService {
       data: { status: 'COMPLETED' },
     });
 
+    const completedAt = new Date();
     this.notifications.emitEvent(`corporate:${route.tenantId}`, 'ROUTE_COMPLETED', {
       routeId,
-      completedAt: new Date(),
+      completedAt,
     });
+
+    // Everyone still on board is dropped at the destination
+    const onBoard = route.stops.filter((s) => s.status === 'BOARDED' && s.employeeId);
+    await Promise.all(
+      onBoard.map((s) =>
+        this.riderNotifier.notifyDropped({
+          routeId,
+          tenantId: route.tenantId,
+          employeeId: s.employeeId as string,
+          stopId: s.id,
+          stopSequence: s.stopSequence,
+          payload: { droppedAt: completedAt },
+        }),
+      ),
+    );
 
     return updated;
   }

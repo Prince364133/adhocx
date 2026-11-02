@@ -28,6 +28,7 @@ import { TRAFFIC_ESTIMATOR_PORT } from './dispatch/traffic/traffic-estimator.por
 // Trip Execution, 5-Min Timer & OTP Boarding Sub-Module
 import { CorporateTripExecutionService } from './execution/corporate-trip-execution.service';
 import { CorporateTripExecutionController } from './execution/corporate-trip-execution.controller';
+import { CorporateRiderNotifier } from './execution/corporate-rider-notifier.service';
 
 // Safety SOS, Route Deviation & Command Centre Sub-Module
 import { CorporateSafetyService } from './safety/corporate-safety.service';
@@ -61,6 +62,7 @@ import { CorporateBillingController } from './billing/corporate-billing.controll
     CorporateDispatchService,
     CorporateDispatchSchedulerService,
     CorporateTripExecutionService,
+    CorporateRiderNotifier,
     CorporateSafetyService,
     CorporateBillingService,
   ],
@@ -81,6 +83,7 @@ import { CorporateBillingController } from './billing/corporate-billing.controll
     CorporateDispatchService,
     CorporateDispatchSchedulerService,
     CorporateTripExecutionService,
+    CorporateRiderNotifier,
     CorporateSafetyService,
     CorporateBillingService,
   ],
