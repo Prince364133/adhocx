@@ -21,7 +21,7 @@ import {
 } from '@adhocx/contracts';
 
 @ApiTags('Corporate ETS - Tenants, Offices & Employees')
-@Controller('v1/corporate/tenants')
+@Controller('corporate/tenants')
 export class CorporateTenantController {
   constructor(private readonly tenantService: CorporateTenantService) {}
 

@@ -18,7 +18,7 @@ import {
 } from './trip-execution.types';
 
 @ApiTags('Corporate ETS - Trip Execution & OTP Boarding')
-@Controller('v1/corporate/trips')
+@Controller('corporate/trips')
 export class CorporateTripExecutionController {
   constructor(private readonly executionService: CorporateTripExecutionService) {}
 

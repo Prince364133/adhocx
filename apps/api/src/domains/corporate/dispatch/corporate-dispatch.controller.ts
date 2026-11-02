@@ -11,7 +11,7 @@ import { CorporateDispatchService } from './corporate-dispatch.service';
 import { RedisService } from '../../../redis/redis.service';
 
 @ApiTags('Corporate ETS - Autonomous Dispatch & DDA')
-@Controller('v1/corporate/dispatch')
+@Controller('corporate/dispatch')
 export class CorporateDispatchController {
   constructor(
     private readonly dispatchService: CorporateDispatchService,

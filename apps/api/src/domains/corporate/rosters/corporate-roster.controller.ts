@@ -20,7 +20,7 @@ import { RosterIngestionService } from './roster-ingestion.service';
 import { DatabaseService } from '../../../database/database.service';
 
 @ApiTags('Corporate ETS - Rosters')
-@Controller('v1/corporate/rosters')
+@Controller('corporate/rosters')
 export class CorporateRosterController {
   constructor(
     private readonly rosterTemplateService: RosterTemplateService,

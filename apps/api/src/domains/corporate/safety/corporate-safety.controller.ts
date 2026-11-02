@@ -18,7 +18,7 @@ import {
 } from '@adhocx/contracts';
 
 @ApiTags('Corporate ETS - Safety SOS & Command Centre')
-@Controller('v1/corporate/safety')
+@Controller('corporate/safety')
 export class CorporateSafetyController {
   constructor(private readonly safetyService: CorporateSafetyService) {}
 

@@ -19,7 +19,7 @@ import {
 } from '@adhocx/contracts';
 
 @ApiTags('Corporate ETS - Dual Financial Ledgers, Invoicing & Payouts')
-@Controller('v1/corporate/billing')
+@Controller('corporate/billing')
 export class CorporateBillingController {
   constructor(private readonly billingService: CorporateBillingService) {}
 

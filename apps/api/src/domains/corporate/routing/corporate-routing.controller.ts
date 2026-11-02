@@ -14,7 +14,7 @@ import { DatabaseService } from '../../../database/database.service';
 import { RouteOptimizationOptions } from './routing.types';
 
 @ApiTags('Corporate ETS - Routing')
-@Controller('v1/corporate/routes')
+@Controller('corporate/routes')
 export class CorporateRoutingController {
   constructor(
     private readonly routeSolverService: RouteSolverService,
