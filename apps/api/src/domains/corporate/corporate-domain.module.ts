@@ -27,6 +27,9 @@ import { CorporateDispatchController } from './dispatch/corporate-dispatch.contr
 import { CorporateTripExecutionService } from './execution/corporate-trip-execution.service';
 import { CorporateTripExecutionController } from './execution/corporate-trip-execution.controller';
 
+// Cancel / Reschedule Route Re-planning Sub-Module
+import { CorporateReplanningService } from './replanning/corporate-replanning.service';
+
 // Safety SOS, Route Deviation & Command Centre Sub-Module
 import { CorporateSafetyService } from './safety/corporate-safety.service';
 import { CorporateSafetyController } from './safety/corporate-safety.controller';
@@ -57,6 +60,7 @@ import { CorporateBillingController } from './billing/corporate-billing.controll
     CorporateDispatchService,
     CorporateDispatchSchedulerService,
     CorporateTripExecutionService,
+    CorporateReplanningService,
     CorporateSafetyService,
     CorporateBillingService,
   ],
@@ -77,6 +81,7 @@ import { CorporateBillingController } from './billing/corporate-billing.controll
     CorporateDispatchService,
     CorporateDispatchSchedulerService,
     CorporateTripExecutionService,
+    CorporateReplanningService,
     CorporateSafetyService,
     CorporateBillingService,
   ],

@@ -15,6 +15,7 @@ import {
   RouteTelemetryDto,
   MarkNoShowDto,
   RescheduleRequestDto,
+  AdminRescheduleRequestDto,
 } from './trip-execution.types';
 
 @ApiTags('Corporate ETS - Trip Execution & OTP Boarding')
@@ -163,7 +164,44 @@ export class CorporateTripExecutionController {
     if (!body.employeeId || !body.action) {
       throw new BadRequestException('employeeId and action are required');
     }
-    return this.executionService.handleRescheduleOrCancel(requestId, body);
+    // Employee channel: never honour a cutoff override from the request body.
+    return this.executionService.handleRescheduleOrCancel(requestId, {
+      employeeId: body.employeeId,
+      action: body.action,
+      newShiftTime: body.newShiftTime,
+    });
+  }
+
+  @Post('requests/:id/admin-reschedule')
+  @ApiOperation({
+    summary:
+      'Corporate admin cancels/reschedules on behalf of an employee, explicitly overriding the 9-hour cutoff (audited)',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', enum: ['CANCEL', 'RESCHEDULE'] },
+        newShiftTime: { type: 'string', example: '09:00' },
+        employeeId: { type: 'string' },
+        actorUserId: { type: 'string' },
+        reason: { type: 'string', example: 'Medical emergency approved by HR' },
+      },
+      required: ['action', 'actorUserId', 'reason'],
+    },
+  })
+  public async adminRescheduleOrCancel(
+    @Param('id') requestId: string,
+    @Body() body: AdminRescheduleRequestDto,
+  ) {
+    if (!body.action || !body.actorUserId || !body.reason) {
+      throw new BadRequestException('action, actorUserId and reason are required');
+    }
+    return this.executionService.handleRescheduleOrCancel(
+      requestId,
+      { employeeId: body.employeeId as string, action: body.action, newShiftTime: body.newShiftTime },
+      { override: { actorUserId: body.actorUserId, reason: body.reason } },
+    );
   }
 }
 

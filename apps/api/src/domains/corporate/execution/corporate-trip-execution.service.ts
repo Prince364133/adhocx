@@ -3,6 +3,7 @@ import {
   Logger,
   BadRequestException,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service';
 import { RedisService } from '../../../redis/redis.service';
@@ -19,6 +20,14 @@ import {
   RouteWaypointsResult,
   RescheduleRequestDto,
 } from './trip-execution.types';
+import { CorporateReplanningService } from '../replanning/corporate-replanning.service';
+import {
+  CutoffOverride,
+  evaluateCutoff,
+  formatIst,
+  isValidShiftTime,
+  resolvePickupTime,
+} from '../replanning/cutoff-policy';
 
 @Injectable()
 export class CorporateTripExecutionService {
@@ -34,6 +43,7 @@ export class CorporateTripExecutionService {
     private readonly redis: RedisService,
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
+    @Optional() private readonly replanning?: CorporateReplanningService,
   ) {}
 
   /**
@@ -386,69 +396,119 @@ export class CorporateTripExecutionService {
   }
 
   /**
-   * Enforces the 9-hour cutoff rule for shift reschedule and cancellation requests.
+   * Employee cancel / shift-reschedule with the 9-hour cutoff, followed by automatic route re-planning.
+   *
+   * Cutoff: allowed until exactly 9h before the employee's pickup (planned stop ETA for LOGIN,
+   * office departure for LOGOUT, shift wall-clock if not yet routed), evaluated in Asia/Kolkata.
+   * e.g. 07:00 IST pickup -> last allowed modification 22:00 IST the previous evening.
+   * `options.override` (admin/company only, never taken from the employee request body) bypasses it.
+   *
+   * Re-planning (CorporateReplanningService): stop removed from the old route (PLANNED routes are
+   * re-sequenced/re-timed, emptied routes cancelled, under-filled routes merged; dispatched routes
+   * get the stop cancelled in place + driver notified) and, on reschedule, the employee is inserted
+   * into a PLANNED route of the new shift with spare capacity, else a new route.
    */
   public async handleRescheduleOrCancel(
     requestId: string,
     dto: RescheduleRequestDto,
+    options: { override?: CutoffOverride | null; now?: Date } = {},
   ): Promise<any> {
-    const req = await this.db.corporateTransportRequest.findUnique({
+    const now = options.now ?? new Date();
+    const override = options.override ?? null;
+    if (override && (!override.actorUserId || !override.reason)) {
+      throw new BadRequestException('Cutoff override requires actorUserId and reason');
+    }
+
+    const req: any = await this.db.corporateTransportRequest.findUnique({
       where: { id: requestId },
-      include: { employee: true },
+      include: { employee: true, routeStop: { include: { route: true } } },
     });
 
     if (!req) {
       throw new NotFoundException(`Transport request ${requestId} not found`);
     }
 
-    if (req.employeeId !== dto.employeeId) {
+    if (dto.employeeId && req.employeeId !== dto.employeeId) {
       throw new BadRequestException('Unauthorized: Request does not belong to this employee');
+    }
+    if (!dto.employeeId && !override) {
+      throw new BadRequestException('employeeId is required');
+    }
+    if (dto.action !== 'CANCEL' && dto.action !== 'RESCHEDULE') {
+      throw new BadRequestException(`Unsupported action ${String(dto.action)}`);
+    }
+    if (dto.action === 'RESCHEDULE') {
+      if (!dto.newShiftTime) {
+        throw new BadRequestException('newShiftTime is required for shift rescheduling');
+      }
+      if (!isValidShiftTime(dto.newShiftTime)) {
+        throw new BadRequestException(`newShiftTime must be HH:mm (got ${dto.newShiftTime})`);
+      }
+    }
+
+    // Idempotent double submit: already in the requested end-state -> no-op success (even past cutoff).
+    const alreadyApplied =
+      (dto.action === 'CANCEL' && req.status === 'CANCELLED') ||
+      (dto.action === 'RESCHEDULE' &&
+        req.shiftTime === dto.newShiftTime &&
+        !['CANCELLED', 'COMPLETED', 'IN_PROGRESS', 'UNSERVED'].includes(req.status));
+    if (alreadyApplied) {
+      const { employee: _e, routeStop: _s, ...rest } = req;
+      return { ...rest, replan: { requestId, action: dto.action, idempotent: true, merges: [] } };
     }
 
     if (req.status === 'CANCELLED' || req.status === 'COMPLETED') {
       throw new BadRequestException(`Request is already in terminal state ${req.status}`);
     }
 
-    // Calculate hours remaining until scheduled shift
-    const scheduledDateTime = new Date(`${req.scheduledDate.toISOString().split('T')[0]}T${req.shiftTime}:00`);
-    const hoursRemaining = (scheduledDateTime.getTime() - Date.now()) / (1000 * 60 * 60);
-
-    if (hoursRemaining < this.RESCHEDULE_CUTOFF_HOURS) {
+    const { pickupAt, source } = resolvePickupTime(req);
+    const cutoff = evaluateCutoff(pickupAt, source, now, override);
+    if (!cutoff.allowed) {
       throw new BadRequestException(
-        `Modification locked: Rescheduling and cancellations must be submitted at least ${this.RESCHEDULE_CUTOFF_HOURS} hours prior to scheduled shift (only ${hoursRemaining.toFixed(1)}h remaining).`,
+        `Modification locked: Rescheduling and cancellations must be submitted at least ${this.RESCHEDULE_CUTOFF_HOURS} hours prior to scheduled shift pickup ` +
+          `(pickup ${formatIst(pickupAt)}, cutoff ${formatIst(cutoff.cutoffAt)}; only ${cutoff.hoursUntilPickup.toFixed(1)}h remaining).`,
       );
     }
+    if (cutoff.overridden) {
+      this.logger.warn(
+        `Request ${requestId}: 9h cutoff overridden by ${override!.actorUserId} (${override!.reason})`,
+      );
+      await this.audit.log({
+        userId: override!.actorUserId,
+        actorRole: 'CORPORATE_ADMIN',
+        action: 'CORPORATE_CUTOFF_OVERRIDDEN',
+        entityType: 'CORPORATE_TRANSPORT_REQUEST',
+        entityId: requestId,
+        metadata: { action: dto.action, reason: override!.reason, pickupAt, cutoffAt: cutoff.cutoffAt },
+      });
+    }
 
+    if (this.replanning) {
+      const ctx = { now, override, cutoff };
+      const result =
+        dto.action === 'CANCEL'
+          ? await this.replanning.cancelRequest(requestId, ctx)
+          : await this.replanning.rescheduleRequest(requestId, dto.newShiftTime as string, ctx);
+      return { ...result.request, replan: result };
+    }
+
+    // Legacy fallback (replanning service not wired, e.g. narrow unit-test modules): status-only update.
+    this.logger.warn(`CorporateReplanningService unavailable; request ${requestId} updated without route re-planning`);
     if (dto.action === 'CANCEL') {
       const updated = await this.db.corporateTransportRequest.update({
         where: { id: requestId },
         data: { status: 'CANCELLED' },
       });
-
-      // If already attached to a route stop, mark stop CANCELLED
       await this.db.corporateRouteStop.updateMany({
         where: { transportRequestId: requestId },
         data: { status: 'CANCELLED' },
       });
-
-      this.logger.log(`Request ${requestId} cancelled with >9h advance notice`);
-      return updated;
-    } else {
-      if (!dto.newShiftTime) {
-        throw new BadRequestException('newShiftTime is required for shift rescheduling');
-      }
-
-      const updated = await this.db.corporateTransportRequest.update({
-        where: { id: requestId },
-        data: {
-          shiftTime: dto.newShiftTime,
-          status: 'RESCHEDULED',
-        },
-      });
-
-      this.logger.log(`Request ${requestId} rescheduled to shift ${dto.newShiftTime}`);
       return updated;
     }
+    return this.db.corporateTransportRequest.update({
+      where: { id: requestId },
+      data: { shiftTime: dto.newShiftTime, status: 'RESCHEDULED' },
+    });
   }
 
   /**
