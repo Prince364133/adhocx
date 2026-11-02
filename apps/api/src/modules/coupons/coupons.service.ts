@@ -545,7 +545,7 @@ export class CouponsService {
     }
 
     // 7. Calculate Discount Amount
-    let discount = 0;
+    let discount: number;
     if (coupon.discountType === CouponDiscountType.PERCENTAGE) {
       const percent = Number(coupon.discountValue);
       discount = (amount * percent) / 100;

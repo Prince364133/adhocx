@@ -121,7 +121,7 @@ export class RequirementsService {
     const distanceKm = roadRoute.distanceKm;
 
     let ratePerVehicle = dto.ratePerVehicle;
-    let suggestedBudget = dto.suggestedBudget;
+    const suggestedBudget = dto.suggestedBudget;
     let totalAmount = 0;
 
     if (zonalSnapshot) {

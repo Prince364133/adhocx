@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import {
-  BellRing,
   Send,
   Smartphone,
   CheckCircle2,
@@ -13,21 +12,12 @@ import {
   ShieldCheck,
   Globe,
   Layers,
-  Sparkles,
   RefreshCw,
   ExternalLink,
-  ChevronRight,
-  Sliders,
-  Image as ImageIcon,
-  Zap,
-  Info,
   Laptop,
   Check,
   X,
   Eye,
-  Trash2,
-  Clock,
-  Filter,
 } from 'lucide-react';
 import { adminApi } from '../../lib/api/client';
 import {
@@ -38,7 +28,7 @@ import {
   TestPushPayload,
   AudienceEstimateResult,
 } from '../../lib/api/types';
-import { PageHeader, MetricCard, Button, FilterBar, DataTable, StatusBadge } from '../../components/common';
+import { PageHeader, MetricCard, Button, StatusBadge } from '../../components/common';
 import { Modal } from '../../components/Modal';
 
 const VEHICLE_TYPES = [
@@ -80,9 +70,8 @@ export default function NotificationsPage() {
 
   // Campaigns list
   const [campaigns, setCampaigns] = useState<NotificationCampaignItem[]>([]);
-  const [campaignSearch, setCampaignSearch] = useState('');
-  const [campaignPage, setCampaignPage] = useState(1);
-  const [totalCampaignsCount, setTotalCampaignsCount] = useState(0);
+  const [campaignPage] = useState(1);
+  const [, setTotalCampaignsCount] = useState(0);
 
   // Live Audience Estimate
   const [audienceEstimate, setAudienceEstimate] = useState<AudienceEstimateResult>({
@@ -257,8 +246,6 @@ export default function NotificationsPage() {
       setSubmitting(false);
     }
   }
-
-  const effectiveRoute = actionUrl === 'CUSTOM' ? customActionUrl : actionUrl;
 
   return (
     <div className="admin-page-container" style={{ padding: '1.75rem 2rem', maxWidth: '1600px', margin: '0 auto' }}>

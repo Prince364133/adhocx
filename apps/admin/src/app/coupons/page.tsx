@@ -75,11 +75,6 @@ export default function CouponsPage() {
     }
   }
 
-  async function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    loadData();
-  }
-
   async function handleOpenRedemptions(coupon: CouponListItem) {
     setSelectedRedemptionsCoupon(coupon);
     setLoadingRedemptions(true);

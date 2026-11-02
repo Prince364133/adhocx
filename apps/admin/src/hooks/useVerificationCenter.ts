@@ -34,7 +34,7 @@ export function useVerificationCenter() {
       ]);
 
       const normalizedDrivers: VerificationItem[] = (drivers || []).map((d: any) => {
-        let docs: any[] = [];
+        let docs: any[];
         const kycDocsObj = d.kycDocuments && typeof d.kycDocuments === 'object' ? d.kycDocuments : null;
 
         if (Array.isArray(kycDocsObj?.documents) && kycDocsObj.documents.length > 0) {

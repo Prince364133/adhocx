@@ -411,7 +411,7 @@ export class FileSanitizerService {
     // Remove path traversal and null bytes
     let clean = filename
       .replace(/\0/g, '')
-      .replace(/[\/\\]+/g, '_')
+      .replace(/[/\\]+/g, '_')
       .replace(/\.\.+/g, '_')
       .trim();
 

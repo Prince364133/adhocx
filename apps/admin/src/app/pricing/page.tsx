@@ -6,16 +6,9 @@ import {
   Truck,
   Bus,
   Percent,
-  Zap,
-  Receipt,
   X,
   Sliders,
   Calculator,
-  ShieldAlert,
-  Save,
-  RotateCcw,
-  CheckCircle2,
-  Calendar,
   Wallet,
   Award,
   Plus,
@@ -46,8 +39,7 @@ export default function PricingPage() {
     gstPercent: 5.0,
   });
   const [loading, setLoading] = useState(true);
-  const [policyLoading, setPolicyLoading] = useState(false);
-  const [selectedCard, setSelectedCard] = useState<RateCard | null>(null);
+  const [, setSelectedCard] = useState<RateCard | null>(null);
   const [editingCard, setEditingCard] = useState<RateCard | null>(null);
   const [saving, setSaving] = useState(false);
   const [savingPolicy, setSavingPolicy] = useState(false);

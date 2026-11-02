@@ -70,7 +70,6 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
   };
 
   const isDriver = item.entityType === 'DRIVER';
-  const isUnderReview = item.verificationStatus === 'UNDER_REVIEW';
   const isVerified = item.verificationStatus === 'VERIFIED';
   const isRejected = item.verificationStatus === 'REJECTED';
 

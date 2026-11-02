@@ -5,34 +5,15 @@ import Link from 'next/link';
 import {
   ShieldCheck,
   ClipboardList,
-  AlertTriangle,
   Car,
   Users,
   Building2,
-  CheckCircle2,
-  Wallet,
   ArrowRight,
-  TrendingUp,
   Radio,
   Activity,
-  FileText,
-  BadgeCheck,
-  Check,
-  Zap,
   DollarSign,
   MapPin,
-  Clock,
-  Layers,
-  ArrowUpRight,
   RefreshCw,
-  Server,
-  Database,
-  Lock,
-  Search,
-  ExternalLink,
-  ChevronRight,
-  Sparkles,
-  SlidersHorizontal,
 } from 'lucide-react';
 import { adminApi } from '../../lib/api/client';
 import {
@@ -77,10 +58,10 @@ export default function DashboardPage() {
   const [corridors, setCorridors] = useState<CorridorAnalytics[]>([]);
   const [recentLogs, setRecentLogs] = useState<AuditLogItem[]>([]);
   const [recentRequirements, setRecentRequirements] = useState<RequirementListItem[]>([]);
-  const [activeTripsList, setActiveTripsList] = useState<TripListItem[]>([]);
+  const [, setActiveTripsList] = useState<TripListItem[]>([]);
   const [activeChartTab, setActiveChartTab] = useState<'REVENUE' | 'ECOSYSTEM' | 'FLEET' | 'CORRIDORS'>('REVENUE');
 
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
 

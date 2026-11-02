@@ -21,7 +21,6 @@ import {
   MetricCard,
   FilterBar,
   DataTable,
-  StatusBadge,
   Button,
 } from '../../components/common';
 

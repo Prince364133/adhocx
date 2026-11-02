@@ -165,7 +165,7 @@ export class DriversService {
         createdAt: driver.createdAt.toISOString(),
         updatedAt: driver.updatedAt.toISOString(),
       };
-    } catch (e) {
+    } catch {
       let user: any = null;
       try {
         if (this.db?.user?.findUnique) {
@@ -472,7 +472,7 @@ export class DriversService {
             ...(cleanPhone ? { phone: cleanPhone } : {}),
           },
         });
-      } catch (userUpErr: any) {
+      } catch {
         if (cleanName) {
           await this.db.user.update({
             where: { id: userId },
@@ -842,7 +842,7 @@ export class DriversService {
     let completionScore = 0.0;
     let completionPercentage = 0;
     let completionTitle = 'Trip Completion & Non-Cancellation';
-    let completionDescription = 'No trips completed yet';
+    let completionDescription: string;
     let completionStatus: 'EXCELLENT' | 'GOOD' | 'FAIR' | 'NEEDS_IMPROVEMENT' = 'FAIR';
 
     if (totalRecordedTrips > 0) {
@@ -897,7 +897,7 @@ export class DriversService {
     // 4. On-Time Arrival & ETA Accuracy (Max 15 pts)
     let punctualityScore = 0.0;
     let punctualityPercentage = 0;
-    let punctualityTitle = 'On-Time Arrival & ETA Accuracy';
+    const punctualityTitle = 'On-Time Arrival & ETA Accuracy';
     let punctualityDescription = 'No trips completed yet to evaluate arrival accuracy';
     let punctualityStatus: 'EXCELLENT' | 'GOOD' | 'FAIR' | 'NEEDS_IMPROVEMENT' = 'FAIR';
 
@@ -911,7 +911,7 @@ export class DriversService {
     // 5. Clean Streak & Loyalty Bonus (Max 10 pts)
     let loyaltyScore = 0.0;
     let loyaltyPercentage = 0;
-    let loyaltyTitle = 'Clean Streak & Loyalty Bonus';
+    const loyaltyTitle = 'Clean Streak & Loyalty Bonus';
     let loyaltyDescription = '0 completed trips without disputes';
     let loyaltyStatus: 'EXCELLENT' | 'GOOD' | 'FAIR' | 'NEEDS_IMPROVEMENT' = 'FAIR';
 
@@ -923,8 +923,8 @@ export class DriversService {
       loyaltyStatus = loyaltyScore >= 8.0 ? 'EXCELLENT' : loyaltyScore >= 5.0 ? 'GOOD' : 'FAIR';
     }
 
-    let tier: 'PLATINUM' | 'GOLD' | 'SILVER' | 'BRONZE' = 'BRONZE';
-    let tierBenefits: string[] = [];
+    let tier: 'PLATINUM' | 'GOLD' | 'SILVER' | 'BRONZE';
+    let tierBenefits: string[];
 
     if (isRookie) {
       tier = totalRecordedTrips >= 15 ? 'GOLD' : 'SILVER';

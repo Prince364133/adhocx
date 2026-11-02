@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Search, RotateCw, RefreshCw } from 'lucide-react';
+import { Search, RotateCw } from 'lucide-react';
 import { EntityFilter, StatusFilter } from '../../hooks/useVerificationCenter';
 
 interface FilterBarProps {

@@ -2,21 +2,8 @@
 
 import React, { useState } from 'react';
 import {
-  TrendingUp,
-  ArrowUpRight,
-  DollarSign,
-  Users,
   Car,
-  Building2,
-  Layers,
-  Activity,
-  Calendar,
-  CheckCircle2,
-  Clock,
-  ShieldCheck,
-  Zap,
   MapPin,
-  HelpCircle,
 } from 'lucide-react';
 
 /* ─────────────────────────────────────────────────────────────

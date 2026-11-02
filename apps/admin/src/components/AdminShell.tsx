@@ -10,7 +10,7 @@ import {
   getStoredAdminToken,
   clearAdminSession,
 } from '../lib/api/client';
-import { Loader2, ShieldAlert } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
@@ -18,7 +18,6 @@ export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }
   const isLoginPage = pathname === '/login';
 
   const [isVerifying, setIsVerifying] = useState(!isLoginPage);
-  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
     // If on the login page, no shell authentication verification is needed
@@ -44,7 +43,7 @@ export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }
         if (isMounted) {
           setIsVerifying(false);
         }
-      } catch (err: any) {
+      } catch {
         if (isMounted) {
           clearAdminSession();
           const redirect = encodeURIComponent(pathname);

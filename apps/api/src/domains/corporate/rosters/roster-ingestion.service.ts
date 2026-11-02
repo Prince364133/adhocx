@@ -83,7 +83,7 @@ export class RosterIngestionService {
       }
 
       // 4. Phone Number (Indian mobile format: 10 digits)
-      const sanitizedPhone = row.phoneNumber ? row.phoneNumber.replace(/[\s\-\+]/g, '') : '';
+      const sanitizedPhone = row.phoneNumber ? row.phoneNumber.replace(/[\s\-+]/g, '') : '';
       if (!sanitizedPhone || sanitizedPhone.length < 10) {
         rowErrors.push({
           rowNumber: row.rowNumber,

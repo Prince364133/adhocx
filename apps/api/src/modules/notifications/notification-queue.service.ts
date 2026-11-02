@@ -121,7 +121,8 @@ export class NotificationQueueService implements OnModuleInit, OnModuleDestroy {
       .replace(/javascript:/gi, '')
       .replace(/onerror=/gi, '')
       .replace(/onload=/gi, '')
-      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // remove non-printable ASCII
+      // eslint-disable-next-line no-control-regex -- deliberately strips non-printable ASCII
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
       .trim();
   }
 

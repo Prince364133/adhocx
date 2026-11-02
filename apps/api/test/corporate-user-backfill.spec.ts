@@ -1,4 +1,3 @@
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { planBackfill, normPhone } = require('../scripts/backfill-corporate-user-links.js');
 
 /** Matching rules of the one-off corporate user <-> employee / tenant backfill (pure planning step). */

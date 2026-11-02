@@ -9,7 +9,7 @@ import {
 
 export class PrismaDriverMapper {
   public static toDomain(raw: PrismaDriver): DriverAggregate {
-    let verificationStatus: DriverVerificationStatus = 'PENDING';
+    let verificationStatus: DriverVerificationStatus;
     switch (raw.verificationStatus) {
       case 'VERIFIED':
         verificationStatus = 'VERIFIED';
@@ -25,7 +25,7 @@ export class PrismaDriverMapper {
         break;
     }
 
-    let dutyStatus: DriverDutyStatus = 'OFFLINE';
+    let dutyStatus: DriverDutyStatus;
     switch (raw.availabilityStatus) {
       case 'AVAILABLE':
         dutyStatus = 'ONLINE';

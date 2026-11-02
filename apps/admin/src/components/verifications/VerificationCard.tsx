@@ -17,7 +17,7 @@ export const VerificationCard: React.FC<CardProps> = ({
   onSelect,
   onApproveQuick,
   onDeclineQuick,
-  isProcessing = false,
+  isProcessing: _isProcessing = false,
 }) => {
   const isDriver = item.entityType === 'DRIVER';
   const isUnderReview = item.verificationStatus === 'UNDER_REVIEW' || item.verificationStatus === 'PENDING';

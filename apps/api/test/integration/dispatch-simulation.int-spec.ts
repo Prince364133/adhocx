@@ -55,7 +55,7 @@ const isSafeTarget = (() => {
 
 const describeSim = isSafeTarget ? describe : describe.skip;
 if (!isSafeTarget) {
-  // eslint-disable-next-line no-console
+   
   console.warn('[dispatch-simulation] skipped: set SIMULATION_DATABASE_URL to a LOCAL *_sim/*_test database');
 }
 
@@ -837,7 +837,7 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
       prisma.offer.count({ where: { status: OfferStatus.DECLINED } }),
       prisma.driver.count({ where: { lastCooldownAt: { not: null } } }),
     ]);
-    // eslint-disable-next-line no-console
+     
     console.log(
       `[dispatch-simulation] rides=${ridesBooked} requirements=${reqs} completedTrips=${completedTrips} ` +
         `cancelledTrips=${cancelledTrips} expiredOffers=${expired} declinedOffers=${declined} driversCooledDown=${cooldowns} routingCalls=${routing.calls}`,

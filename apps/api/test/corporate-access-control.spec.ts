@@ -371,7 +371,7 @@ describe('Corporate access control', () => {
 
     function discoverControllers(): any[] {
       return findControllerFiles(corporateDir).flatMap((file) =>
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
+         
         Object.values(require(file)).filter(
           (exp: any) => typeof exp === 'function' && Reflect.getMetadata(PATH_METADATA, exp) !== undefined,
         ),

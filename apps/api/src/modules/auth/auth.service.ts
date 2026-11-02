@@ -149,7 +149,7 @@ export class AuthService implements OnModuleInit {
     const { isEmail, value, phoneVariants } = this.normalizeIdentifier(dto.identifier);
     this.logger.log(`🛡️ [ADMIN LOGIN ATTEMPT] Identifier: ${value} (isEmail: ${isEmail})`);
 
-    let user: any = null;
+    let user: any;
     try {
       if (isEmail) {
         user = await this.db.user.findFirst({
@@ -269,7 +269,7 @@ export class AuthService implements OnModuleInit {
     const { isEmail, value, phoneVariants } = this.normalizeIdentifier(dto.identifier);
     this.logger.log(`🔑 [LOGIN ATTEMPT] Identifier: ${value} (isEmail: ${isEmail})`);
 
-    let user: any = null;
+    let user: any;
     try {
       if (isEmail) {
         user = await this.db.user.findFirst({
@@ -741,7 +741,7 @@ export class AuthService implements OnModuleInit {
     // Hash new password
     const passwordHash = this.hashPassword(dto.password);
 
-    let user: any = null;
+    let user: any;
     try {
       if (isEmail) {
         user = await this.db.user.findFirst({

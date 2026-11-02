@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Bell, CheckCheck, ExternalLink, X, Send, Radio, AlertCircle, CheckCircle2, LogOut } from 'lucide-react';
+import { Bell, CheckCheck, ExternalLink, X, Send, LogOut } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 import { adminApi, getStoredAdminUser } from '../lib/api/client';
 import { InAppNotificationItem } from '../lib/api/types';
