@@ -2,6 +2,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { CorporateBillingService } from '../src/domains/corporate/billing/corporate-billing.service';
 import { CorporateBillingController } from '../src/domains/corporate/billing/corporate-billing.controller';
+import { JwtAuthGuard } from '../src/common/guards/auth.guard';
+import { RolesGuard } from '../src/common/guards/roles.guard';
+import { CorporateAccessGuard } from '../src/common/guards/corporate-access.guard';
 import { DatabaseService } from '../src/database/database.service';
 import { NotificationsService } from '../src/modules/notifications/notifications.service';
 import { AuditService } from '../src/modules/audit/audit.service';
@@ -99,7 +102,12 @@ describe('Corporate Tax Invoice PDF Stream (Sec 31 CGST Act)', () => {
         { provide: NotificationsService, useValue: mockNotifications },
         { provide: AuditService, useValue: mockAudit },
       ],
-    }).compile();
+    })
+      // Handlers are invoked directly here; access control is covered in corporate-access-control.spec.ts.
+      .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
+      .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
+      .overrideGuard(CorporateAccessGuard).useValue({ canActivate: () => true })
+      .compile();
 
     service = module.get<CorporateBillingService>(CorporateBillingService);
     controller = module.get<CorporateBillingController>(CorporateBillingController);

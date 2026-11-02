@@ -5,8 +5,16 @@ import {
   Param,
   Body,
   BadRequestException,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
+import { UserRole } from '@adhocx/contracts';
+import { JwtAuthGuard } from '../../../common/guards/auth.guard';
+import { RolesGuard } from '../../../common/guards/roles.guard';
+import { CorporateAccessGuard } from '../../../common/guards/corporate-access.guard';
+import { Roles } from '../../../common/decorators/roles.decorator';
+import { CorporateResource } from '../../../common/decorators/corporate-resource.decorator';
 import { CorporateTripExecutionService } from './corporate-trip-execution.service';
 import {
   ArriveAtStopDto,
@@ -20,11 +28,15 @@ import {
 } from './trip-execution.types';
 
 @ApiTags('Corporate ETS - Trip Execution & OTP Boarding')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard, CorporateAccessGuard)
 @Controller('corporate/trips')
 export class CorporateTripExecutionController {
   constructor(private readonly executionService: CorporateTripExecutionService) {}
 
   @Post('routes/:id/start')
+  @Roles(UserRole.ADMIN, UserRole.DRIVER)
+  @CorporateResource('route', 'id')
   @ApiOperation({
     summary:
       'Driver starts driving toward pickup 1 (ASSIGNED -> IN_TRANSIT). Notifies every employee with individual ETA',
@@ -44,6 +56,8 @@ export class CorporateTripExecutionController {
   }
 
   @Post('routes/:id/stops/:stopId/arrive')
+  @Roles(UserRole.ADMIN, UserRole.DRIVER)
+  @CorporateResource('stop', 'stopId')
   @ApiOperation({
     summary:
       'Driver marks arrival at pickup stop. Geofence verified (<150m), triggers immutable 5-minute dwell timer',
@@ -70,6 +84,8 @@ export class CorporateTripExecutionController {
   }
 
   @Post('routes/:id/stops/:stopId/verify-otp')
+  @Roles(UserRole.ADMIN, UserRole.DRIVER)
+  @CorporateResource('stop', 'stopId')
   @ApiOperation({
     summary:
       'Driver validates 4-digit numeric boarding OTP presented by employee. Transitions stop to BOARDED',
@@ -95,6 +111,8 @@ export class CorporateTripExecutionController {
   }
 
   @Post('routes/:id/stops/:stopId/no-show')
+  @Roles(UserRole.ADMIN, UserRole.DRIVER)
+  @CorporateResource('stop', 'stopId')
   @ApiOperation({
     summary:
       'Driver marks employee as No-Show after 5-minute wait window has elapsed. Departs immediately to next stop',
@@ -116,12 +134,16 @@ export class CorporateTripExecutionController {
   }
 
   @Post('routes/:id/complete')
+  @Roles(UserRole.ADMIN, UserRole.DRIVER)
+  @CorporateResource('route', 'id')
   @ApiOperation({ summary: 'Complete corporate route upon reaching office destination hub' })
   public async completeRoute(@Param('id') routeId: string) {
     return this.executionService.completeRoute(routeId);
   }
 
   @Get('routes/:id/stops/:stopId/boarding-qr')
+  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
+  @CorporateResource('stop', 'stopId')
   @ApiOperation({ summary: 'Generate dynamic, time-limited QR boarding token for employee mobile app' })
   public async getBoardingQr(
     @Param('id') routeId: string,
@@ -131,6 +153,8 @@ export class CorporateTripExecutionController {
   }
 
   @Post('routes/:id/stops/:stopId/verify-qr')
+  @Roles(UserRole.ADMIN, UserRole.DRIVER)
+  @CorporateResource('stop', 'stopId')
   @ApiOperation({ summary: 'Driver scans employee dynamic QR code to verify boarding and departure' })
   public async verifyQr(
     @Param('id') routeId: string,
@@ -144,6 +168,8 @@ export class CorporateTripExecutionController {
   }
 
   @Post('routes/:id/telemetry')
+  @Roles(UserRole.ADMIN, UserRole.DRIVER)
+  @CorporateResource('route', 'id')
   @ApiOperation({ summary: 'Ingest live driver GPS telemetry and broadcast to Corporate Live Map' })
   public async ingestTelemetry(
     @Param('id') routeId: string,
@@ -156,12 +182,16 @@ export class CorporateTripExecutionController {
   }
 
   @Get('routes/:id/waypoints')
+  @Roles(UserRole.ADMIN, UserRole.DRIVER)
+  @CorporateResource('route', 'id')
   @ApiOperation({ summary: 'Retrieve ordered waypoints and corridor polyline for driver turn-by-turn navigation' })
   public async getWaypoints(@Param('id') routeId: string) {
     return this.executionService.getRouteWaypoints(routeId);
   }
 
   @Post('requests/:id/reschedule')
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.EMPLOYEE)
+  @CorporateResource('request', 'id')
   @ApiOperation({
     summary:
       'Employee reschedules shift or cancels transport request. Strictly enforces the 9-hour cutoff rule',
@@ -193,6 +223,8 @@ export class CorporateTripExecutionController {
   }
 
   @Post('requests/:id/admin-reschedule')
+  @Roles(UserRole.ADMIN)
+  @CorporateResource('request', 'id')
   @ApiOperation({
     summary:
       'Corporate admin cancels/reschedules on behalf of an employee, explicitly overriding the 9-hour cutoff (audited)',
@@ -207,20 +239,24 @@ export class CorporateTripExecutionController {
         actorUserId: { type: 'string' },
         reason: { type: 'string', example: 'Medical emergency approved by HR' },
       },
-      required: ['action', 'actorUserId', 'reason'],
+      required: ['action', 'reason'],
     },
   })
   public async adminRescheduleOrCancel(
     @Param('id') requestId: string,
     @Body() body: AdminRescheduleRequestDto,
+    @Req() req?: any,
   ) {
-    if (!body.action || !body.actorUserId || !body.reason) {
+    // The audited override actor is the authenticated admin; a body value is only
+    // honoured when no authenticated user is present (direct service-level calls).
+    const actorUserId = req?.user?.id ?? body.actorUserId;
+    if (!body.action || !actorUserId || !body.reason) {
       throw new BadRequestException('action, actorUserId and reason are required');
     }
     return this.executionService.handleRescheduleOrCancel(
       requestId,
       { employeeId: body.employeeId as string, action: body.action, newShiftTime: body.newShiftTime },
-      { override: { actorUserId: body.actorUserId, reason: body.reason } },
+      { override: { actorUserId, reason: body.reason } },
     );
   }
 }

@@ -2,6 +2,9 @@ import { Test } from '@nestjs/testing';
 import { randomUUID } from 'crypto';
 import { CorporateTripExecutionService } from '../src/domains/corporate/execution/corporate-trip-execution.service';
 import { CorporateTripExecutionController } from '../src/domains/corporate/execution/corporate-trip-execution.controller';
+import { JwtAuthGuard } from '../src/common/guards/auth.guard';
+import { RolesGuard } from '../src/common/guards/roles.guard';
+import { CorporateAccessGuard } from '../src/common/guards/corporate-access.guard';
 import { CorporateReplanningService } from '../src/domains/corporate/replanning/corporate-replanning.service';
 import { RouteSolverService } from '../src/domains/corporate/routing/route-solver.service';
 import {
@@ -434,7 +437,12 @@ beforeEach(async () => {
       { provide: NotificationsService, useValue: notifications },
       { provide: AuditService, useValue: audit },
     ],
-  }).compile();
+  })
+    // Handlers are invoked directly here; access control is covered in corporate-access-control.spec.ts.
+    .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
+    .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
+    .overrideGuard(CorporateAccessGuard).useValue({ canActivate: () => true })
+    .compile();
   exec = moduleRef.get(CorporateTripExecutionService);
   replanning = moduleRef.get(CorporateReplanningService);
   controller = moduleRef.get(CorporateTripExecutionController);

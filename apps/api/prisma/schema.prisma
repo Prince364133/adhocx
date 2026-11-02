@@ -143,6 +143,8 @@ model User {
   fullName     String?    @map("full_name")
   role         UserRole   @default(DRIVER)
   status       UserStatus @default(ACTIVE)
+  /// Corporate tenant this user belongs to (CORPORATE_ADMIN / CORPORATE_MANAGER / EMPLOYEE). Null for platform users.
+  corporateTenantId String? @map("corporate_tenant_id") @db.Uuid
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
 
@@ -157,7 +159,10 @@ model User {
   deviceTokens           DeviceToken[]
   notifications          Notification[]
   notificationPreference NotificationPreference?
+  corporateTenant        CorporateTenant?        @relation(fields: [corporateTenantId], references: [id], onDelete: SetNull)
+  corporateEmployee      CorporateEmployee?
 
+  @@index([corporateTenantId])
   @@map("users")
 }
 
@@ -946,6 +951,7 @@ model CorporateTenant {
   transportRequests CorporateTransportRequest[]
   routes            CorporateRoute[]
   invoices          CorporateInvoice[]
+  users             User[]
 
   @@map("corporate_tenants")
 }
@@ -985,9 +991,12 @@ model CorporateEmployee {
   department   String?         @db.VarChar(64)
   costCenter   String?         @map("cost_center") @db.VarChar(64)
   isActive     Boolean         @default(true) @map("is_active")
+  /// Login account of this employee (EMPLOYEE role). Null until the employee is onboarded to the rider app.
+  userId       String?         @unique @map("user_id") @db.Uuid
   createdAt    DateTime        @default(now()) @map("created_at")
   updatedAt    DateTime        @default(now()) @updatedAt @map("updated_at")
 
+  user              User?                       @relation(fields: [userId], references: [id], onDelete: SetNull)
   tenant            CorporateTenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   office            CorporateOffice             @relation(fields: [officeId], references: [id])
   locations         CorporateEmployeeLocation[]

@@ -5,12 +5,23 @@ import {
   Param,
   Body,
   BadRequestException,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
+import { UserRole } from '@adhocx/contracts';
+import { JwtAuthGuard } from '../../../common/guards/auth.guard';
+import { RolesGuard } from '../../../common/guards/roles.guard';
+import { CorporateAccessGuard } from '../../../common/guards/corporate-access.guard';
+import { Roles } from '../../../common/decorators/roles.decorator';
+import { CorporateResource } from '../../../common/decorators/corporate-resource.decorator';
+
 import { CorporateDispatchService } from './corporate-dispatch.service';
 import { RedisService } from '../../../redis/redis.service';
 
 @ApiTags('Corporate ETS - Autonomous Dispatch & DDA')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard, CorporateAccessGuard)
 @Controller('corporate/dispatch')
 export class CorporateDispatchController {
   constructor(
@@ -19,17 +30,23 @@ export class CorporateDispatchController {
   ) {}
 
   @Post('routes/:id/start-now')
+  @Roles(UserRole.ADMIN)
+  @CorporateResource('route', 'id')
   @ApiOperation({
     summary: 'Manual Super Admin dispatch override: Immediately initiates H3 driver dispatch ("Start" button)',
   })
   public async forceStartDispatch(
     @Param('id') routeId: string,
     @Body('actorUserId') actorUserId?: string,
+    @Req() req?: any,
   ) {
-    return this.dispatchService.dispatchRoute(routeId, true, actorUserId);
+    // Audit actor is the authenticated admin, never a client-supplied id.
+    return this.dispatchService.dispatchRoute(routeId, true, req?.user?.id ?? actorUserId);
   }
 
   @Post('routes/:id/offers/accept')
+  @Roles(UserRole.ADMIN, UserRole.DRIVER)
+  @CorporateResource('route', 'id', { driverMode: 'offer' })
   @ApiOperation({ summary: 'Driver accepts atomic corporate route offer within 60 seconds' })
   @ApiBody({
     schema: {
@@ -51,6 +68,8 @@ export class CorporateDispatchController {
   }
 
   @Post('routes/:id/offers/reject')
+  @Roles(UserRole.ADMIN, UserRole.DRIVER)
+  @CorporateResource('route', 'id', { driverMode: 'offer' })
   @ApiOperation({ summary: 'Driver declines corporate route offer or offer expires; cascades to next candidate' })
   @ApiBody({
     schema: {
@@ -75,12 +94,16 @@ export class CorporateDispatchController {
   }
 
   @Get('routes/:id/traffic-assessment')
+  @Roles(UserRole.ADMIN)
+  @CorporateResource('route', 'id')
   @ApiOperation({ summary: 'Evaluate Dynamic Traffic Advancer (DDA) delay and advance dispatch if congested' })
   public async getTrafficAssessment(@Param('id') routeId: string) {
     return this.dispatchService.assessDynamicTraffic(routeId);
   }
 
   @Get('routes/:id/status')
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateResource('route', 'id')
   @ApiOperation({ summary: 'Get current real-time dispatch offer state for a corporate route' })
   public async getDispatchStatus(@Param('id') routeId: string) {
     const client = this.redis.getClient();

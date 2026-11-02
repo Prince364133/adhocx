@@ -8,22 +8,32 @@ import {
   Req,
   Res,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
 import { Response } from 'express';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { CorporateBillingService } from './corporate-billing.service';
 import {
   GenerateInvoiceBatchDto,
   DriverPayoutBatchDto,
   CorporateInvoiceStatus,
+  UserRole,
 } from '@adhocx/contracts';
+import { JwtAuthGuard } from '../../../common/guards/auth.guard';
+import { RolesGuard } from '../../../common/guards/roles.guard';
+import { CorporateAccessGuard } from '../../../common/guards/corporate-access.guard';
+import { Roles } from '../../../common/decorators/roles.decorator';
+import { CorporateResource, CorporateTenantScoped } from '../../../common/decorators/corporate-resource.decorator';
 
 @ApiTags('Corporate ETS - Dual Financial Ledgers, Invoicing & Payouts')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard, CorporateAccessGuard)
 @Controller('corporate/billing')
 export class CorporateBillingController {
   constructor(private readonly billingService: CorporateBillingService) {}
 
   @Post('invoices/generate-batch')
+  @Roles(UserRole.ADMIN)
   @ApiOperation({
     summary:
       'Generate consolidated B2B GST tax invoice batch for corporate client (5% or 18% GST, integer paise)',
@@ -40,6 +50,8 @@ export class CorporateBillingController {
   }
 
   @Get('invoices')
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateTenantScoped()
   @ApiOperation({ summary: 'List corporate invoices with pagination and status filters' })
   @ApiResponse({ status: 200, description: 'List of invoices' })
   public async listInvoices(
@@ -56,6 +68,8 @@ export class CorporateBillingController {
   }
 
   @Get('invoices/:id')
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateResource('invoice', 'id')
   @ApiOperation({ summary: 'Get full invoice breakdown with individual route line items' })
   @ApiResponse({ status: 200, description: 'Invoice details' })
   public async getInvoiceById(@Param('id') id: string) {
@@ -63,6 +77,8 @@ export class CorporateBillingController {
   }
 
   @Get('invoices/:id/pdf')
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateResource('invoice', 'id')
   @ApiOperation({ summary: 'Download B2B GST tax invoice PDF document complying with Sec 31 CGST Act' })
   @ApiResponse({ status: 200, description: 'Binary PDF tax invoice stream' })
   public async downloadInvoicePdf(
@@ -79,6 +95,7 @@ export class CorporateBillingController {
   }
 
   @Post('payouts/prepare-batch')
+  @Roles(UserRole.ADMIN)
   @ApiOperation({
     summary:
       'Aggregate UNPAID driver commute earnings, deduct 1% TDS (Sec 194C), and produce IMPS/RazorpayX batch payout payload',
@@ -92,6 +109,8 @@ export class CorporateBillingController {
   }
 
   @Get('drivers/:driverId/earnings')
+  @Roles(UserRole.ADMIN, UserRole.DRIVER)
+  @CorporateResource('driver', 'driverId')
   @ApiOperation({ summary: 'Get driver corporate commute earnings summary with TDS breakdown' })
   @ApiResponse({ status: 200, description: 'Driver earnings summary' })
   public async getDriverEarningsSummary(@Param('driverId') driverId: string) {

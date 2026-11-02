@@ -56,8 +56,8 @@ export interface AdminRescheduleRequestDto {
   employeeId?: string;
   newShiftTime?: string; // HH:mm
   action: 'CANCEL' | 'RESCHEDULE';
-  /** Admin performing the cutoff override (audited). */
-  actorUserId: string;
+  /** Admin performing the cutoff override (audited). Ignored when the caller is authenticated: the JWT user is the actor. */
+  actorUserId?: string;
   reason: string;
 }
 

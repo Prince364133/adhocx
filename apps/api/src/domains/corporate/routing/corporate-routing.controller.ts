@@ -7,13 +7,22 @@ import {
   Body,
   BadRequestException,
   NotFoundException,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
+import { UserRole } from '@adhocx/contracts';
 import { RouteSolverService } from './route-solver.service';
 import { DatabaseService } from '../../../database/database.service';
 import { RouteOptimizationOptions } from './routing.types';
+import { JwtAuthGuard } from '../../../common/guards/auth.guard';
+import { RolesGuard } from '../../../common/guards/roles.guard';
+import { CorporateAccessGuard } from '../../../common/guards/corporate-access.guard';
+import { Roles } from '../../../common/decorators/roles.decorator';
+import { CorporateResource, CorporateTenantScoped } from '../../../common/decorators/corporate-resource.decorator';
 
 @ApiTags('Corporate ETS - Routing')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard, CorporateAccessGuard)
 @Controller('corporate/routes')
 export class CorporateRoutingController {
   constructor(
@@ -22,6 +31,8 @@ export class CorporateRoutingController {
   ) {}
 
   @Post('optimize')
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN)
+  @CorporateTenantScoped()
   @ApiOperation({ summary: 'Plan capacity- and ride-time-constrained corporate routes for a shift on road travel times' })
   @ApiBody({
     schema: {
@@ -52,6 +63,8 @@ export class CorporateRoutingController {
   }
 
   @Get()
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateTenantScoped()
   @ApiOperation({ summary: 'List corporate routes with optional filters' })
   public async listRoutes(
     @Query('tenantId') tenantId: string,
@@ -99,6 +112,8 @@ export class CorporateRoutingController {
   }
 
   @Get(':id')
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.DRIVER)
+  @CorporateResource('route', 'id')
   @ApiOperation({ summary: 'Get full itinerary and ordered stops for a specific corporate route' })
   public async getRouteById(@Param('id') id: string) {
     const route = await this.db.corporateRoute.findUnique({

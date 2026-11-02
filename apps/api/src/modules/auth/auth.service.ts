@@ -775,12 +775,40 @@ export class AuthService implements OnModuleInit {
     };
   }
 
+  /**
+   * Corporate access-control claims. corporateTenantId scopes CORPORATE_ADMIN /
+   * CORPORATE_MANAGER / EMPLOYEE users to their own tenant; corporateEmployeeId
+   * identifies the EMPLOYEE's own CorporateEmployee row. Omitted (undefined) for
+   * everyone else so existing tokens keep exactly the same shape.
+   */
+  private async buildCorporateClaims(
+    user: any,
+  ): Promise<{ corporateTenantId?: string; corporateEmployeeId?: string }> {
+    const claims: { corporateTenantId?: string; corporateEmployeeId?: string } = {};
+    if (!user) return claims;
+    if (user.corporateTenantId) {
+      claims.corporateTenantId = user.corporateTenantId;
+    }
+    if (user.role === UserRole.EMPLOYEE) {
+      const employee = await this.db.corporateEmployee.findUnique({
+        where: { userId: user.id },
+        select: { id: true, tenantId: true },
+      });
+      if (employee) {
+        claims.corporateEmployeeId = employee.id;
+        claims.corporateTenantId = claims.corporateTenantId ?? employee.tenantId;
+      }
+    }
+    return claims;
+  }
+
   private async generateAuthResponse(user: any): Promise<AuthResponseDto> {
     const tokenPayload = {
       id: user.id,
       phone: user.phone,
       email: user.email,
       role: user.role,
+      ...(await this.buildCorporateClaims(user)),
     };
 
     const accessSecret = this.configService.get<string>('auth.jwtAccessSecret') || process.env.JWT_ACCESS_SECRET;
@@ -971,11 +999,19 @@ export class AuthService implements OnModuleInit {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
+    const user = await this.db.user.findUnique({
+      where: { id: payload.id },
+      include: { vendor: true, driver: true },
+    });
+
+    // Corporate claims are re-derived from the database on every refresh so a
+    // tenant re-assignment / employee unlink takes effect without re-login.
     const tokenPayload = {
       id: payload.id,
       phone: payload.phone,
       email: payload.email,
       role: payload.role,
+      ...(await this.buildCorporateClaims(user ? { ...user, role: payload.role } : null)),
     };
 
     const accessSecret = this.configService.get<string>('auth.jwtAccessSecret') || process.env.JWT_ACCESS_SECRET;
@@ -987,11 +1023,6 @@ export class AuthService implements OnModuleInit {
     const newRefreshToken = await this.jwtService.signAsync(tokenPayload, {
       secret: refreshSecret,
       expiresIn: this.configService.get<string>('auth.jwtRefreshExpiresIn') || '90d',
-    });
-
-    const user = await this.db.user.findUnique({
-      where: { id: payload.id },
-      include: { vendor: true, driver: true },
     });
 
     const hasPassword = user ? Boolean(user.passwordHash) : true;

@@ -7,22 +7,33 @@ import {
   Body,
   Req,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { CorporateSafetyService } from './corporate-safety.service';
 import {
   TriggerSosAlertDto,
   ResolveSosAlertDto,
   ConfirmSafeDropDto,
   CorporateSosStatus,
+  UserRole,
 } from '@adhocx/contracts';
+import { JwtAuthGuard } from '../../../common/guards/auth.guard';
+import { RolesGuard } from '../../../common/guards/roles.guard';
+import { CorporateAccessGuard } from '../../../common/guards/corporate-access.guard';
+import { Roles } from '../../../common/decorators/roles.decorator';
+import { CorporateResource, CorporateTenantScoped } from '../../../common/decorators/corporate-resource.decorator';
 
 @ApiTags('Corporate ETS - Safety SOS & Command Centre')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard, CorporateAccessGuard)
 @Controller('corporate/safety')
 export class CorporateSafetyController {
   constructor(private readonly safetyService: CorporateSafetyService) {}
 
   @Post('sos')
+  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE, UserRole.DRIVER)
+  @CorporateResource('route', 'routeId', { from: 'body' })
   @ApiOperation({
     summary: 'P0 Emergency SOS Trigger. Dispatches instant alerts to Super Admin Command Centre & Corporate Safety Desk',
   })
@@ -39,6 +50,8 @@ export class CorporateSafetyController {
   }
 
   @Get('alerts')
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateTenantScoped()
   @ApiOperation({ summary: 'List active and historical corporate SOS emergency alerts for Command Centre' })
   @ApiResponse({ status: 200, description: 'List of emergency alerts' })
   public async listAlerts(
@@ -50,6 +63,8 @@ export class CorporateSafetyController {
   }
 
   @Post('alerts/:id/resolve')
+  @Roles(UserRole.ADMIN)
+  @CorporateResource('sos', 'id')
   @ApiOperation({ summary: 'Resolve an active emergency alert with incident resolution notes' })
   @ApiResponse({ status: 200, description: 'Alert resolved' })
   public async resolveAlert(
@@ -66,6 +81,8 @@ export class CorporateSafetyController {
   }
 
   @Post('routes/:id/check-deviation')
+  @Roles(UserRole.ADMIN, UserRole.DRIVER)
+  @CorporateResource('route', 'id')
   @ApiOperation({ summary: 'Check vehicle position against planned route corridor and trigger deviation alarm if >500m' })
   public async checkDeviation(
     @Param('id') routeId: string,
@@ -78,6 +95,8 @@ export class CorporateSafetyController {
   }
 
   @Post('routes/:id/stops/:stopId/confirm-safe-drop')
+  @Roles(UserRole.ADMIN, UserRole.DRIVER)
+  @CorporateResource('stop', 'stopId')
   @ApiOperation({ summary: 'Confirm safe drop for female commuter on late-night shift logout (>20:00)' })
   public async confirmSafeDrop(
     @Param('id') routeId: string,

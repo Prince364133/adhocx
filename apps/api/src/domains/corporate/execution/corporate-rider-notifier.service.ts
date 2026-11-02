@@ -374,8 +374,12 @@ export class CorporateRiderNotifier {
     }
   }
 
-  /** CorporateEmployee has no direct User FK; link via phone (preferred) or email. */
+  /**
+   * Prefer the explicit CorporateEmployee.userId link. Employees not yet linked
+   * (pre-backfill rows) fall back to matching a User by phone or email.
+   */
   private async resolveUserId(employee: any): Promise<string | null> {
+    if (employee.userId) return employee.userId;
     const or: any[] = [];
     if (employee.phoneNumber) or.push({ phone: employee.phoneNumber });
     if (employee.email) or.push({ email: employee.email });

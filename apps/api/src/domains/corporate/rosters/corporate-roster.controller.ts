@@ -11,15 +11,25 @@ import {
   HttpStatus,
   BadRequestException,
   NotFoundException,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
+import { UserRole } from '@adhocx/contracts';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { RosterTemplateService } from './roster-template.service';
 import { RosterIngestionService } from './roster-ingestion.service';
 import { DatabaseService } from '../../../database/database.service';
+import { JwtAuthGuard } from '../../../common/guards/auth.guard';
+import { RolesGuard } from '../../../common/guards/roles.guard';
+import { CorporateAccessGuard, resolveScopedTenantId } from '../../../common/guards/corporate-access.guard';
+import { Roles } from '../../../common/decorators/roles.decorator';
+import { CorporateResource, CorporateTenantScoped } from '../../../common/decorators/corporate-resource.decorator';
 
 @ApiTags('Corporate ETS - Rosters')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard, CorporateAccessGuard)
 @Controller('corporate/rosters')
 export class CorporateRosterController {
   constructor(
@@ -29,6 +39,7 @@ export class CorporateRosterController {
   ) {}
 
   @Get('template')
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @ApiOperation({ summary: 'Download the official AdhocX Corporate Roster Excel template (.xlsx)' })
   @ApiResponse({ status: 200, description: 'Excel template stream' })
   public async downloadTemplate(@Res() res: Response): Promise<void> {
@@ -44,6 +55,8 @@ export class CorporateRosterController {
   }
 
   @Post('validate')
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateTenantScoped()
   @ApiOperation({ summary: 'Dry-run validate an uploaded Excel roster file without persisting changes' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -61,8 +74,10 @@ export class CorporateRosterController {
     @UploadedFile() file: Express.Multer.File,
     @Body('tenantId') tenantIdFromBody?: string,
     @Query('tenantId') tenantIdFromQuery?: string,
+    @Req() req?: any,
   ) {
-    const tenantId = tenantIdFromBody || tenantIdFromQuery;
+    // Multipart bodies are parsed after guards run, so re-check the tenant scope here.
+    const tenantId = resolveScopedTenantId(req, tenantIdFromBody, tenantIdFromQuery);
     if (!tenantId) {
       throw new BadRequestException('tenantId is required (in body or query)');
     }
@@ -74,6 +89,8 @@ export class CorporateRosterController {
   }
 
   @Post('upload')
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateTenantScoped()
   @ApiOperation({ summary: 'Upload, validate, and ingest corporate roster; generates transport requests' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -93,8 +110,10 @@ export class CorporateRosterController {
     @Body('tenantId') tenantIdFromBody?: string,
     @Query('tenantId') tenantIdFromQuery?: string,
     @Body('uploadedByUserId') uploadedByUserId?: string,
+    @Req() req?: any,
   ) {
-    const tenantId = tenantIdFromBody || tenantIdFromQuery;
+    // Multipart bodies are parsed after guards run, so re-check the tenant scope here.
+    const tenantId = resolveScopedTenantId(req, tenantIdFromBody, tenantIdFromQuery);
     if (!tenantId) {
       throw new BadRequestException('tenantId is required (in body or query)');
     }
@@ -102,10 +121,13 @@ export class CorporateRosterController {
       throw new BadRequestException('Excel file is required as multipart/form-data field "file"');
     }
 
-    return this.rosterIngestionService.ingestAndPublishRoster(tenantId, file.buffer, uploadedByUserId);
+    // The uploader recorded on the roster is the authenticated user, not a body field.
+    return this.rosterIngestionService.ingestAndPublishRoster(tenantId, file.buffer, req?.user?.id ?? uploadedByUserId);
   }
 
   @Get()
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateTenantScoped()
   @ApiOperation({ summary: 'List corporate rosters for a tenant' })
   public async listRosters(
     @Query('tenantId') tenantId: string,
@@ -146,6 +168,8 @@ export class CorporateRosterController {
   }
 
   @Get(':id')
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateResource('roster', 'id')
   @ApiOperation({ summary: 'Get details of a specific corporate roster' })
   public async getRosterById(@Param('id') id: string) {
     const roster = await this.db.corporateRoster.findUnique({
@@ -194,6 +218,8 @@ export class CorporateRosterController {
   }
 
   @Get(':id/requests')
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateResource('roster', 'id')
   @ApiOperation({ summary: 'Get all transport requests belonging to a corporate roster' })
   public async getRosterTransportRequests(
     @Param('id') id: string,
