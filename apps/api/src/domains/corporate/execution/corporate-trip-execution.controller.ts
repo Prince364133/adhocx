@@ -15,12 +15,32 @@ import {
   RouteTelemetryDto,
   MarkNoShowDto,
   RescheduleRequestDto,
+  StartRouteDto,
 } from './trip-execution.types';
 
 @ApiTags('Corporate ETS - Trip Execution & OTP Boarding')
 @Controller('corporate/trips')
 export class CorporateTripExecutionController {
   constructor(private readonly executionService: CorporateTripExecutionService) {}
+
+  @Post('routes/:id/start')
+  @ApiOperation({
+    summary:
+      'Driver starts driving toward pickup 1 (ASSIGNED -> IN_TRANSIT). Notifies every employee with individual ETA',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        driverId: { type: 'string' },
+        driverLatitude: { type: 'number', example: 17.4401 },
+        driverLongitude: { type: 'number', example: 78.3489 },
+      },
+    },
+  })
+  public async startRoute(@Param('id') routeId: string, @Body() body: StartRouteDto) {
+    return this.executionService.startRoute(routeId, body || {});
+  }
 
   @Post('routes/:id/stops/:stopId/arrive')
   @ApiOperation({
