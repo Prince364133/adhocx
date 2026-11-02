@@ -98,7 +98,7 @@ function kycApprovedEmailTemplate(fullName: string): string {
           </tr>
           <tr>
             <td style="background: #1e293b; border-radius: 16px; border: 1px solid #334155; padding: 40px 32px; text-align: center;">
-              <div style="font-size: 48px; margin-bottom: 16px;">🎉</div>
+              <div style="width: 56px; height: 56px; margin: 0 auto 16px; border-radius: 50%; background: #064e3b; color: #10b981; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold;">&#10003;</div>
               <p style="margin: 0 0 8px; font-size: 20px; font-weight: 700; color: #10b981;">Verification Approved!</p>
               <p style="margin: 0 0 16px; font-size: 15px; color: #cbd5e1;">Congratulations ${fullName},</p>
               <p style="margin: 0; font-size: 14px; color: #94a3b8; line-height: 1.6;">
@@ -137,7 +137,7 @@ function kycDeclinedEmailTemplate(fullName: string, reason: string): string {
           </tr>
           <tr>
             <td style="background: #1e293b; border-radius: 16px; border: 1px solid #334155; padding: 40px 32px; text-align: center;">
-              <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+              <div style="width: 56px; height: 56px; margin: 0 auto 16px; border-radius: 50%; background: #451a03; color: #f59e0b; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold;">!</div>
               <p style="margin: 0 0 8px; font-size: 20px; font-weight: 700; color: #f59e0b;">Verification Declined</p>
               <p style="margin: 0 0 16px; font-size: 15px; color: #cbd5e1;">Hello ${fullName},</p>
               <p style="margin: 0 0 16px; font-size: 14px; color: #94a3b8; line-height: 1.6;">
@@ -180,7 +180,7 @@ function welcomeEmailTemplate(fullName: string, role: string): string {
           </tr>
           <tr>
             <td style="background: #1e293b; border-radius: 16px; border: 1px solid #334155; padding: 40px 32px; text-align: center;">
-              <div style="font-size: 48px; margin-bottom: 16px;">🌟</div>
+              <div style="width: 56px; height: 56px; margin: 0 auto 16px; border-radius: 50%; background: #1e1b4b; color: #6366f1; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold;">&#9733;</div>
               <p style="margin: 0 0 8px; font-size: 20px; font-weight: 700; color: #f1f5f9;">Welcome to AdhocX!</p>
               <p style="margin: 0 0 16px; font-size: 15px; color: #cbd5e1;">Hello ${fullName},</p>
               <p style="margin: 0; font-size: 14px; color: #94a3b8; line-height: 1.6;">
@@ -236,9 +236,9 @@ export class NotificationsService implements OnModuleInit {
     // Verify connection at startup
     try {
       await this.transporter.verify();
-      this.logger.log(`📧 SMTP connected successfully to ${host}:${port} as ${user}`);
+      this.logger.log(` SMTP connected successfully to ${host}:${port} as ${user}`);
     } catch (err: any) {
-      this.logger.warn(`⚠️ SMTP connection failed (emails will be logged only): ${err.message}`);
+      this.logger.warn(`️ SMTP connection failed (emails will be logged only): ${err.message}`);
     }
   }
 
@@ -252,10 +252,10 @@ export class NotificationsService implements OnModuleInit {
         subject,
         html,
       });
-      this.logger.log(`📧 [EMAIL SENT] To: ${to} | Subject: "${subject}" | MessageId: ${info.messageId}`);
+      this.logger.log(` [EMAIL SENT] To: ${to} | Subject: "${subject}" | MessageId: ${info.messageId}`);
       return info.messageId;
     } catch (err: any) {
-      this.logger.error(`❌ [EMAIL FAILED] To: ${to} | Subject: "${subject}" | Error: ${err.message}`);
+      this.logger.error(` [EMAIL FAILED] To: ${to} | Subject: "${subject}" | Error: ${err.message}`);
       return null;
     }
   }
@@ -289,7 +289,7 @@ export class NotificationsService implements OnModuleInit {
       // SMS dispatch — log for now; plug in Twilio/AWS SNS for production
       const smsText = `[AdhocX] Your authentication OTP is ${otp}. Valid for 5 minutes. Never share OTP with anyone.`;
       this.logger.log(
-        `📱 [NOTIFICATION DISPATCH - SMS] To: ${phone} | Body: "${smsText}" | MsgID: ${messageId}`,
+        ` [NOTIFICATION DISPATCH - SMS] To: ${phone} | Body: "${smsText}" | MsgID: ${messageId}`,
       );
       return { success: true, channel: 'SMS', messageId };
     }
@@ -305,7 +305,7 @@ export class NotificationsService implements OnModuleInit {
   async sendTripOtp(phone: string, otp: string): Promise<void> {
     const smsText = `[AdhocX] Trip OTP: ${otp}. Share this code with the driver to confirm pickup.`;
     this.logger.log(
-      `📱 [NOTIFICATION - TRIP OTP] To: ${phone} | Body: "${smsText}"`,
+      ` [NOTIFICATION - TRIP OTP] To: ${phone} | Body: "${smsText}"`,
     );
   }
 
@@ -316,7 +316,7 @@ export class NotificationsService implements OnModuleInit {
    */
   async sendPush(userId: string, title: string, body: string, _data?: Record<string, any>): Promise<void> {
     this.logger.log(
-      `🔔 [PUSH NOTIFICATION] To: ${userId} | Title: "${title}" | Body: "${body}"`,
+      ` [PUSH NOTIFICATION] To: ${userId} | Title: "${title}" | Body: "${body}"`,
     );
   }
 
@@ -331,11 +331,11 @@ export class NotificationsService implements OnModuleInit {
 
     if (email) {
       if (status === 'VERIFIED') {
-        await this.sendEmail(email, '🎉 AdhocX Verification Approved!', kycApprovedEmailTemplate(name));
+        await this.sendEmail(email, 'AdhocX Verification Approved!', kycApprovedEmailTemplate(name));
       } else {
         await this.sendEmail(
           email,
-          '⚠️ AdhocX Verification Update — Action Required',
+          'AdhocX Verification Update — Action Required',
           kycDeclinedEmailTemplate(name, reason || 'Documents unclear or incomplete'),
         );
       }
@@ -344,9 +344,9 @@ export class NotificationsService implements OnModuleInit {
     // Also log for SMS fallback / push
     const recipient = email || phone || 'User';
     if (status === 'VERIFIED') {
-      this.logger.log(`🎉 [KYC APPROVED] ${recipient} (${name})`);
+      this.logger.log(`[KYC APPROVED] ${recipient} (${name})`);
     } else {
-      this.logger.log(`⚠️ [KYC DECLINED] ${recipient} (${name}) — Reason: "${reason}"`);
+      this.logger.log(`[KYC DECLINED] ${recipient} (${name}) — Reason: "${reason}"`);
     }
 
     return { success: true };
@@ -362,13 +362,13 @@ export class NotificationsService implements OnModuleInit {
     const name = fullName || 'Partner';
 
     if (email) {
-      this.sendEmail(email, '🌟 Welcome to AdhocX!', welcomeEmailTemplate(name, role)).catch((err) => {
+      this.sendEmail(email, 'Welcome to AdhocX!', welcomeEmailTemplate(name, role)).catch((err) => {
         this.logger.warn(`Welcome email dispatch notice: ${err.message}`);
       });
     }
 
     const recipient = email || phone || 'Partner';
-    this.logger.log(`🌟 [WELCOME] ${recipient} — ${name} as ${role}`);
+    this.logger.log(`[WELCOME] ${recipient} — ${name} as ${role}`);
 
     return { success: true };
   }
@@ -385,7 +385,7 @@ export class NotificationsService implements OnModuleInit {
       payload,
       timestamp: new Date().toISOString(),
     };
-    this.logger.debug(`📡 [SSE EVENT] Channel: ${channel} | Event: ${event}`);
+    this.logger.debug(` [SSE EVENT] Channel: ${channel} | Event: ${event}`);
     this.eventBus.next(realtimeEvent);
   }
 

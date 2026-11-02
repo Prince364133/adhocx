@@ -3,35 +3,13 @@ import React, { useState } from 'react';
 export default function EnterpriseLeadForm() {
   const [formData, setFormData] = useState({
     companyName: '',
-    contactName: '',
     email: '',
     phone: '',
-    city: 'Hyderabad',
-    fleetRequirements: 'Daily Employee Shift Drops',
-    monthlyTripsEstimate: '100-500',
-    preferredVehicles: ['4-Seater Sedan (Dzire/Etios)'],
-    notes: ''
+    city: 'Telangana (Hyderabad Tech Corridors)',
   });
 
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-
-  const vehicleOptions = [
-    '4-Seater Sedan (Dzire/Etios)',
-    '6/7-Seater MUV (Ertiga/XL6)',
-    '7-Seater Executive (Innova Crysta)'
-  ];
-
-  const handleVehicleToggle = (v: string) => {
-    setFormData(prev => {
-      const exists = prev.preferredVehicles.includes(v);
-      if (exists) {
-        return { ...prev, preferredVehicles: prev.preferredVehicles.filter(item => item !== v) };
-      } else {
-        return { ...prev, preferredVehicles: [...prev.preferredVehicles, v] };
-      }
-    });
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,50 +17,52 @@ export default function EnterpriseLeadForm() {
     setTimeout(() => {
       setSubmitting(false);
       setSubmitted(true);
-    }, 750);
+    }, 600);
   };
 
   if (submitted) {
     return (
       <div style={{
         background: 'var(--color-surface, #ffffff)',
-        border: '2px solid #5A30B0',
-        borderRadius: '16px',
-        padding: '40px 32px',
+        border: '2px solid #1167EE',
+        borderRadius: '1rem',
+        padding: '2.5rem 2rem',
         textAlign: 'center',
-        boxShadow: 'var(--shadow-xl, 0 20px 25px -5px rgba(0, 0, 0, 0.1))'
+        boxShadow: 'var(--shadow-xl, 0 20px 25px -5px rgba(25, 27, 28, 0.1))'
       }}>
         <div style={{
-          width: '64px',
-          height: '64px',
+          width: '4rem',
+          height: '4rem',
           borderRadius: '50%',
-          background: '#ECE6FE',
-          color: '#5A30B0',
-          fontSize: '32px',
+          background: '#CEE0FD',
+          color: '#1167EE',
+          fontSize: '2rem',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          margin: '0 auto 16px auto'
+          margin: '0 auto 1rem auto'
         }}>
-          ✓
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
         </div>
-        <h3 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0 0 8px 0', color: '#0f172a' }}>
+        <h3 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0 0 0.5rem 0', color: '#191B1C' }}>
           Corporate Demo Request Received!
         </h3>
-        <p style={{ color: '#64748b', fontSize: '0.95rem', maxWidth: '440px', margin: '0 auto 24px auto', lineHeight: 1.6 }}>
-          Thank you, <strong>{formData.contactName}</strong>. Our enterprise logistics specialist for <strong>{formData.companyName}</strong> will contact you at <strong>{formData.phone}</strong> or <strong>{formData.email}</strong> within 30 minutes with our 4-seater and 7-seater rate card.
+        <p style={{ color: '#595F61', fontSize: '0.9375rem', maxWidth: '28rem', margin: '0 auto 1.5rem auto', lineHeight: 1.6 }}>
+          Thank you! Our enterprise transport specialist for <strong>{formData.companyName}</strong> ({formData.city}) will contact you at <strong>{formData.phone}</strong> or <strong>{formData.email}</strong> within 30 minutes with our verified 4 & 7 seater rate card.
         </p>
         <button
           onClick={() => setSubmitted(false)}
           style={{
-            background: '#f1f5f9',
-            border: '1px solid #cbd5e1',
-            padding: '10px 20px',
-            borderRadius: '8px',
+            background: '#EDEFF0',
+            border: '1px solid #C2C9CC',
+            padding: '0.625rem 1.25rem',
+            borderRadius: '0.5rem',
             fontWeight: 600,
             cursor: 'pointer',
             fontSize: '0.875rem',
-            color: '#334155'
+            color: '#191B1C'
           }}
         >
           Submit Another Request
@@ -94,51 +74,37 @@ export default function EnterpriseLeadForm() {
   return (
     <div style={{
       background: 'var(--color-surface, #ffffff)',
-      border: '1px solid var(--color-border, #e2e8f0)',
-      borderRadius: '16px',
-      padding: '32px 24px',
-      boxShadow: 'var(--shadow-xl, 0 20px 25px -5px rgba(0, 0, 0, 0.1))'
+      border: '1px solid var(--color-border, #C2C9CC)',
+      borderRadius: '1rem',
+      padding: '2rem 1.5rem',
+      boxShadow: 'var(--shadow-xl, 0 20px 25px -5px rgba(25, 27, 28, 0.08))'
     }}>
-      <div style={{ marginBottom: '24px' }}>
-        <span style={{
-          display: 'inline-block',
-          background: '#ECE6FE',
-          color: '#5A30B0',
-          fontWeight: 700,
-          fontSize: '0.75rem',
-          padding: '4px 14px',
-          borderRadius: '9999px',
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em',
-          marginBottom: '8px'
-        }}>
-          Enterprise Fleet Setup
-        </span>
-        <h3 style={{ fontSize: '1.4rem', fontWeight: 800, margin: '0 0 6px 0', color: '#0f172a' }}>
-          Request Corporate Demo & Rate Card
+      <div style={{ marginBottom: '1.5rem' }}>
+        <h3 style={{ fontSize: '1.35rem', fontWeight: 800, margin: '0 0 0.35rem 0', color: '#191B1C' }}>
+          Book Corporate Demo & Rate Card
         </h3>
-        <p style={{ color: '#64748b', fontSize: '0.875rem', margin: 0 }}>
-          4 & 7 Seater commercial fleet dispatch, 15-minute SLA allocation, and unified GST billing.
+        <p style={{ color: '#595F61', fontSize: '0.875rem', margin: 0 }}>
+          Commercial yellow-plate fleet dispatch, 15-minute SLA allocation, and unified GST invoicing.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '6px', color: '#334155' }}>
+            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.35rem', color: '#191B1C' }}>
               Company / Enterprise Name *
             </label>
             <input
               type="text"
               required
-              placeholder="e.g. Tech Mahindra / Infosys / Google"
+              placeholder="e.g. Infosys / Wipro / Google"
               value={formData.companyName}
               onChange={e => setFormData({ ...formData, companyName: e.target.value })}
               style={{
                 width: '100%',
-                padding: '10px 14px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
+                padding: '0.625rem 0.875rem',
+                borderRadius: '0.5rem',
+                border: '1px solid #C2C9CC',
                 fontSize: '0.9rem',
                 outline: 'none',
                 boxSizing: 'border-box'
@@ -147,31 +113,7 @@ export default function EnterpriseLeadForm() {
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '6px', color: '#334155' }}>
-              Contact Person / Title *
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. Rahul Sharma (Admin Head)"
-              value={formData.contactName}
-              onChange={e => setFormData({ ...formData, contactName: e.target.value })}
-              style={{
-                width: '100%',
-                padding: '10px 14px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                fontSize: '0.9rem',
-                outline: 'none',
-                boxSizing: 'border-box'
-              }}
-            />
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '6px', color: '#334155' }}>
+            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.35rem', color: '#191B1C' }}>
               Official Work Email *
             </label>
             <input
@@ -182,18 +124,20 @@ export default function EnterpriseLeadForm() {
               onChange={e => setFormData({ ...formData, email: e.target.value })}
               style={{
                 width: '100%',
-                padding: '10px 14px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
+                padding: '0.625rem 0.875rem',
+                borderRadius: '0.5rem',
+                border: '1px solid #C2C9CC',
                 fontSize: '0.9rem',
                 outline: 'none',
                 boxSizing: 'border-box'
               }}
             />
           </div>
+        </div>
 
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '6px', color: '#334155' }}>
+            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.35rem', color: '#191B1C' }}>
               Mobile / WhatsApp Number *
             </label>
             <input
@@ -204,98 +148,38 @@ export default function EnterpriseLeadForm() {
               onChange={e => setFormData({ ...formData, phone: e.target.value })}
               style={{
                 width: '100%',
-                padding: '10px 14px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
+                padding: '0.625rem 0.875rem',
+                borderRadius: '0.5rem',
+                border: '1px solid #C2C9CC',
                 fontSize: '0.9rem',
                 outline: 'none',
                 boxSizing: 'border-box'
               }}
             />
           </div>
-        </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '6px', color: '#334155' }}>
-              Primary Requirement
+            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.35rem', color: '#191B1C' }}>
+              Operating Region / Hub *
             </label>
             <select
-              value={formData.fleetRequirements}
-              onChange={e => setFormData({ ...formData, fleetRequirements: e.target.value })}
+              value={formData.city}
+              onChange={e => setFormData({ ...formData, city: e.target.value })}
               style={{
                 width: '100%',
-                padding: '10px 14px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
+                padding: '0.625rem 0.875rem',
+                borderRadius: '0.5rem',
+                border: '1px solid #C2C9CC',
                 fontSize: '0.9rem',
                 outline: 'none',
                 background: '#fff',
                 boxSizing: 'border-box'
               }}
             >
-              <option value="Daily Employee Shift Drops">Daily Employee Shift Drops</option>
-              <option value="Executive & Airport Transfers">Executive & Airport Transfers</option>
-              <option value="Ad-hoc On-Demand Bulk Cabs">Ad-hoc On-Demand Bulk Cabs</option>
-              <option value="Event & Corporate Logistics">Event & Corporate Logistics</option>
-              <option value="Dedicated Monthly Fleet">Dedicated Monthly Fleet</option>
+              <option value="Telangana (Hyderabad Tech Corridors)">Telangana (Hyderabad Tech Corridors)</option>
+              <option value="Telangana (Regional Hubs & Warangal)">Telangana (Regional Hubs & Warangal)</option>
+              <option value="Pan-Telangana Corporate Hubs">Pan-Telangana Corporate Hubs</option>
             </select>
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '6px', color: '#334155' }}>
-              Estimated Monthly Trips
-            </label>
-            <select
-              value={formData.monthlyTripsEstimate}
-              onChange={e => setFormData({ ...formData, monthlyTripsEstimate: e.target.value })}
-              style={{
-                width: '100%',
-                padding: '10px 14px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                fontSize: '0.9rem',
-                outline: 'none',
-                background: '#fff',
-                boxSizing: 'border-box'
-              }}
-            >
-              <option value="< 100 trips">&lt; 100 trips/month</option>
-              <option value="100-500">100 - 500 trips/month</option>
-              <option value="500-2000">500 - 2,000 trips/month</option>
-              <option value="2000+">2,000+ trips/month (High Volume)</option>
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '8px', color: '#334155' }}>
-            Commercial Vehicle Types (4 & 7 Seater Yellow-Plate)
-          </label>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-            {vehicleOptions.map((v) => {
-              const isChecked = formData.preferredVehicles.includes(v);
-              return (
-                <button
-                  type="button"
-                  key={v}
-                  onClick={() => handleVehicleToggle(v)}
-                  style={{
-                    padding: '8px 14px',
-                    borderRadius: '8px',
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    border: isChecked ? '1.5px solid #5A30B0' : '1px solid #cbd5e1',
-                    background: isChecked ? '#ECE6FE' : '#f8fafc',
-                    color: isChecked ? '#5A30B0' : '#475569',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  {isChecked ? '✓ ' : '+ '}{v}
-                </button>
-              );
-            })}
           </div>
         </div>
 
@@ -303,24 +187,28 @@ export default function EnterpriseLeadForm() {
           type="submit"
           disabled={submitting}
           style={{
-            marginTop: '8px',
-            padding: '14px 24px',
-            borderRadius: '10px',
-            background: 'linear-gradient(135deg, #5A30B0 0%, #6A3FE0 100%)',
+            marginTop: '0.5rem',
+            padding: '0.875rem 1.5rem',
+            borderRadius: '0.625rem',
+            background: 'linear-gradient(135deg, #1167EE 0%, #0948AC 100%)',
             color: '#ffffff',
             fontWeight: 700,
             fontSize: '1rem',
             border: 'none',
             cursor: submitting ? 'not-allowed' : 'pointer',
-            boxShadow: '0 4px 14px rgba(90, 48, 176, 0.4)',
+            boxShadow: '0 4px 14px rgba(17, 103, 238, 0.35)',
             transition: 'transform 0.15s ease'
           }}
         >
-          {submitting ? 'Submitting Corporate Request...' : 'Get Custom Enterprise Rate Card →'}
+          {submitting ? 'Submitting Corporate Request...' : 'Book a Demo & Get Rate Card →'}
         </button>
 
-        <p style={{ textAlign: 'center', fontSize: '0.75rem', color: '#94a3b8', margin: '4px 0 0 0' }}>
-          🔒 Your contact info is strictly confidential. No spam, guaranteed 30-min response.
+        <p style={{ textAlign: 'center', fontSize: '0.75rem', color: '#9BA3A8', margin: '0.25rem 0 0 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          Strictly confidential enterprise portal. Zero spam, guaranteed 30-min response.
         </p>
       </form>
     </div>

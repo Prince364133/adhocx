@@ -125,7 +125,7 @@ The AdhocX Marketing Web App bridges high-converting promotional storytelling wi
 * **Fields:**
   * Company Name (Text input)
   * Work Email (Email input with business domain validation)
-  * City / Operational Base (Dropdown: Delhi NCR, Bengaluru, Mumbai, Hyderabad, Chennai, Kolkata, Pune, Bhubaneswar, etc.)
+  * City / Operational Base (Dropdown: Telangana (Hyderabad Tech Corridors), Regional Hubs, etc.)
   * Monthly Vehicle Demand (Options: 5-20, 20-50, 50-100, 100+)
   * Phone Number (10-digit Indian mobile validation)
 * **Feedback States:**

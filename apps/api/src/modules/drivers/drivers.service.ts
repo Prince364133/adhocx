@@ -550,7 +550,7 @@ export class DriversService {
           score: Number(ratingScore.toFixed(1)),
           max: 25,
           percentage: Number(((ratingScore / 25) * 100).toFixed(0)),
-          title: `Customer Rating (${avgRating.toFixed(2)} ★)`,
+          title: `Customer Rating (${avgRating.toFixed(2)} / 5.0)`,
           description: 'Direct average passenger feedback rating',
           status: ratingScore >= 22 ? 'EXCELLENT' : ratingScore >= 18 ? 'GOOD' : 'FAIR',
         },

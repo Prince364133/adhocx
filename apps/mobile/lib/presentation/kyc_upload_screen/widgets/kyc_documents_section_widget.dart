@@ -254,7 +254,7 @@ class _DocUploadRow extends StatelessWidget {
               ),
               if (isUploaded)
                 const Text(
-                  'Uploaded ✓',
+                  'Uploaded',
                   style: TextStyle(
                     color: AppColors.success,
                     fontSize: 11,

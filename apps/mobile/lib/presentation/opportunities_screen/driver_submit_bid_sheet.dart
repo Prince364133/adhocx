@@ -353,7 +353,7 @@ class _DriverSubmitBidSheetState extends State<DriverSubmitBidSheet> {
 
               // Submit Button
               AppPrimaryButton(
-                text: '⚡ Submit Competitive Quote',
+                text: 'Submit Competitive Quote',
                 isLoading: _isSubmitting,
                 onPressed: _submitBid,
               ),

@@ -56,9 +56,9 @@ class _KycVehicleSectionWidgetState extends State<KycVehicleSectionWidget> {
           const SizedBox(height: 8),
           Row(
             children: [
-              _typeButton(isDark, 'sedan', '🚗 Sedan'),
+              _typeButton(isDark, 'sedan', 'Sedan'),
               const SizedBox(width: 12),
-              _typeButton(isDark, 'suv', '🚙 SUV'),
+              _typeButton(isDark, 'suv', 'SUV'),
             ],
           ),
           const SizedBox(height: 24),

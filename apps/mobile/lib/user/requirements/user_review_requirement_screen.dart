@@ -216,7 +216,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                       ),
                       child: Column(
                         children: [
-                          _buildReviewRow(context, Icons.bolt, 'Fulfillment Model', draft.fulfillmentMode == 'DIRECT_DISPATCH' ? '⚡ Direct Timed Dispatch' : '🔨 Outstation Reverse Auction', isDark),
+                          _buildReviewRow(context, Icons.bolt, 'Fulfillment Model', draft.fulfillmentMode == 'DIRECT_DISPATCH' ? 'Direct Timed Dispatch' : 'Outstation Reverse Auction', isDark),
                           const Divider(),
                           if (draft.fulfillmentMode == 'BIDDING') ...[
                             _buildReviewRow(context, Icons.currency_rupee, 'Target Guide Budget', '₹${draft.suggestedBudget.toStringAsFixed(0)}', isDark, valueColor: AppColors.success),
@@ -438,7 +438,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                         Expanded(
                           flex: 2,
                           child: AppPrimaryButton(
-                            text: draft.fulfillmentMode == 'BIDDING' ? '🚀 Launch Reverse Auction' : '⚡ Deploy Fleet Dispatch',
+                            text: draft.fulfillmentMode == 'BIDDING' ? 'Launch Reverse Auction' : 'Deploy Fleet Dispatch',
                             isLoading: _isSubmitting,
                             onPressed: () => _handleConfirmAndPost(context),
                           ),

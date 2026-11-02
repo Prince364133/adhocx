@@ -88,7 +88,7 @@ export class AuthService {
    */
   async login(dto: LoginDto): Promise<AuthResponseDto> {
     const { isEmail, value, phoneVariants } = this.normalizeIdentifier(dto.identifier);
-    this.logger.log(`🔑 [LOGIN ATTEMPT] Identifier: ${value} (isEmail: ${isEmail})`);
+    this.logger.log(` [LOGIN ATTEMPT] Identifier: ${value} (isEmail: ${isEmail})`);
 
     let user: any = null;
     try {
@@ -128,7 +128,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid mobile number/email or password');
     }
 
-    this.logger.log(`✅ [LOGIN SUCCESS] User authenticated: ${user.id} (${user.fullName || user.phone})`);
+    this.logger.log(` [LOGIN SUCCESS] User authenticated: ${user.id} (${user.fullName || user.phone})`);
     return this.generateAuthResponse(user);
   }
 
@@ -315,15 +315,15 @@ export class AuthService {
           if (payload?.email) {
             email = payload.email.toLowerCase();
             fullName = payload.name || fullName;
-            this.logger.log(`✅ [GOOGLE OAUTH VERIFIED] Token validated for ${email} (${fullName})`);
+            this.logger.log(` [GOOGLE OAUTH VERIFIED] Token validated for ${email} (${fullName})`);
           }
         }
       } catch (oauthErr: any) {
-        this.logger.warn(`⚠️ [GOOGLE OAUTH TOKEN VERIFICATION NOTICE] ${oauthErr.message}. Accepting verified social payload.`);
+        this.logger.warn(`️ [GOOGLE OAUTH TOKEN VERIFICATION NOTICE] ${oauthErr.message}. Accepting verified social payload.`);
       }
     }
 
-    this.logger.log(`🔑 [SOCIAL AUTH - ${provider}] Authenticating verified user: ${email} (${fullName || 'User'})`);
+    this.logger.log(` [SOCIAL AUTH - ${provider}] Authenticating verified user: ${email} (${fullName || 'User'})`);
 
     let user: any = null;
     let retries = 0;
@@ -426,7 +426,7 @@ export class AuthService {
         break; // Success
       } catch (dbErr: any) {
         retries++;
-        this.logger.warn(`⚠️ [SOCIAL AUTH ATTEMPT ${retries}/${maxRetries} FAILED]: ${dbErr.message}`);
+        this.logger.warn(`️ [SOCIAL AUTH ATTEMPT ${retries}/${maxRetries} FAILED]: ${dbErr.message}`);
         if (retries >= maxRetries) {
           this.logger.error(`Database error in socialAuth after retries: ${dbErr.message}`, dbErr.stack);
           // In development mode, construct in-memory session rather than failing
@@ -468,7 +468,7 @@ export class AuthService {
         where: { id: userId },
         data: { passwordHash },
       });
-      this.logger.log(`🔒 Password set and persisted successfully for user ${userId}`);
+      this.logger.log(` Password set and persisted successfully for user ${userId}`);
     } catch (err: any) {
       this.logger.error(`Failed to update password in DB for user ${userId}: ${err.message}`);
       throw new BadRequestException('Failed to save password');
@@ -520,7 +520,7 @@ export class AuthService {
       });
 
       await this.redis.del(`otp_direct:${value}`);
-      this.logger.log(`🔒 Password reset successfully for user ${user.id} (${value})`);
+      this.logger.log(` Password reset successfully for user ${user.id} (${value})`);
     } catch (err: any) {
       this.logger.error(`Reset password failed for user ${value}: ${err.message}`);
       throw new BadRequestException('Failed to reset password. Please try again.');

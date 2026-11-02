@@ -124,7 +124,7 @@ export default function ReportsPage() {
         <MetricCard
           label="Active Marketplace Base"
           value={loading ? '...' : `${reportData ? reportData.activeDrivers : 0} Drv / ${reportData ? reportData.activeVendors : 0} Cli`}
-          subtext={`Avg rating: ${reportData ? reportData.averageTripRating : 5.0} ★`}
+          subtext={`Avg rating: ${reportData ? reportData.averageTripRating : 5.0} / 5.0`}
           icon={<ShieldCheck size={18} color="var(--color-warning)" />}
           accentColor="var(--color-warning)"
         />
@@ -151,7 +151,7 @@ export default function ReportsPage() {
                     {c.corridor}
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>
-                    {c.pickupCity} ➔ {c.dropCity}
+                    {c.pickupCity} → {c.dropCity}
                   </div>
                 </div>
               ),

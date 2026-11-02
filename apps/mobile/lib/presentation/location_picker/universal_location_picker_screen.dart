@@ -176,7 +176,7 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
       _selectLocation(loc);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('📍 Current Location: ${loc.title} (${loc.city ?? "OpenStreetMap"})'),
+          content: Text('Current Location: ${loc.title} (${loc.city ?? "OpenStreetMap"})'),
           duration: const Duration(seconds: 2),
           backgroundColor: AppColors.primary,
         ),
@@ -870,7 +870,7 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
           ),
           const SizedBox(height: AppSpacing.md),
           AppPrimaryButton(
-            text: 'Confirm Location ✓',
+            text: 'Confirm Location',
             onPressed: _confirmAndReturn,
           ),
         ],

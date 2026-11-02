@@ -332,7 +332,7 @@ class _UserBidsBottomSheetState extends State<UserBidsBottomSheet> {
                                     ),
                                     child: const Center(
                                       child: Text(
-                                        '✓ WINNING BID ACCEPTED',
+                                        'WINNING BID ACCEPTED',
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           color: AppColors.success,

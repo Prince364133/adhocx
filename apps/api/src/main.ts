@@ -90,8 +90,8 @@ async function bootstrap() {
   });
 
   await app.listen(port);
-  logger.log(`🚀 AdhocX API running on http://localhost:${port}/${apiPrefix}`);
-  logger.log(`📄 Swagger docs at http://localhost:${port}/docs`);
+  logger.log(` AdhocX API running on http://localhost:${port}/${apiPrefix}`);
+  logger.log(` Swagger docs at http://localhost:${port}/docs`);
 }
 
 bootstrap();

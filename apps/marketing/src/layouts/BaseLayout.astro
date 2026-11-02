@@ -65,6 +65,48 @@ const {
     document.querySelectorAll('[data-animate]').forEach((el) => {
       observer.observe(el);
     });
+
+    // Apply consistent brand typography and appearance to 'AdhocX' across all pages
+    const brandRegex = /\bAdhocX\b/g;
+    const walker = document.createTreeWalker(
+      document.body,
+      NodeFilter.SHOW_TEXT,
+      {
+        acceptNode: (node) => {
+          if (!node.parentElement) return NodeFilter.FILTER_REJECT;
+          const tag = node.parentElement.tagName;
+          if (['SCRIPT', 'STYLE', 'SVG', 'NOSCRIPT', 'TEXTAREA', 'INPUT', 'TITLE'].includes(tag)) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          if (node.parentElement.closest('.brand-logo, .brand-inline, .logo-text')) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          return brandRegex.test(node.nodeValue || '') ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+        }
+      }
+    );
+
+    const nodesToReplace: Node[] = [];
+    while (walker.nextNode()) {
+      nodesToReplace.push(walker.currentNode);
+    }
+
+    nodesToReplace.forEach((node) => {
+      const parent = node.parentNode;
+      if (!parent || !node.nodeValue) return;
+      const frag = document.createDocumentFragment();
+      const parts = node.nodeValue.split('AdhocX');
+      parts.forEach((part, i) => {
+        if (part) frag.appendChild(document.createTextNode(part));
+        if (i < parts.length - 1) {
+          const span = document.createElement('span');
+          span.className = 'brand-inline';
+          span.innerHTML = 'Adhoc<span class="brand-accent">X</span>';
+          frag.appendChild(span);
+        }
+      });
+      parent.replaceChild(frag, node);
+    });
   </script>
 </body>
 </html>

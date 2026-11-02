@@ -91,7 +91,7 @@ class RateCardModal extends StatelessWidget {
         children: [
           _slabTable(
             context: context,
-            title: '🚗 Sedan Slab Rates',
+            title: 'Sedan Slab Rates',
             rows: const [
               ['0–15 km', '₹350'],
               ['16–25 km', '₹500'],
@@ -102,7 +102,7 @@ class RateCardModal extends StatelessWidget {
           const SizedBox(height: 18),
           _slabTable(
             context: context,
-            title: '🚙 SUV Slab Rates',
+            title: 'SUV Slab Rates',
             rows: const [
               ['0–15 km', '₹500'],
               ['16–25 km', '₹700'],

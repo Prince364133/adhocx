@@ -312,7 +312,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                                                     ),
                                                   ),
                                                   Text(
-                                                    isBidding ? '🔨 Reverse Auction • Driver Quotes Open' : '⚡ Direct Timed Dispatch • Available Now',
+                                                    isBidding ? 'Reverse Auction • Driver Quotes Open' : 'Direct Timed Dispatch • Available Now',
                                                     style: AppTypography.caption(
                                                       color: isBidding ? (isDark ? Colors.indigoAccent : Colors.indigo) : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
                                                       fontWeight: isBidding ? FontWeight.w600 : FontWeight.normal,
@@ -413,7 +413,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                                               ),
                                               child: Center(
                                                 child: Text(
-                                                  '✓ Your Quote Submitted: ₹${(myBid?["bidAmount"] as num?)?.toInt() ?? budgetVal.toInt()} (${myBid?["status"] ?? "PENDING"})',
+                                                  'Your Quote Submitted: ₹${(myBid?["bidAmount"] as num?)?.toInt() ?? budgetVal.toInt()} (${myBid?["status"] ?? "PENDING"})',
                                                   style: TextStyle(
                                                     fontWeight: FontWeight.bold,
                                                     fontSize: 12,
@@ -434,7 +434,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
                                                 mainAxisAlignment: MainAxisAlignment.center,
                                                 children: [
                                                   Text(
-                                                    '🔨 SUBMIT QUOTE / BID',
+                                                    'SUBMIT QUOTE / BID',
                                                     style: AppTypography.caption(
                                                       color: isDark ? Colors.indigoAccent : Colors.indigo,
                                                       fontWeight: FontWeight.bold,

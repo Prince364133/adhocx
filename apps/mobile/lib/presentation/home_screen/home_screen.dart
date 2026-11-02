@@ -189,7 +189,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _currentState = goOnline ? DriverHomeState.available : DriverHomeState.offline;
         });
         Fluttertoast.showToast(
-          msg: goOnline ? '🟢 You are now ONLINE & Available for trips' : '⚪ You are now OFFLINE',
+          msg: goOnline ? 'You are now ONLINE & Available for trips' : 'You are now OFFLINE',
           backgroundColor: goOnline ? AppColors.accentGreenDark : AppColors.slate700,
         );
         _loadLiveDriverData(silent: true);
@@ -923,7 +923,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                         ),
-                        child: const Text('DECLINE ✕', style: TextStyle(fontWeight: FontWeight.bold)),
+                        child: const Text('DECLINE', style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     ),
                     const SizedBox(width: AppSpacing.md),
@@ -933,7 +933,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         onPressed: () async {
                           try {
                             await DriverService.instance.acceptOffer(offerId);
-                            Fluttertoast.showToast(msg: 'Trip Accepted successfully! ✓', backgroundColor: AppColors.accentGreenDark);
+                            Fluttertoast.showToast(msg: 'Trip Accepted successfully!', backgroundColor: AppColors.accentGreenDark);
                             _loadLiveDriverData(silent: false);
                           } catch (e) {
                             Fluttertoast.showToast(msg: 'Accept failed: $e', backgroundColor: AppColors.error);
@@ -946,7 +946,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           elevation: 0,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                         ),
-                        child: const Text('ACCEPT TRIP ✓', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        child: const Text('ACCEPT TRIP', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                       ),
                     ),
                   ],
@@ -964,7 +964,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             builder: (ctx) => DriverSubmitBidSheet(
                               opportunity: offer,
                               onBidSubmitted: () {
-                                Fluttertoast.showToast(msg: 'Quote submitted successfully! ✓', backgroundColor: AppColors.primary);
+                                Fluttertoast.showToast(msg: 'Quote submitted successfully!', backgroundColor: AppColors.primary);
                                 _loadLiveDriverData(silent: false);
                               },
                             ),
@@ -992,7 +992,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               bidAmount: rate.toDouble(),
                               etaMinutes: 15,
                             );
-                            Fluttertoast.showToast(msg: 'Quick Quote $rateStr placed! ✓', backgroundColor: AppColors.primary);
+                            Fluttertoast.showToast(msg: 'Quick Quote $rateStr placed!', backgroundColor: AppColors.primary);
                             _loadLiveDriverData(silent: false);
                           } catch (e) {
                             Fluttertoast.showToast(msg: 'Bid submission failed: $e', backgroundColor: AppColors.error);
@@ -1047,7 +1047,7 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Trip Assigned ✓',
+                'Trip Assigned',
                 style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
               ),
               Text(
@@ -1169,7 +1169,7 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                status == 'ARRIVED' ? 'Arrived at Pickup (Enter OTP)' : 'Trip in Progress 🚗',
+                status == 'ARRIVED' ? 'Arrived at Pickup (Enter OTP)' : 'Trip in Progress',
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
               ),
               Text(
@@ -1274,7 +1274,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       }
                     },
                     icon: const Icon(Icons.check_circle_rounded, color: Colors.white),
-                    label: const Text('COMPLETE TRIP ✓', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    label: const Text('COMPLETE TRIP', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.accentGreenDark,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),

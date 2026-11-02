@@ -476,9 +476,9 @@ class _EditProfileModalState extends State<EditProfileModal> {
         const SizedBox(height: 6),
         Row(
           children: [
-            _typeBtn('sedan', '🚗 Sedan', isDark),
+            _typeBtn('sedan', 'Sedan', isDark),
             const SizedBox(width: 10),
-            _typeBtn('suv', '🚙 SUV', isDark),
+            _typeBtn('suv', 'SUV', isDark),
           ],
         ),
       ],

@@ -216,7 +216,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 6),
-                                const Text('👋', style: TextStyle(fontSize: 20)),
+                                const SizedBox.shrink(),
                               ],
                             ),
                           ],
