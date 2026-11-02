@@ -117,7 +117,7 @@ export class LedgerService {
   }
 
   /**
-   * Hold customer/vendor funds in escrow upon bid acceptance or requirement posting.
+   * Hold customer/vendor funds in escrow upon requirement booking.
    */
   async holdEscrow(data: {
     vendorId: string;

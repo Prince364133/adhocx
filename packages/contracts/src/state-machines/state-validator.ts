@@ -1,7 +1,6 @@
 import {
   RequirementStatus,
   OfferStatus,
-  BidStatus,
   AssignmentStatus,
   TripStatus,
   DriverAvailability,
@@ -31,14 +30,13 @@ export const LEGAL_REQUIREMENT_TRANSITIONS: Record<RequirementStatus, Requiremen
   [RequirementStatus.PARTIALLY_FULFILLED]: [
     RequirementStatus.DISPATCHING,
     RequirementStatus.FULFILLED,
-    RequirementStatus.NO_DRIVER_AVAILABLE,
     RequirementStatus.CANCELLED,
   ],
-  [RequirementStatus.NO_DRIVER_AVAILABLE]: [RequirementStatus.DISPATCHING, RequirementStatus.CANCELLED],
   [RequirementStatus.FULFILLED]: [RequirementStatus.IN_PROGRESS, RequirementStatus.CANCELLED],
   [RequirementStatus.IN_PROGRESS]: [RequirementStatus.COMPLETED, RequirementStatus.CANCELLED],
   [RequirementStatus.COMPLETED]: [],
   [RequirementStatus.CANCELLED]: [],
+  [RequirementStatus.NO_DRIVER_AVAILABLE]: [RequirementStatus.DISPATCHING, RequirementStatus.CANCELLED],
 };
 
 export const LEGAL_OFFER_TRANSITIONS: Record<OfferStatus, OfferStatus[]> = {
@@ -48,14 +46,6 @@ export const LEGAL_OFFER_TRANSITIONS: Record<OfferStatus, OfferStatus[]> = {
   [OfferStatus.DECLINED]: [],
   [OfferStatus.EXPIRED]: [],
   [OfferStatus.CANCELLED]: [],
-};
-
-export const LEGAL_BID_TRANSITIONS: Record<BidStatus, BidStatus[]> = {
-  [BidStatus.PENDING]: [BidStatus.ACCEPTED, BidStatus.REJECTED, BidStatus.WITHDRAWN, BidStatus.EXPIRED],
-  [BidStatus.ACCEPTED]: [],
-  [BidStatus.REJECTED]: [],
-  [BidStatus.WITHDRAWN]: [],
-  [BidStatus.EXPIRED]: [],
 };
 
 export const LEGAL_ASSIGNMENT_TRANSITIONS: Record<AssignmentStatus, AssignmentStatus[]> = {
@@ -108,17 +98,6 @@ export function canTransitionOffer(from: OfferStatus, to: OfferStatus): boolean 
 export function validateOfferTransition(from: OfferStatus, to: OfferStatus): void {
   if (!canTransitionOffer(from, to)) {
     throw new InvalidStateTransitionError('Offer', from, to);
-  }
-}
-
-export function canTransitionBid(from: BidStatus, to: BidStatus): boolean {
-  if (from === to) return true;
-  return LEGAL_BID_TRANSITIONS[from]?.includes(to) ?? false;
-}
-
-export function validateBidTransition(from: BidStatus, to: BidStatus): void {
-  if (!canTransitionBid(from, to)) {
-    throw new InvalidStateTransitionError('Bid', from, to);
   }
 }
 

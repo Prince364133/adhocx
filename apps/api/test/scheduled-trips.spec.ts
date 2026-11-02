@@ -54,9 +54,6 @@ describe('Scheduled Trips & Automated 30s Pre-Dispatch Simulation Suite', () => 
       offer: {
         updateMany: jest.fn(),
       },
-      bid: {
-        updateMany: jest.fn(),
-      },
       trip: {
         findFirst: jest.fn().mockResolvedValue(null),
         count: jest.fn().mockResolvedValue(0),
@@ -455,7 +452,6 @@ describe('Scheduled Trips & Automated 30s Pre-Dispatch Simulation Suite', () => 
           quantity: 1,
           reportingTime: new Date(Date.now() + 2 * 60 * 60 * 1000),
           offers: [],
-          bids: [],
           createdAt: new Date(),
           updatedAt: new Date(),
         })

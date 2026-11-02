@@ -14,7 +14,6 @@ import '../../shared/widgets/trip_rating_bottom_sheet.dart';
 import '../../shared/widgets/app_profile_avatar.dart';
 import '../../core/utils/app_toast.dart';
 import '../../utils/vehicle_utils.dart';
-import '../requirements/user_bids_bottom_sheet.dart';
 
 /// Unified Active Trip Tracking Screen
 /// Merges both Requirement Details and Live Active Trip Tracking into a single,
@@ -677,7 +676,6 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
     final offers = req['offers'] is List ? (req['offers'] as List) : [];
     final rawId = req['id']?.toString() ?? _trip?['id']?.toString() ?? '';
     final isSearching = status == 'POSTED' || status == 'DISPATCHING' || status == 'OPEN';
-    final isBidding = req['fulfillmentMode'] == 'BIDDING';
 
     // Extract approached drivers
     final approachedDrivers = <Map<String, dynamic>>[];
@@ -860,7 +858,7 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
                                   children: [
                                     Text('Booking Type', style: TextStyle(fontSize: 11, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
                                     const SizedBox(height: 2),
-                                    Text(isBidding ? 'Reverse Auction' : 'Corporate Direct', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                                    Text('Corporate Direct', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                                   ],
                                 ),
                               ),
@@ -1000,26 +998,6 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
                               ],
                             ),
                           )),
-
-                    if (isBidding) ...[
-                      const SizedBox(height: AppSpacing.md),
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          UserBidsBottomSheet.show(
-                            context,
-                            requirementId: rawId,
-                            onBidAccepted: () => _loadData(silent: false),
-                          );
-                        },
-                        icon: const Icon(Icons.gavel_rounded, size: 16),
-                        label: const Text('View Driver Bids & Quotes'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          minimumSize: const Size.fromHeight(44),
-                        ),
-                      ),
-                    ],
 
                     if (isSearching && rawId.isNotEmpty) ...[
                       const SizedBox(height: AppSpacing.lg),

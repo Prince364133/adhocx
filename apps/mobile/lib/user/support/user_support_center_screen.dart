@@ -28,7 +28,7 @@ class _UserSupportCenterScreenState extends State<UserSupportCenterScreen> with 
     {
       'category': 'Corporate Booking',
       'q': 'How do corporate ride requirements work?',
-      'a': 'You can create single or bulk vehicle requirements specifying pickup, drop, vehicle type, and reporting time. Verified fleet drivers receive dispatches or bid on your requirements under your corporate rate card.',
+      'a': 'You can create single or bulk vehicle requirements specifying pickup, drop, vehicle type, and reporting time. Verified fleet drivers receive direct dispatches on your requirements under your corporate rate card.',
     },
     {
       'category': 'Corporate Booking',

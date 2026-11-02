@@ -41,14 +41,12 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
     try {
       final results = await Future.wait([
         DriverService.instance.getOffers(forceRefresh: force),
-        DriverService.instance.getBiddingOpportunities(forceRefresh: force).catchError((_) => <dynamic>[]),
         DriverService.instance.getTrips(forceRefresh: force).catchError((_) => <dynamic>[]),
         DriverService.instance.getProfile(forceRefresh: force).catchError((_) => null),
       ]);
       final directOffers = results[0] as List<dynamic>;
-      final biddingOps = results[1] as List<dynamic>;
-      final trips = results[2] as List<dynamic>;
-      final driverProfile = results[3];
+      final trips = results[1] as List<dynamic>;
+      final driverProfile = results[2];
 
       // 1. Resolve Driver's Registered Vehicle Category safely across all payload layers
       String registeredVehicle = VehicleUtils.extractVehicleType(driverProfile);
@@ -83,7 +81,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
         }
       }
 
-      // Merge direct offers & bidding opportunities, deduplicating and removing fulfilled
+      // Process direct offers, deduplicating and removing fulfilled
       final combinedOps = <dynamic>[];
       final seenOpIds = <String>{};
 
@@ -95,15 +93,6 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
         if (reqId != null && !seenOpIds.contains(reqId)) {
           seenOpIds.add(reqId);
           combinedOps.add(o);
-        }
-      }
-
-      for (final b in biddingOps) {
-        final reqId = (b['requirementId'] ?? b['id'])?.toString();
-        if (reqId != null && fulfilledRequirementIds.contains(reqId)) continue;
-        if (reqId != null && !seenOpIds.contains(reqId)) {
-          seenOpIds.add(reqId);
-          combinedOps.add(b);
         }
       }
 

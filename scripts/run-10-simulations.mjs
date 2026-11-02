@@ -40,14 +40,12 @@ const VehicleType = {
 
 const FulfillmentMode = {
   DIRECT_DISPATCH: 'DIRECT_DISPATCH',
-  BIDDING: 'BIDDING',
 };
 
-const BidStatus = {
-  PENDING: 'PENDING',
+const OfferStatus = {
+  SENT: 'SENT',
   ACCEPTED: 'ACCEPTED',
   REJECTED: 'REJECTED',
-  WITHDRAWN: 'WITHDRAWN',
   EXPIRED: 'EXPIRED',
 };
 
@@ -65,21 +63,20 @@ const DriverAvailability = {
   UNAVAILABLE: 'UNAVAILABLE',
 };
 
-const LEGAL_BID_TRANSITIONS = {
-  [BidStatus.PENDING]: [BidStatus.ACCEPTED, BidStatus.REJECTED, BidStatus.WITHDRAWN, BidStatus.EXPIRED],
-  [BidStatus.ACCEPTED]: [],
-  [BidStatus.REJECTED]: [],
-  [BidStatus.WITHDRAWN]: [],
-  [BidStatus.EXPIRED]: [],
+const LEGAL_OFFER_TRANSITIONS = {
+  [OfferStatus.SENT]: [OfferStatus.ACCEPTED, OfferStatus.REJECTED, OfferStatus.EXPIRED],
+  [OfferStatus.ACCEPTED]: [],
+  [OfferStatus.REJECTED]: [],
+  [OfferStatus.EXPIRED]: [],
 };
 
-function canTransitionBid(from, to) {
-  return LEGAL_BID_TRANSITIONS[from]?.includes(to) ?? false;
+function canTransitionOffer(from, to) {
+  return LEGAL_OFFER_TRANSITIONS[from]?.includes(to) ?? false;
 }
 
-function validateBidTransition(from, to) {
-  if (!canTransitionBid(from, to)) {
-    throw new Error(`Illegal bid transition from ${from} to ${to}`);
+function validateOfferTransition(from, to) {
+  if (!canTransitionOffer(from, to)) {
+    throw new Error(`Illegal offer transition from ${from} to ${to}`);
   }
 }
 
@@ -160,22 +157,21 @@ runSimulation('Pricing Engine & Distance Fare Floors (All 7 Vehicle Classes)', (
 });
 
 // =========================================================================
-// SIMULATION 2: Bid State Machine Mathematical Validation
+// SIMULATION 2: Offer State Machine Mathematical Validation
 // =========================================================================
-runSimulation('Bid State Machine Invariants & Terminal Lock States', () => {
-  // Valid transitions from PENDING
-  assert.strictEqual(canTransitionBid(BidStatus.PENDING, BidStatus.ACCEPTED), true);
-  assert.strictEqual(canTransitionBid(BidStatus.PENDING, BidStatus.REJECTED), true);
-  assert.strictEqual(canTransitionBid(BidStatus.PENDING, BidStatus.WITHDRAWN), true);
-  assert.strictEqual(canTransitionBid(BidStatus.PENDING, BidStatus.EXPIRED), true);
+runSimulation('Offer State Machine Invariants & Terminal Lock States', () => {
+  // Valid transitions from SENT
+  assert.strictEqual(canTransitionOffer(OfferStatus.SENT, OfferStatus.ACCEPTED), true);
+  assert.strictEqual(canTransitionOffer(OfferStatus.SENT, OfferStatus.REJECTED), true);
+  assert.strictEqual(canTransitionOffer(OfferStatus.SENT, OfferStatus.EXPIRED), true);
 
   // Terminal state immutability
-  assert.strictEqual(canTransitionBid(BidStatus.ACCEPTED, BidStatus.WITHDRAWN), false);
-  assert.strictEqual(canTransitionBid(BidStatus.ACCEPTED, BidStatus.REJECTED), false);
-  assert.strictEqual(canTransitionBid(BidStatus.REJECTED, BidStatus.ACCEPTED), false);
-  assert.strictEqual(canTransitionBid(BidStatus.WITHDRAWN, BidStatus.ACCEPTED), false);
+  assert.strictEqual(canTransitionOffer(OfferStatus.ACCEPTED, OfferStatus.REJECTED), false);
+  assert.strictEqual(canTransitionOffer(OfferStatus.ACCEPTED, OfferStatus.EXPIRED), false);
+  assert.strictEqual(canTransitionOffer(OfferStatus.REJECTED, OfferStatus.ACCEPTED), false);
+  assert.strictEqual(canTransitionOffer(OfferStatus.EXPIRED, OfferStatus.ACCEPTED), false);
 
-  assert.throws(() => validateBidTransition(BidStatus.ACCEPTED, BidStatus.WITHDRAWN), /Illegal bid transition/);
+  assert.throws(() => validateOfferTransition(OfferStatus.ACCEPTED, OfferStatus.REJECTED), /Illegal offer transition/);
 });
 
 // =========================================================================
@@ -209,108 +205,99 @@ runSimulation('Mode 1 (DIRECT_DISPATCH) Bulk Corporate Capacity Allocation', () 
 });
 
 // =========================================================================
-// SIMULATION 4: Mode 2 (BIDDING) Reverse-Auction & Price Bounds
+// SIMULATION 4: Corporate Rate-Card Zonal Pricing Bounds & Surcharge Guardrails
 // =========================================================================
-runSimulation('Mode 2 (BIDDING) Outstation Broadcast & Competitive Quote Bands', () => {
+runSimulation('Corporate Rate-Card Zonal Pricing Bounds & Surcharge Guardrails', () => {
   const distanceKm = 220;
-  const suggestedBudget = pricing.calculateMinimumFare(VehicleType.SEDAN, distanceKm); // 700 + 220*13 = 3560
+  const standardFare = pricing.calculateMinimumFare(VehicleType.SEDAN, distanceKm); // 700 + 220*13 = 3560
 
-  const outstationReq = {
-    id: 'req-outstation-01',
+  const corporateZonalReq = {
+    id: 'req-zonal-01',
     vendorId: 'vnd-requester-1',
-    fulfillmentMode: FulfillmentMode.BIDDING,
+    fulfillmentMode: FulfillmentMode.DIRECT_DISPATCH,
     vehicleType: VehicleType.SEDAN,
     quantity: 1,
     assignedQuantity: 0,
-    suggestedBudget,
-    totalAmount: suggestedBudget,
+    ratePerVehicle: standardFare,
+    totalAmount: standardFare,
     status: 'POSTED',
   };
 
-  assert.strictEqual(outstationReq.fulfillmentMode, FulfillmentMode.BIDDING);
+  assert.strictEqual(corporateZonalReq.fulfillmentMode, FulfillmentMode.DIRECT_DISPATCH);
 
-  // Bidding bounds: ±50%
-  const minAllowed = Math.round(suggestedBudget * 0.5);
-  const maxAllowed = Math.round(suggestedBudget * 1.8);
-
-  const quoteDriver1 = 3400; // valid
-  const quoteDriver2 = 3250; // valid, cheaper
-  const predatoryQuote = 800; // invalid, below floor
-
-  assert.ok(quoteDriver1 >= minAllowed && quoteDriver1 <= maxAllowed, 'Driver 1 quote is valid');
-  assert.ok(quoteDriver2 >= minAllowed && quoteDriver2 <= maxAllowed, 'Driver 2 quote is valid');
-  assert.ok(predatoryQuote < minAllowed, 'Predatory quote must be rejected');
+  // Fixed Rate Card Bounds
+  const escortFee = 350;
+  const totalWithEscort = standardFare + escortFee;
+  assert.ok(totalWithEscort > standardFare, 'Escort fee is additive');
+  assert.strictEqual(corporateZonalReq.ratePerVehicle, standardFare);
 });
 
 // =========================================================================
-// SIMULATION 5: Atomic Bid Acceptance & Polymorphic Assignment
+// SIMULATION 5: Atomic Direct Dispatch Offer Acceptance & Assignment
 // =========================================================================
-runSimulation('Atomic Bid Acceptance, Competing Quotes Rejection & OTP Trip Generation', () => {
-  const req = { id: 'req-bidding-99', quantity: 1, assignedQuantity: 0, status: 'POSTED' };
-  const bids = [
-    { id: 'bid-A', driverId: 'drv-1', bidAmount: 3400, status: BidStatus.PENDING },
-    { id: 'bid-B', driverId: 'drv-2', bidAmount: 3200, status: BidStatus.PENDING },
+runSimulation('Atomic Direct Dispatch Offer Acceptance & OTP Trip Generation', () => {
+  const req = { id: 'req-dispatch-99', quantity: 1, assignedQuantity: 0, status: 'POSTED' };
+  const offers = [
+    { id: 'off-A', driverId: 'drv-1', rate: 3200, status: OfferStatus.SENT },
+    { id: 'off-B', driverId: 'drv-2', rate: 3200, status: OfferStatus.SENT },
   ];
 
-  // Requester accepts bid-B (lowest quote)
-  const winningBid = bids.find((b) => b.id === 'bid-B');
-  validateBidTransition(winningBid.status, BidStatus.ACCEPTED);
-  winningBid.status = BidStatus.ACCEPTED;
+  // Driver 1 accepts offer first
+  const winningOffer = offers[0];
+  validateOfferTransition(winningOffer.status, OfferStatus.ACCEPTED);
+  winningOffer.status = OfferStatus.ACCEPTED;
 
-  // Auto-reject competing bids
-  for (const b of bids) {
-    if (b.id !== winningBid.id && b.status === BidStatus.PENDING) {
-      b.status = BidStatus.REJECTED;
+  // Auto-expire other competing offers in the wave
+  for (const o of offers) {
+    if (o.id !== winningOffer.id && o.status === OfferStatus.SENT) {
+      o.status = OfferStatus.EXPIRED;
     }
   }
 
   req.assignedQuantity = 1;
   req.status = 'FULFILLED';
 
-  // Polymorphic assignment
   const assignment = {
-    id: 'asg-poly-1',
+    id: 'asg-direct-1',
     requirementId: req.id,
-    bidId: winningBid.id,
-    offerId: null, // nullable!
-    driverId: winningBid.driverId,
+    offerId: winningOffer.id,
+    driverId: winningOffer.driverId,
     status: 'CONFIRMED',
   };
 
   // 4-digit OTP trip creation
   const startOtp = Math.floor(1000 + Math.random() * 9000).toString();
   const trip = {
-    id: 'trp-poly-1',
+    id: 'trp-direct-1',
     assignmentId: assignment.id,
-    driverId: winningBid.driverId,
-    driverRate: winningBid.bidAmount,
+    driverId: winningOffer.driverId,
+    driverRate: winningOffer.rate,
     otp: startOtp,
     status: 'ASSIGNED',
   };
 
-  assert.strictEqual(winningBid.status, BidStatus.ACCEPTED);
-  assert.strictEqual(bids[0].status, BidStatus.REJECTED);
-  assert.strictEqual(assignment.bidId, 'bid-B');
-  assert.strictEqual(assignment.offerId, null);
+  assert.strictEqual(winningOffer.status, OfferStatus.ACCEPTED);
+  assert.strictEqual(offers[1].status, OfferStatus.EXPIRED);
+  assert.strictEqual(assignment.offerId, 'off-A');
   assert.strictEqual(trip.otp.length, 4);
 });
 
 // =========================================================================
 // SIMULATION 6: Financial Double-Entry Invariant: Escrow Hold
 // =========================================================================
-runSimulation('Double-Entry Ledger Escrow Lock on Bid Acceptance', () => {
+runSimulation('Double-Entry Ledger Escrow Lock on Direct Dispatch Acceptance', () => {
   const vendor = { id: 'vnd-1', escrowBalance: 0 };
   const ledgerEntries = [];
-  const winningBidAmount = 3200;
+  const agreedFare = 3200;
 
   // Hold Escrow
-  vendor.escrowBalance += winningBidAmount;
+  vendor.escrowBalance += agreedFare;
   ledgerEntries.push({
     id: 'led-1',
     accountType: 'VENDOR',
     accountId: vendor.id,
     entryType: 'DEBIT',
-    amount: winningBidAmount,
+    amount: agreedFare,
     balanceAfter: vendor.escrowBalance,
     referenceType: 'ESCROW_HOLD',
     referenceId: 'trp-poly-1',
@@ -444,25 +431,25 @@ runSimulation('Customer Care Dispute Lifecycle: Filing, Investigation & Resoluti
 // =========================================================================
 // SIMULATION 11: QA-01 Driver Double-Booking & Auto-Expiry Guard
 // =========================================================================
-runSimulation('QA-01: Driver Double-Booking Prevention & Concurrent Bid Invalidation', () => {
+runSimulation('QA-01: Driver Double-Booking Prevention & Concurrent Offer Invalidation', () => {
   const driver = { id: 'drv-busy', availabilityStatus: DriverAvailability.AVAILABLE };
-  const pendingBids = [
-    { id: 'bid-trip-1', driverId: 'drv-busy', status: BidStatus.PENDING },
-    { id: 'bid-trip-2', driverId: 'drv-busy', status: BidStatus.PENDING },
-    { id: 'bid-trip-3', driverId: 'drv-busy', status: BidStatus.PENDING },
+  const pendingOffers = [
+    { id: 'off-trip-1', driverId: 'drv-busy', status: OfferStatus.SENT },
+    { id: 'off-trip-2', driverId: 'drv-busy', status: OfferStatus.SENT },
+    { id: 'off-trip-3', driverId: 'drv-busy', status: OfferStatus.SENT },
   ];
 
-  // Vendor 1 accepts bid-trip-1
+  // Driver accepts off-trip-1
   assert.strictEqual(driver.availabilityStatus, DriverAvailability.AVAILABLE);
-  pendingBids[0].status = BidStatus.ACCEPTED;
+  pendingOffers[0].status = OfferStatus.ACCEPTED;
   driver.availabilityStatus = DriverAvailability.BUSY;
 
-  // Auto-expire other pending bids placed by this driver
-  for (let i = 1; i < pendingBids.length; i++) {
-    pendingBids[i].status = BidStatus.EXPIRED;
+  // Auto-expire other pending offers dispatched to this driver
+  for (let i = 1; i < pendingOffers.length; i++) {
+    pendingOffers[i].status = OfferStatus.EXPIRED;
   }
 
-  // Vendor 2 tries to accept bid-trip-2 concurrently: must be rejected because driver is BUSY!
+  // Attempting to accept another offer while BUSY must be rejected!
   const attemptAcceptWhileBusy = () => {
     if (driver.availabilityStatus !== DriverAvailability.AVAILABLE) {
       throw new Error('Driver is currently engaged in another trip or unavailable');
@@ -470,14 +457,14 @@ runSimulation('QA-01: Driver Double-Booking Prevention & Concurrent Bid Invalida
   };
 
   assert.throws(attemptAcceptWhileBusy, /Driver is currently engaged in another trip/);
-  assert.strictEqual(pendingBids[1].status, BidStatus.EXPIRED);
-  assert.strictEqual(pendingBids[2].status, BidStatus.EXPIRED);
+  assert.strictEqual(pendingOffers[1].status, OfferStatus.EXPIRED);
+  assert.strictEqual(pendingOffers[2].status, OfferStatus.EXPIRED);
 });
 
 // =========================================================================
 // SIMULATION 12: QA-02 Vehicle Class Compatibility Enforcement
 // =========================================================================
-runSimulation('QA-02: Vehicle Class Compatibility Enforcement on Driver Bid Placement', () => {
+runSimulation('QA-02: Vehicle Class Compatibility Enforcement on Direct Dispatch Offer Waves', () => {
   const driverWithSedan = {
     id: 'drv-sedan-only',
     vehicles: [{ type: VehicleType.SEDAN, registrationNumber: 'DL01XY1234' }],
@@ -493,51 +480,51 @@ runSimulation('QA-02: Vehicle Class Compatibility Enforcement on Driver Bid Plac
     }
   };
 
-  // Trying to bid on Tempo Traveller with Sedan must fail
+  // Offering Tempo Traveller to Sedan driver must fail
   assert.throws(() => validateVehicleMatch(driverWithSedan, tempoReq), /Driver does not have a verified vehicle/);
 
-  // Bidding on Sedan matches successfully
+  // Offering Sedan to Sedan driver matches successfully
   assert.doesNotThrow(() => validateVehicleMatch(driverWithSedan, sedanReq));
 });
 
 // =========================================================================
-// SIMULATION 13: QA-03 Self-Bidding & Wash Trading Prevention
+// SIMULATION 13: QA-03 Self-Fulfillment Prevention
 // =========================================================================
-runSimulation('QA-03: Self-Bidding Prevention (Vendor Blocked from Bidding on Own Trips)', () => {
+runSimulation('QA-03: Self-Acceptance Prevention (Vendor Blocked from Accepting Own Trips)', () => {
   const requirement = {
     id: 'req-self-test',
     vendor: { userId: 'usr-vendor-42' },
   };
 
-  const validateSelfBidding = (driverUserId, req) => {
+  const validateSelfDispatch = (driverUserId, req) => {
     if (req.vendor.userId === driverUserId) {
-      throw new Error('Requesters cannot submit bids on their own requirements');
+      throw new Error('Requesters cannot accept offers on their own requirements');
     }
   };
 
-  // Same user trying to bid on their own trip
-  assert.throws(() => validateSelfBidding('usr-vendor-42', requirement), /Requesters cannot submit bids on their own requirements/);
+  // Same user trying to accept own requirement as a driver
+  assert.throws(() => validateSelfDispatch('usr-vendor-42', requirement), /Requesters cannot accept offers on their own requirements/);
 
-  // Different driver user can bid
-  assert.doesNotThrow(() => validateSelfBidding('usr-driver-88', requirement));
+  // Different driver user can accept
+  assert.doesNotThrow(() => validateSelfDispatch('usr-driver-88', requirement));
 });
 
 // =========================================================================
 // SIMULATION 14: QA-04 & QA-09 PII Masking & Duplicate Dispute Prevention
 // =========================================================================
-runSimulation('QA-04 & QA-09: Competitor PII Masking & Duplicate Active Dispute Blocking', () => {
+runSimulation('QA-04 & QA-09: Driver PII Masking & Duplicate Active Dispute Blocking', () => {
   // PII Masking test
-  const rawBid = {
-    id: 'bid-secret',
+  const rawDriverOffer = {
+    id: 'off-secret',
     driver: {
       fullName: 'Vikramaditya Sharma',
       phone: '+919876543210',
       vehicles: [{ type: 'SEDAN', registrationNumber: 'DL01ZZ9999' }],
     },
-    bidAmount: 3500,
+    rate: 3500,
   };
 
-  const maskForCompetitor = (b) => {
+  const maskForPublicFeed = (b) => {
     const nameParts = b.driver.fullName.split(' ');
     const maskedName = `${nameParts[0]} ${nameParts[1][0]}.`;
     const phone = b.driver.phone;
@@ -550,7 +537,7 @@ runSimulation('QA-04 & QA-09: Competitor PII Masking & Duplicate Active Dispute 
     };
   };
 
-  const masked = maskForCompetitor(rawBid);
+  const masked = maskForPublicFeed(rawDriverOffer);
   assert.strictEqual(masked.driverName, 'Vikramaditya S.');
   assert.strictEqual(masked.driverPhone, '+919****210');
   assert.strictEqual(masked.vehiclePlate, 'DL-XX-XXXX');

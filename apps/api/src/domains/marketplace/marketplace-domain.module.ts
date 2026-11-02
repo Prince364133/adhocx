@@ -1,14 +1,12 @@
 import { Module } from '@nestjs/common';
 import { RequirementsModule } from '../../modules/requirements/requirements.module';
-import { BidsModule } from '../../modules/bids/bids.module';
 
 /**
- * Marketplace Domain (Bounded Context: Adhoc Transport Demand & Bidding)
- * Encapsulates corporate adhoc requirements and driver/vendor bidding lifecycle.
+ * Marketplace Domain (Bounded Context: Adhoc Transport Demand & Direct Dispatch)
+ * Encapsulates corporate adhoc requirements and driver dispatch lifecycle.
  */
 @Module({
-  imports: [RequirementsModule, BidsModule],
-  exports: [RequirementsModule, BidsModule],
+  imports: [RequirementsModule],
+  exports: [RequirementsModule],
 })
 export class MarketplaceDomainModule {}
-

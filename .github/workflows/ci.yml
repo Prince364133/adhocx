@@ -166,7 +166,7 @@ jobs:
           API_URL: http://localhost:7001/api/v1
         run: node scripts/seed-and-test-coupons.js
 
-      - name: Run Live Dispatch & Bidding E2E Test Suite
+      - name: Run Live Dispatch & Fulfillment E2E Test Suite
         env:
           API_URL: http://localhost:7001/api/v1
         run: node scripts/test_live_dispatch_e2e.js

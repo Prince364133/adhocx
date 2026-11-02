@@ -2,7 +2,6 @@ export * from './common.dto';
 export * from './auth.dto';
 export * from './requirement.dto';
 export * from './offer.dto';
-export * from './bid.dto';
 export * from './trip.dto';
 export * from './review.dto';
 export * from './dispute.dto';

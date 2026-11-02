@@ -105,18 +105,6 @@ class UserService {
     return await _api.post('/requirements/$id/retry');
   }
 
-  // Bidding Flow for Requester
-  Future<List<dynamic>> getBids(String requirementId) async {
-    await _ensureSession();
-    final response = await _api.get('/bids/requirement/$requirementId');
-    return response is List ? response : [];
-  }
-
-  Future<dynamic> acceptBid(String bidId) async {
-    await _ensureSession();
-    return await _api.post('/bids/$bidId/accept');
-  }
-
   // Reviews & Ratings
   Future<Map<String, dynamic>?> getPendingReview() async {
     await _ensureSession();

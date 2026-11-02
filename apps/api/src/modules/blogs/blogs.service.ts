@@ -58,9 +58,9 @@ export class BlogsService {
     this.inMemoryBlogs = [
       {
         id: 'b1111111-1111-1111-1111-111111111111',
-        title: 'How AdhocX Reverse Auction Bidding Cuts Enterprise Spot Cab Costs by 28%',
-        slug: 'how-reverse-auction-cuts-enterprise-cab-costs',
-        excerpt: 'Discover how live driver reverse bidding and instant automated fulfillment eliminate middlemen broker markups for corporate logistics and spot employee transit in Hyderabad.',
+        title: 'How AdhocX Algorithmic Direct Dispatch Cuts Enterprise Spot Cab Costs by 28%',
+        slug: 'how-algorithmic-direct-dispatch-cuts-enterprise-cab-costs',
+        excerpt: 'Discover how live driver direct dispatch and instant automated fulfillment eliminate middlemen broker markups for corporate logistics and spot employee transit in Hyderabad.',
         content: `
 ## The Pain Point: High Broker Markups in Corporate Employee Transit
 
@@ -73,15 +73,15 @@ This legacy workflow introduces:
 
 ---
 
-## How the AdhocX Reverse Bidding Engine Solves Spot Procurement
+## How the AdhocX Direct Dispatch Engine Solves Spot Procurement
 
-AdhocX's proprietary **Reverse Bidding & Instant Fulfillment System** turns the traditional spot cab booking model on its head:
+AdhocX's proprietary **Direct Dispatch & Instant Fulfillment System** turns the traditional spot cab booking model on its head:
 
 ### 1. Direct Requirements Broadcast
 When a verified corporate vendor posts a requirement (e.g., 5 Sedan cabs from Madhapur to RGIA Airport at 02:00 AM), the requirement is instantly broadcast to pre-verified commercial drivers within a 15km geofence.
 
-### 2. Competitive Downward Bidding
-Drivers and small fleet owners view the trip parameters and submit competitive live quotes. In high-density corridors, this transparent competition reduces fare overhead by **up to 28%** compared to fixed broker tariffs.
+### 2. Algorithmic Tiered Dispatch Waves
+Drivers and fleet partners view fixed, transparent rate-card parameters and receive automated sequential dispatch offers. In high-density corridors, this transparent system reduces fare overhead by **up to 28%** compared to fixed broker tariffs.
 
 ### 3. Automated Guardrails & SLA Enforcement
 Every driver on the AdhocX platform is vetted for commercial insurance, police verification, and vehicle badge compliance. Once an offer is locked, AdhocX automates live trip telemetry and driver location tracking.
@@ -90,7 +90,7 @@ Every driver on the AdhocX platform is vetted for commercial insurance, police v
 Traditional Broker Model:
 [Enterprise] ---> [Broker Tier 1] ---> [Broker Tier 2] ---> [Driver] (40% Markup)
 
-AdhocX Direct Reverse Bidding:
+AdhocX Direct Dispatch:
 [Enterprise] <=======================> [Verified Commercial Driver] (Direct True Rate)
 \`\`\`
 
@@ -110,16 +110,16 @@ A leading IT/BPO service provider with 1,200 nocturnal support staff integrated 
 Optimizing corporate transit is no longer just about hiring more vendor cabs; it is about algorithmically removing frictional middlemen. With AdhocX, enterprises achieve transparency, compliance, and guaranteed driver availability at true market pricing.
         `,
         category: 'B2B Fleet Operations',
-        tags: ['Reverse Bidding', 'Corporate Mobility', 'Hyderabad Tech Transit', 'Fleet Optimization'],
+        tags: ['Direct Dispatch', 'Corporate Mobility', 'Hyderabad Tech Transit', 'Fleet Optimization'],
         coverImage: 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=1200&q=80',
         authorName: 'AdhocX Logistics Research',
         authorRole: 'Head of Enterprise Mobility',
         status: BlogStatus.PUBLISHED,
         views: 342,
         readTime: '4 min read',
-        seoTitle: 'Reverse Auction Bidding in Corporate Fleet Procurement | AdhocX',
-        seoDescription: 'Learn how AdhocX live reverse bidding reduces corporate cab procurement overhead by 28% while ensuring 100% verified commercial driver compliance.',
-        seoKeywords: 'corporate cab booking, B2B taxi hyderabad, reverse bidding logistics, enterprise employee transport',
+        seoTitle: 'Algorithmic Direct Dispatch in Corporate Fleet Procurement | AdhocX',
+        seoDescription: 'Learn how AdhocX live direct dispatch reduces corporate cab procurement overhead by 28% while ensuring 100% verified commercial driver compliance.',
+        seoKeywords: 'corporate cab booking, B2B taxi hyderabad, direct dispatch logistics, enterprise employee transport',
         publishedAt: new Date('2026-09-01T10:00:00Z'),
         createdAt: new Date('2026-09-01T09:00:00Z'),
         updatedAt: new Date('2026-09-01T10:00:00Z'),
@@ -218,7 +218,7 @@ Let us analyze the operational metrics, cost structures, and risk factors of bot
 
 Top-performing enterprises adopt a **hybrid mobility strategy**:
 1. **70% Core Baseline:** Maintain dedicated contracts for predictable, high-volume recurring employee routes.
-2. **30% Elastic Buffer with AdhocX:** Utilize AdhocX's automated bidding and dispatch marketplace for emergency shifts, client airport transfers, VIP delegations, and seasonal peaks.
+2. **30% Elastic Buffer with AdhocX:** Utilize AdhocX's automated direct dispatch marketplace for emergency shifts, client airport transfers, VIP delegations, and seasonal peaks.
 
 By leveraging AdhocX for the elastic 30%, corporate procurement desks eliminate idle fleet burn while maintaining an unmatched **99.8% on-time arrival SLA**.
 

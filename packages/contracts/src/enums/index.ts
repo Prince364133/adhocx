@@ -42,15 +42,6 @@ export type VehicleClass = VehicleType | string;
 
 export enum FulfillmentMode {
   DIRECT_DISPATCH = 'DIRECT_DISPATCH',
-  BIDDING = 'BIDDING',
-}
-
-export enum BidStatus {
-  PENDING = 'PENDING',
-  ACCEPTED = 'ACCEPTED',
-  REJECTED = 'REJECTED',
-  WITHDRAWN = 'WITHDRAWN',
-  EXPIRED = 'EXPIRED',
 }
 
 export enum DisputeStatus {
@@ -141,7 +132,6 @@ export enum NotificationType {
   TRIP_ASSIGNED = 'TRIP_ASSIGNED',
   TRIP_STATUS = 'TRIP_STATUS',
   REQUIREMENT_UPDATE = 'REQUIREMENT_UPDATE',
-  BID_UPDATE = 'BID_UPDATE',
   KYC_UPDATE = 'KYC_UPDATE',
   WALLET_UPDATE = 'WALLET_UPDATE',
   MARKETING_PROMO = 'MARKETING_PROMO',

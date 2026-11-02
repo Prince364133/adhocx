@@ -1,5 +1,5 @@
 /**
- * AdhocX End-to-End Live Dispatch, Bidding & Trip Lifecycle Test Suite
+ * AdhocX End-to-End Live Dispatch, Corporate ETS & Trip Lifecycle Test Suite
  * Tests 100% real API endpoints backed by live PostgreSQL and Redis.
  */
 
@@ -207,10 +207,10 @@ async function runVerification() {
   });
   console.log(`✓ Trip Completed! Status: ${completedTrip.status}, Final Fare: ₹${completedTrip.finalFare || completedTrip.fareAmount || completedTrip.driverRate || completedTrip.totalDriverEarnings || 0}`);
 
-  // 6. TEST CASE 2: Outstation Reverse Auction Bidding Flow
-  console.log('\n[STEP 5] --- TEST CASE 2: Reverse Auction Bidding Flow ---');
-  console.log('Vendor posting Outstation Bidding requirement for SUV...');
-  const biddingReq = await request('/requirements', {
+  // 6. TEST CASE 2: Second Direct Dispatch Requirement Flow
+  console.log('\n[STEP 5] --- TEST CASE 2: Second Direct Dispatch Sourcing Flow ---');
+  console.log('Vendor posting second direct dispatch requirement for SUV...');
+  const secondReq = await request('/requirements', {
     method: 'POST',
     headers: vendorHeaders,
     body: JSON.stringify({
@@ -227,46 +227,12 @@ async function runVerification() {
         address: 'Taj Mahal East Gate, Agra',
       },
       reportingTime: new Date(Date.now() + 7200000).toISOString(),
-      suggestedBudget: 4500,
-      fulfillmentMode: 'BIDDING',
+      ratePerVehicle: 4500,
+      fulfillmentMode: 'DIRECT_DISPATCH',
       notes: 'Delhi to Agra Outstation Trip',
     }),
   });
-  console.log(`✓ Bidding Requirement Created! ID: ${biddingReq.id}, Fulfillment Mode: ${biddingReq.fulfillmentMode}`);
-
-  console.log('\nDriver checking open bidding opportunities (/bids/open-opportunities)...');
-  const openOpportunities = await request('/bids/open-opportunities', { headers: driverHeaders });
-  console.log(`✓ Open bidding opportunities found: ${openOpportunities.length}`);
-  const matchBidding = openOpportunities.find(o => o.id === biddingReq.id || o.requirementId === biddingReq.id) || openOpportunities[0];
-
-  if (!matchBidding) {
-    throw new Error('Driver could not find open bidding opportunity!');
-  }
-  console.log(`✓ Found target bidding opportunity: ${matchBidding.title || matchBidding.id}`);
-
-  console.log('\nDriver placing competitive bid quote (₹ 4,200)...');
-  const placedBid = await request('/bids', {
-    method: 'POST',
-    headers: driverHeaders,
-    body: JSON.stringify({
-      requirementId: biddingReq.id,
-      bidAmount: 4200,
-      notes: 'Available with clean Innova Crysta, commercial permit & fastag',
-    }),
-  });
-  console.log(`✓ Bid Placed! Bid ID: ${placedBid.id}, Amount: ₹${placedBid.bidAmount || placedBid.amount || 4200}, Status: ${placedBid.status}`);
-
-  console.log('\nVendor viewing received bids for requirement...');
-  const receivedBids = await request(`/bids/requirement/${biddingReq.id}`, { headers: vendorHeaders });
-  console.log(`✓ Vendor received ${receivedBids.length} bid(s)`);
-
-  console.log('\nVendor accepting the driver bid quote...');
-  const acceptedBidResult = await request(`/bids/${placedBid.id}/accept`, {
-    method: 'POST',
-    headers: vendorHeaders,
-    body: JSON.stringify({}),
-  });
-  console.log(`✓ Bid accepted by vendor! Status: ${acceptedBidResult.status || 'ACCEPTED'}`);
+  console.log(`✓ Second Requirement Created! ID: ${secondReq.id}, Fulfillment Mode: ${secondReq.fulfillmentMode}`);
 
   // 7. Verify Live Driver Wallet & Ledger Transactions
   console.log('\n[STEP 6] Checking Driver Wallet & Production Ledger Transactions...');
@@ -280,7 +246,7 @@ async function runVerification() {
   console.log('  - Direct Dispatch & Real-time Offers: PASSED');
   console.log('  - Offer Acceptance & Trip Assignment: PASSED');
   console.log('  - OTP Verification & Trip Completion: PASSED');
-  console.log('  - Reverse Auction Bidding & Bid Acceptance: PASSED');
+  console.log('  - Direct Dispatch Sourcing Validation: PASSED');
   console.log('  - Wallet Ledger Credit: PASSED');
   console.log('  - Zero Mock Data in API Payloads: VERIFIED');
   console.log('================================================================\n');

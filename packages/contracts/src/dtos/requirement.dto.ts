@@ -128,8 +128,6 @@ export class RequirementQueryDto {
 export class RequirementDetailResponseDto extends RequirementResponseDto {
   remainingQuantity!: number;
   offersCount!: number;
-  bidsCount?: number;
-  bids?: Array<any>;
   offers?: Array<{
     id: string;
     requirementId: string;

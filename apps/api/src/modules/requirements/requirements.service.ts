@@ -18,7 +18,6 @@ import {
   AssignmentStatus,
   VerificationStatus,
   OfferStatus,
-  BidStatus,
   FulfillmentMode,
   VehicleType,
   PaymentStatus,
@@ -52,9 +51,7 @@ export class RequirementsService {
 
   /**
    * Create and post a new vehicle requirement.
-   * Supports both:
-   * 1. Mode A: DIRECT_DISPATCH (Corporate bulk bookings, fixed rate, timed offer waves)
-   * 2. Mode B: BIDDING (Outstation / Long distance, suggested budget floor, reverse auction)
+   * Mode: DIRECT_DISPATCH (Corporate bulk bookings, fixed rate, timed offer waves)
    */
   async createRequirement(vendorUserId: string, dto: CreateRequirementDto): Promise<RequirementResponseDto> {
     let vendor = await this.db.vendor.findUnique({
@@ -127,20 +124,7 @@ export class RequirementsService {
     let suggestedBudget = dto.suggestedBudget;
     let totalAmount = 0;
 
-    if (mode === FulfillmentMode.BIDDING) {
-      // Outstation Bidding Mode: Quantity defaults to 1 unless specified
-      const minFareFloor = this.pricingService.calculateMinimumFare(dto.vehicleType, distanceKm);
-
-      if (suggestedBudget && suggestedBudget < minFareFloor) {
-        throw new BadRequestException(
-          `Suggested budget ₹${suggestedBudget} is below minimum calculated fare floor of ₹${minFareFloor} for ${distanceKm} km`,
-        );
-      }
-
-      suggestedBudget = suggestedBudget || minFareFloor;
-      ratePerVehicle = suggestedBudget;
-      totalAmount = (dto.quantity || 1) * suggestedBudget;
-    } else if (zonalSnapshot) {
+    if (zonalSnapshot) {
       // Corporate zonal trip: the stored quote is authoritative. Never trust client-supplied amounts.
       const quotedRate = zonalSnapshot.totalFarePaise / 100;
       if (dto.ratePerVehicle !== undefined && dto.ratePerVehicle !== null && Number(dto.ratePerVehicle) !== quotedRate) {
@@ -325,19 +309,7 @@ export class RequirementsService {
       newBalance: Number(updatedVendor.escrowBalance),
     });
 
-    if (mode === FulfillmentMode.BIDDING) {
-      // Bidding Mode: Broadcast to nearby drivers
-      this.notifications.emitEvent(`bidding:open`, 'NEW_BIDDING_OPPORTUNITY', {
-        requirementId: requirement.id,
-        vehicleType: requirement.vehicleType,
-        pickupAddress: requirement.pickupAddress,
-        dropAddress: requirement.dropAddress,
-        distanceKm,
-        suggestedBudget,
-        reportingTime: requirement.reportingTime.toISOString(),
-      });
-      this.logger.log(`Requirement ${requirement.id} opened for bidding (Mode: BIDDING)`);
-    } else {
+    {
       const reportingTimeMs = requirement.reportingTime.getTime();
       const nowMs = Date.now();
       // Respect the determined isScheduled flag (never force Ride Now into scheduled)
@@ -510,7 +482,6 @@ export class RequirementsService {
             include: { user: true },
           },
           offers: true,
-          bids: true,
           assignments: true,
         },
         orderBy: { createdAt: 'desc' },
@@ -576,7 +547,7 @@ export class RequirementsService {
   }
 
   /**
-   * Get detailed requirement view including remaining slots, offer stats, bids, and assigned drivers.
+   * Get detailed requirement view including remaining slots, offer stats, and assigned drivers.
    */
   async getRequirementDetails(id: string, vendorUserId: string, role?: string): Promise<RequirementDetailResponseDto> {
     if (!UUID_REGEX.test(id)) {
@@ -595,14 +566,6 @@ export class RequirementsService {
             },
           },
           orderBy: { createdAt: 'desc' },
-        },
-        bids: {
-          include: {
-            driver: {
-              include: { user: true, vehicles: true },
-            },
-          },
-          orderBy: { bidAmount: 'asc' },
         },
         assignments: {
           where: { status: { not: AssignmentStatus.CANCELLED } },
@@ -665,7 +628,6 @@ export class RequirementsService {
       ...baseDto,
       remainingQuantity: requirement.quantity - requirement.assignedQuantity,
       offersCount: requirement.offers.length,
-      bidsCount: requirement.bids.length,
       driversApproachedCount: requirement.offers.length,
       searchStartedAt: requirement.createdAt.toISOString(),
       searchEndedAt: isStopped ? requirement.updatedAt.toISOString() : null,
@@ -695,26 +657,6 @@ export class RequirementsService {
           createdAt: o.createdAt.toISOString(),
           expiresAt: o.expiresAt.toISOString(),
           respondedAt: o.respondedAt ? o.respondedAt.toISOString() : undefined,
-        };
-      }),
-      bids: requirement.bids.map((b) => {
-        const primaryVehicle = b.driver.vehicles[0];
-        return {
-          id: b.id,
-          requirementId: b.requirementId,
-          driverId: b.driverId,
-          bidAmount: Number(b.bidAmount),
-          etaMinutes: b.etaMinutes || undefined,
-          notes: b.notes || undefined,
-          status: b.status as BidStatus,
-          createdAt: b.createdAt.toISOString(),
-          updatedAt: b.updatedAt.toISOString(),
-          driverName: b.driver.fullName,
-          driverPhone: b.driver.phone || '',
-          driverRating: b.driver.averageRating,
-          driverTrustScore: b.driver.trustScore,
-          vehicleModel: primaryVehicle?.model,
-          vehiclePlate: primaryVehicle?.registrationNumber,
         };
       }),
       assignedDrivers: requirement.assignments.map((a) => ({
@@ -775,7 +717,7 @@ export class RequirementsService {
   }
 
   /**
-   * Cancel requirement with state machine validation, active offer invalidation, and pending bid rejection.
+   * Cancel requirement with state machine validation and active offer invalidation.
    */
   async cancelRequirement(
     id: string,
@@ -791,7 +733,6 @@ export class RequirementsService {
       where: { id },
       include: {
         offers: { where: { status: OfferStatus.SENT } },
-        bids: { where: { status: BidStatus.PENDING } },
       },
     });
 
@@ -876,25 +817,6 @@ export class RequirementsService {
       }
     }
 
-    // Expire/reject pending bids if in BIDDING mode
-    if (requirement.bids.length > 0) {
-      await this.db.bid.updateMany({
-        where: {
-          requirementId: id,
-          status: BidStatus.PENDING,
-        },
-        data: { status: BidStatus.EXPIRED },
-      });
-
-      for (const bid of requirement.bids) {
-        this.notifications.emitEvent(`driver:${bid.driverId}`, 'BID_EXPIRED', {
-          bidId: bid.id,
-          requirementId: id,
-          reason: dto.reason || 'Requirement was cancelled by requester',
-        });
-      }
-    }
-
     if (refundAmount > 0) {
       this.notifications.emitEvent(`vendor:${requirement.vendorId}`, 'WALLET_REFUNDED', {
         requirementId: id,
@@ -910,7 +832,6 @@ export class RequirementsService {
       metadata: {
         reason: dto.reason,
         cancelledOffersCount: requirement.offers.length,
-        expiredBidsCount: requirement.bids.length,
       },
     });
 

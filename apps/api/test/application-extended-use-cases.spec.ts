@@ -175,12 +175,12 @@ describe('Application Layer - Extended Use Cases (CompleteTrip & DispatchRequire
     });
 
     it('should throw BadRequestException if pricingMode is not DIRECT_DISPATCH', async () => {
-      const mockReq = RequirementAggregate.reconstitute('req-bidding', {
+      const mockReq = RequirementAggregate.reconstitute('req-invalid-mode', {
         requesterId: 'usr-1',
         pickupLocation: GeoPoint.create(17.44, 78.38).getValue(),
         dropLocation: GeoPoint.create(17.41, 78.40).getValue(),
         pickupTime: new Date(Date.now() + 3600000),
-        pricingMode: 'BIDDING',
+        pricingMode: 'INVALID' as any,
         vehicleCategory: 'SEDAN',
         estimatedDistanceMeters: 10000,
         status: 'DRAFT',
@@ -190,7 +190,7 @@ describe('Application Layer - Extended Use Cases (CompleteTrip & DispatchRequire
 
       await expect(
         dispatchRequirementUseCase.execute({
-          requirementId: 'req-bidding',
+          requirementId: 'req-invalid-mode',
           requestedByUserId: 'usr-1',
         }),
       ).rejects.toThrow(BadRequestException);

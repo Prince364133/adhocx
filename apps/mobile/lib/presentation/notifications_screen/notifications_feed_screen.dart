@@ -74,8 +74,8 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen> {
         }
 
         final type = n.type?.toUpperCase() ?? '';
-        if (type.contains('BID')) {
-          icon = Icons.gavel_rounded;
+        if (type.contains('REQUIREMENT')) {
+          icon = Icons.assignment_outlined;
           color = AppColors.accentBlue;
           if (routeTarget.isEmpty && data['requirementId'] != null) {
             routeTarget = '/requirements/${data['requirementId']}';

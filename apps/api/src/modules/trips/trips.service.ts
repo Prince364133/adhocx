@@ -22,7 +22,6 @@ import {
   DriverAvailability,
   VehicleType,
   UserRole,
-  FulfillmentMode,
   NotificationType,
   validateTripTransition,
 } from '@adhocx/contracts';
@@ -660,7 +659,6 @@ export class TripsService {
     }
     validateTripTransition(trip.status as TripStatus, TripStatus.COMPLETED);
 
-    const isBidding = trip.requirement?.fulfillmentMode === FulfillmentMode.BIDDING;
     const zonalQuote = (trip.requirement as any)?.zonalQuote ?? null;
     const claimedToll = dto.tollCharges || 0;
     const claimedParking = dto.parkingCharges || 0;
@@ -740,7 +738,7 @@ export class TripsService {
           entryType: 'CREDIT',
           amount: totalDriverEarnings,
           balanceAfter: updatedDriver.walletBalance,
-          referenceType: isBidding ? 'ESCROW_RELEASE' : 'TRIP_EARNINGS',
+          referenceType: 'TRIP_EARNINGS',
           referenceId: trip.id,
           description: `Earnings for trip ${trip.id.slice(-6)} (Fare: ₹${fareAmount}${commission ? `, Commission (${commissionPercent}%): -₹${commission}` : ''}${tollCharges ? `, Toll: ₹${tollCharges}` : ''}${parkingCharges ? `, Parking: ₹${parkingCharges}` : ''})`,
         },
@@ -976,36 +974,8 @@ export class TripsService {
         });
       }
 
-      // 4. QA-07: If requirement had escrow (Bidding Mode), refund escrow to vendor and log ledger entry
-      if (trip.requirement?.fulfillmentMode === FulfillmentMode.BIDDING) {
-        const vendor = await tx.vendor.findUnique({ where: { id: trip.vendorId } });
-        if (vendor && Number(vendor.escrowBalance) > 0) {
-          const refundAmount = Math.min(Number(vendor.escrowBalance), Number(trip.driverRate));
-          const updatedVendor = await tx.vendor.update({
-            where: { id: trip.vendorId },
-            data: {
-              escrowBalance: { decrement: refundAmount },
-            },
-          });
-
-          await tx.ledgerEntry.create({
-            data: {
-              accountType: 'VENDOR',
-              accountId: trip.vendorId,
-              entryType: 'CREDIT',
-              amount: refundAmount,
-              balanceAfter: updatedVendor.escrowBalance,
-              referenceType: 'ESCROW_REFUND',
-              referenceId: trip.id,
-              description: `Escrow refund for cancelled trip ${trip.id.slice(-6)}: ${dto.reason || 'Booking cancelled'}`,
-            },
-          });
-        }
-      }
-
       // 5. QA-08: If cancelled before start, reopen capacity on the requirement
       if (wasPreStart) {
-        const isBidding = trip.requirement?.fulfillmentMode === FulfillmentMode.BIDDING;
         // Atomic decrement + read-back: never write a stale absolute count (that would erase a
         // concurrent accept's increment and allow overbooking).
         await tx.requirement.updateMany({
@@ -1018,7 +988,7 @@ export class TripsService {
           await tx.requirement.update({
             where: { id: trip.requirementId },
             data: {
-              status: isBidding ? RequirementStatus.POSTED : (newAssigned > 0 ? RequirementStatus.PARTIALLY_FULFILLED : RequirementStatus.DISPATCHING),
+              status: newAssigned > 0 ? RequirementStatus.PARTIALLY_FULFILLED : RequirementStatus.DISPATCHING,
             },
           });
         }
@@ -1042,23 +1012,11 @@ export class TripsService {
 
     // QA-08: If pre-start cancellation, auto-trigger supply recovery
     if (wasPreStart) {
-      if (trip.requirement?.fulfillmentMode === FulfillmentMode.BIDDING) {
-        // Broadcast reopened bidding opportunity to nearby drivers
-        this.notifications.emitEvent('drivers:opportunities', 'NEW_BIDDING_OPPORTUNITY', {
-          requirementId: trip.requirementId,
-          vehicleType: trip.vehicleType,
-          pickupAddress: trip.pickupAddress,
-          dropAddress: trip.dropAddress,
-          suggestedBudget: Number(trip.requirement.suggestedBudget || trip.driverRate),
-          reason: 'Opportunity reopened due to driver cancellation',
-        });
-      } else {
-        // Replacement after a cancellation gets a fresh wave budget (isRetry); the cancelled
-        // driver's ACCEPTED offer still excludes them from the replacement wave.
-        this.dispatchService.dispatchRequirement(trip.requirementId, true).catch((err) => {
-          this.logger.warn(`Redispatch after trip cancellation failed: ${err.message}`);
-        });
-      }
+      // Replacement after a cancellation gets a fresh wave budget (isRetry); the cancelled
+      // driver's ACCEPTED offer still excludes them from the replacement wave.
+      this.dispatchService.dispatchRequirement(trip.requirementId, true).catch((err) => {
+        this.logger.warn(`Redispatch after trip cancellation failed: ${err.message}`);
+      });
     }
 
     // Notifications

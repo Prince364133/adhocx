@@ -35,9 +35,6 @@ class DriverService {
   List<dynamic>? _cachedOffers;
   DateTime? _lastOffersFetchTime;
 
-  List<dynamic>? _cachedBiddingOps;
-  DateTime? _lastBiddingFetchTime;
-
   final Map<String, List<dynamic>> _cachedTripsByStatus = {};
   final Map<String, DateTime> _lastTripsFetchTimeByStatus = {};
 
@@ -50,14 +47,10 @@ class DriverService {
   dynamic _cachedWallet;
   DateTime? _lastWalletFetchTime;
 
-  void invalidateCache({bool all = false, bool offers = false, bool trips = false, bool bids = false, bool profile = false}) {
+  void invalidateCache({bool all = false, bool offers = false, bool trips = false, bool profile = false}) {
     if (all || offers) {
       _cachedOffers = null;
       _lastOffersFetchTime = null;
-    }
-    if (all || bids) {
-      _cachedBiddingOps = null;
-      _lastBiddingFetchTime = null;
     }
     if (all || trips) {
       _cachedTripsByStatus.clear();
@@ -320,59 +313,6 @@ class DriverService {
       body: reason != null ? {'reason': reason} : null,
     );
     invalidateCache(offers: true);
-    return res;
-  }
-
-  // Bidding (Outstation Reverse Auction Mode with 8s cache TTL)
-  Future<List<dynamic>> getBiddingOpportunities({bool forceRefresh = false}) async {
-    final now = DateTime.now();
-    if (!forceRefresh &&
-        _cachedBiddingOps != null &&
-        _lastBiddingFetchTime != null &&
-        now.difference(_lastBiddingFetchTime!).inSeconds < 8) {
-      return _cachedBiddingOps!;
-    }
-    await _ensureDriverSession();
-    final response = await _api.get('/bids/open-opportunities', force: forceRefresh);
-    if (response is List) {
-      _cachedBiddingOps = response;
-      _lastBiddingFetchTime = now;
-      return response;
-    }
-    return _cachedBiddingOps ?? [];
-  }
-
-  Future<dynamic> submitBid({
-    required String requirementId,
-    required double bidAmount,
-    int? etaMinutes,
-    String? notes,
-  }) async {
-    await _ensureDriverSession();
-    final res = await _api.post(
-      '/bids',
-      body: {
-        'requirementId': requirementId,
-        'bidAmount': bidAmount,
-        if (etaMinutes != null) 'etaMinutes': etaMinutes,
-        if (notes != null) 'notes': notes,
-      },
-    );
-    invalidateCache(bids: true);
-    return res;
-  }
-
-  Future<List<dynamic>> getMyBids({String? status}) async {
-    await _ensureDriverSession();
-    final query = status != null ? {'status': status} : null;
-    final response = await _api.get('/bids', queryParameters: query);
-    return response is List ? response : [];
-  }
-
-  Future<dynamic> withdrawBid(String bidId) async {
-    await _ensureDriverSession();
-    final res = await _api.post('/bids/$bidId/withdraw');
-    invalidateCache(bids: true);
     return res;
   }
 

@@ -35,7 +35,7 @@ class _DriverFaqScreenState extends State<DriverFaqScreen> {
 
   final List<String> _categories = [
     'ALL',
-    'Trips & Bidding',
+    'Trips & Dispatch',
     'Earnings & Payouts',
     'Account & KYC',
     'Vehicle & Fleet',
@@ -44,7 +44,7 @@ class _DriverFaqScreenState extends State<DriverFaqScreen> {
 
   final List<FaqItem> _faqList = const [
     FaqItem(
-      category: 'Trips & Bidding',
+      category: 'Trips & Dispatch',
       question: 'How do I accept incoming trip requirements?',
       answer:
           'When you are online, incoming ride requirements appear automatically as a real-time dispatch alert on your screen with net earnings and route details. Tap "Accept" within the countdown window to claim the trip. Once accepted, the trip moves to your Trips screen with turn-by-turn navigation guidance.',
@@ -62,7 +62,7 @@ class _DriverFaqScreenState extends State<DriverFaqScreen> {
           'Our compliance verification desk reviews submissions within 2 to 4 operational hours. Ensure your Driving License, RC Book, Commercial Insurance, and Aadhaar Card photos are clearly readable without glare.',
     ),
     FaqItem(
-      category: 'Trips & Bidding',
+      category: 'Trips & Dispatch',
       question: 'What happens if a passenger or client cancels a trip?',
       answer:
           'If a trip is cancelled after you have commenced travel or arrived at the pickup location, a cancellation fee is automatically calculated and credited to your driver wallet in accordance with platform trip guarantee terms.',

@@ -25,18 +25,6 @@ export class PrismaRequirementRepository implements IRequirementRepository {
     });
   }
 
-  async findOpenForBidding(limit: number = 50): Promise<RequirementAggregate[]> {
-    const raws = await this.db.requirement.findMany({
-      where: {
-        status: 'POSTED',
-        fulfillmentMode: 'BIDDING',
-      },
-      take: limit,
-      orderBy: { createdAt: 'desc' },
-    });
-    return raws.map((r) => PrismaRequirementMapper.toDomain(r));
-  }
-
   async findPendingDirectDispatch(limit: number = 50): Promise<RequirementAggregate[]> {
     const raws = await this.db.requirement.findMany({
       where: {
@@ -49,4 +37,3 @@ export class PrismaRequirementRepository implements IRequirementRepository {
     return raws.map((r) => PrismaRequirementMapper.toDomain(r));
   }
 }
-

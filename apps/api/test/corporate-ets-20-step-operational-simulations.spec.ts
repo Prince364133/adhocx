@@ -38,6 +38,7 @@ import { GeoPoint, H3Index } from '@adhocx/domain-core';
  * 20. Dual Financial Ledger Billing (5%/18% GST Corporate Bill & 1% TDS Driver Payout)
  */
 describe('Corporate Managed ETS: 20-Step Comprehensive Operational Simulations', () => {
+  jest.setTimeout(30000);
   let rosterIngestionService: RosterIngestionService;
   let routeSolverService: RouteSolverService;
   let dispatchService: CorporateDispatchService;

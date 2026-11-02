@@ -927,7 +927,6 @@ export class AuthService implements OnModuleInit {
         await tx.settlement.deleteMany({ where: { driverId } });
         await tx.trip.deleteMany({ where: { driverId } });
         await tx.assignment.deleteMany({ where: { driverId } });
-        await tx.bid.deleteMany({ where: { driverId } });
         await tx.offer.deleteMany({ where: { driverId } });
         await tx.vehicle.deleteMany({ where: { driverId } });
         await tx.driver.delete({ where: { id: driverId } });

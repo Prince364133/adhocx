@@ -226,9 +226,7 @@ class AppLanguageService {
       'Nearby trips': 'Nearby trips',
       'View all': 'View all',
       'Instant Dispatch': 'Instant Dispatch',
-      'Bidding': 'Bidding',
       'Accept': 'Accept',
-      'Place Bid': 'Place Bid',
       'No opportunities right now': 'No opportunities right now',
       'Swipe down to refresh or check back soon': 'Swipe down to refresh or check back soon',
 
@@ -492,9 +490,7 @@ class AppLanguageService {
       'Nearby trips': 'आस-पास की यात्राएं',
       'View all': 'सभी देखें',
       'Instant Dispatch': 'त्वरित डिस्पैच',
-      'Bidding': 'बोली',
       'Accept': 'स्वीकार करें',
-      'Place Bid': 'बोली लगाएं',
       'No opportunities right now': 'फिलहाल कोई अवसर उपलब्ध नहीं है',
       'Swipe down to refresh or check back soon': 'रिफ्रेश करने के लिए नीचे खींचें या जल्द पुनः जांचें',
 
@@ -758,9 +754,7 @@ class AppLanguageService {
       'Nearby trips': 'సమీప ట్రిప్పులు',
       'View all': 'అన్నీ చూడండి',
       'Instant Dispatch': 'తక్షణ డిస్పాచ్',
-      'Bidding': 'బిడ్డింగ్',
       'Accept': 'అంగీకరించండి',
-      'Place Bid': 'బిడ్ వేయండి',
       'No opportunities right now': 'ప్రస్తుతం ఎలాంటి అవకాశాలు లేవు',
       'Swipe down to refresh or check back soon': 'రిఫ్రెష్ చేయడానికి క్రిందికి లాగండి లేదా కాసేపట్లో మళ్లీ చూడండి',
 

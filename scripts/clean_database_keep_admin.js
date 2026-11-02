@@ -63,9 +63,6 @@ async function main() {
   const deletedOffers = await prisma.offer.deleteMany({});
   console.log(`Deleted Offers: ${deletedOffers.count}`);
 
-  const deletedBids = await prisma.bid.deleteMany({});
-  console.log(`Deleted Bids: ${deletedBids.count}`);
-
   const deletedRequirements = await prisma.requirement.deleteMany({});
   console.log(`Deleted Requirements: ${deletedRequirements.count}`);
 

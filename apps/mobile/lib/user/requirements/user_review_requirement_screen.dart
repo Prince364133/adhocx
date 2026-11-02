@@ -585,7 +585,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
     }
 
     final ratePerVehicle = _getRatePerVehicle(draft);
-    final rawTotal = draft.fulfillmentMode == 'BIDDING' ? draft.suggestedBudget : (draft.quantity * ratePerVehicle);
+    final rawTotal = draft.quantity * ratePerVehicle;
     final discount = ((_appliedCoupon?['discountAmount'] as num?)?.toDouble() ?? 0.0);
     final estTotal = (rawTotal - discount).clamp(0.0, double.infinity);
 
@@ -646,11 +646,11 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
         dropLat: draft.dropLat != 0.0 ? draft.dropLat : 28.5562,
         dropLng: draft.dropLng != 0.0 ? draft.dropLng : 77.1000,
         reportingTime: draft.reportingDateTime,
-        ratePerVehicle: draft.fulfillmentMode == 'DIRECT_DISPATCH' ? ratePerVehicle : null,
-        suggestedBudget: draft.fulfillmentMode == 'BIDDING' ? draft.suggestedBudget : null,
+        ratePerVehicle: ratePerVehicle,
+        suggestedBudget: null,
         notes: combinedNotes.isNotEmpty ? combinedNotes : 'Standard Booking Requirement',
         couponCode: couponCode,
-        zonalQuoteId: (draft.fulfillmentMode == 'DIRECT_DISPATCH' && draft.zonalEnabled)
+        zonalQuoteId: draft.zonalEnabled
             ? (draft.zonalQuote?['quoteId'] as String?)
             : null,
       );
@@ -904,43 +904,36 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                                 ),
                                 const Divider(),
                               ],
-                              if (draft.fulfillmentMode == 'BIDDING') ...[
-                                _buildReviewRow(context, Icons.currency_rupee, 'Target Guide Budget', '₹${draft.suggestedBudget.toStringAsFixed(0)}', isDark, valueColor: AppColors.success),
+                              if (draft.zonalEnabled && draft.zonalQuote != null) ...[
+                                _buildReviewRow(
+                                  context,
+                                  Icons.receipt_long_outlined,
+                                  'Base Fare (${draft.zonalLocality?['zoneLabel'] ?? 'Zone'})',
+                                  '₹${draft.zonalQuote!['baseFare'] ?? 800}',
+                                  isDark,
+                                ),
                                 const Divider(),
-                                _buildReviewRow(context, Icons.timer_outlined, 'Bidding Window', '${draft.biddingWindowMinutes} Minutes', isDark),
-                                const Divider(),
-                              ] else ...[
-                                if (draft.zonalEnabled && draft.zonalQuote != null) ...[
+                                if (draft.zonalHasEscort) ...[
                                   _buildReviewRow(
                                     context,
-                                    Icons.receipt_long_outlined,
-                                    'Base Fare (${draft.zonalLocality?['zoneLabel'] ?? 'Zone'})',
-                                    '₹${draft.zonalQuote!['baseFare'] ?? 800}',
+                                    Icons.shield_outlined,
+                                    'Security Escort Fee',
+                                    '+ ₹${((draft.zonalQuote!['escortFee'] as num?)?.toDouble() ?? 0).toInt()}',
                                     isDark,
+                                    valueColor: AppColors.accentPurple,
                                   ),
                                   const Divider(),
-                                  if (draft.zonalHasEscort) ...[
-                                    _buildReviewRow(
-                                      context,
-                                      Icons.shield_outlined,
-                                      'Security Escort Fee',
-                                      '+ ₹${((draft.zonalQuote!['escortFee'] as num?)?.toDouble() ?? 0).toInt()}',
-                                      isDark,
-                                      valueColor: AppColors.accentPurple,
-                                    ),
-                                    const Divider(),
-                                  ],
                                 ],
-                                _buildReviewRow(context, Icons.currency_rupee, 'Rate per Vehicle', '₹${_getRatePerVehicle(draft).toStringAsFixed(0)}', isDark),
+                              ],
+                              _buildReviewRow(context, Icons.currency_rupee, 'Rate per Vehicle', '₹${_getRatePerVehicle(draft).toStringAsFixed(0)}', isDark),
+                              const Divider(),
+                              _buildReviewRow(context, Icons.payments_outlined, 'Est. Total Cost', '₹${(draft.quantity * _getRatePerVehicle(draft)).toStringAsFixed(0)}', isDark, valueColor: _appliedCoupon != null ? AppColors.textMutedLight : AppColors.success),
+                              const Divider(),
+                              if (_appliedCoupon != null) ...[
+                                _buildReviewRow(context, Icons.local_offer_outlined, 'Promo Discount (${_appliedCoupon!["code"]})', '- ₹${((_appliedCoupon!["discountAmount"] as num?)?.toDouble() ?? 0).toStringAsFixed(0)}', isDark, valueColor: AppColors.success),
                                 const Divider(),
-                                _buildReviewRow(context, Icons.payments_outlined, 'Est. Total Cost', '₹${(draft.quantity * _getRatePerVehicle(draft)).toStringAsFixed(0)}', isDark, valueColor: _appliedCoupon != null ? AppColors.textMutedLight : AppColors.success),
+                                _buildReviewRow(context, Icons.account_balance_wallet_outlined, 'Net Est. Amount', '₹${((_appliedCoupon!["finalAmount"] as num?)?.toDouble() ?? (draft.quantity * _getRatePerVehicle(draft))).toStringAsFixed(0)}', isDark, valueColor: AppColors.primary),
                                 const Divider(),
-                                if (_appliedCoupon != null) ...[
-                                  _buildReviewRow(context, Icons.local_offer_outlined, 'Promo Discount (${_appliedCoupon!["code"]})', '- ₹${((_appliedCoupon!["discountAmount"] as num?)?.toDouble() ?? 0).toStringAsFixed(0)}', isDark, valueColor: AppColors.success),
-                                  const Divider(),
-                                  _buildReviewRow(context, Icons.account_balance_wallet_outlined, 'Net Est. Amount', '₹${((_appliedCoupon!["finalAmount"] as num?)?.toDouble() ?? (draft.quantity * _getRatePerVehicle(draft))).toStringAsFixed(0)}', isDark, valueColor: AppColors.primary),
-                                  const Divider(),
-                                ],
                               ],
                               _buildReviewRow(
                                 context,
@@ -1125,7 +1118,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                     Builder(
                       builder: (context) {
                         final ratePerVehicle = _getRatePerVehicle(draft);
-                        final rawTotal = draft.fulfillmentMode == 'BIDDING' ? draft.suggestedBudget : (draft.quantity * ratePerVehicle);
+                        final rawTotal = draft.quantity * ratePerVehicle;
                         final discount = ((_appliedCoupon?['discountAmount'] as num?)?.toDouble() ?? 0.0);
                         final estTotal = (rawTotal - discount).clamp(0.0, double.infinity);
                         final isInsufficient = _walletBalance != null && _walletBalance! < estTotal;

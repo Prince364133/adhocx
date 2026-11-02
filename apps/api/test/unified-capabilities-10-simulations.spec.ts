@@ -1,6 +1,5 @@
 import {
   FulfillmentMode,
-  BidStatus,
   DisputeStatus,
   RequirementStatus,
   TripStatus,
@@ -8,12 +7,13 @@ import {
   DriverAvailability,
   VerificationStatus,
   VehicleType,
-  canTransitionBid,
-  validateBidTransition,
+  OfferStatus,
+  canTransitionOffer,
+  validateOfferTransition,
 } from '@adhocx/contracts';
 import { PricingService } from '../src/modules/pricing/pricing.service';
 
-describe('AdhocX + JoinCab Unified Platform: 10 Comprehensive Feature Simulations', () => {
+describe('AdhocX Unified Platform: 10 Comprehensive Feature Simulations (Direct Dispatch & Corporate)', () => {
   let pricingService: PricingService;
 
   // Shared simulation state tracking
@@ -22,7 +22,6 @@ describe('AdhocX + JoinCab Unified Platform: 10 Comprehensive Feature Simulation
     drivers: new Map<string, any>(),
     vendors: new Map<string, any>(),
     requirements: new Map<string, any>(),
-    bids: new Map<string, any>(),
     offers: new Map<string, any>(),
     assignments: new Map<string, any>(),
     trips: new Map<string, any>(),
@@ -79,237 +78,210 @@ describe('AdhocX + JoinCab Unified Platform: 10 Comprehensive Feature Simulation
   // =========================================================================
   // SIMULATION 1: Pricing Engine & Distance-Based Base Fare Floor
   // =========================================================================
-  it('Simulation 1: Pricing Engine calculates Haversine route distance and minimum fare floors', () => {
-    // Delhi to Agra coordinates (~200 km)
-    const delhiLat = 28.6139;
-    const delhiLng = 77.2090;
-    const agraLat = 27.1767;
-    const agraLng = 78.0081;
+  it('Simulation 1: Pricing engine calculates deterministic driver rates and base fare floors', () => {
+    // Sedan: ₹800 base (includes 40km) + ₹14.5/km
+    const fareShort = pricingService.calculateMinimumFare(VehicleType.SEDAN, 15);
+    expect(fareShort).toBe(800);
 
-    const distanceKm = pricingService.calculateDistanceKm(delhiLat, delhiLng, agraLat, agraLng);
-    expect(distanceKm).toBeGreaterThan(150);
-    expect(distanceKm).toBeLessThan(250);
+    const fareLong = pricingService.calculateMinimumFare(VehicleType.SEDAN, 120);
+    expect(fareLong).toBe(1960);
 
-    // Minimum base fare floors for all 7 supported vehicle types
-    const hatchbackFloor = pricingService.calculateMinimumFare(VehicleType.HATCHBACK, distanceKm);
-    const sedanFloor = pricingService.calculateMinimumFare(VehicleType.SEDAN, distanceKm);
-    const suvFloor = pricingService.calculateMinimumFare(VehicleType.SUV, distanceKm);
-    const tempoFloor = pricingService.calculateMinimumFare(VehicleType.TEMPO_TRAVELLER, distanceKm);
-    const busFloor = pricingService.calculateMinimumFare(VehicleType.BUS, distanceKm);
-    const tataAceFloor = pricingService.calculateMinimumFare(VehicleType.TATA_ACE, distanceKm);
-    const pickupFloor = pricingService.calculateMinimumFare(VehicleType.PICKUP_TRUCK, distanceKm);
+    // SUV: ₹1400 base (includes 40km) + ₹19/km
+    const fareSuv = pricingService.calculateMinimumFare(VehicleType.SUV, 50);
+    expect(fareSuv).toBe(1590);
 
-    // Hierarchy check: SUV > Sedan > Hatchback; Bus > Tempo; Pickup > Tata Ace
-    expect(hatchbackFloor).toBeGreaterThan(0);
-    expect(sedanFloor).toBeGreaterThan(hatchbackFloor);
-    expect(suvFloor).toBeGreaterThan(sedanFloor);
-    expect(tempoFloor).toBeGreaterThan(suvFloor);
-    expect(busFloor).toBeGreaterThan(tempoFloor);
-    expect(pickupFloor).toBeGreaterThan(tataAceFloor);
+    // Hatchback: ₹500 base (includes 20km) + ₹11/km
+    const fareHatch = pricingService.calculateMinimumFare(VehicleType.HATCHBACK, 20);
+    expect(fareHatch).toBe(500);
   });
 
   // =========================================================================
-  // SIMULATION 2: Bid State Machine & Transition Rules
+  // SIMULATION 2: Offer State Machine & Transition Rules
   // =========================================================================
-  it('Simulation 2: Bid state transitions adhere strictly to mathematical state-machine rules', () => {
-    // Legal transitions from PENDING
-    expect(canTransitionBid(BidStatus.PENDING, BidStatus.ACCEPTED)).toBe(true);
-    expect(canTransitionBid(BidStatus.PENDING, BidStatus.REJECTED)).toBe(true);
-    expect(canTransitionBid(BidStatus.PENDING, BidStatus.WITHDRAWN)).toBe(true);
-    expect(canTransitionBid(BidStatus.PENDING, BidStatus.EXPIRED)).toBe(true);
+  it('Simulation 2: Offer state transitions adhere strictly to state-machine rules', () => {
+    // Legal transitions from SENT
+    expect(canTransitionOffer(OfferStatus.SENT, OfferStatus.ACCEPTED)).toBe(true);
+    expect(canTransitionOffer(OfferStatus.SENT, OfferStatus.DECLINED)).toBe(true);
+    expect(canTransitionOffer(OfferStatus.SENT, OfferStatus.EXPIRED)).toBe(true);
+    expect(canTransitionOffer(OfferStatus.SENT, OfferStatus.CANCELLED)).toBe(true);
 
     // Terminal states cannot transition further
-    expect(canTransitionBid(BidStatus.ACCEPTED, BidStatus.WITHDRAWN)).toBe(false);
-    expect(canTransitionBid(BidStatus.ACCEPTED, BidStatus.REJECTED)).toBe(false);
-    expect(canTransitionBid(BidStatus.REJECTED, BidStatus.ACCEPTED)).toBe(false);
-    expect(canTransitionBid(BidStatus.WITHDRAWN, BidStatus.ACCEPTED)).toBe(false);
-    expect(canTransitionBid(BidStatus.EXPIRED, BidStatus.ACCEPTED)).toBe(false);
+    expect(canTransitionOffer(OfferStatus.ACCEPTED, OfferStatus.DECLINED)).toBe(false);
+    expect(canTransitionOffer(OfferStatus.DECLINED, OfferStatus.ACCEPTED)).toBe(false);
+    expect(canTransitionOffer(OfferStatus.EXPIRED, OfferStatus.ACCEPTED)).toBe(false);
+    expect(canTransitionOffer(OfferStatus.CANCELLED, OfferStatus.ACCEPTED)).toBe(false);
 
     // Validator throws on illegal transition
-    expect(() => validateBidTransition(BidStatus.ACCEPTED, BidStatus.REJECTED)).toThrow();
+    expect(() => validateOfferTransition(OfferStatus.ACCEPTED, OfferStatus.DECLINED)).toThrow();
   });
 
   // =========================================================================
-  // SIMULATION 3: Mode 1 (DIRECT_DISPATCH) Routing & Dispatch Isolation
+  // SIMULATION 3: Direct Dispatch Mode 1 Single Trip Routing
   // =========================================================================
-  it('Simulation 3: Mode 1 (DIRECT_DISPATCH) calculates fixed rates and auto-dispatches', () => {
+  it('Simulation 3: Mode 1 (DIRECT_DISPATCH) calculates fixed rates and sets requirement status', () => {
     const fixedRate = pricingService.calculateDriverRate(VehicleType.SEDAN);
     expect(fixedRate).toBe(800);
 
     const corporateReq = {
-      id: 'req-corporate-bulk',
+      id: 'req-corporate-single',
       vendorId: 'vnd-1',
       fulfillmentMode: FulfillmentMode.DIRECT_DISPATCH,
       vehicleType: VehicleType.SEDAN,
-      quantity: 5,
+      quantity: 1,
       assignedQuantity: 0,
       ratePerVehicle: fixedRate,
-      totalAmount: 5 * fixedRate,
+      totalAmount: fixedRate,
       status: RequirementStatus.POSTED,
     };
 
     state.requirements.set(corporateReq.id, corporateReq);
     expect(corporateReq.fulfillmentMode).toBe(FulfillmentMode.DIRECT_DISPATCH);
-    expect(corporateReq.totalAmount).toBe(4000);
+    expect(corporateReq.totalAmount).toBe(800);
   });
 
   // =========================================================================
-  // SIMULATION 4: Mode 2 (BIDDING) Reverse-Auction Placement & Price Bands
+  // SIMULATION 4: Multi-Vehicle Corporate Bulk Requirement Placement
   // =========================================================================
-  it('Simulation 4: Mode 2 (BIDDING) creates outstation requirement and accepts driver quotes within price bounds', () => {
-    const distanceKm = 180;
-    const minFareFloor = pricingService.calculateMinimumFare(VehicleType.SEDAN, distanceKm);
-    const suggestedBudget = minFareFloor; // e.g. 700 + 180*13 = 3040
-
-    const biddingReq = {
-      id: 'req-outstation-bidding',
+  it('Simulation 4: Creates multi-vehicle corporate requirement with progressive capacity tracking', () => {
+    const fixedRate = pricingService.calculateDriverRate(VehicleType.SEDAN);
+    const bulkReq = {
+      id: 'req-corporate-bulk',
       vendorId: 'vnd-1',
-      fulfillmentMode: FulfillmentMode.BIDDING,
+      fulfillmentMode: FulfillmentMode.DIRECT_DISPATCH,
       vehicleType: VehicleType.SEDAN,
-      quantity: 1,
+      quantity: 3,
       assignedQuantity: 0,
-      suggestedBudget,
-      totalAmount: suggestedBudget,
+      ratePerVehicle: fixedRate,
+      totalAmount: 3 * fixedRate,
       status: RequirementStatus.POSTED,
     };
 
-    state.requirements.set(biddingReq.id, biddingReq);
+    state.requirements.set(bulkReq.id, bulkReq);
+    expect(bulkReq.quantity).toBe(3);
+    expect(bulkReq.totalAmount).toBe(2400);
 
-    // Driver 1 places competitive bid at ₹3100
-    const bid1 = {
-      id: 'bid-1',
-      requirementId: biddingReq.id,
+    // Generate atomic offers for candidate drivers
+    const offer1 = {
+      id: 'off-1',
+      requirementId: bulkReq.id,
       driverId: 'drv-1',
-      bidAmount: 3100,
-      etaMinutes: 15,
-      notes: 'Clean AC sedan, bottled water',
-      status: BidStatus.PENDING,
+      vehicleType: VehicleType.SEDAN,
+      offeredRate: fixedRate,
+      status: OfferStatus.SENT,
+      expiresAt: new Date(Date.now() + 60000),
       createdAt: new Date(),
     };
-    state.bids.set(bid1.id, bid1);
+    state.offers.set(offer1.id, offer1);
 
-    // Driver 2 places competitive bid at ₹2950 (better quote)
-    const bid2 = {
-      id: 'bid-2',
-      requirementId: biddingReq.id,
+    const offer2 = {
+      id: 'off-2',
+      requirementId: bulkReq.id,
       driverId: 'drv-2',
-      bidAmount: 2950,
-      etaMinutes: 20,
-      notes: 'Experienced highway chauffeur',
-      status: BidStatus.PENDING,
+      vehicleType: VehicleType.SEDAN,
+      offeredRate: fixedRate,
+      status: OfferStatus.SENT,
+      expiresAt: new Date(Date.now() + 60000),
       createdAt: new Date(),
     };
-    state.bids.set(bid2.id, bid2);
+    state.offers.set(offer2.id, offer2);
 
-    expect(state.bids.size).toBe(2);
-    expect(bid2.bidAmount).toBeLessThan(bid1.bidAmount);
+    expect(state.offers.size).toBe(2);
   });
 
   // =========================================================================
-  // SIMULATION 5: Atomic Bid Acceptance, Winner Selection & Loser Rejection
+  // SIMULATION 5: Atomic Offer Acceptance, Assignment & Trip Creation
   // =========================================================================
-  it('Simulation 5: Requester accepts winning bid, rejecting competitors and creating polymorphic assignment', () => {
-    const req = state.requirements.get('req-outstation-bidding');
-    const winningBid = state.bids.get('bid-2');
-    const losingBid = state.bids.get('bid-1');
+  it('Simulation 5: Driver accepts direct dispatch offer, creating assignment and trip', () => {
+    const req = state.requirements.get('req-corporate-bulk');
+    const offer = state.offers.get('off-2');
 
-    // 1. Transition winning bid to ACCEPTED
-    winningBid.status = BidStatus.ACCEPTED;
+    // 1. Transition offer to ACCEPTED
+    offer.status = OfferStatus.ACCEPTED;
 
-    // 2. Automatically reject competing bids
-    losingBid.status = BidStatus.REJECTED;
-
-    // 3. Mark requirement FULFILLED
+    // 2. Increment assigned quantity on requirement
     req.assignedQuantity = 1;
-    req.status = RequirementStatus.FULFILLED;
+    req.status = RequirementStatus.PARTIALLY_FULFILLED;
 
-    // 4. Create Assignment with bidId (polymorphic link)
+    // 3. Create Assignment with offerId
     const assignment = {
-      id: 'asg-bidding-1',
+      id: 'asg-direct-1',
       requirementId: req.id,
-      bidId: winningBid.id,
-      offerId: null, // Nullable when originating from bid!
-      driverId: winningBid.driverId,
+      offerId: offer.id,
+      driverId: offer.driverId,
       status: AssignmentStatus.CONFIRMED,
     };
     state.assignments.set(assignment.id, assignment);
 
-    // 5. Generate 4-digit OTP and create Trip
+    // 4. Generate 4-digit OTP and create Trip
     const trip = {
-      id: 'trp-bidding-1',
+      id: 'trp-direct-1',
       requirementId: req.id,
       assignmentId: assignment.id,
       vendorId: req.vendorId,
-      driverId: winningBid.driverId,
+      driverId: offer.driverId,
       vehicleType: req.vehicleType,
       status: TripStatus.ASSIGNED,
       otp: '4821',
-      driverRate: winningBid.bidAmount,
+      driverRate: offer.offeredRate,
       tollCharges: 0,
       parkingCharges: 0,
       totalDriverEarnings: 0,
     };
     state.trips.set(trip.id, trip);
 
-    // 6. Driver transitions to BUSY
-    const driver = state.drivers.get(winningBid.driverId);
+    // 5. Driver transitions to BUSY
+    const driver = state.drivers.get(offer.driverId);
     driver.availabilityStatus = DriverAvailability.BUSY;
 
-    expect(winningBid.status).toBe(BidStatus.ACCEPTED);
-    expect(losingBid.status).toBe(BidStatus.REJECTED);
-    expect(assignment.bidId).toBe('bid-2');
-    expect(assignment.offerId).toBeNull();
+    expect(offer.status).toBe(OfferStatus.ACCEPTED);
+    expect(assignment.offerId).toBe('off-2');
     expect(trip.status).toBe(TripStatus.ASSIGNED);
     expect(driver.availabilityStatus).toBe(DriverAvailability.BUSY);
   });
 
   // =========================================================================
-  // SIMULATION 6: Double-Entry Ledger Escrow Hold
+  // SIMULATION 6: Double-Entry Ledger Booking Escrow Hold
   // =========================================================================
-  it('Simulation 6: Customer funds are locked in Escrow upon bid acceptance', () => {
+  it('Simulation 6: Customer funds are debited and held upon driver assignment', () => {
     const vendor = state.vendors.get('vnd-1');
-    const winningBid = state.bids.get('bid-2');
-    const trip = state.trips.get('trp-bidding-1');
+    const trip = state.trips.get('trp-direct-1');
 
-    // Ledger hold
-    vendor.escrowBalance += winningBid.bidAmount;
+    vendor.escrowBalance += trip.driverRate;
     state.ledgerEntries.push({
       id: 'led-1',
       accountType: 'VENDOR',
       accountId: vendor.id,
       entryType: 'DEBIT',
-      amount: winningBid.bidAmount,
+      amount: trip.driverRate,
       balanceAfter: vendor.escrowBalance,
       referenceType: 'ESCROW_HOLD',
       referenceId: trip.id,
-      description: `Escrow hold for trip ${trip.id}`,
+      description: `Escrow hold for direct trip ${trip.id}`,
     });
 
-    expect(vendor.escrowBalance).toBe(2950);
+    expect(vendor.escrowBalance).toBe(800);
     expect(state.ledgerEntries.length).toBe(1);
     expect(state.ledgerEntries[0].referenceType).toBe('ESCROW_HOLD');
   });
 
   // =========================================================================
-  // SIMULATION 7: Escrow Release on Trip Completion & Commission
+  // SIMULATION 7: Trip Completion, Toll Addition & Platform Commission
   // =========================================================================
-  it('Simulation 7: Escrow is released upon trip completion with platform commission and tolls', () => {
+  it('Simulation 7: Driver completes trip with toll addition, receiving net payout with commission deducted', () => {
     const vendor = state.vendors.get('vnd-1');
     const driver = state.drivers.get('drv-2');
-    const trip = state.trips.get('trp-bidding-1');
+    const trip = state.trips.get('trp-direct-1');
 
-    // Trip completes with ₹350 toll charges
-    const fare = Number(trip.driverRate); // 2950
-    const toll = 350;
+    const fare = Number(trip.driverRate); // 800
+    const toll = 150;
     const commissionRate = 0.05; // 5%
-    const commission = Math.round(fare * commissionRate); // 148
-    const driverEarnings = fare - commission + toll; // 2950 - 148 + 350 = 3152
+    const commission = Math.round(fare * commissionRate); // 40
+    const driverEarnings = fare - commission + toll; // 800 - 40 + 150 = 910
 
     trip.status = TripStatus.COMPLETED;
     trip.tollCharges = toll;
     trip.totalDriverEarnings = driverEarnings;
 
-    // Escrow release
     vendor.escrowBalance = Math.max(0, vendor.escrowBalance - fare);
     driver.walletBalance += driverEarnings;
     driver.availabilityStatus = DriverAvailability.AVAILABLE;
@@ -321,7 +293,7 @@ describe('AdhocX + JoinCab Unified Platform: 10 Comprehensive Feature Simulation
       entryType: 'CREDIT',
       amount: driverEarnings,
       balanceAfter: driver.walletBalance,
-      referenceType: 'ESCROW_RELEASE',
+      referenceType: 'TRIP_EARNINGS',
       referenceId: trip.id,
       description: `Earnings for trip ${trip.id}`,
     });
@@ -339,7 +311,7 @@ describe('AdhocX + JoinCab Unified Platform: 10 Comprehensive Feature Simulation
     });
 
     expect(vendor.escrowBalance).toBe(0);
-    expect(driver.walletBalance).toBe(3152);
+    expect(driver.walletBalance).toBe(910);
     expect(driver.availabilityStatus).toBe(DriverAvailability.AVAILABLE);
     expect(trip.status).toBe(TripStatus.COMPLETED);
   });
@@ -350,11 +322,11 @@ describe('AdhocX + JoinCab Unified Platform: 10 Comprehensive Feature Simulation
   it('Simulation 8: Escrow is refunded back to requester when booking is cancelled', () => {
     const vendor = state.vendors.get('vnd-1');
     const cancelledTripId = 'trp-cancelled-test';
-    const heldAmount = 2500;
+    const heldAmount = 800;
 
     // Vendor had escrow held
     vendor.escrowBalance += heldAmount;
-    expect(vendor.escrowBalance).toBe(2500);
+    expect(vendor.escrowBalance).toBe(800);
 
     // Cancel and refund
     vendor.escrowBalance = Math.max(0, vendor.escrowBalance - heldAmount);
@@ -404,9 +376,9 @@ describe('AdhocX + JoinCab Unified Platform: 10 Comprehensive Feature Simulation
 
     state.reviews.set('rev-1', {
       id: 'rev-1',
-      tripId: 'trp-bidding-1',
+      tripId: 'trp-direct-1',
       rating: newRating,
-      feedback: 'Excellent outstation drive! Smooth overtaking and polite manners.',
+      feedback: 'Excellent on-demand drive! Polite driver and smooth driving.',
     });
 
     expect(driver.ratingCount).toBe(16);
@@ -418,7 +390,7 @@ describe('AdhocX + JoinCab Unified Platform: 10 Comprehensive Feature Simulation
   // SIMULATION 10: Dispute Lifecycle & Support Resolution
   // =========================================================================
   it('Simulation 10: Participant files a dispute ticket, ops investigates, and admin marks RESOLVED', () => {
-    const trip = state.trips.get('trp-bidding-1');
+    const trip = state.trips.get('trp-direct-1');
 
     // 1. Participant files dispute
     const dispute = {
@@ -426,8 +398,8 @@ describe('AdhocX + JoinCab Unified Platform: 10 Comprehensive Feature Simulation
       tripId: trip.id,
       reporterId: 'usr-vendor-1',
       accusedId: 'usr-driver-2',
-      reason: 'State Border Toll Discrepancy',
-      description: 'Receipt showed ₹250 but ₹350 was entered in toll charges.',
+      reason: 'Toll Plaza Charge Discrepancy',
+      description: 'Receipt showed ₹100 but ₹150 was entered in toll charges.',
       status: DisputeStatus.OPEN,
       resolutionText: null as string | null,
       createdAt: new Date(),
@@ -438,7 +410,7 @@ describe('AdhocX + JoinCab Unified Platform: 10 Comprehensive Feature Simulation
 
     // 2. Admin inspects and resolves ticket with explanation
     dispute.status = DisputeStatus.RESOLVED;
-    dispute.resolutionText = 'Verified physical receipt against FasTag toll plaza timestamp: ₹350 confirmed accurate.';
+    dispute.resolutionText = 'Verified physical receipt against FasTag toll plaza timestamp: ₹150 confirmed accurate.';
 
     state.auditLogs.push({
       actorId: 'usr-admin',

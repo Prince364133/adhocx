@@ -833,7 +833,7 @@ export default function DashboardPage() {
                 Live Requirements Dispatch Queue
               </h3>
               <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0 }}>
-                Active reverse-auction bids and corporate transport requests
+                Active direct dispatch and corporate transport requests
               </p>
             </div>
             <Link

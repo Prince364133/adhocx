@@ -116,7 +116,7 @@ export interface VerificationItem {
 export interface RequirementListItem {
   id: string;
   vendorName: string;
-  fulfillmentMode?: 'DIRECT_DISPATCH' | 'BIDDING';
+  fulfillmentMode?: 'DIRECT_DISPATCH';
   vehicleType: string;
   quantity: number;
   assignedQuantity: number;
@@ -127,27 +127,9 @@ export interface RequirementListItem {
   vendorRate?: number;
   ratePerVehicle?: number;
   suggestedBudget?: number;
-  bidsCount?: number;
   createdAt: string;
   /** Stored zonal quote snapshot (admin view: includes `internal` driver payout and spread). */
   zonalQuote?: ZonalQuoteResponse;
-}
-
-export interface BidListItem {
-  id: string;
-  requirementId: string;
-  driverId: string;
-  driverName?: string;
-  driverPhone?: string;
-  driverRating?: number;
-  driverTrustScore?: number;
-  vehicleModel?: string;
-  vehiclePlate?: string;
-  bidAmount: number;
-  etaMinutes?: number;
-  notes?: string;
-  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'WITHDRAWN' | 'EXPIRED';
-  createdAt: string;
 }
 
 export interface DisputeListItem {

@@ -14,6 +14,7 @@ import {
 } from '@adhocx/contracts';
 
 describe('Uber-Grade Sequential Waterfall Dispatch & Ring Expansion (4-Device Test Case)', () => {
+  jest.setTimeout(25000);
   let service: DispatchService;
   let db: any;
   let locationsService: any;

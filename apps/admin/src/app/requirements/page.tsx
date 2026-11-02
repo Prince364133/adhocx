@@ -68,33 +68,18 @@ export default function RequirementsPage() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             <span className="code-tag">REQ-{r.id.slice(0, 8).toUpperCase()}</span>
-            {r.zonalQuote ? (
-              <span
-                style={{
-                  fontSize: '0.6875rem',
-                  padding: '0.1rem 0.35rem',
-                  borderRadius: 'var(--radius-xs)',
-                  background: 'rgba(91, 66, 243, 0.12)',
-                  color: 'var(--brand-primary)',
-                  fontWeight: 800,
-                }}
-              >
-                B2B Zonal 2026
-              </span>
-            ) : (
-              <span
-                style={{
-                  fontSize: '0.6875rem',
-                  padding: '0.1rem 0.35rem',
-                  borderRadius: 'var(--radius-xs)',
-                  background: 'rgba(245, 158, 11, 0.12)',
-                  color: 'var(--color-warning)',
-                  fontWeight: 700,
-                }}
-              >
-                Bidding
-              </span>
-            )}
+            <span
+              style={{
+                fontSize: '0.6875rem',
+                padding: '0.1rem 0.35rem',
+                borderRadius: 'var(--radius-xs)',
+                background: 'rgba(91, 66, 243, 0.12)',
+                color: 'var(--brand-primary)',
+                fontWeight: 800,
+              }}
+            >
+              {r.zonalQuote ? 'B2B Zonal 2026' : 'Direct Dispatch'}
+            </span>
           </div>
           <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginTop: '0.25rem' }}>
             {r.vendorName || 'Corporate Client'}

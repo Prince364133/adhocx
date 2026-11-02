@@ -114,7 +114,7 @@ export default function AuditLogsPage() {
         <MetricCard
           label="Supply Transitions"
           value={metrics.supplyEvents}
-          subtext="Driver requests & bids"
+          subtext="Driver requests & allocations"
           icon={<Car size={18} color="var(--color-success)" />}
           accentColor="var(--color-success)"
         />

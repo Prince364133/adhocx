@@ -83,7 +83,7 @@ class _UserRequirementPostedConfirmationScreenState
     final displayId = rawId.length > 8 ? 'REQ-${rawId.substring(0, 8).toUpperCase()}' : rawId;
     final qty = (req?['quantity'] ?? req?['requiredQuantity'] ?? 1).toString();
     final vehicle = req?['vehicleType'] as String? ?? 'Sedan';
-    final mode = req?['fulfillmentMode'] == 'BIDDING' ? 'Reverse Auction' : 'Direct Dispatch';
+    final mode = 'Direct Dispatch';
 
     final pickup = req?['pickupLocation']?['address'] as String? ?? req?['pickupAddress'] as String? ?? 'Pickup Location';
     final drop = req?['dropLocation']?['address'] as String? ?? req?['dropAddress'] as String? ?? 'Destination';

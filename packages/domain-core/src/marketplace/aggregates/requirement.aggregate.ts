@@ -10,7 +10,6 @@ import {
 
 export type RequirementLifecycleStatus =
   | 'DRAFT'
-  | 'OPEN_FOR_BIDDING'
   | 'DIRECT_DISPATCH'
   | 'ASSIGNED'
   | 'IN_PROGRESS'
@@ -19,7 +18,7 @@ export type RequirementLifecycleStatus =
   | 'EXPIRED'
   | 'NO_DRIVER_AVAILABLE';
 
-export type MarketplacePricingMode = 'DIRECT_DISPATCH' | 'BIDDING';
+export type MarketplacePricingMode = 'DIRECT_DISPATCH';
 export type MarketplaceVehicleCategory = 'HATCHBACK' | 'SEDAN' | 'SUV' | 'AUTO';
 
 export interface RequirementProps {
@@ -34,7 +33,6 @@ export interface RequirementProps {
   baseBudget?: Money;
   maxBudget?: Money;
   finalFare?: Money;
-  winningBidId?: string;
   assignedDriverId?: string;
   cancellationReason?: string;
   createdAt: Date;
@@ -43,8 +41,7 @@ export interface RequirementProps {
 /**
  * RequirementAggregate.
  * The Domain Aggregate Root for marketplace transport demand.
- * Enforces pricing mode state machines (Direct Dispatch vs Reverse Bidding),
- * distance validity, coordinate consistency, and assignment invariants.
+ * Enforces direct dispatch lifecycle, distance validity, coordinate consistency, and assignment invariants.
  */
 export class RequirementAggregate extends AggregateRoot<string> {
   private _props: RequirementProps;
@@ -91,10 +88,6 @@ export class RequirementAggregate extends AggregateRoot<string> {
 
   get finalFare(): Money | undefined {
     return this._props.finalFare;
-  }
-
-  get winningBidId(): string | undefined {
-    return this._props.winningBidId;
   }
 
   get assignedDriverId(): string | undefined {
@@ -156,24 +149,8 @@ export class RequirementAggregate extends AggregateRoot<string> {
   }
 
   /**
-   * Initiate Reverse Bidding for this requirement.
-   * Invariant: Can only transition from DRAFT when pricing mode is BIDDING.
-   */
-  public openForBidding(): Result<void> {
-    if (this._props.status !== 'DRAFT') {
-      return Result.fail(`Cannot open bidding from status '${this._props.status}'. Must be DRAFT.`);
-    }
-    if (this._props.pricingMode !== 'BIDDING') {
-      return Result.fail("Cannot open bidding for a requirement with pricingMode !== 'BIDDING'");
-    }
-
-    this._props.status = 'OPEN_FOR_BIDDING';
-    return Result.ok();
-  }
-
-  /**
    * Initiate Direct Dispatch wave broadcast.
-   * Invariant: Can only transition from DRAFT or NO_DRIVER_AVAILABLE when pricing mode is DIRECT_DISPATCH.
+   * Invariant: Can only transition from DRAFT or NO_DRIVER_AVAILABLE.
    */
   public startDirectDispatch(): Result<void> {
     if (this._props.status !== 'DRAFT' && this._props.status !== 'NO_DRIVER_AVAILABLE') {
@@ -190,12 +167,12 @@ export class RequirementAggregate extends AggregateRoot<string> {
   }
 
   /**
-   * Assign a winning bid or direct dispatch driver.
-   * Invariant: Can only assign from OPEN_FOR_BIDDING or DIRECT_DISPATCH.
+   * Assign a direct dispatch driver.
+   * Invariant: Can only assign from DIRECT_DISPATCH.
    */
-  public assign(driverId: string, bidId?: string, fare?: Money): Result<void> {
-    if (this._props.status !== 'OPEN_FOR_BIDDING' && this._props.status !== 'DIRECT_DISPATCH') {
-      return Result.fail(`Cannot assign driver from status '${this._props.status}'`);
+  public assign(driverId: string, fare?: Money): Result<void> {
+    if (this._props.status !== 'DIRECT_DISPATCH') {
+      return Result.fail(`Cannot assign driver from status '${this._props.status}'. Must be DIRECT_DISPATCH.`);
     }
     if (!driverId) {
       return Result.fail('driverId is required for assignment');
@@ -203,10 +180,9 @@ export class RequirementAggregate extends AggregateRoot<string> {
 
     this._props.status = 'ASSIGNED';
     this._props.assignedDriverId = driverId;
-    this._props.winningBidId = bidId;
     this._props.finalFare = fare;
 
-    this.addDomainEvent(new RequirementAssignedDomainEvent(this.id, driverId, bidId, fare));
+    this.addDomainEvent(new RequirementAssignedDomainEvent(this.id, driverId, fare));
     return Result.ok();
   }
 
@@ -250,4 +226,3 @@ export class RequirementAggregate extends AggregateRoot<string> {
     return Result.ok();
   }
 }
-

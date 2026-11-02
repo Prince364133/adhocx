@@ -24,7 +24,7 @@ class _UserNotificationSettingsScreenState extends State<UserNotificationSetting
   bool _whatsappEnabled = true;
 
   // Booking & Requirements
-  bool _newBids = true;
+  bool _dispatchOffers = true;
   bool _driverAssignments = true;
   bool _fulfillmentUpdates = true;
   bool _noDriverAlerts = true;
@@ -196,11 +196,11 @@ class _UserNotificationSettingsScreenState extends State<UserNotificationSetting
                       child: Column(
                         children: [
                           _buildSwitch(
-                            title: 'New Bids & Quotes',
-                            subtitle: 'When fleet operators and drivers submit competitive bids',
-                            icon: Icons.gavel_outlined,
-                            val: _newBids,
-                            onChanged: (v) => _onToggle(() => _newBids = v),
+                            title: 'Dispatch Wave Alerts',
+                            subtitle: 'When nearby verified drivers are offered your requirements',
+                            icon: Icons.radar_outlined,
+                            val: _dispatchOffers,
+                            onChanged: (v) => _onToggle(() => _dispatchOffers = v),
                             isDark: isDark,
                           ),
                           const Divider(height: 1),

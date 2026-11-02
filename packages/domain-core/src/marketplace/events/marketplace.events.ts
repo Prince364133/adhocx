@@ -27,7 +27,6 @@ export class RequirementAssignedDomainEvent implements IDomainEvent {
   constructor(
     public readonly aggregateId: string,
     public readonly driverId: string,
-    public readonly bidId?: string,
     public readonly finalFare?: Money,
   ) {
     this.eventId = crypto.randomUUID();
@@ -43,38 +42,6 @@ export class RequirementCompletedDomainEvent implements IDomainEvent {
   constructor(
     public readonly aggregateId: string,
     public readonly driverId: string,
-  ) {
-    this.eventId = crypto.randomUUID();
-    this.occurredOn = new Date();
-  }
-}
-
-export class BidSubmittedDomainEvent implements IDomainEvent {
-  public readonly eventId: string;
-  public readonly occurredOn: Date;
-  public readonly eventName = 'marketplace.bid.submitted';
-
-  constructor(
-    public readonly aggregateId: string,
-    public readonly requirementId: string,
-    public readonly driverId: string,
-    public readonly amount: Money,
-  ) {
-    this.eventId = crypto.randomUUID();
-    this.occurredOn = new Date();
-  }
-}
-
-export class BidAcceptedDomainEvent implements IDomainEvent {
-  public readonly eventId: string;
-  public readonly occurredOn: Date;
-  public readonly eventName = 'marketplace.bid.accepted';
-
-  constructor(
-    public readonly aggregateId: string,
-    public readonly requirementId: string,
-    public readonly driverId: string,
-    public readonly amount: Money,
   ) {
     this.eventId = crypto.randomUUID();
     this.occurredOn = new Date();

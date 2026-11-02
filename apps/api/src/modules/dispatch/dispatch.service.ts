@@ -353,12 +353,6 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       driverIds: [],
     });
 
-    // Guard: Bidding requirements are fulfilled via driver bids, not direct dispatch
-    if (requirement.fulfillmentMode === 'BIDDING') {
-      this.logger.log(`Requirement ${requirementId} is in BIDDING mode, skipping direct dispatch`);
-      return noop(requirement.status as RequirementStatus);
-    }
-
     // Guard: Can only dispatch if not already completed/cancelled
     if (
       requirement.status === RequirementStatus.COMPLETED ||

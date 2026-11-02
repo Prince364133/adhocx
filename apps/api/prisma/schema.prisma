@@ -49,15 +49,6 @@ enum VehicleType {
 
 enum FulfillmentMode {
   DIRECT_DISPATCH
-  BIDDING
-}
-
-enum BidStatus {
-  PENDING
-  ACCEPTED
-  REJECTED
-  WITHDRAWN
-  EXPIRED
 }
 
 enum DisputeStatus {
@@ -240,7 +231,6 @@ model Driver {
   user                 User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
   vehicles             Vehicle[]
   offers               Offer[]
-  bids                 Bid[]
   assignments          Assignment[]
   trips                Trip[]
   settlements          Settlement[]
@@ -298,7 +288,6 @@ model Requirement {
 
   vendor      Vendor              @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   offers      Offer[]
-  bids        Bid[]
   assignments Assignment[]
   trips       Trip[]
   payments    Payment[]
@@ -337,32 +326,10 @@ model Offer {
   @@map("offers")
 }
 
-model Bid {
-  id            String    @id @default(uuid()) @db.Uuid
-  requirementId String    @map("requirement_id") @db.Uuid
-  driverId      String    @map("driver_id") @db.Uuid
-  bidAmount     Decimal   @map("bid_amount") @db.Decimal(10, 2)
-  etaMinutes    Int?      @map("eta_minutes")
-  notes         String?
-  status        BidStatus @default(PENDING)
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
-
-  requirement Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
-  driver      Driver      @relation(fields: [driverId], references: [id], onDelete: Cascade)
-  assignment  Assignment?
-
-  @@index([requirementId, status])
-  @@index([driverId, status])
-  @@index([createdAt])
-  @@map("bids")
-}
-
 model Assignment {
   id            String           @id @default(uuid()) @db.Uuid
   requirementId String           @map("requirement_id") @db.Uuid
   offerId       String?          @unique @map("offer_id") @db.Uuid
-  bidId         String?          @unique @map("bid_id") @db.Uuid
   driverId      String           @map("driver_id") @db.Uuid
   vehicleId     String?          @map("vehicle_id") @db.Uuid
   status        AssignmentStatus @default(CONFIRMED)
@@ -372,7 +339,6 @@ model Assignment {
 
   requirement Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
   offer       Offer?      @relation(fields: [offerId], references: [id], onDelete: Cascade)
-  bid         Bid?        @relation(fields: [bidId], references: [id], onDelete: Cascade)
   driver      Driver      @relation(fields: [driverId], references: [id], onDelete: Cascade)
   vehicle     Vehicle?    @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
   trip        Trip?
@@ -630,7 +596,6 @@ enum NotificationType {
   TRIP_ASSIGNED
   TRIP_STATUS
   REQUIREMENT_UPDATE
-  BID_UPDATE
   KYC_UPDATE
   WALLET_UPDATE
   MARKETING_PROMO

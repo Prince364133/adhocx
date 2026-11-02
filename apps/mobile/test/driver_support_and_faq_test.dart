@@ -60,7 +60,7 @@ void main() {
 
       // Category chips
       expect(find.text('All Topics'), findsOneWidget);
-      expect(find.text('Trips & Bidding'), findsOneWidget);
+      expect(find.text('Trips & Dispatch'), findsOneWidget);
       expect(find.text('Earnings & Payouts'), findsOneWidget);
 
       // Verify FAQ item presence

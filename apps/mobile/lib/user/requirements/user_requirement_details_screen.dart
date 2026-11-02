@@ -11,7 +11,6 @@ import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
 import '../../shared/widgets/trip_rating_bottom_sheet.dart';
-import 'user_bids_bottom_sheet.dart';
 import '../../core/utils/app_toast.dart';
 import '../../shared/widgets/app_profile_avatar.dart';
 
@@ -523,7 +522,6 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
     final rawId = req?['id']?.toString() ?? widget.requirementId ?? 'LIVE';
     final displayId = rawId.length > 8 ? 'REQ-${rawId.substring(0, 8).toUpperCase()}' : rawId;
 
-    final isBidding = req?['fulfillmentMode'] == 'BIDDING';
     final vehicle = req?['vehicleType']?.toString() ?? 'Sedan';
 
     final isFulfilled = status == 'FULFILLED' || status == 'COMPLETED' || (requiredQty > 0 && assignedQty >= requiredQty);
@@ -559,7 +557,6 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
     }
 
     final budget = _parseNum(req?['ratePerVehicle'] ?? req?['suggestedBudget'] ?? req?['totalAmount'], 0.0);
-    final bids = req?['bids'] is List ? (req!['bids'] as List) : [];
     final assignedDrivers = req?['assignedDrivers'] is List ? (req!['assignedDrivers'] as List) : [];
 
     return Scaffold(
@@ -695,7 +692,7 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                               ),
                               const SizedBox(height: AppSpacing.sm),
                               Text(
-                                isBidding ? 'Outstation Reverse Auction' : 'Corporate Bulk Booking',
+                                'Corporate Bulk Booking',
                                 style: AppTypography.h2(
                                   color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                   fontWeight: FontWeight.bold,
@@ -800,9 +797,7 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
-                                        isBidding
-                                            ? 'Waiting for driver quotes...'
-                                            : 'Actively dispatching waves to nearby verified drivers...',
+                                        'Actively dispatching waves to nearby verified drivers...',
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w500,
@@ -1057,7 +1052,7 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
-                                    isBidding ? 'Target Budget' : 'Rate per Vehicle',
+                                    'Rate per Vehicle',
                                     style: TextStyle(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
                                   ),
                                   Text(
@@ -1066,7 +1061,7 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                                   ),
                                 ],
                               ),
-                              if (!isBidding && req['zonalQuote'] is Map) ...[
+                              if (req['zonalQuote'] is Map) ...[
                                 const SizedBox(height: 8),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -1462,135 +1457,6 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                           isSearching: isSearching,
                           isNoDriver: isNoDriver,
                         ),
-
-                        // Competing Driver Bids Section (For Outstation Bidding Mode)
-                        if (isBidding) ...[
-                          const SizedBox(height: AppSpacing.md),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Driver Quotes (${bids.length})',
-                                style: AppTypography.h4(
-                                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              if (bids.isNotEmpty)
-                                TextButton(
-                                  onPressed: () {
-                                    showModalBottomSheet(
-                                      context: context,
-                                      useRootNavigator: true,
-                                      isScrollControlled: true,
-                                      backgroundColor: Colors.transparent,
-                                      builder: (ctx) => UserBidsBottomSheet(
-                                        requirementId: rawId,
-                                        onBidAccepted: () => _loadRequirement(silent: false),
-                                      ),
-                                    );
-                                  },
-                                  child: const Text('Review All Quotes'),
-                                ),
-                            ],
-                          ),
-                          if (bids.isEmpty)
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(AppSpacing.lg),
-                              decoration: BoxDecoration(
-                                color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                                borderRadius: BorderRadius.circular(AppRadius.md),
-                                border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                              ),
-                              child: Column(
-                                children: [
-                                  const Icon(Icons.gavel_rounded, size: 32, color: AppColors.slate400),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'No driver bids received yet',
-                                    style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Broadcasted to verified drivers in the region. Quotes will appear here automatically.',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(fontSize: 11, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
-                                  ),
-                                ],
-                              ),
-                            )
-                          else
-                            ListView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: bids.length,
-                              itemBuilder: (context, index) {
-                                final b = bids[index];
-                                if (b is! Map) return const SizedBox.shrink();
-                                final bidAmount = _parseNum(b['bidAmount']).toDouble();
-                                final driverName = b['driverName']?.toString() ?? 'Driver';
-                                final rating = _parseNum(b['driverRating'], 4.9).toDouble();
-                                final eta = b['etaMinutes']?.toString() ?? '15';
-
-                                return Container(
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  padding: const EdgeInsets.all(AppSpacing.md),
-                                  decoration: BoxDecoration(
-                                    color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                                    borderRadius: BorderRadius.circular(AppRadius.md),
-                                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(driverName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                            Row(
-                                              children: [
-                                                const Icon(Icons.star, size: 14, color: AppColors.starAmber),
-                                                const SizedBox(width: 2),
-                                                Text('$rating', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                                                Text(' • $eta mins ETA', style: TextStyle(fontSize: 11, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Column(
-                                        crossAxisAlignment: CrossAxisAlignment.end,
-                                        children: [
-                                          Text('₹ ${bidAmount.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.primary)),
-                                          const SizedBox(height: 4),
-                                          ElevatedButton(
-                                            onPressed: () async {
-                                              try {
-                                                await UserService.instance.acceptBid(b['id'].toString());
-                                                _loadRequirement(silent: false);
-                                              } catch (e) {
-                                                if (mounted) {
-                                                  AppToast.showError(e);
-                                                }
-                                              }
-                                            },
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: AppColors.primary,
-                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                              minimumSize: Size.zero,
-                                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                            ),
-                                            child: const Text('Accept Bid', style: TextStyle(fontSize: 11, color: Colors.white)),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
-                        ],
 
                         const SizedBox(height: AppSpacing.xl),
 

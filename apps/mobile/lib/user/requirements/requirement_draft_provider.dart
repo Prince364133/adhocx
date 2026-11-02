@@ -3,15 +3,13 @@ import 'models/cab_cart_item.dart';
 import 'models/fleet_template_model.dart';
 
 class RequirementDraftProvider extends ChangeNotifier {
-  // Step 1: Category & Vehicle & Quantity & Bidding Config
+  // Step 1: Category & Vehicle & Quantity
   String _fulfillmentMode = 'DIRECT_DISPATCH';
   String _vehicleType = 'Sedan';
   int _quantity = 5;
   String _specialRequests = '';
   double _suggestedBudget = 3500.0;
   double _maxBudgetCap = 4500.0;
-  int _biddingWindowMinutes = 30;
-  String _biddingPreferences = 'Verified AC Commercial Vehicles';
 
   // Step 2: Locations & Route
   static const String _tripType = 'One Way';
@@ -68,7 +66,6 @@ class RequirementDraftProvider extends ChangeNotifier {
 
   // Getters
   String get fulfillmentMode => _fulfillmentMode;
-  bool get isBiddingMode => _fulfillmentMode == 'BIDDING';
   String get vehicleType => _vehicleType;
   int get quantity => _quantity;
   String get specialRequests => _specialRequests;
@@ -76,8 +73,6 @@ class RequirementDraftProvider extends ChangeNotifier {
   double get suggestedBudget => _suggestedBudget;
   double get targetBudget => _suggestedBudget;
   double get maxBudgetCap => _maxBudgetCap;
-  int get biddingWindowMinutes => _biddingWindowMinutes;
-  String get biddingPreferences => _biddingPreferences;
 
   String get tripType => _tripType;
   String get pickupAddress => _pickupAddress;
@@ -135,8 +130,6 @@ class RequirementDraftProvider extends ChangeNotifier {
     String? specialRequests,
     double? suggestedBudget,
     double? maxBudgetCap,
-    int? biddingWindowMinutes,
-    String? biddingPreferences,
   }) {
     _fulfillmentMode = fulfillmentMode;
     _vehicleType = vehicleType;
@@ -145,8 +138,6 @@ class RequirementDraftProvider extends ChangeNotifier {
     if (specialRequests != null) _specialRequests = specialRequests;
     if (suggestedBudget != null) _suggestedBudget = suggestedBudget;
     if (maxBudgetCap != null) _maxBudgetCap = maxBudgetCap;
-    if (biddingWindowMinutes != null) _biddingWindowMinutes = biddingWindowMinutes;
-    if (biddingPreferences != null) _biddingPreferences = biddingPreferences;
     notifyListeners();
   }
 

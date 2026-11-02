@@ -151,7 +151,7 @@ class WelcomeSuccessScreen extends StatelessWidget {
                     child: Column(
                       children: isUser
                           ? [
-                              _buildCheckItem('Post trip requirements for competitive driver bids', isDark),
+                              _buildCheckItem('Post trip requirements for immediate driver dispatch', isDark),
                               _buildCheckItem('Instant booking for outstation and bulk fleets', isDark),
                               _buildCheckItem('Track trips & receipts in real-time', isDark),
                             ]

@@ -635,7 +635,7 @@ export default function BlogsPage() {
                     <input
                       type="text"
                       required
-                      placeholder="e.g. How Reverse Bidding Solves Corporate Cab Shortages in Hyderabad"
+                      placeholder="e.g. How Managed Direct Dispatch Solves Corporate Cab Shortages in Hyderabad"
                       value={formData.title}
                       onChange={handleTitleChange}
                       style={{

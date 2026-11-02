@@ -40,9 +40,6 @@ describe('RequirementsService Unit Tests', () => {
       offer: {
         updateMany: jest.fn(),
       },
-      bid: {
-        updateMany: jest.fn(),
-      },
       ledgerEntry: {
         create: jest.fn().mockResolvedValue({ id: 'led-1' }),
       },
@@ -255,7 +252,6 @@ describe('RequirementsService Unit Tests', () => {
         { id: 'off-2', createdAt: now, expiresAt: now },
         { id: 'off-3', createdAt: now, expiresAt: now },
       ],
-      bids: [],
       assignments: [
         {
           id: 'asg-1',
@@ -281,7 +277,6 @@ describe('RequirementsService Unit Tests', () => {
       vendorId: 'vnd-1',
       status: RequirementStatus.POSTED,
       offers: [{ id: 'off-1', driverId: 'drv-1', status: OfferStatus.SENT }],
-      bids: [],
     });
     db.requirement.updateMany = jest.fn().mockResolvedValue({ count: 1 });
     db.vendor.update.mockResolvedValue({ id: 'vnd-1', escrowBalance: 1000 });
@@ -334,7 +329,6 @@ describe('RequirementsService Unit Tests', () => {
       vendorId: 'vnd-1',
       status: RequirementStatus.DISPATCHING,
       offers: [{ id: 'off-1', driverId: 'drv-1', status: OfferStatus.SENT }],
-      bids: [],
     });
     db.requirement.updateMany = jest.fn().mockResolvedValue({ count: 0 });
     db.vendor.update.mockClear();
@@ -354,7 +348,6 @@ describe('RequirementsService Unit Tests', () => {
       vendorId: 'vnd-1',
       status: RequirementStatus.COMPLETED,
       offers: [],
-      bids: [],
     });
 
     await expect(
@@ -447,12 +440,6 @@ describe('RequirementsService Unit Tests', () => {
       expect(dispatchService.dispatchRequirement).not.toHaveBeenCalled();
     });
 
-    it('rejects zonal quotes on bidding requirements', async () => {
-      await expect(
-        service.createRequirement('usr-vnd-1', { ...zonalDto, fulfillmentMode: 'BIDDING' }),
-      ).rejects.toThrow(/direct dispatch/);
-    });
-
     it('non-zonal direct dispatch trips keep standard pricing (no implicit zonal quote)', async () => {
       await service.createRequirement('usr-vnd-1', { ...zonalDto, zonalQuoteId: undefined });
       expect(zonalPricing.validateQuoteForBooking).not.toHaveBeenCalled();
@@ -462,7 +449,7 @@ describe('RequirementsService Unit Tests', () => {
 
     it('vendor-role accounts without a vendor profile cannot read other requirements', async () => {
       db.vendor.findUnique.mockResolvedValue(null);
-      db.requirement.findUnique.mockResolvedValue({ id: '99999999-9999-9999-9999-999999999999', vendorId: 'vnd-other', offers: [], bids: [], assignments: [] });
+      db.requirement.findUnique.mockResolvedValue({ id: '99999999-9999-9999-9999-999999999999', vendorId: 'vnd-other', offers: [], assignments: [] });
       await expect(service.getRequirementDetails('99999999-9999-9999-9999-999999999999', 'usr-new', 'VENDOR')).rejects.toThrow(/Not authorized/);
     });
   });

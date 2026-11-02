@@ -19,8 +19,6 @@ export class PrismaRequirementMapper {
         lifecycleStatus = 'DRAFT';
         break;
       case 'POSTED':
-        lifecycleStatus = raw.fulfillmentMode === 'BIDDING' ? 'OPEN_FOR_BIDDING' : 'DIRECT_DISPATCH';
-        break;
       case 'DISPATCHING':
         lifecycleStatus = 'DIRECT_DISPATCH';
         break;
@@ -42,8 +40,7 @@ export class PrismaRequirementMapper {
         break;
     }
 
-    const pricingMode: MarketplacePricingMode =
-      raw.fulfillmentMode === 'BIDDING' ? 'BIDDING' : 'DIRECT_DISPATCH';
+    const pricingMode: MarketplacePricingMode = 'DIRECT_DISPATCH';
 
     let category: MarketplaceVehicleCategory = 'SEDAN';
     const rawCategory = raw.vehicleType?.toUpperCase() || '';
@@ -74,7 +71,7 @@ export class PrismaRequirementMapper {
     return {
       id: aggregate.id,
       vendorId: aggregate.requesterId,
-      fulfillmentMode: aggregate.pricingMode === 'BIDDING' ? 'BIDDING' : 'DIRECT_DISPATCH',
+      fulfillmentMode: 'DIRECT_DISPATCH',
       vehicleType: aggregate.vehicleCategory,
       pickupLat: aggregate.pickupLocation.latitude,
       pickupLng: aggregate.pickupLocation.longitude,

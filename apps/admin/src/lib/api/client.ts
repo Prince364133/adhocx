@@ -8,7 +8,6 @@ import {
   TripEvent,
   SettlementListItem,
   AuditLogItem,
-  BidListItem,
   DisputeListItem,
   CouponListItem,
   CouponRedemptionItem,
@@ -321,7 +320,6 @@ export const adminApi = {
         vendorRate: r.ratePerVehicle ?? r.vendorRate ?? r.suggestedBudget ?? 0,
         ratePerVehicle: r.ratePerVehicle ?? r.vendorRate ?? r.suggestedBudget ?? 0,
         suggestedBudget: r.suggestedBudget,
-        bidsCount: r.bids?.length ?? 0,
         zonalQuote: r.zonalQuote ?? undefined,
         createdAt: r.createdAt,
       })) as RequirementListItem[];
@@ -455,10 +453,6 @@ export const adminApi = {
       method: 'POST',
       body: data,
     }),
-
-  // Bids & Reverse Auction
-  getRequirementBids: (requirementId: string) =>
-    apiClient<BidListItem[]>(`/bids/requirement/${requirementId}`),
 
   // Disputes & Support Resolution
   getDisputes: (status?: string) => {
