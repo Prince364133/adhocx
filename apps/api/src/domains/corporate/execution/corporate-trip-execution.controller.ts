@@ -203,6 +203,7 @@ export class CorporateTripExecutionController {
         employeeId: { type: 'string' },
         action: { type: 'string', enum: ['CANCEL', 'RESCHEDULE'] },
         newShiftTime: { type: 'string', example: '09:00' },
+        newShiftDate: { type: 'string', example: '2026-11-05' },
       },
       required: ['employeeId', 'action'],
     },
@@ -219,6 +220,7 @@ export class CorporateTripExecutionController {
       employeeId: body.employeeId,
       action: body.action,
       newShiftTime: body.newShiftTime,
+      newShiftDate: body.newShiftDate,
     });
   }
 
@@ -235,6 +237,7 @@ export class CorporateTripExecutionController {
       properties: {
         action: { type: 'string', enum: ['CANCEL', 'RESCHEDULE'] },
         newShiftTime: { type: 'string', example: '09:00' },
+        newShiftDate: { type: 'string', example: '2026-11-05' },
         employeeId: { type: 'string' },
         actorUserId: { type: 'string' },
         reason: { type: 'string', example: 'Medical emergency approved by HR' },
@@ -255,7 +258,12 @@ export class CorporateTripExecutionController {
     }
     return this.executionService.handleRescheduleOrCancel(
       requestId,
-      { employeeId: body.employeeId as string, action: body.action, newShiftTime: body.newShiftTime },
+      {
+        employeeId: body.employeeId as string,
+        action: body.action,
+        newShiftTime: body.newShiftTime,
+        newShiftDate: body.newShiftDate,
+      },
       { override: { actorUserId, reason: body.reason } },
     );
   }

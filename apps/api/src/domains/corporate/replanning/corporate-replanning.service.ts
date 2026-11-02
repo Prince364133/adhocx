@@ -9,10 +9,12 @@ import { DatabaseService } from '../../../database/database.service';
 import { RedisService } from '../../../redis/redis.service';
 import { NotificationsService } from '../../../modules/notifications/notifications.service';
 import { AuditService } from '../../../modules/audit/audit.service';
+import { withdrawCorporateRouteOffer } from '../dispatch/corporate-dispatch.service';
 import {
   evaluateCutoff,
   formatIst,
   istWallClockToUtc,
+  isValidShiftDate,
   isValidShiftTime,
   RESCHEDULE_CUTOFF_HOURS,
   toDateOnly,
@@ -55,6 +57,8 @@ interface Passenger {
   lng: number;
   boardingOtp: string;
   previousEta?: Date;
+  /** Employee gender (MALE/FEMALE), used for the night-shift edge-seat rule. */
+  gender?: string;
 }
 
 interface WorkingRoute {
@@ -147,6 +151,9 @@ export class CorporateReplanningService {
     if (!isValidShiftTime(newShiftTime)) {
       throw new BadRequestException(`newShiftTime must be HH:mm (got ${String(newShiftTime)})`);
     }
+    if (ctx.newShiftDate !== undefined && !isValidShiftDate(ctx.newShiftDate)) {
+      throw new BadRequestException(`newShiftDate must be YYYY-MM-DD (got ${String(ctx.newShiftDate)})`);
+    }
     return this.run(requestId, 'RESCHEDULE', newShiftTime, ctx);
   }
 
@@ -169,7 +176,12 @@ export class CorporateReplanningService {
     ];
     if (newShiftTime) {
       lockKeys.push(
-        CorporateReplanningService.shiftLockKey(initial.tenantId, initial.scheduledDate, newShiftTime, initial.direction),
+        CorporateReplanningService.shiftLockKey(
+          initial.tenantId,
+          ctx.newShiftDate ?? initial.scheduledDate,
+          newShiftTime,
+          initial.direction,
+        ),
       );
     }
 
@@ -206,7 +218,11 @@ export class CorporateReplanningService {
     if (action === 'CANCEL' && req.status === 'CANCELLED') {
       return { requestId, action, idempotent: true, request: this.publicRequest(req), cutoff: ctx.cutoff, merges: [] };
     }
-    if (action === 'RESCHEDULE' && req.shiftTime === newShiftTime && req.status !== 'CANCELLED' && !NON_MODIFIABLE_REQUEST.includes(req.status)) {
+    const targetDay = ctx.newShiftDate ?? toDateOnly(req.scheduledDate);
+    const dateChanged = targetDay !== toDateOnly(req.scheduledDate);
+    // Prisma DATE column value for the target day (keep the original object when the day is unchanged).
+    const targetDate: Date = dateChanged ? new Date(`${targetDay}T00:00:00.000Z`) : req.scheduledDate;
+    if (action === 'RESCHEDULE' && req.shiftTime === newShiftTime && !dateChanged && req.status !== 'CANCELLED' && !NON_MODIFIABLE_REQUEST.includes(req.status)) {
       return { requestId, action, idempotent: true, request: this.publicRequest(req), cutoff: ctx.cutoff, merges: [] };
     }
     if (req.status === 'CANCELLED' || NON_MODIFIABLE_REQUEST.includes(req.status)) {
@@ -238,6 +254,8 @@ export class CorporateReplanningService {
         const w = this.toWorkingRoute(route, office);
         working.set(route.id, w);
         w.passengers = w.passengers.filter((p) => p.stopId !== liveStop.id);
+        await this.hydrateGenders([w]);
+        w.passengers = this.enforceNightSafety(w, w.passengers);
         w.rebuild = true;
         if (w.passengers.length === 0) w.finalStatus = 'CANCELLED';
         removedFrom = w;
@@ -273,6 +291,7 @@ export class CorporateReplanningService {
       const passenger: Passenger = {
         transportRequestId: req.id,
         employeeId: req.employeeId,
+        gender: req.employee?.gender,
         ...this.passengerPoint(req),
         boardingOtp: liveStop?.boardingOtp && liveStop.boardingOtp !== '------' ? liveStop.boardingOtp : this.generateOtp(),
       };
@@ -280,7 +299,7 @@ export class CorporateReplanningService {
         where: {
           tenantId: req.tenantId,
           officeId: office.officeId,
-          shiftDate: req.scheduledDate,
+          shiftDate: targetDate,
           shiftTime: newShiftTime,
           direction: req.direction,
           status: PRE_DISPATCH_STATUS,
@@ -288,22 +307,23 @@ export class CorporateReplanningService {
         include: { stops: { orderBy: { stopSequence: 'asc' } } },
       });
 
-      let best: { w: WorkingRoute; index: number; added: number } | undefined;
-      for (const c of candidates) {
-        const w = this.toWorkingRoute(c, office);
+      let best: { w: WorkingRoute; order: Passenger[]; added: number } | undefined;
+      const candidateRoutes = candidates.map((c: any) => this.toWorkingRoute(c, office));
+      await this.hydrateGenders(candidateRoutes);
+      for (const w of candidateRoutes) {
         if (w.passengers.length >= w.maxCapacity) continue;
         const ins = this.tryInsert(w, [passenger], this.MAX_INSERTION_DETOUR_METERS);
-        if (ins && (!best || ins.added < best.added)) best = { w, index: ins.order.indexOf(passenger), added: ins.added };
+        if (ins && (!best || ins.added < best.added)) best = { w, order: ins.order, added: ins.added };
       }
 
       let target: WorkingRoute;
       let createdNewRoute = false;
       if (best) {
         target = best.w;
-        target.passengers.splice(best.index, 0, passenger);
+        target.passengers = best.order;
       } else {
         createdNewRoute = true;
-        const shiftInstant = istWallClockToUtc(req.scheduledDate, newShiftTime);
+        const shiftInstant = istWallClockToUtc(targetDay, newShiftTime);
         target = {
           id: null,
           row: null,
@@ -315,7 +335,7 @@ export class CorporateReplanningService {
           direction: req.direction,
           maxCapacity: this.DEFAULT_SEDAN_CAPACITY,
           vehicleCategory: this.DEFAULT_VEHICLE_CATEGORY,
-          meta: { tenantId: req.tenantId, officeId: office.officeId, shiftDate: req.scheduledDate, shiftTime: newShiftTime },
+          meta: { tenantId: req.tenantId, officeId: office.officeId, shiftDate: targetDate, shiftTime: newShiftTime },
           passengers: [passenger],
           rebuild: true,
           finalStatus: PRE_DISPATCH_STATUS,
@@ -332,7 +352,7 @@ export class CorporateReplanningService {
       if (!newCutoff.allowed) {
         throw new BadRequestException(
           `Modification locked: Rescheduling and cancellations must be submitted at least ${RESCHEDULE_CUTOFF_HOURS} hours prior to pickup ` +
-            `(new shift ${newShiftTime} pickup ${formatIst(newPickup)}, cutoff ${formatIst(newCutoff.cutoffAt)}).`,
+            `(new shift ${newShiftTime}${dateChanged ? ` on ${targetDay}` : ''} pickup ${formatIst(newPickup)}, cutoff ${formatIst(newCutoff.cutoffAt)}).`,
         );
       }
 
@@ -371,7 +391,7 @@ export class CorporateReplanningService {
       routeIds.map((id) => CorporateReplanningService.routeLockKey(id)),
       () =>
         this.db.$transaction(async (tx: Tx) => {
-          return this.apply(tx, req, action, newShiftTime, working, inPlace, insertion);
+          return this.apply(tx, req, action, newShiftTime, working, inPlace, insertion, dateChanged ? targetDate : undefined);
         }),
     );
 
@@ -381,6 +401,7 @@ export class CorporateReplanningService {
       insertion.stopId = committed.insertion?.stopId ?? '';
       insertion.stopSequence = committed.insertion?.stopSequence ?? 0;
     }
+    await this.withdrawOffersOfCancelledRoutes(inPlace);
     this.emitSideEffects(req, action, inPlace, committed.retimed);
     await this.audit.log({
       userId: ctx.override?.actorUserId,
@@ -391,6 +412,7 @@ export class CorporateReplanningService {
       metadata: {
         fromShift: req.shiftTime,
         toShift: newShiftTime,
+        ...(ctx.newShiftDate ? { fromDate: toDateOnly(req.scheduledDate), toDate: ctx.newShiftDate } : {}),
         cutoff: ctx.cutoff as any,
         override: ctx.override as any,
         removal: removal as any,
@@ -436,6 +458,7 @@ export class CorporateReplanningService {
       const { index } = cheapestInsertion(w.direction, order, w.office, p);
       order = [...order.slice(0, index), p, ...order.slice(index)];
     }
+    order = this.enforceNightSafety(w, order);
     const added =
       routeDistanceMeters(w.direction, order, w.office) - routeDistanceMeters(w.direction, w.passengers, w.office);
     if (added > maxAddedMeters) return null;
@@ -448,6 +471,49 @@ export class CorporateReplanningService {
       }
     }
     return { order, added };
+  }
+
+  /** Night shift = shift starting before 06:00 or from 20:00 (same rule as the route solver). */
+  private isNightShift(w: WorkingRoute): boolean {
+    const hour = Number(String(w.meta.shiftTime).split(':')[0]);
+    return hour < 6 || hour >= 20;
+  }
+
+  /**
+   * Night-shift safety: when a man is in the cab, a woman must not be the first pickup (LOGIN) or
+   * the last drop (LOGOUT). If the order breaks that rule, the man whose move to the edge seat adds
+   * the least distance is moved there. All-women cabs are left as they are.
+   */
+  private enforceNightSafety(w: WorkingRoute, order: Passenger[]): Passenger[] {
+    if (!this.isNightShift(w) || order.length < 2) return order;
+    const g = (p: Passenger) => String(p.gender ?? '').toUpperCase();
+    const isLogout = w.direction === 'LOGOUT';
+    const edge = isLogout ? order[order.length - 1] : order[0];
+    if (g(edge) !== 'FEMALE' || !order.some((p) => g(p) === 'MALE')) return order;
+
+    let best: { order: Passenger[]; meters: number } | undefined;
+    for (const m of order.filter((p) => g(p) === 'MALE')) {
+      const rest = order.filter((p) => p !== m);
+      const trial = isLogout ? [...rest, m] : [m, ...rest];
+      const meters = routeDistanceMeters(w.direction, trial, w.office);
+      if (!best || meters < best.meters) best = { order: trial, meters };
+    }
+    return best ? best.order : order;
+  }
+
+  /** Loads genders for passengers that don't carry one yet (one query for all given routes). */
+  private async hydrateGenders(routes: WorkingRoute[]): Promise<void> {
+    if (!routes.some((w) => this.isNightShift(w))) return;
+    const missing = new Set<string>();
+    for (const w of routes) for (const p of w.passengers) if (!p.gender && p.employeeId) missing.add(p.employeeId);
+    if (missing.size === 0) return;
+    const rows: any[] =
+      (await this.db.corporateEmployee.findMany({
+        where: { id: { in: [...missing] } },
+        select: { id: true, gender: true },
+      })) ?? [];
+    const byId = new Map(rows.map((r) => [r.id, r.gender]));
+    for (const w of routes) for (const p of w.passengers) if (!p.gender && p.employeeId) p.gender = byId.get(p.employeeId);
   }
 
   private async planMerge(
@@ -470,8 +536,9 @@ export class CorporateReplanningService {
     });
 
     let best: { w: WorkingRoute; order: Passenger[]; added: number } | undefined;
-    for (const s of siblings) {
-      const w = working.get(s.id) ?? this.toWorkingRoute(s, office);
+    const siblingRoutes = siblings.map((s: any) => working.get(s.id) ?? this.toWorkingRoute(s, office));
+    await this.hydrateGenders([small, ...siblingRoutes]);
+    for (const w of siblingRoutes) {
       if (w.finalStatus !== PRE_DISPATCH_STATUS) continue;
       const ins = this.tryInsert(w, small.passengers, this.MAX_MERGE_DETOUR_METERS);
       if (ins && (!best || ins.added < best.added)) best = { w, order: ins.order, added: ins.added };
@@ -546,6 +613,7 @@ export class CorporateReplanningService {
     working: Map<string, WorkingRoute>,
     inPlace: InPlaceCancellation[],
     insertion: { route: WorkingRoute; passenger: Passenger } | undefined,
+    newScheduledDate?: Date,
   ): Promise<{
     request: Record<string, any>;
     insertion?: { routeId: string; stopId: string; stopSequence: number };
@@ -705,7 +773,10 @@ export class CorporateReplanningService {
     // (e) Request state transition (conditional => concurrent duplicates retry and resolve idempotently).
     const reqUpdate = await tx.corporateTransportRequest.updateMany({
       where: { id: req.id, status: req.status, shiftTime: req.shiftTime },
-      data: action === 'CANCEL' ? { status: 'CANCELLED' } : { status: 'PLANNED', shiftTime: newShiftTime },
+      data:
+        action === 'CANCEL'
+          ? { status: 'CANCELLED' }
+          : { status: 'PLANNED', shiftTime: newShiftTime, ...(newScheduledDate ? { scheduledDate: newScheduledDate } : {}) },
     });
     if (reqUpdate.count !== 1) throw new StaleReplanStateError(`request ${req.id} changed`);
     const request = await tx.corporateTransportRequest.findUnique({ where: { id: req.id } });
@@ -752,6 +823,27 @@ export class CorporateReplanningService {
       }
     } catch (err) {
       this.logger.error(`Replan notification failure for ${req.id}: ${(err as Error).message}`);
+    }
+  }
+
+  /**
+   * A route cancelled while DISPATCHING may still have a live 60s offer on some driver's screen.
+   * Withdraw it (and release the driver's exclusive hold) so they can take other work at once.
+   */
+  private async withdrawOffersOfCancelledRoutes(inPlace: InPlaceCancellation[]): Promise<void> {
+    for (const c of inPlace) {
+      if (!c.cancelRoute || c.route.status !== 'DISPATCHING') continue;
+      try {
+        const driverId = await withdrawCorporateRouteOffer(this.redis.getClient(), c.route.id);
+        if (driverId) {
+          this.notifications.emitEvent(`driver:${driverId}`, 'CORPORATE_ROUTE_OFFER_WITHDRAWN', {
+            routeId: c.route.id,
+            reason: 'ROUTE_CANCELLED',
+          });
+        }
+      } catch (err) {
+        this.logger.error(`Offer withdrawal for cancelled route ${c.route.id} failed: ${(err as Error).message}`);
+      }
     }
   }
 

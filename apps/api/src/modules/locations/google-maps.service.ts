@@ -37,12 +37,12 @@ export class GoogleMapsService {
   private circuitOpenUntil = 0;
 
   constructor() {
-    this.apiKey =
-      process.env.GOOGLE_MAPS_API_KEY !== undefined
-        ? process.env.GOOGLE_MAPS_API_KEY
-        : process.env.NODE_ENV === 'test'
-        ? ''
-        : 'AIzaSyB8uEHtGy96QPbx3eIxG0s0_WYlWpB8QVI';
+    // Key comes only from the environment; without it every Maps call falls back to estimates.
+    this.apiKey = process.env.GOOGLE_MAPS_API_KEY ?? '';
+    if (!this.apiKey && process.env.NODE_ENV !== 'test') {
+      // eslint-disable-next-line no-console
+      console.warn('[GoogleMapsService] GOOGLE_MAPS_API_KEY is not set; using offline distance/traffic estimates');
+    }
   }
 
   /**

@@ -5,6 +5,18 @@ import { RedisService } from '../src/redis/redis.service';
 import { NotificationsService } from '../src/modules/notifications/notifications.service';
 import { AuditService } from '../src/modules/audit/audit.service';
 
+
+// Cutoff tests must not depend on the time of day the suite runs (pickup = scheduled day + shift time in IST).
+const pad2 = (n: number) => String(n).padStart(2, '0');
+/** A request whose IST pickup is exactly `hours` from now. */
+function istShiftIn(hours: number): { scheduledDate: Date; shiftTime: string } {
+  const ist = new Date(Date.now() + hours * 3600_000 + 330 * 60_000);
+  return {
+    scheduledDate: new Date(Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate())),
+    shiftTime: `${pad2(ist.getUTCHours())}:${pad2(ist.getUTCMinutes())}`,
+  };
+}
+
 describe('Corporate Trip Execution, 5-Min Timer, OTP Boarding & 9h Reschedule', () => {
   let executionService: CorporateTripExecutionService;
 
@@ -431,13 +443,12 @@ describe('Corporate Trip Execution, 5-Min Timer, OTP Boarding & 9h Reschedule', 
   describe('9-Hour Shift Reschedule & Cancellation Cutoff Rule', () => {
     it('should allow cancellation when submitted > 9 hours before scheduled shift', async () => {
       // Scheduled 24 hours from now
-      const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      const future = istShiftIn(24);
 
       mockDb.corporateTransportRequest.findUnique.mockResolvedValue({
         id: 'req-cutoff-1',
         employeeId: 'emp-cust-1',
-        scheduledDate: futureDate,
-        shiftTime: '08:00',
+        ...future,
         status: 'APPROVED',
       });
 

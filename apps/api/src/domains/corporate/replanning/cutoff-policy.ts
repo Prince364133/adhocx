@@ -52,6 +52,13 @@ export function formatIst(instant: Date): string {
   return `${shifted.toISOString().slice(0, 16).replace('T', ' ')} IST`;
 }
 
+/** Strict YYYY-MM-DD that is a real calendar day. */
+export function isValidShiftDate(day: unknown): day is string {
+  if (typeof day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return false;
+  const d = new Date(`${day}T00:00:00.000Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === day;
+}
+
 export function isValidShiftTime(hhmm: unknown): hhmm is string {
   return typeof hhmm === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(hhmm);
 }

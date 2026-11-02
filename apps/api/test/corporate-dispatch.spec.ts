@@ -30,6 +30,8 @@ describe('Corporate Autonomous Dispatch & Dynamic Traffic Advancer (DDA)', () =>
     corporateRoute: {
       findUnique: jest.fn(),
       update: jest.fn(),
+      // Busy-driver check: by default nobody is committed to another route.
+      findMany: jest.fn().mockResolvedValue([]),
     },
     corporateDriverEarning: {
       create: jest.fn(),
@@ -41,6 +43,7 @@ describe('Corporate Autonomous Dispatch & Dynamic Traffic Advancer (DDA)', () =>
     vehicle: {
       findFirst: jest.fn(),
     },
+    $transaction: jest.fn((fn: any) => (Array.isArray(fn) ? Promise.all(fn) : fn(mockDb))),
   };
 
   const mockNotifications = {
@@ -75,7 +78,7 @@ describe('Corporate Autonomous Dispatch & Dynamic Traffic Advancer (DDA)', () =>
 
   describe('Dynamic Traffic Advancer (DDA)', () => {
     it('should detect severe congestion and advance dispatch schedule by 35 minutes for peak-hour routes', async () => {
-      const targetPickup1Time = new Date('2026-11-10T06:30:00');
+      const targetPickup1Time = new Date('2026-11-10T06:30:00+05:30');
       mockDb.corporateRoute.findUnique.mockResolvedValue({
         id: 'route-peak-1',
         targetPickup1Time,
@@ -85,7 +88,7 @@ describe('Corporate Autonomous Dispatch & Dynamic Traffic Advancer (DDA)', () =>
       });
 
       // Target pickup is at 07:30 AM (peak hour)
-      const peakPickupTime = new Date('2026-11-10T07:30:00');
+      const peakPickupTime = new Date('2026-11-10T07:30:00+05:30');
       mockDb.corporateRoute.findUnique.mockResolvedValue({
         id: 'route-peak-1',
         targetPickup1Time: peakPickupTime,
@@ -105,7 +108,7 @@ describe('Corporate Autonomous Dispatch & Dynamic Traffic Advancer (DDA)', () =>
     });
 
     it('should maintain standard 60-minute dispatch lead time for non-peak optimal routes', async () => {
-      const nonPeakTime = new Date('2026-11-10T12:00:00');
+      const nonPeakTime = new Date('2026-11-10T12:00:00+05:30');
       mockDb.corporateRoute.findUnique.mockResolvedValue({
         id: 'route-midday',
         targetPickup1Time: nonPeakTime,
@@ -134,7 +137,7 @@ describe('Corporate Autonomous Dispatch & Dynamic Traffic Advancer (DDA)', () =>
         vehicleCategory: 'SEDAN',
         assignedPassengerCount: 4,
         estDistanceMeters: 25000,
-        targetPickup1Time: new Date('2026-11-10T06:30:00'),
+        targetPickup1Time: new Date('2026-11-10T06:30:00+05:30'),
         shiftDate: new Date('2026-11-10'),
         shiftTime: '08:00',
         stops: [
@@ -201,7 +204,7 @@ describe('Corporate Autonomous Dispatch & Dynamic Traffic Advancer (DDA)', () =>
         vehicleCategory: 'SEDAN',
         assignedPassengerCount: 4,
         estDistanceMeters: 25000,
-        targetPickup1Time: new Date('2026-11-10T06:30:00'),
+        targetPickup1Time: new Date('2026-11-10T06:30:00+05:30'),
         shiftDate: new Date('2026-11-10'),
         shiftTime: '08:00',
         stops: [{ stopSequence: 1, latitude: 17.55, longitude: 78.30 }],
@@ -253,7 +256,7 @@ describe('Corporate Autonomous Dispatch & Dynamic Traffic Advancer (DDA)', () =>
         direction: 'LOGIN',
         passengerCount: 4,
         totalDistanceMeters: 25000,
-        targetPickup1Time: new Date('2026-11-10T06:30:00'),
+        targetPickup1Time: new Date('2026-11-10T06:30:00+05:30'),
         farePaise: 80000, // ₹800 in paise
         offerExpiresAt: new Date(Date.now() + 50000),
       };

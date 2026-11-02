@@ -21,9 +21,12 @@ import { GoogleMapsService } from '../src/modules/locations/google-maps.service'
 
 // ----------------------------------------------------------------------------- helpers
 
+/** IST wall-clock instant (shift times are IST regardless of the server timezone). */
+const ist = (y: number, mo: number, d: number, h: number, mi = 0) => new Date(Date.UTC(y, mo, d, h, mi) - 330 * 60_000);
+
 const OFFICE: MatrixPoint = { latitude: 17.4474, longitude: 78.3762 }; // HITEC City
-const LOGIN_0800 = new Date(2026, 10, 10, 8, 0, 0); // local time, like the service
-const LOGOUT_1700 = new Date(2026, 10, 10, 17, 0, 0);
+const LOGIN_0800 = ist(2026, 10, 10, 8, 0); // IST, like the service
+const LOGOUT_1700 = ist(2026, 10, 10, 17, 0);
 
 /** Counting wrapper around any port. */
 class SpyPort implements ITravelTimeMatrixPort {
@@ -99,7 +102,11 @@ function baseInput(overrides: Partial<PlannerInput>): PlannerInput {
   };
 }
 
-const hhmm = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+/** HH:mm in IST. */
+const hhmm = (d: Date) => {
+  const t = new Date(new Date(d).getTime() + 330 * 60_000);
+  return `${String(t.getUTCHours()).padStart(2, '0')}:${String(t.getUTCMinutes()).padStart(2, '0')}`;
+};
 
 function assignedIds(routes: { passengers: PlannerPassenger[] }[]): string[] {
   return routes.flatMap((r) => r.passengers.map((p) => p.requestId)).sort();
@@ -186,10 +193,10 @@ describe('CorporateRoutePlanner: capacity', () => {
 
   it('500 employees across 2 login + 2 logout shifts -> ~125 sedan routes, all within capacity', async () => {
     const shifts = [
-      { dir: 'LOGIN' as const, at: new Date(2026, 10, 10, 8, 0), n: 130 },
-      { dir: 'LOGIN' as const, at: new Date(2026, 10, 10, 9, 0), n: 120 },
-      { dir: 'LOGOUT' as const, at: new Date(2026, 10, 10, 17, 0), n: 126 },
-      { dir: 'LOGOUT' as const, at: new Date(2026, 10, 10, 18, 0), n: 124 },
+      { dir: 'LOGIN' as const, at: ist(2026, 10, 10, 8, 0), n: 130 },
+      { dir: 'LOGIN' as const, at: ist(2026, 10, 10, 9, 0), n: 120 },
+      { dir: 'LOGOUT' as const, at: ist(2026, 10, 10, 17, 0), n: 126 },
+      { dir: 'LOGOUT' as const, at: ist(2026, 10, 10, 18, 0), n: 124 },
     ];
     let routes = 0;
     let employees = 0;
@@ -267,7 +274,7 @@ describe('CorporateRoutePlanner: LOGIN timing', () => {
 
   it('night shift: a woman is not the first pickup when a man shares the cab', async () => {
     const pax = linePassengers([4, 3, 2, 1], ['FEMALE', 'MALE', 'MALE', 'MALE']); // woman is farthest
-    const night = await planner.plan(baseInput({ anchorTime: new Date(2026, 10, 10, 22, 0), nightShift: true, passengers: pax }));
+    const night = await planner.plan(baseInput({ anchorTime: ist(2026, 10, 10, 22, 0), nightShift: true, passengers: pax }));
     expect(night.routes[0].passengers[0].gender).toBe('MALE');
     expect(night.routes[0].escortRequired).toBe(false);
     const day = await planner.plan(baseInput({ passengers: pax }));
@@ -293,7 +300,7 @@ describe('CorporateRoutePlanner: LOGOUT', () => {
   it('night logout: a woman is not the last drop when a man shares the cab', async () => {
     const pax = linePassengers([1, 2, 3, 4], ['MALE', 'MALE', 'MALE', 'FEMALE']);
     const res = await planner.plan(
-      baseInput({ direction: 'LOGOUT', anchorTime: new Date(2026, 10, 10, 22, 0), nightShift: true, passengers: pax }),
+      baseInput({ direction: 'LOGOUT', anchorTime: ist(2026, 10, 10, 22, 0), nightShift: true, passengers: pax }),
     );
     const order = res.routes[0].passengers;
     expect(order[order.length - 1].gender).toBe('MALE');
@@ -363,8 +370,8 @@ describe('CorporateRoutePlanner: determinism, sparsity and speed', () => {
 // ----------------------------------------------------------------------------- Google adapter
 
 describe('GoogleTravelTimeMatrixAdapter', () => {
-  const departure = new Date(2026, 10, 10, 7, 0); // Tuesday 07:00
-  const now = () => new Date(2026, 10, 2, 12, 0).getTime();
+  const departure = ist(2026, 10, 10, 7, 0); // Tuesday 07:00
+  const now = () => ist(2026, 10, 2, 12, 0).getTime();
 
   it('chunks a 60 x 60 matrix into 25 x 25 requests within the 625-element limit', async () => {
     const client = new FakeGoogleClient();
@@ -391,7 +398,7 @@ describe('GoogleTravelTimeMatrixAdapter', () => {
     const first = await adapter.getMatrix(pts, pts, departure);
     const callsAfterFirst = client.calls.length;
     // Same cells, departure in the same 30-min bucket
-    const second = await adapter.getMatrix(pts, pts, new Date(2026, 10, 10, 7, 20));
+    const second = await adapter.getMatrix(pts, pts, ist(2026, 10, 10, 7, 20));
     expect(client.calls.length).toBe(callsAfterFirst);
     expect(second.source).toBe('CACHE');
     expect(second.durationSec).toEqual(first.durationSec);
@@ -446,15 +453,15 @@ describe('GoogleTravelTimeMatrixAdapter', () => {
   it('rolls a past departure forward by whole weeks (same weekday and time) for traffic-aware requests', async () => {
     const client = new FakeGoogleClient();
     const adapter = new GoogleTravelTimeMatrixAdapter(client, null, undefined, { now });
-    const past = new Date(2026, 9, 20, 7, 0); // Tuesday, before "now"
+    const past = ist(2026, 9, 20, 7, 0); // Tuesday, before "now"
     await adapter.getMatrix(gridPoints(1, 2), [OFFICE], past);
     const sent = client.calls[0].departure!;
     expect(sent.getTime()).toBeGreaterThan(now());
-    expect(sent.getDay()).toBe(past.getDay());
+    expect(new Date(sent.getTime() + 330 * 60_000).getUTCDay()).toBe(new Date(past.getTime() + 330 * 60_000).getUTCDay());
     expect(hhmm(sent)).toBe('07:00');
-    expect(adapter.timeBucket(new Date(2026, 10, 10, 7, 29))).toBe('wd0700');
-    expect(adapter.timeBucket(new Date(2026, 10, 10, 7, 31))).toBe('wd0730');
-    expect(adapter.timeBucket(new Date(2026, 10, 14, 7, 10))).toBe('we0700'); // Saturday
+    expect(adapter.timeBucket(ist(2026, 10, 10, 7, 29))).toBe('wd0700');
+    expect(adapter.timeBucket(ist(2026, 10, 10, 7, 31))).toBe('wd0730');
+    expect(adapter.timeBucket(ist(2026, 10, 14, 7, 10))).toBe('we0700'); // Saturday
   });
 
   it('RedisMatrixCache uses MGET + pipelined SETEX on a live client, get/set otherwise', async () => {

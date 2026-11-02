@@ -16,6 +16,9 @@ import { GoogleMapsService } from '../src/modules/locations/google-maps.service'
  *   with +60 m traffic => pickup-1 05:10, dispatch 04:10 (one hour earlier)
  */
 
+/** IST wall-clock instant (shift times are IST regardless of the server timezone). */
+const ist = (y: number, mo: number, d: number, h: number, mi = 0) => new Date(Date.UTC(y, mo, d, h, mi) - 330 * 60_000);
+
 const MIN = 60_000;
 const at = (hhmm: string) => new Date(`2026-11-10T${hhmm}:00.000Z`);
 
@@ -391,11 +394,11 @@ describe('Corporate DDA: assessDynamicTraffic with traffic estimator port', () =
   });
 
   it('estimator throwing falls back to the inline peak-hour heuristic', async () => {
-    const peakLocal = new Date(2026, 10, 10, 7, 30);
+    const peakIst = ist(2026, 10, 10, 7, 30);
     db.corporateRoute.findUnique.mockResolvedValue({
       id: 'route-x',
       direction: 'LOGIN',
-      targetPickup1Time: peakLocal,
+      targetPickup1Time: peakIst,
       estDistanceMeters: 38000,
       stops: [{ stopSequence: 1, latitude: 17.5, longitude: 78.35 }],
     });
@@ -413,7 +416,7 @@ describe('Corporate DDA: assessDynamicTraffic with traffic estimator port', () =
     db.corporateRoute.findUnique.mockResolvedValue({
       id: 'route-midday',
       direction: 'LOGIN',
-      targetPickup1Time: new Date(2026, 10, 10, 12, 0),
+      targetPickup1Time: ist(2026, 10, 10, 12, 0),
       estDistanceMeters: 15000,
       stops: [{ stopSequence: 1, latitude: 17.44, longitude: 78.38 }],
     });

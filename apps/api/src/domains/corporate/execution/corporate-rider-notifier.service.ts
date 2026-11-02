@@ -14,7 +14,8 @@ export type RiderLifecycleEvent =
   | 'ARRIVED'
   | 'BOARDED'
   | 'NO_SHOW'
-  | 'DROPPED';
+  | 'DROPPED'
+  | 'PICKUP_RETIMED';
 
 /**
  * Websocket event names on the `employee:{id}` channel.
@@ -28,6 +29,7 @@ export const RIDER_WS_EVENTS: Record<RiderLifecycleEvent, string> = {
   BOARDED: 'BOARDING_CONFIRMED',
   NO_SHOW: 'RIDE_NO_SHOW',
   DROPPED: 'RIDE_DROPPED',
+  PICKUP_RETIMED: 'CORPORATE_PICKUP_UPDATED',
 };
 
 export const NO_SHOW_DEFAULT_REASON =
@@ -172,6 +174,28 @@ export class CorporateRiderNotifier {
       );
     }
     return outcomes;
+  }
+
+  /**
+   * Pickup time moved (e.g. traffic forecast advanced pickup-1): tell each affected employee
+   * the new time. Deduped per (stop, new time) so repeated polls with the same result send once.
+   */
+  public async notifyPickupRetimed(
+    route: { id: string; tenantId: string },
+    changes: Array<{ stopId: string; stopSequence?: number; employeeId: string; previousEta: Date; plannedEta: Date; reason?: string }>,
+  ): Promise<RiderNotificationOutcome[]> {
+    return Promise.all(
+      changes.map((c) =>
+        this.notify('PICKUP_RETIMED', {
+          routeId: route.id,
+          tenantId: route.tenantId,
+          employeeId: c.employeeId,
+          stopId: c.stopId,
+          stopSequence: c.stopSequence,
+          payload: { previousEta: c.previousEta, plannedEta: c.plannedEta, reason: c.reason },
+        }),
+      ),
+    );
   }
 
   public notifyApproaching(ctx: RiderNotificationContext): Promise<RiderNotificationOutcome> {
@@ -398,7 +422,11 @@ export class CorporateRiderNotifier {
   }
 
   private dedupeKey(event: RiderLifecycleEvent, ctx: RiderNotificationContext): string {
-    return `corporate:rider-notify:${event}:${ctx.routeId}:${ctx.stopId ?? ctx.employeeId}`;
+    const base = `corporate:rider-notify:${event}:${ctx.routeId}:${ctx.stopId ?? ctx.employeeId}`;
+    if (event === 'PICKUP_RETIMED' && ctx.payload?.plannedEta) {
+      return `${base}:${new Date(ctx.payload.plannedEta).getTime()}`;
+    }
+    return base;
   }
 
   /** Returns true when this notification has not been sent yet. Fails open if Redis is unavailable. */
@@ -478,6 +506,13 @@ export class CorporateRiderNotifier {
         };
       case 'DROPPED':
         return { title: 'Trip completed', body: 'You have been dropped at your destination. Thank you for riding!' };
+      case 'PICKUP_RETIMED': {
+        const at = p.plannedEta ? formatIstClock(new Date(p.plannedEta)) : 'a new time';
+        return {
+          title: 'Pickup time changed',
+          body: `Hi ${firstName}, your pickup is now at ${at} IST${p.reason ? ` (${p.reason})` : ''}. Please be ready by then.`,
+        };
+      }
     }
   }
 }
@@ -492,4 +527,10 @@ export function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: 
     Math.sin(dPhi / 2) * Math.sin(dPhi / 2) +
     Math.cos(phi1) * Math.cos(phi2) * Math.sin(dLambda / 2) * Math.sin(dLambda / 2);
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/** HH:mm in IST (UTC+5:30), independent of the server timezone. */
+export function formatIstClock(d: Date): string {
+  const ist = new Date(d.getTime() + 330 * 60_000);
+  return `${String(ist.getUTCHours()).padStart(2, '0')}:${String(ist.getUTCMinutes()).padStart(2, '0')}`;
 }

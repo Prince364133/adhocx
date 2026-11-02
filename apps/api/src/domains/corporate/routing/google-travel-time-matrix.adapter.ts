@@ -147,11 +147,12 @@ export class GoogleTravelTimeMatrixAdapter implements ITravelTimeMatrixPort {
     this.now = options.now ?? Date.now;
   }
 
-  /** Time bucket: weekday/weekend + local HH:MM floored to the bucket size. */
+  /** Time bucket: weekday/weekend + IST HH:MM floored to the bucket size (server-timezone independent). */
   timeBucket(departure: Date): string {
-    const day = departure.getDay();
+    const ist = new Date(departure.getTime() + 330 * 60_000);
+    const day = ist.getUTCDay();
     const dayType = day === 0 || day === 6 ? 'we' : 'wd';
-    const mins = departure.getHours() * 60 + departure.getMinutes();
+    const mins = ist.getUTCHours() * 60 + ist.getUTCMinutes();
     const b = Math.floor(mins / this.bucketMin) * this.bucketMin;
     return `${dayType}${String(Math.floor(b / 60)).padStart(2, '0')}${String(b % 60).padStart(2, '0')}`;
   }
@@ -167,8 +168,8 @@ export class GoogleTravelTimeMatrixAdapter implements ITravelTimeMatrixPort {
   effectiveDeparture(departure: Date): Date {
     const minMs = this.now() + 60_000;
     const t = new Date(departure.getTime());
-    // Local-calendar weeks so the wall-clock time survives DST changes
-    while (t.getTime() <= minMs) t.setDate(t.getDate() + 7);
+    // Whole weeks in absolute time (IST has no DST, so the wall-clock time is preserved)
+    while (t.getTime() <= minMs) t.setTime(t.getTime() + 7 * 24 * 3600_000);
     return t;
   }
 

@@ -49,12 +49,14 @@ export interface StartRouteResult {
 export interface RescheduleRequestDto {
   employeeId: string;
   newShiftTime?: string; // HH:mm
+  newShiftDate?: string; // YYYY-MM-DD (reschedule to another day; defaults to the current day)
   action: 'CANCEL' | 'RESCHEDULE';
 }
 
 export interface AdminRescheduleRequestDto {
   employeeId?: string;
   newShiftTime?: string; // HH:mm
+  newShiftDate?: string; // YYYY-MM-DD (reschedule to another day; defaults to the current day)
   action: 'CANCEL' | 'RESCHEDULE';
   /** Admin performing the cutoff override (audited). Ignored when the caller is authenticated: the JWT user is the actor. */
   actorUserId?: string;

@@ -830,3 +830,209 @@ describe('overnight simulation', () => {
     expect(merges).toBeGreaterThan(0); // deterministic seed: under-filled routes were consolidated
   }, 60_000);
 });
+
+// ---------------------------------------------------------------------------
+// Nov 2026 gap fixes
+// ---------------------------------------------------------------------------
+describe('cancelled DISPATCHING route withdraws its live offer', () => {
+  const EARLY = new Date('2026-11-02T06:30:00.000Z');
+
+  /** Map-backed Redis client exposing what withdrawCorporateRouteOffer uses. */
+  function attachRedisClient() {
+    const kv = new Map<string, string>();
+    const active = new Set<string>();
+    const client = {
+      get: async (k: string) => kv.get(k) ?? null,
+      del: async (k: string) => (kv.delete(k) ? 1 : 0),
+      srem: async (_k: string, m: string) => (active.delete(m) ? 1 : 0),
+    };
+    (redis as any).getClient = () => client;
+    const offer = (routeId: string, driverId: string) => {
+      kv.set(`corporate:route:offer:${routeId}`, JSON.stringify({ routeId, driverId }));
+      kv.set(`corporate:offer_driver:${routeId}`, driverId);
+      kv.set(`corporate:driver:offer_hold:${driverId}`, routeId);
+      active.add(routeId);
+    };
+    return { kv, active, offer };
+  }
+
+  it('last passenger cancelling a DISPATCHING route clears the offer and frees the driver at once', async () => {
+    const { kv, active, offer } = attachRedisClient();
+    const r = seedEmployee(...north(10), '08:00');
+    const rt = seedRoute('08:00', [r], { status: 'DISPATCHING' });
+    offer(rt.id, 'drv-5');
+
+    await cancel(r.id, EARLY);
+
+    expect(route(rt.id).status).toBe('CANCELLED');
+    expect(kv.has(`corporate:route:offer:${rt.id}`)).toBe(false);
+    expect(kv.has(`corporate:driver:offer_hold:drv-5`)).toBe(false);
+    expect(active.has(rt.id)).toBe(false);
+    expect(notifications.emitEvent).toHaveBeenCalledWith('driver:drv-5', 'CORPORATE_ROUTE_OFFER_WITHDRAWN', {
+      routeId: rt.id,
+      reason: 'ROUTE_CANCELLED',
+    });
+    assertPlanValid();
+  });
+
+  it('a DISPATCHING route that still has passengers keeps its offer', async () => {
+    const { kv, offer } = attachRedisClient();
+    const r = seedEmployee(...north(10), '08:00');
+    const rt = seedRoute('08:00', [r, seedEmployee(...north(9), '08:00')], { status: 'DISPATCHING' });
+    offer(rt.id, 'drv-6');
+
+    await cancel(r.id, EARLY);
+
+    expect(route(rt.id).status).toBe('DISPATCHING');
+    expect(kv.has(`corporate:route:offer:${rt.id}`)).toBe(true);
+    expect(notifications.emitEvent).not.toHaveBeenCalledWith(
+      'driver:drv-6',
+      'CORPORATE_ROUTE_OFFER_WITHDRAWN',
+      expect.anything(),
+    );
+  });
+
+  it('an ASSIGNED route being cancelled does not emit an offer withdrawal (driver gets ROUTE_CANCELLED)', async () => {
+    attachRedisClient();
+    const r = seedEmployee(...north(10), '08:00');
+    seedRoute('08:00', [r], { status: 'ASSIGNED', driverId: 'drv-7' });
+    await cancel(r.id, EARLY);
+    const events = notifications.emitEvent.mock.calls.filter((c) => c[0] === 'driver:drv-7').map((c) => c[1]);
+    expect(events).toEqual(['CORPORATE_ROUTE_CANCELLED']);
+  });
+});
+
+describe('reschedule to another day', () => {
+  const EARLY = new Date('2026-11-02T06:30:00.000Z');
+  const NEXT_DAY = '2026-11-04';
+  const rescheduleTo = (reqId: string, body: Row, now = EARLY) =>
+    exec.handleRescheduleOrCancel(
+      reqId,
+      { employeeId: request(reqId).employeeId, action: 'RESCHEDULE', ...body } as any,
+      { now },
+    );
+  const dayOf = (d: any) => new Date(d).toISOString().slice(0, 10);
+
+  it('moves the request to the new day and plans it on a route for that day', async () => {
+    const r = seedEmployee(...north(10), '08:00');
+    const old = seedRoute('08:00', [r, seedEmployee(...north(9), '08:00')]);
+
+    const res = await rescheduleTo(r.id, { newShiftTime: '09:00', newShiftDate: NEXT_DAY });
+
+    expect(res).toMatchObject({ status: 'PLANNED', shiftTime: '09:00' });
+    expect(dayOf(request(r.id).scheduledDate)).toBe(NEXT_DAY);
+    const newRoute = route(stopOf(r.id)!.routeId);
+    expect(newRoute.id).not.toBe(old.id);
+    expect(dayOf(newRoute.shiftDate)).toBe(NEXT_DAY);
+    // Office arrival = 09:00 IST on the new day minus the office buffer.
+    expect(new Date(newRoute.targetOfficeArrivalTime).getTime()).toBe(
+      istWallClockToUtc(NEXT_DAY, '09:00').getTime() - OFFICE_ARRIVAL_BUFFER_MINUTES * 60_000,
+    );
+    expect(route(old.id).assignedPassengerCount).toBe(1);
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({ metadata: expect.objectContaining({ fromDate: DATE, toDate: NEXT_DAY }) }),
+    );
+  });
+
+  it('date-only reschedule keeps the current shift time', async () => {
+    const r = seedEmployee(...north(10), '08:00');
+    seedRoute('08:00', [r]);
+    const res = await rescheduleTo(r.id, { newShiftDate: NEXT_DAY });
+    expect(res.shiftTime).toBe('08:00');
+    expect(dayOf(request(r.id).scheduledDate)).toBe(NEXT_DAY);
+  });
+
+  it('joins an existing route on the new day instead of the same shift on the old day', async () => {
+    const r = seedEmployee(...north(10), '08:00');
+    seedRoute('08:00', [r]);
+    const sameDayNine = seedRoute('09:00', [seedEmployee(...north(10.5), '09:00')]);
+    // A 09:00 route on the next day: built the same way, then moved by 24h.
+    const nextDayNine = seedRoute('09:00', [seedEmployee(...north(9.5), '09:00')]);
+    const day = 24 * 3600_000;
+    const nd = route(nextDayNine.id);
+    nd.shiftDate = new Date(`${NEXT_DAY}T00:00:00.000Z`);
+    nd.targetPickup1Time = new Date(new Date(nd.targetPickup1Time).getTime() + day);
+    nd.targetOfficeArrivalTime = new Date(new Date(nd.targetOfficeArrivalTime).getTime() + day);
+    for (const s of stopsOf(nd.id)) s.plannedEta = new Date(new Date(s.plannedEta).getTime() + day);
+
+    const res = await rescheduleTo(r.id, { newShiftTime: '09:00', newShiftDate: NEXT_DAY });
+
+    expect(res.replan.insertion).toMatchObject({ routeId: nextDayNine.id, createdNewRoute: false });
+    expect(route(sameDayNine.id).assignedPassengerCount).toBe(1);
+  });
+
+  it('same time on a different day is not treated as an idempotent no-op', async () => {
+    const r = seedEmployee(...north(10), '08:00');
+    seedRoute('08:00', [r]);
+    const res = await rescheduleTo(r.id, { newShiftTime: '08:00', newShiftDate: NEXT_DAY });
+    expect(res.replan.idempotent).toBe(false);
+    const again = await rescheduleTo(r.id, { newShiftTime: '08:00', newShiftDate: NEXT_DAY });
+    expect(again.replan.idempotent).toBe(true);
+  });
+
+  it('rejects an invalid date and a day whose pickup is inside the 9h cutoff', async () => {
+    const r = seedEmployee(...north(10), '08:00');
+    seedRoute('08:00', [r]);
+    await expect(rescheduleTo(r.id, { newShiftDate: '2026-02-30' })).rejects.toThrow(/YYYY-MM-DD/);
+    // 08:00 IST on 2026-11-02 has already passed at EARLY (12:00 IST that day).
+    await expect(rescheduleTo(r.id, { newShiftDate: '2026-11-02' })).rejects.toThrow(/Modification locked/);
+    expect(request(r.id).shiftTime).toBe('08:00');
+    expect(dayOf(request(r.id).scheduledDate)).toBe(DATE);
+  });
+
+  it('RESCHEDULE without a new time or date is rejected', async () => {
+    const r = seedEmployee(...north(10), '08:00');
+    seedRoute('08:00', [r]);
+    await expect(rescheduleTo(r.id, {})).rejects.toThrow(/newShiftTime and\/or newShiftDate/);
+  });
+});
+
+describe('night-shift safety when re-planning', () => {
+  const EARLY = new Date('2026-11-02T06:30:00.000Z');
+  const genderOfStop = (s: Row) => db.tables.corporateEmployee.get(s.employeeId)?.gender;
+  const firstPickup = (routeId: string) =>
+    stopsOf(routeId).find((s) => s.stopType === 'PICKUP' && s.status !== 'CANCELLED')!;
+
+  it('inserting a woman who would be first pickup on a night LOGIN puts a man first instead', async () => {
+    const night = seedRoute('22:00', [seedEmployee(...north(10), '22:00'), seedEmployee(...north(9), '22:00')]);
+    const woman = seedEmployee(...north(10.6), '21:00', { gender: 'FEMALE' });
+    seedRoute('21:00', [woman]);
+
+    const res = await reschedule(woman.id, '22:00', EARLY);
+
+    expect(res.replan.insertion.routeId).toBe(night.id);
+    expect(genderOfStop(firstPickup(night.id))).toBe('MALE');
+    expect(stopsOf(night.id).some((s) => s.employeeId === woman.employeeId)).toBe(true);
+    assertPlanValid();
+  });
+
+  it('day shifts keep the cheapest order (woman first is fine in daytime)', async () => {
+    const day = seedRoute('10:00', [seedEmployee(...north(10), '10:00'), seedEmployee(...north(9), '10:00')]);
+    const woman = seedEmployee(...north(10.6), '09:00', { gender: 'FEMALE' });
+    seedRoute('09:00', [woman]);
+    await reschedule(woman.id, '10:00', EARLY);
+    expect(firstPickup(day.id).employeeId).toBe(woman.employeeId);
+  });
+
+  it('cancelling the man in the first seat re-orders so a woman is not left first with a man aboard', async () => {
+    const man1 = seedEmployee(...north(11), '22:00');
+    const woman = seedEmployee(...north(10), '22:00', { gender: 'FEMALE' });
+    const man2 = seedEmployee(...north(9), '22:00');
+    const rt = seedRoute('22:00', [man1, woman, man2]);
+
+    await cancel(man1.id, EARLY);
+
+    expect(firstPickup(rt.id).employeeId).toBe(man2.employeeId);
+    expect(stopsOf(rt.id).map((s) => s.stopSequence)).toEqual([1, 2, 3]);
+    assertPlanValid();
+  });
+
+  it('an all-women night cab keeps its order (nobody to swap with)', async () => {
+    const w1 = seedEmployee(...north(11), '23:00', { gender: 'FEMALE' });
+    const w2 = seedEmployee(...north(10), '23:00', { gender: 'FEMALE' });
+    const w3 = seedEmployee(...north(9), '23:00', { gender: 'FEMALE' });
+    const rt = seedRoute('23:00', [w1, w2, w3]);
+    await cancel(w3.id, EARLY);
+    expect(firstPickup(rt.id).employeeId).toBe(w1.employeeId);
+  });
+});

@@ -65,17 +65,22 @@ export class CorporateRoutingController {
   @Get()
   @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @CorporateTenantScoped()
-  @ApiOperation({ summary: 'List corporate routes with optional filters' })
+  @ApiOperation({ summary: 'List corporate routes with optional filters (paged: limit default 500, max 1000; offset)' })
   public async listRoutes(
     @Query('tenantId') tenantId: string,
     @Query('shiftDate') shiftDate?: string,
     @Query('shiftTime') shiftTime?: string,
     @Query('direction') direction?: 'LOGIN' | 'LOGOUT',
     @Query('status') status?: any,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
   ) {
     if (!tenantId) {
       throw new BadRequestException('tenantId query parameter is required');
     }
+    // Bounded page (newest shifts first) so a large tenant's history can't be pulled in one call.
+    const take = Math.min(Math.max(Number.parseInt(limit ?? '', 10) || 500, 1), 1000);
+    const skip = Math.max(Number.parseInt(offset ?? '', 10) || 0, 0);
 
     const where: any = { tenantId };
     if (shiftDate) {
@@ -107,7 +112,9 @@ export class CorporateRoutingController {
           select: { stops: true },
         },
       },
-      orderBy: [{ shiftDate: 'desc' }, { shiftTime: 'asc' }, { createdAt: 'asc' }],
+      orderBy: [{ shiftDate: 'desc' }, { shiftTime: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
+      take,
+      skip,
     });
   }
 

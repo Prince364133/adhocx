@@ -1,6 +1,6 @@
 /**
  * Legacy Hyderabad peak-hour heuristic, kept as the offline/failed-API fallback for the DDA.
- * Peak morning 07:00-09:59, peak evening 17:00-19:59 (server-local hours).
+ * Peak morning 07:00-09:59, peak evening 17:00-19:59 (IST hours, whatever the server timezone).
  *  - long route (> 30 km) in peak  => 35 min (SEVERE)
  *  - any route in peak             => 15 min (MODERATE)
  *  - otherwise                     => 0 min
@@ -12,7 +12,8 @@ export interface HeuristicTrafficDelay {
 }
 
 export function heuristicTrafficDelay(distanceMeters: number, departureTime: Date): HeuristicTrafficDelay {
-  const hour = departureTime.getHours();
+  // IST = UTC+5:30
+  const hour = new Date(departureTime.getTime() + 330 * 60_000).getUTCHours();
   const isPeak = (hour >= 7 && hour <= 9) || (hour >= 17 && hour <= 19);
 
   if (isPeak && distanceMeters > 30000) {

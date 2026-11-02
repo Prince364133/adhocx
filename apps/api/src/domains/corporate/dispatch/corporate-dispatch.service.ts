@@ -42,6 +42,54 @@ export const CorporateDispatchKeys = {
   driverHold: (driverId: string) => `corporate:driver:offer_hold:${driverId}`,
 };
 
+/**
+ * Tears down a route's live offer (offer payload, active-set entry, driver pointer and the driver's
+ * exclusive hold). Used when a route is cancelled while DISPATCHING so the driver's offer card
+ * disappears instead of waiting out the 60s TTL. Returns the driver whose offer was withdrawn.
+ */
+export async function withdrawCorporateRouteOffer(client: any, routeId: string): Promise<string | null> {
+  if (!client) return null;
+  let driverId: string | null = null;
+  const raw = await client.get(CorporateDispatchKeys.offer(routeId));
+  if (raw) {
+    try {
+      driverId = JSON.parse(raw).driverId ?? null;
+    } catch {
+      driverId = null;
+    }
+  }
+  if (!driverId) driverId = (await client.get(CorporateDispatchKeys.offerDriver(routeId))) || null;
+  await client.del(CorporateDispatchKeys.offer(routeId));
+  await client.srem(CorporateDispatchKeys.ACTIVE_OFFERS_SET, routeId);
+  await client.del(CorporateDispatchKeys.offerDriver(routeId));
+  await client.del(CorporateDispatchKeys.unserved(routeId));
+  if (driverId && (await client.get(CorporateDispatchKeys.driverHold(driverId))) === routeId) {
+    await client.del(CorporateDispatchKeys.driverHold(driverId));
+  }
+  return driverId;
+}
+
+/** Gap kept between two corporate trips of the same driver when checking for clashes. */
+export const CORPORATE_DRIVER_TURNAROUND_MINUTES = 30;
+
+/** Time window [start, end] a corporate route occupies its driver (LOGOUT includes the 15 min office staging). */
+export function corporateRouteBusyWindow(route: {
+  direction?: string;
+  targetPickup1Time: Date | string;
+  targetOfficeArrivalTime?: Date | string | null;
+  estDurationSeconds?: number | null;
+}): { start: number; end: number } {
+  const pickup1 = new Date(route.targetPickup1Time).getTime();
+  const start = route.direction === 'LOGOUT' ? pickup1 - 15 * 60_000 : pickup1;
+  const durationMs = Math.max(0, Number(route.estDurationSeconds) || 0) * 1000;
+  const officeArrival = route.targetOfficeArrivalTime ? new Date(route.targetOfficeArrivalTime).getTime() : NaN;
+  const end =
+    route.direction !== 'LOGOUT' && Number.isFinite(officeArrival)
+      ? Math.max(officeArrival, pickup1)
+      : pickup1 + (durationMs || 2 * 3600_000);
+  return { start, end };
+}
+
 /** After a "no supply within 10 km" result, wait this long before the recovery sweep retries. */
 export const CORPORATE_DISPATCH_UNSERVED_RETRY_SECONDS = 300;
 /** After an "all candidates busy" result, retry sooner: busy drivers free up within ~60s. */
@@ -57,6 +105,8 @@ export class CorporateDispatchService {
   private readonly PRIMARY_SEARCH_RADIUS_KM = 5; // 5 km primary radius
   private readonly EXPANDED_SEARCH_RADIUS_KM = 10; // 10 km expanded radius
   private readonly OFFER_TTL_SECONDS = 60; // 60 seconds atomic offer countdown
+  /** How long an accept waits for the route lock before answering 409 "retry". */
+  private readonly ACCEPT_LOCK_WAIT_MS = 3000;
   private readonly BASE_FARE_PAISE = 30000; // ₹300 base fare (in paise)
   private readonly RATE_PER_KM_PAISE = 2000; // ₹20/km (in paise)
   private readonly STOP_DWELL_SECONDS = 300; // 5-minute boarding buffer per pickup
@@ -278,6 +328,30 @@ export class CorporateDispatchService {
       }
       await this.db.$transaction(ops);
 
+      // Employees: their pickup is now earlier, so tell each of them the new time (never throws).
+      if (this.riderNotifier) {
+        const changes = stops
+          .filter(
+            (s) =>
+              s.stopType !== 'DROPOFF' &&
+              s.id &&
+              s.plannedEta &&
+              s.employeeId &&
+              (s.status ?? 'PENDING') === 'PENDING',
+          )
+          .map((s) => ({
+            stopId: s.id,
+            stopSequence: s.stopSequence,
+            employeeId: s.employeeId,
+            previousEta: new Date(s.plannedEta),
+            plannedEta: new Date(new Date(s.plannedEta).getTime() + shiftMs),
+            reason: `heavy traffic expected, +${delayMinutes} min`,
+          }));
+        if (changes.length > 0) {
+          await this.riderNotifier.notifyPickupRetimed({ id: route.id, tenantId: route.tenantId }, changes);
+        }
+      }
+
       this.notifications.emitEvent('admin:operations', 'CORPORATE_DDA_PICKUP_ADVANCED', {
         routeId: route.id,
         previousPickup1Time: storedPickup1,
@@ -411,6 +485,7 @@ export class CorporateDispatchService {
         this.PRIMARY_SEARCH_RADIUS_KM,
         route.vehicleCategory,
         rejectedDriverIds,
+        route,
       );
 
       let currentRadius = this.PRIMARY_SEARCH_RADIUS_KM;
@@ -434,6 +509,7 @@ export class CorporateDispatchService {
           this.EXPANDED_SEARCH_RADIUS_KM,
           route.vehicleCategory,
           rejectedDriverIds,
+          route,
         );
         claim = await this.claimFirstFreeDriver(routeId, candidateDrivers, triedIds);
         busyCandidates += claim.busy;
@@ -586,8 +662,26 @@ export class CorporateDispatchService {
    * Driver accepts corporate route offer within the 60-second atomic timer.
    */
   public async acceptRouteOffer(routeId: string, driverId: string): Promise<any> {
+    // Cheap pre-check outside the lock: a driver who doesn't hold the offer is turned away without
+    // contending for the route lock (it is re-checked under the lock below).
+    const preClient = this.redis.getClient();
+    if (preClient) {
+      const preRaw = await preClient.get(CorporateDispatchKeys.offer(routeId));
+      if (!preRaw) throw new BadRequestException('Route offer has expired or is no longer valid');
+      if ((JSON.parse(preRaw) as CorporateRouteOfferData).driverId !== driverId) {
+        throw new BadRequestException('This offer was dispatched to another driver');
+      }
+    }
+
+    // The offered driver waits briefly for a concurrent operation on the route (e.g. a double tap
+    // or the offer reaper) instead of failing at once; the 60s offer window easily absorbs this.
     const lockKey = `corporate:dispatch:lock:${routeId}`;
-    const lockAcquired = await this.redis.acquireLockToken(lockKey, 15);
+    const deadline = Date.now() + this.ACCEPT_LOCK_WAIT_MS;
+    let lockAcquired = await this.redis.acquireLockToken(lockKey, 15);
+    while (!lockAcquired && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 25 + Math.floor(Math.random() * 25)));
+      lockAcquired = await this.redis.acquireLockToken(lockKey, 15);
+    }
     if (!lockAcquired) {
       throw new ConflictException(`Route assignment in progress, please retry`);
     }
@@ -619,20 +713,38 @@ export class CorporateDispatchService {
 
       // Update route to ASSIGNED and link driver & vehicle. Conditional on DISPATCHING so a
       // route cancelled (or already assigned) concurrently is never double-assigned.
+      // Assignment and earning are one transaction: a route is never ASSIGNED without its
+      // earning row, and a failed earning insert rolls the assignment back.
       let updatedRoute: any;
       try {
-        updatedRoute = await this.db.corporateRoute.update({
-          where: { id: routeId, status: 'DISPATCHING' },
-          data: {
-            driverId,
-            vehicleId: vehicle ? vehicle.id : null,
-            status: 'ASSIGNED',
-          },
-          include: {
-            stops: { orderBy: { stopSequence: 'asc' } },
-            office: true,
-            tenant: true,
-          },
+        updatedRoute = await this.db.$transaction(async (tx: any) => {
+          const assigned = await tx.corporateRoute.update({
+            where: { id: routeId, status: 'DISPATCHING' },
+            data: {
+              driverId,
+              vehicleId: vehicle ? vehicle.id : null,
+              status: 'ASSIGNED',
+            },
+            include: {
+              stops: { orderBy: { stopSequence: 'asc' } },
+              office: true,
+              tenant: true,
+            },
+          });
+
+          // Driver earning record in integer paise (no float rounding)
+          await tx.corporateDriverEarning.create({
+            data: {
+              driverId,
+              routeId,
+              routeFarePaise: BigInt(offer.farePaise),
+              approachBonusPaise: BigInt(0),
+              tollReimbursementPaise: BigInt(0),
+              totalEarnedPaise: BigInt(offer.farePaise),
+              payoutStatus: 'UNPAID',
+            },
+          });
+          return assigned;
         });
       } catch (err: any) {
         if (err?.code === 'P2025') {
@@ -640,19 +752,6 @@ export class CorporateDispatchService {
         }
         throw err;
       }
-
-      // Create driver earning record with zero float bugs (integer paise)
-      await this.db.corporateDriverEarning.create({
-        data: {
-          driverId,
-          routeId,
-          routeFarePaise: BigInt(offer.farePaise),
-          approachBonusPaise: BigInt(0),
-          tollReimbursementPaise: BigInt(0),
-          totalEarnedPaise: BigInt(offer.farePaise),
-          payoutStatus: 'UNPAID',
-        },
-      });
 
       // Clear active offer in Redis
       if (client) {
@@ -809,6 +908,7 @@ export class CorporateDispatchService {
     radiusKm: number,
     vehicleCategory: string,
     excludeDriverIds: string[] = [],
+    forRoute?: any,
   ): Promise<any[]> {
     const nearby = await this.locationsService.findNearbyDrivers(lat, lng, radiusKm);
     const excludeSet = new Set(excludeDriverIds);
@@ -828,6 +928,32 @@ export class CorporateDispatchService {
     });
 
     const driverMap = new Map(drivers.map((d) => [d.id, d]));
+
+    // Drivers already committed to another corporate route whose time window (plus turnaround)
+    // overlaps this one are skipped, even though their live status may still read AVAILABLE.
+    if (forRoute?.targetPickup1Time && driverMap.size > 0) {
+      const mine = corporateRouteBusyWindow(forRoute);
+      const gap = CORPORATE_DRIVER_TURNAROUND_MINUTES * 60_000;
+      const commitments: any[] =
+        (await this.db.corporateRoute.findMany({
+          where: {
+            driverId: { in: [...driverMap.keys()] },
+            status: { in: ['ASSIGNED', 'IN_TRANSIT'] },
+            ...(forRoute.id ? { id: { not: forRoute.id } } : {}),
+          },
+          select: {
+            driverId: true,
+            direction: true,
+            targetPickup1Time: true,
+            targetOfficeArrivalTime: true,
+            estDurationSeconds: true,
+          },
+        })) ?? [];
+      for (const c of commitments) {
+        const w = corporateRouteBusyWindow(c);
+        if (w.start < mine.end + gap && mine.start < w.end + gap) driverMap.delete(c.driverId);
+      }
+    }
 
     // Match compatible vehicle category (if specified) and preserve proximity order
     return candidateIds

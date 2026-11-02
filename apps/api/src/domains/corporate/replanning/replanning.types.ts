@@ -9,6 +9,8 @@ export interface ReplanContext {
   override?: CutoffOverride | null;
   /** Result of the cutoff evaluation already performed by the caller (for audit trail). */
   cutoff?: CutoffEvaluation;
+  /** RESCHEDULE only: target day (YYYY-MM-DD). Defaults to the request's current scheduled day. */
+  newShiftDate?: string;
 }
 
 export interface RouteRemovalOutcome {

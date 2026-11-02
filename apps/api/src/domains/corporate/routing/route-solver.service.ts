@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service';
+import { istWallClockToUtc } from '../replanning/cutoff-policy';
 import { AuditService } from '../../../modules/audit/audit.service';
 import {
   RouteOptimizationOptions,
@@ -254,8 +255,8 @@ export class RouteSolverService {
       payload: req,
     }));
 
-    // Shift time is interpreted in the server's local timezone (unchanged behaviour)
-    const anchorTime = new Date(`${shiftDate}T${shiftTime}:00`);
+    // Shift times are IST wall-clock, independent of the server's timezone (servers run in UTC).
+    const anchorTime = istWallClockToUtc(shiftDate, shiftTime);
     const [shiftHour] = shiftTime.split(':').map(Number);
 
     const plan = await this.planner.plan({

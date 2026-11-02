@@ -17,6 +17,18 @@ import { LocationsService } from '../src/modules/locations/locations.service';
  * Simulates an enterprise client (Global Tech India) operating in Hyderabad across 4 shifts,
  * 500 passengers, ~125 cab routes, autonomous H3 dispatch, boarding OTPs/QRs, P0 SOS, and dual financial ledgers.
  */
+
+// Cutoff tests must not depend on the time of day the suite runs (pickup = scheduled day + shift time in IST).
+const pad2 = (n: number) => String(n).padStart(2, '0');
+/** A request whose IST pickup is exactly `hours` from now. */
+function istShiftIn(hours: number): { scheduledDate: Date; shiftTime: string } {
+  const ist = new Date(Date.now() + hours * 3600_000 + 330 * 60_000);
+  return {
+    scheduledDate: new Date(Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate())),
+    shiftTime: `${pad2(ist.getUTCHours())}:${pad2(ist.getUTCMinutes())}`,
+  };
+}
+
 describe('Corporate ETS Enterprise 500-Commuter Full-Lifecycle Simulation & Stress Suite', () => {
   // Services
   let rosterIngestionService: RosterIngestionService;
@@ -821,21 +833,17 @@ describe('Corporate ETS Enterprise 500-Commuter Full-Lifecycle Simulation & Stre
   // SIMULATION 11: 9-Hour Advance Shift Reschedule & Cutoff Rule
   // =========================================================================
   it('Simulation 11: Allows reschedule >9h before shift, strictly locks modification <9h before shift', async () => {
-    const futureDate = new Date(Date.now() + 20 * 60 * 60 * 1000); // 20 hours in future
-    const nearDate = new Date(Date.now() + 4 * 60 * 60 * 1000); // 4 hours in future
 
     const reqFuture = {
       id: 'req-sim-future',
       employeeId: 'emp-id-1',
-      scheduledDate: futureDate,
-      shiftTime: '08:00',
+      ...istShiftIn(20), // pickup 20 hours from now
       status: 'APPROVED',
     };
     const reqNear = {
       id: 'req-sim-near',
       employeeId: 'emp-id-1',
-      scheduledDate: nearDate,
-      shiftTime: '08:00',
+      ...istShiftIn(4), // pickup 4 hours from now
       status: 'APPROVED',
     };
 

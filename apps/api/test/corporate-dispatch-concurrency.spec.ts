@@ -150,6 +150,8 @@ class FakeDb {
       const w = args?.where ?? {};
       let list = Array.from(this.routes.values()).filter((r) => {
         if (!this.matchStatus(r.status, w.status)) return false;
+        if (w.driverId?.in && !w.driverId.in.includes((r as any).driverId)) return false;
+        if (w.id?.not && r.id === w.id.not) return false;
         if (w.targetPickup1Time?.gte && r.targetPickup1Time < w.targetPickup1Time.gte) return false;
         if (w.targetPickup1Time?.lte && r.targetPickup1Time > w.targetPickup1Time.lte) return false;
         if (w.updatedAt?.lt && !(r.updatedAt < w.updatedAt.lt)) return false;
@@ -206,6 +208,10 @@ class FakeDb {
   };
 
   vehicle = { findFirst: async () => null };
+
+  /** Interactive transaction: runs against this fake (single-threaded, so no isolation needed). */
+  $transaction = async (fn: any) => (Array.isArray(fn) ? Promise.all(fn) : fn(this));
+
   corporateDriverEarning = {
     create: async ({ data }: any) => {
       this.earnings.push(data);

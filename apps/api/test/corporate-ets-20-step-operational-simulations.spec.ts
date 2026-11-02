@@ -37,6 +37,18 @@ import { GeoPoint, H3Index } from '@adhocx/domain-core';
  * 19. Shift Reschedule Dynamic Route Rebalancing & Safety Confirmation
  * 20. Dual Financial Ledger Billing (5%/18% GST Corporate Bill & 1% TDS Driver Payout)
  */
+
+// Cutoff tests must not depend on the time of day the suite runs (pickup = scheduled day + shift time in IST).
+const pad2 = (n: number) => String(n).padStart(2, '0');
+/** A request whose IST pickup is exactly `hours` from now. */
+function istShiftIn(hours: number): { scheduledDate: Date; shiftTime: string } {
+  const ist = new Date(Date.now() + hours * 3600_000 + 330 * 60_000);
+  return {
+    scheduledDate: new Date(Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate())),
+    shiftTime: `${pad2(ist.getUTCHours())}:${pad2(ist.getUTCMinutes())}`,
+  };
+}
+
 describe('Corporate Managed ETS: 20-Step Comprehensive Operational Simulations', () => {
   jest.setTimeout(30000);
   let rosterIngestionService: RosterIngestionService;
@@ -144,6 +156,8 @@ describe('Corporate Managed ETS: 20-Step Comprehensive Operational Simulations',
       { driverId: 'drv-1', distanceKm: 1.8, currentLat: 17.449, currentLng: 78.375 },
       { driverId: 'drv-2', distanceKm: 3.2, currentLat: 17.452, currentLng: 78.380 },
       { driverId: 'drv-3', distanceKm: 4.5, currentLat: 17.455, currentLng: 78.385 },
+      // Second sedan: once drv-2 is ASSIGNED to route 1, the same-shift route 2 must go to someone else.
+      { driverId: 'drv-4', distanceKm: 4.8, currentLat: 17.457, currentLng: 78.387 },
     ]),
   };
 
@@ -265,6 +279,8 @@ describe('Corporate Managed ETS: 20-Step Comprehensive Operational Simulations',
       findMany: jest.fn(async ({ where }: any) => {
         let list = Array.from(simDb.routes.values());
         if (where?.tenantId) list = list.filter((r) => r.tenantId === where.tenantId);
+        if (where?.driverId?.in) list = list.filter((r) => where.driverId.in.includes(r.driverId));
+        if (where?.id?.not) list = list.filter((r) => r.id !== where.id.not);
         if (where?.status) {
           if (typeof where.status === 'string') list = list.filter((r) => r.status === where.status);
           else if (where.status.in) list = list.filter((r) => where.status.in.includes(r.status));
@@ -763,11 +779,8 @@ describe('Corporate Managed ETS: 20-Step Comprehensive Operational Simulations',
 
   // STEP 18: 9-Hour Advance Cancellation Cutoff Rule
   it('Step 18: Enforces 9-hour advance cancellation cutoff rule (>=9h permitted, <9h blocked)', async () => {
-    const futureShift14h = new Date(Date.now() + 14 * 3600 * 1000);
-    const nearShift3h = new Date(Date.now() + 3 * 3600 * 1000);
-
-    const reqFuture = { id: 'req-cut-future', scheduledDate: futureShift14h, shiftTime: '08:00', status: 'APPROVED', employeeId: 'emp-1' };
-    const reqNear = { id: 'req-cut-near', scheduledDate: nearShift3h, shiftTime: '08:00', status: 'APPROVED', employeeId: 'emp-1' };
+    const reqFuture = { id: 'req-cut-future', ...istShiftIn(14), status: 'APPROVED', employeeId: 'emp-1' };
+    const reqNear = { id: 'req-cut-near', ...istShiftIn(3), status: 'APPROVED', employeeId: 'emp-1' };
 
     simDb.requests.set(reqFuture.id, reqFuture);
     simDb.requests.set(reqNear.id, reqNear);
@@ -790,10 +803,11 @@ describe('Corporate Managed ETS: 20-Step Comprehensive Operational Simulations',
 
   // STEP 19: Shift Reschedule Dynamic Route Rebalancing
   it('Step 19: Commuter reschedule request de-allocates passenger and triggers dynamic route rebalancing', async () => {
-    const futureShift = new Date(Date.now() + 15 * 3600 * 1000);
+    // Two days out so both the current 08:00 and the new 09:00 pickup are well beyond the 9h cutoff.
+    const inTwoDays = istShiftIn(48).scheduledDate;
     const reqReschedule = {
       id: 'req-resched-ok',
-      scheduledDate: futureShift,
+      scheduledDate: inTwoDays,
       shiftTime: '08:00',
       status: 'APPROVED',
       employeeId: 'emp-resched-1',

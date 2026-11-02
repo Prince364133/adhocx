@@ -29,8 +29,10 @@ import {
   CutoffOverride,
   evaluateCutoff,
   formatIst,
+  isValidShiftDate,
   isValidShiftTime,
   resolvePickupTime,
+  toDateOnly,
 } from '../replanning/cutoff-policy';
 
 @Injectable()
@@ -587,9 +589,14 @@ export class CorporateTripExecutionService {
       throw new BadRequestException(`Unsupported action ${String(dto.action)}`);
     }
     if (dto.action === 'RESCHEDULE') {
-      if (!dto.newShiftTime) {
-        throw new BadRequestException('newShiftTime is required for shift rescheduling');
+      if (!dto.newShiftTime && !dto.newShiftDate) {
+        throw new BadRequestException('newShiftTime and/or newShiftDate is required for shift rescheduling');
       }
+      if (dto.newShiftDate !== undefined && !isValidShiftDate(dto.newShiftDate)) {
+        throw new BadRequestException(`newShiftDate must be YYYY-MM-DD (got ${dto.newShiftDate})`);
+      }
+      // Date-only reschedule keeps the current shift time.
+      dto = { ...dto, newShiftTime: dto.newShiftTime ?? req.shiftTime };
       if (!isValidShiftTime(dto.newShiftTime)) {
         throw new BadRequestException(`newShiftTime must be HH:mm (got ${dto.newShiftTime})`);
       }
@@ -600,6 +607,7 @@ export class CorporateTripExecutionService {
       (dto.action === 'CANCEL' && req.status === 'CANCELLED') ||
       (dto.action === 'RESCHEDULE' &&
         req.shiftTime === dto.newShiftTime &&
+        (!dto.newShiftDate || dto.newShiftDate === toDateOnly(req.scheduledDate)) &&
         !['CANCELLED', 'COMPLETED', 'IN_PROGRESS', 'UNSERVED'].includes(req.status));
     if (alreadyApplied) {
       const { employee: _e, routeStop: _s, ...rest } = req;
@@ -633,7 +641,7 @@ export class CorporateTripExecutionService {
     }
 
     if (this.replanning) {
-      const ctx = { now, override, cutoff };
+      const ctx = { now, override, cutoff, newShiftDate: dto.newShiftDate };
       const result =
         dto.action === 'CANCEL'
           ? await this.replanning.cancelRequest(requestId, ctx)
@@ -656,7 +664,11 @@ export class CorporateTripExecutionService {
     }
     return this.db.corporateTransportRequest.update({
       where: { id: requestId },
-      data: { shiftTime: dto.newShiftTime, status: 'RESCHEDULED' },
+      data: {
+        shiftTime: dto.newShiftTime,
+        ...(dto.newShiftDate ? { scheduledDate: new Date(`${dto.newShiftDate}T00:00:00.000Z`) } : {}),
+        status: 'RESCHEDULED',
+      },
     });
   }
 
