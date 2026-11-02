@@ -16,6 +16,21 @@ import {
   CorporateDispatchWaveResult,
 } from './corporate-dispatch.types';
 
+/** Redis key layout shared by the dispatch service and the scheduler / reaper. */
+export const CorporateDispatchKeys = {
+  ACTIVE_OFFERS_SET: 'corporate:active_offers_set',
+  offer: (routeId: string) => `corporate:route:offer:${routeId}`,
+  offerDriver: (routeId: string) => `corporate:offer_driver:${routeId}`,
+  rejected: (routeId: string) => `corporate:rejected:${routeId}`,
+  unserved: (routeId: string) => `corporate:unserved:${routeId}`,
+  driverHold: (driverId: string) => `corporate:driver:offer_hold:${driverId}`,
+};
+
+/** After a "no supply within 10 km" result, wait this long before the recovery sweep retries. */
+export const CORPORATE_DISPATCH_UNSERVED_RETRY_SECONDS = 300;
+/** After an "all candidates busy" result, retry sooner: busy drivers free up within ~60s. */
+export const CORPORATE_DISPATCH_BUSY_RETRY_SECONDS = 60;
+
 @Injectable()
 export class CorporateDispatchService {
   private readonly logger = new Logger(CorporateDispatchService.name);
@@ -163,14 +178,46 @@ export class CorporateDispatchService {
     }
 
     try {
-      // Update route status to DISPATCHING
-      await this.db.corporateRoute.update({
-        where: { id: routeId },
-        data: { status: 'DISPATCHING' },
-      });
+      const client = this.redis.getClient();
+
+      // Idempotency: a live offer already exists (e.g. manual Start raced the scheduler, or a
+      // duplicate job ran). Never issue a second concurrent offer for the same route.
+      const existingRaw = client ? await client.get(CorporateDispatchKeys.offer(routeId)) : null;
+      if (existingRaw) {
+        const existing: CorporateRouteOfferData = JSON.parse(existingRaw);
+        return {
+          routeId,
+          waveNumber: 0,
+          searchRadiusKm: 0,
+          status: 'OFFERED',
+          offeredToDriverId: existing.driverId,
+          candidatesCount: 0,
+        };
+      }
+
+      // Conditional transition (PLANNED|DISPATCHING -> DISPATCHING). Prisma 6 extended
+      // where-unique makes this a single atomic UPDATE ... WHERE id = ? AND status IN (...);
+      // a route that was assigned/cancelled concurrently is never overwritten.
+      try {
+        await this.db.corporateRoute.update({
+          where: { id: routeId, status: { in: ['PLANNED', 'DISPATCHING'] } },
+          data: { status: 'DISPATCHING' },
+        });
+      } catch (err: any) {
+        if (err?.code === 'P2025') {
+          return {
+            routeId,
+            waveNumber: 0,
+            searchRadiusKm: 0,
+            status: 'ALREADY_ASSIGNED',
+            candidatesCount: 0,
+          };
+        }
+        throw err;
+      }
 
       // Retrieve drivers who already rejected this route offer
-      const rejectedDriverIds = await this.redis.getClient()?.smembers(`corporate:rejected:${routeId}`) || [];
+      const rejectedDriverIds = (await client?.smembers(CorporateDispatchKeys.rejected(routeId))) || [];
 
       // Phase 1: Search in primary 5 km radius
       let candidateDrivers = await this.findEligibleDrivers(
@@ -182,9 +229,16 @@ export class CorporateDispatchService {
       );
 
       let currentRadius = this.PRIMARY_SEARCH_RADIUS_KM;
+      let busyCandidates = 0;
+      const triedIds = new Set<string>();
 
-      // Phase 2: If no drivers found within 5 km, expand to 10 km radius
-      if (candidateDrivers.length === 0) {
+      // Exclusive driver hold: a driver may hold at most ONE live corporate offer at a time.
+      let claim = await this.claimFirstFreeDriver(routeId, candidateDrivers, triedIds);
+      busyCandidates += claim.busy;
+      let selectedDriver = claim.driver;
+
+      // Phase 2: If no (free) drivers found within 5 km, expand to 10 km radius
+      if (!selectedDriver) {
         this.logger.warn(
           `No eligible drivers found within 5 km for route ${routeId}. Expanding search radius to 10 km...`,
         );
@@ -196,9 +250,45 @@ export class CorporateDispatchService {
           route.vehicleCategory,
           rejectedDriverIds,
         );
+        claim = await this.claimFirstFreeDriver(routeId, candidateDrivers, triedIds);
+        busyCandidates += claim.busy;
+        selectedDriver = claim.driver;
       }
 
-      if (candidateDrivers.length === 0) {
+      if (!selectedDriver && busyCandidates > 0) {
+        // Supply exists but every candidate is mid-offer for another route. Retry shortly
+        // (the scheduler's recovery sweep re-dispatches once the defer marker expires).
+        if (client) {
+          await client.set(
+            CorporateDispatchKeys.unserved(routeId),
+            'BUSY',
+            'EX',
+            CORPORATE_DISPATCH_BUSY_RETRY_SECONDS,
+          );
+        }
+        this.notifications.emitEvent('admin:operations', 'CORPORATE_DISPATCH_DEFERRED', {
+          routeId,
+          reason: 'All nearby candidates hold another active offer',
+          busyCandidates,
+        });
+        return {
+          routeId,
+          waveNumber: 1,
+          searchRadiusKm: currentRadius,
+          status: 'ALL_DRIVERS_BUSY',
+          candidatesCount: busyCandidates,
+        };
+      }
+
+      if (!selectedDriver) {
+        if (client) {
+          await client.set(
+            CorporateDispatchKeys.unserved(routeId),
+            'NO_SUPPLY',
+            'EX',
+            CORPORATE_DISPATCH_UNSERVED_RETRY_SECONDS,
+          );
+        }
         this.logger.error(
           `Autonomous dispatch exhausted: No available verified drivers found within 10 km for route ${routeId}`,
         );
@@ -221,9 +311,6 @@ export class CorporateDispatchService {
           candidatesCount: 0,
         };
       }
-
-      // Pick top-ranked candidate closest to origin
-      const selectedDriver = candidateDrivers[0];
 
       // Calculate driver guaranteed payout in paise
       const distanceKm = route.estDistanceMeters / 1000;
@@ -249,17 +336,17 @@ export class CorporateDispatchService {
       };
 
       // Store atomic offer in Redis with 60s TTL
-      const client = this.redis.getClient();
       if (client) {
         await client.set(
-          `corporate:route:offer:${routeId}`,
+          CorporateDispatchKeys.offer(routeId),
           JSON.stringify(offerData),
           'EX',
           this.OFFER_TTL_SECONDS,
         );
-        await client.sadd('corporate:active_offers_set', routeId);
+        await client.sadd(CorporateDispatchKeys.ACTIVE_OFFERS_SET, routeId);
+        await client.del(CorporateDispatchKeys.unserved(routeId));
         await client.set(
-          `corporate:offer_driver:${routeId}`,
+          CorporateDispatchKeys.offerDriver(routeId),
           selectedDriver.id,
           'EX',
           this.OFFER_TTL_SECONDS + 60,
@@ -322,7 +409,7 @@ export class CorporateDispatchService {
 
     try {
       const client = this.redis.getClient();
-      const rawOffer = client ? await client.get(`corporate:route:offer:${routeId}`) : null;
+      const rawOffer = client ? await client.get(CorporateDispatchKeys.offer(routeId)) : null;
 
       if (!rawOffer) {
         throw new BadRequestException('Route offer has expired or is no longer valid');
@@ -345,20 +432,29 @@ export class CorporateDispatchService {
         where: { driverId, verificationStatus: 'VERIFIED' },
       });
 
-      // Update route to ASSIGNED and link driver & vehicle
-      const updatedRoute = await this.db.corporateRoute.update({
-        where: { id: routeId },
-        data: {
-          driverId,
-          vehicleId: vehicle ? vehicle.id : null,
-          status: 'ASSIGNED',
-        },
-        include: {
-          stops: { orderBy: { stopSequence: 'asc' } },
-          office: true,
-          tenant: true,
-        },
-      });
+      // Update route to ASSIGNED and link driver & vehicle. Conditional on DISPATCHING so a
+      // route cancelled (or already assigned) concurrently is never double-assigned.
+      let updatedRoute: any;
+      try {
+        updatedRoute = await this.db.corporateRoute.update({
+          where: { id: routeId, status: 'DISPATCHING' },
+          data: {
+            driverId,
+            vehicleId: vehicle ? vehicle.id : null,
+            status: 'ASSIGNED',
+          },
+          include: {
+            stops: { orderBy: { stopSequence: 'asc' } },
+            office: true,
+            tenant: true,
+          },
+        });
+      } catch (err: any) {
+        if (err?.code === 'P2025') {
+          throw new ConflictException(`Route ${routeId} is no longer open for assignment`);
+        }
+        throw err;
+      }
 
       // Create driver earning record with zero float bugs (integer paise)
       await this.db.corporateDriverEarning.create({
@@ -375,9 +471,10 @@ export class CorporateDispatchService {
 
       // Clear active offer in Redis
       if (client) {
-        await client.del(`corporate:route:offer:${routeId}`);
-        await client.srem('corporate:active_offers_set', routeId);
-        await client.del(`corporate:offer_driver:${routeId}`);
+        await client.del(CorporateDispatchKeys.offer(routeId));
+        await client.srem(CorporateDispatchKeys.ACTIVE_OFFERS_SET, routeId);
+        await client.del(CorporateDispatchKeys.offerDriver(routeId));
+        await this.releaseDriverHold(client, driverId, routeId);
       }
 
       this.logger.log(`Driver ${driver.fullName} (${driverId}) accepted corporate route ${routeId}`);
@@ -424,11 +521,24 @@ export class CorporateDispatchService {
     const client = this.redis.getClient();
     if (client) {
       // Add driver to blacklist for this route
-      await client.sadd(`corporate:rejected:${routeId}`, driverId);
-      await client.expire(`corporate:rejected:${routeId}`, 86400); // 24h retention
-      await client.del(`corporate:route:offer:${routeId}`);
-      await client.srem('corporate:active_offers_set', routeId);
-      await client.del(`corporate:offer_driver:${routeId}`);
+      await client.sadd(CorporateDispatchKeys.rejected(routeId), driverId);
+      await client.expire(CorporateDispatchKeys.rejected(routeId), 86400); // 24h retention
+
+      // Stale reject guard: if the live offer now belongs to a different driver (this driver's
+      // offer was already reaped and cascaded), only blacklist; never tear down the newer offer.
+      const currentDriverId = await this.getCurrentOfferDriverId(client, routeId);
+      if (currentDriverId && currentDriverId !== driverId) {
+        this.logger.warn(
+          `Ignoring stale reject from driver ${driverId} on route ${routeId}; live offer is with ${currentDriverId}`,
+        );
+        await this.releaseDriverHold(client, driverId, routeId);
+        return;
+      }
+
+      await client.del(CorporateDispatchKeys.offer(routeId));
+      await client.srem(CorporateDispatchKeys.ACTIVE_OFFERS_SET, routeId);
+      await client.del(CorporateDispatchKeys.offerDriver(routeId));
+      await this.releaseDriverHold(client, driverId, routeId);
     }
 
     this.logger.log(
@@ -437,6 +547,67 @@ export class CorporateDispatchService {
 
     // Cascade to next driver
     await this.dispatchRoute(routeId, false);
+  }
+
+  /**
+   * Returns the driver currently holding the live offer for a route (offer payload first,
+   * then the longer-lived offer_driver pointer that survives the 60s offer TTL).
+   */
+  private async getCurrentOfferDriverId(client: any, routeId: string): Promise<string | null> {
+    const raw = await client.get(CorporateDispatchKeys.offer(routeId));
+    if (raw) {
+      try {
+        return JSON.parse(raw).driverId ?? null;
+      } catch {
+        return null;
+      }
+    }
+    return (await client.get(CorporateDispatchKeys.offerDriver(routeId))) || null;
+  }
+
+  /**
+   * Walks proximity-ordered candidates and claims the first driver without another live offer
+   * via SET NX EX on a per-driver hold key. Exactly one route can hold a given driver.
+   */
+  private async claimFirstFreeDriver(
+    routeId: string,
+    candidates: any[],
+    triedIds: Set<string>,
+  ): Promise<{ driver: any | null; busy: number }> {
+    const client = this.redis.getClient();
+    let busy = 0;
+    for (const cand of candidates) {
+      if (triedIds.has(cand.id)) continue;
+      triedIds.add(cand.id);
+      if (!client) return { driver: cand, busy };
+      const ok = await client.set(
+        CorporateDispatchKeys.driverHold(cand.id),
+        routeId,
+        'EX',
+        this.OFFER_TTL_SECONDS + 5,
+        'NX',
+      );
+      if (ok === 'OK') return { driver: cand, busy };
+      // A re-dispatch of the same route may find its own previous hold still present.
+      if ((await client.get(CorporateDispatchKeys.driverHold(cand.id))) === routeId) {
+        return { driver: cand, busy };
+      }
+      busy++;
+    }
+    return { driver: null, busy };
+  }
+
+  /**
+   * Releases a driver's offer hold only if it still belongs to this route.
+   * NOTE: GET+DEL is not atomic; the window only matters if the hold expired and was re-claimed
+   * by another route in between, in which case that driver could briefly receive two offers.
+   * Swap for a Lua compare-and-delete once RedisService exposes one.
+   */
+  private async releaseDriverHold(client: any, driverId: string, routeId: string): Promise<void> {
+    const key = CorporateDispatchKeys.driverHold(driverId);
+    if ((await client.get(key)) === routeId) {
+      await client.del(key);
+    }
   }
 
   /**
