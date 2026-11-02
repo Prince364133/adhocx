@@ -6,10 +6,9 @@ import {
   Param,
   Query,
   Body,
-  UseGuards,
   Req,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiHeader } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { CorporateTenantService } from './corporate-tenant.service';
 import {
   CreateCorporateTenantDto,

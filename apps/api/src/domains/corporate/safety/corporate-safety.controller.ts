@@ -8,7 +8,7 @@ import {
   Req,
   BadRequestException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { CorporateSafetyService } from './corporate-safety.service';
 import {
   TriggerSosAlertDto,

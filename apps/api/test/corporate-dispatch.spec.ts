@@ -16,6 +16,7 @@ describe('Corporate Autonomous Dispatch & Dynamic Traffic Advancer (DDA)', () =>
     ttl: jest.fn().mockResolvedValue(55),
     smembers: jest.fn().mockResolvedValue([]),
     sadd: jest.fn().mockResolvedValue(1),
+    srem: jest.fn().mockResolvedValue(1),
     expire: jest.fn().mockResolvedValue(1),
   };
 
