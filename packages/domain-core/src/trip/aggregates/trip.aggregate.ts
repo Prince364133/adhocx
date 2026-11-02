@@ -99,6 +99,39 @@ export class TripAggregate extends AggregateRoot<string> {
     return Result.ok<TripAggregate>(new TripAggregate(id, { ...props, stops: sortedStops }));
   }
 
+  public static reconstitute(id: string, props: TripAggregateProps): TripAggregate {
+    return new TripAggregate(id, props);
+  }
+
+  /**
+   * Starts the trip upon valid OTP verification.
+   * If stops exist, verifies against the first incomplete pickup stop.
+   */
+  public startTrip(inputOtp: string, _currentCoord: GeoPoint, startedAt: Date = new Date()): Result<void> {
+    if (
+      this._props.status !== TripLifecycleStatus.DRIVER_ASSIGNED &&
+      this._props.status !== TripLifecycleStatus.DRIVER_ARRIVED
+    ) {
+      return Result.fail<void>(`Cannot start trip in status '${this._props.status}'`);
+    }
+
+    if (this._props.stops && this._props.stops.length > 0) {
+      const activeStop = this._props.stops.find(
+        (s) => s.status === StopStatus.PENDING || s.status === StopStatus.ARRIVED,
+      );
+      if (activeStop) {
+        const verifyRes = activeStop.verifyBoarding(inputOtp, startedAt);
+        if (verifyRes.isFailure) {
+          return verifyRes;
+        }
+      }
+    }
+
+    this._props.status = TripLifecycleStatus.IN_PROGRESS;
+    this._props.actualStartTime = startedAt;
+    return Result.ok<void>();
+  }
+
   /**
    * Assigns verified driver and vehicle to the route.
    */

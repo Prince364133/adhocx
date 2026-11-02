@@ -1,6 +1,7 @@
 import {
   CorporateRouteAggregate,
   CorporateInvoiceAggregate,
+  CorporateRosterAggregate,
   Money,
 } from '../src';
 
@@ -208,6 +209,74 @@ describe('Corporate Domain Aggregates (Clean Architecture & Invariants)', () => 
 
       expect(result.isFailure).toBe(true);
       expect(result.error).toContain('billingPeriodStart cannot be after billingPeriodEnd');
+    });
+  });
+
+  describe('CorporateRosterAggregate', () => {
+    it('should create a valid corporate monthly roster with UPLOADED status', () => {
+      const rosterResult = CorporateRosterAggregate.create('roster-nov-2026', {
+        tenantId: 'tenant-acme',
+        rosterMonth: '2026-11',
+        status: 'UPLOADED',
+        totalEmployeeCount: 500,
+        totalRequestsCreated: 0,
+        uploadedByUserId: 'admin-hr-1',
+        createdAt: new Date(),
+      });
+
+      expect(rosterResult.isSuccess).toBe(true);
+      const roster = rosterResult.getValue();
+      expect(roster.status).toBe('UPLOADED');
+      expect(roster.totalEmployeeCount).toBe(500);
+    });
+
+    it('should strictly enforce the 9-hour advance cancellation cutoff window', () => {
+      const roster = CorporateRosterAggregate.create('roster-cutoff', {
+        tenantId: 'tenant-acme',
+        rosterMonth: '2026-11',
+        status: 'PUBLISHED',
+        totalEmployeeCount: 100,
+        totalRequestsCreated: 200,
+        uploadedByUserId: 'admin-hr-1',
+        createdAt: new Date(),
+      }).getValue();
+
+      const now = new Date('2026-11-03T04:00:00.000Z');
+      const shiftAt8am = new Date('2026-11-03T08:00:00.000Z'); // 4 hours away (< 9 hours)
+      const shiftAt6pm = new Date('2026-11-03T18:00:00.000Z'); // 14 hours away (> 9 hours)
+
+      // 4 hours away is strictly inside the cutoff window
+      expect(CorporateRosterAggregate.isWithin9HourCutoff(shiftAt8am, now)).toBe(true);
+      const cancelShortNotice = roster.canCancelOrReschedule(shiftAt8am, now);
+      expect(cancelShortNotice.isFailure).toBe(true);
+      expect(cancelShortNotice.error).toContain('requires at least 9 hours advance notice');
+
+      // 14 hours away is outside cutoff window (permitted)
+      expect(CorporateRosterAggregate.isWithin9HourCutoff(shiftAt6pm, now)).toBe(false);
+      const cancelAdvanceNotice = roster.canCancelOrReschedule(shiftAt6pm, now);
+      expect(cancelAdvanceNotice.isSuccess).toBe(true);
+    });
+
+    it('should transition through roster lifecycle: UPLOADED -> VALIDATED -> PUBLISHED', () => {
+      const roster = CorporateRosterAggregate.create('roster-life', {
+        tenantId: 'tenant-acme',
+        rosterMonth: '2026-11',
+        status: 'UPLOADED',
+        totalEmployeeCount: 0,
+        totalRequestsCreated: 0,
+        uploadedByUserId: 'admin-hr-1',
+        createdAt: new Date(),
+      }).getValue();
+
+      expect(roster.status).toBe('UPLOADED');
+
+      expect(roster.markValidated(250).isSuccess).toBe(true);
+      expect(roster.status).toBe('VALIDATED');
+      expect(roster.totalEmployeeCount).toBe(250);
+
+      expect(roster.publish(500).isSuccess).toBe(true);
+      expect(roster.status).toBe('PUBLISHED');
+      expect(roster.totalRequestsCreated).toBe(500);
     });
   });
 });

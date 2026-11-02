@@ -13,5 +13,6 @@ module.exports = {
   testEnvironment: 'node',
   moduleNameMapper: {
     '^@adhocx/contracts$': '<rootDir>/../../packages/contracts/src',
+    '^@adhocx/domain-core$': '<rootDir>/../../packages/domain-core/src',
   },
 };
