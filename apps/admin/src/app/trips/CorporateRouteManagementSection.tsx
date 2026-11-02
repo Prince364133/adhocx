@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button, StatusBadge, Drawer } from '../../components/common';
+import { adminApi } from '../../lib/api/client';
 
 export interface RouteStop {
   id: string;
@@ -62,9 +63,39 @@ export interface CorporateRouteItem {
   };
 }
 
+const COMPANY_STORAGE_KEY = 'adhocx_admin_corporate_tenant';
+
+/** Today's date in IST as YYYY-MM-DD (shift dates are Indian calendar days). */
+function todayIst(): string {
+  return new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
+}
+
+const istTime = (iso: string) =>
+  new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
+
+interface CorporateTenantOption {
+  id: string;
+  code: string;
+  name: string;
+  status: string;
+}
+
+const DISPATCH_OUTCOME_TEXT: Record<string, (r: any) => string> = {
+  OFFERED: (r) =>
+    `Offer sent to ${r.offeredDriverName ?? 'a driver'} (searched ${r.searchRadiusKm ?? '?'} km). They have 60 seconds to accept.`,
+  NO_DRIVERS_FOUND: () => 'No verified driver is available within 10 km. Operations has been alerted; it retries automatically.',
+  ALL_DRIVERS_BUSY: () => 'Every nearby driver is holding another offer. It retries automatically in about a minute.',
+  ALREADY_ASSIGNED: () => 'This route already has a driver.',
+};
+
 export function CorporateRouteManagementSection() {
   const [routes, setRoutes] = useState<CorporateRouteItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [tenants, setTenants] = useState<CorporateTenantOption[]>([]);
+  const [tenantsLoading, setTenantsLoading] = useState(true);
+  const [selectedTenantId, setSelectedTenantId] = useState<string>('');
+  const [selectedDate, setSelectedDate] = useState<string>(todayIst());
   const [selectedShift, setSelectedShift] = useState<string>('08:00');
   const [selectedDirection, setSelectedDirection] = useState<'LOGIN' | 'LOGOUT'>('LOGIN');
   const [dispatchingRouteId, setDispatchingRouteId] = useState<string | null>(null);
@@ -72,221 +103,89 @@ export function CorporateRouteManagementSection() {
   const [itineraryLoading, setItineraryLoading] = useState(false);
   const [notificationMsg, setNotificationMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Load corporate routes
+  // Companies: load once; restore the last company this admin looked at.
   useEffect(() => {
-    loadRoutes();
-  }, [selectedShift, selectedDirection]);
-
-  async function loadRoutes() {
-    setLoading(true);
-    try {
-      // In production/staging, fetches from /v1/corporate/routes?tenantId=...
-      const res = await fetch(
-        `/api/v1/corporate/routes?tenantId=tenant-hyd-pilot&shiftTime=${selectedShift}&direction=${selectedDirection}`,
-      );
-      if (res.ok) {
-        const data = await res.json();
-        setRoutes(data);
-      } else {
-        // Fallback demo/staging dataset
-        generateDemoRoutes();
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await adminApi.getCorporateTenants({ limit: 100 });
+        if (cancelled) return;
+        const items = res?.items ?? [];
+        setTenants(items);
+        let remembered = '';
+        try {
+          remembered = localStorage.getItem(COMPANY_STORAGE_KEY) ?? '';
+        } catch {
+          // storage unavailable: fall back to the first company
+        }
+        const initial = items.find((t) => t.id === remembered)?.id ?? items[0]?.id ?? '';
+        setSelectedTenantId(initial);
+        if (!initial) setLoading(false);
+      } catch (err) {
+        if (!cancelled) {
+          setLoadError(`Could not load companies: ${err instanceof Error ? err.message : String(err)}`);
+          setLoading(false);
+        }
+      } finally {
+        if (!cancelled) setTenantsLoading(false);
       }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (selectedTenantId) loadRoutes();
+  }, [selectedTenantId, selectedDate, selectedShift, selectedDirection]);
+
+  function selectTenant(id: string) {
+    setSelectedTenantId(id);
+    try {
+      localStorage.setItem(COMPANY_STORAGE_KEY, id);
     } catch {
-      generateDemoRoutes();
-    } finally {
-      setLoading(false);
+      // not remembered; harmless
     }
   }
 
-  function generateDemoRoutes() {
-    const demoRoutes: CorporateRouteItem[] = [
-      {
-        id: 'CR-HYD-001',
-        tenantId: 'tenant-hyd-pilot',
-        shiftDate: '2026-11-10',
+  async function loadRoutes() {
+    if (!selectedTenantId) return;
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const data = await adminApi.getCorporateRoutes({
+        tenantId: selectedTenantId,
+        shiftDate: selectedDate,
         shiftTime: selectedShift,
         direction: selectedDirection,
-        vehicleCategory: 'SEDAN',
-        maxCapacity: 4,
-        assignedPassengerCount: 4,
-        targetPickup1Time: '2026-11-10T06:10:00Z',
-        targetOfficeArrivalTime: '2026-11-10T07:50:00Z',
-        estDistanceMeters: 28400,
-        estDurationSeconds: 5400,
-        status: 'PLANNED',
-        office: { id: 'off-1', code: 'HYD-HQ', name: 'Cyber Towers Campus' },
-        stops: [
-          {
-            id: 's1',
-            stopSequence: 1,
-            stopType: 'PICKUP',
-            latitude: 17.485,
-            longitude: 78.355,
-            addressText: 'Plot 42, Miyapur Main Rd',
-            plannedEta: '2026-11-10T06:10:00Z',
-            boardingOtp: '4829',
-            dwellBufferSeconds: 300,
-            status: 'PENDING',
-            employee: {
-              id: 'e1',
-              employeeCode: 'EMP1001',
-              fullName: 'Ananya Sharma',
-              gender: 'FEMALE',
-              phoneNumber: '+91 98765 43210',
-              department: 'Quality Assurance',
-            },
-          },
-          {
-            id: 's2',
-            stopSequence: 2,
-            stopType: 'PICKUP',
-            latitude: 17.472,
-            longitude: 78.361,
-            addressText: 'Aparna Sarovar, Nallagandla',
-            plannedEta: '2026-11-10T06:35:00Z',
-            boardingOtp: '6194',
-            dwellBufferSeconds: 300,
-            status: 'PENDING',
-            employee: {
-              id: 'e2',
-              employeeCode: 'EMP1002',
-              fullName: 'Vikram Joshi',
-              gender: 'MALE',
-              phoneNumber: '+91 98765 43211',
-              department: 'Core Infrastructure',
-            },
-          },
-          {
-            id: 's3',
-            stopSequence: 3,
-            stopType: 'PICKUP',
-            latitude: 17.461,
-            longitude: 78.369,
-            addressText: 'Silpa Park, Kondapur',
-            plannedEta: '2026-11-10T07:05:00Z',
-            boardingOtp: '8310',
-            dwellBufferSeconds: 300,
-            status: 'PENDING',
-            employee: {
-              id: 'e3',
-              employeeCode: 'EMP1003',
-              fullName: 'Pooja Reddy',
-              gender: 'FEMALE',
-              phoneNumber: '+91 98765 43212',
-              department: 'Risk & Fraud',
-            },
-          },
-          {
-            id: 's4',
-            stopSequence: 4,
-            stopType: 'PICKUP',
-            latitude: 17.449,
-            longitude: 78.375,
-            addressText: 'Whitefields, Botanical Garden Rd',
-            plannedEta: '2026-11-10T07:25:00Z',
-            boardingOtp: '3725',
-            dwellBufferSeconds: 300,
-            status: 'PENDING',
-            employee: {
-              id: 'e4',
-              employeeCode: 'EMP1004',
-              fullName: 'Karthik Rao',
-              gender: 'MALE',
-              phoneNumber: '+91 98765 43213',
-              department: 'DevOps & SRE',
-            },
-          },
-          {
-            id: 's5',
-            stopSequence: 5,
-            stopType: 'DROPOFF',
-            latitude: 17.444,
-            longitude: 78.377,
-            addressText: 'Cyber Towers Campus, HITEC City',
-            plannedEta: '2026-11-10T07:50:00Z',
-            boardingOtp: '------',
-            dwellBufferSeconds: 0,
-            status: 'PENDING',
-          },
-        ],
-      },
-      {
-        id: 'CR-HYD-002',
-        tenantId: 'tenant-hyd-pilot',
-        shiftDate: '2026-11-10',
-        shiftTime: selectedShift,
-        direction: selectedDirection,
-        vehicleCategory: 'SEDAN',
-        maxCapacity: 4,
-        assignedPassengerCount: 4,
-        targetPickup1Time: '2026-11-10T06:15:00Z',
-        targetOfficeArrivalTime: '2026-11-10T07:50:00Z',
-        estDistanceMeters: 31200,
-        estDurationSeconds: 5700,
-        status: 'ASSIGNED',
-        driver: { id: 'd-1', fullName: 'Suresh Kumar', phone: '+91 98765 00001' },
-        vehicle: { id: 'v-1', registrationNumber: 'TS 09 AB 4912', model: 'Maruti Suzuki Dzire' },
-        office: { id: 'off-1', code: 'HYD-HQ', name: 'Cyber Towers Campus' },
-      },
-      {
-        id: 'CR-HYD-003',
-        tenantId: 'tenant-hyd-pilot',
-        shiftDate: '2026-11-10',
-        shiftTime: selectedShift,
-        direction: selectedDirection,
-        vehicleCategory: 'SUV',
-        maxCapacity: 6,
-        assignedPassengerCount: 6,
-        targetPickup1Time: '2026-11-10T06:05:00Z',
-        targetOfficeArrivalTime: '2026-11-10T07:50:00Z',
-        estDistanceMeters: 36500,
-        estDurationSeconds: 6300,
-        status: 'DISPATCHING',
-        office: { id: 'off-1', code: 'HYD-HQ', name: 'Cyber Towers Campus' },
-      },
-    ];
-
-    setRoutes(demoRoutes);
+      });
+      setRoutes(Array.isArray(data) ? data : []);
+    } catch (err) {
+      // Never show stand-in data in an operations panel: say what failed.
+      setRoutes([]);
+      setLoadError(`Could not load routes: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setLoading(false);
+    }
   }
 
   // Manual Super Admin Dispatch Override ("Start" button)
   async function handleForceStartDispatch(routeId: string) {
     setDispatchingRouteId(routeId);
     setNotificationMsg(null);
-
     try {
-      const res = await fetch(`/api/v1/corporate/dispatch/routes/${routeId}/start-now`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ actorUserId: 'admin-super' }),
-      });
-
-      if (res.ok) {
-        setNotificationMsg({
-          type: 'success',
-          text: `Autonomous dispatch initiated for route ${routeId}! H3 spatial search active (5 km to 10 km).`,
-        });
-        // Optimistic update
-        setRoutes((prev) =>
-          prev.map((r) => (r.id === routeId ? { ...r, status: 'DISPATCHING' } : r)),
-        );
-      } else {
-        setNotificationMsg({
-          type: 'success',
-          text: `Autonomous dispatch initiated for route ${routeId}! H3 spatial search active across Cyberabad sector.`,
-        });
-        setRoutes((prev) =>
-          prev.map((r) => (r.id === routeId ? { ...r, status: 'DISPATCHING' } : r)),
-        );
-      }
-    } catch {
+      const result = await adminApi.startCorporateRouteDispatch(routeId);
+      const describe = DISPATCH_OUTCOME_TEXT[result?.status] ?? (() => `Dispatch result: ${result?.status ?? 'unknown'}`);
       setNotificationMsg({
-        type: 'success',
-        text: `Autonomous dispatch initiated for route ${routeId}! Finding drivers in 5-10 km radius...`,
+        type: result?.status === 'OFFERED' || result?.status === 'ALREADY_ASSIGNED' ? 'success' : 'error',
+        text: `Route ${routeId.slice(0, 8)}: ${describe(result)}`,
       });
-      setRoutes((prev) =>
-        prev.map((r) => (r.id === routeId ? { ...r, status: 'DISPATCHING' } : r)),
-      );
+      await loadRoutes();
+    } catch (err) {
+      setNotificationMsg({
+        type: 'error',
+        text: `Could not start dispatch for route ${routeId.slice(0, 8)}: ${err instanceof Error ? err.message : String(err)}`,
+      });
     } finally {
       setDispatchingRouteId(null);
     }
@@ -296,13 +195,13 @@ export function CorporateRouteManagementSection() {
     setSelectedRoute(route);
     setItineraryLoading(true);
     try {
-      const res = await fetch(`/api/v1/corporate/routes/${route.id}`);
-      if (res.ok) {
-        const full = await res.json();
-        setSelectedRoute(full);
-      }
-    } catch {
-      // Use existing stops
+      const full = await adminApi.getCorporateRoute(route.id);
+      if (full) setSelectedRoute(full);
+    } catch (err) {
+      setNotificationMsg({
+        type: 'error',
+        text: `Could not load stops for route ${route.id.slice(0, 8)}: ${err instanceof Error ? err.message : String(err)}`,
+      });
     } finally {
       setItineraryLoading(false);
     }
@@ -340,7 +239,7 @@ export function CorporateRouteManagementSection() {
             {routes.length} <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#10B981' }}>Active Cabs</span>
           </div>
           <div style={{ fontSize: '0.75rem', color: '#94A3B8', marginTop: '0.2rem' }}>
-            Shift: {selectedShift} ({selectedDirection})
+            {selectedDate} · Shift {selectedShift} ({selectedDirection})
           </div>
         </div>
 
@@ -435,6 +334,52 @@ export function CorporateRouteManagementSection() {
           border: '1px solid var(--border-subtle, #334155)',
         }}
       >
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <label style={{ fontSize: '0.8125rem', color: '#94A3B8', fontWeight: 600 }} htmlFor="corp-company">
+            Company:
+          </label>
+          <select
+            id="corp-company"
+            value={selectedTenantId}
+            onChange={(e) => selectTenant(e.target.value)}
+            disabled={tenantsLoading || tenants.length === 0}
+            style={{
+              background: '#0F172A',
+              color: '#F8FAFC',
+              border: '1px solid #475569',
+              borderRadius: '0.375rem',
+              padding: '0.35rem 0.5rem',
+              fontSize: '0.8125rem',
+              minWidth: '12rem',
+            }}
+          >
+            {tenantsLoading && <option value="">Loading companies...</option>}
+            {!tenantsLoading && tenants.length === 0 && <option value="">No companies yet</option>}
+            {tenants.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name} ({t.code})
+              </option>
+            ))}
+          </select>
+          <label style={{ fontSize: '0.8125rem', color: '#94A3B8', fontWeight: 600 }} htmlFor="corp-date">
+            Date:
+          </label>
+          <input
+            id="corp-date"
+            type="date"
+            value={selectedDate}
+            onChange={(e) => e.target.value && setSelectedDate(e.target.value)}
+            style={{
+              background: '#0F172A',
+              color: '#F8FAFC',
+              border: '1px solid #475569',
+              borderRadius: '0.375rem',
+              padding: '0.3rem 0.5rem',
+              fontSize: '0.8125rem',
+            }}
+          />
+        </div>
+
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <span style={{ fontSize: '0.8125rem', color: '#94A3B8', fontWeight: 600 }}>Shift Time:</span>
           {['08:00', '09:00', '17:00', '18:00'].map((time) => (
@@ -519,10 +464,30 @@ export function CorporateRouteManagementSection() {
                   Loading corporate routes...
                 </td>
               </tr>
+            ) : loadError ? (
+              <tr>
+                <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#F87171' }}>
+                  {loadError}{' '}
+                  {selectedTenantId && (
+                    <button
+                      onClick={() => loadRoutes()}
+                      style={{ marginLeft: '0.5rem', background: 'transparent', color: '#60A5FA', border: '1px solid #475569', borderRadius: '0.375rem', padding: '0.2rem 0.6rem', cursor: 'pointer' }}
+                    >
+                      Retry
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ) : !selectedTenantId ? (
+              <tr>
+                <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#94A3B8' }}>
+                  No corporate companies have been onboarded yet.
+                </td>
+              </tr>
             ) : routes.length === 0 ? (
               <tr>
                 <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#94A3B8' }}>
-                  No corporate routes scheduled for this shift.
+                  No routes for {selectedDate} {selectedShift} {selectedDirection}.
                 </td>
               </tr>
             ) : (
@@ -550,7 +515,7 @@ export function CorporateRouteManagementSection() {
                       </span>
                     </div>
                     <div style={{ fontSize: '0.75rem', color: '#94A3B8', marginTop: '0.25rem' }}>
-                      {route.office?.name || 'Cyber Towers'}
+                      {route.office?.name || '—'}
                     </div>
                   </td>
 
@@ -565,10 +530,10 @@ export function CorporateRouteManagementSection() {
 
                   <td style={{ padding: '1rem' }}>
                     <div style={{ fontWeight: 700, color: '#F59E0B' }}>
-                      {new Date(route.targetPickup1Time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {istTime(route.targetPickup1Time)} IST
                     </div>
                     <div style={{ fontSize: '0.75rem', color: '#94A3B8', marginTop: '0.2rem' }}>
-                      Arrival: {new Date(route.targetOfficeArrivalTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      Arrival: {istTime(route.targetOfficeArrivalTime)}
                     </div>
                   </td>
 
@@ -578,7 +543,7 @@ export function CorporateRouteManagementSection() {
                         <div style={{ fontWeight: 700, color: '#F8FAFC' }}>{route.driver.fullName}</div>
                         <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>{route.driver.phone}</div>
                         <div style={{ fontSize: '0.75rem', color: '#38BDF8', marginTop: '0.15rem', fontFamily: 'monospace' }}>
-                          {route.vehicle?.registrationNumber || 'TS 09 AB 4912'}
+                          {route.vehicle?.registrationNumber || 'No vehicle on file'}
                         </div>
                       </div>
                     ) : (
@@ -654,13 +619,13 @@ export function CorporateRouteManagementSection() {
               <div>
                 <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>First Pickup</div>
                 <div style={{ fontWeight: 700, color: '#F59E0B', marginTop: '0.2rem' }}>
-                  {new Date(selectedRoute.targetPickup1Time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {istTime(selectedRoute.targetPickup1Time)}
                 </div>
               </div>
               <div>
                 <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Office Arrival</div>
                 <div style={{ fontWeight: 700, color: '#10B981', marginTop: '0.2rem' }}>
-                  {new Date(selectedRoute.targetOfficeArrivalTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {istTime(selectedRoute.targetOfficeArrivalTime)}
                 </div>
               </div>
               <div>
@@ -677,6 +642,9 @@ export function CorporateRouteManagementSection() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {itineraryLoading && (
+                <div style={{ color: '#94A3B8', fontSize: '0.8125rem' }}>Loading stops...</div>
+              )}
               {(selectedRoute.stops || []).map((stop, sIdx) => (
                 <div
                   key={stop.id || sIdx}
@@ -746,7 +714,7 @@ export function CorporateRouteManagementSection() {
                     <div>
                       Planned ETA:{' '}
                       <strong style={{ color: '#F8FAFC' }}>
-                        {new Date(stop.plannedEta).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {istTime(stop.plannedEta)}
                       </strong>
                     </div>
 

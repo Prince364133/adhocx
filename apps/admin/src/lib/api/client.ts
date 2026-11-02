@@ -69,8 +69,6 @@ export function getApiBaseUrl(): string {
   return 'https://api.adhocx.com/api/v1';
 }
 
-const API_BASE_URL = getApiBaseUrl();
-
 export { resolveDocumentUrl, handleDocumentImageError } from './resolveDocumentUrl';
 
 export function getStoredAdminToken(): string | null {
@@ -617,6 +615,46 @@ export const adminApi = {
 
   verifyAdminSession: () =>
     apiClient<{ valid: boolean; user: any }>('/auth/admin/verify'),
+
+  // Corporate ETS
+  getCorporateTenants: (params: { search?: string; page?: number; limit?: number } = {}) => {
+    const q = new URLSearchParams();
+    if (params.search) q.set('search', params.search);
+    q.set('page', String(params.page ?? 1));
+    q.set('limit', String(params.limit ?? 100));
+    return apiClient<{
+      items: { id: string; code: string; name: string; status: string }[];
+      pagination: { total: number; page: number; limit: number; totalPages: number };
+    }>(`/corporate/tenants?${q.toString()}`);
+  },
+
+  getCorporateRoutes: (params: {
+    tenantId: string;
+    shiftDate?: string;
+    shiftTime?: string;
+    direction?: 'LOGIN' | 'LOGOUT';
+    limit?: number;
+    offset?: number;
+  }) => {
+    const q = new URLSearchParams({ tenantId: params.tenantId });
+    if (params.shiftDate) q.set('shiftDate', params.shiftDate);
+    if (params.shiftTime) q.set('shiftTime', params.shiftTime);
+    if (params.direction) q.set('direction', params.direction);
+    if (params.limit) q.set('limit', String(params.limit));
+    if (params.offset) q.set('offset', String(params.offset));
+    return apiClient<any[]>(`/corporate/routes?${q.toString()}`);
+  },
+
+  getCorporateRoute: (routeId: string) => apiClient<any>(`/corporate/routes/${routeId}`),
+
+  /** Manual "Start": dispatch now. Returns the dispatch outcome (OFFERED, NO_DRIVERS_FOUND, ...). */
+  startCorporateRouteDispatch: (routeId: string) =>
+    apiClient<{
+      routeId: string;
+      status: 'OFFERED' | 'NO_DRIVERS_FOUND' | 'ALL_DRIVERS_BUSY' | 'ALREADY_ASSIGNED';
+      offeredDriverName?: string;
+      searchRadiusKm?: number;
+    }>(`/corporate/dispatch/routes/${routeId}/start-now`, { method: 'POST', body: {} }),
 
   logoutAdmin: async () => {
     try {
