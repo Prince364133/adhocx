@@ -85,23 +85,15 @@ async function main() {
   console.log('  -> Today Earnings:', wallet.todayEarnings ?? 0);
 
   // 5. Direct Dispatch Offers
-  console.log('\n[5/7] Testing Direct Dispatch Offers (GET /offers)...');
+  console.log('\n[5/6] Testing Direct Dispatch Offers (GET /offers)...');
   const offersRes = await fetch(`${BASE_URL}/offers`, { headers });
   const offersBody = await offersRes.json();
   const offers = Array.isArray(offersBody.data) ? offersBody.data : Array.isArray(offersBody) ? offersBody : [];
   console.log('  -> Status:', offersRes.status);
   console.log('  -> Live Direct Offers Count:', offers.length);
 
-  // 6. Reverse Auction Bidding Opportunities
-  console.log('\n[6/7] Testing Bidding Opportunities (GET /bids/open-opportunities)...');
-  const bidsRes = await fetch(`${BASE_URL}/bids/open-opportunities`, { headers });
-  const bidsBody = await bidsRes.json();
-  const bids = Array.isArray(bidsBody.data) ? bidsBody.data : Array.isArray(bidsBody) ? bidsBody : [];
-  console.log('  -> Status:', bidsRes.status);
-  console.log('  -> Open Bidding Opportunities Count:', bids.length);
-
-  // 7. Driver Trips
-  console.log('\n[7/7] Testing Driver Trips (GET /trips)...');
+  // 6. Driver Trips
+  console.log('\n[6/6] Testing Driver Trips (GET /trips)...');
   const tripsRes = await fetch(`${BASE_URL}/trips`, { headers });
   const tripsBody = await tripsRes.json();
   const trips = Array.isArray(tripsBody.data) ? tripsBody.data : Array.isArray(tripsBody) ? tripsBody : [];
@@ -109,7 +101,7 @@ async function main() {
   console.log('  -> Assigned/Past Trips Count:', trips.length);
 
   console.log('\n================================================================');
-  console.log('   ALL 7 ENDPOINTS CONNECTED & VALIDATED WITH REAL DB DATA!    ');
+  console.log('   ALL 6 ENDPOINTS CONNECTED & VALIDATED WITH REAL DB DATA!    ');
   console.log('================================================================\n');
 }
 

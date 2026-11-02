@@ -97,7 +97,7 @@ Metric 4: ₹0 Surcharge Guarantee
 
 [Section: Features for Corporate Users]
 Title: Built for High-Volume Enterprise Transportation
-1. Smart Reverse-Auction Sourcing: Get competitive bids from verified local fleet operators.
+1. Algorithmic Direct Dispatch Sourcing: Instant allocation from verified local fleet operators with fixed rate cards.
 2. Compliance & Safety Engine: Automated checks for commercial RC, insurance validity, and driver background checks.
 3. Live Ops Dashboard: Monitor every vehicle, passenger OTP verification, and transit route in real time.
 4. Automated Billing & Auditing: Download itemized GST invoices mapped to your corporate cost centers.

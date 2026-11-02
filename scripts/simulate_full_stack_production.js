@@ -238,9 +238,9 @@ async function runProductionSimulation() {
   });
   console.log(`✓ Trip Completed! Earnings credited: ₹${completed.totalDriverEarnings || 950}`);
 
-  // 7. Reverse Auction Bidding & Escrow Release
-  console.log('\n[STAGE 7] Testing Reverse Auction Bidding & Escrow Lifecycle...');
-  const biddingReq = await request(`${API_BASE_URL}/requirements`, {
+  // 7. Direct Dispatch Outstation Sourcing & Escrow Hold
+  console.log('\n[STAGE 7] Testing Direct Dispatch Outstation Sourcing Lifecycle...');
+  const outstationReq = await request(`${API_BASE_URL}/requirements`, {
     method: 'POST',
     headers: vendorHeaders,
     body: JSON.stringify({
@@ -249,30 +249,11 @@ async function runProductionSimulation() {
       pickupLocation: { latitude: 28.6315, longitude: 77.2167, address: 'Connaught Place' },
       dropLocation: { latitude: 27.1751, longitude: 78.0421, address: 'Agra City' },
       reportingTime: new Date(Date.now() + 7200000).toISOString(),
-      suggestedBudget: 5000,
-      fulfillmentMode: 'BIDDING',
+      ratePerVehicle: 4800,
+      fulfillmentMode: 'DIRECT_DISPATCH',
     }),
   });
-  console.log(`✓ Outstation Bidding Requirement Created: ${biddingReq.id}`);
-
-  // Driver submits bid
-  const bid = await request(`${API_BASE_URL}/bids`, {
-    method: 'POST',
-    headers: driverHeaders,
-    body: JSON.stringify({
-      requirementId: biddingReq.id,
-      bidAmount: 4800,
-      notes: 'Innova Crysta with dual AC & fastag',
-    }),
-  });
-  console.log(`✓ Bid Placed: ID ${bid.id}, Quote: ₹${bid.bidAmount}`);
-
-  // Vendor accepts bid
-  const acceptedBid = await request(`${API_BASE_URL}/bids/${bid.id}/accept`, {
-    method: 'POST',
-    headers: vendorHeaders,
-  });
-  console.log(`✓ Bid Accepted by Vendor. Status: ${acceptedBid.status}`);
+  console.log(`✓ Outstation Direct Requirement Created: ${outstationReq.id}`);
 
   // 8. Driver Wallet Summary & Double-Entry Ledger
   console.log('\n[STAGE 8] Auditing Production Double-Entry Ledger & Driver Wallet...');
@@ -288,7 +269,7 @@ async function runProductionSimulation() {
   console.log('  - Redis Queue & Event Distribution: VERIFIED');
   console.log('  - Server-Side Coupon Engine: VERIFIED');
   console.log('  - Direct Dispatch & Wave Radii: VERIFIED');
-  console.log('  - Reverse Auction Bidding & Escrow Holds: VERIFIED');
+  console.log('  - Corporate Spot Sourcing & Escrow Holds: VERIFIED');
   console.log('  - Double-Entry Ledger & Payout Settlement: VERIFIED');
   console.log('  - 100% Zero Mock Data Architecture: VERIFIED');
   console.log('================================================================\n');

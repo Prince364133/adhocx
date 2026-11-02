@@ -71,7 +71,7 @@ adhocx/
 │           ├── common/        # AggregateRoot, Entity, ValueObject, DomainEvent base types
 │           ├── value-objects/ # Money, GeoPoint, H3Index, TimeWindow, OtpCode, DwellBuffer
 │           ├── fleet/         # Bounded Context: Driver & Vehicle Compliance
-│           ├── marketplace/   # Bounded Context: Requirements & Bidding
+│           ├── marketplace/   # Bounded Context: Direct Demand Requirements
 │           ├── dispatch/      # Bounded Context: H3 Proximity & Allocation
 │           ├── trip/          # Bounded Context: Trip Execution & Stop Lifecycle
 │           ├── corporate/     # Bounded Context: Corporate Roster & Commute Demand
@@ -96,7 +96,7 @@ adhocx/
 | :--- | :--- | :--- | :--- |
 | `trips`, `locations`, `reviews` | **Trip Execution Context** (`/trip`) | `TripAggregate`, `TripStop`, `TripEvent` | • Strict state transitions (`validateTripTransition`).<br>• Cannot start trip without valid OTP.<br>• Cannot complete trip without minimum distance.<br>• GPS pings throttled to 15–30s. |
 | `dispatch`, `offers`, `assignments` | **Dispatch & Allocation Context** (`/dispatch`) | `DriverOfferAggregate`, `DispatchWave`, `H3GridIndex` | • Driver can hold only 1 active offer.<br>• 60-second offer expiry.<br>• Atomic reservation via Redlock.<br>• Radial H3 expansion: 5 km $\to$ 10 km. |
-| `requirements`, `bids` | **Marketplace Demand Context** (`/marketplace`) | `RequirementAggregate`, `BidAggregate` | • Direct Dispatch vs Bidding state machines.<br>• Vehicle class & capacity constraints.<br>• Expiry before pickup time. |
+| `requirements` | **Marketplace Demand Context** (`/marketplace`) | `RequirementAggregate` | • Direct Dispatch sequential wave state machines.<br>• Vehicle class & capacity constraints.<br>• Expiry before pickup time. |
 | `drivers`, `vehicles` | **Fleet & Compliance Context** (`/fleet`) | `DriverAggregate`, `VehicleAggregate`, `ComplianceCheck` | • Unverified drivers cannot receive dispatches.<br>• Document expiration checks (RC, DL, Insurance).<br>• Duty hour limits. |
 | `ledger`, `settlements`, `payments`, `pricing` | **Finance & Settlement Context** (`/finance`) | `LedgerAccount`, `SettlementBatch`, `Money` (Paise) | • Zero floating-point math (Integer minor units).<br>• Immutable append-only ledger entries.<br>• Idempotent bank payout hashing. |
 | *New Corporate ETS* (`rosters`, `corporate-routes`) | **Corporate Managed Commute Context** (`/corporate`) | `RosterAggregate`, `TransportRequest`, `RoutePlan`, `RouteStop` | • Sedan (4) / SUV (6) hard capacity.<br>• 5-minute dwell buffer per pickup.<br>• 9-hour self-cancellation cutoff.<br>• Dynamic Traffic Advancer (DDA). |
@@ -114,7 +114,7 @@ flowchart TD
 
     subgraph P2["Phase 2: Extract Existing Aggregates"]
         P2A["TripAggregate & State Machine"] --> P2B["DriverOfferAggregate & Redlock Port"]
-        P2B --> P2C["RequirementAggregate & Bid Rules"]
+        P2B --> P2C["RequirementAggregate & Direct Dispatch Rules"]
         P2C --> P2D["Define Repository Ports (ITripRepository, etc.)"]
     end
 
