@@ -1,0 +1,26 @@
+{
+  "name": "@adhocx/domain-core",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pure TypeScript Domain-Driven Design (DDD) Core for AdhocX",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "test:unit": "jest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "h3-js": "^4.5.0"
+  },
+  "devDependencies": {
+    "@adhocx/config": "workspace:*",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.13.1",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "typescript": "^5.7.3"
+  }
+}
+
