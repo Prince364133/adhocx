@@ -9,6 +9,10 @@ import { RosterTemplateService } from './rosters/roster-template.service';
 import { RosterIngestionService } from './rosters/roster-ingestion.service';
 import { CorporateRosterController } from './rosters/corporate-roster.controller';
 
+// Routing Sub-Module
+import { RouteSolverService } from './routing/route-solver.service';
+import { CorporateRoutingController } from './routing/corporate-routing.controller';
+
 /**
  * Corporate ETS Domain (Bounded Context: Corporate Managed Commute Transportation)
  * Encapsulates Excel roster ingestion, shift templates, OR-Tools CVRPTW route solving,
@@ -16,8 +20,19 @@ import { CorporateRosterController } from './rosters/corporate-roster.controller
  */
 @Module({
   imports: [DatabaseModule, RedisModule, NotificationsModule, AuditModule],
-  providers: [RosterTemplateService, RosterIngestionService],
-  controllers: [CorporateRosterController],
-  exports: [RosterTemplateService, RosterIngestionService],
+  providers: [
+    RosterTemplateService,
+    RosterIngestionService,
+    RouteSolverService,
+  ],
+  controllers: [
+    CorporateRosterController,
+    CorporateRoutingController,
+  ],
+  exports: [
+    RosterTemplateService,
+    RosterIngestionService,
+    RouteSolverService,
+  ],
 })
 export class CorporateDomainModule {}
