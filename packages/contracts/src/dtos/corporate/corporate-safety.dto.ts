@@ -26,3 +26,9 @@ export interface SosAlertResponseDto {
   status: CorporateSosStatus;
   createdAt: Date;
 }
+
+export interface ConfirmSafeDropDto {
+  confirmedByRole: 'DRIVER' | 'EMPLOYEE';
+  notes?: string;
+}
+

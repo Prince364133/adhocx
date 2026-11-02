@@ -27,6 +27,10 @@ import { CorporateDispatchController } from './dispatch/corporate-dispatch.contr
 import { CorporateTripExecutionService } from './execution/corporate-trip-execution.service';
 import { CorporateTripExecutionController } from './execution/corporate-trip-execution.controller';
 
+// Safety SOS, Route Deviation & Command Centre Sub-Module
+import { CorporateSafetyService } from './safety/corporate-safety.service';
+import { CorporateSafetyController } from './safety/corporate-safety.controller';
+
 /**
  * Corporate ETS Domain (Bounded Context: Corporate Managed Commute Transportation)
  * Encapsulates Excel roster ingestion, shift templates, OR-Tools CVRPTW route solving,
@@ -49,6 +53,7 @@ import { CorporateTripExecutionController } from './execution/corporate-trip-exe
     CorporateDispatchService,
     CorporateDispatchSchedulerService,
     CorporateTripExecutionService,
+    CorporateSafetyService,
   ],
   controllers: [
     CorporateTenantController,
@@ -56,6 +61,7 @@ import { CorporateTripExecutionController } from './execution/corporate-trip-exe
     CorporateRoutingController,
     CorporateDispatchController,
     CorporateTripExecutionController,
+    CorporateSafetyController,
   ],
   exports: [
     CorporateTenantService,
@@ -65,6 +71,7 @@ import { CorporateTripExecutionController } from './execution/corporate-trip-exe
     CorporateDispatchService,
     CorporateDispatchSchedulerService,
     CorporateTripExecutionService,
+    CorporateSafetyService,
   ],
 })
 export class CorporateDomainModule {}
