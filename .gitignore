@@ -68,3 +68,6 @@ mingit.zip
 .agents/
 scratch/
 
+
+# Local load-test output
+apps/api/load-test/.out/
