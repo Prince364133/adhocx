@@ -198,3 +198,4 @@ export class CorporateRouteAggregate extends AggregateRoot<string> {
     return Result.ok();
   }
 }
+
