@@ -22,6 +22,8 @@ import { CorporateRoutingController } from './routing/corporate-routing.controll
 import { CorporateDispatchService } from './dispatch/corporate-dispatch.service';
 import { CorporateDispatchSchedulerService } from './dispatch/corporate-dispatch-scheduler.service';
 import { CorporateDispatchController } from './dispatch/corporate-dispatch.controller';
+import { GoogleTrafficEstimatorAdapter } from './dispatch/traffic/google-traffic-estimator.adapter';
+import { TRAFFIC_ESTIMATOR_PORT } from './dispatch/traffic/traffic-estimator.port';
 
 // Trip Execution, 5-Min Timer & OTP Boarding Sub-Module
 import { CorporateTripExecutionService } from './execution/corporate-trip-execution.service';
@@ -54,6 +56,8 @@ import { CorporateBillingController } from './billing/corporate-billing.controll
     RosterTemplateService,
     RosterIngestionService,
     RouteSolverService,
+    GoogleTrafficEstimatorAdapter,
+    { provide: TRAFFIC_ESTIMATOR_PORT, useExisting: GoogleTrafficEstimatorAdapter },
     CorporateDispatchService,
     CorporateDispatchSchedulerService,
     CorporateTripExecutionService,
