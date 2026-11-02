@@ -57,3 +57,4 @@ export class CorporateTenantGuard implements CanActivate {
     return true;
   }
 }
+

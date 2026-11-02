@@ -15,3 +15,4 @@ export const CurrentTenant = createParamDecorator(
     return data ? tenant[data] : tenant;
   },
 );
+

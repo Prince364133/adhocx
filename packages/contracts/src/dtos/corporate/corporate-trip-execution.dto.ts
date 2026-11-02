@@ -38,3 +38,4 @@ export interface StopExecutionResponseDto {
   countdownRemainingSeconds: number;
   message: string;
 }
+
