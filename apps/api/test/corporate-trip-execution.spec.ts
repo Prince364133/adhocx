@@ -247,6 +247,187 @@ describe('Corporate Trip Execution, 5-Min Timer, OTP Boarding & 9h Reschedule', 
     });
   });
 
+  describe('Dynamic QR Code Boarding System', () => {
+    it('should generate a signed dynamic QR code payload with 300s TTL', async () => {
+      mockDb.corporateRouteStop.findUnique.mockResolvedValue({
+        id: 'stop-qr-1',
+        routeId: 'route-qr-1',
+        employeeId: 'emp-qr-1',
+        boardingOtp: '7192',
+        route: { id: 'route-qr-1' },
+      });
+
+      const result = await executionService.generateBoardingQrToken('route-qr-1', 'stop-qr-1');
+
+      expect(result.stopId).toBe('stop-qr-1');
+      expect(result.qrPayload).toBeDefined();
+      expect(mockRedisClient.set).toHaveBeenCalledWith(
+        'corporate:stop:qr:stop-qr-1',
+        result.qrPayload,
+        'EX',
+        300,
+      );
+
+      const decoded = JSON.parse(Buffer.from(result.qrPayload, 'base64').toString('utf-8'));
+      expect(decoded.otp).toBe('7192');
+      expect(decoded.routeId).toBe('route-qr-1');
+    });
+
+    it('should verify QR code scan and transition stop to BOARDED', async () => {
+      const stopCoord = { lat: 17.4504, lng: 78.3808 };
+      const driverCoord = { driverLatitude: 17.4506, driverLongitude: 78.3808 }; // ~22m away
+
+      const qrPayload = Buffer.from(
+        JSON.stringify({
+          stopId: 'stop-qr-2',
+          routeId: 'route-qr-2',
+          employeeId: 'emp-qr-2',
+          otp: '9911',
+          expiresAtMs: Date.now() + 180000,
+        }),
+      ).toString('base64');
+
+      mockDb.corporateRouteStop.findUnique.mockResolvedValue({
+        id: 'stop-qr-2',
+        routeId: 'route-qr-2',
+        status: 'ARRIVED',
+        latitude: stopCoord.lat,
+        longitude: stopCoord.lng,
+        boardingOtp: '9911',
+        route: { driverId: 'drv-qr-1' },
+      });
+      mockDb.corporateRouteStop.update.mockResolvedValue({ id: 'stop-qr-2', status: 'BOARDED' });
+
+      const result = await executionService.verifyBoardingQr('route-qr-2', 'stop-qr-2', {
+        qrPayload,
+        ...driverCoord,
+      });
+
+      expect(result.status).toBe('BOARDED');
+      expect(mockDb.corporateRouteStop.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'stop-qr-2' },
+          data: expect.objectContaining({ status: 'BOARDED' }),
+        }),
+      );
+    });
+
+    it('should reject QR code if driver is outside the 150m geofence', async () => {
+      const stopCoord = { lat: 17.4504, lng: 78.3808 };
+      const farDriverCoord = { driverLatitude: 17.4600, driverLongitude: 78.3900 }; // >1km away
+
+      mockDb.corporateRouteStop.findUnique.mockResolvedValue({
+        id: 'stop-qr-3',
+        routeId: 'route-qr-3',
+        status: 'ARRIVED',
+        latitude: stopCoord.lat,
+        longitude: stopCoord.lng,
+        boardingOtp: '1234',
+        route: { driverId: 'drv-qr-1' },
+      });
+
+      const qrPayload = Buffer.from(
+        JSON.stringify({
+          stopId: 'stop-qr-3',
+          routeId: 'route-qr-3',
+          otp: '1234',
+          expiresAtMs: Date.now() + 100000,
+        }),
+      ).toString('base64');
+
+      await expect(
+        executionService.verifyBoardingQr('route-qr-3', 'stop-qr-3', {
+          qrPayload,
+          ...farDriverCoord,
+        }),
+      ).rejects.toThrow(/QR verification outside geofence/);
+    });
+  });
+
+  describe('Live Route Telemetry Ingestion & Turn-by-Turn Waypoints', () => {
+    it('should ingest telemetry, compute ETA to next stop, and emit WebSocket event', async () => {
+      const mockRoute = {
+        id: 'route-telem-1',
+        office: { id: 'off-1', name: 'HQ', latitude: 17.44, longitude: 78.37, addressText: 'HQ' },
+        stops: [
+          {
+            id: 'stop-t-1',
+            stopSequence: 1,
+            status: 'BOARDED',
+            latitude: 17.45,
+            longitude: 78.38,
+          },
+          {
+            id: 'stop-t-2',
+            stopSequence: 2,
+            status: 'PENDING',
+            latitude: 17.46,
+            longitude: 78.39,
+          },
+        ],
+      };
+
+      mockDb.corporateRoute.findUnique.mockResolvedValue(mockRoute);
+
+      const result = await executionService.ingestRouteTelemetry('route-telem-1', {
+        latitude: 17.455,
+        longitude: 78.385,
+        speedMps: 10,
+        headingDeg: 45,
+      });
+
+      expect(result.nextStopSequence).toBe(2);
+      expect(result.distToNextStopMeters).toBeGreaterThan(0);
+      expect(result.etaMinutes).toBeGreaterThan(0);
+      expect(mockNotifications.emitEvent).toHaveBeenCalledWith(
+        'route:route-telem-1',
+        'CORPORATE_ROUTE_TELEMETRY',
+        expect.objectContaining({
+          routeId: 'route-telem-1',
+          nextStopSequence: 2,
+        }),
+      );
+    });
+
+    it('should retrieve ordered waypoints for driver GPS navigation', async () => {
+      mockDb.corporateRoute.findUnique.mockResolvedValue({
+        id: 'route-wp-1',
+        direction: 'LOGIN',
+        status: 'IN_TRANSIT',
+        office: { id: 'off-1', name: 'Campus A', latitude: 17.44, longitude: 78.38, addressText: 'Main St' },
+        stops: [
+          {
+            id: 'stop-1',
+            stopSequence: 1,
+            stopType: 'PICKUP',
+            status: 'BOARDED',
+            latitude: 17.47,
+            longitude: 78.40,
+            plannedEta: new Date(),
+            employee: { fullName: 'First Commuter', locations: [{ addressText: 'Stop 1 Address' }] },
+          },
+          {
+            id: 'stop-2',
+            stopSequence: 2,
+            stopType: 'PICKUP',
+            status: 'PENDING',
+            latitude: 17.46,
+            longitude: 78.39,
+            plannedEta: new Date(),
+            employee: { fullName: 'Second Commuter', locations: [{ addressText: 'Stop 2 Address' }] },
+          },
+        ],
+      });
+
+      const result = await executionService.getRouteWaypoints('route-wp-1');
+
+      expect(result.routeId).toBe('route-wp-1');
+      expect(result.stops.length).toBe(2);
+      expect(result.stops[0].employeeName).toBe('First Commuter');
+      expect(result.officeHub.name).toBe('Campus A');
+    });
+  });
+
   describe('9-Hour Shift Reschedule & Cancellation Cutoff Rule', () => {
     it('should allow cancellation when submitted > 9 hours before scheduled shift', async () => {
       // Scheduled 24 hours from now

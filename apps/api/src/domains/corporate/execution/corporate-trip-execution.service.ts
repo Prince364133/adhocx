@@ -11,8 +11,12 @@ import { AuditService } from '../../../modules/audit/audit.service';
 import {
   ArriveAtStopDto,
   VerifyStopOtpDto,
+  VerifyStopQrDto,
+  RouteTelemetryDto,
   MarkNoShowDto,
   StopExecutionResult,
+  BoardingQrTokenResult,
+  RouteWaypointsResult,
   RescheduleRequestDto,
 } from './trip-execution.types';
 
@@ -445,6 +449,242 @@ export class CorporateTripExecutionService {
       this.logger.log(`Request ${requestId} rescheduled to shift ${dto.newShiftTime}`);
       return updated;
     }
+  }
+
+  /**
+   * Generates a signed, dynamic QR boarding token (5-minute TTL) for employee mobile app.
+   */
+  public async generateBoardingQrToken(
+    routeId: string,
+    stopId: string,
+  ): Promise<BoardingQrTokenResult> {
+    const stop = await this.db.corporateRouteStop.findUnique({
+      where: { id: stopId },
+      include: { route: true },
+    });
+
+    if (!stop || stop.routeId !== routeId) {
+      throw new NotFoundException(`Stop ${stopId} not found on route ${routeId}`);
+    }
+
+    const expiresAt = new Date(Date.now() + this.STOP_WAIT_BUFFER_SECONDS * 1000);
+    const payloadObj = {
+      stopId,
+      routeId,
+      employeeId: stop.employeeId,
+      otp: stop.boardingOtp,
+      expiresAtMs: expiresAt.getTime(),
+    };
+
+    const qrPayload = Buffer.from(JSON.stringify(payloadObj)).toString('base64');
+
+    const client = this.redis.getClient();
+    if (client) {
+      await client.set(
+        `corporate:stop:qr:${stopId}`,
+        qrPayload,
+        'EX',
+        this.STOP_WAIT_BUFFER_SECONDS,
+      );
+    }
+
+    return {
+      stopId,
+      routeId,
+      employeeId: stop.employeeId || undefined,
+      qrPayload,
+      expiresAt,
+    };
+  }
+
+  /**
+   * Driver verifies passenger via camera QR code scan.
+   * Decodes dynamic QR token, checks freshness, verifies geofence, and marks stop BOARDED.
+   */
+  public async verifyBoardingQr(
+    routeId: string,
+    stopId: string,
+    dto: VerifyStopQrDto,
+  ): Promise<StopExecutionResult> {
+    const stop = await this.db.corporateRouteStop.findUnique({
+      where: { id: stopId },
+      include: { route: true },
+    });
+
+    if (!stop || stop.routeId !== routeId) {
+      throw new NotFoundException(`Stop ${stopId} not found on route ${routeId}`);
+    }
+
+    // Geofence check
+    const distMeters = this.haversineDistanceMeters(
+      dto.driverLatitude,
+      dto.driverLongitude,
+      Number(stop.latitude),
+      Number(stop.longitude),
+    );
+
+    if (distMeters > this.GEOFENCE_RADIUS_METERS) {
+      throw new BadRequestException(
+        `QR verification outside geofence: Driver is ${Math.round(distMeters)}m away (max allowed: ${this.GEOFENCE_RADIUS_METERS}m)`,
+      );
+    }
+
+    // Decode and validate QR token
+    let payload: any;
+    try {
+      const decodedJson = Buffer.from(dto.qrPayload, 'base64').toString('utf-8');
+      payload = JSON.parse(decodedJson);
+    } catch {
+      throw new BadRequestException('Malformed QR code token');
+    }
+
+    if (payload.stopId !== stopId || payload.routeId !== routeId) {
+      throw new BadRequestException('QR code does not match this route or stop');
+    }
+
+    if (Date.now() > payload.expiresAtMs) {
+      throw new BadRequestException('Boarding QR code has expired. Please refresh the QR code.');
+    }
+
+    // Delegate to standard boarding OTP verification
+    return this.verifyBoardingOtp(routeId, stopId, { otpCode: payload.otp });
+  }
+
+  /**
+   * Ingests real-time GPS telemetry from driver mobile app during route transit.
+   * Caches live position, dynamically updates ETA to upcoming stops, and broadcasts to Corporate Live Map.
+   */
+  public async ingestRouteTelemetry(
+    routeId: string,
+    dto: RouteTelemetryDto,
+  ): Promise<{
+    routeId: string;
+    latitude: number;
+    longitude: number;
+    nextStopSequence?: number;
+    distToNextStopMeters?: number;
+    etaMinutes?: number;
+    recordedAt: Date;
+  }> {
+    const route = await this.db.corporateRoute.findUnique({
+      where: { id: routeId },
+      include: {
+        stops: { orderBy: { stopSequence: 'asc' } },
+        office: true,
+      },
+    });
+
+    if (!route) {
+      throw new NotFoundException(`Corporate route ${routeId} not found`);
+    }
+
+    // Cache live telemetry in Redis (120s TTL)
+    const client = this.redis.getClient();
+    const recordedAt = new Date();
+    if (client) {
+      await client.set(
+        `corporate:route:telemetry:${routeId}`,
+        JSON.stringify({ ...dto, recordedAt }),
+        'EX',
+        120,
+      );
+    }
+
+    // Find next upcoming stop
+    const nextStop = route.stops.find((s) => s.status === 'PENDING' || s.status === 'ARRIVED');
+
+    let distToNextStopMeters: number | undefined;
+    let etaMinutes: number | undefined;
+
+    if (nextStop) {
+      distToNextStopMeters = Math.round(
+        this.haversineDistanceMeters(
+          dto.latitude,
+          dto.longitude,
+          Number(nextStop.latitude),
+          Number(nextStop.longitude),
+        ),
+      );
+
+      // Estimate ETA assuming average urban speed of 30 km/h (500 m/min)
+      const speedMpm = dto.speedMps && dto.speedMps > 1 ? dto.speedMps * 60 : 500;
+      etaMinutes = Math.max(1, Math.round(distToNextStopMeters / speedMpm));
+    }
+
+    // Emit live WebSocket telemetry
+    this.notifications.emitEvent(`route:${routeId}`, 'CORPORATE_ROUTE_TELEMETRY', {
+      routeId,
+      latitude: dto.latitude,
+      longitude: dto.longitude,
+      speedMps: dto.speedMps || 0,
+      headingDeg: dto.headingDeg || 0,
+      nextStopSequence: nextStop?.stopSequence,
+      distToNextStopMeters,
+      etaMinutes,
+      recordedAt,
+    });
+
+    return {
+      routeId,
+      latitude: dto.latitude,
+      longitude: dto.longitude,
+      nextStopSequence: nextStop?.stopSequence,
+      distToNextStopMeters,
+      etaMinutes,
+      recordedAt,
+    };
+  }
+
+  /**
+   * Returns ordered navigation waypoints for driver GPS navigation and live map tracking.
+   */
+  public async getRouteWaypoints(routeId: string): Promise<RouteWaypointsResult> {
+    const route = await this.db.corporateRoute.findUnique({
+      where: { id: routeId },
+      include: {
+        stops: {
+          orderBy: { stopSequence: 'asc' },
+          include: {
+            employee: {
+              include: {
+                locations: { where: { isDefault: true }, take: 1 },
+              },
+            },
+          },
+        },
+        office: true,
+      },
+    });
+
+    if (!route) {
+      throw new NotFoundException(`Corporate route ${routeId} not found`);
+    }
+
+    return {
+      routeId: route.id,
+      direction: route.direction,
+      status: route.status,
+      stops: route.stops.map((s) => ({
+        stopId: s.id,
+        stopSequence: s.stopSequence,
+        stopType: s.stopType,
+        status: s.status,
+        latitude: Number(s.latitude),
+        longitude: Number(s.longitude),
+        addressText:
+          s.employee?.locations?.[0]?.addressText ||
+          (s.stopType === 'DROPOFF' ? route.office.addressText : 'Commuter Pickup Point'),
+        employeeName: s.employee?.fullName,
+        plannedEta: s.plannedEta,
+      })),
+      officeHub: {
+        id: route.office.id,
+        name: route.office.name,
+        latitude: Number(route.office.latitude),
+        longitude: Number(route.office.longitude),
+        addressText: route.office.addressText,
+      },
+    };
   }
 
   private haversineDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {

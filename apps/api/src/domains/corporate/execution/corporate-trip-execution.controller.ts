@@ -1,5 +1,6 @@
 import {
   Controller,
+  Get,
   Post,
   Param,
   Body,
@@ -10,6 +11,8 @@ import { CorporateTripExecutionService } from './corporate-trip-execution.servic
 import {
   ArriveAtStopDto,
   VerifyStopOtpDto,
+  VerifyStopQrDto,
+  RouteTelemetryDto,
   MarkNoShowDto,
   RescheduleRequestDto,
 } from './trip-execution.types';
@@ -95,6 +98,46 @@ export class CorporateTripExecutionController {
   @ApiOperation({ summary: 'Complete corporate route upon reaching office destination hub' })
   public async completeRoute(@Param('id') routeId: string) {
     return this.executionService.completeRoute(routeId);
+  }
+
+  @Get('routes/:id/stops/:stopId/boarding-qr')
+  @ApiOperation({ summary: 'Generate dynamic, time-limited QR boarding token for employee mobile app' })
+  public async getBoardingQr(
+    @Param('id') routeId: string,
+    @Param('stopId') stopId: string,
+  ) {
+    return this.executionService.generateBoardingQrToken(routeId, stopId);
+  }
+
+  @Post('routes/:id/stops/:stopId/verify-qr')
+  @ApiOperation({ summary: 'Driver scans employee dynamic QR code to verify boarding and departure' })
+  public async verifyQr(
+    @Param('id') routeId: string,
+    @Param('stopId') stopId: string,
+    @Body() body: VerifyStopQrDto,
+  ) {
+    if (!body.qrPayload || body.driverLatitude === undefined || body.driverLongitude === undefined) {
+      throw new BadRequestException('qrPayload, driverLatitude, and driverLongitude are required');
+    }
+    return this.executionService.verifyBoardingQr(routeId, stopId, body);
+  }
+
+  @Post('routes/:id/telemetry')
+  @ApiOperation({ summary: 'Ingest live driver GPS telemetry and broadcast to Corporate Live Map' })
+  public async ingestTelemetry(
+    @Param('id') routeId: string,
+    @Body() body: RouteTelemetryDto,
+  ) {
+    if (body.latitude === undefined || body.longitude === undefined) {
+      throw new BadRequestException('latitude and longitude are required');
+    }
+    return this.executionService.ingestRouteTelemetry(routeId, body);
+  }
+
+  @Get('routes/:id/waypoints')
+  @ApiOperation({ summary: 'Retrieve ordered waypoints and corridor polyline for driver turn-by-turn navigation' })
+  public async getWaypoints(@Param('id') routeId: string) {
+    return this.executionService.getRouteWaypoints(routeId);
   }
 
   @Post('requests/:id/reschedule')
