@@ -6,7 +6,6 @@ import {
   BadRequestException,
   NotFoundException,
   ConflictException,
-  Optional,
 } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service';
 import { RedisService } from '../../../redis/redis.service';

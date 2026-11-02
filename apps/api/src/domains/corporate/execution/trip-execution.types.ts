@@ -52,6 +52,15 @@ export interface RescheduleRequestDto {
   action: 'CANCEL' | 'RESCHEDULE';
 }
 
+export interface AdminRescheduleRequestDto {
+  employeeId?: string;
+  newShiftTime?: string; // HH:mm
+  action: 'CANCEL' | 'RESCHEDULE';
+  /** Admin performing the cutoff override (audited). */
+  actorUserId: string;
+  reason: string;
+}
+
 export interface StopExecutionResult {
   stopId: string;
   routeId: string;

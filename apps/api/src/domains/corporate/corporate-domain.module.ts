@@ -38,6 +38,9 @@ import { CorporateTripExecutionService } from './execution/corporate-trip-execut
 import { CorporateTripExecutionController } from './execution/corporate-trip-execution.controller';
 import { CorporateRiderNotifier } from './execution/corporate-rider-notifier.service';
 
+// Cancel / Reschedule Route Re-planning Sub-Module
+import { CorporateReplanningService } from './replanning/corporate-replanning.service';
+
 // Safety SOS, Route Deviation & Command Centre Sub-Module
 import { CorporateSafetyService } from './safety/corporate-safety.service';
 import { CorporateSafetyController } from './safety/corporate-safety.controller';
@@ -77,6 +80,7 @@ import { CorporateBillingController } from './billing/corporate-billing.controll
     CorporateDispatchSchedulerService,
     CorporateTripExecutionService,
     CorporateRiderNotifier,
+    CorporateReplanningService,
     CorporateSafetyService,
     CorporateBillingService,
   ],
@@ -98,6 +102,7 @@ import { CorporateBillingController } from './billing/corporate-billing.controll
     CorporateDispatchSchedulerService,
     CorporateTripExecutionService,
     CorporateRiderNotifier,
+    CorporateReplanningService,
     CorporateSafetyService,
     CorporateBillingService,
   ],
