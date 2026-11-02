@@ -11,3 +11,4 @@ import { BidsModule } from '../../modules/bids/bids.module';
   exports: [RequirementsModule, BidsModule],
 })
 export class MarketplaceDomainModule {}
+

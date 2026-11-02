@@ -13,3 +13,4 @@ export interface ITripRepository {
   save(trip: TripAggregate): Promise<void>;
   delete(tripId: string): Promise<void>;
 }
+

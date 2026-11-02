@@ -13,3 +13,4 @@ import { AssignmentsModule } from '../../modules/assignments/assignments.module'
   exports: [TripsModule, LocationsModule, ReviewsModule, AssignmentsModule],
 })
 export class TripDomainModule {}
+

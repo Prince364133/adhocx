@@ -171,3 +171,4 @@ export class DriverOfferAggregate extends AggregateRoot<string> {
     return now.getTime() > this._props.expiresAt.getTime();
   }
 }
+

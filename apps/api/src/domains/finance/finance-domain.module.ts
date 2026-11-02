@@ -29,3 +29,4 @@ import { SubscriptionsModule } from '../../modules/subscriptions/subscriptions.m
   ],
 })
 export class FinanceDomainModule {}
+

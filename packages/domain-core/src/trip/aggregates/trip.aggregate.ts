@@ -268,3 +268,4 @@ export class TripAggregate extends AggregateRoot<string> {
     return Result.ok<void>();
   }
 }
+

@@ -21,3 +21,4 @@ export interface ISpatialDriverIndexPort {
    */
   findAvailableDriversInH3Cells(h3Cells: string[]): Promise<string[]>;
 }
+

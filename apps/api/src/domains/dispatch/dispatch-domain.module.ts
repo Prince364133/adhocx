@@ -11,3 +11,4 @@ import { OffersModule } from '../../modules/offers/offers.module';
   exports: [DispatchModule, OffersModule],
 })
 export class DispatchDomainModule {}
+

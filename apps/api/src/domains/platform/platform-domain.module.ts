@@ -35,3 +35,4 @@ import { DisputesModule } from '../../modules/disputes/disputes.module';
   ],
 })
 export class PlatformDomainModule {}
+

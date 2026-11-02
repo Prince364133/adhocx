@@ -135,3 +135,4 @@ export class TripCancelledEvent implements IDomainEvent {
     this.aggregateId = tripId;
   }
 }
+

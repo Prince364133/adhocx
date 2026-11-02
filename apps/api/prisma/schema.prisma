@@ -243,6 +243,8 @@ model Driver {
   settlements          Settlement[]
   reviewsReceived      Review[]                    @relation("DriverReviewsReceived")
   subscriptionPayments DriverSubscriptionPayment[]
+  corporateRoutes      CorporateRoute[]
+  corporateEarnings    CorporateDriverEarning[]
 
   @@map("drivers")
 }
@@ -260,9 +262,10 @@ model Vehicle {
   createdAt          DateTime           @default(now()) @map("created_at")
   updatedAt          DateTime           @updatedAt @map("updated_at")
 
-  driver      Driver       @relation(fields: [driverId], references: [id], onDelete: Cascade)
-  assignments Assignment[]
-  trips       Trip[]
+  driver          Driver           @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  assignments     Assignment[]
+  trips           Trip[]
+  corporateRoutes CorporateRoute[]
 
   @@map("vehicles")
 }
@@ -888,4 +891,332 @@ model ZonalQuoteSnapshot {
 
   @@index([requestedBy, createdAt])
   @@map("zonal_quote_snapshots")
+}
+
+// ==========================================
+// CORPORATE EMPLOYEE TRANSPORTATION SYSTEM (ETS)
+// ==========================================
+
+enum CorporateTenantStatus {
+  ACTIVE
+  SUSPENDED
+  TERMINATED
+}
+
+enum CorporateGender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum CorporateRosterStatus {
+  DRAFT
+  PUBLISHED
+  PROCESSED
+  CANCELLED
+}
+
+enum CorporateTransportDirection {
+  LOGIN
+  LOGOUT
+}
+
+enum CorporateRequestStatus {
+  APPROVED
+  PLANNED
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+  UNSERVED
+}
+
+enum CorporateRouteStatus {
+  PLANNED
+  DISPATCHING
+  ASSIGNED
+  IN_TRANSIT
+  COMPLETED
+  CANCELLED
+}
+
+enum CorporateStopStatus {
+  PENDING
+  ARRIVED
+  BOARDED
+  NO_SHOW
+  CANCELLED
+}
+
+enum CorporateInvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  DISPUTED
+}
+
+enum CorporateDriverEarningStatus {
+  UNPAID
+  PROCESSING
+  PAID
+}
+
+model CorporateTenant {
+  id              String                @id @default(uuid()) @db.Uuid
+  code            String                @unique @db.VarChar(32)
+  name            String
+  legalEntityName String                @map("legal_entity_name")
+  gstin           String?               @db.VarChar(15)
+  status          CorporateTenantStatus @default(ACTIVE)
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @default(now()) @updatedAt @map("updated_at")
+
+  offices           CorporateOffice[]
+  employees         CorporateEmployee[]
+  rosters           CorporateRoster[]
+  transportRequests CorporateTransportRequest[]
+  routes            CorporateRoute[]
+  invoices          CorporateInvoice[]
+
+  @@map("corporate_tenants")
+}
+
+model CorporateOffice {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  code        String   @db.VarChar(32)
+  name        String
+  addressText String   @map("address_text")
+  latitude    Decimal  @db.Decimal(10, 7)
+  longitude   Decimal  @db.Decimal(10, 7)
+  h3Res8Index String   @map("h3_res8_index") @db.VarChar(15)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  tenant    CorporateTenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employees CorporateEmployee[]
+  rosters   CorporateRoster[]
+  routes    CorporateRoute[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([h3Res8Index])
+  @@map("corporate_offices")
+}
+
+model CorporateEmployee {
+  id           String          @id @default(uuid()) @db.Uuid
+  tenantId     String          @map("tenant_id") @db.Uuid
+  officeId     String          @map("office_id") @db.Uuid
+  employeeCode String          @map("employee_code") @db.VarChar(64)
+  fullName     String          @map("full_name")
+  email        String
+  phoneNumber  String          @map("phone_number") @db.VarChar(20)
+  gender       CorporateGender @default(MALE)
+  department   String?         @db.VarChar(64)
+  costCenter   String?         @map("cost_center") @db.VarChar(64)
+  isActive     Boolean         @default(true) @map("is_active")
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @default(now()) @updatedAt @map("updated_at")
+
+  tenant            CorporateTenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  office            CorporateOffice             @relation(fields: [officeId], references: [id])
+  locations         CorporateEmployeeLocation[]
+  transportRequests CorporateTransportRequest[]
+  routeStops        CorporateRouteStop[]
+
+  @@unique([tenantId, employeeCode])
+  @@index([tenantId])
+  @@index([officeId])
+  @@map("corporate_employees")
+}
+
+model CorporateEmployeeLocation {
+  id          String   @id @default(uuid()) @db.Uuid
+  employeeId  String   @map("employee_id") @db.Uuid
+  addressText String   @map("address_text")
+  landmark    String?
+  latitude    Decimal  @db.Decimal(10, 7)
+  longitude   Decimal  @db.Decimal(10, 7)
+  h3Res8Index String   @map("h3_res8_index") @db.VarChar(15)
+  isDefault   Boolean  @default(true) @map("is_default")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  employee CorporateEmployee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([h3Res8Index])
+  @@map("corporate_employee_locations")
+}
+
+model CorporateRoster {
+  id             String                      @id @default(uuid()) @db.Uuid
+  tenantId       String                      @map("tenant_id") @db.Uuid
+  officeId       String                      @map("office_id") @db.Uuid
+  rosterDate     DateTime                    @map("roster_date") @db.Date
+  shiftTime      String                      @map("shift_time") @db.VarChar(8)
+  direction      CorporateTransportDirection
+  status         CorporateRosterStatus       @default(DRAFT)
+  passengerCount Int                         @default(0) @map("passenger_count")
+  createdAt      DateTime                    @default(now()) @map("created_at")
+  updatedAt      DateTime                    @default(now()) @updatedAt @map("updated_at")
+
+  tenant   CorporateTenant             @relation(fields: [tenantId], references: [id])
+  office   CorporateOffice             @relation(fields: [officeId], references: [id])
+  requests CorporateTransportRequest[]
+
+  @@index([tenantId, rosterDate])
+  @@index([officeId])
+  @@map("corporate_rosters")
+}
+
+model CorporateTransportRequest {
+  id              String                      @id @default(uuid()) @db.Uuid
+  tenantId        String                      @map("tenant_id") @db.Uuid
+  rosterId        String?                     @map("roster_id") @db.Uuid
+  employeeId      String                      @map("employee_id") @db.Uuid
+  scheduledDate   DateTime                    @map("scheduled_date") @db.Date
+  shiftTime       String                      @map("shift_time") @db.VarChar(8)
+  direction       CorporateTransportDirection
+  pickupLat       Decimal                     @map("pickup_lat") @db.Decimal(10, 7)
+  pickupLng       Decimal                     @map("pickup_lng") @db.Decimal(10, 7)
+  dropoffLat      Decimal                     @map("dropoff_lat") @db.Decimal(10, 7)
+  dropoffLng      Decimal                     @map("dropoff_lng") @db.Decimal(10, 7)
+  h3PickupIndex   String                      @map("h3_pickup_index") @db.VarChar(15)
+  status          CorporateRequestStatus      @default(APPROVED)
+  idempotencyHash String                      @unique @map("idempotency_hash") @db.VarChar(64)
+  createdAt       DateTime                    @default(now()) @map("created_at")
+  updatedAt       DateTime                    @default(now()) @updatedAt @map("updated_at")
+
+  tenant    CorporateTenant     @relation(fields: [tenantId], references: [id])
+  roster    CorporateRoster?    @relation(fields: [rosterId], references: [id])
+  employee  CorporateEmployee   @relation(fields: [employeeId], references: [id])
+  routeStop CorporateRouteStop?
+
+  @@index([tenantId, scheduledDate, shiftTime])
+  @@index([employeeId])
+  @@index([h3PickupIndex])
+  @@map("corporate_transport_requests")
+}
+
+model CorporateRoute {
+  id                      String                      @id @default(uuid()) @db.Uuid
+  tenantId                String                      @map("tenant_id") @db.Uuid
+  officeId                String                      @map("office_id") @db.Uuid
+  shiftDate               DateTime                    @map("shift_date") @db.Date
+  shiftTime               String                      @map("shift_time") @db.VarChar(8)
+  direction               CorporateTransportDirection
+  vehicleCategory         String                      @map("vehicle_category") @db.VarChar(32)
+  maxCapacity             Int                         @map("max_capacity")
+  assignedPassengerCount  Int                         @map("assigned_passenger_count")
+  targetPickup1Time       DateTime                    @map("target_pickup_1_time")
+  targetOfficeArrivalTime DateTime                    @map("target_office_arrival_time")
+  estDistanceMeters       Int                         @map("est_distance_meters")
+  estDurationSeconds      Int                         @map("est_duration_seconds")
+  status                  CorporateRouteStatus        @default(PLANNED)
+  driverId                String?                     @map("driver_id") @db.Uuid
+  vehicleId               String?                     @map("vehicle_id") @db.Uuid
+  createdAt               DateTime                    @default(now()) @map("created_at")
+  updatedAt               DateTime                    @default(now()) @updatedAt @map("updated_at")
+
+  tenant         CorporateTenant          @relation(fields: [tenantId], references: [id])
+  office         CorporateOffice          @relation(fields: [officeId], references: [id])
+  driver         Driver?                  @relation(fields: [driverId], references: [id])
+  vehicle        Vehicle?                 @relation(fields: [vehicleId], references: [id])
+  stops          CorporateRouteStop[]
+  invoiceLines   CorporateInvoiceLine[]
+  driverEarnings CorporateDriverEarning[]
+
+  @@index([tenantId, shiftDate, shiftTime])
+  @@index([driverId])
+  @@index([status])
+  @@map("corporate_routes")
+}
+
+model CorporateRouteStop {
+  id                  String              @id @default(uuid()) @db.Uuid
+  routeId             String              @map("route_id") @db.Uuid
+  stopSequence        Int                 @map("stop_sequence")
+  stopType            String              @map("stop_type") @db.VarChar(16)
+  transportRequestId  String?             @unique @map("transport_request_id") @db.Uuid
+  employeeId          String?             @map("employee_id") @db.Uuid
+  latitude            Decimal             @db.Decimal(10, 7)
+  longitude           Decimal             @db.Decimal(10, 7)
+  plannedEta          DateTime            @map("planned_eta")
+  actualArrivalTime   DateTime?           @map("actual_arrival_time")
+  actualDepartureTime DateTime?           @map("actual_departure_time")
+  boardingOtp         String              @map("boarding_otp") @db.VarChar(6)
+  dwellBufferSeconds  Int                 @default(300) @map("dwell_buffer_seconds")
+  status              CorporateStopStatus @default(PENDING)
+  noShowReason        String?             @map("no_show_reason")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @default(now()) @updatedAt @map("updated_at")
+
+  route            CorporateRoute             @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  transportRequest CorporateTransportRequest? @relation(fields: [transportRequestId], references: [id])
+  employee         CorporateEmployee?         @relation(fields: [employeeId], references: [id])
+
+  @@unique([routeId, stopSequence])
+  @@index([routeId])
+  @@index([employeeId])
+  @@map("corporate_route_stops")
+}
+
+model CorporateInvoice {
+  id                 String                 @id @default(uuid()) @db.Uuid
+  tenantId           String                 @map("tenant_id") @db.Uuid
+  invoiceNumber      String                 @unique @map("invoice_number") @db.VarChar(64)
+  billingPeriodStart DateTime               @map("billing_period_start") @db.Date
+  billingPeriodEnd   DateTime               @map("billing_period_end") @db.Date
+  subtotalPaise      BigInt                 @map("subtotal_paise")
+  gstPaise           BigInt                 @map("gst_paise")
+  totalAmountPaise   BigInt                 @map("total_amount_paise")
+  status             CorporateInvoiceStatus @default(DRAFT)
+  createdAt          DateTime               @default(now()) @map("created_at")
+  updatedAt          DateTime               @default(now()) @updatedAt @map("updated_at")
+
+  tenant CorporateTenant        @relation(fields: [tenantId], references: [id])
+  lines  CorporateInvoiceLine[]
+
+  @@index([tenantId, billingPeriodStart])
+  @@map("corporate_invoices")
+}
+
+model CorporateInvoiceLine {
+  id                     String   @id @default(uuid()) @db.Uuid
+  invoiceId              String   @map("invoice_id") @db.Uuid
+  routeId                String   @map("route_id") @db.Uuid
+  billableDistanceMeters Int      @map("billable_distance_meters")
+  amountPaise            BigInt   @map("amount_paise")
+  createdAt              DateTime @default(now()) @map("created_at")
+
+  invoice CorporateInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  route   CorporateRoute   @relation(fields: [routeId], references: [id])
+
+  @@index([invoiceId])
+  @@index([routeId])
+  @@map("corporate_invoice_lines")
+}
+
+model CorporateDriverEarning {
+  id                     String                       @id @default(uuid()) @db.Uuid
+  driverId               String                       @map("driver_id") @db.Uuid
+  routeId                String                       @map("route_id") @db.Uuid
+  payoutBatchId          String?                      @map("payout_batch_id") @db.Uuid
+  routeFarePaise         BigInt                       @map("route_fare_paise")
+  approachBonusPaise     BigInt                       @default(0) @map("approach_bonus_paise")
+  tollReimbursementPaise BigInt                       @default(0) @map("toll_reimbursement_paise")
+  totalEarnedPaise       BigInt                       @map("total_earned_paise")
+  payoutStatus           CorporateDriverEarningStatus @default(UNPAID) @map("payout_status")
+  createdAt              DateTime                     @default(now()) @map("created_at")
+  updatedAt              DateTime                     @default(now()) @updatedAt @map("updated_at")
+
+  driver Driver         @relation(fields: [driverId], references: [id])
+  route  CorporateRoute @relation(fields: [routeId], references: [id])
+
+  @@index([driverId, payoutStatus])
+  @@index([routeId])
+  @@map("corporate_driver_earnings")
 }

@@ -163,3 +163,4 @@ describe('TripAggregate & Stop Execution Invariants', () => {
     expect(trip.totalDistanceMeters).toBe(25000);
   });
 });
+

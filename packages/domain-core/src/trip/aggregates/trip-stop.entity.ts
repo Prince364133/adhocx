@@ -164,3 +164,4 @@ export class TripStop extends Entity<string> {
     return Result.ok<number>(elapsedSeconds);
   }
 }
+

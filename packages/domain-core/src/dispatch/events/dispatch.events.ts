@@ -76,3 +76,4 @@ export class DriverOfferExpiredEvent implements IDomainEvent {
     this.aggregateId = offerId;
   }
 }
+

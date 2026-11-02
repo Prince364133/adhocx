@@ -11,3 +11,4 @@ import { UsersModule } from '../../modules/users/users.module';
   exports: [AuthModule, UsersModule],
 })
 export class IdentityDomainModule {}
+

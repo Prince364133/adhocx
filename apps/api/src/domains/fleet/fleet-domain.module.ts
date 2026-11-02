@@ -12,3 +12,4 @@ import { VendorsModule } from '../../modules/vendors/vendors.module';
   exports: [DriversModule, VehiclesModule, VendorsModule],
 })
 export class FleetDomainModule {}
+
