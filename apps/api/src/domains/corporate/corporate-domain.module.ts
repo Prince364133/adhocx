@@ -16,6 +16,7 @@ import { CorporateRoutingController } from './routing/corporate-routing.controll
 
 // Dispatch & DDA Sub-Module
 import { CorporateDispatchService } from './dispatch/corporate-dispatch.service';
+import { CorporateDispatchSchedulerService } from './dispatch/corporate-dispatch-scheduler.service';
 import { CorporateDispatchController } from './dispatch/corporate-dispatch.controller';
 
 // Trip Execution, 5-Min Timer & OTP Boarding Sub-Module
@@ -41,6 +42,7 @@ import { CorporateTripExecutionController } from './execution/corporate-trip-exe
     RosterIngestionService,
     RouteSolverService,
     CorporateDispatchService,
+    CorporateDispatchSchedulerService,
     CorporateTripExecutionService,
   ],
   controllers: [
@@ -54,6 +56,7 @@ import { CorporateTripExecutionController } from './execution/corporate-trip-exe
     RosterIngestionService,
     RouteSolverService,
     CorporateDispatchService,
+    CorporateDispatchSchedulerService,
     CorporateTripExecutionService,
   ],
 })

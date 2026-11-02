@@ -257,6 +257,13 @@ export class CorporateDispatchService {
           'EX',
           this.OFFER_TTL_SECONDS,
         );
+        await client.sadd('corporate:active_offers_set', routeId);
+        await client.set(
+          `corporate:offer_driver:${routeId}`,
+          selectedDriver.id,
+          'EX',
+          this.OFFER_TTL_SECONDS + 60,
+        );
       }
 
       // Send Realtime WebSocket Event + FCM Push to Driver
@@ -369,6 +376,8 @@ export class CorporateDispatchService {
       // Clear active offer in Redis
       if (client) {
         await client.del(`corporate:route:offer:${routeId}`);
+        await client.srem('corporate:active_offers_set', routeId);
+        await client.del(`corporate:offer_driver:${routeId}`);
       }
 
       this.logger.log(`Driver ${driver.fullName} (${driverId}) accepted corporate route ${routeId}`);
@@ -418,6 +427,8 @@ export class CorporateDispatchService {
       await client.sadd(`corporate:rejected:${routeId}`, driverId);
       await client.expire(`corporate:rejected:${routeId}`, 86400); // 24h retention
       await client.del(`corporate:route:offer:${routeId}`);
+      await client.srem('corporate:active_offers_set', routeId);
+      await client.del(`corporate:offer_driver:${routeId}`);
     }
 
     this.logger.log(
