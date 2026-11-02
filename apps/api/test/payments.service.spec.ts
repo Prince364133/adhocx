@@ -12,7 +12,21 @@ describe('PaymentsService Unit Tests', () => {
   let notifications: any;
   let audit: any;
 
+  // Webhooks are only accepted when the server has a secret configured.
+  const savedSecrets = {
+    PAYMENT_WEBHOOK_SECRET: process.env.PAYMENT_WEBHOOK_SECRET,
+    RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET,
+  };
+  afterEach(() => {
+    for (const [k, v] of Object.entries(savedSecrets)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  });
+
   beforeEach(async () => {
+    delete process.env.RAZORPAY_WEBHOOK_SECRET; // takes precedence; may come from a local .env
+    process.env.PAYMENT_WEBHOOK_SECRET = 'test_secret';
     db = {
       vendor: {
         findUnique: jest.fn(),

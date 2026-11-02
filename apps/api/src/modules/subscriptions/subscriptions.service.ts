@@ -157,7 +157,7 @@ export class SubscriptionsService {
     }
 
     const policy = await this.pricing.getPolicyConfig();
-    let originalAmount = policy.driverMonthlyFee;
+    const originalAmount = policy.driverMonthlyFee;
     let discountAmount = 0;
 
     let couponToRedeem: any = null;
@@ -352,7 +352,7 @@ export class SubscriptionsService {
         .update(`${orderId}|${paymentId}`)
         .digest('hex');
 
-      let isValid = false;
+      let isValid: boolean;
       try {
         const expectedBuf = Buffer.from(expectedSignature, 'hex');
         const signatureBuf = Buffer.from(signature, 'hex');
@@ -361,7 +361,7 @@ export class SubscriptionsService {
         isValid = expectedSignature === signature;
       }
 
-      if (!isValid && !signature.startsWith('sig_webhook_')) {
+      if (!isValid) {
         this.logger.error(`Invalid Razorpay signature for driver subscription order ${orderId} and payment ${paymentId}`);
         throw new BadRequestException('Invalid Razorpay subscription payment signature');
       }
@@ -442,7 +442,7 @@ export class SubscriptionsService {
     }
 
     const policy = await this.pricing.getPolicyConfig();
-    let originalAmount = policy.driverMonthlyFee;
+    const originalAmount = policy.driverMonthlyFee;
     let discountAmount = 0;
 
     if (dto.couponCode) {

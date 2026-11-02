@@ -106,24 +106,20 @@ export class PaymentsService {
     payload: any,
     webhookSecret?: string,
   ): Promise<{ success: boolean; message: string }> {
-    const expectedSecret = process.env.RAZORPAY_WEBHOOK_SECRET || process.env.PAYMENT_WEBHOOK_SECRET || 'test_secret';
-    if (webhookSecret) {
-      const payloadStr = typeof payload === 'string' ? payload : JSON.stringify(payload);
-      const computedHmac = crypto.createHmac('sha256', expectedSecret).update(payloadStr).digest('hex');
-      const isDirectSecretMatch = webhookSecret === 'test_secret' || webhookSecret === expectedSecret;
-      
-      let isHmacMatch = false;
-      try {
-        const secretBuf = Buffer.from(webhookSecret, 'hex');
-        const hmacBuf = Buffer.from(computedHmac, 'hex');
-        isHmacMatch = secretBuf.length === hmacBuf.length && crypto.timingSafeEqual(secretBuf, hmacBuf);
-      } catch (_) {
-        isHmacMatch = webhookSecret === computedHmac;
-      }
-
-      if (!isDirectSecretMatch && !isHmacMatch) {
-        throw new ForbiddenException('Invalid webhook signature');
-      }
+    // Every webhook must be authenticated: it can credit wallets and capture payments.
+    // Accepted: `x-razorpay-signature` = HMAC-SHA256(body, secret), or `x-webhook-secret` = the secret itself.
+    const expectedSecret = process.env.RAZORPAY_WEBHOOK_SECRET || process.env.PAYMENT_WEBHOOK_SECRET;
+    if (!expectedSecret) {
+      this.logger.error('Payment webhook rejected: RAZORPAY_WEBHOOK_SECRET / PAYMENT_WEBHOOK_SECRET is not configured');
+      throw new ForbiddenException('Payment webhook verification is not configured on the server');
+    }
+    if (!webhookSecret) {
+      throw new ForbiddenException('Missing webhook signature');
+    }
+    const payloadStr = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    const computedHmac = crypto.createHmac('sha256', expectedSecret).update(payloadStr).digest('hex');
+    if (!constantTimeEquals(webhookSecret, computedHmac) && !constantTimeEquals(webhookSecret, expectedSecret)) {
+      throw new ForbiddenException('Invalid webhook signature');
     }
 
     const event = payload?.event || payload?.status;
@@ -150,13 +146,18 @@ export class PaymentsService {
       const refId = paymentEntity.id || paymentEntity.order_id || payload.paymentId || `topup_wh_${Date.now()}`;
 
       if (topUpAmount > 0) {
-        await this.verifyWalletTopUp(vendorUserId, {
-          razorpayOrderId: paymentEntity.order_id || refId,
-          razorpayPaymentId: paymentEntity.id || refId,
-          razorpaySignature: webhookSecret || 'sig_webhook_verified',
-          amount: topUpAmount,
-          couponCode: notes.couponCode,
-        });
+        // The webhook itself was authenticated above, so the client-side checkout signature is not needed.
+        await this.verifyWalletTopUp(
+          vendorUserId,
+          {
+            razorpayOrderId: paymentEntity.order_id || refId,
+            razorpayPaymentId: paymentEntity.id || refId,
+            razorpaySignature: 'verified-by-webhook',
+            amount: topUpAmount,
+            couponCode: notes.couponCode,
+          },
+          { verifiedByWebhook: true },
+        );
 
         this.logger.log(`Razorpay webhook auto-credited wallet for vendor user ${vendorUserId}: ₹${topUpAmount}`);
         return { success: true, message: `Wallet top-up of ₹${topUpAmount} credited successfully via webhook` };
@@ -462,7 +463,16 @@ export class PaymentsService {
   /**
    * Verify Razorpay Payment Signature and Credit Wallet.
    */
-  async verifyWalletTopUp(vendorUserId: string, dto: WalletTopUpVerifyDto): Promise<{ success: boolean; newBalance: number }> {
+  /**
+   * Credits a wallet top-up after checking Razorpay's checkout signature.
+   * `verifiedByWebhook` is internal only (never reachable from a request body): set by handleWebhook
+   * after it authenticated the webhook itself.
+   */
+  async verifyWalletTopUp(
+    vendorUserId: string,
+    dto: WalletTopUpVerifyDto,
+    opts: { verifiedByWebhook?: boolean } = {},
+  ): Promise<{ success: boolean; newBalance: number }> {
     let vendor = await this.db.vendor.findUnique({ where: { userId: vendorUserId } });
     if (!vendor) {
       const user = await this.db.user.findUnique({ where: { id: vendorUserId } });
@@ -506,13 +516,15 @@ export class PaymentsService {
 
     // Razorpay cryptographic HMAC SHA-256 constant-time signature verification
     const secret = process.env.RAZORPAY_KEY_SECRET;
-    if (secret) {
+    if (opts.verifiedByWebhook) {
+      // Authenticated by handleWebhook.
+    } else if (secret) {
       const expectedSignature = crypto
         .createHmac('sha256', secret)
         .update(`${orderId}|${paymentId}`)
         .digest('hex');
 
-      let isValid = false;
+      let isValid: boolean;
       try {
         const expectedBuf = Buffer.from(expectedSignature, 'hex');
         const signatureBuf = Buffer.from(signature, 'hex');
@@ -521,7 +533,7 @@ export class PaymentsService {
         isValid = expectedSignature === signature;
       }
 
-      if (!isValid && !signature.startsWith('sig_webhook_')) {
+      if (!isValid) {
         this.logger.error(`Razorpay signature mismatch for order ${orderId} and payment ${paymentId}`);
         throw new BadRequestException('Invalid Razorpay payment signature verification');
       }
@@ -860,4 +872,9 @@ export class PaymentsService {
   }
 }
 
-
+/** Constant-time string comparison (false for different lengths). */
+function constantTimeEquals(a: string, b: string): boolean {
+  const ab = Buffer.from(String(a));
+  const bb = Buffer.from(String(b));
+  return ab.length === bb.length && crypto.timingSafeEqual(ab, bb);
+}
