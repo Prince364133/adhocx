@@ -13,6 +13,7 @@ FROM base AS dependencies
 COPY package.json pnpm-workspace.yaml turbo.json pnpm-lock.yaml* ./
 COPY packages/config/package.json packages/config/
 COPY packages/contracts/package.json packages/contracts/
+COPY packages/domain-core/package.json packages/domain-core/
 COPY apps/api/package.json apps/api/
 COPY apps/api/prisma/schema.prisma apps/api/prisma/
 RUN pnpm install --frozen-lockfile
@@ -50,4 +51,5 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \
   CMD curl -f http://localhost:3000/api/v1/health || exit 1
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
-CMD ["node", "dist/main.js"]
+# tsc emits under dist/apps/api/src because the @adhocx/* path mappings compile packages/*/src too
+CMD ["node", "dist/apps/api/src/main.js"]

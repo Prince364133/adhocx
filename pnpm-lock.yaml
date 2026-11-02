@@ -63,6 +63,9 @@ importers:
       '@adhocx/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@adhocx/domain-core':
+        specifier: workspace:*
+        version: link:../../packages/domain-core
       '@aws-sdk/client-s3':
         specifier: ^3.1124.0
         version: 3.1124.0

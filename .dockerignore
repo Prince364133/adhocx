@@ -2,21 +2,22 @@
 .git
 .gitignore
 
-# Dependencies & Build artifacts
-node_modules
+# Dependencies & Build artifacts (** = at any depth; a bare name only matches the repo root)
+**/node_modules
 .pnpm-store
-.next
-dist
+**/.next
+**/dist
 build
 coverage
-.turbo
+**/.turbo
+apps/api/load-test/.out
 
-# Environment & Local secrets
-.env
-.env.local
-.env.*.local
-*.pem
-*.key
+# Environment & Local secrets (never bake into an image, at any depth)
+**/.env
+**/.env.local
+**/.env.*.local
+**/*.pem
+**/*.key
 
 # Logs & Temporary files
 *.log
