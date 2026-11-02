@@ -13,6 +13,7 @@ import {
   CorporateInvoiceStatus,
 } from '@adhocx/contracts';
 import { randomUUID } from 'crypto';
+import PDFDocument from 'pdfkit';
 
 @Injectable()
 export class CorporateBillingService {
@@ -223,7 +224,11 @@ export class CorporateBillingService {
     const invoice = await this.db.corporateInvoice.findUnique({
       where: { id: invoiceId },
       include: {
-        tenant: true,
+        tenant: {
+          include: {
+            offices: true,
+          },
+        },
         lines: {
           include: {
             route: {
@@ -255,6 +260,165 @@ export class CorporateBillingService {
         amountPaise: l.amountPaise.toString(),
       })),
     };
+  }
+
+  /**
+   * Generates a professional B2B GST tax invoice PDF binary stream.
+   * Includes itemized shift routes, SAC 9964 passenger transport code,
+   * corporate GSTIN, dual CGST/SGST tax split, and bank wire details.
+   */
+  public async generateInvoicePdf(invoiceId: string): Promise<Buffer> {
+    const invoice = await this.db.corporateInvoice.findUnique({
+      where: { id: invoiceId },
+      include: {
+        tenant: {
+          include: {
+            offices: true,
+          },
+        },
+        lines: {
+          include: {
+            route: {
+              select: {
+                id: true,
+                shiftDate: true,
+                shiftTime: true,
+                direction: true,
+                estDistanceMeters: true,
+                assignedPassengerCount: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!invoice) {
+      throw new NotFoundException(`Invoice ${invoiceId} not found`);
+    }
+
+    return new Promise<Buffer>((resolve, reject) => {
+      const doc = new PDFDocument({ margin: 40, size: 'A4' });
+      const chunks: Buffer[] = [];
+
+      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', (err) => reject(err));
+
+      // ─── Header ──────────────────────────────────────────
+      doc.fillColor('#0F172A').fontSize(18).text('ADHOCX FLEET TECHNOLOGIES PVT LTD', { align: 'left' });
+      doc.fontSize(8).fillColor('#64748B')
+        .text('Hitec City, Madhapur, Hyderabad, Telangana 500081 | operations@adhocx.com')
+        .text('GSTIN: 36AAACA1234F1Z8 | SAC Code: 9964 (Passenger Transport Services)');
+      
+      doc.moveDown(0.5);
+      doc.strokeColor('#E2E8F0').lineWidth(1).moveTo(40, doc.y).lineTo(555, doc.y).stroke();
+      doc.moveDown(1);
+
+      // ─── Invoice Meta & Bill To ───────────────────────────
+      const startY = doc.y;
+
+      // Left Column: Bill To
+      doc.fontSize(10).fillColor('#1E293B').text('BILLED TO:', 40, startY);
+      doc.fontSize(11).fillColor('#0F172A').text(invoice.tenant.legalEntityName || invoice.tenant.name, 40, startY + 15);
+      doc.fontSize(9).fillColor('#64748B')
+        .text(`Tenant Code: ${invoice.tenant.code}`, 40, startY + 30)
+        .text(`GSTIN: ${invoice.tenant.gstin || 'Unregistered / Exempt'}`, 40, startY + 43)
+        .text(`Address: ${invoice.tenant.offices?.[0]?.addressText || 'Hyderabad Campus, Telangana'}`, 40, startY + 56);
+
+      // Right Column: Invoice Details
+      doc.fontSize(14).fillColor('#0284C7').text('TAX INVOICE', 350, startY, { align: 'right' });
+      doc.fontSize(9).fillColor('#334155')
+        .text(`Invoice No: ${invoice.invoiceNumber}`, 350, startY + 20, { align: 'right' })
+        .text(`Invoice Date: ${invoice.createdAt.toISOString().slice(0, 10)}`, 350, startY + 33, { align: 'right' })
+        .text(`Period: ${invoice.billingPeriodStart.toISOString().slice(0, 10)} to ${invoice.billingPeriodEnd.toISOString().slice(0, 10)}`, 350, startY + 46, { align: 'right' })
+        .text(`Status: ${invoice.status}`, 350, startY + 59, { align: 'right' });
+
+      doc.moveDown(5);
+
+      // ─── Itemized Route Line Items Table ──────────────────
+      const tableTop = Math.max(doc.y, startY + 85);
+      doc.rect(40, tableTop, 515, 20).fill('#F1F5F9');
+      
+      doc.fillColor('#1E293B').fontSize(9)
+        .text('#', 45, tableTop + 5, { width: 25 })
+        .text('Route ID / Shift', 75, tableTop + 5, { width: 200 })
+        .text('Shift Date & Time', 280, tableTop + 5, { width: 110 })
+        .text('Distance', 395, tableTop + 5, { width: 60, align: 'right' })
+        .text('Amount (INR)', 465, tableTop + 5, { width: 85, align: 'right' });
+
+      let currentY = tableTop + 24;
+
+      invoice.lines.forEach((line, index) => {
+        if (currentY > 720) {
+          doc.addPage();
+          currentY = 50;
+        }
+
+        const distanceKm = (line.billableDistanceMeters / 1000).toFixed(1);
+        const amountINR = (Number(line.amountPaise) / 100).toFixed(2);
+        const shiftStr = line.route
+          ? `${line.route.shiftDate.toISOString().slice(0, 10)} ${line.route.shiftTime} (${line.route.direction})`
+          : 'Corporate Shift';
+
+        doc.fillColor('#334155').fontSize(8)
+          .text(`${index + 1}`, 45, currentY, { width: 25 })
+          .text(line.routeId.slice(0, 24), 75, currentY, { width: 200 })
+          .text(shiftStr, 280, currentY, { width: 110 })
+          .text(`${distanceKm} km`, 395, currentY, { width: 60, align: 'right' })
+          .text(`Rs. ${amountINR}`, 465, currentY, { width: 85, align: 'right' });
+
+        currentY += 16;
+      });
+
+      doc.strokeColor('#E2E8F0').lineWidth(0.5).moveTo(40, currentY + 4).lineTo(555, currentY + 4).stroke();
+      currentY += 12;
+
+      // ─── Financial Breakdown & Tax Summary ────────────────
+      const subtotalINR = (Number(invoice.subtotalPaise) / 100).toFixed(2);
+      const halfGstINR = (Number(invoice.gstPaise) / 200).toFixed(2);
+      const totalINR = (Number(invoice.totalAmountPaise) / 100).toFixed(2);
+
+      const summaryX = 350;
+      doc.fontSize(9).fillColor('#475569')
+        .text('Subtotal:', summaryX, currentY)
+        .text(`Rs. ${subtotalINR}`, 465, currentY, { width: 85, align: 'right' });
+
+      currentY += 15;
+      doc.text('CGST (2.5%):', summaryX, currentY)
+        .text(`Rs. ${halfGstINR}`, 465, currentY, { width: 85, align: 'right' });
+
+      currentY += 15;
+      doc.text('SGST (2.5%):', summaryX, currentY)
+        .text(`Rs. ${halfGstINR}`, 465, currentY, { width: 85, align: 'right' });
+
+      currentY += 18;
+      doc.rect(summaryX - 10, currentY - 4, 215, 22).fill('#E0F2FE');
+      doc.fontSize(10).fillColor('#0369A1')
+        .text('Total Payable:', summaryX, currentY)
+        .text(`Rs. ${totalINR}`, 465, currentY, { width: 85, align: 'right' });
+
+      currentY += 35;
+
+      // ─── Bank & Wire Settlement Details ───────────────────
+      doc.rect(40, currentY, 515, 50).fill('#F8FAFC');
+      doc.strokeColor('#CBD5E1').lineWidth(0.5).rect(40, currentY, 515, 50).stroke();
+
+      doc.fillColor('#0F172A').fontSize(8).text('SETTLEMENT BANK ACCOUNT DETAILS (NEFT / RTGS / IMPS):', 50, currentY + 8);
+      doc.fillColor('#475569').fontSize(8)
+        .text('Account Name: AdhocX Fleet Technologies Pvt Ltd  |  Account No: 50200012345678', 50, currentY + 22)
+        .text('Bank: HDFC Bank Ltd  |  IFSC Code: HDFC0000123  |  Branch: Madhapur Hitec City, Hyderabad', 50, currentY + 34);
+
+      // ─── Footer ───────────────────────────────────────────
+      doc.fontSize(7).fillColor('#94A3B8').text(
+        'This is a digitally generated Tax Invoice complying with Indian GST rules (Sec 31 CGST Act). No physical signature required.',
+        40,
+        780,
+        { align: 'center', width: 515 },
+      );
+
+      doc.end();
+    });
   }
 
   /**

@@ -6,8 +6,10 @@ import {
   Query,
   Body,
   Req,
+  Res,
   BadRequestException,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { CorporateBillingService } from './corporate-billing.service';
 import {
@@ -58,6 +60,22 @@ export class CorporateBillingController {
   @ApiResponse({ status: 200, description: 'Invoice details' })
   public async getInvoiceById(@Param('id') id: string) {
     return this.billingService.getInvoiceById(id);
+  }
+
+  @Get('invoices/:id/pdf')
+  @ApiOperation({ summary: 'Download B2B GST tax invoice PDF document complying with Sec 31 CGST Act' })
+  @ApiResponse({ status: 200, description: 'Binary PDF tax invoice stream' })
+  public async downloadInvoicePdf(
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.billingService.generateInvoicePdf(id);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="Invoice-${id}.pdf"`,
+      'Content-Length': buffer.length.toString(),
+    });
+    res.end(buffer);
   }
 
   @Post('payouts/prepare-batch')
