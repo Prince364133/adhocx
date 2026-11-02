@@ -1,6 +1,8 @@
 import {
+  Inject,
   Injectable,
   Logger,
+  Optional,
   BadRequestException,
   NotFoundException,
   ConflictException,
@@ -15,6 +17,19 @@ import {
   TrafficAdvancerResult,
   CorporateDispatchWaveResult,
 } from './corporate-dispatch.types';
+import {
+  ITrafficEstimatorPort,
+  TRAFFIC_ESTIMATOR_PORT,
+  TrafficRouteEstimate,
+  TrafficWaypoint,
+} from './traffic/traffic-estimator.port';
+import { heuristicTrafficDelay } from './traffic/heuristic-traffic';
+
+function envPositiveNumber(name: string, fallback: number): number {
+  const raw = process.env[name];
+  const parsed = raw !== undefined && raw !== '' ? Number(raw) : NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
 
 @Injectable()
 export class CorporateDispatchService {
@@ -28,6 +43,10 @@ export class CorporateDispatchService {
   private readonly OFFER_TTL_SECONDS = 60; // 60 seconds atomic offer countdown
   private readonly BASE_FARE_PAISE = 30000; // ₹300 base fare (in paise)
   private readonly RATE_PER_KM_PAISE = 2000; // ₹20/km (in paise)
+  private readonly STOP_DWELL_SECONDS = 300; // 5-minute boarding buffer per pickup
+  private readonly MODERATE_DELAY_MINUTES = 10; // congestion label only; does not advance dispatch
+  /** DDA advances dispatch when traffic delay >= this many minutes (env CORPORATE_DDA_ADVANCE_THRESHOLD_MINUTES). */
+  private readonly ddaAdvanceThresholdMinutes = envPositiveNumber('CORPORATE_DDA_ADVANCE_THRESHOLD_MINUTES', 30);
 
   constructor(
     private readonly db: DatabaseService,
@@ -35,17 +54,30 @@ export class CorporateDispatchService {
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
     private readonly locationsService: LocationsService,
+    @Optional()
+    @Inject(TRAFFIC_ESTIMATOR_PORT)
+    private readonly trafficEstimator?: ITrafficEstimatorPort,
   ) {}
 
   /**
-   * Evaluates Dynamic Traffic Advancer (DDA) for a scheduled corporate route.
-   * If traffic congestion delay >= 30 minutes, automatically advances dispatch time.
+   * Dynamic Dispatch Advancer (DDA) for a scheduled corporate route.
+   *
+   * Asks the traffic estimator (Google Routes, traffic-aware for the planned departure; heuristic
+   * fallback) for the drive time of the full multi-stop route and derives
+   *   delay = durationInTraffic - staticDuration.
+   * When delay >= CORPORATE_DDA_ADVANCE_THRESHOLD_MINUTES (default 30):
+   *  - LOGIN: pickup-1 moves earlier so the cab still reaches office by the login anchor:
+   *      pickup1 = officeArrival - max(plannedDrive + delay, googleTrafficDrive) - 5 min x pickups
+   *    and dispatch = pickup1 - 60 min. Google-sourced advances are persisted (route pickup-1 and
+   *    pickup stop ETAs), never moving a time later than what is already stored.
+   *  - LOGOUT: office departure is fixed by the shift; only dispatch is advanced by the delay.
    */
   public async assessDynamicTraffic(routeId: string): Promise<TrafficAdvancerResult> {
-    const route = await this.db.corporateRoute.findUnique({
+    const route: any = await this.db.corporateRoute.findUnique({
       where: { id: routeId },
       include: {
         stops: { orderBy: { stopSequence: 'asc' } },
+        office: true,
       },
     });
 
@@ -53,53 +85,204 @@ export class CorporateDispatchService {
       throw new NotFoundException(`Corporate route ${routeId} not found`);
     }
 
-    const pickup1Time = new Date(route.targetPickup1Time);
     const isLogout = route.direction === 'LOGOUT';
-    const effectiveTargetTime = isLogout
-      ? new Date(pickup1Time.getTime() - this.LOGOUT_STAGING_LEAD_MINUTES * 60 * 1000)
-      : pickup1Time;
+    const stops: any[] = Array.isArray(route.stops) ? route.stops : [];
+    const storedPickup1 = new Date(route.targetPickup1Time);
+    const officeArrival = route.targetOfficeArrivalTime ? new Date(route.targetOfficeArrivalTime) : null;
+    const estDurationSec = Number(route.estDurationSeconds) || 0;
 
-    const standardDispatchTime = new Date(
-      effectiveTargetTime.getTime() - this.STANDARD_DISPATCH_LEAD_MINUTES * 60 * 1000,
+    // Pickups that each carry a 5-minute dwell (LOGIN: employee homes; LOGOUT: none before office leg)
+    const dwellStops = isLogout ? 0 : stops.filter((s) => s.stopType !== 'DROPOFF').length;
+    const dwellSec = dwellStops * this.STOP_DWELL_SECONDS;
+
+    // Stable planning anchor (idempotent across polls even after pickup-1 has been persisted earlier)
+    const plannedPickup1 =
+      !isLogout && officeArrival && estDurationSec > 0
+        ? new Date(officeArrival.getTime() - estDurationSec * 1000)
+        : storedPickup1;
+    const plannedDriveSec = estDurationSec > 0 ? Math.max(0, estDurationSec - dwellSec) : undefined;
+
+    const estimate = await this.estimateTraffic(
+      this.buildTrafficWaypoints(route, stops, isLogout),
+      plannedPickup1,
+      { distanceMetersHint: Number(route.estDistanceMeters) || 0, staticDurationSecHint: plannedDriveSec },
     );
 
-    // Heuristic traffic assessment based on peak rush hour windows in Hyderabad
-    // Peak morning: 08:00 - 10:00 (Heavy traffic starts ~07:00)
-    // Peak evening: 17:00 - 20:00 (Heavy traffic starts ~16:30)
-    const pickupHour = pickup1Time.getHours();
-    let congestionLevel: 'NORMAL' | 'MODERATE' | 'SEVERE' = 'NORMAL';
-    let delayMinutes = 0;
-    let reason = 'Traffic conditions are optimal along route corridor';
+    const delaySec = Math.max(0, estimate.durationInTrafficSec - estimate.staticDurationSec);
+    const delayMinutes = Math.round(delaySec / 60);
+    const thresholdMinutes = this.ddaAdvanceThresholdMinutes;
+    const isAdvanced = delaySec >= thresholdMinutes * 60;
+    const congestionLevel: TrafficAdvancerResult['congestionLevel'] = isAdvanced
+      ? 'SEVERE'
+      : delayMinutes >= this.MODERATE_DELAY_MINUTES
+        ? 'MODERATE'
+        : 'NORMAL';
 
-    const isMorningPeak = pickupHour >= 7 && pickupHour <= 9;
-    const isEveningPeak = pickupHour >= 17 && pickupHour <= 19;
+    const lead = (t: Date) =>
+      new Date(
+        t.getTime() -
+          ((isLogout ? this.LOGOUT_STAGING_LEAD_MINUTES : 0) + this.STANDARD_DISPATCH_LEAD_MINUTES) * 60_000,
+      );
+    const standardDispatchTime = lead(plannedPickup1);
 
-    if (route.estDistanceMeters > 30000 && (isMorningPeak || isEveningPeak)) {
-      // Long distance (>30km) during peak commute hours
-      congestionLevel = 'SEVERE';
-      delayMinutes = 35; // 35 minutes predicted congestion delay
-      reason = 'Severe peak-hour arterial corridor congestion detected on ORR/Cyberabad stretch';
-    } else if (isMorningPeak || isEveningPeak) {
-      congestionLevel = 'MODERATE';
-      delayMinutes = 15;
-      reason = 'Moderate peak-hour flow detected; traffic buffer recommended';
+    let adjustedPickup1 = plannedPickup1;
+    let adjustedDispatchTime: Date;
+    let persisted = false;
+
+    if (isLogout) {
+      adjustedDispatchTime = isAdvanced
+        ? new Date(standardDispatchTime.getTime() - delaySec * 1000)
+        : standardDispatchTime;
+    } else {
+      if (isAdvanced) {
+        if (officeArrival && plannedDriveSec !== undefined) {
+          const requiredDriveSec = Math.max(plannedDriveSec + delaySec, estimate.durationInTrafficSec);
+          adjustedPickup1 = new Date(officeArrival.getTime() - (requiredDriveSec + dwellSec) * 1000);
+        } else {
+          adjustedPickup1 = new Date(plannedPickup1.getTime() - delaySec * 1000);
+        }
+      }
+      // Never move a pickup later than what has already been persisted/communicated.
+      if (storedPickup1.getTime() < adjustedPickup1.getTime()) {
+        adjustedPickup1 = storedPickup1;
+      }
+      adjustedDispatchTime = lead(adjustedPickup1);
+
+      if (
+        isAdvanced &&
+        estimate.source === 'GOOGLE' &&
+        storedPickup1.getTime() - adjustedPickup1.getTime() >= 60_000
+      ) {
+        persisted = await this.persistAdvancedPickup(route, stops, storedPickup1, adjustedPickup1, delayMinutes);
+      }
     }
 
-    const isAdvanced = delayMinutes >= 30;
-    const adjustedDispatchTime = isAdvanced
-      ? new Date(standardDispatchTime.getTime() - delayMinutes * 60 * 1000)
-      : standardDispatchTime;
+    const fmt = (d: Date) => d.toISOString().substring(11, 16);
+    let reason: string;
+    if (estimate.source === 'HEURISTIC') {
+      reason = heuristicTrafficDelay(Number(route.estDistanceMeters) || 0, plannedPickup1).reason;
+    } else if (isAdvanced) {
+      reason =
+        `Google traffic forecast +${delayMinutes}m (in-traffic ${Math.round(estimate.durationInTrafficSec / 60)}m vs ` +
+        `free-flow ${Math.round(estimate.staticDurationSec / 60)}m); dispatch advanced to ${fmt(adjustedDispatchTime)}Z`;
+    } else {
+      reason = `Google traffic forecast +${delayMinutes}m is below the ${thresholdMinutes}m advance threshold`;
+    }
+
+    if (isAdvanced) {
+      this.logger.log(
+        `[DDA] Route ${routeId} advanced: +${delayMinutes}m (${estimate.source}); ` +
+          `pickup-1 ${fmt(plannedPickup1)}Z -> ${fmt(adjustedPickup1)}Z, dispatch ${fmt(adjustedDispatchTime)}Z`,
+      );
+    }
 
     return {
       routeId,
-      originalPickup1Time: pickup1Time,
+      originalPickup1Time: plannedPickup1,
       standardDispatchTime,
       adjustedDispatchTime,
       trafficDelayMinutes: delayMinutes,
       isAdvanced,
       congestionLevel,
       reason,
+      adjustedPickup1Time: adjustedPickup1,
+      trafficSource: estimate.source,
+      durationInTrafficSeconds: estimate.durationInTrafficSec,
+      staticDurationSeconds: estimate.staticDurationSec,
+      persisted,
     };
+  }
+
+  /** Ordered route geometry: LOGIN pickups -> office, LOGOUT office -> drops. */
+  private buildTrafficWaypoints(route: any, stops: any[], isLogout: boolean): TrafficWaypoint[] {
+    const points: TrafficWaypoint[] = stops
+      .filter((s) => s.latitude !== undefined && s.longitude !== undefined)
+      .map((s) => ({ latitude: Number(s.latitude), longitude: Number(s.longitude) }));
+    const office =
+      route.office && route.office.latitude !== undefined
+        ? { latitude: Number(route.office.latitude), longitude: Number(route.office.longitude) }
+        : null;
+    const hasOfficeStop = isLogout
+      ? stops[0]?.stopType === 'PICKUP' && stops.length > 0 && stops.slice(1).every((s) => s.stopType === 'DROPOFF')
+      : stops[stops.length - 1]?.stopType === 'DROPOFF';
+    if (office && !hasOfficeStop) {
+      if (isLogout) points.unshift(office);
+      else points.push(office);
+    }
+    return points;
+  }
+
+  private async estimateTraffic(
+    waypoints: TrafficWaypoint[],
+    departureTime: Date,
+    hints: { distanceMetersHint: number; staticDurationSecHint?: number },
+  ): Promise<TrafficRouteEstimate> {
+    if (this.trafficEstimator) {
+      try {
+        return await this.trafficEstimator.estimateRouteDuration(waypoints, departureTime, hints);
+      } catch (err: any) {
+        this.logger.warn(`[DDA] Traffic estimator failed (${err?.message ?? err}); using heuristic`);
+      }
+    }
+    const staticDurationSec = hints.staticDurationSecHint ?? 0;
+    const { delayMinutes } = heuristicTrafficDelay(hints.distanceMetersHint, departureTime);
+    return {
+      durationInTrafficSec: staticDurationSec + delayMinutes * 60,
+      staticDurationSec,
+      distanceMeters: hints.distanceMetersHint,
+      source: 'HEURISTIC',
+    };
+  }
+
+  /** Writes the advanced pickup-1 and shifts pickup stop ETAs by the same amount (office ETA unchanged). */
+  private async persistAdvancedPickup(
+    route: any,
+    stops: any[],
+    storedPickup1: Date,
+    adjustedPickup1: Date,
+    delayMinutes: number,
+  ): Promise<boolean> {
+    const shiftMs = adjustedPickup1.getTime() - storedPickup1.getTime();
+    try {
+      const ops: any[] = [
+        this.db.corporateRoute.update({
+          where: { id: route.id },
+          data: { targetPickup1Time: adjustedPickup1 },
+        }),
+      ];
+      for (const s of stops) {
+        if (s.stopType === 'DROPOFF' || !s.id || !s.plannedEta) continue;
+        ops.push(
+          this.db.corporateRouteStop.update({
+            where: { id: s.id },
+            data: { plannedEta: new Date(new Date(s.plannedEta).getTime() + shiftMs) },
+          }),
+        );
+      }
+      await this.db.$transaction(ops);
+
+      this.notifications.emitEvent('admin:operations', 'CORPORATE_DDA_PICKUP_ADVANCED', {
+        routeId: route.id,
+        previousPickup1Time: storedPickup1,
+        targetPickup1Time: adjustedPickup1,
+        trafficDelayMinutes: delayMinutes,
+      });
+      await this.audit.log({
+        action: 'CORPORATE_DDA_PICKUP_ADVANCED',
+        actorRole: 'SYSTEM_AUTONOMOUS_DISPATCH',
+        entityId: route.id,
+        entityType: 'CORPORATE_ROUTE',
+        metadata: {
+          previousPickup1Time: storedPickup1.toISOString(),
+          targetPickup1Time: adjustedPickup1.toISOString(),
+          trafficDelayMinutes: delayMinutes,
+        },
+      });
+      return true;
+    } catch (err: any) {
+      this.logger.error(`[DDA] Failed to persist advanced pickup for route ${route.id}: ${err?.message ?? err}`);
+      return false;
+    }
   }
 
   /**

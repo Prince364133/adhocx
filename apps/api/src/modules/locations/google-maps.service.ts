@@ -118,6 +118,72 @@ export class GoogleMapsService {
     });
   }
 
+  /** True when a Google Maps API key is configured (traffic-aware calls are possible). */
+  hasApiKey(): boolean {
+    return !!this.apiKey;
+  }
+
+  /**
+   * Traffic-aware multi-stop route duration for a future departure (Routes API computeRoutes).
+   * `waypoints` = [origin, ...intermediates, destination] (min 2, max 27).
+   * Returns both the traffic-predicted duration and the traffic-free static duration so callers
+   * can derive the congestion delay. THROWS on missing key, HTTP error, timeout or empty route;
+   * callers own the fallback policy.
+   */
+  async computeTrafficAwareRoute(
+    waypoints: LatLng[],
+    departureTime: Date | undefined,
+    timeoutMs: number = 3000,
+  ): Promise<{ durationSeconds: number; staticDurationSeconds: number; distanceMeters: number }> {
+    if (!this.apiKey) throw new Error('GOOGLE_MAPS_API_KEY not configured');
+    if (waypoints.length < 2) throw new Error('At least 2 waypoints are required');
+    if (waypoints.length > 27) throw new Error('Routes API supports at most 25 intermediates');
+
+    const toWaypoint = (p: LatLng) => ({
+      location: { latLng: { latitude: Number(p.latitude), longitude: Number(p.longitude) } },
+    });
+
+    const body: Record<string, unknown> = {
+      origin: toWaypoint(waypoints[0]),
+      destination: toWaypoint(waypoints[waypoints.length - 1]),
+      intermediates: waypoints.slice(1, -1).map(toWaypoint),
+      travelMode: 'DRIVE',
+      routingPreference: 'TRAFFIC_AWARE_OPTIMAL',
+      trafficModel: 'BEST_GUESS',
+    };
+    // Routes API rejects past departure times; omitting it means "depart now".
+    if (departureTime && departureTime.getTime() > Date.now() + 60_000) {
+      body.departureTime = departureTime.toISOString();
+    }
+
+    const response = await this.postJson(
+      'routes.googleapis.com',
+      '/directions/v2:computeRoutes',
+      JSON.stringify(body),
+      {
+        'X-Goog-Api-Key': this.apiKey,
+        'X-Goog-FieldMask': 'routes.duration,routes.staticDuration,routes.distanceMeters',
+      },
+      timeoutMs,
+    );
+
+    const route = response?.routes?.[0];
+    const parseSec = (v: unknown) => (v ? parseFloat(String(v).replace('s', '')) : NaN);
+    const durationSeconds = parseSec(route?.duration);
+    const staticDurationSeconds = parseSec(route?.staticDuration);
+    const distanceMeters = Number(route?.distanceMeters);
+    if (!Number.isFinite(durationSeconds) || !Number.isFinite(distanceMeters)) {
+      throw new Error('Routes API returned no usable route');
+    }
+    return {
+      durationSeconds: Math.round(durationSeconds),
+      staticDurationSeconds: Math.round(
+        Number.isFinite(staticDurationSeconds) ? staticDurationSeconds : durationSeconds,
+      ),
+      distanceMeters,
+    };
+  }
+
   isCircuitOpen(): boolean {
     return Date.now() < this.circuitOpenUntil;
   }

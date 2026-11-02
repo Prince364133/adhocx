@@ -24,6 +24,14 @@ export interface TrafficAdvancerResult {
   isAdvanced: boolean;
   congestionLevel: 'NORMAL' | 'MODERATE' | 'SEVERE';
   reason: string;
+  /** Pickup-1 time the driver must hit after traffic adjustment (== original when not advanced). */
+  adjustedPickup1Time?: Date;
+  /** Where the delay estimate came from. */
+  trafficSource?: 'GOOGLE' | 'HEURISTIC';
+  durationInTrafficSeconds?: number;
+  staticDurationSeconds?: number;
+  /** True when the advanced pickup-1 / stop ETAs were written back to the route. */
+  persisted?: boolean;
 }
 
 export interface CorporateDispatchWaveResult {
