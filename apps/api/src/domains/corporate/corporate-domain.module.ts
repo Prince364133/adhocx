@@ -5,6 +5,10 @@ import { NotificationsModule } from '../../modules/notifications/notifications.m
 import { AuditModule } from '../../modules/audit/audit.module';
 import { LocationsModule } from '../../modules/locations/locations.module';
 
+// Tenants, Offices & Employees Sub-Module
+import { CorporateTenantService } from './tenants/corporate-tenant.service';
+import { CorporateTenantController } from './tenants/corporate-tenant.controller';
+
 // Rosters Sub-Module
 import { RosterTemplateService } from './rosters/roster-template.service';
 import { RosterIngestionService } from './rosters/roster-ingestion.service';
@@ -38,6 +42,7 @@ import { CorporateTripExecutionController } from './execution/corporate-trip-exe
     LocationsModule,
   ],
   providers: [
+    CorporateTenantService,
     RosterTemplateService,
     RosterIngestionService,
     RouteSolverService,
@@ -46,12 +51,14 @@ import { CorporateTripExecutionController } from './execution/corporate-trip-exe
     CorporateTripExecutionService,
   ],
   controllers: [
+    CorporateTenantController,
     CorporateRosterController,
     CorporateRoutingController,
     CorporateDispatchController,
     CorporateTripExecutionController,
   ],
   exports: [
+    CorporateTenantService,
     RosterTemplateService,
     RosterIngestionService,
     RouteSolverService,

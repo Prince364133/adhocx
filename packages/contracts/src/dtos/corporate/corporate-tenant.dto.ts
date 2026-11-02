@@ -36,3 +36,23 @@ export interface CreateCorporateEmployeeDto {
   latitude?: number;
   longitude?: number;
 }
+
+export interface UpdateCorporateEmployeeDto {
+  fullName?: string;
+  email?: string;
+  phoneNumber?: string;
+  gender?: CorporateGender;
+  officeId?: string;
+  department?: string;
+  costCenter?: string;
+  isActive?: boolean;
+}
+
+export interface CreateEmployeeLocationDto {
+  addressText: string;
+  landmark?: string;
+  latitude: number;
+  longitude: number;
+  isDefault?: boolean;
+}
+
