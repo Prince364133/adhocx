@@ -47,11 +47,14 @@ describe('CorporateDispatchSchedulerService', () => {
 
     mockRedis = {
       getClient: jest.fn(() => mockRedisClient),
+      acquireLockToken: jest.fn(async () => 'lock-token'),
+      releaseLockToken: jest.fn(async () => undefined),
     };
 
     mockDb = {
       corporateRoute: {
         findMany: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
     };
 

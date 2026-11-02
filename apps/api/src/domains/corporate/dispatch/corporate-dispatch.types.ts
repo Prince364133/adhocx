@@ -30,7 +30,7 @@ export interface CorporateDispatchWaveResult {
   routeId: string;
   waveNumber: number;
   searchRadiusKm: number;
-  status: 'OFFERED' | 'ASSIGNED' | 'NO_DRIVERS_FOUND' | 'ALREADY_ASSIGNED';
+  status: 'OFFERED' | 'ASSIGNED' | 'NO_DRIVERS_FOUND' | 'ALL_DRIVERS_BUSY' | 'ALREADY_ASSIGNED';
   offeredToDriverId?: string;
   offeredDriverName?: string;
   candidatesCount: number;
