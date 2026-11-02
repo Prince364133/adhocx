@@ -16,6 +16,7 @@ import {
   CorporateDispatchKeys,
   CorporateDispatchService,
 } from '../src/domains/corporate/dispatch/corporate-dispatch.service';
+import { attachSortedSets } from './helpers/fake-sorted-sets';
 
 const tickYield = () => new Promise<void>((r) => setImmediate(r));
 
@@ -97,7 +98,13 @@ class FakeRedisClient {
 
 /** Mirrors RedisService's owner-token lock helpers on top of the shared fake client. */
 class FakeRedisService {
-  constructor(public client: FakeRedisClient) {}
+  zadd!: (key: string, score: number, member: string, opts?: { nx?: boolean }) => Promise<void>;
+  zrem!: (key: string, member: string) => Promise<void>;
+  zclaimDue!: (key: string, maxScore: number, limit?: number) => Promise<string[]>;
+  constructor(public client: FakeRedisClient) {
+    // The store lives on the shared client, so every instance sees the same queue.
+    attachSortedSets(client, this);
+  }
   getClient() {
     return this.client as any;
   }
@@ -336,8 +343,15 @@ const totalCalls = (insts: Instance[], key: 'dispatchSpy' | 'rejectSpy') =>
   insts.reduce((n, i) => n + i[key].mock.calls.length, 0);
 
 /** Bypass the tick lock (simulates lock expiry mid-tick) by invoking the phases directly. */
-const evaluatePhase = (s: CorporateDispatchSchedulerService, now: number) =>
-  (s as any).evaluateAndDispatchUpcomingRoutes(now) as Promise<{ totalEvaluated: number; routes: string[] }>;
+/** One instance's scan (enqueue due-soon routes) followed by its worker pass over the shared queue. */
+const evaluatePhase = async (s: CorporateDispatchSchedulerService, now: number) => {
+  const scan = await (s as any).evaluateAndDispatchUpcomingRoutes(now);
+  const work = await (s as any).drainQueue(now);
+  return {
+    totalEvaluated: scan.totalEvaluated as number,
+    routes: [...scan.routes, ...work.dispatchedRoutes] as string[],
+  };
+};
 const reapPhase = (s: CorporateDispatchSchedulerService, now: number) =>
   (s as any).reapExpiredOffers(now) as Promise<string[]>;
 
@@ -960,5 +974,142 @@ describe('Corporate dispatch: multi-instance concurrency & scale simulations', (
       await on.scheduler.onModuleDestroy();
       expect(on.scheduler.isPolling).toBe(false);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Shared work queue: every instance does dispatch work, not just the tick-lock holder
+// ---------------------------------------------------------------------------
+describe('Corporate dispatch work queue (shared across instances)', () => {
+  const QUEUE = 'corporate:dispatch:queue';
+  const EXPIRY = 'corporate:offer_expiry';
+  const zset = (world: World, key: string) => ((world.redisClient as any).__zsets?.get(key) as Map<string, number>) ?? new Map();
+  const scanOnly = (s: CorporateDispatchSchedulerService, now: number) =>
+    (s as any).evaluateAndDispatchUpcomingRoutes(now) as Promise<{ totalEvaluated: number; routes: string[]; queued: number }>;
+
+  it('the scan only enqueues; dispatch work is done by whichever instances poll the queue', async () => {
+    const world = makeWorld();
+    const drivers = Array.from({ length: 40 }, (_, i) => `d${i}`);
+    addDrivers(world, drivers);
+    world.nearby[5] = drivers;
+    const routes = addRoutes(world, 40);
+    const [a, b, c] = [makeInstance(world), makeInstance(world), makeInstance(world)];
+
+    const scan = await scanOnly(a.scheduler, world.clock.now);
+    expect(scan).toMatchObject({ totalEvaluated: 40, queued: 40, routes: [] });
+    expect(a.dispatchSpy).not.toHaveBeenCalled(); // the scanner did no dispatch work itself
+    expect(zset(world, QUEUE).size).toBe(40);
+
+    const [wb, wc] = await Promise.all([b.scheduler.work(world.clock.now), c.scheduler.work(world.clock.now)]);
+    expect(wb.dispatchedRoutes.length).toBeGreaterThan(0);
+    expect(wc.dispatchedRoutes.length).toBeGreaterThan(0);
+    expect(new Set([...wb.dispatchedRoutes, ...wc.dispatchedRoutes])).toEqual(new Set(routes));
+    expect(wb.dispatchedRoutes.length + wc.dispatchedRoutes.length).toBe(40);
+    for (const id of routes) expect(offersFor(world, id)).toHaveLength(1);
+    expect(zset(world, QUEUE).size).toBe(0);
+  });
+
+  it('a route not due yet goes back on the queue for its dispatch time and needs no new scan', async () => {
+    const world = makeWorld();
+    addDrivers(world, ['d1']);
+    world.nearby[5] = ['d1'];
+    const [routeId] = addRoutes(world, 1, { dueInMs: 30 * 60_000 }); // dispatch in 30 min
+    const a = makeInstance(world);
+
+    await scanOnly(a.scheduler, world.clock.now);
+    const early = await a.scheduler.work(world.clock.now);
+    expect(early.dispatchedRoutes).toEqual([]);
+    const score = zset(world, QUEUE).get(routeId)!;
+    // Re-checked by its dispatch time (capped at the 10-minute re-evaluation interval).
+    expect(score).toBe(world.clock.now + 10 * 60_000);
+
+    expect((await a.scheduler.work(world.clock.now + 5 * 60_000)).dispatchedRoutes).toEqual([]);
+    world.clock.advance(31 * 60_000);
+    // Two re-checks later (10 min, then due): dispatched by the worker alone.
+    await a.scheduler.work(world.clock.now - 21 * 60_000);
+    const due = await a.scheduler.work(world.clock.now);
+    expect(due.dispatchedRoutes).toEqual([routeId]);
+    expect(world.db.routes.get(routeId)!.status).toBe('DISPATCHING');
+  });
+
+  it('a rescan never pulls a deferred route forward (ZADD NX keeps its score)', async () => {
+    const world = makeWorld();
+    const [routeId] = addRoutes(world, 1, { dueInMs: 30 * 60_000 });
+    const a = makeInstance(world);
+    await scanOnly(a.scheduler, world.clock.now);
+    await a.scheduler.work(world.clock.now);
+    const deferred = zset(world, QUEUE).get(routeId)!;
+    await scanOnly(a.scheduler, world.clock.now + 1000);
+    expect(zset(world, QUEUE).get(routeId)).toBe(deferred);
+  });
+
+  it('a job lost with a crashed worker is re-queued by the next scan and dispatched exactly once', async () => {
+    const world = makeWorld();
+    addDrivers(world, ['d1']);
+    world.nearby[5] = ['d1'];
+    const [routeId] = addRoutes(world, 1);
+    const [a, b] = [makeInstance(world), makeInstance(world)];
+    await scanOnly(a.scheduler, world.clock.now);
+    // Worker pops the job, then dies before doing anything.
+    expect(await (b.redis as any).zclaimDue(QUEUE, world.clock.now, 8)).toEqual([routeId]);
+    expect(zset(world, QUEUE).size).toBe(0);
+
+    await scanOnly(a.scheduler, world.clock.now + 30_000);
+    const r = await a.scheduler.work(world.clock.now + 30_000);
+    expect(r.dispatchedRoutes).toEqual([routeId]);
+    expect(offersFor(world, routeId)).toHaveLength(1);
+  });
+
+  it('routes cancelled or assigned while queued are dropped, not dispatched', async () => {
+    const world = makeWorld();
+    const [x, y] = addRoutes(world, 2);
+    const a = makeInstance(world);
+    await scanOnly(a.scheduler, world.clock.now);
+    world.db.routes.get(x)!.status = 'CANCELLED';
+    world.db.routes.get(y)!.status = 'ASSIGNED';
+    const r = await a.scheduler.work(world.clock.now);
+    expect(r.dispatchedRoutes).toEqual([]);
+    expect(a.dispatchSpy).not.toHaveBeenCalled();
+    expect(zset(world, QUEUE).size).toBe(0);
+  });
+
+  it('offer timeouts: any instance reaps an expired offer from the expiry queue, without a scan', async () => {
+    const world = makeWorld();
+    addDrivers(world, ['d1', 'd2']);
+    world.nearby[5] = ['d1', 'd2'];
+    const [routeId] = addRoutes(world, 1);
+    const [a, b] = [makeInstance(world), makeInstance(world)];
+    await a.dispatch.dispatchRoute(routeId);
+    const expiry = zset(world, EXPIRY).get(routeId)!;
+    expect(expiry).toBeGreaterThan(Date.now());
+
+    expect((await b.scheduler.work(Date.now() + 30_000)).reapedOffers).toEqual([]); // still live
+    expect(zset(world, EXPIRY).has(routeId)).toBe(true); // put back while live
+
+    const later = Date.now() + 61_000;
+    const [rb, rc] = await Promise.all([b.scheduler.work(later), makeInstance(world).scheduler.work(later)]);
+    expect([...rb.reapedOffers, ...rc.reapedOffers]).toEqual([routeId]); // exactly once
+    expect(offersFor(world, routeId).map((e) => e.payload.driverId)).toEqual(['d1', 'd2']);
+    // The cascaded offer (to d2) is tracked again, expiring 60s after the cascade (same ms is possible).
+    expect(zset(world, EXPIRY).get(routeId)!).toBeGreaterThanOrEqual(expiry);
+  });
+
+  it('accepted and rejected offers leave the expiry queue, so nothing is reaped later', async () => {
+    const world = makeWorld();
+    addDrivers(world, ['d1', 'd2', 'd3']);
+    world.nearby[5] = ['d1', 'd2', 'd3'];
+    const [r1, r2] = addRoutes(world, 2);
+    const a = makeInstance(world);
+    await a.dispatch.dispatchRoute(r1);
+    await a.dispatch.dispatchRoute(r2);
+    expect(zset(world, EXPIRY).size).toBe(2);
+
+    const d1 = JSON.parse((await world.redisClient.get(`corporate:route:offer:${r1}`))!).driverId;
+    await a.dispatch.acceptRouteOffer(r1, d1);
+    expect(zset(world, EXPIRY).has(r1)).toBe(false);
+
+    const res = await a.scheduler.work(Date.now() + 61_000);
+    expect(res.reapedOffers).toEqual([r2]);
+    expect(world.db.routes.get(r1)!.status).toBe('ASSIGNED');
   });
 });

@@ -7,7 +7,7 @@
 // Writes results to load-test/.out/results-<timestamp>.json and exits non-zero on a correctness failure.
 //   node apps/api/load-test/run.mjs --routes=1000 --instances=2 --concurrency=200 --seconds=30
 import { spawn, spawnSync } from 'node:child_process';
-import { createWriteStream, mkdirSync } from 'node:fs';
+import { createWriteStream, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import prismaPkg from '@prisma/client';
 import Redis from 'ioredis';
@@ -218,7 +218,18 @@ async function scheduler() {
     await sleep(1000);
   }
   const claimSeconds = (Date.now() - t0) / 1000;
+  const ports = procs.map((x) => x.port);
   await stopInstances(); // before any 60s offer timeout can legitimately re-dispatch
+  // Work sharing: how many dispatches each server performed (from its own log).
+  const perInstance = Object.fromEntries(
+    ports.map((port) => {
+      let text = '';
+      try {
+        text = readFileSync(join(OUT_DIR, `api-${port}.log`), 'utf8');
+      } catch {}
+      return [port, (text.match(/\[AUTONOMOUS_DISPATCH\] Triggering dispatch/g) ?? []).length];
+    }),
+  );
   const triggered = await prisma.auditLog.groupBy({
     by: ['entityId'],
     where: { action: 'CORPORATE_DISPATCH_TRIGGERED', entityId: { in: s.routeIds } },
@@ -227,9 +238,15 @@ async function scheduler() {
   const multi = triggered.filter((g) => g._count._all > 1).length;
   const statuses = await prisma.corporateRoute.groupBy({ by: ['status'], where: { tenantId: s.tenantId }, _count: { _all: true } });
   results.scheduler = { claimSeconds, plannedLeft: left, statuses: Object.fromEntries(statuses.map((g) => [g.status, g._count._all])), routesDispatched: triggered.length };
+  results.scheduler.dispatchesPerInstance = perInstance;
   console.log(`  claimed in ${claimSeconds.toFixed(1)}s (incl. startup); statuses ${JSON.stringify(results.scheduler.statuses)}`);
+  console.log(`  dispatches per server: ${JSON.stringify(perInstance)}`);
   check('scheduler picked up every due route', left === 0, `${left} still PLANNED`);
   check('no route dispatched twice by competing instances', multi === 0, `${multi} routes with >1 dispatch`);
+  if (INSTANCES > 1) {
+    const busy = Object.values(perInstance).filter((n) => n > 0).length;
+    check('dispatch work is shared by every server', busy === INSTANCES, `${busy}/${INSTANCES} servers dispatched routes`);
+  }
 }
 
 async function main() {

@@ -35,6 +35,10 @@ function envPositiveNumber(name: string, fallback: number): number {
 /** Redis key layout shared by the dispatch service and the scheduler / reaper. */
 export const CorporateDispatchKeys = {
   ACTIVE_OFFERS_SET: 'corporate:active_offers_set',
+  /** Sorted set routeId -> offer expiry (ms). Any instance pops due entries and reaps them. */
+  OFFER_EXPIRY_ZSET: 'corporate:offer_expiry',
+  /** Shared dispatch work queue: sorted set routeId -> when to (re)evaluate the route (ms). */
+  DISPATCH_QUEUE_ZSET: 'corporate:dispatch:queue',
   offer: (routeId: string) => `corporate:route:offer:${routeId}`,
   offerDriver: (routeId: string) => `corporate:offer_driver:${routeId}`,
   rejected: (routeId: string) => `corporate:rejected:${routeId}`,
@@ -61,6 +65,7 @@ export async function withdrawCorporateRouteOffer(client: any, routeId: string):
   if (!driverId) driverId = (await client.get(CorporateDispatchKeys.offerDriver(routeId))) || null;
   await client.del(CorporateDispatchKeys.offer(routeId));
   await client.srem(CorporateDispatchKeys.ACTIVE_OFFERS_SET, routeId);
+  await client.zrem(CorporateDispatchKeys.OFFER_EXPIRY_ZSET, routeId);
   await client.del(CorporateDispatchKeys.offerDriver(routeId));
   await client.del(CorporateDispatchKeys.unserved(routeId));
   if (driverId && (await client.get(CorporateDispatchKeys.driverHold(driverId))) === routeId) {
@@ -605,6 +610,7 @@ export class CorporateDispatchService {
           this.OFFER_TTL_SECONDS,
         );
         await client.sadd(CorporateDispatchKeys.ACTIVE_OFFERS_SET, routeId);
+        await client.zadd(CorporateDispatchKeys.OFFER_EXPIRY_ZSET, offerExpiresAt.getTime(), routeId);
         await client.del(CorporateDispatchKeys.unserved(routeId));
         await client.set(
           CorporateDispatchKeys.offerDriver(routeId),
@@ -757,6 +763,7 @@ export class CorporateDispatchService {
       if (client) {
         await client.del(CorporateDispatchKeys.offer(routeId));
         await client.srem(CorporateDispatchKeys.ACTIVE_OFFERS_SET, routeId);
+        await client.zrem(CorporateDispatchKeys.OFFER_EXPIRY_ZSET, routeId);
         await client.del(CorporateDispatchKeys.offerDriver(routeId));
         await this.releaseDriverHold(client, driverId, routeId);
       }
@@ -826,6 +833,7 @@ export class CorporateDispatchService {
 
       await client.del(CorporateDispatchKeys.offer(routeId));
       await client.srem(CorporateDispatchKeys.ACTIVE_OFFERS_SET, routeId);
+      await client.zrem(CorporateDispatchKeys.OFFER_EXPIRY_ZSET, routeId);
       await client.del(CorporateDispatchKeys.offerDriver(routeId));
       await this.releaseDriverHold(client, driverId, routeId);
     }

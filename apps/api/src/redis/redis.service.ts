@@ -279,10 +279,12 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   // ---- Sorted-set scheduling primitives (with in-memory fallback) ----
   private readonly fallbackZsets = new Map<string, Map<string, number>>();
 
-  async zadd(key: string, score: number, member: string): Promise<void> {
+  /** `nx: true` only adds members that are not already present (an existing score is kept). */
+  async zadd(key: string, score: number, member: string, opts: { nx?: boolean } = {}): Promise<void> {
     if (this.isConnected && this.client) {
       try {
-        await this.client.zadd(key, score, member);
+        if (opts.nx) await this.client.zadd(key, 'NX', score, member);
+        else await this.client.zadd(key, score, member);
         return;
       } catch {
         // fallback
@@ -293,6 +295,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       set = new Map();
       this.fallbackZsets.set(key, set);
     }
+    if (opts.nx && set.has(member)) return;
     set.set(member, score);
   }
 

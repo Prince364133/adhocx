@@ -13,6 +13,7 @@ import {
 } from '../src/domains/corporate/execution/corporate-rider-notifier.service';
 import { isValidShiftDate } from '../src/domains/corporate/replanning/cutoff-policy';
 import { CorporateRoutingController } from '../src/domains/corporate/routing/corporate-routing.controller';
+import { attachSortedSets } from './helpers/fake-sorted-sets';
 
 /**
  * Regression tests for the Nov 2026 audit gaps:
@@ -31,6 +32,9 @@ const MIN = 60_000;
 class FakeRedisClient {
   kv = new Map<string, string>();
   sets = new Map<string, Set<string>>();
+  constructor() {
+    attachSortedSets(this);
+  }
   async get(k: string) {
     return this.kv.get(k) ?? null;
   }
@@ -61,7 +65,10 @@ class FakeRedisClient {
 
 function fakeRedisService(client: FakeRedisClient) {
   const locks = new Map<string, string>();
+  const svc: any = {};
+  attachSortedSets(client, svc);
   return {
+    ...svc,
     getClient: () => client,
     acquireLockToken: jest.fn(async (k: string) => {
       if (locks.has(k)) return null;

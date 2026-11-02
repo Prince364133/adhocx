@@ -12,6 +12,7 @@ import { NotificationsService } from '../src/modules/notifications/notifications
 import { AuditService } from '../src/modules/audit/audit.service';
 import { LocationsService } from '../src/modules/locations/locations.service';
 import { GeoPoint, H3Index } from '@adhocx/domain-core';
+import { attachSortedSets } from './helpers/fake-sorted-sets';
 
 /**
  * 20-Step Comprehensive Operational Simulation Suite for Corporate Managed ETS.
@@ -104,6 +105,7 @@ describe('Corporate Managed ETS: 20-Step Comprehensive Operational Simulations',
   const redisSets = new Map<string, Set<string>>();
   const emittedEvents: Array<{ channel: string; event: string; payload: any }> = [];
 
+  const zClient: any = {};
   const mockRedis: any = {
     get: jest.fn(async (key: string) => redisStore.get(key) || null),
     set: jest.fn(async (key: string, val: string) => {
@@ -136,8 +138,12 @@ describe('Corporate Managed ETS: 20-Step Comprehensive Operational Simulations',
       sismember: mockRedis.sismember,
       srem: mockRedis.srem,
       expire: jest.fn().mockResolvedValue(1),
+      zadd: zClient.zadd,
+      zrem: zClient.zrem,
+      zscore: zClient.zscore,
     })),
   };
+  attachSortedSets(zClient, mockRedis);
 
   const mockNotifications = {
     emitEvent: jest.fn((channel: string, event: string, payload: any) => {

@@ -11,6 +11,7 @@ import { RedisService } from '../src/redis/redis.service';
 import { NotificationsService } from '../src/modules/notifications/notifications.service';
 import { AuditService } from '../src/modules/audit/audit.service';
 import { LocationsService } from '../src/modules/locations/locations.service';
+import { attachSortedSets } from './helpers/fake-sorted-sets';
 
 /**
  * AdhocX Corporate Managed ETS: 500-Employee Full-Lifecycle Simulation & Stress Test Suite
@@ -129,6 +130,7 @@ describe('Corporate ETS Enterprise 500-Commuter Full-Lifecycle Simulation & Stre
       acquireLockToken: jest.fn(async () => 'sim-lock-token'),
       releaseLockToken: jest.fn(async () => true),
     };
+    attachSortedSets(mockRedisClient, mockRedis);
 
     const mockNotifications = {
       emitEvent: jest.fn((channel: string, event: string, payload: any) => {

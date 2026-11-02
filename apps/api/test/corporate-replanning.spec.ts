@@ -845,6 +845,7 @@ describe('cancelled DISPATCHING route withdraws its live offer', () => {
       get: async (k: string) => kv.get(k) ?? null,
       del: async (k: string) => (kv.delete(k) ? 1 : 0),
       srem: async (_k: string, m: string) => (active.delete(m) ? 1 : 0),
+      zrem: async () => 0,
     };
     (redis as any).getClient = () => client;
     const offer = (routeId: string, driverId: string) => {

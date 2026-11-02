@@ -4,6 +4,7 @@ import { DatabaseService } from '../src/database/database.service';
 import { RedisService } from '../src/redis/redis.service';
 import { NotificationsService } from '../src/modules/notifications/notifications.service';
 import { AuditService } from '../src/modules/audit/audit.service';
+import { attachSortedSets } from './helpers/fake-sorted-sets';
 
 describe('CorporateDispatchSchedulerService', () => {
   let scheduler: CorporateDispatchSchedulerService;
@@ -50,11 +51,19 @@ describe('CorporateDispatchSchedulerService', () => {
       acquireLockToken: jest.fn(async () => 'lock-token'),
       releaseLockToken: jest.fn(async () => undefined),
     };
+    attachSortedSets(mockRedisClient, mockRedis);
 
     mockDb = {
       corporateRoute: {
         findMany: jest.fn(),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        // Queue workers re-read a route by id: serve the same rows the scan sees (PLANNED by default).
+        findUnique: jest.fn(async ({ where }: any) => {
+          const impl = mockDb.corporateRoute.findMany.getMockImplementation();
+          const rows: any[] = (impl ? await impl({}) : []) ?? [];
+          const row = rows.find((r) => r.id === where.id);
+          return row ? { status: 'PLANNED', ...row } : null;
+        }),
       },
     };
 

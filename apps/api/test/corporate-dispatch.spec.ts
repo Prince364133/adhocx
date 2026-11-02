@@ -5,6 +5,7 @@ import { RedisService } from '../src/redis/redis.service';
 import { NotificationsService } from '../src/modules/notifications/notifications.service';
 import { AuditService } from '../src/modules/audit/audit.service';
 import { LocationsService } from '../src/modules/locations/locations.service';
+import { attachSortedSets } from './helpers/fake-sorted-sets';
 
 describe('Corporate Autonomous Dispatch & Dynamic Traffic Advancer (DDA)', () => {
   let dispatchService: CorporateDispatchService;
@@ -25,6 +26,7 @@ describe('Corporate Autonomous Dispatch & Dynamic Traffic Advancer (DDA)', () =>
     releaseLockToken: jest.fn().mockResolvedValue(true),
     getClient: jest.fn().mockReturnValue(mockRedisClient),
   };
+  attachSortedSets(mockRedisClient, mockRedis);
 
   const mockDb: any = {
     corporateRoute: {
