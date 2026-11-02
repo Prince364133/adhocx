@@ -22,7 +22,7 @@ export class CorporateRoutingController {
   ) {}
 
   @Post('optimize')
-  @ApiOperation({ summary: 'Solve and generate optimized CVRPTW corporate routes for a shift' })
+  @ApiOperation({ summary: 'Plan capacity- and ride-time-constrained corporate routes for a shift on road travel times' })
   @ApiBody({
     schema: {
       type: 'object',
@@ -35,6 +35,8 @@ export class CorporateRoutingController {
         vehicleCategory: { type: 'string', enum: ['SEDAN', 'SUV'], default: 'SEDAN' },
         maxCapacity: { type: 'number', example: 4 },
         officeBufferMinutes: { type: 'number', default: 10 },
+        maxRideTimeMinutes: { type: 'number', default: 120 },
+        logoutReportingBufferMinutes: { type: 'number', default: 15 },
       },
       required: ['tenantId', 'officeId', 'shiftDate', 'shiftTime', 'direction'],
     },
