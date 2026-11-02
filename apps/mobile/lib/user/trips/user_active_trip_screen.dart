@@ -1707,13 +1707,15 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          const Text(
-                                            'No Drivers Accepted',
-                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.warning),
+                                          Text(
+                                            (_parseNum(req['dispatchWaves'], 0) >= 5) ? 'No Drivers Accepted' : 'No Driver Available Nearby',
+                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.warning),
                                           ),
                                           const SizedBox(height: 2),
                                           Text(
-                                            'All 5 dispatch waves completed without driver acceptance. You can retry dispatch or cancel for escrow refund.',
+                                            (_parseNum(req['dispatchWaves'], 0) >= 5)
+                                              ? 'All 5 dispatch waves completed without driver acceptance. You can retry dispatch or cancel for escrow refund.'
+                                              : 'No verified drivers with matching vehicle currently found nearby. Tap retry to search again or cancel for refund.',
                                             style: TextStyle(fontSize: 11, color: isDark ? AppColors.textSecondaryDark : AppColors.slate700),
                                           ),
                                         ],

@@ -331,15 +331,41 @@ export class LocationsService {
         )) as any;
 
         if (rawResults && rawResults.length > 0) {
+          // If vehicleType is specified, filter candidate drivers using their metadata in Redis
+          let filteredCandidateDriverIds: string[] = rawResults.map(([driverId]) => driverId);
+          if (vehicleType) {
+            const metaPipeline = client.pipeline();
+            for (const dId of filteredCandidateDriverIds) {
+              metaPipeline.get(`${this.DRIVER_META_KEY}${dId}`);
+            }
+            const metaResults = await metaPipeline.exec();
+            if (metaResults) {
+              filteredCandidateDriverIds = filteredCandidateDriverIds.filter((_, i) => {
+                const [mErr, mData] = metaResults[i];
+                if (!mErr && typeof mData === 'string') {
+                  try {
+                    const meta = JSON.parse(mData);
+                    if (meta.vehicleType && meta.vehicleType !== 'DEFAULT' && meta.vehicleType !== vehicleType) {
+                      return false; // Skip mismatched vehicle types
+                    }
+                  } catch (_) {}
+                }
+                return true;
+              });
+            }
+          }
+
+          const matchedIds = new Set(filteredCandidateDriverIds);
           const results: NearbyDriverResult[] = [];
           for (const [driverId, distStr] of rawResults) {
+            if (!matchedIds.has(driverId)) continue;
             results.push({
               driverId,
               distanceKm: parseFloat(distStr),
               h3Cell: this.h3.latLngToCell(latitude, longitude, H3Service.DEFAULT_RESOLUTION),
             });
           }
-          // Enough live supply indexed in Redis: skip the DB scan. Dispatch re-validates availability in DB.
+          // Enough live supply matching vehicle type indexed in Redis: skip the DB scan.
           if (results.length >= this.MIN_REDIS_CANDIDATES) return results;
           redisResults = results;
         }
@@ -360,6 +386,7 @@ export class LocationsService {
       where.OR = [
         { vehicleType: vehicleType as any },
         { vehicleType: null },
+        { vehicles: { some: { vehicleType: vehicleType as any } } },
       ];
     }
 

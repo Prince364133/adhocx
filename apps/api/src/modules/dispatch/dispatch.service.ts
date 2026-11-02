@@ -585,6 +585,85 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     }
 
     if (eligibleCandidates.length === 0) {
+      // Secondary fallback: none of the immediate spatial candidates passed capability or freshness.
+      // Search citywide for any available active driver with matching vehicle capability.
+      const fallbackActiveDrivers = await this.db.driver.findMany({
+        where: {
+          user: { status: UserStatus.ACTIVE },
+          verificationStatus: VerificationStatus.VERIFIED,
+          availabilityStatus: DriverAvailability.AVAILABLE,
+          id: { notIn: Array.from(alreadyOfferedDriverIds) },
+          ...(requirement.vehicleType
+            ? {
+                OR: [
+                  { vehicleType: requirement.vehicleType },
+                  { vehicles: { some: { vehicleType: requirement.vehicleType } } },
+                ],
+              }
+            : {}),
+        },
+        include: {
+          user: true,
+          vehicles: true,
+          trips: {
+            where: {
+              status: {
+                in: [TripStatus.ASSIGNED, TripStatus.ARRIVED, TripStatus.IN_PROGRESS],
+              },
+            },
+          },
+        },
+        take: 15,
+      });
+
+      for (const driver of fallbackActiveDrivers) {
+        if (driver.trips && driver.trips.length > 0) continue;
+        if (driver.cooldownUntil && new Date(driver.cooldownUntil).getTime() > nowMs) continue;
+
+        const dNorm = normalizeVehicle(driver.vehicleType || driver.vehicleModel || 'SEDAN');
+        const matchesVehicle =
+          !reqNorm ||
+          dNorm === reqNorm ||
+          driver.vehicles.some((v) => normalizeVehicle(v.vehicleType) === reqNorm);
+        if (!matchesVehicle) continue;
+
+        const hasLocation = driver.currentLat !== null && driver.currentLng !== null;
+        const driverLat = Number(driver.currentLat ?? pickupLat);
+        const driverLng = Number(driver.currentLng ?? pickupLng);
+        let distanceKm: number | null = null;
+        let roadDistanceKm: number | null = null;
+        let etaMinutes = UNKNOWN_LOCATION_ETA_MINUTES;
+        if (hasLocation) {
+          distanceKm = Math.sqrt(
+            Math.pow((driverLat - pickupLat) * 111, 2) +
+            Math.pow((driverLng - pickupLng) * 111 * Math.cos(pickupLat * (Math.PI / 180)), 2),
+          );
+          const est = estimateRoad(distanceKm);
+          roadDistanceKm = est.roadDistanceKm;
+          etaMinutes = est.etaMinutes;
+        }
+
+        const candidate: ScoredCandidate = {
+          driverId: driver.id,
+          driver,
+          hasLocation,
+          driverLat,
+          driverLng,
+          distanceKm,
+          roadDistanceKm,
+          etaMinutes,
+          etaIsLive: false,
+          trustScore: Number(driver.trustScore ?? 94.0),
+          rating: Number(driver.averageRating ?? 4.85),
+          compositeScore: 0,
+          isRookie: (driver.totalTrips || 0) < 25,
+        };
+        candidate.compositeScore = this.computeCompositeScore(candidate, nowMs);
+        eligibleCandidates.push(candidate);
+      }
+    }
+
+    if (eligibleCandidates.length === 0) {
       this.logger.warn(`No eligible drivers found for requirement ${requirementId}`);
       if (liveOffers > 0) {
         // Offers are still counting down; their wave job will cascade again when they lapse.
