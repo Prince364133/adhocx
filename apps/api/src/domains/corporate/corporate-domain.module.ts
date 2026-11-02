@@ -31,6 +31,10 @@ import { CorporateTripExecutionController } from './execution/corporate-trip-exe
 import { CorporateSafetyService } from './safety/corporate-safety.service';
 import { CorporateSafetyController } from './safety/corporate-safety.controller';
 
+// Dual Financial Ledgers, Invoicing & Driver Settlements Sub-Module
+import { CorporateBillingService } from './billing/corporate-billing.service';
+import { CorporateBillingController } from './billing/corporate-billing.controller';
+
 /**
  * Corporate ETS Domain (Bounded Context: Corporate Managed Commute Transportation)
  * Encapsulates Excel roster ingestion, shift templates, OR-Tools CVRPTW route solving,
@@ -54,6 +58,7 @@ import { CorporateSafetyController } from './safety/corporate-safety.controller'
     CorporateDispatchSchedulerService,
     CorporateTripExecutionService,
     CorporateSafetyService,
+    CorporateBillingService,
   ],
   controllers: [
     CorporateTenantController,
@@ -62,6 +67,7 @@ import { CorporateSafetyController } from './safety/corporate-safety.controller'
     CorporateDispatchController,
     CorporateTripExecutionController,
     CorporateSafetyController,
+    CorporateBillingController,
   ],
   exports: [
     CorporateTenantService,
@@ -72,6 +78,7 @@ import { CorporateSafetyController } from './safety/corporate-safety.controller'
     CorporateDispatchSchedulerService,
     CorporateTripExecutionService,
     CorporateSafetyService,
+    CorporateBillingService,
   ],
 })
 export class CorporateDomainModule {}
