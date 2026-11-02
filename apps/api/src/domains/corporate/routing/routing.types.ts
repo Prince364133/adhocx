@@ -9,6 +9,8 @@ export interface RouteOptimizationOptions {
   vehicleCategory?: VehicleCategory; // defaults to 'SEDAN' (4 pax)
   maxCapacity?: number; // 4 for SEDAN, 6 for SUV
   officeBufferMinutes?: number; // defaults to 10 minutes prior to shift login
+  maxRideTimeMinutes?: number; // max in-cab time per employee, defaults to 120
+  logoutReportingBufferMinutes?: number; // LOGOUT: cab at office this long before logout, defaults to 15
 }
 
 export interface OptimizedStopResult {
@@ -52,6 +54,10 @@ export interface RouteOptimizationSummary {
   unassignedRequests: number;
   averagePassengersPerRoute: number;
   estimatedTotalDistanceMeters: number;
+  /** Where travel times came from: GOOGLE | CACHE | HAVERSINE | MIXED */
+  travelTimeSource?: string;
+  /** Constraint exceptions the planner could not resolve (ride time, night escort). */
+  warnings?: string[];
   routes: {
     id: string;
     routeIndex: number;

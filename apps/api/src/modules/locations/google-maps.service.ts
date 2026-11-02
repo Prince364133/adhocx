@@ -184,6 +184,56 @@ export class GoogleMapsService {
     };
   }
 
+  /** True when a Google key is configured and the matrix circuit breaker is closed. */
+  isRouteMatrixAvailable(): boolean {
+    return !!this.apiKey && !this.isCircuitOpen();
+  }
+
+  /**
+   * Raw Routes API computeRouteMatrix call (one request, caller handles chunking to
+   * Google's element limits). Returns the response elements as-is. Throws on HTTP or
+   * network failure and feeds the shared circuit breaker. `departureTime` must be in the
+   * future for TRAFFIC_AWARE routing; pass undefined to use "now".
+   */
+  async computeRouteMatrixElements(
+    origins: LatLng[],
+    destinations: LatLng[],
+    departureTime?: Date,
+    timeoutMs = 10_000,
+  ): Promise<
+    { originIndex?: number; destinationIndex?: number; duration?: string; distanceMeters?: number; condition?: string }[]
+  > {
+    if (!this.apiKey) throw new Error('GOOGLE_MAPS_API_KEY not configured');
+    if (this.isCircuitOpen()) throw new Error('Route matrix circuit breaker is open');
+    const wp = (p: LatLng) => ({
+      waypoint: { location: { latLng: { latitude: Number(p.latitude), longitude: Number(p.longitude) } } },
+    });
+    const payload = JSON.stringify({
+      origins: origins.map(wp),
+      destinations: destinations.map(wp),
+      travelMode: 'DRIVE',
+      routingPreference: 'TRAFFIC_AWARE',
+      ...(departureTime ? { departureTime: departureTime.toISOString() } : {}),
+    });
+    try {
+      const elements = await this.postJson(
+        'routes.googleapis.com',
+        '/distanceMatrix/v2:computeRouteMatrix',
+        payload,
+        {
+          'X-Goog-Api-Key': this.apiKey,
+          'X-Goog-FieldMask': 'originIndex,destinationIndex,duration,distanceMeters,condition',
+        },
+        timeoutMs,
+      );
+      this.matrixFailures = [];
+      return Array.isArray(elements) ? elements : [];
+    } catch (err: any) {
+      this.recordMatrixFailure(err);
+      throw err;
+    }
+  }
+
   isCircuitOpen(): boolean {
     return Date.now() < this.circuitOpenUntil;
   }
