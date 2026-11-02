@@ -11,7 +11,6 @@ import {
 } from '../src';
 
 describe('TripAggregate & Stop Execution Invariants', () => {
-  const officeLocation = GeoPoint.create(17.448293, 78.374128).getValue();
   const stop1Location = GeoPoint.create(17.445000, 78.370000).getValue();
   const stop2Location = GeoPoint.create(17.447000, 78.372000).getValue();
 

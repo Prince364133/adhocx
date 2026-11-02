@@ -8,7 +8,6 @@ import {
   DriverArrivedAtStopEvent,
   PassengerBoardedEvent,
   PassengerNoShowEvent,
-  TripStartedEvent,
   TripCompletedEvent,
   TripCancelledEvent,
 } from '../events/trip.events';
