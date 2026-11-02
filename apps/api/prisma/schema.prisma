@@ -11,6 +11,9 @@ enum UserRole {
   VENDOR
   DRIVER
   ADMIN
+  CORPORATE_ADMIN
+  CORPORATE_MANAGER
+  EMPLOYEE
 }
 
 enum UserStatus {
@@ -1128,6 +1131,7 @@ model CorporateRoute {
   stops          CorporateRouteStop[]
   invoiceLines   CorporateInvoiceLine[]
   driverEarnings CorporateDriverEarning[]
+  sosAlerts      CorporateSosAlert[]
 
   @@index([tenantId, shiftDate, shiftTime])
   @@index([driverId])
@@ -1219,4 +1223,36 @@ model CorporateDriverEarning {
   @@index([driverId, payoutStatus])
   @@index([routeId])
   @@map("corporate_driver_earnings")
+}
+
+enum CorporateSosStatus {
+  ACTIVE
+  ACKNOWLEDGED
+  RESPONDED
+  RESOLVED
+  FALSE_ALARM
+}
+
+model CorporateSosAlert {
+  id              String             @id @default(uuid()) @db.Uuid
+  routeId         String             @map("route_id") @db.Uuid
+  stopId          String?            @map("stop_id") @db.Uuid
+  triggeredById   String             @map("triggered_by_id") @db.Uuid
+  triggeredByRole String             @map("triggered_by_role") @db.VarChar(32) // EMPLOYEE | DRIVER
+  latitude        Decimal            @db.Decimal(10, 7)
+  longitude       Decimal            @db.Decimal(10, 7)
+  batteryPct      Int?               @map("battery_pct")
+  audioUrl        String?            @map("audio_url")
+  status          CorporateSosStatus @default(ACTIVE)
+  resolvedAt      DateTime?          @map("resolved_at")
+  resolvedById    String?            @map("resolved_by_id") @db.Uuid
+  resolutionNotes String?            @map("resolution_notes")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @default(now()) @updatedAt @map("updated_at")
+
+  route CorporateRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+
+  @@index([routeId])
+  @@index([status])
+  @@map("corporate_sos_alerts")
 }

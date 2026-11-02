@@ -64,3 +64,4 @@ export interface RouteOptimizationSummary {
     durationSeconds: number;
   }[];
 }
+

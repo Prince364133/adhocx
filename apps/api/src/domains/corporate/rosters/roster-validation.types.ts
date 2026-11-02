@@ -45,3 +45,4 @@ export interface RosterIngestionOutput {
   logoutRequestsCreated: number;
   duplicateRequestsSkipped: number;
 }
+

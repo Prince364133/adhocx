@@ -35,3 +35,4 @@ export interface CorporateDispatchWaveResult {
   offeredDriverName?: string;
   candidatesCount: number;
 }
+

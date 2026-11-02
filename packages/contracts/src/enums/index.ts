@@ -2,6 +2,9 @@ export enum UserRole {
   VENDOR = 'VENDOR',
   DRIVER = 'DRIVER',
   ADMIN = 'ADMIN',
+  CORPORATE_ADMIN = 'CORPORATE_ADMIN',
+  CORPORATE_MANAGER = 'CORPORATE_MANAGER',
+  EMPLOYEE = 'EMPLOYEE',
 }
 
 export enum UserStatus {
@@ -145,3 +148,81 @@ export enum NotificationType {
   BROADCAST = 'BROADCAST',
 }
 
+// ==========================================
+// CORPORATE MANAGED ETS ENUMS
+// ==========================================
+
+export enum CorporateTenantStatus {
+  ACTIVE = 'ACTIVE',
+  SUSPENDED = 'SUSPENDED',
+  INACTIVE = 'INACTIVE',
+}
+
+export enum CorporateTransportDirection {
+  LOGIN = 'LOGIN',
+  LOGOUT = 'LOGOUT',
+}
+
+export enum CorporateGender {
+  MALE = 'MALE',
+  FEMALE = 'FEMALE',
+  OTHER = 'OTHER',
+}
+
+export enum CorporateRosterStatus {
+  DRAFT = 'DRAFT',
+  PUBLISHED = 'PUBLISHED',
+  EXPIRED = 'EXPIRED',
+  ARCHIVED = 'ARCHIVED',
+}
+
+export enum CorporateRequestStatus {
+  APPROVED = 'APPROVED',
+  PLANNED = 'PLANNED',
+  ASSIGNED = 'ASSIGNED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+  RESCHEDULED = 'RESCHEDULED',
+  UNSERVED = 'UNSERVED',
+}
+
+export enum CorporateRouteStatus {
+  PLANNED = 'PLANNED',
+  DISPATCHING = 'DISPATCHING',
+  ASSIGNED = 'ASSIGNED',
+  IN_TRANSIT = 'IN_TRANSIT',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+}
+
+export enum CorporateStopStatus {
+  PENDING = 'PENDING',
+  ARRIVED = 'ARRIVED',
+  BOARDED = 'BOARDED',
+  NO_SHOW = 'NO_SHOW',
+  CANCELLED = 'CANCELLED',
+}
+
+export enum CorporateInvoiceStatus {
+  DRAFT = 'DRAFT',
+  ISSUED = 'ISSUED',
+  PAID = 'PAID',
+  OVERDUE = 'OVERDUE',
+  VOID = 'VOID',
+}
+
+export enum CorporateDriverEarningStatus {
+  UNPAID = 'UNPAID',
+  PROCESSING = 'PROCESSING',
+  PAID = 'PAID',
+  DISPUTED = 'DISPUTED',
+}
+
+export enum CorporateSosStatus {
+  ACTIVE = 'ACTIVE',
+  ACKNOWLEDGED = 'ACKNOWLEDGED',
+  RESPONDED = 'RESPONDED',
+  RESOLVED = 'RESOLVED',
+  FALSE_ALARM = 'FALSE_ALARM',
+}
