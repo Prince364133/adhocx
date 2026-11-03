@@ -5,9 +5,9 @@
    ========================================================================== */
 
 :root {
-  /* Official Brand Logo Color Identity (from uploaded logo) */
-  --color-brand-adhoc: #5728B2;
-  --color-brand-x: #FF5F09;
+  /* Official Brand Logo Color Identity (from footer/header logo: Blue #0948AC & Amber Gold #EE9811) */
+  --color-brand-adhoc: #0948AC;
+  --color-brand-x: #EE9811;
 
   /* Primary Brand Action (Blue Scale) */
   --color-primary-base: #1167EE;

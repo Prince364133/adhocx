@@ -180,7 +180,8 @@ export default function EarningsCalculator() {
         padding: '1.5rem',
         position: 'relative',
         overflow: 'hidden',
-        border: '2px solid #EE9811'
+        border: '1px solid #C2C9CC',
+        borderTop: '3px solid #EE9811'
       }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
           <div>
@@ -237,14 +238,14 @@ export default function EarningsCalculator() {
             rel="noopener noreferrer"
             style={{
               display: 'inline-block',
-              background: 'linear-gradient(135deg, #EE9811 0%, #C17A0B 100%)',
+              background: 'linear-gradient(135deg, #FF6B00 0%, #EE9811 100%)',
               color: '#ffffff',
               padding: '0.875rem 1.5rem',
               borderRadius: '0.625rem',
               fontWeight: 700,
               textDecoration: 'none',
               fontSize: '0.95rem',
-              boxShadow: '0 4px 14px rgba(238, 152, 17, 0.4)'
+              boxShadow: '0 4px 14px rgba(255, 95, 9, 0.28)'
             }}
           >
             Join Us & Claim ₹2,000 Bonus* →

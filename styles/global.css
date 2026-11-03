@@ -9,9 +9,9 @@
 
 /* ---- Design Tokens ---- */
 :root {
-  /* Official Brand Logo Color Identity (from uploaded logo) */
-  --color-brand-adhoc: #5728B2;
-  --color-brand-x: #FF5F09;
+  /* Official Brand Logo Color Identity (from footer/header logo: Blue #0948AC & Amber Gold #EE9811) */
+  --color-brand-adhoc: #0948AC;
+  --color-brand-x: #EE9811;
 
   /* Brand Primary - Action Blue Scale */
   --color-primary-900: #010D2D;
@@ -30,12 +30,12 @@
 
   /* Brand Warm Accent - Amber Gold Scale */
   --color-accent-base: #EE9811;
-  --color-accent-hover: #C17A0B;
-  --color-accent-gradient: linear-gradient(135deg, #EE9811 0%, #C17A0B 100%);
+  --color-accent-hover: #D97706;
+  --color-accent-gradient: linear-gradient(135deg, #FF6B00 0%, #EE9811 100%);
   --color-amber-900: #351E01;
   --color-amber-800: #613B03;
-  --color-amber-700: #915B06;
-  --color-amber-600: #C17A0B;
+  --color-amber-700: #B45309;
+  --color-amber-600: #D97706;
   --color-amber-500: #EE9811;
   --color-amber-200: #FEC98E;
   --color-amber-50: #FFFBF7;
@@ -301,13 +301,14 @@ input, select, textarea {
   background: var(--color-accent-gradient);
   color: var(--color-text-inverse);
   border-color: var(--color-accent-base);
-  box-shadow: 0 4px 14px rgba(238, 152, 17, 0.35);
+  box-shadow: 0 4px 14px rgba(238, 152, 17, 0.28);
 }
 
 .btn-accent:hover {
-  background: linear-gradient(135deg, #C17A0B 0%, #915B06 100%);
+  background: linear-gradient(135deg, #EE9811 0%, #D97706 100%);
+  border-color: #D97706;
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(238, 152, 17, 0.45);
+  box-shadow: 0 6px 20px rgba(238, 152, 17, 0.38);
 }
 
 .btn-success {
@@ -386,7 +387,7 @@ input, select, textarea {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 1.5rem;
   font-weight: 800;
-  color: var(--color-brand-adhoc, #5728B2) !important;
+  color: var(--color-brand-adhoc, #0948AC) !important;
   letter-spacing: -0.025em;
   display: inline-flex;
   align-items: center;
@@ -395,7 +396,7 @@ input, select, textarea {
 
 .logo-accent,
 .brand-accent {
-  color: var(--color-brand-x, #FF5F09) !important;
+  color: var(--color-brand-x, #EE9811) !important;
   font-weight: 800;
 }
 
@@ -404,7 +405,7 @@ input, select, textarea {
 .adhocx-brand {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-weight: 800;
-  color: var(--color-brand-adhoc, #5728B2) !important;
+  color: var(--color-brand-adhoc, #0948AC) !important;
   letter-spacing: -0.02em;
   display: inline;
 }
@@ -412,7 +413,7 @@ input, select, textarea {
 .brand-inline .brand-accent,
 .brand-inline .logo-accent,
 .adhocx-brand .brand-accent {
-  color: var(--color-brand-x, #FF5F09) !important;
+  color: var(--color-brand-x, #EE9811) !important;
   font-weight: 800;
 }
 
