@@ -1,0 +1,324 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "AdhocX Employee Transport Software (ETS)",
+  "operatingSystem": "Web, Android, iOS",
+  "applicationCategory": "BusinessApplication",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "INR"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Estemporaneo Technologies Private Limited",
+    "url": "https://www.adhocx.com"
+  },
+  "description": "Enterprise Employee Transport Software featuring automated PostGIS route planning, Corporate Client Portal, Employee Mobile App, and Driver Mobile App for Hyderabad tech corridors."
+};
+---
+
+<BaseLayout
+  title="Employee Transport Software (ETS) — Enterprise Mobility Platform | AdhocX"
+  description="Explore AdhocX ETS: enterprise employee transportation software featuring automated PostGIS route planning, Corporate Client Portal, Employee Mobile App, and Driver App."
+  canonical="https://www.adhocx.com/ets"
+  activeNav="platform"
+  jsonLd={jsonLd}
+>
+  <!-- Hero Section -->
+  <section class="page-hero-section" style="background: linear-gradient(180deg, var(--color-primary-50) 0%, #ffffff 100%); padding: var(--space-16) 0 var(--space-12);">
+    <div class="container text-center" style="max-width: 900px; margin: 0 auto;">
+      <div class="badge badge-blue" style="margin-bottom: var(--space-4);">
+        <span class="status-dot-pulse"></span>
+        <span>Enterprise ETS Operating System &bull; PostGIS Routing Engine</span>
+      </div>
+      <h1 class="display-title" style="color: var(--color-text-primary); margin-bottom: var(--space-6);">
+        The Complete Enterprise Employee Transportation Operating System.
+      </h1>
+      <p class="body-large" style="color: var(--color-text-secondary); margin-bottom: var(--space-8); line-height: 1.6;">
+        Automate your entire shift transport cycle—from HR roster ingestion and algorithmic PostGIS route planning to live GPS employee tracking, OTP boarding verification, and 3-way match billing.
+      </p>
+      <div style="display: flex; gap: var(--space-4); justify-content: center; flex-wrap: wrap;">
+        <a href="/contact" class="btn btn-primary btn-large">
+          Schedule Platform Demo &rarr;
+        </a>
+        <a href="#architecture" class="btn btn-secondary btn-large">
+          System Architecture
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Technical Performance Badges -->
+  <section style="background: var(--color-surface); border-top: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); padding: var(--space-8) 0;">
+    <div class="container">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-6); text-align: center;">
+        <div>
+          <div style="font-size: 2rem; font-weight: 800; color: var(--color-primary-600);">&lt; 500 ms</div>
+          <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-top: 4px;">API Read p95 Latency</div>
+        </div>
+        <div>
+          <div style="font-size: 2rem; font-weight: 800; color: var(--color-primary-600);">15&ndash;30 Sec</div>
+          <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-top: 4px;">GPS Telemetry Freshness</div>
+        </div>
+        <div>
+          <div style="font-size: 2rem; font-weight: 800; color: var(--color-primary-600);">99.8%</div>
+          <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-top: 4px;">On-Time Shift Arrival</div>
+        </div>
+        <div>
+          <div style="font-size: 2rem; font-weight: 800; color: var(--color-primary-600);">100% Digital</div>
+          <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-top: 4px;">OTP / QR Boarding Handshake</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- The 3 Interconnected Pillars -->
+  <section style="padding: var(--space-16) 0; background: var(--color-surface-muted);">
+    <div class="container">
+      <div class="text-center" style="max-width: 800px; margin: 0 auto var(--space-12);">
+        <span class="badge badge-warm" style="margin-bottom: var(--space-3);">Unified Product Ecosystem</span>
+        <h2 style="font-size: 2rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-4);">
+          Three Synchronized Platforms. One Cohesive Experience.
+        </h2>
+        <p style="color: var(--color-text-secondary); font-size: 1rem; line-height: 1.6;">
+          AdhocX ETS coordinates corporate transport managers, commuting employees, and commercial drivers in real time through dedicated native interfaces.
+        </p>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: var(--space-12);">
+        
+        <!-- Pillar 1: Corporate Client Portal -->
+        <div id="admin-portal" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm); display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-8); align-items: center;">
+          <div>
+            <div class="badge badge-blue" style="margin-bottom: var(--space-3);">Pillar 1: Command Console</div>
+            <h3 style="font-size: 1.75rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-4);">
+              Corporate Client Portal
+            </h3>
+            <p style="color: var(--color-text-secondary); font-size: 0.9375rem; line-height: 1.6; margin-bottom: var(--space-6);">
+              Designed for Corporate Super Admins, HR Directors, Facilities Managers, and Transport Desks to oversee demand, configure shift rules, and review financial ledgers with granular role-based access control.
+            </p>
+            <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-3); font-size: 0.9375rem; color: var(--color-text-secondary);">
+              <li style="display: flex; gap: var(--space-3); align-items: flex-start;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span><strong>Multi-Office Tenant Management:</strong> Configure multiple campuses (HITEC City, Gachibowli, Pocharam), departments, and cost centers.</span>
+              </li>
+              <li style="display: flex; gap: var(--space-3); align-items: flex-start;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span><strong>Bulk Roster Ingestion:</strong> Drag-and-drop XLSX/CSV rosters with instant dry-run geocoding validation, conflict checks, and version history.</span>
+              </li>
+              <li style="display: flex; gap: var(--space-3); align-items: flex-start;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span><strong>Live Route Oversight:</strong> Real-time corridor telemetry, GPS freshness watchdog, unauthorized route deviation alerts, and delay tracking.</span>
+              </li>
+              <li style="display: flex; gap: var(--space-3); align-items: flex-start;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span><strong>Automated 3-Way Reconciliation:</strong> Instant cross-validation of approved rosters against GPS telemetry and contracted rate cards.</span>
+              </li>
+            </ul>
+          </div>
+          <div style="background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-6);">
+            <div style="font-weight: 700; font-size: 0.875rem; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: var(--space-4);">
+              Portal Modules & Workflows
+            </div>
+            <div style="display: flex; flex-direction: column; gap: var(--space-3);">
+              <div style="background: var(--color-surface); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: 600; font-size: 0.875rem; color: var(--color-text-primary);">Tenant Setup & RBAC</span>
+                <span class="badge badge-blue" style="font-size: 0.75rem;">SSO / MFA Enabled</span>
+              </div>
+              <div style="background: var(--color-surface); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: 600; font-size: 0.875rem; color: var(--color-text-primary);">Roster Ingestion Engine</span>
+                <span class="badge badge-warm" style="font-size: 0.75rem;">Dry-Run Validator</span>
+              </div>
+              <div style="background: var(--color-surface); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: 600; font-size: 0.875rem; color: var(--color-text-primary);">Live Route Oversight</span>
+                <span class="badge badge-blue" style="font-size: 0.75rem;">PostGIS Telemetry</span>
+              </div>
+              <div style="background: var(--color-surface); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: 600; font-size: 0.875rem; color: var(--color-text-primary);">Safety & SLA Center</span>
+                <span class="badge badge-blue" style="font-size: 0.75rem;">24/7 Command Sync</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pillar 2: Employee Mobile App -->
+        <div id="hr-mobility" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm); display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-8); align-items: center;">
+          <div style="order: 2;">
+            <div class="badge badge-blue" style="margin-bottom: var(--space-3);">Pillar 2: Passenger Experience</div>
+            <h3 style="font-size: 1.75rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-4);">
+              Employee Mobile App
+            </h3>
+            <p style="color: var(--color-text-secondary); font-size: 0.9375rem; line-height: 1.6; margin-bottom: var(--space-6);">
+              Commuting employees enjoy absolute peace of mind with schedule visibility, live vehicle positioning, transparent driver credentials, and one-tap emergency escalation.
+            </p>
+            <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-3); font-size: 0.9375rem; color: var(--color-text-secondary);">
+              <li style="display: flex; gap: var(--space-3); align-items: flex-start;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span><strong>Shift Calendar & Next Trip Card:</strong> Clear pickup location, estimated boarding time, driver photo, and verified commercial plate number.</span>
+              </li>
+              <li style="display: flex; gap: var(--space-3); align-items: flex-start;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span><strong>Real-Time Live Map & Telemetry:</strong> Vehicle location displayed with explicit GPS age freshness, eliminating deceptive simulated locations.</span>
+              </li>
+              <li style="display: flex; gap: var(--space-3); align-items: flex-start;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span><strong>Expiring OTP / QR Boarding:</strong> Dynamic challenge code generated per trip ensures authenticated boarding and automated attendance logging.</span>
+              </li>
+              <li style="display: flex; gap: var(--space-3); align-items: flex-start;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span><strong>24/7 In-App SOS Button:</strong> Active throughout journey window; triggers instant incident escalation to the HITEC City Command Center.</span>
+              </li>
+            </ul>
+          </div>
+          <div style="background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-6); order: 1;">
+            <div style="font-weight: 700; font-size: 0.875rem; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: var(--space-4);">
+              Mobile Passenger Modules
+            </div>
+            <div style="display: flex; flex-direction: column; gap: var(--space-3);">
+              <div style="background: var(--color-surface); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: 600; font-size: 0.875rem; color: var(--color-text-primary);">Corporate SSO / Mobile OTP</span>
+                <span class="badge badge-blue" style="font-size: 0.75rem;">Verified Auth</span>
+              </div>
+              <div style="background: var(--color-surface); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: 600; font-size: 0.875rem; color: var(--color-text-primary);">Live Vehicle Tracking</span>
+                <span class="badge badge-blue" style="font-size: 0.75rem;">GPS &lt; 15s Fresh</span>
+              </div>
+              <div style="background: var(--color-surface); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: 600; font-size: 0.875rem; color: var(--color-text-primary);">Expiring Boarding OTP</span>
+                <span class="badge badge-warm" style="font-size: 0.75rem;">Geofenced Challenge</span>
+              </div>
+              <div style="background: var(--color-surface); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: 600; font-size: 0.875rem; color: var(--color-text-primary);">Safety & SOS Center</span>
+                <span class="badge badge-blue" style="font-size: 0.75rem;">Command Escalation</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pillar 3: Driver Mobile App -->
+        <div id="driver-app" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm); display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-8); align-items: center;">
+          <div>
+            <div class="badge badge-blue" style="margin-bottom: var(--space-3);">Pillar 3: Fleet Operations</div>
+            <h3 style="font-size: 1.75rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-4);">
+              Driver Partner Mobile App
+            </h3>
+            <p style="color: var(--color-text-secondary); font-size: 0.9375rem; line-height: 1.6; margin-bottom: var(--space-6);">
+              Empowers verified commercial drivers with atomic route offer dispatch, turn-by-turn waypoint routing, digital OTP passenger check-ins, and zero-commission weekly bank payouts.
+            </p>
+            <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-3); font-size: 0.9375rem; color: var(--color-text-secondary);">
+              <li style="display: flex; gap: var(--space-3); align-items: flex-start;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span><strong>Atomic Route Acceptance:</strong> Route offers dispatched directly to qualified drivers with atomic locks, eliminating dispatcher favoritism.</span>
+              </li>
+              <li style="display: flex; gap: var(--space-3); align-items: flex-start;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span><strong>Sequential Navigation:</strong> Ordered stop sequence with geofenced arrival triggers and turn-by-turn routing to employee pickup points.</span>
+              </li>
+              <li style="display: flex; gap: var(--space-3); align-items: flex-start;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span><strong>Privacy-Protected Calling:</strong> Masked virtual VoIP/proxy calling allows drivers to contact passengers without revealing personal phone numbers.</span>
+              </li>
+              <li style="display: flex; gap: var(--space-3); align-items: flex-start;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span><strong>Earnings Ledger & Direct Payouts:</strong> Per-route earnings breakdown with weekly NEFT/IMPS bank confirmations and zero hidden platform cuts.</span>
+              </li>
+            </ul>
+          </div>
+          <div style="background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-6);">
+            <div style="font-weight: 700; font-size: 0.875rem; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: var(--space-4);">
+              Driver Workflow Stages
+            </div>
+            <div style="display: flex; flex-direction: column; gap: var(--space-3);">
+              <div style="background: var(--color-surface); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: 600; font-size: 0.875rem; color: var(--color-text-primary);">Commercial KYC & Vehicle Reg</span>
+                <span class="badge badge-blue" style="font-size: 0.75rem;">100% Yellow Plate</span>
+              </div>
+              <div style="background: var(--color-surface); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: 600; font-size: 0.875rem; color: var(--color-text-primary);">Incoming Shift Route Offers</span>
+                <span class="badge badge-warm" style="font-size: 0.75rem;">Atomic Confirmation</span>
+              </div>
+              <div style="background: var(--color-surface); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: 600; font-size: 0.875rem; color: var(--color-text-primary);">Sequential Turn Navigation</span>
+                <span class="badge badge-blue" style="font-size: 0.75rem;">PostGIS Waypoints</span>
+              </div>
+              <div style="background: var(--color-surface); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: 600; font-size: 0.875rem; color: var(--color-text-primary);">Automated Weekly Settlement</span>
+                <span class="badge badge-blue" style="font-size: 0.75rem;">Direct Bank Payout</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Technical Architecture & Integrations -->
+  <section id="architecture" style="padding: var(--space-16) 0; background: var(--color-surface);">
+    <div class="container">
+      <div class="text-center" style="max-width: 800px; margin: 0 auto var(--space-12);">
+        <span class="badge badge-blue" style="margin-bottom: var(--space-3);">Engineering Core</span>
+        <h2 style="font-size: 2rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-4);">
+          Architected for High-Concurrency Enterprise Scale
+        </h2>
+        <p style="color: var(--color-text-secondary); font-size: 1rem; line-height: 1.6;">
+          Built on resilient event-driven microservices, partitioned spatial databases, and enterprise SSO security standards.
+        </p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-6);">
+        <div style="background: var(--color-surface-muted); padding: var(--space-6); border-radius: var(--radius-lg); border: 1px solid var(--color-border);">
+          <div style="font-weight: 700; font-size: 1.125rem; color: var(--color-text-primary); margin-bottom: var(--space-2);">PostGIS Spatial Engine</div>
+          <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.5; margin: 0;">
+            Geospatial clustering optimizes passenger groupings, reduces deadhead kilometers, and dynamically enforces maximum ride duration boundaries.
+          </p>
+        </div>
+
+        <div style="background: var(--color-surface-muted); padding: var(--space-6); border-radius: var(--radius-lg); border: 1px solid var(--color-border);">
+          <div style="font-weight: 700; font-size: 1.125rem; color: var(--color-text-primary); margin-bottom: var(--space-2);">Enterprise HRMS Adapters</div>
+          <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.5; margin: 0;">
+            Turnkey bidirectional API connectors for Darwinbox, Workday, SAP SuccessFactors, Oracle HCM, and secure automated SFTP roster sync.
+          </p>
+        </div>
+
+        <div style="background: var(--color-surface-muted); padding: var(--space-6); border-radius: var(--radius-lg); border: 1px solid var(--color-border);">
+          <div style="font-weight: 700; font-size: 1.125rem; color: var(--color-text-primary); margin-bottom: var(--space-2);">Event-Driven WebSockets/SSE</div>
+          <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.5; margin: 0;">
+            Durable event bus streaming live cab position updates, driver arrival events, and instant SOS dispatch to browser portals and native apps.
+          </p>
+        </div>
+
+        <div style="background: var(--color-surface-muted); padding: var(--space-6); border-radius: var(--radius-lg); border: 1px solid var(--color-border);">
+          <div style="font-weight: 700; font-size: 1.125rem; color: var(--color-text-primary); margin-bottom: var(--space-2);">Multi-Tenant Role-Based Security</div>
+          <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.5; margin: 0;">
+            Strict tenant isolation in all databases and APIs. Complete data residency within India in full compliance with the DPDP Act.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Strip -->
+  <section style="padding: var(--space-16) 0; background: linear-gradient(135deg, var(--color-primary-900) 0%, #032969 100%); color: #ffffff; text-align: center;">
+    <div class="container" style="max-width: 760px; margin: 0 auto;">
+      <h2 style="font-size: 2.25rem; font-weight: 800; margin-bottom: var(--space-4); color: #ffffff;">
+        Upgrade Your Employee Transport Software
+      </h2>
+      <p style="font-size: 1.125rem; color: var(--color-primary-200); margin-bottom: var(--space-8); line-height: 1.6;">
+        Schedule a personalized 30-minute demonstration of the Corporate Portal, Employee Mobile App, and algorithmic PostGIS dispatch engine.
+      </p>
+      <div style="display: flex; gap: var(--space-4); justify-content: center; flex-wrap: wrap;">
+        <a href="/contact" class="btn btn-primary btn-large" style="background: var(--color-brand-x); border-color: var(--color-brand-x);">
+          Book Platform Demo &rarr;
+        </a>
+        <a href="/pricing" class="btn btn-outline btn-large" style="color: #ffffff; border-color: rgba(255,255,255,0.4);">
+          Review Pricing Rate Cards
+        </a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

@@ -1,0 +1,248 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": "Enterprise Transport Safety & Duty of Care Framework — AdhocX",
+  "url": "https://www.adhocx.com/safety",
+  "description": "Comprehensive enterprise commuter safety: 24/7 HITEC City command center, mandatory night escort protocols for women employees, <15s GPS freshness, and 100% yellow-plate verified fleets.",
+  "publisher": {
+    "@type": "Organization",
+    "name": "Estemporaneo Technologies Private Limited",
+    "url": "https://www.adhocx.com"
+  }
+};
+---
+
+<BaseLayout
+  title="Enterprise Transport Safety & Duty of Care Framework — AdhocX"
+  description="Comprehensive enterprise commuter safety: 24/7 HITEC City command center, mandatory night escort protocols for women employees, <15s GPS freshness, and 100% yellow-plate verified fleets."
+  canonical="https://www.adhocx.com/safety"
+  activeNav="platform"
+  jsonLd={jsonLd}
+>
+  <!-- Hero Section -->
+  <section class="page-hero-section" style="background: linear-gradient(180deg, var(--color-primary-50) 0%, #ffffff 100%); padding: var(--space-16) 0 var(--space-12);">
+    <div class="container text-center" style="max-width: 860px; margin: 0 auto;">
+      <div class="badge badge-blue" style="margin-bottom: var(--space-4);">
+        <span class="status-dot-pulse"></span>
+        <span>Duty of Care &bull; Telangana RTA & Police Emergency Integration</span>
+      </div>
+      <h1 class="display-title" style="color: var(--color-text-primary); margin-bottom: var(--space-6);">
+        Uncompromising Safety: Setting the Standard for Corporate Ground Transit.
+      </h1>
+      <p class="body-large" style="color: var(--color-text-secondary); margin-bottom: var(--space-8); line-height: 1.6;">
+        Every employee commute on <span class="logo-text" style="font-size: 1.15em;">Adhoc<span class="logo-accent">X</span></span> is protected by multi-layered physical and digital security controls—from mandatory night escort guards to 24/7 telemetry monitoring and sub-15s emergency response.
+      </p>
+      <div style="display: flex; gap: var(--space-4); justify-content: center; flex-wrap: wrap;">
+        <a href="/contact" class="btn btn-primary btn-large">
+          Request Safety Audit &rarr;
+        </a>
+        <a href="#escort-protocol" class="btn btn-secondary btn-large">
+          Night Escort Protocols
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 Core Safety Commitments -->
+  <section style="background: var(--color-surface); border-top: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); padding: var(--space-8) 0;">
+    <div class="container">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-6); text-align: center;">
+        <div>
+          <div style="font-size: 2rem; font-weight: 800; color: var(--color-primary-600);">&lt; 15 Sec</div>
+          <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-top: 4px;">SOS Signal Acknowledgment</div>
+        </div>
+        <div>
+          <div style="font-size: 2rem; font-weight: 800; color: var(--color-primary-600);">8 PM &ndash; 6 AM</div>
+          <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-top: 4px;">Mandatory Night Escort Hours</div>
+        </div>
+        <div>
+          <div style="font-size: 2rem; font-weight: 800; color: var(--color-primary-600);">100%</div>
+          <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-top: 4px;">Yellow-Board Fleet Verification</div>
+        </div>
+        <div>
+          <div style="font-size: 2rem; font-weight: 800; color: var(--color-primary-600);">Dial 100 / 112</div>
+          <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-top: 4px;">Direct Emergency Escalation</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 1: Women Employee Night Escort Protocol -->
+  <section id="escort-protocol" style="padding: var(--space-16) 0; background: var(--color-surface-muted);">
+    <div class="container">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: var(--space-12); align-items: center;">
+        <div>
+          <span class="badge badge-warm" style="margin-bottom: var(--space-3);">Statutory Night Shift Compliance</span>
+          <h2 style="font-size: 2rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-4);">
+            Mandated Escort Protocols for Women Commuters
+          </h2>
+          <p style="color: var(--color-text-secondary); font-size: 1rem; line-height: 1.6; margin-bottom: var(--space-4);">
+            In strict compliance with the Telangana Shops and Establishments Act and corporate duty of care guidelines, AdhocX enforces rigorous escort security for female employees traveling between <strong>8:00 PM and 6:00 AM</strong>.
+          </p>
+          <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-4); font-size: 0.9375rem; color: var(--color-text-secondary);">
+            <li style="display: flex; gap: var(--space-3); align-items: flex-start;">
+              <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--color-primary-50); display: flex; align-items: center; justify-content: center; color: var(--color-primary-600); flex-shrink: 0; margin-top: 2px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </div>
+              <div>
+                <strong style="color: var(--color-text-primary);">First-Pickup & Last-Drop Rule:</strong> Our PostGIS algorithm sequences routes so that a female passenger is never the first person picked up alone or the last person dropped off alone with the driver without a certified security guard.
+              </div>
+            </li>
+            <li style="display: flex; gap: var(--space-3); align-items: flex-start;">
+              <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--color-primary-50); display: flex; align-items: center; justify-content: center; color: var(--color-primary-600); flex-shrink: 0; margin-top: 2px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </div>
+              <div>
+                <strong style="color: var(--color-text-primary);">Physical Escort Guard Verification:</strong> Trained security guards check into the driver app before trip departure. The driver cannot start an overnight female employee route without an authenticated guard check-in.
+              </div>
+            </li>
+            <li style="display: flex; gap: var(--space-3); align-items: flex-start;">
+              <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--color-primary-50); display: flex; align-items: center; justify-content: center; color: var(--color-primary-600); flex-shrink: 0; margin-top: 2px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </div>
+              <div>
+                <strong style="color: var(--color-text-primary);">Safe-Reach Confirmation:</strong> Following final deboarding at the employee residence, an automated notification prompts the employee to confirm safe entry into their home. Failure to respond within 5 minutes triggers an immediate welfare call.
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <div style="background: var(--color-surface); border: 2px solid var(--color-border-amber); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-md);">
+          <div style="display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4);">
+            <div style="width: 36px; height: 36px; border-radius: 8px; background: var(--color-amber-50); display: flex; align-items: center; justify-content: center; color: var(--color-amber-600);">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            </div>
+            <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--color-text-primary); margin: 0;">Night Shift Guard Checklist</h3>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: var(--space-3); font-size: 0.875rem; color: var(--color-text-secondary);">
+            <div style="padding: var(--space-3) var(--space-4); background: var(--color-surface-muted); border-radius: var(--radius-md); border-left: 3px solid var(--color-amber-500);">
+              <strong>Hours Active:</strong> 20:00 to 06:00 IST every night
+            </div>
+            <div style="padding: var(--space-3) var(--space-4); background: var(--color-surface-muted); border-radius: var(--radius-md); border-left: 3px solid var(--color-amber-500);">
+              <strong>Guard Credentials:</strong> Uniformed, verified background checks, certified by recognized security agency
+            </div>
+            <div style="padding: var(--space-3) var(--space-4); background: var(--color-surface-muted); border-radius: var(--radius-md); border-left: 3px solid var(--color-amber-500);">
+              <strong>Vehicle Seating:</strong> Guard must be seated in the front passenger seat, never behind passengers
+            </div>
+            <div style="padding: var(--space-3) var(--space-4); background: var(--color-surface-muted); border-radius: var(--radius-md); border-left: 3px solid var(--color-amber-500);">
+              <strong>Campus Escort Hand-off:</strong> Physical confirmation logged at corporate facility gate before release
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 2: 24/7 Command Center & Emergency Escalation -->
+  <section style="padding: var(--space-16) 0; background: var(--color-surface);">
+    <div class="container">
+      <div class="text-center" style="max-width: 800px; margin: 0 auto var(--space-12);">
+        <span class="badge badge-blue" style="margin-bottom: var(--space-3);">Command & Control</span>
+        <h2 style="font-size: 2rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-4);">
+          24/7 HITEC City Incident Command Center
+        </h2>
+        <p style="color: var(--color-text-secondary); font-size: 1rem; line-height: 1.6;">
+          Our centralized operations command center operates around the clock, continuously monitoring all active corporate trips across Telangana.
+        </p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-6);">
+        <div style="background: var(--color-surface-muted); padding: var(--space-6); border-radius: var(--radius-lg); border: 1px solid var(--color-border);">
+          <div style="font-weight: 700; font-size: 1.125rem; color: var(--color-text-primary); margin-bottom: var(--space-2);">Sub-15s SOS Intake</div>
+          <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.5; margin: 0;">
+            When an employee triggers the in-app SOS or vehicle panic button, the incident is instantly prioritized with vehicle coordinates, driver identity, and passenger list.
+          </p>
+        </div>
+
+        <div style="background: var(--color-surface-muted); padding: var(--space-6); border-radius: var(--radius-lg); border: 1px solid var(--color-border);">
+          <div style="font-weight: 700; font-size: 1.125rem; color: var(--color-text-primary); margin-bottom: var(--space-2);">Police Emergency Sync</div>
+          <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.5; margin: 0;">
+            Direct integration protocol with Telangana Police Emergency Response Center (Dial 100 / 112) for rapid police intercept dispatch if required.
+          </p>
+        </div>
+
+        <div style="background: var(--color-surface-muted); padding: var(--space-6); border-radius: var(--radius-lg); border: 1px solid var(--color-border);">
+          <div style="font-weight: 700; font-size: 1.125rem; color: var(--color-text-primary); margin-bottom: var(--space-2);">Corridor Route Deviation Alarms</div>
+          <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.5; margin: 0;">
+            If a vehicle diverges from its approved PostGIS corridor or remains stationary for over 5 minutes without reason, an audible dispatcher alarm triggers.
+          </p>
+        </div>
+
+        <div style="background: var(--color-surface-muted); padding: var(--space-6); border-radius: var(--radius-lg); border: 1px solid var(--color-border);">
+          <div style="font-weight: 700; font-size: 1.125rem; color: var(--color-text-primary); margin-bottom: var(--space-2);">Corporate Security Alerts</div>
+          <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.5; margin: 0;">
+            Automated SMS and email notifications are broadcast to corporate facility heads and security teams during any live exception event.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 3: 100% Commercial Fleet Verification -->
+  <section style="padding: var(--space-16) 0; background: var(--color-surface-muted); border-top: 1px solid var(--color-border);">
+    <div class="container text-center" style="max-width: 800px; margin: 0 auto var(--space-10);">
+      <span class="badge badge-warm" style="margin-bottom: var(--space-3);">Zero Private Cabs</span>
+      <h2 style="font-size: 2rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-4);">
+        Rigorous Commercial Fleet & Driver Vetting
+      </h2>
+      <p style="color: var(--color-text-secondary); font-size: 1rem; line-height: 1.6;">
+        Every vehicle and driver on the AdhocX platform undergoes independent multi-step verification before executing corporate trips.
+      </p>
+    </div>
+
+    <div class="container">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-6);">
+        <div style="background: var(--color-surface); padding: var(--space-6); border-radius: var(--radius-lg); border: 1px solid var(--color-border);">
+          <div style="font-weight: 700; font-size: 1rem; color: var(--color-text-primary); margin-bottom: var(--space-2);">Yellow-Plate Registration</div>
+          <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.5; margin: 0;">
+            100% commercial registration verified against VAHAN database. Private (white-plate) vehicles are strictly blocked by software.
+          </p>
+        </div>
+
+        <div style="background: var(--color-surface); padding: var(--space-6); border-radius: var(--radius-lg); border: 1px solid var(--color-border);">
+          <div style="font-weight: 700; font-size: 1rem; color: var(--color-text-primary); margin-bottom: var(--space-2);">RTA Fitness Certificates</div>
+          <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.5; margin: 0;">
+            Continuous tracking of vehicle Fitness Certificate (FC) expiry. Vehicles are automatically suspended 7 days prior to expiry if unrenewed.
+          </p>
+        </div>
+
+        <div style="background: var(--color-surface); padding: var(--space-6); border-radius: var(--radius-lg); border: 1px solid var(--color-border);">
+          <div style="font-weight: 700; font-size: 1rem; color: var(--color-text-primary); margin-bottom: var(--space-2);">Commercial Driver TR Badge</div>
+          <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.5; margin: 0;">
+            Every driver partner holds a valid commercial driving license with mandatory Transport (TR) endorsement badge issued by the RTA.
+          </p>
+        </div>
+
+        <div style="background: var(--color-surface); padding: var(--space-6); border-radius: var(--radius-lg); border: 1px solid var(--color-border);">
+          <div style="font-weight: 700; font-size: 1rem; color: var(--color-text-primary); margin-bottom: var(--space-2);">Police Background Verification</div>
+          <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.5; margin: 0;">
+            Formal police criminal background verification certificate and permanent residential address verification on file for every driver.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Strip -->
+  <section style="padding: var(--space-16) 0; background: linear-gradient(135deg, var(--color-primary-900) 0%, #032969 100%); color: #ffffff; text-align: center;">
+    <div class="container" style="max-width: 760px; margin: 0 auto;">
+      <h2 style="font-size: 2.25rem; font-weight: 800; margin-bottom: var(--space-4); color: #ffffff;">
+        Review Our Complete Corporate Safety Handbook
+      </h2>
+      <p style="font-size: 1.125rem; color: var(--color-primary-200); margin-bottom: var(--space-8); line-height: 1.6;">
+        Schedule an audit walk-through with our Hyderabad operations team or connect with our safety compliance desk.
+      </p>
+      <div style="display: flex; gap: var(--space-4); justify-content: center; flex-wrap: wrap;">
+        <a href="/contact" class="btn btn-primary btn-large" style="background: var(--color-brand-x); border-color: var(--color-brand-x);">
+          Contact Safety Command Desk &rarr;
+        </a>
+        <a href="/about" class="btn btn-outline btn-large" style="color: #ffffff; border-color: rgba(255,255,255,0.4);">
+          About Our Governance
+        </a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

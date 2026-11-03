@@ -36,7 +36,7 @@ const { activeNav = '', logoTag = '' } = Astro.props;
                 <div class="mega-menu-item-title">Corporate Travel & Spot Cabs</div>
                 <div class="mega-menu-item-desc">Flights, airport transfers, hotels and executive spot cabs on the same policy engine</div>
               </a>
-              <a href="/vendors#shift-transit" class="mega-menu-item">
+              <a href="/ets" class="mega-menu-item">
                 <div class="mega-menu-item-title">Employee Transport Software (ETS)</div>
                 <div class="mega-menu-item-desc">Rosters, routing, programmatic allocation and tracking end to end</div>
               </a>
@@ -70,11 +70,11 @@ const { activeNav = '', logoTag = '' } = Astro.props;
           <div>
             <div class="mega-menu-col-title">Platform</div>
             <div class="mega-menu-list">
-              <a href="/terms#compliance" class="mega-menu-item">
+              <a href="/safety" class="mega-menu-item">
                 <div class="mega-menu-item-title">Security & Compliance</div>
                 <div class="mega-menu-item-desc">100% yellow-plate verified, driver KYC, GPS telemetry & Telangana transport regulations</div>
               </a>
-              <a href="/vendors#fleet-rates" class="mega-menu-item">
+              <a href="/pricing" class="mega-menu-item">
                 <div class="mega-menu-item-title">Pricing</div>
                 <div class="mega-menu-item-desc">Usage-based, by module and site with guaranteed 1-hour bank refund SLA</div>
               </a>
@@ -115,11 +115,11 @@ const { activeNav = '', logoTag = '' } = Astro.props;
           <div>
             <div class="mega-menu-col-title">By Role</div>
             <div class="mega-menu-list">
-              <a href="/vendors#role-hr" class="mega-menu-item">
+              <a href="/ets#hr-mobility" class="mega-menu-item">
                 <div class="mega-menu-item-title">HR & Mobility</div>
                 <div class="mega-menu-item-desc">Rosters, safety compliance, SOS telemetry, employee experience</div>
               </a>
-              <a href="/vendors#role-admin" class="mega-menu-item">
+              <a href="/ets#admin-portal" class="mega-menu-item">
                 <div class="mega-menu-item-title">Transport Admin</div>
                 <div class="mega-menu-item-desc">One automated queue instead of an overflowing WhatsApp inbox</div>
               </a>
@@ -130,7 +130,7 @@ const { activeNav = '', logoTag = '' } = Astro.props;
           <div>
             <div class="mega-menu-col-title">By Outcome</div>
             <div class="mega-menu-list">
-              <a href="/vendors#outcome-cfo" class="mega-menu-item">
+              <a href="/pricing#reconciliation" class="mega-menu-item">
                 <div class="mega-menu-item-title">Finance & CFO</div>
                 <div class="mega-menu-item-desc">Rate cards, three-way match, single monthly ERP sync</div>
               </a>
@@ -153,9 +153,9 @@ const { activeNav = '', logoTag = '' } = Astro.props;
                 <div class="mega-menu-item-title">Compare AdhocX</div>
                 <div class="mega-menu-item-desc">Side by side with unorganized vendor desks and fragmented WhatsApp groups</div>
               </a>
-              <a href="/blogs#resources" class="mega-menu-item">
-                <div class="mega-menu-item-title">Resources</div>
-                <div class="mega-menu-item-desc">Policy template, RFP checklist, compliance guide</div>
+              <a href="/faq" class="mega-menu-item">
+                <div class="mega-menu-item-title">Enterprise FAQ</div>
+                <div class="mega-menu-item-desc">Compliance, billing, SLAs and routing questions answered</div>
               </a>
               <a href="/blogs#glossary" class="mega-menu-item">
                 <div class="mega-menu-item-title">Glossary</div>
@@ -192,7 +192,7 @@ const { activeNav = '', logoTag = '' } = Astro.props;
 
       <!-- 4. Pricing Link -->
       <li>
-        <a href="/vendors#fleet-rates" class:list={["nav-link", { active: activeNav === 'pricing' }]} id="nav-pricing">
+        <a href="/pricing" class:list={["nav-link", { active: activeNav === 'pricing' }]} id="nav-pricing">
           Pricing
         </a>
       </li>
@@ -212,11 +212,11 @@ const { activeNav = '', logoTag = '' } = Astro.props;
           <div>
             <div class="mega-menu-col-title">AdhocX</div>
             <div class="mega-menu-list">
-              <a href="/vendors#about" class="mega-menu-item">
+              <a href="/about" class="mega-menu-item">
                 <div class="mega-menu-item-title">About Us</div>
                 <div class="mega-menu-item-desc">Who we are and our operational mission</div>
               </a>
-              <a href="/vendors#compliance" class="mega-menu-item">
+              <a href="/safety" class="mega-menu-item">
                 <div class="mega-menu-item-title">Compliance & SLAs</div>
                 <div class="mega-menu-item-desc">Commercial yellow-board standards & bank SLAs</div>
               </a>
@@ -227,7 +227,7 @@ const { activeNav = '', logoTag = '' } = Astro.props;
           <div>
             <div class="mega-menu-col-title">Talk to Us</div>
             <div class="mega-menu-list">
-              <a href="/vendors#corporate-form" class="mega-menu-item">
+              <a href="/contact" class="mega-menu-item">
                 <div class="mega-menu-item-title">Contact & Demo</div>
                 <div class="mega-menu-item-desc">Book a 30-minute programme review</div>
               </a>
@@ -242,9 +242,9 @@ const { activeNav = '', logoTag = '' } = Astro.props;
           <div>
             <div class="mega-menu-col-title">Trust</div>
             <div class="mega-menu-list">
-              <a href="/terms#compliance" class="mega-menu-item">
-                <div class="mega-menu-item-title">Security</div>
-                <div class="mega-menu-item-desc">Certifications, controls and 99.9% uptime</div>
+              <a href="/safety" class="mega-menu-item">
+                <div class="mega-menu-item-title">Security & Safety</div>
+                <div class="mega-menu-item-desc">24/7 Command Center, escort rules & 99.8% uptime</div>
               </a>
               <a href="/vendors#customer-stories" class="mega-menu-item">
                 <div class="mega-menu-item-title">Customers</div>
@@ -263,7 +263,7 @@ const { activeNav = '', logoTag = '' } = Astro.props;
                   Custom rate cards & automated fleet sourcing for tech corridors.
                 </p>
               </div>
-              <a href="/vendors#corporate-form" class="mega-menu-featured-link">
+              <a href="/contact" class="mega-menu-featured-link">
                 <span>Request rate card</span>
                 <span>→</span>
               </a>
@@ -274,13 +274,13 @@ const { activeNav = '', logoTag = '' } = Astro.props;
 
       <!-- Mobile Only Actions inside drawer -->
       <li class="mobile-only-action">
-        <a href="/vendors#corporate-form" class="btn btn-primary" style="width:100%;justify-content:center;">Book a demo</a>
+        <a href="/contact" class="btn btn-primary" style="width:100%;justify-content:center;">Book a demo</a>
       </li>
     </ul>
 
     <!-- Header Right Actions (Matches reference screenshot CTA) -->
     <div class="header-actions">
-      <a href="/vendors#corporate-form" class="btn btn-primary nav-action-btn" id="btn-header-demo">
+      <a href="/contact" class="btn btn-primary nav-action-btn" id="btn-header-demo">
         Book a demo
       </a>
       <!-- Mobile Menu Toggle Button -->
