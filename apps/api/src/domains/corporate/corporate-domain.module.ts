@@ -50,6 +50,12 @@ import { CorporateSafetyController } from './safety/corporate-safety.controller'
 import { CorporateBillingService } from './billing/corporate-billing.service';
 import { CorporateBillingController } from './billing/corporate-billing.controller';
 
+// ===== WS-D ===== Command centre operations + corporate analytics
+import { CorporateOperationsService } from './operations/corporate-operations.service';
+import { CorporateOperationsController } from './operations/corporate-operations.controller';
+import { CorporateAnalyticsService } from './analytics/corporate-analytics.service';
+import { CorporateAnalyticsController } from './analytics/corporate-analytics.controller';
+
 /**
  * Corporate ETS Domain (Bounded Context: Corporate Managed Commute Transportation)
  * Encapsulates Excel roster ingestion, shift templates, capacitated route planning on road travel times (sweep + local search heuristic),
@@ -85,6 +91,8 @@ import { CorporateBillingController } from './billing/corporate-billing.controll
     CorporateReplanningService,
     CorporateSafetyService,
     CorporateBillingService,
+    CorporateOperationsService, // WS-D
+    CorporateAnalyticsService, // WS-D
   ],
   controllers: [
     CorporateTenantController,
@@ -94,6 +102,8 @@ import { CorporateBillingController } from './billing/corporate-billing.controll
     CorporateTripExecutionController,
     CorporateSafetyController,
     CorporateBillingController,
+    CorporateOperationsController, // WS-D
+    CorporateAnalyticsController, // WS-D
   ],
   exports: [
     CorporateTenantService,

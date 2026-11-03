@@ -15,7 +15,8 @@ export type RiderLifecycleEvent =
   | 'BOARDED'
   | 'NO_SHOW'
   | 'DROPPED'
-  | 'PICKUP_RETIMED';
+  | 'PICKUP_RETIMED'
+  | 'CAB_REPLACED';
 
 /**
  * Websocket event names on the `employee:{id}` channel.
@@ -30,6 +31,7 @@ export const RIDER_WS_EVENTS: Record<RiderLifecycleEvent, string> = {
   NO_SHOW: 'RIDE_NO_SHOW',
   DROPPED: 'RIDE_DROPPED',
   PICKUP_RETIMED: 'CORPORATE_PICKUP_UPDATED',
+  CAB_REPLACED: 'CORPORATE_CAB_REPLACED',
 };
 
 export const NO_SHOW_DEFAULT_REASON =
@@ -196,6 +198,44 @@ export class CorporateRiderNotifier {
         }),
       ),
     );
+  }
+
+  /**
+   * Ops reassigned the route's driver (WS-D command centre): tell every still-pending employee that
+   * their cab is being replaced, and clear their ASSIGNED dedupe marker so the replacement driver's
+   * assignment notice is delivered. Deduped per reassignment. The internal ops reason is never sent.
+   */
+  public async notifyCabReplaced(routeId: string, reassignmentId: string): Promise<RiderNotificationOutcome[]> {
+    try {
+      const route: any = await this.db.corporateRoute.findUnique({
+        where: { id: routeId },
+        include: { stops: { orderBy: { stopSequence: 'asc' } } },
+      });
+      if (!route) return [];
+      const pending = (route.stops ?? []).filter((s: any) => s.employeeId && s.status === 'PENDING');
+      const client = this.redis.getClient();
+      return Promise.all(
+        pending.map(async (s: any) => {
+          const ctx: RiderNotificationContext = {
+            routeId,
+            tenantId: route.tenantId,
+            employeeId: s.employeeId,
+            stopId: s.id,
+            stopSequence: s.stopSequence,
+            payload: { reassignmentId, plannedPickupAt: s.plannedEta },
+          };
+          try {
+            if (client) await client.del(this.dedupeKey('ASSIGNED', ctx));
+          } catch (err: any) {
+            this.logger.warn(`Clearing ASSIGNED dedupe for stop ${s.id} failed: ${err?.message}`);
+          }
+          return this.notify('CAB_REPLACED', ctx);
+        }),
+      );
+    } catch (err: any) {
+      this.logger.error(`notifyCabReplaced(${routeId}) failed: ${err?.message}`);
+      return [];
+    }
   }
 
   public notifyApproaching(ctx: RiderNotificationContext): Promise<RiderNotificationOutcome> {
@@ -426,6 +466,9 @@ export class CorporateRiderNotifier {
     if (event === 'PICKUP_RETIMED' && ctx.payload?.plannedEta) {
       return `${base}:${new Date(ctx.payload.plannedEta).getTime()}`;
     }
+    if (event === 'CAB_REPLACED' && ctx.payload?.reassignmentId) {
+      return `${base}:${ctx.payload.reassignmentId}`;
+    }
     return base;
   }
 
@@ -513,6 +556,11 @@ export class CorporateRiderNotifier {
           body: `Hi ${firstName}, your pickup is now at ${at} IST${p.reason ? ` (${p.reason})` : ''}. Please be ready by then.`,
         };
       }
+      case 'CAB_REPLACED':
+        return {
+          title: 'Cab changed',
+          body: `Hi ${firstName}, your cab for this commute has been changed. A replacement cab is being arranged and you will get its details shortly. Your pickup time is unchanged.`,
+        };
     }
   }
 }
