@@ -14,7 +14,8 @@ import { JwtAuthGuard } from '../../../common/guards/auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { CorporateAccessGuard } from '../../../common/guards/corporate-access.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
-import { CorporateResource } from '../../../common/decorators/corporate-resource.decorator';
+import { CorporateResource, CorporateTenantScoped } from '../../../common/decorators/corporate-resource.decorator';
+import { DatabaseService } from '../../../database/database.service';
 
 import { CorporateDispatchService } from './corporate-dispatch.service';
 import { RedisService } from '../../../redis/redis.service';
@@ -27,6 +28,7 @@ export class CorporateDispatchController {
   constructor(
     private readonly dispatchService: CorporateDispatchService,
     private readonly redis: RedisService,
+    private readonly db: DatabaseService,
   ) {}
 
   @Post('routes/:id/start-now')
@@ -115,6 +117,38 @@ export class CorporateDispatchController {
       hasActiveOffer: Boolean(rawOffer),
       remainingTtlSeconds: ttl > 0 ? ttl : 0,
       activeOffer: rawOffer ? JSON.parse(rawOffer) : null,
+    };
+  }
+
+  @Get('my-offer')
+  @Roles(UserRole.ADMIN, UserRole.DRIVER)
+  @CorporateTenantScoped()
+  @ApiOperation({ summary: 'Check if driver has a live 60-second corporate route offer (UI-04-01)' })
+  public async getMyActiveOffer(@Req() req: any) {
+    const driver = await this.db.driver.findUnique({ where: { userId: req.user.id } });
+    if (!driver) return { hasOffer: false };
+    const client = this.redis.getClient();
+    if (!client) return { hasOffer: false };
+
+    const routeId = await client.get(`corporate:driver:offer_hold:${driver.id}`);
+    if (!routeId) return { hasOffer: false };
+
+    const rawOffer = await client.get(`corporate:route:offer:${routeId}`);
+    if (!rawOffer) return { hasOffer: false };
+
+    const ttlSeconds = await client.ttl(`corporate:route:offer:${routeId}`);
+    let parsedOffer: any = null;
+    try {
+      parsedOffer = JSON.parse(rawOffer);
+    } catch {
+      parsedOffer = rawOffer;
+    }
+
+    return {
+      hasOffer: true,
+      routeId,
+      remainingTtlSeconds: Math.max(0, ttlSeconds),
+      offer: parsedOffer,
     };
   }
 }

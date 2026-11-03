@@ -1081,6 +1081,130 @@ export class CorporateTripExecutionService {
     }));
   }
 
+  /**
+   * Returns active corporate route assigned to the driver, including ordered stops, passengers, dwell timers, and route status (PRD 04 §3.5)
+   */
+  public async getDriverActiveRoute(driverUserId: string): Promise<any> {
+    const driver = await this.db.driver.findUnique({ where: { userId: driverUserId } });
+    if (!driver) {
+      throw new NotFoundException('Driver profile not found');
+    }
+    const route = await (this.db.corporateRoute as any).findFirst({
+      where: {
+        driverId: driver.id,
+        status: { in: ['ASSIGNED', 'IN_TRANSIT'] },
+      },
+      include: {
+        office: true,
+        vehicle: true,
+        stops: {
+          include: {
+            employee: true,
+          },
+          orderBy: { stopSequence: 'asc' },
+        },
+      },
+    });
+    if (!route) {
+      return { hasActiveRoute: false, message: 'No active corporate route assigned at this time.' };
+    }
+    return {
+      hasActiveRoute: true,
+      routeId: route.id,
+      routeNumber: `CR-${route.id.slice(0, 8).toUpperCase()}`,
+      direction: route.direction,
+      status: route.status,
+      shiftDate: route.shiftDate,
+      shiftTime: route.shiftTime,
+      vehicleCategory: route.vehicleCategory,
+      maxCapacity: route.maxCapacity,
+      assignedPassengerCount: route.assignedPassengerCount,
+      targetPickup1Time: route.targetPickup1Time,
+      targetOfficeArrivalTime: route.targetOfficeArrivalTime,
+      office: {
+        id: route.office.id,
+        name: route.office.name,
+        addressText: route.office.addressText,
+        latitude: Number(route.office.latitude),
+        longitude: Number(route.office.longitude),
+      },
+      stops: (route.stops || []).map((s: any) => ({
+        stopId: s.id,
+        stopSequence: s.stopSequence,
+        status: s.status,
+        plannedEta: s.plannedEta,
+        actualArrivalTime: s.actualArrivalTime,
+        actualDepartureTime: s.actualDepartureTime,
+        dwellBufferSeconds: s.dwellBufferSeconds,
+        latitude: Number(s.latitude),
+        longitude: Number(s.longitude),
+        passenger: s.employee
+          ? {
+              employeeId: s.employee.id,
+              name: s.employee.fullName,
+              phone: s.employee.phone,
+              gender: s.employee.gender,
+            }
+          : null,
+      })),
+    };
+  }
+
+  /**
+   * Returns list of all corporate routes assigned to the driver
+   */
+  public async getDriverCorporateTrips(driverUserId: string, status?: string): Promise<any[]> {
+    const driver = await this.db.driver.findUnique({ where: { userId: driverUserId } });
+    if (!driver) {
+      return [];
+    }
+    const statusFilter = status ? { status: status as any } : {};
+    const routes = await (this.db.corporateRoute as any).findMany({
+      where: {
+        driverId: driver.id,
+        ...statusFilter,
+      },
+      include: {
+        office: true,
+        vehicle: true,
+        stops: {
+          include: {
+            employee: true,
+          },
+          orderBy: { stopSequence: 'asc' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    return (routes || []).map((r: any) => ({
+      id: r.id,
+      routeId: r.id,
+      routeNumber: `CR-${r.id.slice(0, 8).toUpperCase()}`,
+      status: r.status,
+      direction: r.direction,
+      shiftDate: r.shiftDate,
+      shiftTime: r.shiftTime,
+      passengerCount: r.assignedPassengerCount,
+      vehicleType: r.vehicleCategory,
+      vehicleRegistration: r.vehicle?.registrationNumber,
+      office: r.office.name,
+      pickupArea: r.stops[0]?.employee?.fullName ? `Stop 1: ${r.stops[0].employee.fullName}` : 'Pickup Points',
+      stopsCount: r.stops.length,
+      stops: r.stops.map((s: any) => ({
+        id: s.id,
+        sequence: s.stopSequence,
+        status: s.status,
+        passengerName: s.employee?.fullName,
+        passengerPhone: s.employee?.phone,
+        latitude: Number(s.latitude),
+        longitude: Number(s.longitude),
+      })),
+      isCorporate: true,
+    }));
+  }
+
   private haversineDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
     const R = 6371000;
     const phi1 = (lat1 * Math.PI) / 180;

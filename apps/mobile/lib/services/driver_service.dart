@@ -850,6 +850,136 @@ class DriverService {
     final amount = resolveDriverPayout(data);
     return amount > 0 ? '₹${amount.toStringAsFixed(0)}' : '₹--';
   }
+
+  // ── Dedicated Corporate ETS Driver Operations (PRD 04 & 09) ────────────────
+  /// Check if the driver has a live 60-second corporate route offer
+  Future<dynamic> getCorporateActiveOffer() async {
+    await _ensureDriverSession();
+    return await _api.get('/corporate/dispatch/my-offer');
+  }
+
+  /// Accept an active corporate route offer within the 60-second window
+  Future<dynamic> acceptCorporateOffer(String routeId) async {
+    await _ensureDriverSession();
+    final profile = await getProfile();
+    final driverId = profile is Map ? (profile['id'] ?? profile['driverId']) : null;
+    final res = await _api.post(
+      '/corporate/dispatch/routes/$routeId/offers/accept',
+      body: {'driverId': driverId ?? ''},
+    );
+    notifyTripChanged(tripId: routeId, status: 'ASSIGNED');
+    return res;
+  }
+
+  /// Decline an active corporate route offer
+  Future<dynamic> declineCorporateOffer(String routeId, {String? reason}) async {
+    await _ensureDriverSession();
+    final profile = await getProfile();
+    final driverId = profile is Map ? (profile['id'] ?? profile['driverId']) : null;
+    return await _api.post(
+      '/corporate/dispatch/routes/$routeId/offers/reject',
+      body: {
+        'driverId': driverId ?? '',
+        if (reason != null) 'reason': reason,
+      },
+    );
+  }
+
+  /// Get the active assigned corporate route with all ordered stops and dwell timers
+  Future<dynamic> getCorporateActiveRoute() async {
+    await _ensureDriverSession();
+    return await _api.get('/corporate/trips/driver/active-route');
+  }
+
+  /// Mark driver arrival at a corporate pickup stop (<150m geofence), triggering 5-minute dwell timer
+  Future<dynamic> arriveCorporateStop(
+    String routeId,
+    String stopId, {
+    required double lat,
+    required double lng,
+  }) async {
+    await _ensureDriverSession();
+    final res = await _api.post(
+      '/corporate/trips/routes/$routeId/stops/$stopId/arrive',
+      body: {
+        'driverLatitude': lat,
+        'driverLongitude': lng,
+      },
+    );
+    notifyTripChanged(tripId: routeId, status: 'ARRIVED');
+    return res;
+  }
+
+  /// Verify 4-digit boarding OTP presented by commuter
+  Future<dynamic> verifyCorporateBoardingOtp(
+    String routeId,
+    String stopId,
+    String otpCode,
+  ) async {
+    await _ensureDriverSession();
+    final res = await _api.post(
+      '/corporate/trips/routes/$routeId/stops/$stopId/verify-otp',
+      body: {'otpCode': otpCode},
+    );
+    notifyTripChanged(tripId: routeId, status: 'BOARDED');
+    return res;
+  }
+
+  /// Mark employee absent / no-show after 5-minute wait timer elapsed
+  Future<dynamic> markCorporateNoShow(
+    String routeId,
+    String stopId, {
+    String? reason,
+  }) async {
+    await _ensureDriverSession();
+    final res = await _api.post(
+      '/corporate/trips/routes/$routeId/stops/$stopId/no-show',
+      body: {
+        if (reason != null) 'reason': reason,
+      },
+    );
+    notifyTripChanged(tripId: routeId, status: 'NO_SHOW');
+    return res;
+  }
+
+  /// Complete corporate route upon arrival at destination office hub
+  Future<dynamic> completeCorporateRoute(String routeId) async {
+    await _ensureDriverSession();
+    final res = await _api.post('/corporate/trips/routes/$routeId/complete');
+    notifyTripChanged(tripId: routeId, status: 'COMPLETED');
+    return res;
+  }
+
+  /// Get ordered waypoints and corridor polyline for navigation
+  Future<dynamic> getCorporateRouteWaypoints(String routeId) async {
+    await _ensureDriverSession();
+    return await _api.get('/corporate/trips/routes/$routeId/waypoints');
+  }
+
+  /// Confirm safe drop for female passenger after 8:00 PM
+  Future<dynamic> confirmCorporateSafeDrop(String routeId, String stopId) async {
+    await _ensureDriverSession();
+    return await _api.post('/corporate/safety/routes/$routeId/stops/$stopId/confirm-safe-drop');
+  }
+
+  /// Trigger emergency SOS distress alert directly to Command Centre
+  Future<dynamic> triggerCorporateSos(
+    String routeId, {
+    required double lat,
+    required double lng,
+    String? note,
+  }) async {
+    await _ensureDriverSession();
+    return await _api.post(
+      '/corporate/safety/sos',
+      body: {
+        'routeId': routeId,
+        'currentLatitude': lat,
+        'currentLongitude': lng,
+        if (note != null) 'notes': note,
+      },
+    );
+  }
 }
 
 

@@ -291,4 +291,20 @@ export class CorporateTripExecutionController {
   public async getMyTrips(@Req() req: any) {
     return this.executionService.getEmployeeTripHistory(req.user.id);
   }
+
+  @Get('driver/active-route')
+  @Roles(UserRole.ADMIN, UserRole.DRIVER)
+  @CorporateTenantScoped()
+  @ApiOperation({ summary: 'View active corporate route assigned to the driver with ordered stops and dwell timers (UI-05-01)' })
+  public async getDriverActiveRoute(@Req() req: any) {
+    return this.executionService.getDriverActiveRoute(req.user.id);
+  }
+
+  @Get('driver/routes')
+  @Roles(UserRole.ADMIN, UserRole.DRIVER)
+  @CorporateTenantScoped()
+  @ApiOperation({ summary: 'View all corporate routes assigned to the authenticated driver (UI-05-02)' })
+  public async getDriverRoutes(@Req() req: any) {
+    return this.executionService.getDriverCorporateTrips(req.user.id);
+  }
 }

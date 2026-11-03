@@ -727,4 +727,63 @@ class UserService {
 
     return 800.0;
   }
+
+  // ── Dedicated Corporate ETS Employee Operations (PRD 01 & 08) ─────────────
+  /// Returns immediate next upcoming corporate trip card with driver and OTP challenge (EMP-02-01)
+  Future<dynamic> getCorporateNextTrip() async {
+    return await _api.get('/corporate/trips/me/next-trip');
+  }
+
+  /// Returns approved shift rosters calendar (EMP-03-01)
+  Future<dynamic> getCorporateSchedule() async {
+    return await _api.get('/corporate/trips/me/schedule');
+  }
+
+  /// Returns completed corporate commute history (EMP-08-02)
+  Future<dynamic> getCorporateTripHistory() async {
+    return await _api.get('/corporate/trips/me/trips');
+  }
+
+  /// Request shift reschedule or cancellation subject to the 9-hour cutoff rule (UI-03-03)
+  Future<dynamic> rescheduleCorporateShift(
+    String requestId, {
+    required String action,
+    String? employeeId,
+    String? newShiftTime,
+    String? newShiftDate,
+  }) async {
+    final effectiveEmpId = employeeId ?? AuthService.instance.currentUser?.id ?? '';
+    return await _api.post(
+      '/corporate/trips/requests/$requestId/reschedule',
+      body: {
+        'employeeId': effectiveEmpId,
+        'action': action,
+        if (newShiftTime != null) 'newShiftTime': newShiftTime,
+        if (newShiftDate != null) 'newShiftDate': newShiftDate,
+      },
+    );
+  }
+
+  /// Generate dynamic time-limited QR boarding token
+  Future<dynamic> getCorporateBoardingQr(String routeId, String stopId) async {
+    return await _api.get('/corporate/trips/routes/$routeId/stops/$stopId/boarding-qr');
+  }
+
+  /// Trigger emergency SOS distress alert from employee mobile app
+  Future<dynamic> triggerCorporateSos(
+    String routeId, {
+    required double lat,
+    required double lng,
+    String? note,
+  }) async {
+    return await _api.post(
+      '/corporate/safety/sos',
+      body: {
+        'routeId': routeId,
+        'currentLatitude': lat,
+        'currentLongitude': lng,
+        if (note != null) 'notes': note,
+      },
+    );
+  }
 }
