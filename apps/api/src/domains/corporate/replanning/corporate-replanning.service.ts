@@ -1,15 +1,18 @@
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service';
 import { RedisService } from '../../../redis/redis.service';
 import { NotificationsService } from '../../../modules/notifications/notifications.service';
 import { AuditService } from '../../../modules/audit/audit.service';
 import { withdrawCorporateRouteOffer } from '../dispatch/corporate-dispatch.service';
+import { TripEventRecorder } from '../tracking/trip-event-recorder.service';
 import {
   evaluateCutoff,
   formatIst,
@@ -130,6 +133,9 @@ export class CorporateReplanningService {
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
   ) {}
+
+  /** WS-B trip timeline (property-injected so the constructor signature is unchanged). */
+  @Optional() @Inject(TripEventRecorder) private readonly tripEvents?: TripEventRecorder;
 
   static routeLockKey(routeId: string): string {
     return `corporate:replan:route:${routeId}`;
@@ -403,6 +409,7 @@ export class CorporateReplanningService {
     }
     await this.withdrawOffersOfCancelledRoutes(inPlace);
     this.emitSideEffects(req, action, inPlace, committed.retimed);
+    await this.tripEvents?.recordReplan({ tenantId: req.tenantId, requestId, action, stopId: stop?.id, removal, insertion, actorId: ctx.override?.actorUserId });
     await this.audit.log({
       userId: ctx.override?.actorUserId,
       actorRole: ctx.override ? 'CORPORATE_ADMIN' : 'EMPLOYEE',

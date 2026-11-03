@@ -25,6 +25,7 @@ import {
   TrafficWaypoint,
 } from './traffic/traffic-estimator.port';
 import { heuristicTrafficDelay } from './traffic/heuristic-traffic';
+import { TripEventRecorder } from '../tracking/trip-event-recorder.service';
 
 function envPositiveNumber(name: string, fallback: number): number {
   const raw = process.env[name];
@@ -130,6 +131,9 @@ export class CorporateDispatchService {
     private readonly trafficEstimator?: ITrafficEstimatorPort,
     @Optional() private readonly riderNotifier?: CorporateRiderNotifier,
   ) {}
+
+  /** WS-B trip timeline (property-injected so the constructor signature is unchanged). */
+  @Optional() @Inject(TripEventRecorder) private readonly tripEvents?: TripEventRecorder;
 
   /**
    * Dynamic Dispatch Advancer (DDA) for a scheduled corporate route.
@@ -650,6 +654,7 @@ export class CorporateDispatchService {
         },
       });
 
+      await this.tripEvents?.recordOfferSent({ tenantId: route.tenantId, routeId, driverId: selectedDriver.id, actorId: actorUserId, payload: { farePaise, searchRadiusKm: currentRadius, expiresAt: offerExpiresAt } });
       return {
         routeId,
         waveNumber: 1,
@@ -803,6 +808,7 @@ export class CorporateDispatchService {
         },
       });
 
+      await this.tripEvents?.recordOfferAccepted({ tenantId: updatedRoute.tenantId, routeId, driverId, actorId: driver.userId, payload: { farePaise: offer.farePaise, vehicleId: vehicle?.id ?? null } });
       return updatedRoute;
     } finally {
       await this.redis.releaseLockToken(lockKey, lockAcquired);
@@ -842,6 +848,7 @@ export class CorporateDispatchService {
       `Driver ${driverId} rejected route ${routeId} (Reason: ${reason || 'NONE'}). Cascading to next candidate...`,
     );
 
+    await this.tripEvents?.recordOfferDeclined(routeId, driverId, reason);
     // Cascade to next driver
     await this.dispatchRoute(routeId, false);
   }

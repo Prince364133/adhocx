@@ -19,6 +19,10 @@ export interface RouteTelemetryDto {
   speedMps?: number;
   headingDeg?: number;
   accuracyM?: number;
+  /** WS-B: device battery 0-100. */
+  batteryPct?: number;
+  /** WS-B: device fix time (ISO-8601 or epoch ms); server receive time when absent. */
+  recordedAt?: string | number;
 }
 
 export interface MarkNoShowDto {

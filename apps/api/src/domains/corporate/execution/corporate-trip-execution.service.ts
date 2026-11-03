@@ -4,6 +4,7 @@ import {
   BadRequestException,
   NotFoundException,
   ConflictException,
+  Inject,
   Optional,
 } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service';
@@ -34,6 +35,8 @@ import {
   resolvePickupTime,
   toDateOnly,
 } from '../replanning/cutoff-policy';
+import { TripEventRecorder } from '../tracking/trip-event-recorder.service';
+import { CorporateGpsIngestService } from '../tracking/corporate-gps-ingest.service';
 
 @Injectable()
 export class CorporateTripExecutionService {
@@ -56,6 +59,14 @@ export class CorporateTripExecutionService {
   }
 
   private readonly riderNotifier: CorporateRiderNotifier;
+
+  /** WS-B: trip timeline + GPS pipeline (property-injected; absent in narrow unit-test modules). */
+  @Optional() @Inject(TripEventRecorder) private readonly tripEvents?: TripEventRecorder;
+  @Optional() @Inject(CorporateGpsIngestService) private readonly gpsIngestProvider?: CorporateGpsIngestService;
+  private gpsIngestFallback?: CorporateGpsIngestService;
+  private get gpsIngest(): CorporateGpsIngestService {
+    return this.gpsIngestProvider ?? (this.gpsIngestFallback ??= new CorporateGpsIngestService(this.redis));
+  }
 
   /**
    * Driver starts driving toward pickup 1. Transitions route ASSIGNED -> IN_TRANSIT and
@@ -109,6 +120,7 @@ export class CorporateTripExecutionService {
     });
 
     await this.riderNotifier.notifyRouteStarted(route, etas);
+    await this.tripEvents?.record({ tenantId: route.tenantId, routeId, type: 'ROUTE_STARTED', actorId: route.driverId, actorRole: 'DRIVER', payload: { pickups: etas.length, origin }, at: startedAt });
 
     this.logger.log(`Route ${routeId} started by driver ${route.driverId}; ${etas.length} employees notified`);
 
@@ -258,6 +270,7 @@ export class CorporateTripExecutionService {
       arrivalTime,
     });
 
+    await this.tripEvents?.record({ tenantId: route.tenantId, routeId, stopId, type: 'STOP_ARRIVED', actorId: route.driverId, actorRole: 'DRIVER', payload: { stopSequence: stop.stopSequence, stopType: stop.stopType, distanceMeters: Math.round(distMeters) }, at: arrivalTime });
     this.notifications.emitEvent(`corporate:${route.tenantId}`, 'ROUTE_STOP_ARRIVED', {
       routeId,
       stopId,
@@ -333,6 +346,7 @@ export class CorporateTripExecutionService {
     }
 
     this.logger.log(`Stop ${stopId} verified and BOARDED with OTP. Vehicle departing.`);
+    await this.tripEvents?.record({ tenantId: stop.route.tenantId, routeId, stopId, type: 'PASSENGER_BOARDED', actorId: stop.route.driverId, actorRole: 'DRIVER', payload: { stopSequence: stop.stopSequence, employeeId: stop.employeeId }, at: departureTime });
 
     // Realtime events
     this.notifications.emitEvent(`driver:${stop.route.driverId}`, 'PASSENGER_BOARDED', {
@@ -438,6 +452,7 @@ export class CorporateTripExecutionService {
     }
 
     this.logger.warn(`Stop ${stopId} marked as NO_SHOW. Driver departing immediately to next stop.`);
+    await this.tripEvents?.record({ tenantId: stop.route.tenantId, routeId, stopId, type: 'PASSENGER_NO_SHOW', actorId: stop.route.driverId, actorRole: 'DRIVER', payload: { stopSequence: stop.stopSequence, employeeId: stop.employeeId, waitedSeconds: elapsedSeconds, reason: reasonText }, at: departureTime });
 
     // Realtime alerts to Driver, Corporate Portal & Employee
     this.notifications.emitEvent(`driver:${stop.route.driverId}`, 'STOP_MARKED_NO_SHOW', {
@@ -523,6 +538,7 @@ export class CorporateTripExecutionService {
     });
 
     const completedAt = new Date();
+    await this.tripEvents?.record({ tenantId: route.tenantId, routeId, type: 'ROUTE_COMPLETED', actorId: route.driverId, actorRole: 'DRIVER', payload: { onBoard: route.stops.filter((s) => s.status === 'BOARDED').length }, at: completedAt });
     this.notifications.emitEvent(`corporate:${route.tenantId}`, 'ROUTE_COMPLETED', {
       routeId,
       completedAt,
@@ -799,17 +815,10 @@ export class CorporateTripExecutionService {
       throw new NotFoundException(`Corporate route ${routeId} not found`);
     }
 
-    // Cache live telemetry in Redis (120s TTL)
-    const client = this.redis.getClient();
-    const recordedAt = new Date();
-    if (client) {
-      await client.set(
-        `corporate:route:telemetry:${routeId}`,
-        JSON.stringify({ ...dto, recordedAt }),
-        'EX',
-        120,
-      );
-    }
+    // WS-B: latest-position cache (never moved backwards by out-of-order fixes) + Redis Stream
+    // `corporate:gps:stream` for the batched Postgres history writer (CorporateTelemetryWriter).
+    const fix = await this.gpsIngest.ingest(route, dto);
+    const recordedAt = fix.recordedAt;
 
     // Find next upcoming stop
     const nextStop = route.stops.find((s) => s.status === 'PENDING' || s.status === 'ARRIVED');
@@ -832,8 +841,8 @@ export class CorporateTripExecutionService {
       etaMinutes = Math.max(1, Math.round(distToNextStopMeters / speedMpm));
     }
 
-    // Emit live WebSocket telemetry
-    this.notifications.emitEvent(`route:${routeId}`, 'CORPORATE_ROUTE_TELEMETRY', {
+    // Emit live WebSocket telemetry (an older, out-of-order or duplicate fix is history only)
+    if (!fix.outOfOrder && !fix.duplicate) this.notifications.emitEvent(`route:${routeId}`, 'CORPORATE_ROUTE_TELEMETRY', {
       routeId,
       latitude: dto.latitude,
       longitude: dto.longitude,
