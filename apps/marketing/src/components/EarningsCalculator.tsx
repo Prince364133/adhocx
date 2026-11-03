@@ -238,14 +238,14 @@ export default function EarningsCalculator() {
             rel="noopener noreferrer"
             style={{
               display: 'inline-block',
-              background: 'linear-gradient(135deg, #FF6B00 0%, #EE9811 100%)',
+              background: 'linear-gradient(135deg, #1167EE 0%, #0948AC 100%)',
               color: '#ffffff',
               padding: '0.875rem 1.5rem',
               borderRadius: '0.625rem',
               fontWeight: 700,
               textDecoration: 'none',
               fontSize: '0.95rem',
-              boxShadow: '0 4px 14px rgba(255, 95, 9, 0.28)'
+              boxShadow: '0 4px 14px rgba(17, 103, 238, 0.28)'
             }}
           >
             Join Us & Claim ₹2,000 Bonus* →
