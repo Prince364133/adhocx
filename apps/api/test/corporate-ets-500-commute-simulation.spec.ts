@@ -309,6 +309,17 @@ describe('Corporate ETS Enterprise 500-Commuter Full-Lifecycle Simulation & Stre
           simDb.routes.set(where.id, updated);
           return updated;
         }),
+        // Conditional update used by the scheduler's atomic PLANNED -> DISPATCHING claim.
+        updateMany: jest.fn(async ({ where, data }) => {
+          let count = 0;
+          for (const [id, r] of simDb.routes.entries()) {
+            if (where?.id && r.id !== where.id) continue;
+            if (where?.status && r.status !== where.status) continue;
+            simDb.routes.set(id, { ...r, ...data });
+            count++;
+          }
+          return { count };
+        }),
       },
       corporateRouteStop: {
         create: jest.fn(async ({ data }) => {
