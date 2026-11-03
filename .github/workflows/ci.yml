@@ -2,9 +2,9 @@ name: CI Pipeline (Quality, Security & Live Testing)
 
 on:
   push:
-    branches: [main, develop, production]
+    branches: [main, develop, staging, production]
   pull_request:
-    branches: [main, develop, production]
+    branches: [main, develop, staging, production]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -21,6 +21,8 @@ jobs:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
+      # IMPORTANT: pnpm MUST be installed before actions/setup-node when cache: 'pnpm' is used.
+      # Otherwise setup-node fails with "Unable to locate executable file: pnpm".
       - name: Install pnpm & Turbo
         uses: pnpm/action-setup@v4
         with:
@@ -61,6 +63,7 @@ jobs:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
+      # Install pnpm before setup-node for cache resolution
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -112,6 +115,7 @@ jobs:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
+      # Install pnpm before setup-node for cache resolution
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
