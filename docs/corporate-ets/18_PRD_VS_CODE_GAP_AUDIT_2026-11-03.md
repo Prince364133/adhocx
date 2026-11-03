@@ -1,6 +1,6 @@
 # 18 — PRD vs Code Gap Audit (Backend), 2026-11-03
 
-> **For every agent:** read this before claiming any ETS module is "done". Follow `docs/04_DESIGN_SYSTEM.md`,
+> **For every agent:** read this before claiming any ETS module is "done". Follow `docs/04_DESIGN_SYSTEM.md and apps/marketing/DESIGN_AND_UI.md`,
 > `docs/05_UI_UX_GUIDELINES.md` and `docs/20_AI_AGENT_RULES.md` for any UI work. The work plan that closes these gaps is
 > `19_BACKEND_COMPLETION_IMPLEMENTATION_PLAN.md`.
 

@@ -908,6 +908,179 @@ export class CorporateTripExecutionService {
     };
   }
 
+  /**
+   * Returns shift schedule calendar for the authenticated employee (EMP-03-01)
+   */
+  public async getEmployeeSchedule(userId: string): Promise<any> {
+    const employee = await this.db.corporateEmployee.findFirst({
+      where: { userId },
+      include: { tenant: true, office: true },
+    });
+    if (!employee) {
+      throw new NotFoundException('Corporate employee profile not found for current user');
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const requests = await this.db.corporateTransportRequest.findMany({
+      where: {
+        employeeId: employee.id,
+        scheduledDate: { gte: today },
+      },
+      orderBy: [{ scheduledDate: 'asc' }, { shiftTime: 'asc' }],
+      take: 30,
+    });
+
+    return {
+      employee: {
+        id: employee.id,
+        code: employee.employeeCode,
+        fullName: employee.fullName,
+        office: employee.office.name,
+      },
+      schedule: requests.map((r) => ({
+        requestId: r.id,
+        scheduledDate: r.scheduledDate,
+        shiftTime: r.shiftTime,
+        direction: r.direction,
+        status: r.status,
+        pickupPoint: {
+          latitude: Number(r.pickupLat),
+          longitude: Number(r.pickupLng),
+        },
+        dropoffPoint: {
+          latitude: Number(r.dropoffLat),
+          longitude: Number(r.dropoffLng),
+        },
+      })),
+    };
+  }
+
+  /**
+   * Returns next active or upcoming trip for the employee home dashboard (EMP-02-01, EMP-02-02)
+   */
+  public async getEmployeeNextTrip(userId: string): Promise<any> {
+    const employee = await this.db.corporateEmployee.findFirst({
+      where: { userId },
+      include: { tenant: true, office: true, locations: { where: { isDefault: true }, take: 1 } },
+    });
+    if (!employee) {
+      throw new NotFoundException('Corporate employee profile not found for current user');
+    }
+
+    const stop = await this.db.corporateRouteStop.findFirst({
+      where: {
+        employeeId: employee.id,
+        status: { in: ['PENDING', 'ARRIVED', 'BOARDED'] },
+        route: {
+          status: { in: ['PLANNED', 'DISPATCHING', 'ASSIGNED', 'IN_TRANSIT'] },
+        },
+      },
+      include: {
+        route: {
+          include: {
+            driver: { include: { user: true } },
+            vehicle: true,
+            office: true,
+          },
+        },
+      },
+      orderBy: { plannedEta: 'asc' },
+    });
+
+    if (!stop) {
+      return {
+        hasActiveTrip: false,
+        message: 'No upcoming corporate trips scheduled at this time.',
+      };
+    }
+
+    return {
+      hasActiveTrip: true,
+      stopId: stop.id,
+      routeId: stop.routeId,
+      routeNumber: `CR-${stop.routeId.slice(0, 8).toUpperCase()}`,
+      direction: stop.route.direction,
+      routeStatus: stop.route.status,
+      stopStatus: stop.status,
+      stopSequence: stop.stopSequence,
+      plannedEta: stop.plannedEta,
+      actualArrivalTime: stop.actualArrivalTime,
+      actualDepartureTime: stop.actualDepartureTime,
+      boardingOtp: stop.boardingOtp,
+      pickupLocation: {
+        latitude: Number(stop.latitude),
+        longitude: Number(stop.longitude),
+        addressText: employee.locations?.[0]?.addressText || 'Designated Pickup Node',
+      },
+      officeDestination: {
+        id: stop.route.office.id,
+        name: stop.route.office.name,
+        addressText: stop.route.office.addressText,
+      },
+      driver: stop.route.driver
+        ? {
+            id: stop.route.driver.id,
+            name: stop.route.driver.fullName || 'Assigned Driver',
+            phone: stop.route.driver.phone,
+          }
+        : null,
+      vehicle: stop.route.vehicle
+        ? {
+            id: stop.route.vehicle.id,
+            registrationNumber: stop.route.vehicle.registrationNumber,
+            model: stop.route.vehicle.model,
+            vehicleType: stop.route.vehicle.vehicleType,
+          }
+        : null,
+    };
+  }
+
+  /**
+   * Returns completed trip history for the employee (EMP-08-02)
+   */
+  public async getEmployeeTripHistory(userId: string, limit: number = 20): Promise<any> {
+    const employee = await this.db.corporateEmployee.findFirst({
+      where: { userId },
+    });
+    if (!employee) {
+      throw new NotFoundException('Corporate employee profile not found for current user');
+    }
+
+    const stops = await this.db.corporateRouteStop.findMany({
+      where: {
+        employeeId: employee.id,
+        status: { in: ['BOARDED', 'NO_SHOW', 'CANCELLED'] },
+      },
+      include: {
+        route: {
+          include: {
+            office: true,
+            driver: true,
+            vehicle: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+
+    return stops.map((s) => ({
+      stopId: s.id,
+      routeId: s.routeId,
+      routeNumber: `CR-${s.routeId.slice(0, 8).toUpperCase()}`,
+      shiftDate: s.route.shiftDate,
+      shiftTime: s.route.shiftTime,
+      direction: s.route.direction,
+      status: s.status,
+      boardedAt: s.actualDepartureTime || s.actualArrivalTime,
+      office: s.route.office.name,
+      driverName: s.route.driver?.fullName || 'Assigned Driver',
+      vehiclePlate: s.route.vehicle?.registrationNumber,
+    }));
+  }
+
   private haversineDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
     const R = 6371000;
     const phi1 = (lat1 * Math.PI) / 180;

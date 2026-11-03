@@ -1,7 +1,7 @@
 # 19 — Backend Completion Implementation Plan (closes doc 18)
 
 > **Every agent:** read `18_PRD_VS_CODE_GAP_AUDIT_2026-11-03.md` first. Follow `docs/20_AI_AGENT_RULES.md`, and
-> `docs/04_DESIGN_SYSTEM.md` + `docs/05_UI_UX_GUIDELINES.md` for any UI work. Work on `staging` only.
+> `docs/04_DESIGN_SYSTEM.md and apps/marketing/DESIGN_AND_UI.md` + `docs/05_UI_UX_GUIDELINES.md` for any UI work. Work on `staging` only.
 > Do not call anything "100% complete" unless `tsc`, jest (IST **and** `TZ=UTC`) and the relevant simulation pass.
 
 ## 0. Architecture decisions (binding)

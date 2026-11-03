@@ -14,7 +14,7 @@ import { JwtAuthGuard } from '../../../common/guards/auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { CorporateAccessGuard } from '../../../common/guards/corporate-access.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
-import { CorporateResource } from '../../../common/decorators/corporate-resource.decorator';
+import { CorporateResource, CorporateTenantScoped } from '../../../common/decorators/corporate-resource.decorator';
 import { CorporateTripExecutionService } from './corporate-trip-execution.service';
 import {
   ArriveAtStopDto,
@@ -267,5 +267,28 @@ export class CorporateTripExecutionController {
       { override: { actorUserId, reason: body.reason } },
     );
   }
-}
 
+  @Get('me/schedule')
+  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
+  @CorporateTenantScoped()
+  @ApiOperation({ summary: 'View daily/weekly/monthly approved shift rosters for authenticated employee (EMP-03-01)' })
+  public async getMySchedule(@Req() req: any) {
+    return this.executionService.getEmployeeSchedule(req.user.id);
+  }
+
+  @Get('me/next-trip')
+  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
+  @CorporateTenantScoped()
+  @ApiOperation({ summary: 'View immediate next upcoming corporate trip card with driver and OTP challenge (EMP-02-01)' })
+  public async getMyNextTrip(@Req() req: any) {
+    return this.executionService.getEmployeeNextTrip(req.user.id);
+  }
+
+  @Get('me/trips')
+  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
+  @CorporateTenantScoped()
+  @ApiOperation({ summary: 'View completed and past corporate trip history for authenticated employee (EMP-08-02)' })
+  public async getMyTrips(@Req() req: any) {
+    return this.executionService.getEmployeeTripHistory(req.user.id);
+  }
+}
