@@ -1230,3 +1230,68 @@ model CorporateSosAlert {
   @@index([status])
   @@map("corporate_sos_alerts")
 }
+
+// ===== WS-B: tracking & events =====
+// GPS history, trip timeline and assignment history for Corporate ETS (docs/corporate-ets/19 WS-B).
+// Append-only logs without foreign keys: hot-path inserts stay cheap and history survives route
+// deletion. Tenant isolation: tenant_id columns + CorporateAccessGuard + service-level filters.
+
+/// Time-partitioned GPS history. Physically a PARTITION BY RANGE (received_at) parent with one
+/// partition per UTC day (migration 20261103000002_ws_b_tracking_events, partitions managed by
+/// CorporateGpsPartitionMaintenance). Prisma reads and writes the parent; Postgres routes rows.
+/// Postgres requires the partition key in every PK/unique, hence received_at in both. A stream
+/// redelivery carries the original receivedAt, so the unique key keeps retries idempotent;
+/// device re-uploads of the same fix are de-duplicated at ingest (Redis SET NX).
+model CorporateVehiclePosition {
+  id         BigInt   @default(autoincrement())
+  tenantId   String   @map("tenant_id") @db.Uuid
+  routeId    String   @map("route_id") @db.Uuid
+  driverId   String   @map("driver_id") @db.Uuid
+  lat        Float
+  lng        Float
+  speedKph   Float?   @map("speed_kph") @db.Real
+  heading    Float?   @db.Real
+  accuracyM  Float?   @map("accuracy_m") @db.Real
+  batteryPct Int?     @map("battery_pct") @db.SmallInt
+  recordedAt DateTime @map("recorded_at")
+  receivedAt DateTime @map("received_at")
+
+  @@id([id, receivedAt])
+  @@unique([routeId, recordedAt, driverId, receivedAt], map: "corporate_vehicle_positions_dedupe_key")
+  @@index([driverId, recordedAt])
+  @@map("corporate_vehicle_positions")
+}
+
+/// Every trip-lifecycle transition (execution / dispatch / replanning). Ordered by (at, id).
+model CorporateTripEvent {
+  id        BigInt   @id @default(autoincrement())
+  tenantId  String   @map("tenant_id") @db.Uuid
+  routeId   String   @map("route_id") @db.Uuid
+  stopId    String?  @map("stop_id") @db.Uuid
+  type      String   @db.VarChar(48)
+  actorId   String?  @map("actor_id") @db.VarChar(64)
+  actorRole String?  @map("actor_role") @db.VarChar(32)
+  payload   Json     @default("{}")
+  at        DateTime @default(now())
+
+  @@index([routeId, at])
+  @@index([tenantId, at])
+  @@map("corporate_trip_events")
+}
+
+/// Driver assignment / reassignment / replacement history of a route.
+model CorporateRouteAssignmentEvent {
+  id           BigInt   @id @default(autoincrement())
+  tenantId     String   @map("tenant_id") @db.Uuid
+  routeId      String   @map("route_id") @db.Uuid
+  fromDriverId String?  @map("from_driver_id") @db.Uuid
+  toDriverId   String?  @map("to_driver_id") @db.Uuid
+  reason       String   @db.VarChar(64)
+  actorId      String?  @map("actor_id") @db.VarChar(64)
+  at           DateTime @default(now())
+
+  @@index([routeId, at])
+  @@index([tenantId, at])
+  @@map("corporate_route_assignment_events")
+}
+// ===== end WS-B =====

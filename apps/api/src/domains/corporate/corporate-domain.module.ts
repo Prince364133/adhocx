@@ -6,6 +6,7 @@ import { AuditModule } from '../../modules/audit/audit.module';
 import { LocationsModule } from '../../modules/locations/locations.module';
 import { GoogleMapsService } from '../../modules/locations/google-maps.service';
 import { RedisService } from '../../redis/redis.service';
+import { CorporateTrackingModule } from './tracking/corporate-tracking.module';
 
 // Tenants, Offices & Employees Sub-Module
 import { CorporateTenantService } from './tenants/corporate-tenant.service';
@@ -62,6 +63,7 @@ import { CorporateBillingController } from './billing/corporate-billing.controll
     NotificationsModule,
     AuditModule,
     LocationsModule,
+    CorporateTrackingModule,
   ],
   providers: [
     CorporateTenantService,
