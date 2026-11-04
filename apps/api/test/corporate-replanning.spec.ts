@@ -7,6 +7,7 @@ import { RolesGuard } from '../src/common/guards/roles.guard';
 import { CorporateAccessGuard } from '../src/common/guards/corporate-access.guard';
 import { CorporateReplanningService } from '../src/domains/corporate/replanning/corporate-replanning.service';
 import { RouteSolverService } from '../src/domains/corporate/routing/route-solver.service';
+import { CorporateRiderService } from '../src/domains/corporate/rider/corporate-rider.service';
 import {
   evaluateCutoff,
   istWallClockToUtc,
@@ -432,6 +433,8 @@ beforeEach(async () => {
       CorporateTripExecutionService,
       CorporateReplanningService,
       RouteSolverService,
+      // Only the deprecated /corporate/trips/me/* aliases use it; not exercised here.
+      { provide: CorporateRiderService, useValue: {} },
       { provide: DatabaseService, useValue: db },
       { provide: RedisService, useValue: redis },
       { provide: NotificationsService, useValue: notifications },

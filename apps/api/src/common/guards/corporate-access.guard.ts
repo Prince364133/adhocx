@@ -86,7 +86,8 @@ export function resolveScopedTenantId(request: any, ...candidates: Array<string 
  *   A client-supplied tenant id never overrides the claim.
  * - DRIVER: only routes/stops assigned to the Driver row owned by the caller;
  *   offer endpoints require body.driverId to be the caller's own Driver row.
- * - EMPLOYEE: only their own transport request / stop, or a route they ride on.
+ * - EMPLOYEE: only their own transport request / stop / support ticket, or a route they ride on;
+ *   tenant-scoped self-service handlers are bound to the employee's own tenant.
  *
  * WS-F corporate roles: for CORPORATE_ADMIN / CORPORATE_MANAGER the effective corporate role
  * (`corporateRole` claim, else CORPORATE_ADMIN -> CORP_SUPER_ADMIN, CORPORATE_MANAGER -> TRANSPORT)
@@ -176,7 +177,11 @@ export class CorporateAccessGuard implements CanActivate {
     if (role === UserRole.ADMIN) {
       return;
     }
-    if (!CORPORATE_TENANT_ROLES.has(role)) {
+    // Employee self-service handlers (/corporate/trips/me/*): bound to the employee's own tenant.
+    if (role === UserRole.EMPLOYEE && !user.corporateEmployeeId) {
+      throw new ForbiddenException('No corporate employee profile linked to this account');
+    }
+    if (!CORPORATE_TENANT_ROLES.has(role) && role !== UserRole.EMPLOYEE) {
       throw new ForbiddenException('Access denied: tenant-scoped corporate endpoint');
     }
     const claimTenantId = this.requireTenantClaim(user);
@@ -292,6 +297,15 @@ export class CorporateAccessGuard implements CanActivate {
           routeDriverId: alert.route?.driverId ?? null,
           routeDriverUserId: alert.route?.driver?.userId ?? null,
         };
+      }
+      case 'ticket': {
+        const ticket: any = await this.db.corporateSupportTicket.findUnique({
+          where: { id },
+          select: { id: true, tenantId: true, employeeId: true, tenant: { select: TENANT_SELECT } },
+        });
+        return ticket
+          ? { id: ticket.id, tenantId: ticket.tenantId, tenant: ticket.tenant ?? null, employeeId: ticket.employeeId }
+          : null;
       }
       case 'request': {
         const req: any = await this.db.corporateTransportRequest.findUnique({
@@ -437,6 +451,11 @@ export class CorporateAccessGuard implements CanActivate {
       case 'stop':
         if (res.employeeId !== ownEmployeeId) {
           throw new ForbiddenException('Stop does not belong to this employee');
+        }
+        return;
+      case 'ticket':
+        if (res.employeeId !== ownEmployeeId) {
+          throw new ForbiddenException('Support ticket does not belong to this employee');
         }
         return;
       case 'route':

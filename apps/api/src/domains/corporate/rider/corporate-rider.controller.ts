@@ -63,6 +63,14 @@ export class CorporateRiderController {
     );
   }
 
+  @Get('trips/next')
+  @Roles(UserRole.EMPLOYEE, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Next active or upcoming trip card with driver, vehicle and boarding OTP (EMP-02-01)' })
+  async getNextTrip(@Req() req: any) {
+    const userId = req.user?.id || req.user?.sub;
+    return this.riderService.getRiderNextTrip(userId);
+  }
+
   @Get('trips/:id/tracking')
   @Roles(UserRole.EMPLOYEE, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Live real-time trip tracking with GPS, ETA, dwell timer and dynamic QR token' })

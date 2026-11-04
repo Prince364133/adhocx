@@ -16,6 +16,12 @@ import { CorporateAccessGuard } from '../../../common/guards/corporate-access.gu
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { CorporateResource, CorporateTenantScoped } from '../../../common/decorators/corporate-resource.decorator';
 import { CorporateTripExecutionService } from './corporate-trip-execution.service';
+import { CorporateRiderService } from '../rider/corporate-rider.service';
+import {
+  LEGACY_TRIP_HISTORY_STATUSES,
+  toLegacySchedule,
+  toLegacyTripHistory,
+} from '../rider/corporate-rider-legacy.mapper';
 import {
   ArriveAtStopDto,
   VerifyStopOtpDto,
@@ -32,7 +38,10 @@ import {
 @UseGuards(JwtAuthGuard, RolesGuard, CorporateAccessGuard)
 @Controller('corporate/trips')
 export class CorporateTripExecutionController {
-  constructor(private readonly executionService: CorporateTripExecutionService) {}
+  constructor(
+    private readonly executionService: CorporateTripExecutionService,
+    private readonly riderService: CorporateRiderService,
+  ) {}
 
   @Post('routes/:id/start')
   @Roles(UserRole.ADMIN, UserRole.DRIVER)
@@ -268,28 +277,45 @@ export class CorporateTripExecutionController {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // Deprecated employee aliases. Canonical API: /corporate/me/* (CorporateRiderController).
+  // Thin wrappers over CorporateRiderService; the mappers keep the legacy JSON shapes.
+  // ---------------------------------------------------------------------------
+
   @Get('me/schedule')
   @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
   @CorporateTenantScoped()
-  @ApiOperation({ summary: 'View daily/weekly/monthly approved shift rosters for authenticated employee (EMP-03-01)' })
+  @ApiOperation({
+    deprecated: true,
+    summary: 'DEPRECATED: use GET /corporate/me/schedule. Shift schedule of the authenticated employee (EMP-03-01)',
+  })
   public async getMySchedule(@Req() req: any) {
-    return this.executionService.getEmployeeSchedule(req.user.id);
+    return toLegacySchedule(await this.riderService.getRiderSchedule(req.user.id));
   }
 
   @Get('me/next-trip')
   @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
   @CorporateTenantScoped()
-  @ApiOperation({ summary: 'View immediate next upcoming corporate trip card with driver and OTP challenge (EMP-02-01)' })
-  public async getMyNextTrip(@Req() req: any) {
-    return this.executionService.getEmployeeNextTrip(req.user.id);
+  @ApiOperation({
+    deprecated: true,
+    summary: 'DEPRECATED: use GET /corporate/me/trips/next. Next upcoming trip card with driver and OTP (EMP-02-01)',
+  })
+  public async getMyNextTrip(@Req() req: any): Promise<any> {
+    return this.riderService.getRiderNextTrip(req.user.id);
   }
 
   @Get('me/trips')
   @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
   @CorporateTenantScoped()
-  @ApiOperation({ summary: 'View completed and past corporate trip history for authenticated employee (EMP-08-02)' })
+  @ApiOperation({
+    deprecated: true,
+    summary: 'DEPRECATED: use GET /corporate/me/trips. Past trip history of the authenticated employee (EMP-08-02)',
+  })
   public async getMyTrips(@Req() req: any) {
-    return this.executionService.getEmployeeTripHistory(req.user.id);
+    const trips = await this.riderService.getRiderTrips(req.user.id, 20, 0, {
+      stopStatuses: [...LEGACY_TRIP_HISTORY_STATUSES] as any,
+    });
+    return toLegacyTripHistory(trips);
   }
 
   @Get('driver/active-route')

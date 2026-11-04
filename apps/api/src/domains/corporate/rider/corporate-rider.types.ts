@@ -51,10 +51,18 @@ export interface RiderScheduleItem {
   vehicleCategory?: string | null;
   canCancel: boolean; // true if >= 9 hours before shift
   canReschedule: boolean; // true if >= 9 hours before shift
+  pickupPoint?: { latitude: number; longitude: number } | null;
+  dropoffPoint?: { latitude: number; longitude: number } | null;
 }
 
 export interface RiderScheduleResponse {
   employeeId: string;
+  employee?: {
+    id: string;
+    code: string;
+    fullName: string;
+    officeName: string | null;
+  };
   startDate: string;
   endDate: string;
   totalRides: number;
@@ -96,6 +104,33 @@ export interface RiderTripSummary {
   femaleSafeDropRequired: boolean;
   femaleSafeDropConfirmed: boolean;
 }
+
+export interface RiderTripsOptions {
+  /** Only stops in these statuses (e.g. past trips: BOARDED, NO_SHOW, CANCELLED). */
+  stopStatuses?: CorporateStopStatus[];
+}
+
+/** GET /corporate/me/trips/next (also served by the deprecated /corporate/trips/me/next-trip alias). */
+export type RiderNextTripResponse =
+  | { hasActiveTrip: false; message: string }
+  | {
+      hasActiveTrip: true;
+      stopId: string;
+      routeId: string;
+      routeNumber: string;
+      direction: CorporateTransportDirection;
+      routeStatus: CorporateRouteStatus;
+      stopStatus: CorporateStopStatus;
+      stopSequence: number;
+      plannedEta: Date;
+      actualArrivalTime: Date | null;
+      actualDepartureTime: Date | null;
+      boardingOtp: string;
+      pickupLocation: { latitude: number; longitude: number; addressText: string };
+      officeDestination: { id: string; name: string; addressText: string };
+      driver: { id: string; name: string; phone: string | null } | null;
+      vehicle: { id: string; registrationNumber: string; model: string; vehicleType: string } | null;
+    };
 
 export interface RiderTripTrackingResponse {
   routeId: string;
