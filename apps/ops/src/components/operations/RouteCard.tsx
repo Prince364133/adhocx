@@ -3,10 +3,8 @@ import { CorporateRouteItem } from '../../lib/api/opsTypes';
 import { StatusBadge } from '../common/StatusBadge';
 import { Button } from '../common/Button';
 import {
-  Car,
   User,
   Clock,
-  MapPin,
   Send,
   UserCheck,
   XCircle,

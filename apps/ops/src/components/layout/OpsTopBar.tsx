@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, Clock, Radio, ShieldAlert } from 'lucide-react';
+import { Clock, Radio, ShieldAlert } from 'lucide-react';
 import { opsApi } from '../../lib/api/opsClient';
 import { SosAlertItem } from '../../lib/api/opsTypes';
 

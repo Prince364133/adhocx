@@ -14,13 +14,15 @@ export enum CorporateRole {
   FINANCE = 'FINANCE',
   SAFETY = 'SAFETY',
   READ_ONLY = 'READ_ONLY',
-  // PRD alias keys
+  // PRD alias keys: deliberately share the canonical values above.
+  /* eslint-disable @typescript-eslint/no-duplicate-enum-values */
   TENANT_SUPER_ADMIN = 'CORP_SUPER_ADMIN',
   TRANSPORT_DESK_ADMIN = 'TRANSPORT',
   ROSTER_MANAGER = 'HR',
   LINE_MANAGER = 'READ_ONLY',
   FINANCE_CONTROLLER = 'FINANCE',
   EMPLOYEE = 'READ_ONLY',
+  /* eslint-enable @typescript-eslint/no-duplicate-enum-values */
 }
 
 export enum CorporateUserRole {

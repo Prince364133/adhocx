@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { opsApi } from '../../lib/api/opsClient';
-import { CorporateTenantOption, RoutePlanningResult, CalculatedRoute, PlannedRouteStop } from '../../lib/api/opsTypes';
+import { CorporateTenantOption, RoutePlanningResult } from '../../lib/api/opsTypes';
 import { Button } from '../../components/common/Button';
 import { SpatialTopologyCanvas } from '../../components/operations/SpatialTopologyCanvas';
 import {
@@ -11,17 +11,10 @@ import {
   CheckCircle,
   AlertTriangle,
   Play,
-  Layers,
-  Clock,
-  Car,
-  Users,
   UploadCloud,
   FileSpreadsheet,
   Download,
-  MapPin,
   Compass,
-  ArrowRight,
-  ShieldAlert,
   ChevronDown,
   ChevronUp,
   RefreshCw,
@@ -58,8 +51,8 @@ export default function RouteOptimizerPage() {
   const [bufferMinutes, setBufferMinutes] = useState(15);
   const [cabCapacity, setCabCapacity] = useState(4);
   const [routingPreference, setRoutingPreference] = useState<'TRAFFIC_AWARE' | 'TRAFFIC_AWARE_OPTIMAL'>('TRAFFIC_AWARE');
-  const [avoidTolls, setAvoidTolls] = useState(false);
-  const [avoidHighways, setAvoidHighways] = useState(false);
+  const [avoidTolls] = useState(false);
+  const [avoidHighways] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   // DB Shift State
@@ -1066,7 +1059,7 @@ export default function RouteOptimizerPage() {
               {/* Scrollable list of routes */}
               <div style={{ overflowY: 'auto', flex: 1, padding: '12px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {planResult.routes.map((route, rIdx) => {
+                  {planResult.routes.map((route) => {
                     const isSelected = selectedCab === route.cab;
                     const isExpanded = expandedCabs.has(route.cab);
                     const color = ROUTE_COLORS[(route.cab - 1) % ROUTE_COLORS.length];

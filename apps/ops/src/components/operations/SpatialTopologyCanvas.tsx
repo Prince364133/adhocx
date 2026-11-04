@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { RoutePlanningResult, CalculatedRoute, PlannedRouteStop } from '../../lib/api/opsTypes';
-import { Compass, AlertTriangle, MapPin, Building, ShieldCheck } from 'lucide-react';
+import { RoutePlanningResult, PlannedRouteStop } from '../../lib/api/opsTypes';
+import { Compass, AlertTriangle } from 'lucide-react';
 
 interface SpatialTopologyCanvasProps {
   plan: RoutePlanningResult;
@@ -225,8 +225,7 @@ export function SpatialTopologyCanvas({
                 key={`stop-${route.cab}-${letter}`}
                 transform={`translate(${pos.x}, ${pos.y})`}
                 style={{ cursor: 'pointer' }}
-                onMouseEnter={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
+                onMouseEnter={() => {
                   setHoveredStop({
                     stop,
                     cab: route.cab,

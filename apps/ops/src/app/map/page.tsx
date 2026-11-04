@@ -7,15 +7,10 @@ import { Button } from '../../components/common/Button';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import {
   Car,
-  MapPin,
   Radio,
-  Clock,
   Compass,
-  User,
   Phone,
   RefreshCw,
-  Navigation,
-  Layers,
 } from 'lucide-react';
 
 function todayIst(): string {

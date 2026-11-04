@@ -3,7 +3,6 @@ import {
   CorporateRouteItem,
   OpsBoardResponse,
   SosAlertItem,
-  AvailableDriverOption,
   RoutePlanningResult,
 } from './opsTypes';
 

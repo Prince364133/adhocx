@@ -12,11 +12,6 @@ import { Button } from '../../components/common/Button';
 import {
   RefreshCw,
   Search,
-  Filter,
-  Calendar,
-  Clock,
-  ArrowRightLeft,
-  Building2,
   CheckCircle,
   AlertTriangle,
   Send,
@@ -179,8 +174,6 @@ function LiveRouteDeckContent() {
   }, [routes, activeTab, search]);
 
   const unassignedCount = routes.filter((r) => !r.driverId && r.status !== 'CANCELLED').length;
-  const inTransitCount = routes.filter((r) => r.status === 'IN_TRANSIT').length;
-  const completedCount = routes.filter((r) => r.status === 'COMPLETED').length;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>

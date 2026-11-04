@@ -181,8 +181,12 @@ describe('Corporate ETS Workstream C: Rider Self-Service API, SOS FSM & Support 
     it('aggregates scheduled shift rides and calculates 9-hour cancellation lock correctly', async () => {
       mockDb.corporateEmployee.findFirst.mockResolvedValue(mockEmployeeFemale);
 
-      const futureShiftDate = new Date(Date.now() + 24 * 3600 * 1000); // 24 hours in future (>= 9h)
-      const nearShiftDate = new Date(Date.now() + 2 * 3600 * 1000); // 2 hours in future (< 9h)
+      const now = new Date();
+      const futureShiftDate = new Date(now.getTime() + 48 * 3600 * 1000);
+      const nearShiftDate = new Date(now.getTime() + 2 * 3600 * 1000);
+      const nearHours = String(nearShiftDate.getHours()).padStart(2, '0');
+      const nearMins = String(nearShiftDate.getMinutes()).padStart(2, '0');
+      const nearShiftTime = nearHours + ':' + nearMins;
 
       mockDb.corporateTransportRequest.findMany.mockResolvedValue([
         {
@@ -204,7 +208,7 @@ describe('Corporate ETS Workstream C: Rider Self-Service API, SOS FSM & Support 
         {
           id: 'req-locked-1',
           scheduledDate: nearShiftDate,
-          shiftTime: '18:00',
+          shiftTime: nearShiftTime,
           direction: 'LOGOUT',
           status: 'ASSIGNED',
           routeStop: {

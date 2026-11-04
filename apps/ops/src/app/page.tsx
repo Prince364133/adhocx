@@ -11,11 +11,9 @@ import {
   Building2,
   Car,
   Users,
-  CheckCircle,
   AlertTriangle,
   Search,
   RefreshCw,
-  Plus,
   Navigation,
 } from 'lucide-react';
 

@@ -8,19 +8,13 @@ import { StatusBadge } from '../../components/common/StatusBadge';
 import {
   ShieldAlert,
   Phone,
-  AlertTriangle,
   CheckCircle,
-  Clock,
-  Radio,
-  FileText,
-  User,
-  Car,
   RefreshCw,
 } from 'lucide-react';
 
 export default function SosEmergencyCockpitPage() {
   const [alerts, setAlerts] = useState<SosAlertItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [resolveNotes, setResolveNotes] = useState<Record<string, string>>({});

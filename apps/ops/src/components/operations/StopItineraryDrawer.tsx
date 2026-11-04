@@ -8,13 +8,11 @@ import { CorporateRouteItem, RouteStop } from '../../lib/api/opsTypes';
 import { opsApi } from '../../lib/api/opsClient';
 import {
   MapPin,
-  User,
   Phone,
   KeyRound,
   UserX,
   CheckCircle,
   AlertCircle,
-  Clock,
 } from 'lucide-react';
 
 export interface StopItineraryDrawerProps {
@@ -144,7 +142,6 @@ export const StopItineraryDrawer: React.FC<StopItineraryDrawerProps> = ({
           stops.map((stop, index) => {
             const isOffice = stop.stopType === 'DROPOFF';
             const isBoarded = stop.status === 'BOARDED';
-            const isNoShow = stop.status === 'NO_SHOW';
             const isPending = stop.status === 'PENDING' || stop.status === 'ARRIVED';
 
             return (
