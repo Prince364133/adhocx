@@ -142,6 +142,27 @@ export class CorporateTripExecutionController {
     return this.executionService.markNoShow(routeId, stopId, body);
   }
 
+  @Post('routes/:id/stops/:stopId/otp-unlock')
+  @Roles(UserRole.ADMIN)
+  @CorporateResource('stop', 'stopId')
+  @ApiOperation({
+    summary:
+      'Ops: unlock a stop whose boarding OTP locked after 5 wrong attempts. The employee\'s correct code is still required afterwards. Audited.',
+  })
+  @ApiBody({ schema: { type: 'object', properties: { reason: { type: 'string' } }, required: ['reason'] } })
+  public async unlockBoardingOtp(
+    @Param('id') routeId: string,
+    @Param('stopId') stopId: string,
+    @Body() body: { reason?: string },
+    @Req() req?: any,
+  ) {
+    const reason = typeof body?.reason === 'string' ? body.reason.trim() : '';
+    if (reason.length < 5) {
+      throw new BadRequestException('reason is required (why the stop is being unlocked)');
+    }
+    return this.executionService.unlockBoardingOtp(routeId, stopId, req?.user?.id, reason);
+  }
+
   @Post('routes/:id/complete')
   @Roles(UserRole.ADMIN, UserRole.DRIVER)
   @CorporateResource('route', 'id')

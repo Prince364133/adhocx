@@ -297,6 +297,29 @@ export class CorporateTripExecutionService {
     };
   }
 
+  /**
+   * Ops (ADMIN) unlocks a stop whose boarding OTP was locked after too many wrong attempts. Boarding
+   * still needs the employee's correct code afterwards; this only resets the counter. Audited.
+   */
+  public async unlockBoardingOtp(routeId: string, stopId: string, actorUserId: string | undefined, reason: string) {
+    const stop = await this.db.corporateRouteStop.findUnique({ where: { id: stopId }, include: { route: true } });
+    if (!stop || stop.routeId !== routeId) {
+      throw new NotFoundException(`Stop ${stopId} not found on route ${routeId}`);
+    }
+    const key = `corporate:stop:otp-attempts:${stopId}`;
+    const failedAttempts = await this.otpFailures(key);
+    await this.clearOtpFailures(key);
+    await this.audit.log({
+      action: 'CORPORATE_BOARDING_OTP_UNLOCKED',
+      userId: actorUserId,
+      actorRole: 'ADMIN',
+      entityType: 'CORPORATE_ROUTE_STOP',
+      entityId: stopId,
+      metadata: { routeId, failedAttempts, reason },
+    });
+    return { routeId, stopId, unlocked: true, failedAttemptsCleared: failedAttempts };
+  }
+
   private async otpFailures(key: string): Promise<number> {
     const client = this.redis.getClient();
     if (client) return Number((await client.get(key)) ?? 0);
@@ -361,7 +384,7 @@ export class CorporateTripExecutionService {
     const priorFailures = await this.otpFailures(attemptsKey);
     if (priorFailures >= this.MAX_OTP_ATTEMPTS) {
       throw new HttpException(
-        'Too many wrong boarding OTP attempts for this stop. Ask the employee to show their boarding QR code, or contact operations.',
+        'Too many wrong boarding OTP attempts for this stop. Contact operations to unlock it, then enter the code the employee shows you.',
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
