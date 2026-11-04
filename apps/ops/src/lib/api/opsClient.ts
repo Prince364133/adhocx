@@ -19,7 +19,7 @@ export function getApiBaseUrl(): string {
       return '/api/v1';
     }
 
-    if (port === '7003' || port === '7002' || host === 'localhost' || host === '127.0.0.1') {
+    if (port === '7004' || port === '7003' || port === '7002' || host === 'localhost' || host === '127.0.0.1') {
       const protocol = window.location.protocol;
       return `${protocol}//${host}:7001/api/v1`;
     }

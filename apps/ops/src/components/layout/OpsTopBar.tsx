@@ -160,7 +160,7 @@ export const OpsTopBar: React.FC = () => {
             paddingLeft: '12px',
           }}
         >
-          Port <span style={{ color: '#F8FAFC', fontWeight: 600 }}>7003</span> · Staging
+          Port <span style={{ color: '#F8FAFC', fontWeight: 600 }}>7004</span> · Staging
         </div>
       </div>
     </header>

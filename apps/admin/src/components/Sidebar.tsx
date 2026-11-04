@@ -278,13 +278,13 @@ export const Sidebar: React.FC = () => {
         ))}
       </nav>
 
-      {/* Tactical Fleet Flight Control Launcher (:7003) */}
+      {/* Tactical Fleet Flight Control Launcher (:7004) */}
       <div style={{ padding: isHovered ? '0.5rem 0.75rem' : '0.5rem 0.4rem', borderTop: '1px solid var(--border)' }}>
         <a
-          href="http://localhost:7003"
+          href="http://localhost:7004"
           target="_blank"
           rel="noopener noreferrer"
-          title="Open Tactical Fleet Operations (:7003)"
+          title="Open Tactical Fleet Operations (:7004)"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -304,7 +304,7 @@ export const Sidebar: React.FC = () => {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: isHovered ? 'flex-start' : 'center', width: isHovered ? 'auto' : '100%' }}>
             <Radio size={16} style={{ flexShrink: 0 }} />
-            {isHovered && <span>Fleet Ops (:7003)</span>}
+            {isHovered && <span>Fleet Ops (:7004)</span>}
           </div>
           {isHovered && <ExternalLink size={13} style={{ flexShrink: 0 }} />}
         </a>
