@@ -3,6 +3,7 @@ import { CorporateBillingService } from '../src/domains/corporate/billing/corpor
 import { DatabaseService } from '../src/database/database.service';
 import { NotificationsService } from '../src/modules/notifications/notifications.service';
 import { AuditService } from '../src/modules/audit/audit.service';
+import { CorporatePayoutService } from '../src/domains/corporate/billing/corporate-payout.service';
 import {
   BadRequestException,
   ForbiddenException,
@@ -13,6 +14,7 @@ describe('Corporate ETS Workstream E: Dual Rate Cards & Driver Payout Batch FSM'
   let mockDb: any;
   let mockNotifications: any;
   let mockAudit: any;
+  let mockPayouts: any;
 
   const mockTenant = {
     id: 'tenant-acme-1',
@@ -72,7 +74,18 @@ describe('Corporate ETS Workstream E: Dual Rate Cards & Driver Payout Batch FSM'
         count: jest.fn(),
         findMany: jest.fn(),
       },
+      // Per-driver payout rows created with the batch (wire/billing-payouts).
+      corporatePayout: {
+        createMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      // Transaction-scoped advisory lock taken while claiming UNPAID earnings.
+      $executeRaw: jest.fn().mockResolvedValue(1),
       $transaction: jest.fn(async (callback: any) => callback(mockDb)),
+    };
+
+    // Provider submission is owned by CorporatePayoutService (covered in corporate-wire-billing.spec.ts).
+    mockPayouts = {
+      submitBatch: jest.fn(async (batchId: string) => ({ id: batchId, status: 'PROCESSING', payouts: [] })),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -81,6 +94,7 @@ describe('Corporate ETS Workstream E: Dual Rate Cards & Driver Payout Batch FSM'
         { provide: DatabaseService, useValue: mockDb },
         { provide: NotificationsService, useValue: mockNotifications },
         { provide: AuditService, useValue: mockAudit },
+        { provide: CorporatePayoutService, useValue: mockPayouts },
       ],
     }).compile();
 
@@ -305,7 +319,9 @@ describe('Corporate ETS Workstream E: Dual Rate Cards & Driver Payout Batch FSM'
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('Batch Processing: processes APPROVED batch to PAID and marks all linked earnings as PAID', async () => {
+    it('Batch Processing: submits an APPROVED batch to the provider and NEVER marks the batch or its earnings PAID', async () => {
+      // A payout becomes PAID only from a signed provider confirmation (docs/15 §35); submit
+      // leaves the batch PROCESSING.
       const approvedBatch = {
         id: 'batch-approved-1',
         batchNumber: 'PAY-SETTLE-001',
@@ -313,34 +329,24 @@ describe('Corporate ETS Workstream E: Dual Rate Cards & Driver Payout Batch FSM'
       };
 
       mockDb.corporatePayoutBatch.findUnique.mockResolvedValue(approvedBatch);
-      mockDb.corporatePayoutBatch.update.mockResolvedValue({
-        ...approvedBatch,
-        status: 'PAID',
-        processedAt: new Date(),
-        disbursementReference: 'IMPS-20261104-998811',
-      });
 
       const processed = await billingService.processPayoutBatch(
         'batch-approved-1',
         'IMPS-20261104-998811',
       );
 
-      expect(processed.status).toBe('PAID');
-      expect(processed.disbursementReference).toBe('IMPS-20261104-998811');
+      expect(processed.status).toBe('PROCESSING');
+      expect(mockPayouts.submitBatch).toHaveBeenCalledWith('batch-approved-1', undefined);
 
-      // Linked earnings transitioned to PAID
-      expect(mockDb.corporateDriverEarning.updateMany).toHaveBeenCalledWith({
-        where: { payoutBatchId: 'batch-approved-1' },
-        data: { payoutStatus: 'PAID' },
-      });
-
-      expect(mockNotifications.emitEvent).toHaveBeenCalledWith(
+      // Nothing is marked PAID at submit time.
+      expect(mockDb.corporatePayoutBatch.update).not.toHaveBeenCalled();
+      expect(mockDb.corporateDriverEarning.updateMany).not.toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ payoutStatus: 'PAID' }) }),
+      );
+      expect(mockNotifications.emitEvent).not.toHaveBeenCalledWith(
         'admin:finance',
         'CORPORATE_PAYOUT_BATCH_PAID',
-        expect.objectContaining({
-          batchId: 'batch-approved-1',
-          disbursementReference: 'IMPS-20261104-998811',
-        }),
+        expect.anything(),
       );
     });
 

@@ -437,6 +437,9 @@ describe('Corporate access control', () => {
       const problems: string[] = [];
       for (const controller of discoverControllers()) {
         if (controller.name === 'CorporateRiderController') continue; // Rider self-service API has dedicated test suite: corporate-ws-c-rider.spec.ts
+        // Payout provider callback: HMAC-signed, deliberately no JWT (the caller is the provider). Its
+        // guard-free shape and 401-on-bad-signature are asserted in corporate-wire-billing.spec.ts.
+        if (controller.name === 'CorporatePayoutWebhookController') continue;
         const classGuards: any[] = Reflect.getMetadata(GUARDS_METADATA, controller) || [];
         for (const handler of routeHandlers(controller)) {
           const fn = controller.prototype[handler];

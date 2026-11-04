@@ -41,6 +41,37 @@ const RELATIONS: Record<string, Record<string, RelationSpec>> = {
     route: { table: 'corporateRoute', kind: 'one', localKey: 'routeId', foreignKey: 'id' },
     driver: { table: 'driver', kind: 'one', localKey: 'driverId', foreignKey: 'id' },
   },
+  // wire/billing-payouts
+  corporateTenant: {
+    offices: { table: 'corporateOffice', kind: 'many', localKey: 'id', foreignKey: 'tenantId' },
+  },
+  corporateInvoice: {
+    tenant: { table: 'corporateTenant', kind: 'one', localKey: 'tenantId', foreignKey: 'id' },
+    lines: { table: 'corporateInvoiceLine', kind: 'many', localKey: 'id', foreignKey: 'invoiceId' },
+    creditNotes: { table: 'corporateCreditNote', kind: 'many', localKey: 'id', foreignKey: 'invoiceId' },
+  },
+  corporateInvoiceLine: {
+    invoice: { table: 'corporateInvoice', kind: 'one', localKey: 'invoiceId', foreignKey: 'id' },
+    route: { table: 'corporateRoute', kind: 'one', localKey: 'routeId', foreignKey: 'id' },
+  },
+  corporatePayoutBatch: {
+    payouts: { table: 'corporatePayout', kind: 'many', localKey: 'id', foreignKey: 'batchId' },
+    earnings: { table: 'corporateDriverEarning', kind: 'many', localKey: 'id', foreignKey: 'payoutBatchId' },
+  },
+  corporateInvoiceDispute: {
+    creditNote: { table: 'corporateCreditNote', kind: 'one', localKey: 'id', foreignKey: 'disputeId' },
+  },
+};
+
+/** Unique constraints enforced on create / createMany (Prisma P2002), as in schema.prisma. */
+const UNIQUES: Record<string, string[][]> = {
+  corporatePayoutBatch: [['idempotencyKey'], ['batchNumber']],
+  corporatePayout: [['idempotencyKey'], ['reversalOfId'], ['batchId', 'driverId', 'kind']],
+  corporatePayoutProviderEvent: [['provider', 'eventId']],
+  corporateRateCard: [['tenantId', 'vehicleCategory', 'version']],
+  corporateDriverRateCard: [['vehicleCategory', 'version']],
+  corporateCreditNote: [['disputeId'], ['creditNoteNumber']],
+  corporateInvoice: [['invoiceNumber']],
 };
 
 const TABLES = [
@@ -57,9 +88,20 @@ const TABLES = [
   'auditLog',
   'deviceToken',
   'user',
+  // wire/billing-payouts
+  'corporateRateCard',
+  'corporateDriverRateCard',
+  'corporateInvoice',
+  'corporateInvoiceLine',
+  'corporatePayoutBatch',
+  'corporatePayout',
+  'corporatePayoutProviderEvent',
+  'corporateInvoiceDispute',
+  'corporateCreditNote',
+  'corporateTenantPolicy',
 ] as const;
 
-const OPERATOR_KEYS = new Set(['equals', 'in', 'notIn', 'not', 'gt', 'gte', 'lt', 'lte', 'contains', 'startsWith']);
+const OPERATOR_KEYS = new Set(['equals', 'in', 'notIn', 'not', 'gt', 'gte', 'lt', 'lte', 'contains', 'startsWith', 'mode']);
 
 const norm = (v: any) => (v instanceof Date ? v.getTime() : v);
 const eq = (a: any, b: any) => norm(a) === norm(b) || (a == null && b == null);
@@ -77,6 +119,8 @@ export class FakeDb {
       this.tables[t] = new Map();
       (this as any)[t] = this.delegate(t);
     }
+    // Raw SQL (advisory locks) is a no-op in memory: the fake already serialises check-and-set.
+    (this as any).$executeRaw = jest.fn(async () => 1);
     (this as any).$transaction = async (arg: any) => {
       await tickYield();
       if (typeof arg === 'function') return arg(this);
@@ -86,6 +130,23 @@ export class FakeDb {
 
   insert(table: string, row: Row): Row {
     this.version++;
+    this.tables[table].set(row.id, row);
+    return row;
+  }
+
+  /** create() with the schema's unique constraints (throws a P2002-coded error like Prisma). */
+  insertChecked(table: string, data: Row): Row {
+    for (const fields of UNIQUES[table] ?? []) {
+      if (fields.some((f) => data[f] == null)) continue;
+      const clash = [...this.tables[table].values()].some((r) => fields.every((f) => eq(r[f], data[f])));
+      if (clash) {
+        const e: any = new Error(`Unique constraint failed on ${table}(${fields.join(', ')})`);
+        e.code = 'P2002';
+        throw e;
+      }
+    }
+    this.version++;
+    const row = { id: data.id ?? `${table}-${this.tables[table].size + 1}-${Math.random().toString(36).slice(2, 8)}`, createdAt: new Date(), ...data };
     this.tables[table].set(row.id, row);
     return row;
   }
@@ -169,7 +230,9 @@ export class FakeDb {
       const a = norm(arg);
       switch (op) {
         case 'equals':
-          if (!eq(value, arg)) return false;
+          if (cond.mode === 'insensitive' && typeof value === 'string' && typeof arg === 'string') {
+            if (value.toLowerCase() !== arg.toLowerCase()) return false;
+          } else if (!eq(value, arg)) return false;
           break;
         case 'in':
           if (!new Set((arg as any[]).map(norm)).has(v)) return false;
@@ -213,7 +276,17 @@ export class FakeDb {
     const out: Row = { ...row };
     if (args.include) {
       for (const [k, v] of Object.entries(args.include)) {
-        if (v) out[k] = this.projectRelation(table, row, k, v === true ? {} : v);
+        if (!v) continue;
+        if (k === '_count') {
+          // `_count: { select: { rel: true } }` -> number of related rows per relation.
+          const counts: Row = {};
+          for (const rel of Object.keys((v as any).select ?? {})) {
+            counts[rel] = ((this.related(table, row, rel) as Row[]) ?? []).length;
+          }
+          out[k] = counts;
+          continue;
+        }
+        out[k] = this.projectRelation(table, row, k, v === true ? {} : v);
       }
     }
     return out;
@@ -244,8 +317,9 @@ export class FakeDb {
       findUnique: jest.fn(async (args: any) => {
         log('findUnique');
         await tickYield();
-        const r = self.tables[table].get(args.where.id);
-        return r && self.matches(table, r, args.where) ? self.project(table, r, args) : null;
+        const where = flattenUnique(args.where);
+        const r = where.id !== undefined ? self.tables[table].get(where.id) : rows().find((x) => self.matches(table, x, where));
+        return r && self.matches(table, r, where) ? self.project(table, r, args) : null;
       }),
       findFirst: jest.fn(async (args: any = {}) => {
         log('findFirst');
@@ -294,10 +368,13 @@ export class FakeDb {
       create: jest.fn(async (args: any) => {
         log('create');
         await tickYield();
-        self.version++;
-        const row = { id: args.data.id ?? `${table}-${self.tables[table].size + 1}-${Math.random().toString(36).slice(2, 8)}`, createdAt: new Date(), ...args.data };
-        self.tables[table].set(row.id, row);
-        return row;
+        return self.insertChecked(table, args.data);
+      }),
+      createMany: jest.fn(async (args: any) => {
+        log('createMany');
+        await tickYield();
+        for (const d of args.data) self.insertChecked(table, d);
+        return { count: args.data.length };
       }),
       update: jest.fn(async (args: any) => {
         log('update');
@@ -308,7 +385,7 @@ export class FakeDb {
           e.code = 'P2025';
           throw e;
         }
-        Object.assign(r, args.data, { updatedAt: new Date() });
+        applyData(r, args.data);
         return self.project(table, r, args);
       }),
       updateMany: jest.fn(async (args: any) => {
@@ -316,7 +393,7 @@ export class FakeDb {
         await tickYield();
         // Check-and-set with no await in between: one conditional UPDATE statement.
         const list = rows().filter((r) => self.matches(table, r, args.where));
-        for (const r of list) Object.assign(r, args.data, { updatedAt: new Date() });
+        for (const r of list) applyData(r, args.data);
         return { count: list.length };
       }),
       deleteMany: jest.fn(async (args: any = {}) => {
@@ -329,6 +406,28 @@ export class FakeDb {
       }),
     };
   }
+}
+
+/** Prisma compound unique input `{ a_b: { a, b } }` -> `{ a, b }`. */
+function flattenUnique(where: any): any {
+  const out: any = {};
+  for (const [k, v] of Object.entries(where ?? {})) {
+    if (k.includes('_') && v && typeof v === 'object' && !(v instanceof Date) && !Array.isArray(v)) Object.assign(out, v);
+    else out[k] = v;
+  }
+  return out;
+}
+
+/** update data with `{ increment }` support. */
+function applyData(row: Row, data: any): void {
+  for (const [k, v] of Object.entries(data ?? {})) {
+    if (v && typeof v === 'object' && !(v instanceof Date) && 'increment' in (v as any)) {
+      row[k] = (row[k] ?? 0) + (v as any).increment;
+    } else {
+      row[k] = v;
+    }
+  }
+  row.updatedAt = new Date();
 }
 
 function sortRows(list: Row[], orderBy: any): Row[] {

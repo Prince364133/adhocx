@@ -24,13 +24,26 @@ import { RolesGuard } from '../../../common/guards/roles.guard';
 import { CorporateAccessGuard } from '../../../common/guards/corporate-access.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { CorporateResource, CorporateTenantScoped } from '../../../common/decorators/corporate-resource.decorator';
+import { CorporatePermission } from '../tenants/corporate-permissions';
+import { CorporatePayoutService } from './corporate-payout.service';
+import { CorporateInvoiceDisputeService } from './corporate-invoice-dispute.service';
+import {
+  CreatePayoutBatchRequestDto,
+  RaiseInvoiceDisputeDto,
+  ResolveInvoiceDisputeDto,
+} from './corporate-billing-wire.types';
+import { forCaller } from './corporate-response-guard';
 
 @ApiTags('Corporate ETS - Dual Financial Ledgers, Invoicing & Payouts')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard, CorporateAccessGuard)
 @Controller('corporate/billing')
 export class CorporateBillingController {
-  constructor(private readonly billingService: CorporateBillingService) {}
+  constructor(
+    private readonly billingService: CorporateBillingService,
+    private readonly payouts: CorporatePayoutService,
+    private readonly disputes: CorporateInvoiceDisputeService,
+  ) {}
 
   @Post('invoices/generate-batch')
   @Roles(UserRole.ADMIN)
@@ -59,12 +72,16 @@ export class CorporateBillingController {
     @Query('status') status?: CorporateInvoiceStatus,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Req() req?: any,
   ) {
-    return this.billingService.listInvoices(tenantId, {
-      status,
-      page: page ? parseInt(page, 10) : undefined,
-      limit: limit ? parseInt(limit, 10) : undefined,
-    });
+    return forCaller(
+      req,
+      await this.billingService.listInvoices(tenantId, {
+        status,
+        page: page ? parseInt(page, 10) : undefined,
+        limit: limit ? parseInt(limit, 10) : undefined,
+      }),
+    );
   }
 
   @Get('invoices/:id')
@@ -72,8 +89,8 @@ export class CorporateBillingController {
   @CorporateResource('invoice', 'id')
   @ApiOperation({ summary: 'Get full invoice breakdown with individual route line items' })
   @ApiResponse({ status: 200, description: 'Invoice details' })
-  public async getInvoiceById(@Param('id') id: string) {
-    return this.billingService.getInvoiceById(id);
+  public async getInvoiceById(@Param('id') id: string, @Req() req?: any) {
+    return forCaller(req, await this.billingService.getInvoiceById(id));
   }
 
   @Get('invoices/:id/pdf')
@@ -116,5 +133,130 @@ export class CorporateBillingController {
   public async getDriverEarningsSummary(@Param('driverId') driverId: string) {
     return this.billingService.getDriverEarningsSummary(driverId);
   }
-}
 
+  // ---------------------------------------------------------------------------
+  // Invoice disputes & credit notes (additive corrections; an issued invoice is never edited)
+  // ---------------------------------------------------------------------------
+
+  @Post('invoices/:id/disputes')
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateResource('invoice', 'id')
+  @CorporatePermission('billing:write')
+  @ApiOperation({ summary: 'Dispute an issued invoice (corporate roles: own tenant invoices only)' })
+  @ApiResponse({ status: 201, description: 'Dispute opened' })
+  public async raiseDispute(@Param('id') id: string, @Body() dto: RaiseInvoiceDisputeDto, @Req() req: any) {
+    return forCaller(req, await this.disputes.raiseDispute(id, dto, req.user?.id));
+  }
+
+  @Get('disputes')
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateTenantScoped()
+  @CorporatePermission('invoices:read')
+  @ApiOperation({ summary: 'List invoice disputes (tenant-scoped)' })
+  public async listDisputes(
+    @Req() req: any,
+    @Query('tenantId') tenantId?: string,
+    @Query('status') status?: string,
+    @Query('invoiceId') invoiceId?: string,
+  ) {
+    return forCaller(req, await this.disputes.listDisputes(tenantId, { status, invoiceId }));
+  }
+
+  @Post('disputes/:id/accept')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Accept a dispute and issue an immutable credit note (ADMIN)' })
+  public async acceptDispute(@Param('id') id: string, @Body() dto: ResolveInvoiceDisputeDto, @Req() req: any) {
+    return this.disputes.acceptDispute(id, dto, req.user?.id);
+  }
+
+  @Post('disputes/:id/reject')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Reject a dispute with a reason (ADMIN)' })
+  public async rejectDispute(@Param('id') id: string, @Body() dto: ResolveInvoiceDisputeDto, @Req() req: any) {
+    return this.disputes.rejectDispute(id, dto, req.user?.id);
+  }
+
+  @Get('credit-notes')
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateTenantScoped()
+  @CorporatePermission('invoices:read')
+  @ApiOperation({ summary: 'List credit notes (tenant-scoped)' })
+  public async listCreditNotes(
+    @Req() req: any,
+    @Query('tenantId') tenantId?: string,
+    @Query('invoiceId') invoiceId?: string,
+  ) {
+    return forCaller(req, await this.disputes.listCreditNotes(tenantId, { invoiceId }));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Payout batches: maker -> checker -> provider submit -> signed confirmation
+  // ---------------------------------------------------------------------------
+
+  @Post('payouts/batches')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Create a payout batch from UNPAID earnings (maker step); one payout row per driver' })
+  @ApiResponse({ status: 201, description: 'Batch created, awaiting checker approval' })
+  public async createPayoutBatch(@Body() dto: CreatePayoutBatchRequestDto, @Req() req: any) {
+    const key = dto?.idempotencyKey ?? req.headers?.['idempotency-key'];
+    if (key !== undefined && (typeof key !== 'string' || key.length < 8 || key.length > 64)) {
+      throw new BadRequestException('idempotencyKey must be 8-64 characters');
+    }
+    const batch = await this.billingService.createPayoutBatch(
+      { driverIds: dto?.driverIds, cutoffDate: dto?.cutoffDate },
+      req.user?.id,
+      key,
+    );
+    return this.payouts.getBatch(batch.id);
+  }
+
+  @Get('payouts/batches')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'List payout batches with per-status payout counts' })
+  public async listPayoutBatches(
+    @Query('status') status?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.billingService.listPayoutBatches({
+      status,
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
+  }
+
+  @Get('payouts/batches/:id')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Payout batch with its per-driver payouts' })
+  public async getPayoutBatch(@Param('id') id: string) {
+    return this.payouts.getBatch(id);
+  }
+
+  @Post('payouts/batches/:id/approve')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Approve a payout batch (checker must differ from maker, else 403)' })
+  @ApiResponse({ status: 403, description: 'Maker-checker violation' })
+  public async approvePayoutBatch(@Param('id') id: string, @Req() req: any) {
+    await this.billingService.approvePayoutBatch(id, req.user?.id);
+    return this.payouts.getBatch(id);
+  }
+
+  @Post('payouts/batches/:id/submit')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({
+    summary:
+      'Send an APPROVED batch to the payout provider (or retry its FAILED payouts with the same idempotency keys). Never marks PAID.',
+  })
+  public async submitPayoutBatch(@Param('id') id: string, @Req() req: any) {
+    return this.payouts.submitBatch(id, req.user?.id);
+  }
+
+  @Get('reconciliations')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Payout reconciliation: payouts whose status differs from the provider, and unmatched confirmations',
+  })
+  public async getReconciliation(@Query('from') from?: string, @Query('to') to?: string) {
+    return this.payouts.getReconciliation(from, to);
+  }
+}

@@ -413,6 +413,23 @@ describe('Corporate Managed ETS: 20-Step Comprehensive Operational Simulations',
         return null;
       }),
     },
+    corporateRateCard: {
+      // Tenant rate card equivalent to the legacy flat matrix (₹400 + ₹25 per km from km 0).
+      findMany: jest.fn(async () => [
+        {
+          id: 'rc-legacy-flat',
+          vehicleCategory: 'SEDAN',
+          version: 1,
+          baseFarePaise: 40000n,
+          baseDistanceMeters: 0,
+          perKmPaise: 2500n,
+          perExtraStopPaise: 0n,
+          effectiveFrom: new Date('2020-01-01T00:00:00Z'),
+          effectiveTo: null,
+        },
+      ]),
+      findFirst: jest.fn(async () => null),
+    },
     $transaction: jest.fn(async (cb: (db: any) => Promise<any>) => cb(mockDb)),
   };
 

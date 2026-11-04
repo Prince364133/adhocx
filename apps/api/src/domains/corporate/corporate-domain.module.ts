@@ -64,6 +64,13 @@ import { CorporateSupportTicketController } from './safety/corporate-support-tic
 import { CorporateBillingService } from './billing/corporate-billing.service';
 import { RateCardService } from './billing/rate-card.service';
 import { CorporateBillingController } from './billing/corporate-billing.controller';
+// wire/billing-payouts: rate-card admin, payout execution, disputes / credit notes
+import { CorporateRateCardAdminService } from './billing/corporate-rate-card-admin.service';
+import { CorporateRateCardController } from './billing/corporate-rate-card.controller';
+import { CorporatePayoutService } from './billing/corporate-payout.service';
+import { CorporatePayoutWebhookController } from './billing/corporate-payout-webhook.controller';
+import { CorporateInvoiceDisputeService } from './billing/corporate-invoice-dispute.service';
+import { CORPORATE_PAYOUT_PROVIDER, createPayoutProviderFromEnv } from './billing/payout-provider.port';
 
 // ===== WS-D ===== Command centre operations + corporate analytics
 import { CorporateOperationsService } from './operations/corporate-operations.service';
@@ -114,6 +121,11 @@ import { CorporateRiderController } from './rider/corporate-rider.controller';
     CorporateSupportTicketService,
     CorporateBillingService,
     RateCardService, // driver rate cards, shared by billing payouts and dispatch offer pricing
+    // wire/billing-payouts
+    { provide: CORPORATE_PAYOUT_PROVIDER, useFactory: () => createPayoutProviderFromEnv() },
+    CorporatePayoutService,
+    CorporateRateCardAdminService,
+    CorporateInvoiceDisputeService,
     CorporateOperationsService, // WS-D
     CorporateAnalyticsService, // WS-D
     CorporateRiderService, // WS-C
@@ -134,6 +146,8 @@ import { CorporateRiderController } from './rider/corporate-rider.controller';
     CorporateSafetyController,
     CorporateSupportTicketController,
     CorporateBillingController,
+    CorporateRateCardController, // wire/billing-payouts
+    CorporatePayoutWebhookController, // wire/billing-payouts (HMAC-signed, no JWT)
     CorporateOperationsController, // WS-D
     CorporateAnalyticsController, // WS-D
     CorporateRiderController, // WS-C
@@ -154,6 +168,7 @@ import { CorporateRiderController } from './rider/corporate-rider.controller';
     CorporateSupportTicketService,
     CorporateBillingService,
     RateCardService,
+    CorporatePayoutService, // wire/billing-payouts
     CorporateRiderService, // WS-C
     // WS-F
     CorporateTenantPolicyService,

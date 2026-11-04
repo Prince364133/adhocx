@@ -5,6 +5,8 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  ConflictException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service';
 import { NotificationsService } from '../../../modules/notifications/notifications.service';
@@ -17,20 +19,26 @@ import {
 import { randomUUID } from 'crypto';
 import PDFDocument from 'pdfkit';
 import { RateCardService } from './rate-card.service';
+import {
+  ClientCardTerms,
+  DEFAULT_CLIENT_TERMS,
+  priceClientTrip,
+  tdsOf,
+} from './corporate-fare-math';
+import { CorporatePayoutService } from './corporate-payout.service';
 
 @Injectable()
 export class CorporateBillingService {
   private readonly logger = new Logger(CorporateBillingService.name);
 
-  // Corporate Commute Fare Matrix (in integer paise - Zero Floating Point Arithmetic)
-  private readonly DEFAULT_BASE_FARE_PAISE = 40000n; // ₹400 base fare
-  private readonly DEFAULT_RATE_PER_KM_PAISE = 2500n; // ₹25/km
+  // Corporate fares come from versioned rate cards (corporate-fare-math.ts holds the fallback).
 
   constructor(
     private readonly db: DatabaseService,
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
     @Optional() private readonly rateCards?: RateCardService,
+    @Optional() private readonly payouts?: CorporatePayoutService,
   ) {}
 
   private getRateCards(): RateCardService {
@@ -65,16 +73,12 @@ export class CorporateBillingService {
 
     const gstRatePct = dto.gstRatePct === 18 ? 18n : 5n; // Indian GST: 5% or 18%
 
-    // Find all completed routes for this tenant in period that are NOT yet invoiced
-    const existingLines = await this.db.corporateInvoiceLine.findMany({
-      select: { routeId: true },
-    });
-    const invoicedRouteIds = new Set(existingLines.map((l) => l.routeId));
-
+    // Billable routes in the period: COMPLETED trips, plus CANCELLED ones (a late-cancellation
+    // charge applies only when the card in effect has cancellationPaise > 0).
     const candidateRoutes = await this.db.corporateRoute.findMany({
       where: {
         tenantId: dto.tenantId,
-        status: 'COMPLETED',
+        status: { in: ['COMPLETED', 'CANCELLED'] },
         shiftDate: {
           gte: startDate,
           lte: endDate,
@@ -82,36 +86,92 @@ export class CorporateBillingService {
       },
       include: {
         office: true,
+        stops: { select: { id: true, status: true } },
       },
     });
 
-    const unbilledRoutes = candidateRoutes.filter((r) => !invoicedRouteIds.has(r.id));
+    // A route is billed at most once (any earlier invoice line for it excludes it).
+    const candidateIds = candidateRoutes.map((r: any) => r.id);
+    const existingLines = candidateIds.length
+      ? await this.db.corporateInvoiceLine.findMany({
+          where: { routeId: { in: candidateIds } },
+          select: { routeId: true },
+        })
+      : [];
+    const invoicedRouteIds = new Set(existingLines.map((l: any) => l.routeId));
+    const unbilledRoutes = candidateRoutes.filter((r: any) => !invoicedRouteIds.has(r.id));
 
-    if (unbilledRoutes.length === 0) {
-      throw new BadRequestException(
-        `No unbilled completed routes found for tenant ${tenant.name} between ${dto.billingPeriodStart} and ${dto.billingPeriodEnd}`,
-      );
-    }
+    // Every corporate card version of the tenant, loaded once; each line is priced by the version
+    // in effect at the trip's own instant (pickup time), so a mid-period rate change splits correctly.
+    const cards = await this.loadTenantCards(dto.tenantId);
+    const cancelCutoffHours = await this.loadCancelCutoffHours(dto.tenantId);
 
-    // Build line items with integer paise math
     const lineItemData: Array<{
       routeId: string;
       billableDistanceMeters: number;
       amountPaise: bigint;
+      lineType: 'TRIP' | 'CANCELLATION';
+      rateCardId: string | null;
+      rateCardVersion: number | null;
+      noShowCount: number;
+      noShowPaise: bigint;
     }> = [];
 
     let subtotalPaise = 0n;
 
-    for (const route of unbilledRoutes) {
-      const distanceKm = Math.max(1, Math.round(route.estDistanceMeters / 1000));
-      const amountPaise = this.DEFAULT_BASE_FARE_PAISE + BigInt(distanceKm) * this.DEFAULT_RATE_PER_KM_PAISE;
+    for (const route of unbilledRoutes as any[]) {
+      const tripAt = this.tripInstant(route);
+      const category = route.vehicleCategory || 'SEDAN';
+      const stops: any[] = Array.isArray(route.stops) ? route.stops : [];
 
-      subtotalPaise += amountPaise;
+      if (route.status === 'CANCELLED') {
+        // Late cancellation: cancelled (last state change) inside the tenant's cancel cutoff.
+        const cancelledAt = route.updatedAt ? new Date(route.updatedAt) : null;
+        const cutoffAt = new Date(tripAt.getTime() - cancelCutoffHours * 3600_000);
+        if (!cancelledAt || cancelledAt < cutoffAt) continue;
+        const card = RateCardService.selectClientCard(cards, category, tripAt);
+        const fee = card?.cancellationPaise ?? DEFAULT_CLIENT_TERMS.cancellationPaise;
+        if (fee <= 0n) continue;
+        subtotalPaise += fee;
+        lineItemData.push({
+          routeId: route.id,
+          billableDistanceMeters: 0,
+          amountPaise: fee,
+          lineType: 'CANCELLATION',
+          rateCardId: card?.id ?? null,
+          rateCardVersion: card?.version ?? null,
+          noShowCount: 0,
+          noShowPaise: 0n,
+        });
+        continue;
+      }
+
+      const noShowCount = stops.filter((s) => s.status === 'NO_SHOW').length;
+      const fare = await this.resolveClientFare(
+        dto.tenantId,
+        category,
+        route.estDistanceMeters,
+        Math.max(1, stops.length),
+        { at: tripAt, durationSeconds: route.estDurationSeconds, noShowCount, cards },
+      );
+
+      subtotalPaise += fare.totalAmountPaise;
       lineItemData.push({
         routeId: route.id,
         billableDistanceMeters: route.estDistanceMeters,
-        amountPaise,
+        amountPaise: fare.totalAmountPaise,
+        lineType: 'TRIP',
+        rateCardId: fare.rateCardId ?? null,
+        rateCardVersion: fare.rateCardVersion ?? null,
+        noShowCount,
+        noShowPaise: fare.noShowPaise,
       });
+    }
+
+    if (lineItemData.length === 0) {
+      throw new BadRequestException(
+        `No unbilled completed routes found for tenant ${tenant.name} between ${dto.billingPeriodStart} and ${dto.billingPeriodEnd}`,
+      );
     }
 
     // Exact integer GST calculation
@@ -144,6 +204,11 @@ export class CorporateBillingService {
             routeId: line.routeId,
             billableDistanceMeters: line.billableDistanceMeters,
             amountPaise: line.amountPaise,
+            lineType: line.lineType,
+            rateCardId: line.rateCardId,
+            rateCardVersion: line.rateCardVersion,
+            noShowCount: line.noShowCount,
+            noShowPaise: line.noShowPaise,
           },
         });
       }
@@ -152,7 +217,7 @@ export class CorporateBillingService {
     });
 
     this.logger.log(
-      `Generated Invoice ${invoice.invoiceNumber} for ${tenant.name}: ₹${(Number(totalAmountPaise) / 100).toFixed(2)} (${unbilledRoutes.length} routes)`,
+      `Generated Invoice ${invoice.invoiceNumber} for ${tenant.name}: ₹${(Number(totalAmountPaise) / 100).toFixed(2)} (${lineItemData.length} lines)`,
     );
 
     this.notifications.emitEvent(`corporate:${dto.tenantId}`, 'CORPORATE_INVOICE_ISSUED', {
@@ -161,7 +226,7 @@ export class CorporateBillingService {
       totalAmountPaise: totalAmountPaise.toString(),
       subtotalPaise: subtotalPaise.toString(),
       gstPaise: gstPaise.toString(),
-      routesCount: unbilledRoutes.length,
+      routesCount: lineItemData.length,
     });
 
     await this.audit.log({
@@ -172,7 +237,7 @@ export class CorporateBillingService {
       metadata: {
         tenantId: dto.tenantId,
         invoiceNumber,
-        routesCount: unbilledRoutes.length,
+        routesCount: lineItemData.length,
         totalAmountPaise: totalAmountPaise.toString(),
       },
     });
@@ -263,9 +328,10 @@ export class CorporateBillingService {
       subtotalPaise: invoice.subtotalPaise.toString(),
       gstPaise: invoice.gstPaise.toString(),
       totalAmountPaise: invoice.totalAmountPaise.toString(),
-      lines: invoice.lines.map((l) => ({
+      lines: invoice.lines.map((l: any) => ({
         ...l,
         amountPaise: l.amountPaise.toString(),
+        noShowPaise: l.noShowPaise === undefined || l.noShowPaise === null ? l.noShowPaise : String(l.noShowPaise),
       })),
     };
   }
@@ -595,63 +661,60 @@ export class CorporateBillingService {
   }
 
   /**
-   * WS-E: Resolves corporate client route fare using versioned CorporateRateCard.
-   * Falls back to default ₹400 base (first 10km) + ₹25/km if no custom rate card is configured.
+   * WS-E: Resolves a corporate client trip fare from the CorporateRateCard version in effect at
+   * `options.at` (default: now). Pass `options.cards` (all versions of the tenant) to price many
+   * trips with one query. Falls back to the default ₹400 (first 10 km) + ₹25/km, logged.
    */
   public async resolveClientFare(
     tenantId: string,
     vehicleCategory: string = 'SEDAN',
     distanceMeters: number,
     stopsCount: number = 1,
+    options: {
+      at?: Date;
+      durationSeconds?: number;
+      noShowCount?: number;
+      cards?: readonly ClientCardTerms[];
+    } = {},
   ): Promise<{
     baseFarePaise: bigint;
     distancePaise: bigint;
     stopsPaise: bigint;
+    durationPaise: bigint;
+    minimumTopUpPaise: bigint;
+    noShowPaise: bigint;
     totalAmountPaise: bigint;
     rateCardId?: string;
+    rateCardVersion?: number;
   }> {
-    let rateCard: any = null;
-    try {
-      if (this.db?.corporateRateCard?.findFirst) {
-        rateCard = await this.db.corporateRateCard.findFirst({
-          where: {
-            tenantId,
-            vehicleCategory: { equals: vehicleCategory, mode: 'insensitive' },
-            isActive: true,
-          },
-          orderBy: { effectiveFrom: 'desc' },
-        });
-      }
-    } catch {
-      rateCard = null;
+    const at = options.at ?? new Date();
+    // Effective-dated selection lives in RateCardService (same rule for invoices and reads).
+    const rateCard: ClientCardTerms | null = options.cards
+      ? RateCardService.selectClientCard(options.cards, vehicleCategory, at)
+      : await this.getRateCards().findClientRateCard(tenantId, vehicleCategory, at);
+    if (!rateCard) {
+      this.logger.debug(
+        `No corporate rate card in effect for tenant ${tenantId} / ${vehicleCategory} at ${at.toISOString()}; using default fare`,
+      );
     }
 
-    const baseFarePaise = rateCard ? rateCard.baseFarePaise : this.DEFAULT_BASE_FARE_PAISE;
-    const baseDistanceMeters = rateCard ? rateCard.baseDistanceMeters : 10000;
-    const perKmPaise = rateCard ? rateCard.perKmPaise : this.DEFAULT_RATE_PER_KM_PAISE;
-    const perExtraStopPaise = rateCard ? rateCard.perExtraStopPaise : 0n;
-
-    const extraMeters = Math.max(0, distanceMeters - baseDistanceMeters);
-    const extraKm = Math.ceil(extraMeters / 1000);
-    const distancePaise = BigInt(extraKm) * perKmPaise;
-
-    const extraStops = Math.max(0, stopsCount - 1);
-    const stopsPaise = BigInt(extraStops) * perExtraStopPaise;
-
-    const totalAmountPaise = baseFarePaise + distancePaise + stopsPaise;
+    const fare = priceClientTrip(rateCard, {
+      distanceMeters,
+      stopsCount,
+      durationSeconds: options.durationSeconds,
+      noShowCount: options.noShowCount,
+    });
 
     return {
-      baseFarePaise,
-      distancePaise,
-      stopsPaise,
-      totalAmountPaise,
+      ...fare,
       rateCardId: rateCard?.id,
+      rateCardVersion: rateCard?.version ?? undefined,
     };
   }
 
   /**
-   * WS-E: Resolves independent driver payout using versioned CorporateDriverRateCard.
-   * Falls back to default ₹300 base (first 10km) + ₹18/km if no custom card is configured.
+   * WS-E: Resolves an independent driver payout from the CorporateDriverRateCard version in effect
+   * at `at` (default now), via RateCardService. Falls back to ₹300 (first 10 km) + ₹18/km.
    */
   public async resolveDriverPayout(
     vehicleCategory: string = 'SEDAN',
@@ -668,8 +731,12 @@ export class CorporateBillingService {
   }
 
   /**
-   * WS-E: Creates a driver payout batch with idempotency key enforcement.
-   * Status: SUBMITTED (awaiting checker approval).
+   * WS-E: Creates a driver payout batch (maker step) with idempotency key enforcement.
+   * Status SUBMITTED = submitted for checker approval. One CorporatePayout row per driver
+   * (status PENDING, unique idempotencyKey) is created in the same transaction; the batch is
+   * only sent to the provider after approval (POST payouts/batches/:id/submit).
+   * Creation is serialised with a transaction-scoped advisory lock so two concurrent makers can
+   * never claim the same UNPAID earning.
    */
   public async createPayoutBatch(
     dto: DriverPayoutBatchDto,
@@ -678,14 +745,12 @@ export class CorporateBillingService {
   ) {
     const key = idempotencyKey || `payout-batch-${Date.now()}-${randomUUID().slice(0, 8)}`;
 
-    if (this.db?.corporatePayoutBatch?.findUnique) {
-      const existing = await this.db.corporatePayoutBatch.findUnique({
-        where: { idempotencyKey: key },
-        include: { earnings: true },
-      });
-      if (existing) {
-        return existing;
-      }
+    const existing = await this.db.corporatePayoutBatch.findUnique({
+      where: { idempotencyKey: key },
+      include: { earnings: true },
+    });
+    if (existing) {
+      return existing;
     }
 
     const where: any = { payoutStatus: 'UNPAID' };
@@ -696,38 +761,50 @@ export class CorporateBillingService {
       where.createdAt = { lte: new Date(dto.cutoffDate) };
     }
 
-    const unpaidEarnings = await this.db.corporateDriverEarning.findMany({
-      where,
-      include: {
-        driver: { select: { id: true, fullName: true, phone: true } },
-      },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    if (unpaidEarnings.length === 0) {
-      throw new BadRequestException('No unpaid driver commute earnings available for payout batch');
-    }
-
-    const uniqueDriverIds = new Set(unpaidEarnings.map((e) => e.driverId));
-    let grossPaise = 0n;
-    for (const e of unpaidEarnings) {
-      grossPaise += e.totalEarnedPaise;
-    }
-
-    // 1% TDS under Section 194C
-    const tdsPaise = (grossPaise * 1n) / 100n;
-    const netPayoutPaise = grossPaise - tdsPaise;
-
     const batchNumber = `PAY-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    let createdBatch: any = null;
-    if (this.db?.corporatePayoutBatch?.create) {
-      createdBatch = await this.db.corporatePayoutBatch.create({
+    const result = await this.db.$transaction(async (tx: any) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('corporate:payout-batch:create'))`;
+
+      // Re-check under the lock (a concurrent request with the same key may have just committed).
+      const raced = await tx.corporatePayoutBatch.findUnique({ where: { idempotencyKey: key } });
+      if (raced) return { batch: raced, created: false as const };
+
+      const unpaidEarnings = await tx.corporateDriverEarning.findMany({
+        where,
+        include: {
+          driver: { select: { id: true, fullName: true, phone: true } },
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      if (unpaidEarnings.length === 0) {
+        throw new BadRequestException('No unpaid driver commute earnings available for payout batch');
+      }
+
+      const perDriver = new Map<string, { gross: bigint; earningIds: string[] }>();
+      for (const e of unpaidEarnings) {
+        const entry = perDriver.get(e.driverId) ?? { gross: 0n, earningIds: [] };
+        entry.gross += e.totalEarnedPaise;
+        entry.earningIds.push(e.id);
+        perDriver.set(e.driverId, entry);
+      }
+
+      // 1% TDS under Section 194C per driver; batch totals are the sums of the payout rows.
+      let grossPaise = 0n;
+      let tdsPaise = 0n;
+      for (const p of perDriver.values()) {
+        grossPaise += p.gross;
+        tdsPaise += tdsOf(p.gross);
+      }
+      const netPayoutPaise = grossPaise - tdsPaise;
+
+      const batch = await tx.corporatePayoutBatch.create({
         data: {
           batchNumber,
           idempotencyKey: key,
           status: 'SUBMITTED',
-          totalDrivers: uniqueDriverIds.size,
+          totalDrivers: perDriver.size,
           totalRoutes: unpaidEarnings.length,
           grossPaise,
           tdsPaise,
@@ -737,38 +814,46 @@ export class CorporateBillingService {
       });
 
       // Link earnings and transition to PROCESSING
-      await this.db.corporateDriverEarning.updateMany({
-        where: { id: { in: unpaidEarnings.map((e) => e.id) } },
+      await tx.corporateDriverEarning.updateMany({
+        where: { id: { in: unpaidEarnings.map((e: any) => e.id) } },
         data: {
           payoutStatus: 'PROCESSING',
-          payoutBatchId: createdBatch.id,
+          payoutBatchId: batch.id,
         },
       });
-    } else {
-      createdBatch = {
-        id: randomUUID(),
-        batchNumber,
-        idempotencyKey: key,
-        status: 'SUBMITTED',
-        totalDrivers: uniqueDriverIds.size,
-        totalRoutes: unpaidEarnings.length,
-        grossPaise,
-        tdsPaise,
-        netPayoutPaise,
-        createdByUserId: makerUserId,
-        createdAt: new Date(),
-      };
-    }
+
+      await tx.corporatePayout.createMany({
+        data: [...perDriver.entries()].map(([driverId, p]) => {
+          const tds = tdsOf(p.gross);
+          return {
+            batchId: batch.id,
+            driverId,
+            kind: 'PAYOUT',
+            idempotencyKey: `cpo:${batch.id}:${driverId}`,
+            status: 'PENDING',
+            grossPaise: p.gross,
+            tdsPaise: tds,
+            netPaise: p.gross - tds,
+            earningIds: p.earningIds,
+          };
+        }),
+      });
+
+      return { batch, created: true as const };
+    });
+
+    const createdBatch: any = result.batch;
+    if (!result.created) return createdBatch;
 
     this.logger.log(
-      `Created payout batch ${batchNumber}: ₹${(Number(netPayoutPaise) / 100).toFixed(2)} across ${uniqueDriverIds.size} drivers (${unpaidEarnings.length} routes)`,
+      `Created payout batch ${batchNumber}: ₹${(Number(createdBatch.netPayoutPaise) / 100).toFixed(2)} across ${createdBatch.totalDrivers} drivers (${createdBatch.totalRoutes} routes)`,
     );
 
     this.notifications.emitEvent('admin:finance', 'CORPORATE_PAYOUT_BATCH_SUBMITTED', {
       batchId: createdBatch.id,
       batchNumber,
-      totalDrivers: uniqueDriverIds.size,
-      netPayoutPaise: netPayoutPaise.toString(),
+      totalDrivers: createdBatch.totalDrivers,
+      netPayoutPaise: createdBatch.netPayoutPaise.toString(),
     });
 
     await this.audit.log({
@@ -779,8 +864,8 @@ export class CorporateBillingService {
       entityType: 'CORPORATE_PAYOUT_BATCH',
       metadata: {
         batchNumber,
-        totalDrivers: uniqueDriverIds.size,
-        netPayoutPaise: netPayoutPaise.toString(),
+        totalDrivers: createdBatch.totalDrivers,
+        netPayoutPaise: createdBatch.netPayoutPaise.toString(),
       },
     });
 
@@ -789,7 +874,8 @@ export class CorporateBillingService {
 
   /**
    * WS-E: Approves payout batch with Maker-Checker constraint.
-   * Creator cannot approve their own batch.
+   * Creator cannot approve their own batch. The update is conditional on the status that was
+   * read, so two concurrent checkers cannot both approve (the loser gets 409).
    */
   public async approvePayoutBatch(batchId: string, checkerUserId: string) {
     const batch = await this.db.corporatePayoutBatch.findUnique({
@@ -805,20 +891,28 @@ export class CorporateBillingService {
     }
 
     // Strict Maker-Checker constraint enforcement
-    if (batch.createdByUserId === checkerUserId) {
+    if (!checkerUserId || batch.createdByUserId === checkerUserId) {
       throw new ForbiddenException(
         'Maker-Checker violation: Batch creator cannot approve their own payout batch',
       );
     }
 
-    const approved = await this.db.corporatePayoutBatch.update({
-      where: { id: batchId },
-      data: {
-        status: 'APPROVED',
-        approvedByUserId: checkerUserId,
-        approvedAt: new Date(),
-      },
-    });
+    let approved: any;
+    try {
+      approved = await this.db.corporatePayoutBatch.update({
+        where: { id: batchId, status: batch.status },
+        data: {
+          status: 'APPROVED',
+          approvedByUserId: checkerUserId,
+          approvedAt: new Date(),
+        },
+      });
+    } catch (err: any) {
+      if (err?.code === 'P2025') {
+        throw new ConflictException(`Payout batch ${batch.batchNumber} changed state concurrently; reload and retry`);
+      }
+      throw err;
+    }
 
     this.logger.log(`Payout batch ${batch.batchNumber} approved by checker ${checkerUserId}`);
 
@@ -834,16 +928,18 @@ export class CorporateBillingService {
       actorRole: 'SUPER_ADMIN',
       entityId: batchId,
       entityType: 'CORPORATE_PAYOUT_BATCH',
-      metadata: { batchNumber: batch.batchNumber },
+      metadata: { batchNumber: batch.batchNumber, makerUserId: batch.createdByUserId },
     });
 
     return approved;
   }
 
   /**
-   * WS-E: Processes payout batch (disbursement settlement) and marks all earnings PAID.
+   * @deprecated Use CorporatePayoutService.submitBatch (POST payouts/batches/:id/submit).
+   * Sends an APPROVED batch to the payout provider. It NEVER marks the batch or its earnings PAID:
+   * a payout becomes PAID only from a signed provider confirmation (POST payouts/provider-callback).
    */
-  public async processPayoutBatch(batchId: string, disbursementReference?: string) {
+  public async processPayoutBatch(batchId: string, _disbursementReference?: string, actorUserId?: string) {
     const batch = await this.db.corporatePayoutBatch.findUnique({
       where: { id: batchId },
     });
@@ -858,36 +954,14 @@ export class CorporateBillingService {
       );
     }
 
-    const ref = disbursementReference || `IMPS-${Date.now()}`;
-
-    const paidBatch = await this.db.corporatePayoutBatch.update({
-      where: { id: batchId },
-      data: {
-        status: 'PAID',
-        processedAt: new Date(),
-        disbursementReference: ref,
-      },
-    });
-
-    // Mark all linked earnings as PAID
-    await this.db.corporateDriverEarning.updateMany({
-      where: { payoutBatchId: batchId },
-      data: { payoutStatus: 'PAID' },
-    });
-
-    this.logger.log(`Payout batch ${batch.batchNumber} settled with reference ${ref}`);
-
-    this.notifications.emitEvent('admin:finance', 'CORPORATE_PAYOUT_BATCH_PAID', {
-      batchId,
-      batchNumber: batch.batchNumber,
-      disbursementReference: ref,
-    });
-
-    return paidBatch;
+    if (!this.payouts) {
+      throw new ServiceUnavailableException('Payout provider is not wired; cannot submit payout batch');
+    }
+    return this.payouts.submitBatch(batchId, actorUserId);
   }
 
   /**
-   * WS-E: List payout batches
+   * WS-E: List payout batches (ADMIN), with per-status payout counts.
    */
   public async listPayoutBatches(query?: { status?: string; page?: number; limit?: number }) {
     const page = Math.max(1, query?.page || 1);
@@ -904,11 +978,26 @@ export class CorporateBillingService {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
+        include: { payouts: { select: { id: true, status: true, kind: true } } },
       }),
     ]);
 
     return {
-      items,
+      items: items.map((b: any) => {
+        const payoutStatusCounts: Record<string, number> = {};
+        for (const p of b.payouts ?? []) {
+          if (p.kind !== 'PAYOUT') continue;
+          payoutStatusCounts[p.status] = (payoutStatusCounts[p.status] ?? 0) + 1;
+        }
+        const { payouts: _payouts, ...rest } = b;
+        return {
+          ...rest,
+          grossPaise: String(b.grossPaise),
+          tdsPaise: String(b.tdsPaise),
+          netPayoutPaise: String(b.netPayoutPaise),
+          payoutStatusCounts,
+        };
+      }),
       pagination: {
         total,
         page,
@@ -916,5 +1005,39 @@ export class CorporateBillingService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Invoice pricing helpers
+  // ---------------------------------------------------------------------------
+
+  /** All corporate card versions of a tenant (one query per invoice run). */
+  private async loadTenantCards(tenantId: string): Promise<ClientCardTerms[]> {
+    const cards = await this.getRateCards().listClientRateCards({ tenantId });
+    if (!cards.length) {
+      this.logger.warn(`No corporate rate cards for tenant ${tenantId}; invoice lines use the default fare`);
+    }
+    return cards;
+  }
+
+  /** Tenant policy cancel cutoff (hours before pickup 1); default 9. */
+  private async loadCancelCutoffHours(tenantId: string): Promise<number> {
+    try {
+      const policy = await (this.db as any).corporateTenantPolicy.findFirst({
+        where: { tenantId, effectiveFrom: { lte: new Date() } },
+        orderBy: { version: 'desc' },
+        select: { cancelCutoffHours: true },
+      });
+      return policy?.cancelCutoffHours ?? 9;
+    } catch {
+      return 9;
+    }
+  }
+
+  /** The instant a trip is priced at: its first pickup; else the shift date. */
+  private tripInstant(route: any): Date {
+    const candidate = route.targetPickup1Time ?? route.shiftDate;
+    const d = candidate ? new Date(candidate) : new Date();
+    return isNaN(d.getTime()) ? new Date() : d;
   }
 }
