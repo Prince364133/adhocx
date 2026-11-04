@@ -23,6 +23,10 @@ describe('Corporate Trip Execution, 5-Min Timer, OTP Boarding & 9h Reschedule', 
   const mockRedisClient = {
     set: jest.fn().mockResolvedValue('OK'),
     del: jest.fn().mockResolvedValue(1),
+    // Boarding OTP attempt counter
+    get: jest.fn().mockResolvedValue(null),
+    incr: jest.fn().mockResolvedValue(1),
+    expire: jest.fn().mockResolvedValue(1),
   };
 
   const mockRedis = {

@@ -58,6 +58,9 @@ const RELATIONS: Record<string, Record<string, RelationSpec>> = {
     payouts: { table: 'corporatePayout', kind: 'many', localKey: 'id', foreignKey: 'batchId' },
     earnings: { table: 'corporateDriverEarning', kind: 'many', localKey: 'id', foreignKey: 'payoutBatchId' },
   },
+  corporatePayout: {
+    driver: { table: 'driver', kind: 'one', localKey: 'driverId', foreignKey: 'id' },
+  },
   corporateInvoiceDispute: {
     creditNote: { table: 'corporateCreditNote', kind: 'one', localKey: 'id', foreignKey: 'disputeId' },
   },

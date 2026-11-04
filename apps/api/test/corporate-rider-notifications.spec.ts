@@ -111,6 +111,13 @@ describe('Corporate ETS Rider Notifications', () => {
       return 'OK';
     }),
     del: jest.fn(async (key: string) => (redisKeys.delete(key) ? 1 : 0)),
+    get: jest.fn(async (key: string) => redisKeys.get(key) ?? null),
+    incr: jest.fn(async (key: string) => {
+      const n = Number(redisKeys.get(key) ?? 0) + 1;
+      redisKeys.set(key, String(n));
+      return n;
+    }),
+    expire: jest.fn(async () => 1),
   };
   const redis = { getClient: jest.fn(() => (redisAvailable ? redisClient : null)) };
 
