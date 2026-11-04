@@ -324,6 +324,25 @@ export class CorporateTenantController {
     return this.tenantService.getEmployeeById(tenantId, employeeId, scopeOf(req));
   }
 
+  @Get(':id/employees/:employeeId/requests')
+  @Roles(...CORPORATE_PORTAL_ROLES)
+  @CorporateResource('tenant', 'id')
+  @CorporatePermission('employees:read')
+  @ApiOperation({
+    summary: 'Commute history of an employee: transport requests (newest first) with planned vs actual pickup',
+  })
+  @ApiResponse({ status: 200, description: 'Employee transport requests' })
+  public async listEmployeeRequests(
+    @Param('id') tenantId: string,
+    @Param('employeeId') employeeId: string,
+    @Query('limit') limit?: string,
+    @Req() req?: any,
+  ) {
+    return this.tenantService.listEmployeeRequests(tenantId, employeeId, scopeOf(req), {
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
+  }
+
   @Patch(':id/employees/:employeeId')
   @Roles(...CORPORATE_PORTAL_ROLES)
   @CorporateResource('tenant', 'id')

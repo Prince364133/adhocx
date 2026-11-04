@@ -405,6 +405,53 @@ export class CorporateTenantService {
     return employee;
   }
 
+  /**
+   * Commute history of one employee (CP-EMP / UI-03-02): their transport requests, newest shift
+   * first, with the planned vs actual pickup of the stop each was planned onto. Read-only.
+   * Tenant- and office-scoped exactly like getEmployeeById (out-of-scope => 404). Returns no
+   * pricing fields and no boarding OTP.
+   */
+  async listEmployeeRequests(
+    tenantId: string,
+    employeeId: string,
+    officeScope?: string[] | null,
+    query: { limit?: number } = {},
+  ) {
+    await this.getEmployeeById(tenantId, employeeId, officeScope);
+    const limit = Math.min(100, Math.max(1, Number.isFinite(query.limit) ? Number(query.limit) : 30));
+
+    const items = await this.db.corporateTransportRequest.findMany({
+      where: { tenantId, employeeId },
+      orderBy: [{ scheduledDate: 'desc' }, { shiftTime: 'desc' }, { id: 'asc' }],
+      take: limit,
+      select: {
+        id: true,
+        rosterId: true,
+        scheduledDate: true,
+        shiftTime: true,
+        direction: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        routeStop: {
+          select: {
+            id: true,
+            routeId: true,
+            stopSequence: true,
+            stopType: true,
+            plannedEta: true,
+            actualArrivalTime: true,
+            actualDepartureTime: true,
+            status: true,
+            noShowReason: true,
+          },
+        },
+      },
+    });
+
+    return { employeeId, limit, items };
+  }
+
   async updateEmployee(
     tenantId: string,
     employeeId: string,

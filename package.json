@@ -10,6 +10,7 @@
     "dev:api": "pnpm --filter @adhocx/api run dev",
     "dev:admin": "pnpm --filter @adhocx/admin run dev",
     "dev:ops": "pnpm --filter @adhocx/ops run dev",
+    "dev:corporate": "pnpm --filter @adhocx/corporate run dev",
     "dev:marketing": "pnpm --filter @adhocx/marketing run dev",
     "dev:mobile": "pnpm --filter @adhocx/mobile run dev",
     "dev:mobile:android": "pnpm --filter @adhocx/mobile run dev",

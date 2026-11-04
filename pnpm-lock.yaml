@@ -233,6 +233,37 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
+  apps/corporate:
+    dependencies:
+      '@adhocx/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      lucide-react:
+        specifier: ^1.47.0
+        version: 1.47.0(react@18.3.1)
+      next:
+        specifier: ^14.2.0
+        version: 14.2.23(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.0
+        version: 20.19.43
+      '@types/react':
+        specifier: ^18.2.48
+        version: 18.3.31
+      '@types/react-dom':
+        specifier: ^18.2.18
+        version: 18.3.7(@types/react@18.3.31)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+
   apps/employee_app: {}
 
   apps/marketing:
