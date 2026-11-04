@@ -1,0 +1,31 @@
+name: adhocx_employee
+description: AdhocX Employee - corporate commute app for employees riding AdhocX cabs (Corporate ETS)
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+# Versions match apps/mobile wherever the same package is used.
+dependencies:
+  flutter:
+    sdk: flutter
+
+  google_fonts: ^6.1.0          # Inter typography (same as apps/mobile)
+  shared_preferences: ^2.2.2    # consent + language preference
+  flutter_secure_storage: ^11.2.0 # access / refresh tokens (same storage pattern as apps/mobile)
+  http: ^1.6.0                  # REST + SSE
+  connectivity_plus: ^6.1.4     # offline banner
+  provider: ^6.1.2              # session / theme state
+  geolocator: ^13.0.2           # SOS position, location consent
+  permission_handler: ^11.3.1   # notification consent + open settings
+  url_launcher: ^6.3.1          # dial 112 from the Safety Center
+  qr_flutter: ^4.1.0            # boarding QR (not used by apps/mobile)
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true

@@ -33,6 +33,14 @@ import {
   CorporateStopStatus,
   CorporateTransportDirection,
 } from '@adhocx/contracts';
+import * as crypto from 'crypto';
+import { evaluateCutoff, resolveCancelCutoffHours, resolvePickupTime } from '../replanning/cutoff-policy';
+import { classifyGpsFreshness, CorporateGpsKeys } from '../tracking/tracking.types';
+
+/** Request states that can no longer be cancelled or rescheduled. */
+const NON_MODIFIABLE_REQUEST_STATUSES = new Set(['CANCELLED', 'COMPLETED', 'IN_PROGRESS', 'UNSERVED']);
+
+const nonEmpty = (v: unknown): string | null => (typeof v === 'string' && v.trim() ? v : null);
 
 function haversineDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371e3;
@@ -53,7 +61,6 @@ const toPoint = (lat: unknown, lng: unknown): { latitude: number; longitude: num
 @Injectable()
 export class CorporateRiderService {
   private readonly logger = new Logger(CorporateRiderService.name);
-  private readonly CANCELLATION_CUTOFF_HOURS = 9;
 
   constructor(
     private readonly db: DatabaseService,
@@ -158,15 +165,15 @@ export class CorporateRiderService {
     });
 
     const defaultAddress = emp.locations && emp.locations.length > 0 ? emp.locations[0].addressText : 'Home Address';
+    // Same tenant policy, pickup anchor and IST interpretation as POST requests/:id/reschedule,
+    // so the app never offers an action the API will reject (or hides one it would accept).
+    const cutoffHours = await resolveCancelCutoffHours(this.db as any, emp.tenantId, now);
 
     const schedule: RiderScheduleItem[] = requests.map((req) => {
       const shiftDateStr = req.scheduledDate.toISOString().substring(0, 10);
-      const [hours, minutes] = req.shiftTime.split(':').map(Number);
-      const shiftDateTime = new Date(req.scheduledDate);
-      shiftDateTime.setHours(hours, minutes, 0, 0);
-
-      const hoursUntilShift = (shiftDateTime.getTime() - now.getTime()) / (3600 * 1000);
-      const canModify = hoursUntilShift >= this.CANCELLATION_CUTOFF_HOURS;
+      const { pickupAt, source } = resolvePickupTime(req as any);
+      const cutoff = evaluateCutoff(pickupAt, source, now, null, cutoffHours);
+      const canModify = cutoff.allowed && !NON_MODIFIABLE_REQUEST_STATUSES.has(String(req.status));
 
       const stop = req.routeStop;
       const route = stop?.route;
@@ -187,6 +194,10 @@ export class CorporateRiderService {
         vehicleCategory: route?.vehicleCategory ?? 'SEDAN',
         canCancel: canModify,
         canReschedule: canModify,
+        pickupAt: pickupAt.toISOString(),
+        cancelCutoffAt: cutoff.cutoffAt.toISOString(),
+        cutoffHours,
+        canModify,
         pickupPoint: toPoint(req.pickupLat, req.pickupLng),
         dropoffPoint: toPoint(req.dropoffLat, req.dropoffLng),
       };
@@ -278,15 +289,18 @@ export class CorporateRiderService {
               rating: Number(driver.averageRating) || 5.0,
             }
           : null,
-        vehicle: driver
-          ? {
-              id: assignedVehicle?.id ?? `veh-${driver.id}`,
-              plateNumber: assignedVehicle?.registrationNumber || driver.vehiclePlate || 'AP29TX1234',
-              model: assignedVehicle?.model || driver.vehicleModel || 'Maruti Dzire',
-              color: (driver as any).vehicleColor || 'White',
-              category: route.vehicleCategory || 'SEDAN',
-            }
-          : null,
+        // Never invent a plate / model: an employee checks these before boarding.
+        vehicle:
+          driver && nonEmpty(assignedVehicle?.registrationNumber ?? driver.vehiclePlate)
+            ? {
+                id: assignedVehicle?.id ?? `veh-${driver.id}`,
+                plateNumber: nonEmpty(assignedVehicle?.registrationNumber) ?? (driver.vehiclePlate as string),
+                model: nonEmpty(assignedVehicle?.model) ?? nonEmpty(driver.vehicleModel) ?? '',
+                color: nonEmpty((driver as any).vehicleColor),
+                category: route.vehicleCategory || 'SEDAN',
+              }
+            : null,
+        noShowReason: (s as any).noShowReason ?? null,
         hasFeedback: Boolean(s.feedback),
         feedbackRating: s.feedback?.rating ?? null,
         femaleSafeDropRequired,
@@ -388,6 +402,7 @@ export class CorporateRiderService {
         route: {
           include: {
             driver: true,
+            vehicle: true,
             office: true,
             stops: { orderBy: { stopSequence: 'asc' } },
             sosAlerts: { where: { status: { in: ['NEW', 'ACTIVE', 'ACKNOWLEDGED', 'INVESTIGATING', 'ESCALATED'] } } },
@@ -406,6 +421,7 @@ export class CorporateRiderService {
           route: {
             include: {
               driver: true,
+              vehicle: true,
               office: true,
               stops: { orderBy: { stopSequence: 'asc' } },
               sosAlerts: { where: { status: { in: ['NEW', 'ACTIVE', 'ACKNOWLEDGED', 'INVESTIGATING', 'ESCALATED'] } } },
@@ -422,38 +438,34 @@ export class CorporateRiderService {
     const route = stop.route;
     const client = this.redis.getClient();
 
-    // 1. Fetch live driver coordinates from Redis
+    // 1. Latest vehicle position: the key CorporateGpsIngestService writes on every telemetry fix
+    //    (`corporate:route:telemetry:{routeId}`), falling back to the legacy per-driver key. A fix
+    //    without a valid device timestamp is ignored: it must never be reported as fresh.
+    const now = new Date();
     let driverLocation: any = null;
     let distanceToPickupMeters: number | null = null;
     let estimatedArrivalMinutes: number | null = null;
 
-    if (route.driverId && client) {
+    if (client) {
       try {
-        const rawLoc = await client.get(`driver:location:${route.driverId}`);
-        if (rawLoc) {
-          const parsed = JSON.parse(rawLoc);
-          driverLocation = {
-            latitude: Number(parsed.latitude),
-            longitude: Number(parsed.longitude),
-            heading: parsed.heading ?? null,
-            speedKmph: parsed.speedKmph ?? null,
-            updatedAt: new Date(parsed.timestamp || Date.now()),
-          };
-
-          const stopLat = Number(stop.latitude);
-          const stopLng = Number(stop.longitude);
-          distanceToPickupMeters = Math.round(
-            haversineDistanceMeters(driverLocation.latitude, driverLocation.longitude, stopLat, stopLng),
-          );
-          // Urban average speed: 30 km/h (500m/min)
-          estimatedArrivalMinutes = Math.max(1, Math.ceil(distanceToPickupMeters / 500));
-        }
+        driverLocation = await this.readLatestDriverFix(client, route.id, route.driverId);
       } catch (e: any) {
         this.logger.warn(`Failed to read driver location from Redis: ${e?.message}`);
       }
     }
+    const freshness = classifyGpsFreshness(driverLocation?.updatedAt ?? null, now);
+    if (driverLocation) {
+      const stopLat = Number(stop.latitude);
+      const stopLng = Number(stop.longitude);
+      distanceToPickupMeters = Math.round(
+        haversineDistanceMeters(driverLocation.latitude, driverLocation.longitude, stopLat, stopLng),
+      );
+      // Urban average speed: 30 km/h (500m/min)
+      estimatedArrivalMinutes = Math.max(1, Math.ceil(distanceToPickupMeters / 500));
+    }
 
-    // 2. Fetch active dwell countdown timer from Redis
+    // 2. Dwell countdown: Redis timer when present, else derived from the recorded arrival time and
+    //    the stop's dwell buffer (default 300 s = the 5-minute wait before a no-show).
     let dwellRemainingSeconds: number | null = null;
     if (client) {
       const dwellKey = `corporate:dwell:${route.id}:${stop.id}`;
@@ -461,6 +473,11 @@ export class CorporateRiderService {
       if (ttl > 0) {
         dwellRemainingSeconds = ttl;
       }
+    }
+    if (dwellRemainingSeconds === null && stop.status === 'ARRIVED' && stop.actualArrivalTime) {
+      const buffer = Number((stop as any).dwellBufferSeconds ?? 300);
+      const elapsed = Math.floor((now.getTime() - new Date(stop.actualArrivalTime).getTime()) / 1000);
+      dwellRemainingSeconds = Math.max(0, buffer - Math.max(0, elapsed));
     }
 
     // 3. Generate dynamic HMAC QR token
@@ -494,6 +511,8 @@ export class CorporateRiderService {
       dynamicQrToken,
       dwellRemainingSeconds,
       isDriverArrived: stop.status === 'ARRIVED',
+      gpsState: freshness.gpsState,
+      lastFixAgeSec: freshness.lastFixAgeSec,
       driverLocation,
       driver: route.driver
         ? {
@@ -504,14 +523,17 @@ export class CorporateRiderService {
             rating: Number(route.driver.averageRating) || 5.0,
           }
         : null,
-      vehicle: route.driver
-        ? {
-            plateNumber: route.driver.vehiclePlate || 'AP29TX1234',
-            model: route.driver.vehicleModel || 'Maruti Dzire',
-            color: (route.driver as any).vehicleColor || 'White',
-            category: route.vehicleCategory || 'SEDAN',
-          }
-        : null,
+      // The assigned route vehicle wins over the driver's profile; never invent a plate / model.
+      vehicle:
+        route.driver && nonEmpty((route as any).vehicle?.registrationNumber ?? route.driver.vehiclePlate)
+          ? {
+              plateNumber:
+                nonEmpty((route as any).vehicle?.registrationNumber) ?? (route.driver.vehiclePlate as string),
+              model: nonEmpty((route as any).vehicle?.model) ?? nonEmpty(route.driver.vehicleModel) ?? '',
+              color: nonEmpty((route.driver as any).vehicleColor),
+              category: route.vehicleCategory || 'SEDAN',
+            }
+          : null,
       activeSosAlert: activeSos
         ? {
             id: activeSos.id,
@@ -529,6 +551,34 @@ export class CorporateRiderService {
    * is deliberately no signing key here (the old hardcoded fallback key produced tokens the
    * verifier could not even parse).
    */
+  /** Latest GPS fix of a route, or null when there is none with a valid device timestamp. */
+  private async readLatestDriverFix(
+    client: any,
+    routeId: string,
+    driverId: string | null | undefined,
+  ): Promise<RiderTripTrackingResponse['driverLocation']> {
+    const parse = (raw: string | null, tsField: 'recordedAt' | 'timestamp') => {
+      if (!raw) return null;
+      const p = JSON.parse(raw);
+      const ts = p?.[tsField];
+      const ms = typeof ts === 'number' ? ts : Date.parse(String(ts ?? ''));
+      const lat = Number(p?.latitude);
+      const lng = Number(p?.longitude);
+      if (!Number.isFinite(ms) || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+      const speedMps = typeof p.speedMps === 'number' ? p.speedMps : null;
+      return {
+        latitude: lat,
+        longitude: lng,
+        heading: p.headingDeg ?? p.heading ?? null,
+        speedKmph: p.speedKmph ?? (speedMps === null ? null : Math.round(speedMps * 36) / 10),
+        updatedAt: new Date(ms),
+      };
+    };
+    const latest = parse(await client.get(CorporateGpsKeys.latest(routeId)), 'recordedAt');
+    if (latest || !driverId) return latest;
+    return parse(await client.get(`driver:location:${driverId}`), 'timestamp');
+  }
+
   private generateFallbackQrToken(routeId: string, stopId: string, otp: string): string {
     return Buffer.from(
       JSON.stringify({ stopId, routeId, otp, expiresAtMs: Date.now() + 300_000 }),

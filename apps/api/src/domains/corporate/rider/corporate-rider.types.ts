@@ -49,8 +49,19 @@ export interface RiderScheduleItem {
   pickupAddress: string;
   officeAddress: string;
   vehicleCategory?: string | null;
-  canCancel: boolean; // true if >= 9 hours before shift
-  canReschedule: boolean; // true if >= 9 hours before shift
+  canCancel: boolean; // same as canModify
+  canReschedule: boolean; // same as canModify
+  /**
+   * Pickup instant the cutoff is anchored on (same rule the reschedule/cancel endpoint enforces:
+   * LOGIN stop planned ETA, LOGOUT route departure, else the IST shift wall-clock).
+   */
+  pickupAt: string;
+  /** Last instant a cancel / reschedule is accepted (pickupAt - cutoffHours). */
+  cancelCutoffAt: string;
+  /** Tenant policy cutoff (default 9 h). */
+  cutoffHours: number;
+  /** True iff now <= cancelCutoffAt and the request is not in a terminal state. */
+  canModify: boolean;
   pickupPoint?: { latitude: number; longitude: number } | null;
   dropoffPoint?: { latitude: number; longitude: number } | null;
 }
@@ -99,6 +110,8 @@ export interface RiderTripSummary {
     color?: string | null;
     category: string;
   } | null;
+  /** Why the stop was marked NO_SHOW (e.g. not at the pickup point within the 5-minute wait). */
+  noShowReason?: string | null;
   hasFeedback: boolean;
   feedbackRating?: number | null;
   femaleSafeDropRequired: boolean;
@@ -145,6 +158,10 @@ export interface RiderTripTrackingResponse {
   dynamicQrToken: string;
   dwellRemainingSeconds?: number | null;
   isDriverArrived: boolean;
+  /** Freshness of driverLocation by device time: LIVE <= 45 s, STALE <= 180 s, else OFFLINE. */
+  gpsState: 'LIVE' | 'STALE' | 'OFFLINE';
+  /** Whole seconds since the last fix was recorded; null when there is no fix. */
+  lastFixAgeSec: number | null;
   driverLocation?: {
     latitude: number;
     longitude: number;

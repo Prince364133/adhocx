@@ -216,6 +216,8 @@ describe('Corporate ETS Workstream C: Rider Self-Service API, SOS FSM & Support 
             route: {
               id: 'route-locked-1',
               vehicleCategory: 'SUV',
+              // LOGOUT cutoff is anchored on the route's office departure (2 h away).
+              targetPickup1Time: nearShiftDate,
               targetOfficeArrivalTime: nearShiftDate,
               office: mockOffice,
             },
