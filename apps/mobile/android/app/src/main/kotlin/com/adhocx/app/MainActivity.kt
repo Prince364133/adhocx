@@ -1,6 +1,8 @@
 package com.adhocx.app
 
+import android.content.Context
 import android.content.Intent
+import android.os.BatteryManager
 import android.os.Bundle
 import androidx.annotation.NonNull
 import androidx.core.view.WindowCompat
@@ -31,6 +33,15 @@ class MainActivity : FlutterFragmentActivity() {
                     result.success(true)
                 } catch (e: Exception) {
                     result.error("ERROR", e.localizedMessage, null)
+                }
+            } else if (call.method == "batteryLevel") {
+                // Corporate ETS telemetry / SOS: device battery 0-100 (null when unavailable).
+                try {
+                    val bm = applicationContext.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+                    val level = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+                    result.success(if (level in 0..100) level else null)
+                } catch (e: Exception) {
+                    result.success(null)
                 }
             } else {
                 result.notImplemented()

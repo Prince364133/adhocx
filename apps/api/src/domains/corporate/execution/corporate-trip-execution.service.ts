@@ -926,22 +926,30 @@ export class CorporateTripExecutionService {
     if (!driver) {
       throw new NotFoundException('Driver profile not found');
     }
-    const route = await (this.db.corporateRoute as any).findFirst({
-      where: {
-        driverId: driver.id,
-        status: { in: ['ASSIGNED', 'IN_TRANSIT'] },
-      },
-      include: {
-        office: true,
-        vehicle: true,
-        stops: {
-          include: {
-            employee: true,
-          },
-          orderBy: { stopSequence: 'asc' },
+    // A driver commonly holds several duties (e.g. a LOGIN and a LOGOUT route the same day).
+    // The active one is the route already IN_TRANSIT, else the next ASSIGNED route by pickup-1 time;
+    // an unordered findFirst could return tonight's route during this morning's trip.
+    const include = {
+      office: true,
+      vehicle: true,
+      stops: {
+        include: {
+          employee: true,
         },
+        orderBy: { stopSequence: 'asc' },
       },
-    });
+    };
+    const route =
+      (await (this.db.corporateRoute as any).findFirst({
+        where: { driverId: driver.id, status: 'IN_TRANSIT' },
+        include,
+        orderBy: { targetPickup1Time: 'asc' },
+      })) ??
+      (await (this.db.corporateRoute as any).findFirst({
+        where: { driverId: driver.id, status: 'ASSIGNED' },
+        include,
+        orderBy: { targetPickup1Time: 'asc' },
+      }));
     if (!route) {
       return { hasActiveRoute: false, message: 'No active corporate route assigned at this time.' };
     }

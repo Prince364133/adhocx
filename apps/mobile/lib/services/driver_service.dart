@@ -858,31 +858,75 @@ class DriverService {
     return await _api.get('/corporate/dispatch/my-offer');
   }
 
-  /// Accept an active corporate route offer within the 60-second window
+  /// Pending corporate route offer for the authenticated driver (Redis live offer with a
+  /// CorporateDriverOffer fallback). Used on app start / reconnect to restore the 60 s popup.
+  /// Shape: `{hasActiveOffer, offer?: {routeId, remainingSeconds, offerExpiresAt, ...}}`.
+  Future<dynamic> getCorporateDriverOffers() async {
+    await _ensureDriverSession();
+    return await _api.get('/corporate/dispatch/driver-offers', force: true);
+  }
+
+  /// Accept an active corporate route offer within the 60-second window.
+  /// The server binds `driverId` to the authenticated driver (CorporateAccessGuard offer mode).
   Future<dynamic> acceptCorporateOffer(String routeId) async {
     await _ensureDriverSession();
-    final profile = await getProfile();
-    final driverId = profile is Map ? (profile['id'] ?? profile['driverId']) : null;
     final res = await _api.post(
       '/corporate/dispatch/routes/$routeId/offers/accept',
-      body: {'driverId': driverId ?? ''},
+      body: <String, dynamic>{},
     );
-    notifyTripChanged(tripId: routeId, status: 'ASSIGNED');
+    _api.invalidateCache(prefix: '/corporate');
     return res;
   }
 
   /// Decline an active corporate route offer
   Future<dynamic> declineCorporateOffer(String routeId, {String? reason}) async {
     await _ensureDriverSession();
-    final profile = await getProfile();
-    final driverId = profile is Map ? (profile['id'] ?? profile['driverId']) : null;
-    return await _api.post(
+    final res = await _api.post(
       '/corporate/dispatch/routes/$routeId/offers/reject',
       body: {
-        'driverId': driverId ?? '',
-        if (reason != null) 'reason': reason,
+        if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
       },
     );
+    _api.invalidateCache(prefix: '/corporate');
+    return res;
+  }
+
+  /// Upcoming committed corporate duties (ASSIGNED / IN_TRANSIT routes) for the authenticated driver.
+  Future<dynamic> getCorporateDuties() async {
+    await _ensureDriverSession();
+    return await _api.get('/corporate/dispatch/driver-duties', force: true);
+  }
+
+  /// All corporate routes assigned to the authenticated driver (latest 50, any status).
+  Future<dynamic> getCorporateDriverRoutes() async {
+    await _ensureDriverSession();
+    return await _api.get('/corporate/trips/driver/routes', force: true);
+  }
+
+  /// Start driving toward pickup 1 (ASSIGNED -> IN_TRANSIT). The GPS fix is optional and only
+  /// used by the server for the employees' ETA computation.
+  Future<dynamic> startCorporateRoute(String routeId, {double? lat, double? lng}) async {
+    await _ensureDriverSession();
+    final res = await _api.post(
+      '/corporate/trips/routes/$routeId/start',
+      body: {
+        if (lat != null && lng != null) 'driverLatitude': lat,
+        if (lat != null && lng != null) 'driverLongitude': lng,
+      },
+    );
+    _api.invalidateCache(prefix: '/corporate');
+    return res;
+  }
+
+  /// Live GPS telemetry for an active corporate route (DRV-11).
+  Future<dynamic> postCorporateTelemetry(String routeId, Map<String, dynamic> fix) async {
+    return await _api.post('/corporate/trips/routes/$routeId/telemetry', body: fix);
+  }
+
+  /// Corporate commute earnings summary (paise strings) with payout split and TDS estimate.
+  Future<dynamic> getCorporateEarningsSummary(String driverId) async {
+    await _ensureDriverSession();
+    return await _api.get('/corporate/billing/drivers/$driverId/earnings', force: true);
   }
 
   /// Get the active assigned corporate route with all ordered stops and dwell timers
@@ -925,17 +969,21 @@ class DriverService {
     return res;
   }
 
-  /// Mark employee absent / no-show after 5-minute wait timer elapsed
+  /// Mark employee absent / no-show after 5-minute wait timer elapsed (server re-checks the 300 s window)
   Future<dynamic> markCorporateNoShow(
     String routeId,
     String stopId, {
     String? reason,
+    double? lat,
+    double? lng,
   }) async {
     await _ensureDriverSession();
     final res = await _api.post(
       '/corporate/trips/routes/$routeId/stops/$stopId/no-show',
       body: {
         if (reason != null) 'reason': reason,
+        if (lat != null && lng != null) 'driverLatitude': lat,
+        if (lat != null && lng != null) 'driverLongitude': lng,
       },
     );
     notifyTripChanged(tripId: routeId, status: 'NO_SHOW');
@@ -962,11 +1010,14 @@ class DriverService {
     return await _api.post('/corporate/safety/routes/$routeId/stops/$stopId/confirm-safe-drop');
   }
 
-  /// Trigger emergency SOS distress alert directly to Command Centre
+  /// Trigger emergency SOS distress alert directly to Command Centre.
+  /// Body follows TriggerSosAlertDto: routeId, stopId?, latitude, longitude, batteryPct?, triggerReason?.
   Future<dynamic> triggerCorporateSos(
     String routeId, {
     required double lat,
     required double lng,
+    String? stopId,
+    int? batteryPct,
     String? note,
   }) async {
     await _ensureDriverSession();
@@ -974,12 +1025,12 @@ class DriverService {
       '/corporate/safety/sos',
       body: {
         'routeId': routeId,
-        'currentLatitude': lat,
-        'currentLongitude': lng,
-        if (note != null) 'notes': note,
+        'latitude': lat,
+        'longitude': lng,
+        if (stopId != null) 'stopId': stopId,
+        if (batteryPct != null) 'batteryPct': batteryPct,
+        if (note != null && note.trim().isNotEmpty) 'triggerReason': note.trim(),
       },
     );
   }
 }
-
-
