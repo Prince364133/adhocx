@@ -8,6 +8,7 @@ import {
   Req,
   Res,
   BadRequestException,
+  GoneException,
   UseGuards,
 } from '@nestjs/common';
 import { Response } from 'express';
@@ -15,7 +16,6 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 import { CorporateBillingService } from './corporate-billing.service';
 import {
   GenerateInvoiceBatchDto,
-  DriverPayoutBatchDto,
   CorporateInvoiceStatus,
   UserRole,
 } from '@adhocx/contracts';
@@ -33,6 +33,11 @@ import {
   ResolveInvoiceDisputeDto,
 } from './corporate-billing-wire.types';
 import { forCaller } from './corporate-response-guard';
+
+export const PREPARE_BATCH_GONE_MESSAGE =
+  'POST /corporate/billing/payouts/prepare-batch is retired. Create a batch with POST /corporate/billing/payouts/batches, ' +
+  'have a different admin approve it (POST payouts/batches/:id/approve), then submit it (POST payouts/batches/:id/submit). ' +
+  'A payout is PAID only when the payout provider confirms it.';
 
 @ApiTags('Corporate ETS - Dual Financial Ledgers, Invoicing & Payouts')
 @ApiBearerAuth()
@@ -111,18 +116,28 @@ export class CorporateBillingController {
     res.end(buffer);
   }
 
+  /**
+   * Retired. The one-step payout marked earnings PAID with no maker-checker and no provider
+   * confirmation. Kept only to answer 410 Gone with a pointer to the batch flow.
+   */
   @Post('payouts/prepare-batch')
   @Roles(UserRole.ADMIN)
   @ApiOperation({
-    summary:
-      'Aggregate UNPAID driver commute earnings, deduct 1% TDS (Sec 194C), and produce IMPS/RazorpayX batch payout payload',
+    summary: 'RETIRED (410 Gone). Use POST payouts/batches -> /approve (different admin) -> /submit.',
+    deprecated: true,
   })
-  @ApiResponse({ status: 201, description: 'Payout batch prepared' })
-  public async preparePayoutBatch(
-    @Body() dto: DriverPayoutBatchDto,
-    @Req() req: any,
-  ) {
-    return this.billingService.prepareDriverPayoutBatch(dto, req.user?.id);
+  @ApiResponse({ status: 410, description: 'Endpoint retired; use payouts/batches' })
+  public preparePayoutBatch(): never {
+    throw new GoneException({
+      statusCode: 410,
+      error: 'Gone',
+      message: PREPARE_BATCH_GONE_MESSAGE,
+      replacement: {
+        create: 'POST /corporate/billing/payouts/batches',
+        approve: 'POST /corporate/billing/payouts/batches/:id/approve',
+        submit: 'POST /corporate/billing/payouts/batches/:id/submit',
+      },
+    });
   }
 
   @Get('drivers/:driverId/earnings')

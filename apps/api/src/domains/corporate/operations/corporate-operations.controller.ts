@@ -7,7 +7,7 @@ import { CorporateAccessGuard } from '../../../common/guards/corporate-access.gu
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { CorporateResource } from '../../../common/decorators/corporate-resource.decorator';
 import { CorporateOperationsService } from './corporate-operations.service';
-import { ReassignRouteDto } from './operations.types';
+import { CancelRouteDto, ReassignRouteDto } from './operations.types';
 
 /** Command centre (AdhocX operations). ADMIN only: it spans every tenant. */
 @ApiTags('Corporate ETS - Command Centre Operations')
@@ -60,5 +60,32 @@ export class CorporateOperationsController {
   @ApiResponse({ status: 409, description: 'Route not ASSIGNED, changed concurrently, or driver unavailable' })
   public async reassign(@Param('id') routeId: string, @Body() dto: ReassignRouteDto, @Req() req: any) {
     return this.ops.reassignRoute(routeId, dto, { id: req.user?.id, role: req.user?.role });
+  }
+}
+
+/**
+ * ADMIN route cancel, served at the trip path the command-centre portal uses
+ * (`POST /corporate/trips/routes/:id/cancel`). Logic lives in the operations domain.
+ */
+@ApiTags('Corporate ETS - Command Centre Operations')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard, CorporateAccessGuard)
+@Controller('corporate/trips')
+export class CorporateRouteCancellationController {
+  constructor(private readonly ops: CorporateOperationsService) {}
+
+  @Post('routes/:id/cancel')
+  @HttpCode(200)
+  @Roles(UserRole.ADMIN)
+  @CorporateResource('route', 'id')
+  @ApiOperation({
+    summary:
+      'Cancel a route that has not started (PLANNED / DISPATCHING / ASSIGNED) with a mandatory reason. Withdraws the live offer, voids unpaid earnings, cancels open stops and their requests, notifies the driver and employees. Audited.',
+  })
+  @ApiResponse({ status: 200, description: 'Route cancelled' })
+  @ApiResponse({ status: 400, description: 'Reason missing or too short' })
+  @ApiResponse({ status: 409, description: 'Route already started, completed or cancelled, changed concurrently, or its earning is already batched' })
+  public async cancel(@Param('id') routeId: string, @Body() dto: CancelRouteDto, @Req() req: any) {
+    return this.ops.cancelRoute(routeId, dto, { id: req.user?.id, role: req.user?.role });
   }
 }

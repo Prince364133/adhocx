@@ -423,13 +423,37 @@ export class CorporatePayoutService {
       include: { payouts: { orderBy: { createdAt: 'asc' } } },
     });
     if (!batch) throw new NotFoundException(`Payout batch ${batchId} not found`);
+    const drivers = await this.loadDriverNames((batch.payouts ?? []).map((p: any) => p.driverId));
     return {
       ...batch,
       grossPaise: String(batch.grossPaise),
       tdsPaise: String(batch.tdsPaise),
       netPayoutPaise: String(batch.netPayoutPaise),
-      payouts: (batch.payouts ?? []).map((p: any) => this.serializePayout(p)),
+      payouts: (batch.payouts ?? []).map((p: any) => ({
+        ...this.serializePayout(p),
+        driver: drivers.get(p.driverId) ?? null,
+      })),
     };
+  }
+
+  /** Display names for the admin payout desk (one query). A lookup failure never fails the read. */
+  private async loadDriverNames(
+    driverIds: string[],
+  ): Promise<Map<string, { id: string; fullName: string | null; phone: string | null }>> {
+    const out = new Map<string, { id: string; fullName: string | null; phone: string | null }>();
+    const ids = [...new Set(driverIds.filter(Boolean))];
+    const delegate: any = (this.db as any).driver;
+    if (ids.length === 0 || typeof delegate?.findMany !== 'function') return out;
+    try {
+      const rows: any[] = await delegate.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, fullName: true, phone: true },
+      });
+      for (const r of rows ?? []) out.set(r.id, { id: r.id, fullName: r.fullName ?? null, phone: r.phone ?? null });
+    } catch (err: any) {
+      this.logger.warn(`Driver name lookup for payout batch failed: ${err?.message}`);
+    }
+    return out;
   }
 
   private serializePayout(p: any) {

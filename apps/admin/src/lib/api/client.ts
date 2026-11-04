@@ -40,6 +40,20 @@ import {
   UpdateZonalLocalityRequest,
   ZonalQuoteRequest,
   ZonalQuoteResponse,
+  CorporatePayoutBatch,
+  CorporatePayoutBatchListItem,
+  CorporatePayoutReconciliation,
+  CorporateClientRateCard,
+  CorporateDriverRateCard,
+  CreateCorporateClientRateCardInput,
+  CreateCorporateDriverRateCardInput,
+  CorporateInvoiceDispute,
+  CorporateCreditNote,
+  CorporateSupportTicket,
+  CorporateTicketStatus,
+  CorporateTicketPriority,
+  CorporateSosAlert,
+  CorporateSosStatus,
 } from './types';
 
 export function getApiBaseUrl(): string {
@@ -106,6 +120,11 @@ type RequestOptions = {
   body?: unknown;
   headers?: Record<string, string>;
   token?: string;
+  /**
+   * When true, a 403 is thrown as an ApiError (so the screen can show its "not authorised" state or a
+   * maker-checker refusal) instead of clearing the session. A 401 still signs the admin out.
+   */
+  allowForbidden?: boolean;
 };
 
 /**
@@ -116,7 +135,7 @@ export async function apiClient<T = unknown>(
   endpoint: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  const { method = 'GET', body, headers = {}, token } = options;
+  const { method = 'GET', body, headers = {}, token, allowForbidden = false } = options;
 
   const requestHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -140,7 +159,7 @@ export async function apiClient<T = unknown>(
   });
 
   if (!response.ok) {
-    if (typeof window !== 'undefined' && (response.status === 401 || response.status === 403)) {
+    if (typeof window !== 'undefined' && (response.status === 401 || (response.status === 403 && !allowForbidden))) {
       // Do not trigger global redirect if user is attempting login
       if (!endpoint.includes('/auth/admin/login')) {
         clearAdminSession();
@@ -647,23 +666,6 @@ export const adminApi = {
 
   getCorporateRoute: (routeId: string) => apiClient<any>(`/corporate/routes/${routeId}`),
 
-  prepareCorporatePayoutBatch: (dto?: { driverIds?: string[]; cutoffDate?: string }) =>
-    apiClient<{
-      batchId: string;
-      totalDrivers: number;
-      totalEarningsCount: number;
-      totalGrossEarningsPaise: string;
-      totalGrossEarningsRupees: number;
-      totalTdsDeductedPaise: string;
-      totalTdsDeductedRupees: number;
-      totalNetPayoutPaise: string;
-      totalNetPayoutRupees: number;
-      disbursals: any[];
-    }>('/corporate/billing/payouts/prepare-batch', {
-      method: 'POST',
-      body: dto || {},
-    }),
-
   /** Manual "Start": dispatch now. Returns the dispatch outcome (OFFERED, NO_DRIVERS_FOUND, ...). */
   startCorporateRouteDispatch: (routeId: string) =>
     apiClient<{
@@ -672,6 +674,192 @@ export const adminApi = {
       offeredDriverName?: string;
       searchRadiusKm?: number;
     }>(`/corporate/dispatch/routes/${routeId}/start-now`, { method: 'POST', body: {} }),
+
+  // ── Corporate ETS: driver payout batches (maker -> checker -> provider) ──
+  // `allowForbidden`: a 403 here is a maker-checker refusal or a missing role, shown in place;
+  // it must not sign the admin out.
+  listCorporatePayoutBatches: (params: { status?: string; page?: number; limit?: number } = {}) => {
+    const q = new URLSearchParams();
+    if (params.status) q.set('status', params.status);
+    q.set('page', String(params.page ?? 1));
+    q.set('limit', String(params.limit ?? 20));
+    return apiClient<{
+      items: CorporatePayoutBatchListItem[];
+      pagination: { total: number; page: number; limit: number; totalPages: number };
+    }>(`/corporate/billing/payouts/batches?${q.toString()}`, { allowForbidden: true });
+  },
+
+  getCorporatePayoutBatch: (id: string) =>
+    apiClient<CorporatePayoutBatch>(`/corporate/billing/payouts/batches/${id}`, { allowForbidden: true }),
+
+  /** Maker step. `idempotencyKey` makes a double click return the same batch. */
+  createCorporatePayoutBatch: (dto: { driverIds?: string[]; cutoffDate?: string; idempotencyKey: string }) =>
+    apiClient<CorporatePayoutBatch>('/corporate/billing/payouts/batches', {
+      method: 'POST',
+      body: dto,
+      allowForbidden: true,
+    }),
+
+  /** Checker step: the API refuses (403) when the approver created the batch. */
+  approveCorporatePayoutBatch: (id: string) =>
+    apiClient<CorporatePayoutBatch>(`/corporate/billing/payouts/batches/${id}/approve`, {
+      method: 'POST',
+      body: {},
+      allowForbidden: true,
+    }),
+
+  /** Sends an APPROVED batch (or retries its FAILED payouts). Never marks anything PAID. */
+  submitCorporatePayoutBatch: (id: string) =>
+    apiClient<
+      CorporatePayoutBatch & { submitted: { payoutId: string; driverId: string; idempotencyKey: string; result: string }[] }
+    >(`/corporate/billing/payouts/batches/${id}/submit`, { method: 'POST', body: {}, allowForbidden: true }),
+
+  getCorporatePayoutReconciliation: (from: string, to: string) =>
+    apiClient<CorporatePayoutReconciliation>(
+      `/corporate/billing/reconciliations?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+      { allowForbidden: true },
+    ),
+
+  // ── Corporate ETS: versioned rate cards (no edit: a change is a new version) ──
+  listCorporateClientRateCards: (params: { tenantId?: string; vehicleCategory?: string; includeRetired?: boolean } = {}) => {
+    const q = new URLSearchParams();
+    if (params.tenantId) q.set('tenantId', params.tenantId);
+    if (params.vehicleCategory) q.set('vehicleCategory', params.vehicleCategory);
+    if (params.includeRetired) q.set('includeRetired', 'true');
+    return apiClient<CorporateClientRateCard[]>(`/corporate/billing/rate-cards/corporate?${q.toString()}`, {
+      allowForbidden: true,
+    });
+  },
+
+  createCorporateClientRateCard: (dto: CreateCorporateClientRateCardInput) =>
+    apiClient<CorporateClientRateCard>('/corporate/billing/rate-cards/corporate', {
+      method: 'POST',
+      body: dto,
+      allowForbidden: true,
+    }),
+
+  retireCorporateClientRateCard: (id: string, effectiveTo?: string) =>
+    apiClient<CorporateClientRateCard>(`/corporate/billing/rate-cards/corporate/${id}/retire`, {
+      method: 'POST',
+      body: effectiveTo ? { effectiveTo } : {},
+      allowForbidden: true,
+    }),
+
+  listCorporateDriverRateCards: (params: { vehicleCategory?: string; includeRetired?: boolean } = {}) => {
+    const q = new URLSearchParams();
+    if (params.vehicleCategory) q.set('vehicleCategory', params.vehicleCategory);
+    if (params.includeRetired) q.set('includeRetired', 'true');
+    return apiClient<CorporateDriverRateCard[]>(`/corporate/billing/rate-cards/driver?${q.toString()}`, {
+      allowForbidden: true,
+    });
+  },
+
+  createCorporateDriverRateCard: (dto: CreateCorporateDriverRateCardInput) =>
+    apiClient<CorporateDriverRateCard>('/corporate/billing/rate-cards/driver', {
+      method: 'POST',
+      body: dto,
+      allowForbidden: true,
+    }),
+
+  retireCorporateDriverRateCard: (id: string, effectiveTo?: string) =>
+    apiClient<CorporateDriverRateCard>(`/corporate/billing/rate-cards/driver/${id}/retire`, {
+      method: 'POST',
+      body: effectiveTo ? { effectiveTo } : {},
+      allowForbidden: true,
+    }),
+
+  // ── Corporate ETS: invoice disputes and credit notes ──
+  listCorporateInvoiceDisputes: (params: { tenantId?: string; status?: string; invoiceId?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.tenantId) q.set('tenantId', params.tenantId);
+    if (params.status) q.set('status', params.status);
+    if (params.invoiceId) q.set('invoiceId', params.invoiceId);
+    return apiClient<CorporateInvoiceDispute[]>(`/corporate/billing/disputes?${q.toString()}`, { allowForbidden: true });
+  },
+
+  /** Accept issues an immutable credit note; `approvedAmountPaise` defaults to the claimed amount. */
+  acceptCorporateInvoiceDispute: (id: string, dto: { approvedAmountPaise?: string; note?: string }) =>
+    apiClient<unknown>(`/corporate/billing/disputes/${id}/accept`, { method: 'POST', body: dto, allowForbidden: true }),
+
+  rejectCorporateInvoiceDispute: (id: string, note: string) =>
+    apiClient<CorporateInvoiceDispute>(`/corporate/billing/disputes/${id}/reject`, {
+      method: 'POST',
+      body: { note },
+      allowForbidden: true,
+    }),
+
+  listCorporateCreditNotes: (params: { tenantId?: string; invoiceId?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.tenantId) q.set('tenantId', params.tenantId);
+    if (params.invoiceId) q.set('invoiceId', params.invoiceId);
+    return apiClient<CorporateCreditNote[]>(`/corporate/billing/credit-notes?${q.toString()}`, { allowForbidden: true });
+  },
+
+  // ── Corporate ETS: support desk (all tenants for ADMIN) ──
+  listCorporateSupportTickets: (
+    params: {
+      tenantId?: string;
+      status?: CorporateTicketStatus;
+      priority?: CorporateTicketPriority;
+      limit?: number;
+      offset?: number;
+    } = {},
+  ) => {
+    const q = new URLSearchParams();
+    if (params.tenantId) q.set('tenantId', params.tenantId);
+    if (params.status) q.set('status', params.status);
+    if (params.priority) q.set('priority', params.priority);
+    q.set('limit', String(params.limit ?? 100));
+    if (params.offset) q.set('offset', String(params.offset));
+    return apiClient<CorporateSupportTicket[]>(`/corporate/support/tickets?${q.toString()}`, { allowForbidden: true });
+  },
+
+  /** Only the next status is legal (OPEN -> IN_PROGRESS -> RESOLVED -> CLOSED); anything else is 409. */
+  updateCorporateSupportTicketStatus: (id: string, status: CorporateTicketStatus, notes?: string) =>
+    apiClient<CorporateSupportTicket>(`/corporate/support/tickets/${id}/status`, {
+      method: 'PATCH',
+      body: notes ? { status, notes } : { status },
+      allowForbidden: true,
+    }),
+
+  // ── Corporate ETS: SOS command centre lifecycle ──
+  listCorporateSosAlerts: (params: { status?: CorporateSosStatus; tenantId?: string; routeId?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.status) q.set('status', params.status);
+    if (params.tenantId) q.set('tenantId', params.tenantId);
+    if (params.routeId) q.set('routeId', params.routeId);
+    return apiClient<CorporateSosAlert[]>(`/corporate/safety/alerts?${q.toString()}`, { allowForbidden: true });
+  },
+
+  acknowledgeCorporateSosAlert: (id: string, notes?: string, adminName?: string) =>
+    apiClient<CorporateSosAlert>(`/corporate/safety/alerts/${id}/acknowledge`, {
+      method: 'POST',
+      body: { ...(notes ? { notes } : {}), ...(adminName ? { adminName } : {}) },
+      allowForbidden: true,
+    }),
+
+  investigateCorporateSosAlert: (id: string, notes?: string) =>
+    apiClient<CorporateSosAlert>(`/corporate/safety/alerts/${id}/investigate`, {
+      method: 'POST',
+      body: notes ? { notes } : {},
+      allowForbidden: true,
+    }),
+
+  /** notes are required by the API. */
+  escalateCorporateSosAlert: (id: string, notes: string) =>
+    apiClient<CorporateSosAlert>(`/corporate/safety/alerts/${id}/escalate`, {
+      method: 'POST',
+      body: { notes },
+      allowForbidden: true,
+    }),
+
+  /** notes are required by the API; outcome RESOLVED (default) or FALSE_ALARM. */
+  closeCorporateSosAlert: (id: string, notes: string, outcome: 'RESOLVED' | 'FALSE_ALARM' = 'RESOLVED') =>
+    apiClient<CorporateSosAlert>(`/corporate/safety/alerts/${id}/close`, {
+      method: 'POST',
+      body: { notes, outcome },
+      allowForbidden: true,
+    }),
 
   logoutAdmin: async () => {
     try {

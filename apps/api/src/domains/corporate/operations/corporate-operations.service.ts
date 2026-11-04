@@ -28,8 +28,15 @@ import {
   OpsRouteStatus,
   parseDateOnly,
   ReassignRouteDto,
+  CancelRouteDto,
+  CANCELLABLE_ROUTE_STATUSES,
   routeTelemetryKey,
 } from './operations.types';
+
+/** Stops still waiting for the cab; a route cancel moves them to CANCELLED. */
+const OPEN_STOP_STATUSES = ['PENDING', 'ARRIVED'] as const;
+/** Transport requests already closed are never touched by a route cancel. */
+const CLOSED_REQUEST_STATUSES = ['COMPLETED', 'CANCELLED', 'RESCHEDULED'] as const;
 
 /** Upper bound of live (not date-scoped) routes inspected for stale GPS / offer state per board call. */
 const LIVE_SCAN_LIMIT = 1000;
@@ -403,6 +410,229 @@ export class CorporateOperationsService {
       mode: newDriverId ? 'DIRECT_OFFER' : 'AUTO_DISPATCH',
       dispatch: dispatchResult,
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Manual route cancellation
+  // ---------------------------------------------------------------------------
+
+  /**
+   * ADMIN cancels a route that has not started (PLANNED / DISPATCHING / ASSIGNED).
+   *
+   * - IN_TRANSIT and COMPLETED routes are refused (409): a moving cab is handled by the trip
+   *   execution / SOS flows, a finished one by billing.
+   * - Runs under the route's dispatch lock, so no dispatch wave can issue an offer in between, and
+   *   the route itself moves with one conditional UPDATE on the status (and driver) that was read.
+   * - The live offer (if any) is withdrawn with the shared dispatch helper.
+   * - Unpaid earnings of the route are VOIDED (never deleted); an earning already in a payout batch
+   *   or paid means money moved, so the cancel is refused instead.
+   * - Pending stops and their transport requests move to CANCELLED.
+   * - The driver (assigned or holding the offer) and every affected employee are notified, and the
+   *   action is audited with the mandatory reason.
+   */
+  async cancelRoute(routeId: string, dto: CancelRouteDto, actor: OpsActor = {}) {
+    const reason = typeof dto?.reason === 'string' ? dto.reason.trim() : '';
+    if (reason.length < 3) throw new BadRequestException('reason is required (min 3 characters)');
+    if (reason.length > 500) throw new BadRequestException('reason must be at most 500 characters');
+
+    const db: any = this.db;
+    const lockKey = `corporate:dispatch:lock:${routeId}`;
+    const lockToken = await this.redis.acquireLockToken(lockKey, 30);
+    if (!lockToken) {
+      throw new ConflictException(`Dispatch is in progress for route ${routeId}; retry in a few seconds`);
+    }
+
+    let outcome: Awaited<ReturnType<CorporateOperationsService['cancelUnderLock']>>;
+    try {
+      outcome = await this.cancelUnderLock(db, routeId, reason);
+    } finally {
+      await this.redis.releaseLockToken(lockKey, lockToken).catch(() => undefined);
+    }
+    const { route, cancellationId, cancelledAt, earnings, affectedStops, cancelledRequestIds, withdrawnOfferDriverId } = outcome;
+
+    await this.audit.log({
+      action: 'CORPORATE_ROUTE_CANCELLED',
+      userId: actor.id,
+      actorRole: actor.role ?? 'ADMIN',
+      entityType: 'CORPORATE_ROUTE',
+      entityId: routeId,
+      metadata: {
+        cancellationId,
+        reason,
+        previousStatus: route.status,
+        driverId: route.driverId ?? null,
+        withdrawnOfferDriverId,
+        cancelledStopIds: affectedStops.map((s: any) => s.id),
+        cancelledRequestIds,
+        voidedEarnings: earnings.map((e: any) => ({
+          id: e.id,
+          driverId: e.driverId,
+          totalEarnedPaise: String(e.totalEarnedPaise),
+        })),
+        earningDisposition: earnings.length > 0 ? 'VOIDED' : 'NONE',
+      },
+    });
+
+    // Driver to tell: the assigned one, else whoever held the live offer.
+    const driverToNotify: string | null = route.driverId ?? withdrawnOfferDriverId ?? null;
+    const driverNotified = driverToNotify ? await this.notifyDriverOfCancellation(route, driverToNotify) : false;
+    const employeeOutcomes = this.riderNotifier
+      ? await this.riderNotifier.notifyRouteCancelled(
+          { id: route.id, tenantId: route.tenantId },
+          affectedStops,
+          cancellationId,
+        )
+      : [];
+
+    this.notifications.emitEvent('admin:operations', 'CORPORATE_ROUTE_CANCELLED', {
+      routeId,
+      cancellationId,
+      previousStatus: route.status,
+      reason,
+    });
+    this.notifications.emitEvent(`corporate:${route.tenantId}`, 'ROUTE_CANCELLED', {
+      routeId,
+      cancellationId,
+      status: 'CANCELLED',
+      cancelledAt: cancelledAt.toISOString(),
+    });
+
+    return {
+      routeId,
+      cancellationId,
+      status: 'CANCELLED' as const,
+      previousStatus: route.status,
+      cancelledAt: cancelledAt.toISOString(),
+      cancelledStops: affectedStops.length,
+      cancelledRequests: cancelledRequestIds.length,
+      voidedEarnings: earnings.length,
+      withdrawnOfferDriverId,
+      notified: {
+        driverId: driverToNotify,
+        driver: driverNotified,
+        employees: employeeOutcomes.filter((o) => o.delivered).length,
+      },
+    };
+  }
+
+  private async cancelUnderLock(db: any, routeId: string, reason: string) {
+    const route: any = await db.corporateRoute.findUnique({
+      where: { id: routeId },
+      include: { stops: { orderBy: { stopSequence: 'asc' } } },
+    });
+    if (!route) throw new NotFoundException(`Corporate route ${routeId} not found`);
+    if (route.status === 'CANCELLED') throw new ConflictException(`Route ${routeId} is already CANCELLED`);
+    if (!CANCELLABLE_ROUTE_STATUSES.includes(route.status)) {
+      throw new ConflictException(
+        `Only routes that have not started can be cancelled (route is ${route.status})`,
+      );
+    }
+
+    const earnings: any[] = await db.corporateDriverEarning.findMany({
+      where: { routeId, payoutStatus: { not: 'VOIDED' } },
+    });
+    if (earnings.some((e) => e.payoutStatus !== 'UNPAID' || e.payoutBatchId)) {
+      throw new ConflictException(
+        `Route ${routeId} has a driver earning that is already in a payout batch or paid; resolve it in billing first`,
+      );
+    }
+
+    const affectedStops = (route.stops ?? []).filter((s: any) => OPEN_STOP_STATUSES.includes(s.status));
+    const requestIds: string[] = affectedStops
+      .map((s: any) => s.transportRequestId)
+      .filter((id: any): id is string => typeof id === 'string' && id.length > 0);
+    const cancellationId = randomUUID();
+    const cancelledAt = new Date();
+    let cancelledRequestIds: string[] = [];
+
+    await db.$transaction(async (tx: any) => {
+      const res = await tx.corporateRoute.updateMany({
+        where: { id: routeId, status: route.status, driverId: route.driverId ?? null },
+        // The driver / vehicle stay on the row as history; every busy-window check ignores CANCELLED.
+        data: { status: 'CANCELLED', atRisk: false },
+      });
+      if (res.count !== 1) {
+        throw new ConflictException(`Route ${routeId} was changed concurrently; reload and retry`);
+      }
+      if (earnings.length > 0) {
+        const voided = await tx.corporateDriverEarning.updateMany({
+          where: { id: { in: earnings.map((e) => e.id) }, payoutStatus: 'UNPAID', payoutBatchId: null },
+          data: {
+            payoutStatus: 'VOIDED',
+            voidedAt: cancelledAt,
+            voidReason: `ROUTE_CANCELLED ${cancellationId}: ${reason}`.slice(0, 500),
+          },
+        });
+        if (voided.count !== earnings.length) {
+          throw new ConflictException(
+            `Route ${routeId} earning entered a payout batch concurrently; resolve it in billing first`,
+          );
+        }
+      }
+      if (affectedStops.length > 0) {
+        await tx.corporateRouteStop.updateMany({
+          where: { routeId, status: { in: [...OPEN_STOP_STATUSES] } },
+          data: { status: 'CANCELLED' },
+        });
+      }
+      if (requestIds.length > 0) {
+        const open = await tx.corporateTransportRequest.findMany({
+          where: { id: { in: requestIds }, status: { notIn: [...CLOSED_REQUEST_STATUSES] } },
+          select: { id: true },
+        });
+        cancelledRequestIds = open.map((r: any) => r.id);
+        if (cancelledRequestIds.length > 0) {
+          await tx.corporateTransportRequest.updateMany({
+            where: { id: { in: cancelledRequestIds }, status: { notIn: [...CLOSED_REQUEST_STATUSES] } },
+            data: { status: 'CANCELLED' },
+          });
+        }
+      }
+    });
+
+    let withdrawnOfferDriverId: string | null = null;
+    const client = this.redis.getClient();
+    if (client) {
+      try {
+        withdrawnOfferDriverId = await withdrawCorporateRouteOffer(client, routeId, db);
+      } catch (err: any) {
+        this.logger.warn(`Withdrawing the live offer of cancelled route ${routeId} failed: ${err?.message}`);
+      }
+    }
+    try {
+      await this.redis.zrem(CorporateDispatchKeys.DISPATCH_QUEUE_ZSET, routeId);
+    } catch (err: any) {
+      this.logger.warn(`Removing cancelled route ${routeId} from the dispatch queue failed: ${err?.message}`);
+    }
+
+    return { route, cancellationId, cancelledAt, earnings, affectedStops, cancelledRequestIds, withdrawnOfferDriverId };
+  }
+
+  private async notifyDriverOfCancellation(route: any, driverId: string): Promise<boolean> {
+    try {
+      this.notifications.emitEvent(`driver:${driverId}`, 'CORPORATE_ROUTE_CANCELLED', {
+        routeId: route.id,
+        shiftDate: new Date(route.shiftDate).toISOString().slice(0, 10),
+        shiftTime: route.shiftTime,
+        direction: route.direction,
+        message: 'This corporate route has been cancelled by the operations team.',
+      });
+      const driver: any = await (this.db as any).driver.findUnique({
+        where: { id: driverId },
+        select: { userId: true },
+      });
+      if (driver?.userId) {
+        await this.notifications.sendPushToUser(driver.userId, {
+          title: 'Corporate route cancelled',
+          body: `Your ${route.direction} corporate route for ${route.shiftTime} has been cancelled by operations. You no longer need to run it.`,
+          data: { routeId: route.id, action: 'CORPORATE_ROUTE_CANCELLED' },
+        });
+      }
+      return true;
+    } catch (err: any) {
+      this.logger.warn(`Notifying driver ${driverId} of cancelled route ${route.id} failed: ${err?.message}`);
+      return false;
+    }
   }
 
   private async autoDispatch(routeId: string, actorUserId?: string): Promise<Record<string, any>> {

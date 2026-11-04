@@ -646,3 +646,256 @@ export interface AudienceEstimateResult {
 
 
 
+
+// ---------------------------------------------------------------------------
+// Corporate ETS finance, support and safety (shapes mirror apps/api responses; money is integer
+// paise serialised as strings)
+// ---------------------------------------------------------------------------
+
+/** SUBMITTED = created by the maker, waiting for a different admin (checker) to approve. */
+export type CorporatePayoutBatchStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'PROCESSING' | 'PAID' | 'FAILED';
+/** PAID is only ever set from a signed payout-provider confirmation. */
+export type CorporatePayoutStatus = 'PENDING' | 'PROCESSING' | 'PAID' | 'FAILED' | 'REVERSED';
+
+interface CorporatePayoutBatchBase {
+  id: string;
+  batchNumber: string;
+  idempotencyKey: string;
+  status: CorporatePayoutBatchStatus;
+  totalDrivers: number;
+  totalRoutes: number;
+  grossPaise: string;
+  tdsPaise: string;
+  netPayoutPaise: string;
+  createdByUserId: string;
+  approvedByUserId: string | null;
+  approvedAt: string | null;
+  submittedAt: string | null;
+  submittedByUserId: string | null;
+  processedAt: string | null;
+  provider: string | null;
+  failureReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CorporatePayoutBatchListItem extends CorporatePayoutBatchBase {
+  payoutStatusCounts: Partial<Record<CorporatePayoutStatus, number>>;
+}
+
+export interface CorporatePayoutRow {
+  id: string;
+  batchId: string;
+  driverId: string;
+  driver: { id: string; fullName: string | null; phone: string | null } | null;
+  kind: 'PAYOUT' | 'REVERSAL';
+  reversalOfId: string | null;
+  idempotencyKey: string;
+  status: CorporatePayoutStatus;
+  grossPaise: string;
+  tdsPaise: string;
+  netPaise: string;
+  earningIds: string[];
+  attemptCount: number;
+  providerPayoutId: string | null;
+  providerReference: string | null;
+  failureReason: string | null;
+  submittedAt: string | null;
+  paidAt: string | null;
+  failedAt: string | null;
+  reversedAt: string | null;
+}
+
+export interface CorporatePayoutBatch extends CorporatePayoutBatchBase {
+  payouts: CorporatePayoutRow[];
+}
+
+export interface CorporatePayoutReconciliation {
+  from: string;
+  to: string;
+  generatedAt: string;
+  payoutsChecked: number;
+  confirmationsChecked: number;
+  clean: boolean;
+  mismatches: {
+    payoutId: string;
+    batchId: string;
+    driverId: string;
+    idempotencyKey: string;
+    payoutStatus: CorporatePayoutStatus;
+    payoutNetPaise: string;
+    providerStatus: string | null;
+    providerEventId?: string;
+    providerAmountPaise?: string | null;
+    reason: 'PAID_WITHOUT_CONFIRMATION' | 'STATUS_MISMATCH' | 'AMOUNT_MISMATCH';
+  }[];
+  unmatchedConfirmations: {
+    eventId: string;
+    provider: string;
+    idempotencyKey: string | null;
+    providerPayoutId: string | null;
+    status: string;
+    amountPaise: string | null;
+    receivedAt: string;
+  }[];
+}
+
+interface CorporateRateCardBase {
+  id: string;
+  vehicleCategory: string;
+  version: number;
+  baseDistanceMeters: number;
+  perKmPaise: string;
+  perHourPaise: string | null;
+  minimumPaise: string;
+  noShowPaise: string;
+  cancellationPaise: string;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  isActive: boolean;
+  retiredAt: string | null;
+  createdAt: string;
+  /** The version the billing / dispatch selection rule picks right now. */
+  inEffect: boolean;
+}
+
+export interface CorporateClientRateCard extends CorporateRateCardBase {
+  tenantId: string;
+  baseFarePaise: string;
+  perExtraStopPaise: string;
+}
+
+export interface CorporateDriverRateCard extends CorporateRateCardBase {
+  basePayoutPaise: string;
+  tollReimbursementPaise: string;
+  createdByUserId: string | null;
+  retiredByUserId: string | null;
+}
+
+export interface CreateCorporateClientRateCardInput {
+  tenantId: string;
+  vehicleCategory: string;
+  baseFarePaise: string;
+  baseDistanceMeters?: number;
+  perKmPaise: string;
+  perExtraStopPaise?: string;
+  perHourPaise?: string | null;
+  minimumPaise?: string;
+  noShowPaise?: string;
+  cancellationPaise?: string;
+  effectiveFrom: string;
+}
+
+export interface CreateCorporateDriverRateCardInput {
+  vehicleCategory: string;
+  basePayoutPaise: string;
+  baseDistanceMeters?: number;
+  perKmPaise: string;
+  tollReimbursementPaise?: string;
+  perHourPaise?: string | null;
+  minimumPaise?: string;
+  noShowPaise?: string;
+  cancellationPaise?: string;
+  effectiveFrom: string;
+}
+
+export interface CorporateCreditNote {
+  id: string;
+  tenantId: string;
+  invoiceId: string;
+  disputeId: string;
+  creditNoteNumber: string;
+  subtotalPaise: string;
+  gstPaise: string;
+  totalPaise: string;
+  reason: string;
+  issuedByUserId: string;
+  issuedAt: string;
+}
+
+export interface CorporateInvoiceDispute {
+  id: string;
+  tenantId: string;
+  invoiceId: string;
+  invoiceLineId: string | null;
+  raisedByUserId: string;
+  reason: string;
+  claimedAmountPaise: string;
+  status: 'OPEN' | 'ACCEPTED' | 'REJECTED';
+  approvedAmountPaise: string | null;
+  resolvedByUserId: string | null;
+  resolvedAt: string | null;
+  resolutionNote: string | null;
+  createdAt: string;
+  creditNote?: CorporateCreditNote | null;
+}
+
+export type CorporateTicketStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+export type CorporateTicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+
+export interface CorporateSupportTicket {
+  id: string;
+  ticketNumber: string;
+  tenantId: string;
+  employeeId: string;
+  routeId: string | null;
+  stopId: string | null;
+  category: string;
+  priority: CorporateTicketPriority;
+  status: CorporateTicketStatus;
+  subject: string;
+  description: string;
+  adminNotes: string | null;
+  resolutionNotes: string | null;
+  assignedToUserId: string | null;
+  slaMinutes: number;
+  resolvedAt: string | null;
+  resolvedByUserId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CorporateSosStatus =
+  | 'NEW'
+  | 'ACTIVE'
+  | 'ACKNOWLEDGED'
+  | 'INVESTIGATING'
+  | 'ESCALATED'
+  | 'RESPONDED'
+  | 'RESOLVED'
+  | 'FALSE_ALARM';
+
+export interface CorporateSosAlert {
+  id: string;
+  tenantId: string | null;
+  routeId: string;
+  stopId: string | null;
+  triggeredById: string;
+  triggeredByRole: string;
+  latitude: string | number;
+  longitude: string | number;
+  batteryPct: number | null;
+  audioUrl: string | null;
+  status: CorporateSosStatus;
+  acknowledgedAt: string | null;
+  escalatedAt: string | null;
+  autoEscalated: boolean;
+  escalationLevel: number;
+  assignedToAdminId: string | null;
+  assignedAdminName: string | null;
+  resolvedAt: string | null;
+  resolvedById: string | null;
+  resolutionNotes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  route?: {
+    id: string;
+    tenantId: string;
+    direction: string;
+    shiftDate: string;
+    shiftTime: string;
+    driver: { id: string; fullName: string; phone: string | null } | null;
+    tenant: { id: string; name: string; code: string } | null;
+    office: { id: string; name: string } | null;
+  };
+}

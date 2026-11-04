@@ -55,6 +55,7 @@ describe('Corporate ETS Enterprise 500-Commuter Full-Lifecycle Simulation & Stre
     sosAlerts: Map<string, any>;
     drivers: Map<string, any>;
     vehicles: Map<string, any>;
+    payouts?: any[];
   } = {
     tenants: new Map(),
     offices: new Map(),
@@ -435,6 +436,17 @@ describe('Corporate ETS Enterprise 500-Commuter Full-Lifecycle Simulation & Stre
         ]),
         findFirst: jest.fn(async () => null),
       },
+      corporatePayoutBatch: {
+        findUnique: jest.fn(async () => null),
+        create: jest.fn(async ({ data }: any) => ({ id: 'batch-sim-500', ...data })),
+      },
+      corporatePayout: {
+        createMany: jest.fn(async ({ data }: any) => {
+          simDb.payouts = data;
+          return { count: data.length };
+        }),
+      },
+      $executeRaw: jest.fn(async () => 1),
       $transaction: jest.fn(async (cb) => cb(mockDb)),
     };
 
@@ -937,23 +949,25 @@ describe('Corporate ETS Enterprise 500-Commuter Full-Lifecycle Simulation & Stre
       simDb.earnings.set(earn.id, earn);
     }
 
-    // Prepare Driver Payout Batch with 1% TDS
-    const payoutBatch = await billingService.prepareDriverPayoutBatch();
+    // Maker step of the payout batch with 1% TDS (legacy prepare-batch is retired).
+    const payoutBatch: any = await billingService.createPayoutBatch({}, 'admin-maker', 'sim500-payout-batch');
 
     // 10 routes * ₹700 = ₹7,000.00 (700000 paise gross)
     // 1% TDS = ₹70.00 (7000 paise)
     // Net Payout = ₹6,930.00 (693000 paise)
+    expect(payoutBatch.status).toBe('SUBMITTED');
     expect(payoutBatch.totalDrivers).toBe(5);
-    expect(payoutBatch.totalGrossPaise).toBe('700000');
-    expect(payoutBatch.totalTdsPaise).toBe('7000');
-    expect(payoutBatch.totalNetPayoutPaise).toBe('693000');
+    expect(String(payoutBatch.grossPaise)).toBe('700000');
+    expect(String(payoutBatch.tdsPaise)).toBe('7000');
+    expect(String(payoutBatch.netPayoutPaise)).toBe('693000');
 
-    // Verify individual driver net disbursement
-    for (const d of payoutBatch.disbursements) {
-      expect(d.grossPaise).toBe('140000'); // 2 routes * 70000
-      expect(d.tdsDeductionPaise).toBe('1400'); // 1% of 140000
-      expect(d.netPayoutPaise).toBe('138600');
-      expect(d.netPayoutRupees).toBe('1386.00');
+    // Verify individual driver net payout rows
+    expect(simDb.payouts).toHaveLength(5);
+    for (const d of simDb.payouts!) {
+      expect(String(d.grossPaise)).toBe('140000'); // 2 routes * 70000
+      expect(String(d.tdsPaise)).toBe('1400'); // 1% of 140000
+      expect(String(d.netPaise)).toBe('138600');
+      expect(d.status).toBe('PENDING');
     }
   });
 });

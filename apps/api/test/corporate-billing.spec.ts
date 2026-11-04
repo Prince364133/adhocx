@@ -2,7 +2,11 @@ import { CorporateBillingService } from '../src/domains/corporate/billing/corpor
 import { DatabaseService } from '../src/database/database.service';
 import { NotificationsService } from '../src/modules/notifications/notifications.service';
 import { AuditService } from '../src/modules/audit/audit.service';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, GoneException, NotFoundException } from '@nestjs/common';
+import {
+  CorporateBillingController,
+  PREPARE_BATCH_GONE_MESSAGE,
+} from '../src/domains/corporate/billing/corporate-billing.controller';
 
 describe('CorporateBillingService - Invoicing, GST & 1% Driver TDS', () => {
   let service: CorporateBillingService;
@@ -50,6 +54,14 @@ describe('CorporateBillingService - Invoicing, GST & 1% Driver TDS', () => {
         findMany: jest.fn(),
         updateMany: jest.fn(),
       },
+      corporatePayoutBatch: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: jest.fn(async ({ data }: any) => ({ id: 'batch-1', ...data })),
+      },
+      corporatePayout: {
+        createMany: jest.fn(async ({ data }: any) => ({ count: data.length })),
+      },
+      $executeRaw: jest.fn().mockResolvedValue(1),
       $transaction: jest.fn((callback) => callback(mockDb)),
     };
 
@@ -205,36 +217,57 @@ describe('CorporateBillingService - Invoicing, GST & 1% Driver TDS', () => {
       mockDb.corporateDriverEarning.findMany.mockResolvedValue(mockUnpaid);
       mockDb.corporateDriverEarning.updateMany.mockResolvedValue({ count: 3 });
 
-      const result = await service.prepareDriverPayoutBatch();
+      const batch: any = await service.createPayoutBatch({}, 'u-maker', 'idem-tds-0001');
 
-      expect(result.totalDrivers).toBe(2);
-      expect(result.totalGrossPaise).toBe('200000'); // ₹2,000.00
-      expect(result.totalTdsPaise).toBe('2000'); // 1% = ₹20.00
-      expect(result.totalNetPayoutPaise).toBe('198000'); // ₹1,980.00
+      // Batch totals are the sums of the per-driver payout rows (TDS is computed per driver).
+      expect(batch).toMatchObject({
+        status: 'SUBMITTED', // awaiting checker approval; never PAID at creation
+        totalDrivers: 2,
+        totalRoutes: 3,
+        grossPaise: 200000n, // ₹2,000.00
+        tdsPaise: 2000n, // 1% = ₹20.00
+        netPayoutPaise: 198000n, // ₹1,980.00
+        createdByUserId: 'u-maker',
+      });
 
-      const d1 = result.disbursements.find((d: any) => d.driverId === 'drv-1');
-      expect(d1.grossPaise).toBe('120000');
-      expect(d1.tdsDeductionPaise).toBe('1200');
-      expect(d1.netPayoutPaise).toBe('118800');
-      expect(d1.netPayoutRupees).toBe('1188.00');
+      const rows = mockDb.corporatePayout.createMany.mock.calls[0][0].data;
+      const d1 = rows.find((r: any) => r.driverId === 'drv-1');
+      expect(d1).toMatchObject({ status: 'PENDING', kind: 'PAYOUT', grossPaise: 120000n, tdsPaise: 1200n, netPaise: 118800n });
+      expect(d1.earningIds).toEqual(['earn-1', 'earn-2']);
+      expect(rows.find((r: any) => r.driverId === 'drv-2')).toMatchObject({ grossPaise: 80000n, tdsPaise: 800n, netPaise: 79200n });
 
-      // Verify records updated to PAID
+      // Earnings are only claimed (PROCESSING); PAID comes from a provider confirmation.
       expect(mockDb.corporateDriverEarning.updateMany).toHaveBeenCalledWith({
         where: { id: { in: ['earn-1', 'earn-2', 'earn-3'] } },
-        data: expect.objectContaining({
-          payoutStatus: 'PAID',
-          payoutBatchId: result.batchId,
-        }),
+        data: { payoutStatus: 'PROCESSING', payoutBatchId: 'batch-1' },
       });
+      const statuses = mockDb.corporateDriverEarning.updateMany.mock.calls.map((c: any) => c[0].data.payoutStatus);
+      expect(statuses).not.toContain('PAID');
     });
 
-    it('should return empty batch when there are no unpaid earnings', async () => {
+    it('refuses an empty batch when there are no unpaid earnings', async () => {
       mockDb.corporateDriverEarning.findMany.mockResolvedValue([]);
 
-      const result = await service.prepareDriverPayoutBatch();
+      await expect(service.createPayoutBatch({}, 'u-maker', 'idem-empty-01')).rejects.toBeInstanceOf(BadRequestException);
+      expect(mockDb.corporateDriverEarning.updateMany).not.toHaveBeenCalled();
+      expect(mockDb.corporatePayout.createMany).not.toHaveBeenCalled();
+    });
 
-      expect(result.totalDrivers).toBe(0);
-      expect(result.totalNetPayoutPaise).toBe('0');
+    it('the legacy one-step payout is retired: the service method is gone and the endpoint answers 410', () => {
+      expect((service as any).prepareDriverPayoutBatch).toBeUndefined();
+
+      const controller = new CorporateBillingController(service, {} as any, {} as any);
+      let thrown: any;
+      try {
+        controller.preparePayoutBatch();
+      } catch (err) {
+        thrown = err;
+      }
+      expect(thrown).toBeInstanceOf(GoneException);
+      expect(thrown.getStatus()).toBe(410);
+      expect(JSON.stringify(thrown.getResponse())).toContain('payouts/batches');
+      expect(PREPARE_BATCH_GONE_MESSAGE).toContain('POST /corporate/billing/payouts/batches');
+      expect(mockDb.corporateDriverEarning.findMany).not.toHaveBeenCalled();
       expect(mockDb.corporateDriverEarning.updateMany).not.toHaveBeenCalled();
     });
   });

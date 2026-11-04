@@ -74,7 +74,10 @@ import { CORPORATE_PAYOUT_PROVIDER, createPayoutProviderFromEnv } from './billin
 
 // ===== WS-D ===== Command centre operations + corporate analytics
 import { CorporateOperationsService } from './operations/corporate-operations.service';
-import { CorporateOperationsController } from './operations/corporate-operations.controller';
+import {
+  CorporateOperationsController,
+  CorporateRouteCancellationController,
+} from './operations/corporate-operations.controller';
 import { CorporateAnalyticsService } from './analytics/corporate-analytics.service';
 import { CorporateAnalyticsController } from './analytics/corporate-analytics.controller';
 
@@ -149,6 +152,7 @@ import { CorporateRiderController } from './rider/corporate-rider.controller';
     CorporateRateCardController, // wire/billing-payouts
     CorporatePayoutWebhookController, // wire/billing-payouts (HMAC-signed, no JWT)
     CorporateOperationsController, // WS-D
+    CorporateRouteCancellationController, // admin-ops: POST corporate/trips/routes/:id/cancel
     CorporateAnalyticsController, // WS-D
     CorporateRiderController, // WS-C
     CorporateSchedulingController, // WS-F
