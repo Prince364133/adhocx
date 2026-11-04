@@ -1,0 +1,256 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "AdhocX Driver Partner Mobile App",
+  "operatingSystem": "Android",
+  "applicationCategory": "BusinessApplication",
+  "publisher": {
+    "@type": "Organization",
+    "name": "Estemporaneo Technologies Private Limited",
+    "url": "https://www.adhocx.com"
+  },
+  "description": "Dedicated mobile application for verified independent commercial cab drivers operating enterprise employee routes across Hyderabad. Features direct onboarding, route offers, turn-by-turn navigation, and automated bank settlements."
+};
+---
+
+<BaseLayout
+  title="Driver Mobile App — Commercial Yellow-Plate Partner Network | AdhocX"
+  description="Dedicated mobile application for verified commercial cab drivers in Hyderabad: direct onboarding, transparent route offers, GPS route navigation, OTP boarding verification, and prompt bank settlements."
+  canonical="https://www.adhocx.com/driver-app"
+  activeNav="driver-app"
+  jsonLd={jsonLd}
+>
+  <!-- Hero Section (Subdued & Professional) -->
+  <section class="page-hero-section" style="background: linear-gradient(180deg, var(--color-primary-50) 0%, #ffffff 100%); padding: var(--space-16) 0 var(--space-12);">
+    <div class="container text-center" style="max-width: 860px; margin: 0 auto;">
+      <div class="badge badge-blue" style="margin-bottom: var(--space-4);">
+        <span class="status-dot-pulse"></span>
+        <span>Driver Partner Network &bull; Commercial Yellow-Plate Chauffeurs</span>
+      </div>
+      <h1 class="display-title" style="color: var(--color-text-primary); margin-bottom: var(--space-6);">
+        Drive with Dignity. <br />
+        <span style="color: var(--color-primary-600);">Pre-Scheduled Corporate Routes & Direct Bank Settlements.</span>
+      </h1>
+      <p class="body-large" style="color: var(--color-text-secondary); margin-bottom: var(--space-8); line-height: 1.6;">
+        AdhocX onboards independent commercial cab owners directly to fulfill verified employee shift routes across Hyderabad. No middleman brokers, no arbitrary commissions, and transparent route terms before you accept.
+      </p>
+      <div style="display: flex; gap: var(--space-4); justify-content: center; flex-wrap: wrap;">
+        <a href="#onboarding" class="btn btn-primary btn-large">
+          View Onboarding Requirements &rarr;
+        </a>
+        <a href="https://play.google.com/store/apps/details?id=com.adhocx.app" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-large">
+          Download Driver App (Google Play)
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Commercial Fleet Visual & Standards -->
+  <section style="background: var(--color-surface); border-top: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); padding: var(--space-10) 0;">
+    <div class="container">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-12); align-items: center;">
+        <div>
+          <span class="badge badge-primary" style="margin-bottom: var(--space-3);">Partner Verification Standard</span>
+          <h2 style="font-size: 2rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-4);">
+            Strictly Commercial Yellow-Plate Vehicles
+          </h2>
+          <p class="body-large" style="color: var(--color-text-secondary); margin-bottom: var(--space-6);">
+            To maintain enterprise safety contracts, AdhocX only onboards commercially registered, insured, and permit-holding passenger vehicles.
+          </p>
+
+          <div style="display: flex; flex-direction: column; gap: var(--space-4);">
+            <div style="display: flex; gap: var(--space-3); align-items: flex-start;">
+              <div style="width: 2rem; height: 2rem; border-radius: 6px; background: #CEE0FD; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </div>
+              <div>
+                <strong style="color: var(--color-text-primary);">Eligible 4-Seater Sedans:</strong>
+                <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: 2px;">Maruti Dzire, Toyota Etios, Hyundai Aura, Tata Tigor EV (Yellow-Plate T/TR registration).</p>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: var(--space-3); align-items: flex-start;">
+              <div style="width: 2rem; height: 2rem; border-radius: 6px; background: #CEE0FD; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </div>
+              <div>
+                <strong style="color: var(--color-text-primary);">Eligible 6/7-Seater MUVs & SUVs:</strong>
+                <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: 2px;">Maruti Ertiga, XL6, Kia Carens, Toyota Innova Crysta (Commercial yellow board).</p>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: var(--space-3); align-items: flex-start;">
+              <div style="width: 2rem; height: 2rem; border-radius: 6px; background: #CEE0FD; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </div>
+              <div>
+                <strong style="color: var(--color-text-primary);">Direct Contract Model:</strong>
+                <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: 2px;">You contract directly with AdhocX. Payouts are made straight to your verified bank account without intermediary cuts.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div style="border-radius: 1.25rem; overflow: hidden; box-shadow: var(--shadow-xl); border: 1px solid var(--color-border);">
+            <img
+              src="/corporate-cab-fleet.jpg"
+              alt="AdhocX Commercial 4-Seater and 7-Seater Fleet for Verified Drivers"
+              width="640"
+              height="400"
+              style="width: 100%; height: auto; display: block; object-fit: cover; aspect-ratio: 16 / 10;"
+              loading="lazy"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Driver App Modules (PRD #4 Aligned) -->
+  <section class="section-padding" style="background: var(--color-surface-muted);">
+    <div class="container">
+      <div class="text-center" style="max-width: 800px; margin: 0 auto var(--space-12);">
+        <span class="badge badge-warm" style="margin-bottom: var(--space-3);">Driver Partner Technology</span>
+        <h2 style="font-size: 2.25rem; font-weight: 800; color: var(--color-text-primary); margin-bottom: var(--space-4);">
+          Everything You Need to Manage Your Shifts
+        </h2>
+        <p style="color: var(--color-text-secondary); font-size: 1.05rem; line-height: 1.6;">
+          Built for operational ease, quick boarding verification, and zero payment disputes.
+        </p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-8);">
+        
+        <!-- Module 1: Direct Digital Onboarding -->
+        <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm);">
+          <div style="width: 3rem; height: 3rem; border-radius: 0.75rem; background: #EFF6FF; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><polyline points="17 11 19 13 23 9"></polyline></svg>
+          </div>
+          <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-2);">
+            Paperless Onboarding & Verification
+          </h3>
+          <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.6;">
+            Upload your commercial driving license, vehicle RC, RTA fitness, insurance, and bank account details directly through the app. Digital review and activation within 24 business hours.
+          </p>
+        </div>
+
+        <!-- Module 2: Transparent Route Offers -->
+        <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm);">
+          <div style="width: 3rem; height: 3rem; border-radius: 0.75rem; background: #EFF6FF; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          </div>
+          <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-2);">
+            Pre-Scheduled Route Offers
+          </h3>
+          <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.6;">
+            Receive advance shift offers showing exact pickup zone, scheduled pickup time, stop count, total route distance, and agreed contracted payout before you accept.
+          </p>
+        </div>
+
+        <!-- Module 3: Ordered Stops & OTP Verification -->
+        <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm);">
+          <div style="width: 3rem; height: 3rem; border-radius: 0.75rem; background: #DCFCE7; color: #16A34A; display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          </div>
+          <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-2);">
+            Ordered Stops & Boarding Scanner
+          </h3>
+          <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.6;">
+            Integrated turn-by-turn navigation guides you to each employee's pickup waypoint. Verify passenger boarding instantly using dynamic 4-digit OTP or QR code.
+          </p>
+        </div>
+
+        <!-- Module 4: Direct Bank Settlements -->
+        <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm);">
+          <div style="width: 3rem; height: 3rem; border-radius: 0.75rem; background: #EFF6FF; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+          </div>
+          <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-2);">
+            Transparent Payouts to Bank
+          </h3>
+          <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.6;">
+            Earnings are generated automatically upon trip completion. Review submitted, approved, and paid payouts with bank confirmation references in your in-app ledger.
+          </p>
+        </div>
+
+        <!-- Module 5: 24/7 Command Support & SOS -->
+        <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm);">
+          <div style="width: 3rem; height: 3rem; border-radius: 0.75rem; background: #EFF6FF; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+          </div>
+          <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-2);">
+            24/7 Dispatch Desk Assistance
+          </h3>
+          <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.6;">
+            Direct in-app contact with our operations desk for vehicle breakdowns, road blockages, passenger no-shows, or route emergencies.
+          </p>
+        </div>
+
+        <!-- Module 6: Document Expiry Reminders -->
+        <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm);">
+          <div style="width: 3rem; height: 3rem; border-radius: 0.75rem; background: #EFF6FF; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          </div>
+          <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-2);">
+            Compliance Alerts & Safety Training
+          </h3>
+          <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.6;">
+            Proactive alerts before insurance, fitness, or driving licenses expire. Access mandatory corporate passenger etiquette and safety guidelines directly in the app.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Required Documents Checklist -->
+  <section id="onboarding" class="section-padding" style="background: var(--color-surface);">
+    <div class="container" style="max-width: 800px; margin: 0 auto;">
+      <div style="background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8);">
+        <h3 style="font-size: 1.4rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-4); text-align: center;">
+          Required Onboarding Documents
+        </h3>
+        <p style="font-size: 0.9rem; color: var(--color-text-secondary); text-align: center; margin-bottom: var(--space-6);">
+          All documents can be photographed and uploaded directly within the AdhocX Driver App.
+        </p>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-4);">
+          <div style="display: flex; gap: 8px; align-items: center; font-size: 0.9rem; color: var(--color-text-primary);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>Commercial Driving License (Badge)</span>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center; font-size: 0.9rem; color: var(--color-text-primary);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>Vehicle Registration Certificate (RC)</span>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center; font-size: 0.9rem; color: var(--color-text-primary);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>Commercial Passenger Insurance</span>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center; font-size: 0.9rem; color: var(--color-text-primary);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>RTA Commercial Fitness Certificate</span>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center; font-size: 0.9rem; color: var(--color-text-primary);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>Aadhaar Card / Verified Identity Proof</span>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center; font-size: 0.9rem; color: var(--color-text-primary);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>Bank Account Passbook / Cancelled Cheque</span>
+          </div>
+        </div>
+
+        <div style="text-align: center; margin-top: var(--space-8);">
+          <a href="https://play.google.com/store/apps/details?id=com.adhocx.app" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-large">
+            Download Driver App & Onboard &rarr;
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+

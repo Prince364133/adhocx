@@ -28,7 +28,23 @@ if (fs.existsSync(path.join(distDir, 'index.html'))) {
 }
 
 // 3. Pages mapping
-const pages = ['about', 'contact', 'faq', 'ets', 'safety', 'pricing', 'vendors', 'drivers', 'blogs', 'terms', 'privacy'];
+const pages = [
+  'about',
+  'services',
+  'employee-app',
+  'driver-app',
+  'industries',
+  'safety',
+  'pricing',
+  'contact',
+  'faq',
+  'ets',
+  'drivers',
+  'vendors',
+  'blogs',
+  'terms',
+  'privacy'
+];
 
 for (const page of pages) {
   const pageDistDir = path.join(distDir, page);

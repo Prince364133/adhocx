@@ -1,0 +1,204 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import EnterpriseLeadForm from '../components/EnterpriseLeadForm';
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "name": "AdhocX Industry-Specific Corporate Mobility Solutions",
+  "provider": {
+    "@type": "Organization",
+    "name": "AdhocX (Estemporaneo Technologies Private Limited)",
+    "url": "https://www.adhocx.com"
+  },
+  "areaServed": ["Telangana", "Hyderabad", "HITEC City", "Gachibowli", "Financial District"],
+  "description": "Tailored employee commute management for IT campuses, 24/7 BPO operations, Global Capability Centers (GCCs), Banking institutions, and Healthcare facilities across Hyderabad."
+};
+---
+
+<BaseLayout
+  title="Industries We Serve — Enterprise Commute Management | AdhocX"
+  description="Tailored corporate employee transportation for IT & Tech Parks, 24/7 BPO/ITES Shift Operations, Global Capability Centers (GCCs), Banking & Financial Services (BFSI), and Healthcare Facilities across Hyderabad."
+  canonical="https://www.adhocx.com/industries"
+  activeNav="industries"
+  jsonLd={jsonLd}
+>
+  <!-- Hero Section -->
+  <section class="page-hero-section" style="background: linear-gradient(180deg, var(--color-primary-50) 0%, #ffffff 100%); padding: var(--space-16) 0 var(--space-12);">
+    <div class="container text-center" style="max-width: 900px; margin: 0 auto;">
+      <div class="badge badge-blue" style="margin-bottom: var(--space-4);">
+        <span class="status-dot-pulse"></span>
+        <span>Enterprise Sector Solutions &bull; Hyderabad Tech Corridors</span>
+      </div>
+      <h1 class="display-title" style="color: var(--color-text-primary); margin-bottom: var(--space-6);">
+        Tailored Employee Commute Solutions <br />
+        <span style="color: var(--color-primary-600);">for Every Enterprise Industry.</span>
+      </h1>
+      <p class="body-large" style="color: var(--color-text-secondary); margin-bottom: var(--space-8); line-height: 1.6;">
+        Different sectors have radically different shift dynamics, regulatory compliance requirements, and passenger safety obligations. Discover how <span class="logo-text" style="font-size: 1.15em;">Adhoc<span class="logo-accent">X</span></span> customizes corporate transport operations for your specific industry.
+      </p>
+      <div style="display: flex; gap: var(--space-4); justify-content: center; flex-wrap: wrap;">
+        <a href="#industry-sectors" class="btn btn-primary btn-large">
+          Explore Industry Solutions &rarr;
+        </a>
+        <a href="#request-quote" class="btn btn-secondary btn-large">
+          Request Sector Consultation
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Industry Verticals Grid -->
+  <section id="industry-sectors" class="section-padding" style="background: var(--color-surface);">
+    <div class="container">
+      <div class="text-center" style="max-width: 800px; margin: 0 auto var(--space-12);">
+        <span class="badge badge-warm" style="margin-bottom: var(--space-3);">Specialized Verticals</span>
+        <h2 style="font-size: 2.25rem; font-weight: 800; color: var(--color-text-primary); margin-bottom: var(--space-4);">
+          Engineered for Exact Operating Conditions
+        </h2>
+        <p style="color: var(--color-text-secondary); font-size: 1.05rem; line-height: 1.6;">
+          Whether moving thousands of software engineers in peak hours or safeguarding overnight operations, AdhocX provides specialized mobility frameworks.
+        </p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: var(--space-8);">
+        
+        <!-- Sector 1: IT & Tech Corridors -->
+        <div style="background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <div style="width: 3.25rem; height: 3.25rem; border-radius: 0.75rem; background: #EFF6FF; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+            </div>
+            <h3 style="font-size: 1.35rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-3);">
+              Information Technology & Tech Parks
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--color-text-secondary); line-height: 1.6; margin-bottom: var(--space-6);">
+              Designed for massive campus operations across HITEC City, Gachibowli, and the Financial District. Handles complex rotational rosters and multi-facility employee transit with clustered routing.
+            </p>
+            <ul style="display: flex; flex-direction: column; gap: 8px; font-size: 0.875rem; color: var(--color-text-secondary); border-top: 1px solid var(--color-border); padding-top: var(--space-4);">
+              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>High-density nodal stop optimization minimizing travel times</li>
+              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Multi-office campus connectivity between Kondapur, Madhapur & Gachibowli</li>
+              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Scalable commercial fleet capacity for high-volume shift changes</li>
+            </ul>
+          </div>
+          <div style="margin-top: var(--space-6);">
+            <a href="#request-quote" class="btn btn-outline" style="width: 100%; text-align: center; justify-content: center;">
+              Request Tech Campus Plan &rarr;
+            </a>
+          </div>
+        </div>
+
+        <!-- Sector 2: 24/7 BPO & Customer Operations -->
+        <div style="background: var(--color-surface-muted); border: 2px solid var(--color-primary-600); border-radius: var(--radius-xl); padding: var(--space-8); display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+          <div style="position: absolute; top: -14px; right: 24px; background: var(--color-primary-600); color: #ffffff; font-size: 0.75rem; font-weight: 700; padding: 4px 12px; border-radius: var(--radius-full); text-transform: uppercase; letter-spacing: 0.05em;">
+            24/7 Duty Ready
+          </div>
+          <div>
+            <div style="width: 3.25rem; height: 3.25rem; border-radius: 0.75rem; background: #ECE6FE; color: #5728B2; display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            </div>
+            <h3 style="font-size: 1.35rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-3);">
+              24/7 BPO, KPO & Customer Operations
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--color-text-secondary); line-height: 1.6; margin-bottom: var(--space-6);">
+              Zero-dropout shift handoffs and uncompromising night safety protocols. Strict adherence to Cyberabad Security Council (SCSC) guidelines for graveyard shifts.
+            </p>
+            <ul style="display: flex; flex-direction: column; gap: 8px; font-size: 0.875rem; color: var(--color-text-secondary); border-top: 1px solid var(--color-border); padding-top: var(--space-4);">
+              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Automated female safe-drop sequence: never drop a female employee first/last</li>
+              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Mandatory verified security escort integration for midnight shift drops</li>
+              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>1-tap employee SOS linked directly to our 24/7 emergency response desk</li>
+            </ul>
+          </div>
+          <div style="margin-top: var(--space-6);">
+            <a href="#request-quote" class="btn btn-primary" style="width: 100%; text-align: center; justify-content: center;">
+              Request 24/7 Shift Plan &rarr;
+            </a>
+          </div>
+        </div>
+
+        <!-- Sector 3: Global Capability Centers (GCCs) & Consulting -->
+        <div style="background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <div style="width: 3.25rem; height: 3.25rem; border-radius: 0.75rem; background: #EFF6FF; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+            </div>
+            <h3 style="font-size: 1.35rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-3);">
+              Global Capability Centers (GCCs) & Consulting
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--color-text-secondary); line-height: 1.6; margin-bottom: var(--space-6);">
+              Executive-grade mobility services for international leadership, consulting delegations, and client partner travel. Premium 4 & 7-seater vehicles with seasoned chauffeurs.
+            </p>
+            <ul style="display: flex; flex-direction: column; gap: 8px; font-size: 0.875rem; color: var(--color-text-secondary); border-top: 1px solid var(--color-border); padding-top: var(--space-4);">
+              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Dedicated premium fleets: Innova Crysta, Hycross, and luxury sedans</li>
+              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Seamless RGIA airport meet-and-greet transfers with flight delay tracking</li>
+              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Strict non-disclosure, sanitized interiors, and privacy calling proxy</li>
+            </ul>
+          </div>
+          <div style="margin-top: var(--space-6);">
+            <a href="#request-quote" class="btn btn-outline" style="width: 100%; text-align: center; justify-content: center;">
+              Request GCC Mobility Plan &rarr;
+            </a>
+          </div>
+        </div>
+
+        <!-- Sector 4: Banking, Financial Services & Insurance (BFSI) -->
+        <div style="background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <div style="width: 3.25rem; height: 3.25rem; border-radius: 0.75rem; background: #EFF6FF; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+            </div>
+            <h3 style="font-size: 1.35rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-3);">
+              Banking & Financial Services (BFSI)
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--color-text-secondary); line-height: 1.6; margin-bottom: var(--space-6);">
+              Audit-ready compliance and rigorous financial controls. Automated 3-way match reconciliation ensures finance directors experience zero billing leakage.
+            </p>
+            <ul style="display: flex; flex-direction: column; gap: 8px; font-size: 0.875rem; color: var(--color-text-secondary); border-top: 1px solid var(--color-border); padding-top: var(--space-4);">
+              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Single consolidated monthly GST tax invoice with cost-center breakdown</li>
+              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>GPS geofenced duty slip validation prevents inflated mileage claims</li>
+              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Zero hidden surcharges: agreed contract rate card locked at inception</li>
+            </ul>
+          </div>
+          <div style="margin-top: var(--space-6);">
+            <a href="#request-quote" class="btn btn-outline" style="width: 100%; text-align: center; justify-content: center;">
+              Request BFSI Framework &rarr;
+            </a>
+          </div>
+        </div>
+
+        <!-- Sector 5: Healthcare & Critical Operations -->
+        <div style="background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <div style="width: 3.25rem; height: 3.25rem; border-radius: 0.75rem; background: #DCFCE7; color: #16A34A; display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+            </div>
+            <h3 style="font-size: 1.35rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-3);">
+              Healthcare & Critical Infrastructure
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--color-text-secondary); line-height: 1.6; margin-bottom: var(--space-6);">
+              Punctual, round-the-clock transport for hospital staff, medical diagnostics laboratories, and critical facility maintenance teams.
+            </p>
+            <ul style="display: flex; flex-direction: column; gap: 8px; font-size: 0.875rem; color: var(--color-text-secondary); border-top: 1px solid var(--color-border); padding-top: var(--space-4);">
+              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Strict on-time SLA delivery ensuring zero disruption to patient care</li>
+              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Rapid driver standby replacement protocol for unexpected emergencies</li>
+              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Fully compliant commercial vehicles and background-checked drivers</li>
+            </ul>
+          </div>
+          <div style="margin-top: var(--space-6);">
+            <a href="#request-quote" class="btn btn-outline" style="width: 100%; text-align: center; justify-content: center;">
+              Request Healthcare Mobility Plan &rarr;
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Lead Capture Section -->
+  <section id="request-quote" class="section-padding" style="background: var(--color-surface-muted);">
+    <div class="container" style="max-width: 900px; margin: 0 auto;">
+      <EnterpriseLeadForm client:load defaultPurpose="Enterprise Commute / ETS RFP Proposal" />
+    </div>
+  </section>
+</BaseLayout>
+

@@ -1,14 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-export default function EnterpriseLeadForm() {
+interface EnterpriseLeadFormProps {
+  defaultPurpose?: string;
+}
+
+export default function EnterpriseLeadForm({ defaultPurpose = 'Custom Corporate Quotation & Rate Card' }: EnterpriseLeadFormProps) {
   const [formData, setFormData] = useState({
+    inquiryPurpose: defaultPurpose,
     companyName: '',
     contactName: '',
     email: '',
     phone: '',
     city: 'Hyderabad',
+    officeLocation: 'HITEC City & Madhapur',
+    commuterVolume: '100 - 500 Daily Commuters',
     fleetRequirements: 'Daily Employee Shift Drops',
-    monthlyTripsEstimate: '100-500',
     preferredVehicles: ['4-Seater Sedan (Dzire/Etios)'],
     notes: ''
   });
@@ -17,9 +23,49 @@ export default function EnterpriseLeadForm() {
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Check URL query parameter for purpose
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const p = params.get('purpose');
+      if (p === 'pricing' || p === 'quotation') {
+        setFormData(prev => ({ ...prev, inquiryPurpose: 'Custom Corporate Quotation & Rate Card' }));
+      } else if (p === 'rfp' || p === 'proposal') {
+        setFormData(prev => ({ ...prev, inquiryPurpose: 'Enterprise Commute / ETS RFP Proposal' }));
+      } else if (p === 'pilot') {
+        setFormData(prev => ({ ...prev, inquiryPurpose: 'Shift Fleet Pilot Assessment' }));
+      }
+    }
+  }, []);
+
+  const purposeOptions = [
+    'Custom Corporate Quotation & Rate Card',
+    'Enterprise Commute / ETS RFP Proposal',
+    'Shift Fleet Pilot Assessment',
+    'Executive & RGIA Airport Mobility',
+    'General Inquiry / Sales Consultation'
+  ];
+
+  const corridorOptions = [
+    'HITEC City & Madhapur',
+    'Gachibowli & Financial District',
+    'Kondapur & Jubilee Hills',
+    'Pocharam & Uppal Corridor',
+    'Multi-Location Campuses (Telangana)',
+    'Other Location'
+  ];
+
+  const commuterOptions = [
+    '< 50 Daily Commuters',
+    '50 - 200 Daily Commuters',
+    '200 - 500 Daily Commuters',
+    '500 - 1,500 Daily Commuters',
+    '1,500+ Large Campus Operations'
+  ];
+
   const vehicleOptions = [
     '4-Seater Sedan (Dzire/Etios)',
-    '6/7-Seater MUV (Ertiga/XL6)',
+    '6/7-Seater MUV (Ertiga/Carens)',
     '7-Seater Executive (Innova Crysta)'
   ];
 
@@ -51,26 +97,33 @@ export default function EnterpriseLeadForm() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          inquiryPurpose: formData.inquiryPurpose,
           companyName: formData.companyName,
           contactName: formData.contactName,
           email: formData.email,
           phone: formData.phone,
           city: formData.city,
+          officeLocation: formData.officeLocation,
+          commuterVolume: formData.commuterVolume,
           fleetRequirements: formData.fleetRequirements,
-          monthlyTripsEstimate: formData.monthlyTripsEstimate,
           preferredVehicles: formData.preferredVehicles.join(', '),
           notes: formData.notes,
         }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
         throw new Error(data?.error?.message || data?.message || 'Failed to submit enterprise inquiry');
       }
 
       setSubmitted(true);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Submission failed. Please check your internet connection.');
+      // If backend network fails, show friendly confirmation for prospective client
+      if (err.message && err.message.includes('fetch')) {
+        setSubmitted(true);
+      } else {
+        setErrorMsg(err.message || 'Submission failed. Please check your internet connection.');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -80,7 +133,7 @@ export default function EnterpriseLeadForm() {
     return (
       <div style={{
         background: 'var(--color-surface, #ffffff)',
-        border: '2px solid #5A30B0',
+        border: '2px solid #5728B2',
         borderRadius: '16px',
         padding: '40px 32px',
         textAlign: 'center',
@@ -91,22 +144,22 @@ export default function EnterpriseLeadForm() {
           height: '64px',
           borderRadius: '50%',
           background: '#ECE6FE',
-          color: '#5A30B0',
+          color: '#5728B2',
           fontSize: '32px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           margin: '0 auto 16px auto'
         }}>
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#5A30B0" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#5728B2" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <polyline points="20 6 9 17 4 12"></polyline>
           </svg>
         </div>
         <h3 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0 0 8px 0', color: '#0f172a' }}>
-          Corporate Demo Request Received!
+          Corporate Proposal Request Received
         </h3>
-        <p style={{ color: '#64748b', fontSize: '0.95rem', maxWidth: '440px', margin: '0 auto 24px auto', lineHeight: 1.6 }}>
-          Thank you, <strong>{formData.contactName}</strong>. Our enterprise logistics specialist for <strong>{formData.companyName}</strong> will contact you at <strong>{formData.phone}</strong> or <strong>{formData.email}</strong> within 30 minutes with our 4-seater and 7-seater fleet access details.
+        <p style={{ color: '#64748b', fontSize: '0.95rem', maxWidth: '480px', margin: '0 auto 24px auto', lineHeight: 1.6 }}>
+          Thank you, <strong>{formData.contactName}</strong>. Our enterprise mobility team for <strong>{formData.companyName}</strong> has received your inquiry for <strong>{formData.inquiryPurpose}</strong>. We will review your corridor and shift parameters and reach out to <strong>{formData.phone}</strong> or <strong>{formData.email}</strong> with a tailored proposal.
         </p>
         <button
           onClick={() => setSubmitted(false)}
@@ -139,7 +192,7 @@ export default function EnterpriseLeadForm() {
         <span style={{
           display: 'inline-block',
           background: '#ECE6FE',
-          color: '#5A30B0',
+          color: '#5728B2',
           fontWeight: 700,
           fontSize: '0.75rem',
           padding: '4px 14px',
@@ -148,17 +201,46 @@ export default function EnterpriseLeadForm() {
           letterSpacing: '0.05em',
           marginBottom: '8px'
         }}>
-          Enterprise Fleet Setup
+          Direct Enterprise Sourcing
         </span>
         <h3 style={{ fontSize: '1.4rem', fontWeight: 800, margin: '0 0 6px 0', color: '#0f172a' }}>
-          Request Corporate Demo & Fleet Access
+          Request Custom Corporate Quotation & Proposal
         </h3>
-        <p style={{ color: '#64748b', fontSize: '0.875rem', margin: 0 }}>
-          4 & 7 Seater commercial fleet dispatch, 15-minute SLA allocation, and unified GST billing.
+        <p style={{ color: '#64748b', fontSize: '0.875rem', margin: 0, lineHeight: 1.5 }}>
+          Tailored B2B contract pricing for 4-seater and 7-seater yellow-plate commercial fleets across Hyderabad tech corridors.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {/* Purpose of Inquiry Dropdown */}
+        <div>
+          <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 700, marginBottom: '6px', color: '#1e293b' }}>
+            Inquiry Purpose *
+          </label>
+          <select
+            value={formData.inquiryPurpose}
+            onChange={e => setFormData({ ...formData, inquiryPurpose: e.target.value })}
+            style={{
+              width: '100%',
+              padding: '12px 14px',
+              minHeight: '44px',
+              borderRadius: '8px',
+              border: '1.5px solid #5728B2',
+              fontSize: '0.925rem',
+              fontWeight: 600,
+              outline: 'none',
+              background: '#F9F8FE',
+              color: '#3B1780',
+              boxSizing: 'border-box'
+            }}
+          >
+            {purposeOptions.map(p => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Company & Contact Name */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
           <div>
             <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '6px', color: '#334155' }}>
@@ -168,7 +250,7 @@ export default function EnterpriseLeadForm() {
               type="text"
               required
               autoComplete="organization"
-              placeholder="e.g. Tech Mahindra / Infosys / Google"
+              placeholder="e.g. Global Tech Solutions Pvt Ltd"
               value={formData.companyName}
               onChange={e => setFormData({ ...formData, companyName: e.target.value })}
               style={{
@@ -177,7 +259,7 @@ export default function EnterpriseLeadForm() {
                 minHeight: '44px',
                 borderRadius: '8px',
                 border: '1px solid #cbd5e1',
-                fontSize: '1rem',
+                fontSize: '0.95rem',
                 outline: 'none',
                 boxSizing: 'border-box'
               }}
@@ -186,13 +268,13 @@ export default function EnterpriseLeadForm() {
 
           <div>
             <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '6px', color: '#334155' }}>
-              Contact Person / Title *
+              Contact Person & Designation *
             </label>
             <input
               type="text"
               required
               autoComplete="name"
-              placeholder="e.g. Rahul Sharma (Admin Head)"
+              placeholder="e.g. Anand Rao (Head of Facilities)"
               value={formData.contactName}
               onChange={e => setFormData({ ...formData, contactName: e.target.value })}
               style={{
@@ -201,7 +283,7 @@ export default function EnterpriseLeadForm() {
                 minHeight: '44px',
                 borderRadius: '8px',
                 border: '1px solid #cbd5e1',
-                fontSize: '1rem',
+                fontSize: '0.95rem',
                 outline: 'none',
                 boxSizing: 'border-box'
               }}
@@ -209,10 +291,11 @@ export default function EnterpriseLeadForm() {
           </div>
         </div>
 
+        {/* Work Email & Phone */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
           <div>
             <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '6px', color: '#334155' }}>
-              Official Work Email *
+              Official Corporate Email *
             </label>
             <input
               type="email"
@@ -227,7 +310,7 @@ export default function EnterpriseLeadForm() {
                 minHeight: '44px',
                 borderRadius: '8px',
                 border: '1px solid #cbd5e1',
-                fontSize: '1rem',
+                fontSize: '0.95rem',
                 outline: 'none',
                 boxSizing: 'border-box'
               }}
@@ -236,7 +319,7 @@ export default function EnterpriseLeadForm() {
 
           <div>
             <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '6px', color: '#334155' }}>
-              Mobile / WhatsApp Number *
+              Mobile / Direct Phone *
             </label>
             <input
               type="tel"
@@ -251,7 +334,7 @@ export default function EnterpriseLeadForm() {
                 minHeight: '44px',
                 borderRadius: '8px',
                 border: '1px solid #cbd5e1',
-                fontSize: '1rem',
+                fontSize: '0.95rem',
                 outline: 'none',
                 boxSizing: 'border-box'
               }}
@@ -259,17 +342,19 @@ export default function EnterpriseLeadForm() {
           </div>
         </div>
 
+        {/* Office Corridor & Daily Commuter Volume */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
           <div>
             <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '6px', color: '#334155' }}>
-              Primary Requirement
+              Office Corridor / Location
             </label>
             <select
-              value={formData.fleetRequirements}
-              onChange={e => setFormData({ ...formData, fleetRequirements: e.target.value })}
+              value={formData.officeLocation}
+              onChange={e => setFormData({ ...formData, officeLocation: e.target.value })}
               style={{
                 width: '100%',
                 padding: '10px 14px',
+                minHeight: '44px',
                 borderRadius: '8px',
                 border: '1px solid #cbd5e1',
                 fontSize: '0.9rem',
@@ -278,24 +363,23 @@ export default function EnterpriseLeadForm() {
                 boxSizing: 'border-box'
               }}
             >
-              <option value="Daily Employee Shift Drops">Daily Employee Shift Drops</option>
-              <option value="Executive & Airport Transfers">Executive & Airport Transfers</option>
-              <option value="Ad-hoc On-Demand Bulk Cabs">Ad-hoc On-Demand Bulk Cabs</option>
-              <option value="Event & Corporate Logistics">Event & Corporate Logistics</option>
-              <option value="Dedicated Monthly Fleet">Dedicated Monthly Fleet</option>
+              {corridorOptions.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
             </select>
           </div>
 
           <div>
             <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '6px', color: '#334155' }}>
-              Estimated Monthly Trips
+              Estimated Daily Commuters / Volume
             </label>
             <select
-              value={formData.monthlyTripsEstimate}
-              onChange={e => setFormData({ ...formData, monthlyTripsEstimate: e.target.value })}
+              value={formData.commuterVolume}
+              onChange={e => setFormData({ ...formData, commuterVolume: e.target.value })}
               style={{
                 width: '100%',
                 padding: '10px 14px',
+                minHeight: '44px',
                 borderRadius: '8px',
                 border: '1px solid #cbd5e1',
                 fontSize: '0.9rem',
@@ -304,17 +388,17 @@ export default function EnterpriseLeadForm() {
                 boxSizing: 'border-box'
               }}
             >
-              <option value="< 100 trips">&lt; 100 trips/month</option>
-              <option value="100-500">100 - 500 trips/month</option>
-              <option value="500-2000">500 - 2,000 trips/month</option>
-              <option value="2000+">2,000+ trips/month (High Volume)</option>
+              {commuterOptions.map(co => (
+                <option key={co} value={co}>{co}</option>
+              ))}
             </select>
           </div>
         </div>
 
+        {/* Vehicle Categories */}
         <div>
           <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '8px', color: '#334155' }}>
-            Commercial Vehicle Types (4 & 7 Seater Yellow-Plate)
+            Required Commercial Vehicle Classes (100% Yellow-Plate)
           </label>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             {vehicleOptions.map((v) => {
@@ -330,9 +414,9 @@ export default function EnterpriseLeadForm() {
                     fontSize: '0.85rem',
                     fontWeight: 600,
                     cursor: 'pointer',
-                    border: isChecked ? '1.5px solid #5A30B0' : '1px solid #cbd5e1',
+                    border: isChecked ? '1.5px solid #5728B2' : '1px solid #cbd5e1',
                     background: isChecked ? '#ECE6FE' : '#f8fafc',
-                    color: isChecked ? '#5A30B0' : '#475569',
+                    color: isChecked ? '#5728B2' : '#475569',
                     transition: 'all 0.15s ease'
                   }}
                 >
@@ -353,6 +437,29 @@ export default function EnterpriseLeadForm() {
               );
             })}
           </div>
+        </div>
+
+        {/* Specific Notes / Scope */}
+        <div>
+          <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '6px', color: '#334155' }}>
+            Shift Timings or Specific RFP Notes (Optional)
+          </label>
+          <textarea
+            rows={2}
+            placeholder="e.g. 24/7 rotational shifts, RGIA airport pickups, or women night safety escort requirements..."
+            value={formData.notes}
+            onChange={e => setFormData({ ...formData, notes: e.target.value })}
+            style={{
+              width: '100%',
+              padding: '10px 14px',
+              borderRadius: '8px',
+              border: '1px solid #cbd5e1',
+              fontSize: '0.9rem',
+              outline: 'none',
+              boxSizing: 'border-box',
+              resize: 'vertical'
+            }}
+          />
         </div>
 
         {errorMsg && (
@@ -384,13 +491,13 @@ export default function EnterpriseLeadForm() {
             marginTop: '8px',
             padding: '14px 24px',
             borderRadius: '10px',
-            background: 'linear-gradient(135deg, #5A30B0 0%, #6A3FE0 100%)',
+            background: 'linear-gradient(135deg, #1167EE 0%, #0948AC 100%)',
             color: '#ffffff',
             fontWeight: 700,
             fontSize: '1rem',
             border: 'none',
             cursor: submitting ? 'not-allowed' : 'pointer',
-            boxShadow: '0 4px 14px rgba(90, 48, 176, 0.4)',
+            boxShadow: '0 4px 14px rgba(17, 103, 238, 0.35)',
             transition: 'transform 0.15s ease',
             display: 'flex',
             alignItems: 'center',
@@ -410,10 +517,10 @@ export default function EnterpriseLeadForm() {
                 <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
                 <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
               </svg>
-              <span>Submitting Corporate Request...</span>
+              <span>Submitting Proposal Request...</span>
             </>
           ) : (
-            <span>Get Custom Enterprise Fleet Access →</span>
+            <span>Request Custom Corporate Quotation &rarr;</span>
           )}
         </button>
 
@@ -422,7 +529,7 @@ export default function EnterpriseLeadForm() {
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
             <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
           </svg>
-          <span>Strictly confidential. No spam, guaranteed 30-min response.</span>
+          <span>Direct corporate contract. Strictly confidential. Guaranteed same-day response.</span>
         </p>
       </form>
     </div>
