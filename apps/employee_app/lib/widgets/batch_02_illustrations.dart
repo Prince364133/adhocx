@@ -311,3 +311,4 @@ class TripUnservedBadge extends StatelessWidget {
     );
   }
 }
+

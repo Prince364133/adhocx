@@ -1,4 +1,6 @@
 import 'package:go_router/go_router.dart';
+
+// Batch 01 Screens
 import '../screens/splash_screen.dart';
 import '../screens/welcome_screen.dart';
 import '../screens/login_options_screen.dart';
@@ -31,6 +33,22 @@ import '../screens/batch_02/trip_cancelled_screen.dart';
 import '../screens/batch_02/trip_unserved_screen.dart';
 import '../screens/batch_02/trip_details_completed_screen.dart';
 import '../screens/batch_02/driver_vehicle_details_screen.dart';
+
+// Batch 03 Screens
+import '../screens/batch_03/schedule_today_overview_screen.dart';
+import '../screens/batch_03/schedule_daily_screen.dart';
+import '../screens/batch_03/schedule_weekly_screen.dart';
+import '../screens/batch_03/schedule_monthly_screen.dart';
+import '../screens/batch_03/shift_details_login_screen.dart';
+import '../screens/batch_03/shift_details_overnight_screen.dart';
+import '../screens/batch_03/schedule_no_trips_screen.dart';
+import '../screens/batch_03/request_change_options_screen.dart';
+import '../screens/batch_03/change_request_details_screen.dart';
+import '../screens/batch_03/change_request_submitted_screen.dart';
+import '../screens/batch_03/request_status_pending_screen.dart';
+import '../screens/batch_03/request_status_approved_screen.dart';
+import '../screens/batch_03/request_status_rejected_screen.dart';
+import '../screens/batch_03/cancel_trip_request_screen.dart';
 
 class AppRoutes {
   AppRoutes._();
@@ -69,6 +87,22 @@ class AppRoutes {
   static const String tripDetails = '/trips/details';
   static const String tripDriverVehicle = '/trips/driver-vehicle';
 
+  // Batch 03 Routes
+  static const String scheduleToday = '/schedule/today';
+  static const String scheduleDaily = '/schedule/daily';
+  static const String scheduleWeekly = '/schedule/weekly';
+  static const String scheduleMonthly = '/schedule/monthly';
+  static const String shiftDetailsLogin = '/schedule/shift-details';
+  static const String shiftDetailsOvernight = '/schedule/overnight-shift';
+  static const String scheduleNoTrips = '/schedule/no-trips';
+  static const String requestChangeOptions = '/schedule/request-change';
+  static const String changeDetails = '/schedule/change-details';
+  static const String changeSubmitted = '/schedule/change-submitted';
+  static const String requestPending = '/schedule/request-pending';
+  static const String requestApproved = '/schedule/request-approved';
+  static const String requestRejected = '/schedule/request-rejected';
+  static const String cancelTrip = '/schedule/cancel-trip';
+
   static final GoRouter router = GoRouter(
     initialLocation: splash,
     routes: [
@@ -105,6 +139,22 @@ class AppRoutes {
       GoRoute(path: tripUnserved, builder: (context, state) => const TripUnservedScreen()),
       GoRoute(path: tripDetails, builder: (context, state) => const TripDetailsCompletedScreen()),
       GoRoute(path: tripDriverVehicle, builder: (context, state) => const DriverVehicleDetailsScreen()),
+
+      // Batch 03
+      GoRoute(path: scheduleToday, builder: (context, state) => const ScheduleTodayOverviewScreen()),
+      GoRoute(path: scheduleDaily, builder: (context, state) => const ScheduleDailyScreen()),
+      GoRoute(path: scheduleWeekly, builder: (context, state) => const ScheduleWeeklyScreen()),
+      GoRoute(path: scheduleMonthly, builder: (context, state) => const ScheduleMonthlyScreen()),
+      GoRoute(path: shiftDetailsLogin, builder: (context, state) => const ShiftDetailsLoginScreen()),
+      GoRoute(path: shiftDetailsOvernight, builder: (context, state) => const ShiftDetailsOvernightScreen()),
+      GoRoute(path: scheduleNoTrips, builder: (context, state) => const ScheduleNoTripsScreen()),
+      GoRoute(path: requestChangeOptions, builder: (context, state) => const RequestChangeOptionsScreen()),
+      GoRoute(path: changeDetails, builder: (context, state) => const ChangeRequestDetailsScreen()),
+      GoRoute(path: changeSubmitted, builder: (context, state) => const ChangeRequestSubmittedScreen()),
+      GoRoute(path: requestPending, builder: (context, state) => const RequestStatusPendingScreen()),
+      GoRoute(path: requestApproved, builder: (context, state) => const RequestStatusApprovedScreen()),
+      GoRoute(path: requestRejected, builder: (context, state) => const RequestStatusRejectedScreen()),
+      GoRoute(path: cancelTrip, builder: (context, state) => const CancelTripRequestScreen()),
     ],
   );
 }

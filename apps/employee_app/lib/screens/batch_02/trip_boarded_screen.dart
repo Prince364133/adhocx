@@ -184,3 +184,4 @@ class _TripBoardedScreenState extends State<TripBoardedScreen> {
     );
   }
 }
+

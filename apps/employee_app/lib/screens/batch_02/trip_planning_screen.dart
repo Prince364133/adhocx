@@ -209,3 +209,4 @@ class _TripPlanningScreenState extends State<TripPlanningScreen> {
     );
   }
 }
+

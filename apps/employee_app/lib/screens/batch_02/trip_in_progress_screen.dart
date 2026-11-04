@@ -192,3 +192,4 @@ class _TripInProgressScreenState extends State<TripInProgressScreen> {
     );
   }
 }
+

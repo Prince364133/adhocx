@@ -265,3 +265,4 @@ class _TripArrivedScreenState extends State<TripArrivedScreen> {
     );
   }
 }
+

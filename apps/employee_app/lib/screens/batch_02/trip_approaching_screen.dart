@@ -210,3 +210,4 @@ class _TripApproachingScreenState extends State<TripApproachingScreen> {
     );
   }
 }
+

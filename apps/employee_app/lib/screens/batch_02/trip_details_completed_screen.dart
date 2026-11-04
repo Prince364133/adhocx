@@ -200,3 +200,4 @@ class _TripDetailsCompletedScreenState extends State<TripDetailsCompletedScreen>
     );
   }
 }
+

@@ -307,3 +307,4 @@ class _TripAssignedScreenState extends State<TripAssignedScreen> {
     );
   }
 }
+

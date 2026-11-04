@@ -109,6 +109,54 @@ class HomeScreenPlaceholder extends StatelessWidget {
 
               const SizedBox(height: 24),
 
+              // Batch 03: Schedule & Calendar Section
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Batch 03 — Schedule & Calendar',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryBlueLight.withOpacity(0.4),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '14 Screens',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primaryBlueDark,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              _buildScreenTile(context, '1. Schedule — Today (Overview)', AppRoutes.scheduleToday),
+              _buildScreenTile(context, '2. Daily Schedule', AppRoutes.scheduleDaily),
+              _buildScreenTile(context, '3. Weekly Schedule', AppRoutes.scheduleWeekly),
+              _buildScreenTile(context, '4. Monthly Schedule', AppRoutes.scheduleMonthly),
+              _buildScreenTile(context, '5. Shift / Trip Details (Login)', AppRoutes.shiftDetailsLogin),
+              _buildScreenTile(context, '6. Overnight Shift Details', AppRoutes.shiftDetailsOvernight),
+              _buildScreenTile(context, '7. No Scheduled Trips', AppRoutes.scheduleNoTrips),
+              _buildScreenTile(context, '8. Request Change Options', AppRoutes.requestChangeOptions),
+              _buildScreenTile(context, '9. Change Request — Details', AppRoutes.changeDetails),
+              _buildScreenTile(context, '10. Change Request — Submitted', AppRoutes.changeSubmitted),
+              _buildScreenTile(context, '11. Request Status — Pending', AppRoutes.requestPending),
+              _buildScreenTile(context, '12. Request Status — Approved', AppRoutes.requestApproved),
+              _buildScreenTile(context, '13. Request Status — Rejected', AppRoutes.requestRejected),
+              _buildScreenTile(context, '14. Cancel Trip Request', AppRoutes.cancelTrip),
+
+              const SizedBox(height: 28),
+
               // Batch 02: Home & Trip Overview Section
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -225,7 +273,14 @@ class HomeScreenPlaceholder extends StatelessWidget {
           ),
         ),
       ),
-      bottomNavigationBar: const EmployeeBottomNavBar(currentIndex: 0),
+      bottomNavigationBar: EmployeeBottomNavBar(
+        currentIndex: 0,
+        onTap: (index) {
+          if (index == 1) {
+            context.push(AppRoutes.scheduleToday);
+          }
+        },
+      ),
     );
   }
 

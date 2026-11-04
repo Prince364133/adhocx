@@ -149,3 +149,4 @@ class _HomeNoUpcomingTripScreenState extends State<HomeNoUpcomingTripScreen> {
     );
   }
 }
+

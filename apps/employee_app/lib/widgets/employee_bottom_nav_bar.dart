@@ -77,3 +77,4 @@ class EmployeeBottomNavBar extends StatelessWidget {
     );
   }
 }
+

@@ -197,3 +197,4 @@ class _TripCompletedScreenState extends State<TripCompletedScreen> {
     );
   }
 }
+
