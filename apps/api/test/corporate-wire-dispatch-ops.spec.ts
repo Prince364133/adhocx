@@ -494,7 +494,7 @@ describe('D. reassign voids the old earning', () => {
     expect(db.tables.corporateDriverEarning.get(`earn-${id}`)).toMatchObject({ payoutStatus: 'VOIDED', payoutBatchId: null });
 
     const legacy = await scenario();
-    const prepared = await legacy.billing.prepareDriverPayoutBatch();
+    const prepared = await legacy.billing.previewDriverPayoutBatch();
     expect(prepared.disbursements.map((d: any) => [d.driverId, d.grossPaise]).sort()).toEqual([
       ['drv-new', '66000'],
       ['drv-old', '40000'],

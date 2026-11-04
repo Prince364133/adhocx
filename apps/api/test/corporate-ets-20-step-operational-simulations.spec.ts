@@ -900,7 +900,7 @@ describe('Corporate Managed ETS: 20-Step Comprehensive Operational Simulations',
       simDb.earnings.set(earn.id, earn);
     }
 
-    const payout = await billingService.prepareDriverPayoutBatch({
+    const payout = await billingService.previewDriverPayoutBatch({
       driverIds: ['drv-1', 'drv-2', 'drv-3', 'drv-4', 'drv-5'],
     });
 

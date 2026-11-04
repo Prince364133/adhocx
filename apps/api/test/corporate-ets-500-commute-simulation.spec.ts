@@ -946,7 +946,7 @@ describe('Corporate ETS Enterprise 500-Commuter Full-Lifecycle Simulation & Stre
     }
 
     // Prepare Driver Payout Batch with 1% TDS
-    const payoutBatch = await billingService.prepareDriverPayoutBatch();
+    const payoutBatch = await billingService.previewDriverPayoutBatch();
 
     // 10 routes * ₹700 = ₹7,000.00 (700000 paise gross)
     // 1% TDS = ₹70.00 (7000 paise)

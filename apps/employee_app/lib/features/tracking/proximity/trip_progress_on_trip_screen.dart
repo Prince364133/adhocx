@@ -129,14 +129,11 @@ class _TripProgressOnTripScreenState extends State<TripProgressOnTripScreen> {
 
   Widget _buildStepIndicator(String label, {required bool isDone, required bool isActive}) {
     Color bg = const Color(0xFFE2E8F0);
-    Color fg = AppColors.textMuted;
-    if (isDone) {
+        if (isDone) {
       bg = AppColors.success;
-      fg = Colors.white;
-    } else if (isActive) {
+          } else if (isActive) {
       bg = AppColors.primaryBlue;
-      fg = Colors.white;
-    }
+          }
 
     return Column(
       children: [

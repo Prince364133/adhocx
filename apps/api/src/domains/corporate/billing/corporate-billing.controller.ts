@@ -8,6 +8,7 @@ import {
   Req,
   Res,
   BadRequestException,
+  GoneException,
   UseGuards,
 } from '@nestjs/common';
 import { Response } from 'express';
@@ -111,18 +112,28 @@ export class CorporateBillingController {
     res.end(buffer);
   }
 
+  /**
+   * Retired: it marked earnings PAID without any money moving, with no checker and no provider
+   * confirmation. Kept only to answer old clients with a clear 410.
+   */
   @Post('payouts/prepare-batch')
   @Roles(UserRole.ADMIN)
-  @ApiOperation({
-    summary:
-      'Aggregate UNPAID driver commute earnings, deduct 1% TDS (Sec 194C), and produce IMPS/RazorpayX batch payout payload',
-  })
-  @ApiResponse({ status: 201, description: 'Payout batch prepared' })
-  public async preparePayoutBatch(
-    @Body() dto: DriverPayoutBatchDto,
-    @Req() req: any,
-  ) {
-    return this.billingService.prepareDriverPayoutBatch(dto, req.user?.id);
+  @ApiOperation({ summary: 'RETIRED (410): use POST payouts/batches (maker) -> approve (checker) -> submit', deprecated: true })
+  @ApiResponse({ status: 410, description: 'Endpoint retired' })
+  public retiredPreparePayoutBatch(): never {
+    throw new GoneException(
+      'payouts/prepare-batch is retired: create a batch with POST corporate/billing/payouts/batches, have a different admin approve it, then submit it to the payout provider. Use GET corporate/billing/payouts/preview to see amounts first.',
+    );
+  }
+
+  @Get('payouts/preview')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Read-only preview of unpaid earnings per driver with 1% TDS (writes nothing)' })
+  public async previewPayoutBatch(@Query('driverIds') driverIds?: string, @Query('cutoffDate') cutoffDate?: string) {
+    return this.billingService.previewDriverPayoutBatch({
+      driverIds: driverIds ? driverIds.split(',').map((d) => d.trim()).filter(Boolean) : undefined,
+      cutoffDate,
+    } as DriverPayoutBatchDto);
   }
 
   @Get('drivers/:driverId/earnings')

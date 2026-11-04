@@ -14,8 +14,7 @@ class TripLiveMapFullScreen extends StatefulWidget {
 
 class _TripLiveMapFullScreenState extends State<TripLiveMapFullScreen> {
   Map<String, dynamic>? _liveState;
-  bool _isLoading = true;
-
+  
   @override
   void initState() {
     super.initState();
@@ -27,8 +26,7 @@ class _TripLiveMapFullScreenState extends State<TripLiveMapFullScreen> {
     if (mounted) {
       setState(() {
         _liveState = tracking['liveState'] as Map<String, dynamic>?;
-        _isLoading = false;
-      });
+              });
     }
   }
 

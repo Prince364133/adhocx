@@ -112,8 +112,7 @@ class _TripArrivedScreenState extends State<TripArrivedScreen> {
       );
     }
 
-    final message = _tripData?['message'] ?? 'Your cab has arrived! Please board now.';
-    final otp = _tripData?['boardingOtp'] ?? '583271';
+        final otp = _tripData?['boardingOtp'] ?? '583271';
     final driver = _tripData?['driver'] as Map<String, dynamic>?;
     final driverName = driver?['name'] ?? 'Suresh R';
     final rating = (driver?['rating'] ?? 4.8).toString();

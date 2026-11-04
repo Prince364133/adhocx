@@ -140,7 +140,7 @@ describe('WS-B simulation: 10,000-fix burst across 500 routes', () => {
     expect((await tracking.getTracking(routeId(3), {}, new Date(T0))).gpsState).toBe('LIVE');
     expect((await tracking.getTracking(routeId(3), {}, new Date(T0 + 200_000))).gpsState).toBe('OFFLINE');
 
-    // eslint-disable-next-line no-console
+     
     console.log(
       `[WS-B sim] ${TOTAL} fixes, ${sizes.length} batches (max ${Math.max(...sizes)}), ` +
         `${reclaimed} reclaimed, ${positions.state.skipped} duplicate rows skipped, ${elapsedMs} ms wall`,

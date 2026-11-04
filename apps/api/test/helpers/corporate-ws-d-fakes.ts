@@ -307,6 +307,7 @@ export class FakeDb {
   }
 
   private delegate(table: string) {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias -- captured by many returned closures
     const self = this;
     const rows = () => [...self.tables[table].values()];
     const find = (args: any = {}) => {

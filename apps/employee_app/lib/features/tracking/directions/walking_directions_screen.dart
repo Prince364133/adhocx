@@ -14,8 +14,7 @@ class WalkingDirectionsScreen extends StatefulWidget {
 
 class _WalkingDirectionsScreenState extends State<WalkingDirectionsScreen> {
   Map<String, dynamic>? _walkingData;
-  bool _isLoading = true;
-
+  
   @override
   void initState() {
     super.initState();
@@ -27,8 +26,7 @@ class _WalkingDirectionsScreenState extends State<WalkingDirectionsScreen> {
     if (mounted) {
       setState(() {
         _walkingData = tracking['walkingDirections'] as Map<String, dynamic>?;
-        _isLoading = false;
-      });
+              });
     }
   }
 

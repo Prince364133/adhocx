@@ -205,7 +205,7 @@ describe('CorporateBillingService - Invoicing, GST & 1% Driver TDS', () => {
       mockDb.corporateDriverEarning.findMany.mockResolvedValue(mockUnpaid);
       mockDb.corporateDriverEarning.updateMany.mockResolvedValue({ count: 3 });
 
-      const result = await service.prepareDriverPayoutBatch();
+      const result = await service.previewDriverPayoutBatch();
 
       expect(result.totalDrivers).toBe(2);
       expect(result.totalGrossPaise).toBe('200000'); // ₹2,000.00
@@ -218,20 +218,14 @@ describe('CorporateBillingService - Invoicing, GST & 1% Driver TDS', () => {
       expect(d1.netPayoutPaise).toBe('118800');
       expect(d1.netPayoutRupees).toBe('1188.00');
 
-      // Verify records updated to PAID
-      expect(mockDb.corporateDriverEarning.updateMany).toHaveBeenCalledWith({
-        where: { id: { in: ['earn-1', 'earn-2', 'earn-3'] } },
-        data: expect.objectContaining({
-          payoutStatus: 'PAID',
-          payoutBatchId: result.batchId,
-        }),
-      });
+      // A preview never moves money: nothing is marked PAID (only the provider callback does that).
+      expect(mockDb.corporateDriverEarning.updateMany).not.toHaveBeenCalled();
     });
 
     it('should return empty batch when there are no unpaid earnings', async () => {
       mockDb.corporateDriverEarning.findMany.mockResolvedValue([]);
 
-      const result = await service.prepareDriverPayoutBatch();
+      const result = await service.previewDriverPayoutBatch();
 
       expect(result.totalDrivers).toBe(0);
       expect(result.totalNetPayoutPaise).toBe('0');

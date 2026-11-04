@@ -496,14 +496,13 @@ export class CorporateBillingService {
   }
 
   /**
-   * Driver Commute Earnings & Payout Disbursement Batch Engine.
-   * Aggregates UNPAID driver commute earnings, applies mandatory 1% TDS deduction (Section 194C),
-   * marks earnings as PAID, and produces automated IMPS/RazorpayX batch disbursement payloads.
+   * Read-only preview of the next driver payout batch: groups UNPAID earnings per driver and applies
+   * 1% TDS (Section 194C) in integer paise. Writes nothing. Money only moves through the
+   * maker-checker batch flow (createPayoutBatch -> approvePayoutBatch -> submit), and earnings
+   * become PAID only from the payout provider's signed confirmation.
+   * (Replaces the old prepareDriverPayoutBatch, which marked earnings PAID with no payment made.)
    */
-  public async prepareDriverPayoutBatch(
-    dto?: DriverPayoutBatchDto,
-    actorUserId?: string,
-  ) {
+  public async previewDriverPayoutBatch(dto?: DriverPayoutBatchDto) {
     const where: any = { payoutStatus: 'UNPAID' };
 
     if (dto?.driverIds && dto.driverIds.length > 0) {
@@ -524,7 +523,7 @@ export class CorporateBillingService {
 
     if (unpaidEarnings.length === 0) {
       return {
-        batchId: randomUUID(),
+        batchId: 'preview',
         totalDrivers: 0,
         totalGrossPaise: '0',
         totalTdsPaise: '0',
@@ -556,13 +555,12 @@ export class CorporateBillingService {
       entry.grossPaise += earn.totalEarnedPaise;
     }
 
-    const batchId = randomUUID();
+    const batchId = 'preview';
     let batchGrossPaise = 0n;
     let batchTdsPaise = 0n;
     let batchNetPayoutPaise = 0n;
 
     const disbursements: any[] = [];
-    const allEarningIdsToUpdate: string[] = [];
 
     for (const [driverId, data] of driverMap.entries()) {
       // 1% TDS under Section 194C (integer paise arithmetic)
@@ -583,35 +581,7 @@ export class CorporateBillingService {
         netPayoutPaise: netPayoutPaise.toString(),
         netPayoutRupees: (Number(netPayoutPaise) / 100).toFixed(2),
       });
-
-      allEarningIdsToUpdate.push(...data.earningIds);
     }
-
-    // Atomically transition earnings to PAID with batchId
-    await this.db.corporateDriverEarning.updateMany({
-      where: { id: { in: allEarningIdsToUpdate } },
-      data: {
-        payoutStatus: 'PAID',
-        payoutBatchId: batchId,
-      },
-    });
-
-    this.logger.log(
-      `Generated driver payout batch ${batchId}: ₹${(Number(batchNetPayoutPaise) / 100).toFixed(2)} across ${driverMap.size} drivers (${allEarningIdsToUpdate.length} routes)`,
-    );
-
-    await this.audit.log({
-      action: 'CORPORATE_DRIVER_PAYOUT_BATCH_GENERATED',
-      userId: actorUserId,
-      entityId: batchId,
-      entityType: 'PAYOUT_BATCH',
-      metadata: {
-        batchId,
-        totalDrivers: driverMap.size,
-        totalNetPayoutPaise: batchNetPayoutPaise.toString(),
-        totalTdsPaise: batchTdsPaise.toString(),
-      },
-    });
 
     return {
       batchId,

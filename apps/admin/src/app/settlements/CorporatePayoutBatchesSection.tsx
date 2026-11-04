@@ -1,75 +1,120 @@
 'use client';
 
-import React, { useState } from 'react';
-import { adminApi } from '../../lib/api/client';
+import React, { useCallback, useEffect, useState } from 'react';
+import { adminApi, ApiError, CorporatePayoutBatch, CorporatePayoutLine } from '../../lib/api/client';
 import { Button, StatusBadge, Drawer } from '../../components/common';
-import {
-  CreditCard,
-  FileCheck2,
-  Users,
-  ShieldCheck,
-  AlertCircle,
-  CheckCircle,
-  Download,
-  Clock,
-  ArrowRight,
-} from 'lucide-react';
+import { ShieldCheck, AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
+
+/**
+ * Corporate driver payouts, maker-checker:
+ *   1. Maker creates a batch from UNPAID earnings (status SUBMITTED = waiting for a checker).
+ *   2. A different admin approves it (the server refuses the maker as checker).
+ *   3. An admin submits the APPROVED batch to the payout provider (PROCESSING).
+ *   4. Each payout becomes PAID / FAILED only from the provider's signed callback.
+ * Nothing on this page can mark money as paid.
+ */
+
+const rupees = (paise?: string | number | null) =>
+  `₹ ${(Number(paise ?? 0) / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+
+const STATUS_HELP: Record<string, string> = {
+  SUBMITTED: 'Waiting for a checker (a different admin) to approve',
+  APPROVED: 'Approved; ready to send to the payout provider',
+  PROCESSING: 'Sent to the provider; waiting for its confirmations',
+  PAID: 'Every payout confirmed paid by the provider',
+  FAILED: 'Provider reported failures; you can retry the failed payouts',
+  DRAFT: 'Draft',
+};
+
+const errorText = (err: unknown) =>
+  err instanceof ApiError && err.status === 403
+    ? 'Not allowed: the admin who created a batch cannot also approve it. Ask another admin to approve.'
+    : err instanceof Error
+      ? err.message
+      : String(err);
 
 export function CorporatePayoutBatchesSection() {
-  const [loading, setLoading] = useState(false);
-  const [batchData, setBatchData] = useState<{
-    batchId: string;
-    totalDrivers: number;
-    totalEarningsCount: number;
-    totalGrossEarningsRupees: number;
-    totalTdsDeductedRupees: number;
-    totalNetPayoutRupees: number;
-    disbursals: any[];
-  } | null>(null);
-  const [selectedDriver, setSelectedDriver] = useState<any | null>(null);
+  const [batches, setBatches] = useState<CorporatePayoutBatch[]>([]);
+  const [listLoading, setListLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [selected, setSelected] = useState<CorporatePayoutBatch | null>(null);
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  const [isApproved, setIsApproved] = useState(false);
 
-  async function handlePrepareBatch() {
-    setLoading(true);
-    setAlert(null);
+  const loadBatches = useCallback(async () => {
+    setListLoading(true);
     try {
-      const result = await adminApi.prepareCorporatePayoutBatch();
-      setBatchData(result);
-      if (result.totalDrivers === 0) {
-        setAlert({
-          type: 'success',
-          message: 'All completed driver commute earnings are currently up to date. Zero unpaid shifts.',
-        });
-      } else {
-        setAlert({
-          type: 'success',
-          message: `Aggregated ${result.totalEarningsCount} completed commute shifts across ${result.totalDrivers} verified drivers with 1% TDS deducted.`,
-        });
-      }
-    } catch (err: any) {
-      setAlert({
-        type: 'error',
-        message: `Failed to prepare payout batch: ${err.message}`,
-      });
+      const res = await adminApi.listCorporatePayoutBatches({ limit: 20 });
+      setBatches(res?.items ?? []);
+    } catch (err) {
+      setAlert({ type: 'error', message: `Could not load payout batches: ${errorText(err)}` });
     } finally {
-      setLoading(false);
+      setListLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadBatches();
+  }, [loadBatches]);
+
+  async function openBatch(id: string) {
+    try {
+      setSelected(await adminApi.getCorporatePayoutBatch(id));
+    } catch (err) {
+      setAlert({ type: 'error', message: `Could not load batch: ${errorText(err)}` });
     }
   }
 
-  function handleApproveBatch() {
-    setIsApproved(true);
-    setAlert({
-      type: 'success',
-      message: 'Batch approved by Finance Checker. Authorized for automated bank disbursal via RazorpayX / IMPS.',
-    });
+  async function run(label: string, action: () => Promise<unknown>, success: string, batchId?: string) {
+    setBusy(label);
+    setAlert(null);
+    try {
+      await action();
+      setAlert({ type: 'success', message: success });
+      await loadBatches();
+      if (batchId) await openBatch(batchId);
+    } catch (err) {
+      setAlert({ type: 'error', message: errorText(err) });
+    } finally {
+      setBusy(null);
+    }
   }
+
+  async function handleCreate() {
+    setBusy('create');
+    setAlert(null);
+    try {
+      // One key per click: a double-submit returns the same batch instead of creating two.
+      const idempotencyKey = `admin-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      const batch = await adminApi.createCorporatePayoutBatch({ idempotencyKey });
+      if (!batch || !batch.totalDrivers) {
+        setAlert({ type: 'success', message: 'No unpaid driver earnings right now; nothing to batch.' });
+      } else {
+        setAlert({
+          type: 'success',
+          message: `Batch ${batch.batchNumber} created for ${batch.totalDrivers} drivers (${rupees(batch.netPayoutPaise)} net). A different admin must approve it.`,
+        });
+        setSelected(batch);
+      }
+      await loadBatches();
+    } catch (err) {
+      setAlert({ type: 'error', message: `Could not create batch: ${errorText(err)}` });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const cardStyle: React.CSSProperties = {
+    backgroundColor: 'var(--bg-surface-elevated)',
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-lg)',
+    padding: '1.25rem',
+  };
 
   return (
     <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      {/* Alert Notification */}
       {alert && (
         <div
+          role="status"
           style={{
             padding: '0.875rem 1.25rem',
             borderRadius: 'var(--radius-md)',
@@ -88,313 +133,152 @@ export function CorporatePayoutBatchesSection() {
         </div>
       )}
 
-      {/* Control Banner */}
-      <div
-        style={{
-          backgroundColor: 'var(--bg-surface-elevated)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-lg)',
-          padding: '1.5rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '1rem',
-        }}
-      >
+      <div style={{ ...cardStyle, padding: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-            Corporate Driver Commute Payout Queue (Maker-Checker)
+            Corporate Driver Payouts (Maker-Checker)
           </h2>
-          <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-            Strict statutory 1% TDS deduction under Sec 194C CGST/IT Act. Authorize and disburse aggregated shift earnings.
+          <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', marginTop: '0.25rem', maxWidth: '46rem' }}>
+            Create a batch from unpaid commute earnings (1% TDS under Sec 194C is deducted). A different admin approves it,
+            then it is sent to the payout provider. Payouts show as paid only when the provider confirms them.
           </p>
         </div>
-
-        <Button
-          variant="primary"
-          onClick={handlePrepareBatch}
-          disabled={loading}
-        >
-          {loading ? 'Aggregating Shifts...' : 'Prepare Payout Batch'}
-        </Button>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <Button variant="secondary" onClick={() => loadBatches()} disabled={listLoading}>
+            <RefreshCw size={14} style={{ marginRight: '0.4rem' }} />
+            Refresh
+          </Button>
+          <Button variant="primary" onClick={handleCreate} disabled={busy !== null}>
+            {busy === 'create' ? 'Creating batch...' : 'Create payout batch'}
+          </Button>
+        </div>
       </div>
 
-      {/* Batch Summary Metrics */}
-      {batchData && batchData.totalDrivers > 0 && (
-        <>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-              gap: '1rem',
-            }}
-          >
-            <div
-              style={{
-                backgroundColor: 'var(--bg-surface-elevated)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-lg)',
-                padding: '1.25rem',
-              }}
-            >
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
-                ELIGIBLE DRIVERS
-              </div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.25rem' }}>
-                {batchData.totalDrivers} <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)' }}>Drivers</span>
-              </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                Across {batchData.totalEarningsCount} completed routes
-              </div>
-            </div>
-
-            <div
-              style={{
-                backgroundColor: 'var(--bg-surface-elevated)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-lg)',
-                padding: '1.25rem',
-              }}
-            >
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
-                GROSS EARNINGS
-              </div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.25rem' }}>
-                ₹ {batchData.totalGrossEarningsRupees.toLocaleString('en-IN')}
-              </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                Pre-tax contractor earnings
-              </div>
-            </div>
-
-            <div
-              style={{
-                backgroundColor: 'var(--bg-surface-elevated)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-lg)',
-                padding: '1.25rem',
-              }}
-            >
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
-                1% TDS DEDUCTED (SEC 194C)
-              </div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-warning)', marginTop: '0.25rem' }}>
-                ₹ {batchData.totalTdsDeductedRupees.toLocaleString('en-IN')}
-              </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                Statutory IT credit batch
-              </div>
-            </div>
-
-            <div
-              style={{
-                backgroundColor: 'var(--bg-surface-elevated)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-lg)',
-                padding: '1.25rem',
-              }}
-            >
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
-                NET PAYABLE DISBURSAL
-              </div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-success)', marginTop: '0.25rem' }}>
-                ₹ {batchData.totalNetPayoutRupees.toLocaleString('en-IN')}
-              </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                Net IMPS payable amount
-              </div>
-            </div>
-          </div>
-
-          {/* Maker-Checker Approval Deck */}
-          <div
-            style={{
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '1.5rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '1rem',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <div
-                style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: isApproved ? 'rgba(22, 163, 74, 0.15)' : 'rgba(238, 152, 17, 0.15)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: isApproved ? 'var(--color-success)' : 'var(--color-warning)',
-                }}
-              >
-                <ShieldCheck size={22} />
-              </div>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)' }}>
-                  {isApproved ? 'Batch Approved & Ready for Bank Transmission' : 'Pending Checker Signature'}
-                </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
-                  Batch Reference: #{batchData.batchId.slice(0, 12)} · Segregated maker-checker role policy active
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
-              {!isApproved ? (
-                <Button variant="primary" onClick={handleApproveBatch}>
-                  Approve Batch as Finance Checker
-                </Button>
-              ) : (
-                <Button variant="secondary" onClick={() => window.alert('Bank API Disbursal Scheduled.')}>
-                  Transmit via RazorpayX (IMPS)
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {/* Disbursals Table */}
-          <div
-            style={{
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-lg)',
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                padding: '1rem 1.25rem',
-                borderBottom: '1px solid var(--border)',
-                fontWeight: 700,
-                fontSize: '0.875rem',
-                color: 'var(--text-primary)',
-              }}
-            >
-              Driver Line Items Breakdown ({batchData.disbursals.length})
-            </div>
-
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--bg-surface-elevated)' }}>
-                  <th style={{ padding: '0.75rem 1.25rem', color: 'var(--text-muted)', fontWeight: 600 }}>DRIVER</th>
-                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>SHIFTS</th>
-                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>GROSS</th>
-                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>1% TDS</th>
-                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>NET PAYABLE</th>
-                  <th style={{ padding: '0.75rem 1.25rem', color: 'var(--text-muted)', fontWeight: 600 }}>STATUS</th>
+      <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--bg-surface)' }}>
+              {['BATCH', 'CREATED', 'DRIVERS', 'NET PAYABLE', 'TDS', 'STATUS', ''].map((h) => (
+                <th key={h} style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {listLoading ? (
+              <tr><td colSpan={7} style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading batches...</td></tr>
+            ) : batches.length === 0 ? (
+              <tr><td colSpan={7} style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No payout batches yet.</td></tr>
+            ) : (
+              batches.map((b) => (
+                <tr key={b.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'monospace' }}>{b.batchNumber}</td>
+                  <td style={{ padding: '0.85rem 1rem', color: 'var(--text-secondary)' }}>
+                    {new Date(b.createdAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })}
+                  </td>
+                  <td style={{ padding: '0.85rem 1rem' }}>{b.totalDrivers} ({b.totalRoutes} routes)</td>
+                  <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--color-success)' }}>{rupees(b.netPayoutPaise)}</td>
+                  <td style={{ padding: '0.85rem 1rem', color: 'var(--color-warning)' }}>{rupees(b.tdsPaise)}</td>
+                  <td style={{ padding: '0.85rem 1rem' }} title={STATUS_HELP[b.status]}><StatusBadge status={b.status} /></td>
+                  <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
+                    <Button variant="secondary" onClick={() => openBatch(b.id)}>Open</Button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {batchData.disbursals.map((d: any) => (
-                  <tr
-                    key={d.driverId}
-                    style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
-                    onClick={() => setSelectedDriver(d)}
-                  >
-                    <td style={{ padding: '0.85rem 1.25rem' }}>
-                      <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{d.driverName || 'Driver'}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
-                        {d.driverPhone || 'N/A'}
-                      </div>
-                    </td>
-                    <td style={{ padding: '0.85rem 1rem', color: 'var(--text-primary)', fontWeight: 600 }}>
-                      {d.routesCount ?? 1} Routes
-                    </td>
-                    <td style={{ padding: '0.85rem 1rem', color: 'var(--text-primary)' }}>
-                      ₹ {(Number(d.grossEarningsRupees) || 0).toLocaleString('en-IN')}
-                    </td>
-                    <td style={{ padding: '0.85rem 1rem', color: 'var(--color-warning)' }}>
-                      ₹ {(Number(d.tdsDeductedRupees) || 0).toLocaleString('en-IN')}
-                    </td>
-                    <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--color-success)' }}>
-                      ₹ {(Number(d.netPayoutRupees) || 0).toLocaleString('en-IN')}
-                    </td>
-                    <td style={{ padding: '0.85rem 1.25rem' }}>
-                      <StatusBadge status={isApproved ? 'SETTLED' : 'PENDING'} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
-      {/* Driver Detail Drawer */}
       <Drawer
-        isOpen={Boolean(selectedDriver)}
-        onClose={() => setSelectedDriver(null)}
-        title={selectedDriver ? `Payout Audit: ${selectedDriver.driverName}` : 'Driver Payout'}
+        isOpen={Boolean(selected)}
+        onClose={() => setSelected(null)}
+        title={selected ? `Payout batch ${selected.batchNumber}` : 'Payout batch'}
       >
-        {selectedDriver && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div
-              style={{
-                backgroundColor: 'var(--bg-surface-elevated)',
-                padding: '1rem',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border)',
-              }}
-            >
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>BANK ACCOUNT FOR DISBURSAL</div>
-              <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.25rem' }}>
-                {selectedDriver.bankAccountName || selectedDriver.driverName}
-              </div>
-              <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
-                IFSC: {selectedDriver.bankIfsc || 'N/A'} · A/C: {selectedDriver.bankAccountNumber || '••••••••'}
-              </div>
-            </div>
-
-            <div
-              style={{
-                backgroundColor: 'var(--bg-surface-elevated)',
-                padding: '1rem',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.5rem',
-                fontSize: '0.875rem',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Gross Contractor Earnings:</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                  ₹ {(Number(selectedDriver.grossEarningsRupees) || 0).toLocaleString('en-IN')}
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Section 194C TDS (1%):</span>
-                <span style={{ fontWeight: 600, color: 'var(--color-warning)' }}>
-                  - ₹ {(Number(selectedDriver.tdsDeductedRupees) || 0).toLocaleString('en-IN')}
-                </span>
-              </div>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  borderTop: '1px solid var(--border)',
-                  paddingTop: '0.5rem',
-                  fontWeight: 700,
-                }}
-              >
-                <span style={{ color: 'var(--text-primary)' }}>Net Transferred:</span>
-                <span style={{ color: 'var(--color-success)' }}>
-                  ₹ {(Number(selectedDriver.netPayoutRupees) || 0).toLocaleString('en-IN')}
-                </span>
-              </div>
-            </div>
-          </div>
+        {selected && (
+          <BatchDetail
+            batch={selected}
+            busy={busy}
+            onApprove={() =>
+              run('approve', () => adminApi.approveCorporatePayoutBatch(selected.id), `Batch ${selected.batchNumber} approved.`, selected.id)
+            }
+            onSubmit={() =>
+              run(
+                'submit',
+                () => adminApi.submitCorporatePayoutBatch(selected.id),
+                `Batch ${selected.batchNumber} sent to the payout provider. Payouts turn PAID as the provider confirms them.`,
+                selected.id,
+              )
+            }
+          />
         )}
       </Drawer>
     </div>
   );
 }
 
+function BatchDetail({
+  batch,
+  busy,
+  onApprove,
+  onSubmit,
+}: {
+  batch: CorporatePayoutBatch;
+  busy: string | null;
+  onApprove: () => void;
+  onSubmit: () => void;
+}) {
+  const payouts: CorporatePayoutLine[] = (batch.payouts ?? []).filter((p) => p.kind !== 'REVERSAL');
+  const failed = payouts.filter((p) => p.status === 'FAILED').length;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', fontSize: '0.8125rem' }}>
+        <div><div style={{ color: 'var(--text-muted)' }}>Gross</div><div style={{ fontWeight: 700 }}>{rupees(batch.grossPaise)}</div></div>
+        <div><div style={{ color: 'var(--text-muted)' }}>TDS (1%)</div><div style={{ fontWeight: 700, color: 'var(--color-warning)' }}>{rupees(batch.tdsPaise)}</div></div>
+        <div><div style={{ color: 'var(--text-muted)' }}>Net payable</div><div style={{ fontWeight: 700, color: 'var(--color-success)' }}>{rupees(batch.netPayoutPaise)}</div></div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-surface-elevated)' }}>
+        <ShieldCheck size={22} />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700 }}>{batch.status}</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{STATUS_HELP[batch.status]}</div>
+        </div>
+        {batch.status === 'SUBMITTED' && (
+          <Button variant="primary" onClick={onApprove} disabled={busy !== null}>
+            {busy === 'approve' ? 'Approving...' : 'Approve as checker'}
+          </Button>
+        )}
+        {(batch.status === 'APPROVED' || (batch.status === 'FAILED' && failed > 0)) && (
+          <Button variant="primary" onClick={onSubmit} disabled={busy !== null}>
+            {busy === 'submit' ? 'Sending...' : batch.status === 'FAILED' ? `Retry ${failed} failed` : 'Send to payout provider'}
+          </Button>
+        )}
+      </div>
+
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
+        <thead>
+          <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)', textAlign: 'left' }}>
+            <th style={{ padding: '0.5rem' }}>Driver</th>
+            <th style={{ padding: '0.5rem' }}>Net</th>
+            <th style={{ padding: '0.5rem' }}>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {payouts.map((p) => (
+            <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
+              <td style={{ padding: '0.5rem' }}>
+                <div style={{ fontWeight: 600 }}>{p.driver?.fullName ?? p.driverId.slice(0, 8)}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{p.driver?.phone ?? ''}</div>
+              </td>
+              <td style={{ padding: '0.5rem' }}>{rupees(p.netPaise)}</td>
+              <td style={{ padding: '0.5rem' }} title={p.failureReason ?? undefined}>
+                <StatusBadge status={p.status} />
+                {p.failureReason && <div style={{ fontSize: '0.7rem', color: 'var(--color-danger)' }}>{p.failureReason}</div>}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}

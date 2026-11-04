@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/widgets/batch_06_illustrations.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
 

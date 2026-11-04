@@ -42,6 +42,40 @@ import {
   ZonalQuoteResponse,
 } from './types';
 
+export interface CorporatePayoutLine {
+  id: string;
+  driverId: string;
+  kind: 'PAYOUT' | 'REVERSAL';
+  status: 'PENDING' | 'PROCESSING' | 'PAID' | 'FAILED' | 'REVERSED';
+  grossPaise: string;
+  tdsPaise: string;
+  netPaise: string;
+  attemptCount: number;
+  failureReason?: string | null;
+  providerReference?: string | null;
+  paidAt?: string | null;
+  driver?: { fullName?: string | null; phone?: string | null } | null;
+}
+
+export interface CorporatePayoutBatch {
+  id: string;
+  batchNumber: string;
+  status: 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'PROCESSING' | 'PAID' | 'FAILED';
+  totalDrivers: number;
+  totalRoutes: number;
+  grossPaise: string;
+  tdsPaise: string;
+  netPayoutPaise: string;
+  createdByUserId: string;
+  approvedByUserId?: string | null;
+  approvedAt?: string | null;
+  submittedAt?: string | null;
+  failureReason?: string | null;
+  createdAt: string;
+  payoutStatusCounts?: Record<string, number>;
+  payouts?: CorporatePayoutLine[];
+}
+
 export function getApiBaseUrl(): string {
   // Use explicit environment variable if set
   if (process.env.NEXT_PUBLIC_API_URL) {
@@ -140,7 +174,9 @@ export async function apiClient<T = unknown>(
   });
 
   if (!response.ok) {
-    if (typeof window !== 'undefined' && (response.status === 401 || response.status === 403)) {
+    // 401 = session expired/invalid -> back to login. 403 = signed in but not allowed (e.g. the
+    // maker of a payout batch trying to approve it): show the error, never log the admin out.
+    if (typeof window !== 'undefined' && response.status === 401) {
       // Do not trigger global redirect if user is attempting login
       if (!endpoint.includes('/auth/admin/login')) {
         clearAdminSession();
@@ -647,22 +683,32 @@ export const adminApi = {
 
   getCorporateRoute: (routeId: string) => apiClient<any>(`/corporate/routes/${routeId}`),
 
-  prepareCorporatePayoutBatch: (dto?: { driverIds?: string[]; cutoffDate?: string }) =>
-    apiClient<{
-      batchId: string;
-      totalDrivers: number;
-      totalEarningsCount: number;
-      totalGrossEarningsPaise: string;
-      totalGrossEarningsRupees: number;
-      totalTdsDeductedPaise: string;
-      totalTdsDeductedRupees: number;
-      totalNetPayoutPaise: string;
-      totalNetPayoutRupees: number;
-      disbursals: any[];
-    }>('/corporate/billing/payouts/prepare-batch', {
-      method: 'POST',
-      body: dto || {},
-    }),
+  // Corporate driver payouts: maker (create) -> checker (approve, a different admin) -> submit to
+  // the payout provider. Payouts become PAID only from the provider's signed callback.
+  listCorporatePayoutBatches: (params: { status?: string; page?: number; limit?: number } = {}) => {
+    const q = new URLSearchParams();
+    if (params.status) q.set('status', params.status);
+    q.set('page', String(params.page ?? 1));
+    q.set('limit', String(params.limit ?? 20));
+    return apiClient<{ items: CorporatePayoutBatch[]; pagination?: { total: number; page: number; limit: number } }>(
+      `/corporate/billing/payouts/batches?${q.toString()}`,
+    );
+  },
+
+  getCorporatePayoutBatch: (batchId: string) =>
+    apiClient<CorporatePayoutBatch>(`/corporate/billing/payouts/batches/${batchId}`),
+
+  /** Maker step. The idempotency key makes a double-click create one batch, not two. */
+  createCorporatePayoutBatch: (dto: { idempotencyKey: string; driverIds?: string[]; cutoffDate?: string }) =>
+    apiClient<CorporatePayoutBatch>('/corporate/billing/payouts/batches', { method: 'POST', body: dto }),
+
+  /** Checker step: the server refuses (403) when the checker is the maker. */
+  approveCorporatePayoutBatch: (batchId: string) =>
+    apiClient<CorporatePayoutBatch>(`/corporate/billing/payouts/batches/${batchId}/approve`, { method: 'POST', body: {} }),
+
+  /** Sends an APPROVED batch to the provider (or retries its FAILED payouts). Never marks PAID. */
+  submitCorporatePayoutBatch: (batchId: string) =>
+    apiClient<any>(`/corporate/billing/payouts/batches/${batchId}/submit`, { method: 'POST', body: {} }),
 
   /** Manual "Start": dispatch now. Returns the dispatch outcome (OFFERED, NO_DRIVERS_FOUND, ...). */
   startCorporateRouteDispatch: (routeId: string) =>

@@ -15,8 +15,7 @@ class AssignmentNotificationScreen extends StatefulWidget {
 
 class _AssignmentNotificationScreenState extends State<AssignmentNotificationScreen> {
   Map<String, dynamic>? _notificationData;
-  bool _isLoading = true;
-
+  
   @override
   void initState() {
     super.initState();
@@ -28,8 +27,7 @@ class _AssignmentNotificationScreenState extends State<AssignmentNotificationScr
     if (mounted) {
       setState(() {
         _notificationData = assignment['notification'] as Map<String, dynamic>?;
-        _isLoading = false;
-      });
+              });
     }
   }
 

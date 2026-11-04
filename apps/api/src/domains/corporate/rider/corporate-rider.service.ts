@@ -33,7 +33,6 @@ import {
   CorporateStopStatus,
   CorporateTransportDirection,
 } from '@adhocx/contracts';
-import * as crypto from 'crypto';
 
 function haversineDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371e3;
@@ -465,7 +464,7 @@ export class CorporateRiderService {
     }
 
     // 3. Generate dynamic HMAC QR token
-    let dynamicQrToken = '';
+    let dynamicQrToken: string;
     if (this.executionService) {
       try {
         const qrRes = await this.executionService.generateBoardingQrToken(route.id, stop.id);
@@ -524,12 +523,16 @@ export class CorporateRiderService {
     };
   }
 
+  /**
+   * Same payload format CorporateTripExecutionService.verifyBoardingQr decodes (base64 JSON). Its
+   * security is the stop's boarding OTP inside it, checked server-side with an attempt limit; there
+   * is deliberately no signing key here (the old hardcoded fallback key produced tokens the
+   * verifier could not even parse).
+   */
   private generateFallbackQrToken(routeId: string, stopId: string, otp: string): string {
-    const secret = process.env.JWT_SECRET || 'adhocx-corporate-qr-secret-key-32';
-    const expiresAt = Date.now() + 300_000;
-    const payload = `${routeId}:${stopId}:${otp}:${expiresAt}`;
-    const hmac = crypto.createHmac('sha256', secret).update(payload).digest('hex').substring(0, 16);
-    return Buffer.from(`${payload}:${hmac}`).toString('base64');
+    return Buffer.from(
+      JSON.stringify({ stopId, routeId, otp, expiresAtMs: Date.now() + 300_000 }),
+    ).toString('base64');
   }
 
   /**

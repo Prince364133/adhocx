@@ -184,6 +184,6 @@ export const CORPORATE_PERMISSION_KEY = 'corporate:permission';
  *
  * (`CorporatePermission` is both this decorator and the permission string type.)
  */
-// eslint-disable-next-line @typescript-eslint/no-redeclare
+ 
 export const CorporatePermission = (permission: CorporatePermission) =>
   SetMetadata(CORPORATE_PERMISSION_KEY, permission);

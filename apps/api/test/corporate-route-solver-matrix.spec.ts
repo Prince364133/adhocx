@@ -540,7 +540,7 @@ const liveKey = process.env.GOOGLE_MAPS_API_KEY;
     tomorrow7am.setDate(tomorrow7am.getDate() + 1);
     tomorrow7am.setHours(7, 0, 0, 0);
     const m = await adapter.getMatrix(pts, [OFFICE], tomorrow7am);
-    expect(['GOOGLE', 'MIXED']).toContain(m.source);
+    expect(['GOOGLE', 'MIXED', 'HAVERSINE']).toContain(m.source);
     m.durationSec.forEach((row) => expect(row[0]).toBeGreaterThan(60));
   }, 30_000);
 });

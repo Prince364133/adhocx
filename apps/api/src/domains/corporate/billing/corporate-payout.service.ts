@@ -420,7 +420,13 @@ export class CorporatePayoutService {
   public async getBatch(batchId: string) {
     const batch = await this.db.corporatePayoutBatch.findUnique({
       where: { id: batchId },
-      include: { payouts: { orderBy: { createdAt: 'asc' } } },
+      include: {
+        payouts: {
+          orderBy: { createdAt: 'asc' },
+          // The checker needs to see who is being paid, not just driver ids.
+          include: { driver: { select: { fullName: true, phone: true } } },
+        },
+      },
     });
     if (!batch) throw new NotFoundException(`Payout batch ${batchId} not found`);
     return {

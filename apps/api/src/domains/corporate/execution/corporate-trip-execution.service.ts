@@ -6,6 +6,8 @@ import {
   ConflictException,
   Inject,
   Optional,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service';
 import { RedisService } from '../../../redis/redis.service';
@@ -46,6 +48,11 @@ export class CorporateTripExecutionService {
   // Constants per PRD specification
   private readonly GEOFENCE_RADIUS_METERS = 150; // 150m arrival boundary
   private readonly STOP_WAIT_BUFFER_SECONDS = 300; // 5.0 minutes (300 seconds)
+  /** Wrong boarding OTPs allowed per stop before it locks (4 digits = 10,000 combinations). */
+  readonly MAX_OTP_ATTEMPTS = 5;
+  readonly OTP_ATTEMPT_WINDOW_SECONDS = 30 * 60;
+  /** Per-process fallback when Redis is unavailable, so the attempt limit never silently disappears. */
+  private readonly localOtpFailures = new Map<string, { count: number; expiresAt: number }>();
 
   constructor(
     private readonly db: DatabaseService,
@@ -290,6 +297,39 @@ export class CorporateTripExecutionService {
     };
   }
 
+  private async otpFailures(key: string): Promise<number> {
+    const client = this.redis.getClient();
+    if (client) return Number((await client.get(key)) ?? 0);
+    const entry = this.localOtpFailures.get(key);
+    if (!entry || entry.expiresAt <= Date.now()) {
+      this.localOtpFailures.delete(key);
+      return 0;
+    }
+    return entry.count;
+  }
+
+  private async recordOtpFailure(key: string): Promise<number> {
+    const client = this.redis.getClient();
+    if (client) {
+      const n = await client.incr(key);
+      if (n === 1) await client.expire(key, this.OTP_ATTEMPT_WINDOW_SECONDS);
+      return n;
+    }
+    const count = (await this.otpFailures(key)) + 1;
+    const prev = this.localOtpFailures.get(key);
+    this.localOtpFailures.set(key, {
+      count,
+      expiresAt: prev?.expiresAt ?? Date.now() + this.OTP_ATTEMPT_WINDOW_SECONDS * 1000,
+    });
+    return count;
+  }
+
+  private async clearOtpFailures(key: string): Promise<void> {
+    const client = this.redis.getClient();
+    if (client) await client.del(key);
+    else this.localOtpFailures.delete(key);
+  }
+
   /**
    * Driver verifies employee's 4-digit boarding OTP.
    * On success: transitions stop to BOARDED, records departure time, and halts wait timer.
@@ -314,11 +354,42 @@ export class CorporateTripExecutionService {
       );
     }
 
+    // A 4-digit OTP is only safe with an attempt limit: without one, all 10,000 codes can be tried
+    // within the 5-minute wait. After MAX_OTP_ATTEMPTS wrong codes the stop is locked; boarding then
+    // needs the employee's live QR (same OTP inside) or an ops override, and ops is alerted.
+    const attemptsKey = `corporate:stop:otp-attempts:${stopId}`;
+    const priorFailures = await this.otpFailures(attemptsKey);
+    if (priorFailures >= this.MAX_OTP_ATTEMPTS) {
+      throw new HttpException(
+        'Too many wrong boarding OTP attempts for this stop. Ask the employee to show their boarding QR code, or contact operations.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     // Validate 4-digit OTP match
     const cleanInputOtp = dto.otpCode ? dto.otpCode.trim() : '';
     if (cleanInputOtp !== stop.boardingOtp) {
-      throw new BadRequestException('Invalid boarding OTP. Please check with employee.');
+      const failures = await this.recordOtpFailure(attemptsKey);
+      if (failures >= this.MAX_OTP_ATTEMPTS) {
+        this.logger.warn(`Boarding OTP locked for stop ${stopId} on route ${routeId} after ${failures} wrong attempts`);
+        this.notifications.emitEvent('admin:operations', 'CORPORATE_BOARDING_OTP_LOCKED', {
+          routeId,
+          stopId,
+          driverId: stop.route?.driverId,
+          attempts: failures,
+        });
+        await this.audit.log({
+          action: 'CORPORATE_BOARDING_OTP_LOCKED',
+          entityType: 'CORPORATE_ROUTE_STOP',
+          entityId: stopId,
+          metadata: { routeId, attempts: failures, driverId: stop.route?.driverId },
+        });
+      }
+      throw new BadRequestException(
+        `Invalid boarding OTP. Please check with employee. (${Math.max(0, this.MAX_OTP_ATTEMPTS - failures)} attempts left)`,
+      );
     }
+    await this.clearOtpFailures(attemptsKey);
 
     const departureTime = new Date();
 

@@ -44,8 +44,7 @@ class _TripBoardedScreenState extends State<TripBoardedScreen> {
       );
     }
 
-    final message = _tripData?['message'] ?? "You're on board! Trip is in progress to your office.";
-    final drop = _tripData?['drop'] ?? 'HITEC City Office';
+        final drop = _tripData?['drop'] ?? 'HITEC City Office';
 
     return Scaffold(
       backgroundColor: AppColors.surface,
