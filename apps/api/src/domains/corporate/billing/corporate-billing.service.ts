@@ -1,6 +1,7 @@
 import {
   Injectable,
   Logger,
+  Optional,
   NotFoundException,
   BadRequestException,
   ForbiddenException,
@@ -15,6 +16,7 @@ import {
 } from '@adhocx/contracts';
 import { randomUUID } from 'crypto';
 import PDFDocument from 'pdfkit';
+import { RateCardService } from './rate-card.service';
 
 @Injectable()
 export class CorporateBillingService {
@@ -28,7 +30,12 @@ export class CorporateBillingService {
     private readonly db: DatabaseService,
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
+    @Optional() private readonly rateCards?: RateCardService,
   ) {}
+
+  private getRateCards(): RateCardService {
+    return this.rateCards ?? new RateCardService(this.db);
+  }
 
   /**
    * Generates a consolidated B2B GST tax invoice batch for a corporate client.
@@ -555,7 +562,8 @@ export class CorporateBillingService {
    */
   public async getDriverEarningsSummary(driverId: string) {
     const earnings = await this.db.corporateDriverEarning.findMany({
-      where: { driverId },
+      // VOIDED earnings (withdrawn by a reassign) are kept for audit but never counted.
+      where: { driverId, payoutStatus: { not: 'VOIDED' } },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -648,43 +656,15 @@ export class CorporateBillingService {
   public async resolveDriverPayout(
     vehicleCategory: string = 'SEDAN',
     distanceMeters: number,
+    at: Date = new Date(),
   ): Promise<{
     basePayoutPaise: bigint;
     distancePaise: bigint;
     totalPayoutPaise: bigint;
     rateCardId?: string;
   }> {
-    let driverCard: any = null;
-    try {
-      if (this.db?.corporateDriverRateCard?.findFirst) {
-        driverCard = await this.db.corporateDriverRateCard.findFirst({
-          where: {
-            vehicleCategory: { equals: vehicleCategory, mode: 'insensitive' },
-            isActive: true,
-          },
-          orderBy: { effectiveFrom: 'desc' },
-        });
-      }
-    } catch {
-      driverCard = null;
-    }
-
-    const basePayoutPaise = driverCard ? driverCard.basePayoutPaise : 30000n; // ₹300
-    const baseDistanceMeters = driverCard ? driverCard.baseDistanceMeters : 10000;
-    const perKmPaise = driverCard ? driverCard.perKmPaise : 1800n; // ₹18/km
-
-    const extraMeters = Math.max(0, distanceMeters - baseDistanceMeters);
-    const extraKm = Math.ceil(extraMeters / 1000);
-    const distancePaise = BigInt(extraKm) * perKmPaise;
-
-    const totalPayoutPaise = basePayoutPaise + distancePaise;
-
-    return {
-      basePayoutPaise,
-      distancePaise,
-      totalPayoutPaise,
-      rateCardId: driverCard?.id,
-    };
+    // Lookup + arithmetic live in RateCardService (shared with dispatch offer pricing).
+    return this.getRateCards().resolveDriverPayout(vehicleCategory, distanceMeters, at);
   }
 
   /**

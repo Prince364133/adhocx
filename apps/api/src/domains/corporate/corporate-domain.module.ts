@@ -59,6 +59,7 @@ import { CorporateSafetyController } from './safety/corporate-safety.controller'
 
 // Dual Financial Ledgers, Invoicing & Driver Settlements Sub-Module
 import { CorporateBillingService } from './billing/corporate-billing.service';
+import { RateCardService } from './billing/rate-card.service';
 import { CorporateBillingController } from './billing/corporate-billing.controller';
 
 // ===== WS-D ===== Command centre operations + corporate analytics
@@ -107,6 +108,7 @@ import { CorporateRiderController } from './rider/corporate-rider.controller';
     CorporateReplanningService,
     CorporateSafetyService,
     CorporateBillingService,
+    RateCardService, // driver rate cards, shared by billing payouts and dispatch offer pricing
     CorporateOperationsService, // WS-D
     CorporateAnalyticsService, // WS-D
     CorporateRiderService, // WS-C
@@ -144,6 +146,7 @@ import { CorporateRiderController } from './rider/corporate-rider.controller';
     CorporateReplanningService,
     CorporateSafetyService,
     CorporateBillingService,
+    RateCardService,
     CorporateRiderService, // WS-C
     // WS-F
     CorporateTenantPolicyService,

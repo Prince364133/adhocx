@@ -17,6 +17,8 @@ import {
   CorporateRouteOfferData,
   TrafficAdvancerResult,
   CorporateDispatchWaveResult,
+  DirectedOfferOptions,
+  OfferPricing,
 } from './corporate-dispatch.types';
 import {
   ITrafficEstimatorPort,
@@ -27,6 +29,7 @@ import {
 import { heuristicTrafficDelay } from './traffic/heuristic-traffic';
 import { TripEventRecorder } from '../tracking/trip-event-recorder.service';
 import { DriverEligibilityService } from '../supply/driver-eligibility.service';
+import { RateCardService } from '../billing/rate-card.service';
 import {
   CORPORATE_ESCALATION_LEAD_MIN,
   DriverActiveOfferResponse,
@@ -127,6 +130,7 @@ export class CorporateDispatchService {
   private readonly OFFER_TTL_SECONDS = 60; // 60 seconds atomic offer countdown
   /** How long an accept waits for the route lock before answering 409 "retry". */
   private readonly ACCEPT_LOCK_WAIT_MS = 3000;
+  /** Fallback offer pricing, used only when no CorporateDriverRateCard is in force (logs a warning). */
   private readonly BASE_FARE_PAISE = 30000; // ₹300 base fare (in paise)
   private readonly RATE_PER_KM_PAISE = 2000; // ₹20/km (in paise)
   private readonly STOP_DWELL_SECONDS = 300; // 5-minute boarding buffer per pickup
@@ -150,8 +154,42 @@ export class CorporateDispatchService {
   @Optional() @Inject(TripEventRecorder) private readonly tripEvents?: TripEventRecorder;
   @Optional() @Inject(DriverEligibilityService) private readonly driverEligibilityService?: DriverEligibilityService;
 
+  @Optional() @Inject(RateCardService) private readonly rateCardService?: RateCardService;
+
   private getEligibilityService(): DriverEligibilityService {
     return this.driverEligibilityService ?? new DriverEligibilityService(this.db);
+  }
+
+  private getRateCardService(): RateCardService {
+    return this.rateCardService ?? new RateCardService(this.db);
+  }
+
+  /**
+   * Driver offer price from the versioned CorporateDriverRateCard in force at the route's pickup-1
+   * time. With no card configured the legacy constants apply and a warning is logged.
+   */
+  public async priceOffer(route: {
+    id: string;
+    vehicleCategory?: string | null;
+    estDistanceMeters?: number | null;
+    targetPickup1Time?: Date | string | null;
+  }): Promise<OfferPricing> {
+    const at = route.targetPickup1Time ? new Date(route.targetPickup1Time) : new Date();
+    const category = route.vehicleCategory || 'SEDAN';
+    const distanceMeters = Number(route.estDistanceMeters) || 0;
+    const card = await this.getRateCardService().findDriverRateCard(category, at);
+    if (card) {
+      const payout = RateCardService.computeDriverPayout(card, distanceMeters);
+      return { farePaise: Number(payout.totalPayoutPaise), rateCardId: card.id, source: 'RATE_CARD' };
+    }
+    this.logger.warn(
+      `[PRICING] No active CorporateDriverRateCard for ${category} at ${at.toISOString()} (route ${route.id}); ` +
+        `using fallback ₹${this.BASE_FARE_PAISE / 100} + ₹${this.RATE_PER_KM_PAISE / 100}/km`,
+    );
+    return {
+      farePaise: Math.round(this.BASE_FARE_PAISE + (distanceMeters / 1000) * this.RATE_PER_KM_PAISE),
+      source: 'FALLBACK',
+    };
   }
 
   /**
@@ -601,9 +639,9 @@ export class CorporateDispatchService {
         };
       }
 
-      // Calculate driver guaranteed payout in paise
-      const distanceKm = route.estDistanceMeters / 1000;
-      const farePaise = Math.round(this.BASE_FARE_PAISE + distanceKm * this.RATE_PER_KM_PAISE);
+      // Driver guaranteed payout in paise (versioned driver rate card; constants only as fallback)
+      const pricing = await this.priceOffer(route);
+      const farePaise = pricing.farePaise;
 
       const offerExpiresAt = new Date(Date.now() + this.OFFER_TTL_SECONDS * 1000);
 
@@ -624,60 +662,9 @@ export class CorporateDispatchService {
         destinationAddress: route.office.name,
       };
 
-      // Store atomic offer in Redis with 60s TTL
-      if (client) {
-        await client.set(
-          CorporateDispatchKeys.offer(routeId),
-          JSON.stringify(offerData),
-          'EX',
-          this.OFFER_TTL_SECONDS,
-        );
-        await client.sadd(CorporateDispatchKeys.ACTIVE_OFFERS_SET, routeId);
-        await client.zadd(CorporateDispatchKeys.OFFER_EXPIRY_ZSET, offerExpiresAt.getTime(), routeId);
-        await client.del(CorporateDispatchKeys.unserved(routeId));
-        await client.set(
-          CorporateDispatchKeys.offerDriver(routeId),
-          selectedDriver.id,
-          'EX',
-          this.OFFER_TTL_SECONDS + 60,
-        );
-      }
-
-      // WS-A: Persist CorporateDriverOffer in Postgres
-      if (this.db?.corporateDriverOffer) {
-        try {
-          const existingCount = await this.db.corporateDriverOffer.count({
-            where: { routeId, driverId: selectedDriver.id },
-          });
-          const attemptNumber = existingCount + 1;
-          await this.db.corporateDriverOffer.upsert({
-            where: {
-              routeId_driverId_attempt: {
-                routeId,
-                driverId: selectedDriver.id,
-                attempt: attemptNumber,
-              },
-            },
-            create: {
-              tenantId: route.tenantId,
-              routeId,
-              driverId: selectedDriver.id,
-              attempt: attemptNumber,
-              status: 'SENT',
-              payoutPaise: BigInt(farePaise),
-              expiresAt: offerExpiresAt,
-            },
-            update: {
-              status: 'SENT',
-              payoutPaise: BigInt(farePaise),
-              expiresAt: offerExpiresAt,
-              updatedAt: new Date(),
-            },
-          });
-        } catch (e: any) {
-          this.logger.warn(`Failed to persist CorporateDriverOffer: ${e?.message ?? e}`);
-        }
-      }
+      // Store atomic offer in Redis with 60s TTL, then the durable WS-A CorporateDriverOffer row
+      await this.publishOffer(client, offerData);
+      await this.persistOfferRow(route.tenantId, routeId, selectedDriver.id, farePaise, offerExpiresAt);
 
       // Send Realtime WebSocket Event + FCM Push to Driver
       this.notifications.emitEvent(`driver:${selectedDriver.id}`, 'CORPORATE_ROUTE_OFFER', offerData);
@@ -705,6 +692,8 @@ export class CorporateDispatchService {
           driverName: selectedDriver.fullName,
           searchRadiusKm: currentRadius,
           farePaise,
+          rateCardId: pricing.rateCardId ?? null,
+          pricingSource: pricing.source,
           candidatesCount: candidateDrivers.length,
         },
       });
@@ -721,6 +710,239 @@ export class CorporateDispatchService {
       };
     } finally {
       await this.redis.releaseLockToken(lockKey, lockAcquired);
+    }
+  }
+
+  /**
+   * Writes a live offer with the shared Redis contract (payload with 60 s TTL, active set, expiry
+   * queue, driver pointer). The scheduler's reaper and the accept path read exactly these keys.
+   */
+  private async publishOffer(client: any, offer: CorporateRouteOfferData): Promise<void> {
+    if (!client) return;
+    const routeId = offer.routeId;
+    await client.set(CorporateDispatchKeys.offer(routeId), JSON.stringify(offer), 'EX', this.OFFER_TTL_SECONDS);
+    await client.sadd(CorporateDispatchKeys.ACTIVE_OFFERS_SET, routeId);
+    await client.zadd(CorporateDispatchKeys.OFFER_EXPIRY_ZSET, new Date(offer.offerExpiresAt).getTime(), routeId);
+    await client.del(CorporateDispatchKeys.unserved(routeId));
+    await client.set(CorporateDispatchKeys.offerDriver(routeId), offer.driverId, 'EX', this.OFFER_TTL_SECONDS + 60);
+  }
+
+  /** WS-A: durable CorporateDriverOffer row; `(routeId, driverId, attempt)` keeps retries idempotent. */
+  private async persistOfferRow(
+    tenantId: string,
+    routeId: string,
+    driverId: string,
+    farePaise: number,
+    expiresAt: Date,
+  ): Promise<void> {
+    if (!this.db?.corporateDriverOffer) return;
+    try {
+      const existingCount = await this.db.corporateDriverOffer.count({ where: { routeId, driverId } });
+      const attempt = existingCount + 1;
+      await this.db.corporateDriverOffer.upsert({
+        where: { routeId_driverId_attempt: { routeId, driverId, attempt } },
+        create: { tenantId, routeId, driverId, attempt, status: 'SENT', payoutPaise: BigInt(farePaise), expiresAt },
+        update: { status: 'SENT', payoutPaise: BigInt(farePaise), expiresAt, updatedAt: new Date() },
+      });
+    } catch (e: any) {
+      this.logger.warn(`Failed to persist CorporateDriverOffer: ${e?.message ?? e}`);
+    }
+  }
+
+  /**
+   * Checks that one specific driver may take `route` (verified, available, vehicle category, seats,
+   * insurance, duty hours, overlap) and holds no live offer for another route.
+   * Unknown driver -> 404; ineligible -> 409 whose body carries the machine-readable `reason`.
+   */
+  public async assertDriverCanTakeRoute(route: any, driverId: string): Promise<{ driver: any; matchedVehicleId?: string }> {
+    const res = await this.getEligibilityService().checkDriverEligibility(driverId, route);
+    if (!res.isEligible) {
+      if (res.rejectionReason === 'DRIVER_NOT_FOUND') {
+        throw new NotFoundException(`Driver ${driverId} not found`);
+      }
+      const detail =
+        res.rejectionReason === 'ROUTE_TIME_OVERLAP' && res.conflictingRouteId
+          ? `: committed to route ${res.conflictingRouteId} in an overlapping window`
+          : '';
+      throw new ConflictException({
+        statusCode: 409,
+        error: 'Conflict',
+        reason: res.rejectionReason,
+        ...(res.conflictingRouteId ? { conflictingRouteId: res.conflictingRouteId } : {}),
+        message: `Driver ${driverId} is not eligible for route ${route.id} (${res.rejectionReason})${detail}`,
+      });
+    }
+    const client = this.redis.getClient();
+    if (client) {
+      const hold = await client.get(CorporateDispatchKeys.driverHold(driverId));
+      if (hold && hold !== route.id) throw this.driverBusyConflict(driverId, hold);
+    }
+    const driver = await this.db.driver.findUnique({ where: { id: driverId } });
+    return { driver, matchedVehicleId: res.matchedVehicleId };
+  }
+
+  private driverBusyConflict(driverId: string, holdRouteId: string | null): ConflictException {
+    return new ConflictException({
+      statusCode: 409,
+      error: 'Conflict',
+      reason: 'DRIVER_HOLDS_LIVE_OFFER',
+      message: `Driver ${driverId} currently holds a live offer for route ${holdRouteId}`,
+    });
+  }
+
+  /**
+   * Directed offer: offers `routeId` to one chosen driver (ops reassign, manual allocation) with the
+   * same Redis keys / 60 s TTL and CorporateDriverOffer persistence as `dispatchRoute`, so the
+   * driver accepts through the normal accept path and an unanswered offer is reaped and cascaded.
+   *
+   * - The driver must pass DriverEligibilityService for this route (409 with `reason` otherwise).
+   * - The route must be PLANNED or DISPATCHING; it is moved to DISPATCHING conditionally.
+   * - A live offer of the route to another driver is withdrawn (the directed choice wins); a live
+   *   offer to the same driver is returned unchanged (idempotent retry).
+   * - Price: `opts.farePaise` when given, else the driver rate card (`priceOffer`).
+   */
+  public async offerRouteToDriver(
+    routeId: string,
+    driverId: string,
+    opts: DirectedOfferOptions = {},
+  ): Promise<CorporateDispatchWaveResult> {
+    const route: any = await this.db.corporateRoute.findUnique({
+      where: { id: routeId },
+      include: { tenant: true, office: true, stops: { orderBy: { stopSequence: 'asc' } } },
+    });
+    if (!route) throw new NotFoundException(`Corporate route ${routeId} not found`);
+    if (route.status !== 'PLANNED' && route.status !== 'DISPATCHING') {
+      throw new ConflictException(`Route ${routeId} is ${route.status}; only PLANNED or DISPATCHING routes can be offered`);
+    }
+
+    const { driver } = await this.assertDriverCanTakeRoute(route, driverId);
+
+    const client = this.redis.getClient();
+    if (!client) throw new ConflictException('Live offer store unavailable; directed offer not issued');
+
+    const lockKey = `corporate:dispatch:lock:${routeId}`;
+    const deadline = Date.now() + (opts.lockWaitMs ?? this.ACCEPT_LOCK_WAIT_MS);
+    let token = await this.redis.acquireLockToken(lockKey, 30);
+    while (!token && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 25 + Math.floor(Math.random() * 25)));
+      token = await this.redis.acquireLockToken(lockKey, 30);
+    }
+    if (!token) throw new ConflictException(`Dispatch operation already in progress for route ${routeId}`);
+
+    try {
+      const existingRaw = await client.get(CorporateDispatchKeys.offer(routeId));
+      if (existingRaw) {
+        const existing: CorporateRouteOfferData = JSON.parse(existingRaw);
+        if (existing.driverId === driverId) {
+          return {
+            routeId,
+            waveNumber: 0,
+            searchRadiusKm: 0,
+            status: 'OFFERED',
+            offeredToDriverId: driverId,
+            offeredDriverName: driver?.fullName,
+            candidatesCount: 1,
+            offerExpiresAt: new Date(existing.offerExpiresAt),
+          };
+        }
+      }
+
+      try {
+        await this.db.corporateRoute.update({
+          where: { id: routeId, status: { in: ['PLANNED', 'DISPATCHING'] } },
+          data: { status: 'DISPATCHING' },
+        });
+      } catch (err: any) {
+        if (err?.code === 'P2025') throw new ConflictException(`Route ${routeId} is no longer open for an offer`);
+        throw err;
+      }
+
+      // The directed choice replaces an offer the scheduler issued in the meantime.
+      await withdrawCorporateRouteOffer(client, routeId, this.db);
+
+      const holdKey = CorporateDispatchKeys.driverHold(driverId);
+      const held = await client.set(holdKey, routeId, 'EX', this.OFFER_TTL_SECONDS + 5, 'NX');
+      if (held !== 'OK') {
+        const holder = await client.get(holdKey);
+        if (holder !== routeId) throw this.driverBusyConflict(driverId, holder);
+      }
+
+      const pricing: OfferPricing =
+        opts.farePaise !== undefined && opts.farePaise !== null
+          ? { farePaise: Math.round(Number(opts.farePaise)), source: 'OVERRIDE' }
+          : await this.priceOffer(route);
+      const offerExpiresAt = new Date(Date.now() + this.OFFER_TTL_SECONDS * 1000);
+      const offerData: CorporateRouteOfferData = {
+        routeId,
+        driverId,
+        tenantName: route.tenant?.name,
+        shiftDate: new Date(route.shiftDate).toISOString().slice(0, 10),
+        shiftTime: route.shiftTime,
+        direction: route.direction,
+        passengerCount: route.assignedPassengerCount,
+        totalDistanceMeters: route.estDistanceMeters,
+        targetPickup1Time: route.targetPickup1Time,
+        farePaise: pricing.farePaise,
+        offerExpiresAt,
+        stopsCount: (route.stops ?? []).length,
+        originAddress:
+          route.direction === 'LOGIN' ? 'Stop 1 (First Commuter Pickup)' : `${route.office?.name} (Corporate Staging Bay)`,
+        destinationAddress: route.office?.name,
+      };
+
+      await this.publishOffer(client, offerData);
+      await this.persistOfferRow(route.tenantId, routeId, driverId, pricing.farePaise, offerExpiresAt);
+
+      this.notifications.emitEvent(`driver:${driverId}`, 'CORPORATE_ROUTE_OFFER', {
+        ...offerData,
+        directedByOps: opts.directedByOps ?? true,
+      });
+      if (driver?.userId) {
+        try {
+          await this.notifications.sendPushToUser(driver.userId, {
+            title: 'Corporate route offered to you',
+            body: `Corporate commute (${route.direction}): ${route.assignedPassengerCount} passengers, ₹${(pricing.farePaise / 100).toFixed(0)} payout. Tap to accept within 60s.`,
+            data: { routeId, action: 'CORPORATE_ROUTE_OFFER', expiresAt: offerExpiresAt.toISOString() },
+          });
+        } catch (err: any) {
+          this.logger.warn(`Push to driver ${driverId} failed: ${err?.message}`);
+        }
+      }
+      await this.audit.log({
+        action: 'CORPORATE_DISPATCH_DIRECT_OFFER',
+        userId: opts.actorUserId,
+        actorRole: opts.actorRole ?? 'ADMIN',
+        entityId: routeId,
+        entityType: 'CORPORATE_ROUTE',
+        metadata: {
+          offeredToDriverId: driverId,
+          farePaise: pricing.farePaise,
+          pricingSource: pricing.source,
+          rateCardId: pricing.rateCardId ?? null,
+          offerExpiresAt: offerExpiresAt.toISOString(),
+          reason: opts.reason ?? null,
+        },
+      });
+      await this.tripEvents?.recordOfferSent({
+        tenantId: route.tenantId,
+        routeId,
+        driverId,
+        actorId: opts.actorUserId,
+        payload: { farePaise: pricing.farePaise, directed: true, expiresAt: offerExpiresAt },
+      });
+
+      return {
+        routeId,
+        waveNumber: 0,
+        searchRadiusKm: 0,
+        status: 'OFFERED',
+        offeredToDriverId: driverId,
+        offeredDriverName: driver?.fullName,
+        candidatesCount: 1,
+        offerExpiresAt,
+      };
+    } finally {
+      await this.redis.releaseLockToken(lockKey, token);
     }
   }
 
@@ -1053,43 +1275,56 @@ export class CorporateDispatchService {
   }
 
   /**
-   * WS-A Escalation (ALLOC-05): Detects unassigned routes at risk within 30 min of pickup-1,
-   * flags atRisk = true in DB, and emits corporate.route.at_risk for command centre alerting.
+   * WS-A Escalation (ALLOC-05): unassigned (PLANNED / DISPATCHING) routes whose pickup-1 is within
+   * CORPORATE_ESCALATION_LEAD_MIN are flagged `atRisk = true` and ops is alerted once.
+   *
+   * Idempotent: only `atRisk = false` rows are read and the flag is set by a conditional
+   * `updateMany(where atRisk = false)`; only the caller whose update matched (count === 1) alerts,
+   * so a flagged route never re-alerts, even when two scheduler instances overlap.
+   * Routes whose pickup passed more than 2 h ago are ignored (same window as the dispatch scan).
    */
-  async checkAndEscalateAtRiskRoutes(): Promise<string[]> {
+  async checkAndEscalateAtRiskRoutes(nowMs: number = Date.now(), limit: number = 500): Promise<string[]> {
     const leadMs = CORPORATE_ESCALATION_LEAD_MIN * 60_000;
-    const cutoff = new Date(Date.now() + leadMs);
     const atRiskRoutes = await this.db.corporateRoute.findMany({
       where: {
         status: { in: ['PLANNED', 'DISPATCHING'] },
         atRisk: false,
-        targetPickup1Time: { lte: cutoff },
+        targetPickup1Time: { gte: new Date(nowMs - 2 * 60 * 60_000), lte: new Date(nowMs + leadMs) },
       },
       include: { stops: true },
+      orderBy: { targetPickup1Time: 'asc' },
+      take: limit,
     });
 
     const escalatedRouteIds: string[] = [];
-    for (const r of atRiskRoutes) {
-      await this.db.corporateRoute.update({
-        where: { id: r.id },
+    for (const r of atRiskRoutes ?? []) {
+      const flagged = await this.db.corporateRoute.updateMany({
+        where: { id: r.id, atRisk: false, status: { in: ['PLANNED', 'DISPATCHING'] } },
         data: { atRisk: true },
       });
+      if (!flagged || flagged.count !== 1) continue; // flagged (or assigned) concurrently: no second alert
       escalatedRouteIds.push(r.id);
-      this.logger.warn(`[ALLOC-05] Route ${r.id} is unassigned <= 30m before pickup! Flagged atRisk.`);
+      const minutesToPickup = Math.round((new Date(r.targetPickup1Time).getTime() - nowMs) / 60000);
+      this.logger.warn(`[ALLOC-05] Route ${r.id} is unassigned ${minutesToPickup}m before pickup! Flagged atRisk.`);
 
       this.notifications.emitEvent('admin:operations', 'CORPORATE_ROUTE_AT_RISK', {
         routeId: r.id,
         tenantId: r.tenantId,
+        status: r.status,
         targetPickup1Time: r.targetPickup1Time,
+        minutesToPickup,
         stopsCount: r.stops?.length ?? 0,
+      });
+      await this.audit.log({
+        action: 'CORPORATE_ROUTE_AT_RISK_ESCALATED',
+        actorRole: 'SYSTEM_AUTONOMOUS_DISPATCH',
+        entityId: r.id,
+        entityType: 'CORPORATE_ROUTE',
+        metadata: { status: r.status, minutesToPickup, leadMinutes: CORPORATE_ESCALATION_LEAD_MIN },
       });
 
       if (this.tripEvents) {
-        await this.tripEvents.recordRouteAtRisk(
-          r.id,
-          Math.round((new Date(r.targetPickup1Time).getTime() - Date.now()) / 60000),
-          r.targetPickup1Time,
-        );
+        await this.tripEvents.recordRouteAtRisk(r.id, minutesToPickup, r.targetPickup1Time);
       }
     }
     return escalatedRouteIds;

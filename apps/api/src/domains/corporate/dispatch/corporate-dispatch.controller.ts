@@ -124,31 +124,24 @@ export class CorporateDispatchController {
   @Roles(UserRole.ADMIN, UserRole.DRIVER)
   @CorporateTenantScoped()
   @ApiOperation({ summary: 'Check if driver has a live 60-second corporate route offer (UI-04-01)' })
-  public async getMyActiveOffer(@Req() req: any) {
+  public async getMyActiveOffer(@Req() req: any): Promise<{
+    hasOffer: boolean;
+    routeId?: string;
+    remainingTtlSeconds?: number;
+    /** Live offer payload as stored by dispatch (plus `id` / `remainingSeconds`). */
+    offer?: any;
+  }> {
+    // Same source as GET driver-offers (Redis live offer, CorporateDriverOffer fallback);
+    // only the legacy response shape differs.
     const driver = await this.db.driver.findUnique({ where: { userId: req.user.id } });
     if (!driver) return { hasOffer: false };
-    const client = this.redis.getClient();
-    if (!client) return { hasOffer: false };
-
-    const routeId = await client.get(`corporate:driver:offer_hold:${driver.id}`);
-    if (!routeId) return { hasOffer: false };
-
-    const rawOffer = await client.get(`corporate:route:offer:${routeId}`);
-    if (!rawOffer) return { hasOffer: false };
-
-    const ttlSeconds = await client.ttl(`corporate:route:offer:${routeId}`);
-    let parsedOffer: any = null;
-    try {
-      parsedOffer = JSON.parse(rawOffer);
-    } catch {
-      parsedOffer = rawOffer;
-    }
-
+    const active = await this.dispatchService.getDriverActiveOffer(driver.id);
+    if (!active?.hasActiveOffer || !active.offer) return { hasOffer: false };
     return {
       hasOffer: true,
-      routeId,
-      remainingTtlSeconds: Math.max(0, ttlSeconds),
-      offer: parsedOffer,
+      routeId: active.offer.routeId,
+      remainingTtlSeconds: Math.max(0, active.offer.remainingSeconds ?? 0),
+      offer: active.offer,
     };
   }
   @Get('driver-offers')

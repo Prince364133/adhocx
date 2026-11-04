@@ -268,7 +268,12 @@ describe('WS-D manual reassign', () => {
     expect(res.dispatch).toMatchObject({ status: 'OFFERED', offeredToDriverId: 'drv-c' });
     const route = db.tables.corporateRoute.get(id)!;
     expect(route).toMatchObject({ status: 'DISPATCHING', driverId: null, vehicleId: null });
-    expect(db.all('corporateDriverEarning').filter((e) => e.routeId === id)).toHaveLength(0);
+    // Earnings are never deleted: the old driver's row stays, VOIDED, with when and why.
+    const earningsAfter = db.all('corporateDriverEarning').filter((e) => e.routeId === id);
+    expect(earningsAfter).toHaveLength(1);
+    expect(earningsAfter[0]).toMatchObject({ id: `earn-${id}`, payoutStatus: 'VOIDED', voidedAt: expect.any(Date), payoutBatchId: null });
+    expect(earningsAfter[0].voidReason).toContain('Driver reported vehicle breakdown');
+    expect(earningsAfter.filter((e) => e.payoutStatus !== 'VOIDED')).toHaveLength(0);
     expect(await client.get(CorporateDispatchKeys.driverHold('drv-old'))).toBeNull();
     expect(await client.smembers(CorporateDispatchKeys.rejected(id))).toContain('drv-old');
 
@@ -304,7 +309,10 @@ describe('WS-D manual reassign', () => {
     await dispatch.acceptRouteOffer(id, 'drv-new');
     expect(db.tables.corporateRoute.get(id)).toMatchObject({ status: 'ASSIGNED', driverId: 'drv-new', vehicleId: 'veh-new' });
     const earnings = db.all('corporateDriverEarning').filter((e) => e.routeId === id);
-    expect(earnings.map((e) => [e.driverId, Number(e.routeFarePaise)])).toEqual([['drv-new', 66000]]);
+    const live = earnings.filter((e) => e.payoutStatus !== 'VOIDED');
+    expect(live.map((e) => [e.driverId, Number(e.routeFarePaise)])).toEqual([['drv-new', 66000]]);
+    // The replaced driver's earning is kept, voided (never deleted).
+    expect(earnings.filter((e) => e.payoutStatus === 'VOIDED').map((e) => e.driverId)).toEqual(['drv-old']);
     // Second ASSIGNED notice reaches employees because the reassignment cleared the dedupe marker.
     const assigned = notifications.events.filter((e) => e.event === 'CAB_ASSIGNED');
     expect(assigned).toHaveLength(6);
