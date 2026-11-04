@@ -5,7 +5,7 @@ import '../theme/app_colors.dart';
 enum TripStep { planning, assigned, approaching, arrived, boarded }
 
 class TripStepTracker extends StatelessWidget {
-  final TripStep currentStep;
+  final dynamic currentStep;
 
   const TripStepTracker({super.key, required this.currentStep});
 
@@ -27,7 +27,14 @@ class TripStepTracker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final activeIndex = _steps.indexOf(currentStep);
+    int activeIndex;
+    if (currentStep is TripStep) {
+      activeIndex = _steps.indexOf(currentStep as TripStep);
+    } else if (currentStep is int) {
+      activeIndex = (currentStep as int).clamp(0, _steps.length - 1);
+    } else {
+      activeIndex = 0;
+    }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
@@ -107,4 +114,3 @@ class TripStepTracker extends StatelessWidget {
     );
   }
 }
-

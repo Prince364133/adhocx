@@ -8,10 +8,18 @@ import {
   BadRequestException,
   NotFoundException,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  Res,
+  HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBody, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
 import { UserRole } from '@adhocx/contracts';
 import { RouteSolverService } from './route-solver.service';
+import { CorporateRoutePlannerService, CommitPlanDto, PlanRoutesResult } from './corporate-route-planner.service';
+import { generateSampleCsv, generateSampleExcelBuffer } from './sample-roster-generator';
 import { DatabaseService } from '../../../database/database.service';
 import { RouteOptimizationOptions } from './routing.types';
 import { JwtAuthGuard } from '../../../common/guards/auth.guard';
@@ -27,8 +35,93 @@ import { CorporateResource, CorporateTenantScoped } from '../../../common/decora
 export class CorporateRoutingController {
   constructor(
     private readonly routeSolverService: RouteSolverService,
+    private readonly routePlannerService: CorporateRoutePlannerService,
     private readonly db: DatabaseService,
   ) {}
+
+  @Post('plan-from-file')
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Calculate traffic-aware routes and clustered cabs from an uploaded employee pickup Excel/CSV' })
+  public async planFromFile(
+    @UploadedFile() file: Express.Multer.File,
+    @Body() body: any,
+  ) {
+    if (!file || !file.buffer) {
+      throw new BadRequestException('A valid employee pickup file (.xlsx, .xls, .csv) must be uploaded');
+    }
+
+    const office = body.office || body.officeName;
+    const loginTime = body.loginTime || body.deadline;
+
+    if (!office) {
+      throw new BadRequestException('office address is required');
+    }
+    if (!loginTime) {
+      throw new BadRequestException('loginTime (or deadline) is required');
+    }
+
+    return this.routePlannerService.planFromFile(
+      file.buffer,
+      file.originalname || 'employees.xlsx',
+      {
+        office,
+        loginTime,
+        logoutTime: body.logoutTime,
+        officeRadiusKm: body.officeRadiusKm ? Number(body.officeRadiusKm) : 50,
+        bufferMinutes: body.bufferMinutes ? Number(body.bufferMinutes) : 15,
+        pickupWaitMinutes: body.pickupWaitMinutes ? Number(body.pickupWaitMinutes) : 5,
+        cabCapacity: body.cabCapacity ? Number(body.cabCapacity) : 4,
+        routingPreference: body.routingPreference || 'TRAFFIC_AWARE',
+        avoidTolls: body.avoidTolls === 'true' || body.avoidTolls === true,
+        avoidHighways: body.avoidHighways === 'true' || body.avoidHighways === true,
+      },
+    );
+  }
+
+  @Post('commit-plan')
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN)
+  @CorporateTenantScoped()
+  @ApiOperation({ summary: 'Commit calculated route plan into active corporate routes in the database' })
+  public async commitPlan(@Body() body: CommitPlanDto) {
+    if (!body.tenantId || !body.officeId || !body.shiftDate || !body.shiftTime || !body.plan) {
+      throw new BadRequestException('tenantId, officeId, shiftDate, shiftTime, and plan are required');
+    }
+    return this.routePlannerService.commitPlanToDatabase(body);
+  }
+
+  @Get('sample-template')
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @ApiOperation({ summary: 'Download sample Excel or CSV template for employee pickup routing' })
+  public async downloadSampleTemplate(@Query('format') format: string, @Res() res: Response) {
+    const isCsv = (format || '').toLowerCase() === 'csv';
+
+    if (isCsv) {
+      const csv = generateSampleCsv();
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="sample-employee-pickups.csv"');
+      return res.status(HttpStatus.OK).send(csv);
+    }
+
+    const buffer = await generateSampleExcelBuffer();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="sample-employee-pickups.xlsx"');
+    return res.status(HttpStatus.OK).send(buffer);
+  }
+
+  @Post('export-plan')
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @ApiOperation({ summary: 'Export calculated route plan to formatted multi-sheet Excel file' })
+  public async exportPlanToExcel(@Body() plan: PlanRoutesResult, @Res() res: Response) {
+    if (!plan || !plan.routes) {
+      throw new BadRequestException('Valid plan object is required');
+    }
+    const buffer = await this.routePlannerService.exportPlanToExcel(plan);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="planned-corporate-routes.xlsx"');
+    return res.status(HttpStatus.OK).send(buffer);
+  }
 
   @Post('optimize')
   @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN)
@@ -78,7 +171,6 @@ export class CorporateRoutingController {
     if (!tenantId) {
       throw new BadRequestException('tenantId query parameter is required');
     }
-    // Bounded page (newest shifts first) so a large tenant's history can't be pulled in one call.
     const take = Math.min(Math.max(Number.parseInt(limit ?? '', 10) || 500, 1), 1000);
     const skip = Math.max(Number.parseInt(offset ?? '', 10) || 0, 0);
 

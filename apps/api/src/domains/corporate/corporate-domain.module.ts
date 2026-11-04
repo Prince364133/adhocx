@@ -29,6 +29,9 @@ import { CorporateSchedulingController } from './scheduling/corporate-scheduling
 
 // Routing Sub-Module
 import { RouteSolverService } from './routing/route-solver.service';
+import { CorporateRoutePlannerService } from './routing/corporate-route-planner.service';
+import { GoogleGeocodingAdapter } from './routing/google-geocoding.adapter';
+import { GoogleRoutesV2Adapter } from './routing/google-routes-v2.adapter';
 import { CorporateRoutingController } from './routing/corporate-routing.controller';
 import { TRAVEL_TIME_MATRIX_PORT } from './routing/travel-time-matrix.port';
 import { HaversineTravelTimeMatrix } from './routing/haversine-travel-time-matrix';
@@ -109,6 +112,9 @@ import { CorporateRiderController } from './rider/corporate-rider.controller';
       inject: [GoogleMapsService, RedisService],
     },
     RouteSolverService,
+    GoogleGeocodingAdapter,
+    GoogleRoutesV2Adapter,
+    CorporateRoutePlannerService,
     GoogleTrafficEstimatorAdapter,
     { provide: TRAFFIC_ESTIMATOR_PORT, useExisting: GoogleTrafficEstimatorAdapter },
     CorporateDispatchService,
@@ -159,6 +165,9 @@ import { CorporateRiderController } from './rider/corporate-rider.controller';
     RosterTemplateService,
     RosterIngestionService,
     RouteSolverService,
+    GoogleGeocodingAdapter,
+    GoogleRoutesV2Adapter,
+    CorporateRoutePlannerService,
     CorporateDispatchService,
     CorporateDispatchSchedulerService,
     CorporateTripExecutionService,

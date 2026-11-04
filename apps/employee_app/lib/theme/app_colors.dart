@@ -11,6 +11,7 @@ class AppColors {
 
   // Primary Brand Blue
   static const Color primaryBlue = Color(0xFF1167EE);
+  static const Color primary = primaryBlue;
   static const Color primaryBlueDark = Color(0xFF0948AC);
   static const Color primaryBlueDarker = Color(0xFF032969);
   static const Color primaryBlueLight = Color(0xFFCEE0FD);
@@ -58,6 +59,11 @@ class AppColors {
 
   static const Color warning = Color(0xFFF59E0B);
   static const Color warningLight = Color(0xFFFEF3C7);
+  static const Color warningBorder = Color(0xFFFDE68A);
+
+  // Purple accents (Notifications, Analytics)
+  static const Color primaryPurple = Color(0xFF7C3AED);
+  static const Color primaryPurpleLight = Color(0xFFEDE9FE);
 
   // Gradients
   static const LinearGradient primaryGradient = LinearGradient(
@@ -78,4 +84,3 @@ class AppColors {
     colors: [secondaryOrange, Color(0xFFFF7E39)],
   );
 }
-

@@ -152,3 +152,56 @@ export interface AvailableDriverOption {
   currentDutyHours: number;
 }
 
+export interface PlannedRouteStop {
+  sequence: number;
+  name: string;
+  address: string;
+  matchedAddress: string;
+  lat: number;
+  lng: number;
+  eta: string;
+  dwellUntil: string;
+  nextStop: string;
+  travelToNextMinutes: number;
+  distanceToNextKm: number;
+  arrivalAtNext: string;
+  officeDistanceKm: number;
+  outOfRadius: boolean;
+  boardingOtp?: string;
+}
+
+export interface PlannedRouteSegment {
+  from: string;
+  to: string;
+  depart: string;
+  arrive: string;
+  minutes: number;
+  distanceKm: number;
+}
+
+export interface CalculatedRoute {
+  cab: number;
+  driverStart: string;
+  sequence: string;
+  stops: PlannedRouteStop[];
+  segments: PlannedRouteSegment[];
+  departure: string;
+  arrival: string;
+  distanceKm: number;
+  driveMinutes: number;
+  status: 'Meets deadline' | 'Misses deadline';
+  bufferStatus: 'Meets buffer' | 'Misses buffer';
+  timeSource: string;
+  path: [number, number][]; // [lat, lng] array
+}
+
+export interface RoutePlanningResult {
+  employeeCount: number;
+  cabCount: number;
+  officeRadiusKm: number;
+  outOfRadiusCount: number;
+  bufferedDeadline: string;
+  office: { name: string; lat: number; lng: number };
+  routes: CalculatedRoute[];
+}
+

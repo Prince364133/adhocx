@@ -1,128 +1,7 @@
 import 'package:go_router/go_router.dart';
 
-// Batch 01 Screens
-import '../screens/splash_screen.dart';
-import '../screens/welcome_screen.dart';
-import '../screens/login_options_screen.dart';
-import '../screens/mobile_number_screen.dart';
-import '../screens/otp_verification_screen.dart';
-import '../screens/company_sso_screen.dart';
-import '../screens/employee_verification_screen.dart';
-import '../screens/location_permission_screen.dart';
-import '../screens/notification_permission_screen.dart';
-import '../screens/onboarding_schedule_screen.dart';
-import '../screens/onboarding_tracking_screen.dart';
-import '../screens/onboarding_safety_screen.dart';
-import '../screens/onboarding_complete_screen.dart';
-import '../screens/invalid_otp_screen.dart';
-import '../screens/transport_unavailable_screen.dart';
-import '../screens/home_screen_placeholder.dart';
-
-// Batch 02 Screens
-import '../screens/batch_02/home_upcoming_pickup_screen.dart';
-import '../screens/batch_02/home_upcoming_drop_screen.dart';
-import '../screens/batch_02/home_no_upcoming_trip_screen.dart';
-import '../screens/batch_02/trip_planning_screen.dart';
-import '../screens/batch_02/trip_assigned_screen.dart';
-import '../screens/batch_02/trip_approaching_screen.dart';
-import '../screens/batch_02/trip_arrived_screen.dart';
-import '../screens/batch_02/trip_boarded_screen.dart';
-import '../screens/batch_02/trip_in_progress_screen.dart';
-import '../screens/batch_02/trip_completed_screen.dart';
-import '../screens/batch_02/trip_cancelled_screen.dart';
-import '../screens/batch_02/trip_unserved_screen.dart';
-import '../screens/batch_02/trip_details_completed_screen.dart';
-import '../screens/batch_02/driver_vehicle_details_screen.dart';
-
-// Batch 03 Screens
-import '../screens/batch_03/schedule_today_overview_screen.dart';
-import '../screens/batch_03/schedule_daily_screen.dart';
-import '../screens/batch_03/schedule_weekly_screen.dart';
-import '../screens/batch_03/schedule_monthly_screen.dart';
-import '../screens/batch_03/shift_details_login_screen.dart';
-import '../screens/batch_03/shift_details_overnight_screen.dart';
-import '../screens/batch_03/schedule_no_trips_screen.dart';
-import '../screens/batch_03/request_change_options_screen.dart';
-import '../screens/batch_03/change_request_details_screen.dart';
-import '../screens/batch_03/change_request_submitted_screen.dart';
-import '../screens/batch_03/request_status_pending_screen.dart';
-import '../screens/batch_03/request_status_approved_screen.dart';
-import '../screens/batch_03/request_status_rejected_screen.dart';
-import '../screens/batch_03/cancel_trip_request_screen.dart';
-
-// Batch 04 Screens
-import '../screens/batch_04/assignment_notification_screen.dart';
-import '../screens/batch_04/cab_assigned_overview_screen.dart';
-import '../screens/batch_04/driver_details_screen.dart';
-import '../screens/batch_04/vehicle_details_screen.dart';
-import '../screens/batch_04/pickup_sequence_screen.dart';
-import '../screens/batch_04/cab_reassigned_screen.dart';
-import '../screens/batch_04/assignment_delayed_screen.dart';
-import '../screens/batch_04/driver_replaced_screen.dart';
-import '../screens/batch_04/driver_delay_screen.dart';
-import '../screens/batch_04/vehicle_issue_screen.dart';
-import '../screens/batch_04/contact_driver_sheet_screen.dart';
-import '../screens/batch_04/assignment_history_screen.dart';
-import '../screens/batch_04/no_cab_available_screen.dart';
-
-// Batch 05 Screens
-import '../screens/batch_05/live_tracking_overview_screen.dart';
-import '../screens/batch_05/trip_live_map_full_screen.dart';
-import '../screens/batch_05/pickup_point_details_screen.dart';
-import '../screens/batch_05/walking_directions_screen.dart';
-import '../screens/batch_05/cab_approaching_screen.dart';
-import '../screens/batch_05/cab_arrived_screen.dart';
-import '../screens/batch_05/trip_progress_on_trip_screen.dart';
-import '../screens/batch_05/route_and_stops_screen.dart';
-import '../screens/batch_05/gps_unavailable_screen.dart';
-import '../screens/batch_05/stale_location_screen.dart';
-import '../screens/batch_05/poor_network_screen.dart';
-import '../screens/batch_05/reconnecting_screen.dart';
-
-// Batch 06 Screens
-import '../screens/batch_06/boarding_verify_options_screen.dart';
-import '../screens/batch_06/boarding_otp_input_screen.dart';
-import '../screens/batch_06/scan_boarding_qr_screen.dart';
-import '../screens/batch_06/verifying_boarding_screen.dart';
-import '../screens/batch_06/boarding_successful_screen.dart';
-import '../screens/batch_06/wrong_otp_screen.dart';
-import '../screens/batch_06/boarding_issue_screen.dart';
-import '../screens/batch_06/trip_in_progress_en_route_screen.dart';
-import '../screens/batch_06/drop_reached_screen.dart';
-import '../screens/batch_06/trip_completed_summary_screen.dart';
-import '../screens/batch_06/safe_reach_confirmation_screen.dart';
-import '../screens/batch_06/post_trip_feedback_screen.dart';
-
-// Batch 07 Screens
-import '../screens/batch_07/safety_center_overview_screen.dart';
-import '../screens/batch_07/sos_activate_screen.dart';
-import '../screens/batch_07/sos_alert_confirmed_screen.dart';
-import '../screens/batch_07/safety_team_call_screen.dart';
-import '../screens/batch_07/report_incident_screen.dart';
-import '../screens/batch_07/raise_complaint_screen.dart';
-import '../screens/batch_07/lost_property_screen.dart';
-import '../screens/batch_07/my_requests_tickets_screen.dart';
-import '../screens/batch_07/request_details_tracking_screen.dart';
-import '../screens/batch_07/request_resolved_screen.dart';
-import '../screens/batch_07/emergency_contacts_screen.dart';
-import '../screens/batch_07/safety_tips_guidelines_screen.dart';
-import '../screens/batch_07/live_support_chat_screen.dart';
-
-// Batch 08 Screens
-import '../screens/batch_08/trip_history_overview_screen.dart';
-import '../screens/batch_08/trip_history_details_screen.dart';
-import '../screens/batch_08/trip_summary_analytics_screen.dart';
-import '../screens/batch_08/trip_feedback_form_screen.dart';
-import '../screens/batch_08/notifications_center_screen.dart';
-import '../screens/batch_08/profile_my_details_screen.dart';
-import '../screens/batch_08/edit_profile_screen.dart';
-import '../screens/batch_08/settings_overview_screen.dart';
-import '../screens/batch_08/select_language_screen.dart';
-import '../screens/batch_08/notification_preferences_screen.dart';
-import '../screens/batch_08/privacy_data_screen.dart';
-import '../screens/batch_08/about_adhocx_screen.dart';
-import '../screens/batch_08/logout_confirm_screen.dart';
-import '../screens/batch_08/delete_account_screen.dart';
+// Unified Feature-Sliced Screen Architecture
+import '../features/features.dart';
 
 class AppRoutes {
   AppRoutes._();
@@ -250,6 +129,29 @@ class AppRoutes {
   static const String aboutAdhocx = '/about';
   static const String logoutConfirm = '/logout-confirm';
   static const String deleteAccount = '/delete-account';
+
+  // Route Aliases
+  static const String safetyCenterOverview = safetyOverview;
+  static const String sosActivate = safetySos;
+  static const String sosAlertConfirmed = safetySosConfirmed;
+  static const String reportIncident = safetyReportIncident;
+  static const String raiseComplaint = safetyRaiseComplaint;
+  static const String lostProperty = safetyLostProperty;
+  static const String myRequestsTickets = safetyMyRequests;
+  static const String requestDetailsTracking = safetyRequestDetails;
+  static const String requestResolved = safetyRequestResolved;
+  static const String emergencyContacts = safetyEmergencyContacts;
+  static const String safetyTipsGuidelines = safetyTips;
+  static const String liveSupportChat = safetyLiveChat;
+  static const String tripHistoryOverview = historyOverview;
+  static const String tripHistoryDetails = historyDetails;
+  static const String tripSummaryAnalytics = historyAnalytics;
+  static const String tripFeedbackForm = historyFeedback;
+  static const String profileMyDetails = profileDetails;
+  static const String editProfile = profileEdit;
+  static const String notificationPreferences = settingsNotifications;
+  static const String selectLanguage = settingsLanguage;
+  static const String privacyData = settingsPrivacy;
 
   static final GoRouter router = GoRouter(
     initialLocation: splash,

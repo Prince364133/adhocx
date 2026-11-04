@@ -4,6 +4,7 @@ import {
   OpsBoardResponse,
   SosAlertItem,
   AvailableDriverOption,
+  RoutePlanningResult,
 } from './opsTypes';
 
 export function getApiBaseUrl(): string {
@@ -62,7 +63,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   const token = getStoredOpsToken();
 
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
     ...(options.headers as Record<string, string>),
   };
 
@@ -227,6 +228,50 @@ export const opsApi = {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+  },
+
+  planRoutesFromFile: async (formData: FormData): Promise<RoutePlanningResult> => {
+    return request<RoutePlanningResult>(`/corporate/routes/plan-from-file`, {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
+  commitRoutePlan: async (payload: {
+    tenantId: string;
+    officeId: string;
+    shiftDate: string;
+    shiftTime: string;
+    direction: 'LOGIN' | 'LOGOUT';
+    vehicleCategory?: string;
+    plan: RoutePlanningResult;
+  }): Promise<{ routesCreated: number; stopsCreated: number }> => {
+    return request(`/corporate/routes/commit-plan`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  getSampleTemplateUrl: (format = 'xlsx'): string => {
+    const baseUrl = getApiBaseUrl();
+    return `${baseUrl}/corporate/routes/sample-template?format=${format}`;
+  },
+
+  exportPlanExcel: async (plan: RoutePlanningResult): Promise<Blob> => {
+    const baseUrl = getApiBaseUrl();
+    const token = getStoredOpsToken();
+    const res = await fetch(`${baseUrl}/corporate/routes/export-plan`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(plan),
+    });
+    if (!res.ok) {
+      throw new Error(`Export failed: ${res.statusText}`);
+    }
+    return res.blob();
   },
 
   // ── SOS Crisis Cockpit ──
