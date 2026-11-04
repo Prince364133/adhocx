@@ -378,6 +378,15 @@ describe('Corporate ETS Workstream A (WS-A): Supply Eligibility, Persisted Offer
           verificationStatus: 'VERIFIED',
           availabilityStatus: 'AVAILABLE',
           vehicleType: 'SEDAN',
+          vehicles: [
+            {
+              id: 'veh-1',
+              driverId: 'drv-1',
+              vehicleType: 'SEDAN',
+              verificationStatus: 'VERIFIED',
+              insuranceExpiry: new Date(Date.now() + 86400000 * 60),
+            },
+          ],
         },
       ]);
       mockDb.corporateRoute.findMany.mockResolvedValue([]);

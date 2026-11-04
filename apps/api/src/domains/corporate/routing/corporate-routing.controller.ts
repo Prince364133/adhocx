@@ -35,12 +35,13 @@ import { CorporateResource, CorporateTenantScoped } from '../../../common/decora
 export class CorporateRoutingController {
   constructor(
     private readonly routeSolverService: RouteSolverService,
-    private readonly routePlannerService: CorporateRoutePlannerService,
     private readonly db: DatabaseService,
+    private readonly routePlannerService?: CorporateRoutePlannerService,
   ) {}
 
   @Post('plan-from-file')
   @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateTenantScoped()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Calculate traffic-aware routes and clustered cabs from an uploaded employee pickup Excel/CSV' })
@@ -62,7 +63,7 @@ export class CorporateRoutingController {
       throw new BadRequestException('loginTime (or deadline) is required');
     }
 
-    return this.routePlannerService.planFromFile(
+    return this.routePlannerService!.planFromFile(
       file.buffer,
       file.originalname || 'employees.xlsx',
       {
@@ -88,11 +89,12 @@ export class CorporateRoutingController {
     if (!body.tenantId || !body.officeId || !body.shiftDate || !body.shiftTime || !body.plan) {
       throw new BadRequestException('tenantId, officeId, shiftDate, shiftTime, and plan are required');
     }
-    return this.routePlannerService.commitPlanToDatabase(body);
+    return this.routePlannerService!.commitPlanToDatabase(body);
   }
 
   @Get('sample-template')
   @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateTenantScoped()
   @ApiOperation({ summary: 'Download sample Excel or CSV template for employee pickup routing' })
   public async downloadSampleTemplate(@Query('format') format: string, @Res() res: Response) {
     const isCsv = (format || '').toLowerCase() === 'csv';
@@ -112,12 +114,13 @@ export class CorporateRoutingController {
 
   @Post('export-plan')
   @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateTenantScoped()
   @ApiOperation({ summary: 'Export calculated route plan to formatted multi-sheet Excel file' })
   public async exportPlanToExcel(@Body() plan: PlanRoutesResult, @Res() res: Response) {
     if (!plan || !plan.routes) {
       throw new BadRequestException('Valid plan object is required');
     }
-    const buffer = await this.routePlannerService.exportPlanToExcel(plan);
+    const buffer = await this.routePlannerService!.exportPlanToExcel(plan);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename="planned-corporate-routes.xlsx"');
     return res.status(HttpStatus.OK).send(buffer);
