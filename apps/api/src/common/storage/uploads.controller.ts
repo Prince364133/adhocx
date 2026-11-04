@@ -3,7 +3,9 @@ import {
   Get,
   Param,
   Res,
+  Query,
   NotFoundException,
+  ForbiddenException,
   BadRequestException,
   Logger,
 } from '@nestjs/common';
@@ -11,6 +13,7 @@ import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Response } from 'express';
 import * as path from 'path';
 import * as fs from 'fs';
+import { verifyUploadSignature } from './storage.service';
 
 @ApiTags('Uploads')
 @Controller()
@@ -25,6 +28,8 @@ export class UploadsController {
   async getUploadedFile(
     @Param('filename') filename: string,
     @Res() res: Response,
+    @Query('exp') exp?: string,
+    @Query('sig') sig?: string,
   ) {
     if (
       !filename ||
@@ -36,6 +41,17 @@ export class UploadsController {
     }
 
     const cleanFilename = path.basename(filename);
+
+    // Identity documents are served through signed, expiring links (StorageService.getDocumentAccessUrl).
+    // A link that carries a signature must be valid. With STORAGE_REQUIRE_SIGNED_UPLOADS=true, unsigned
+    // requests are refused as well (turn on once every client uses signed links).
+    const signed = exp !== undefined || sig !== undefined;
+    if (signed && !verifyUploadSignature(cleanFilename, exp, sig)) {
+      throw new ForbiddenException('This document link has expired or is invalid. Reopen it from the app.');
+    }
+    if (!signed && process.env.STORAGE_REQUIRE_SIGNED_UPLOADS === 'true') {
+      throw new ForbiddenException('A signed link is required for this file.');
+    }
 
     // Check multiple candidate directories to handle Docker, monorepo root, or subpackage cwd
     const candidateDirs = [
@@ -63,9 +79,10 @@ export class UploadsController {
       throw new NotFoundException(`File ${cleanFilename} not found on server.`);
     }
 
-    // Set cache control for static document assets
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    // Signed (sensitive) documents must not be cached by shared caches or the browser beyond the link.
+    res.setHeader('Cache-Control', signed ? 'private, no-store' : 'public, max-age=31536000, immutable');
     res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
 
     return res.sendFile(resolvedPath);
   }

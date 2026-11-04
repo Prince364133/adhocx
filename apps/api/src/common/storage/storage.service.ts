@@ -4,7 +4,10 @@ import {
   S3Client,
   PutObjectCommand,
   DeleteObjectCommand,
+  GetObjectCommand,
 } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import {
@@ -12,6 +15,34 @@ import {
   FileSanitizerOptions,
   SanitizedFileResult,
 } from './file-sanitizer.service';
+
+/** How long a signed identity-document link stays valid. */
+export const DOCUMENT_LINK_TTL_SECONDS = 15 * 60;
+
+/** Secret for signing local /uploads links (falls back to the JWT access secret). */
+export function uploadSigningSecret(): string | null {
+  return process.env.DOCUMENT_URL_SECRET || process.env.JWT_ACCESS_SECRET || null;
+}
+
+/** HMAC over `<filename>:<expiry>` for local /uploads links. */
+export function signUploadPath(filename: string, expiresAtSec: number, secret: string): string {
+  return crypto.createHmac('sha256', secret).update(`${filename}:${expiresAtSec}`).digest('hex');
+}
+
+/** Verifies a signed local /uploads link (constant time, not expired). */
+export function verifyUploadSignature(
+  filename: string,
+  exp: string | undefined,
+  sig: string | undefined,
+  nowSec: number = Math.floor(Date.now() / 1000),
+): boolean {
+  const secret = uploadSigningSecret();
+  const expNum = Number(exp);
+  if (!secret || !sig || !Number.isInteger(expNum) || expNum < nowSec) return false;
+  const expected = Buffer.from(signUploadPath(filename, expNum, secret));
+  const given = Buffer.from(String(sig));
+  return expected.length === given.length && crypto.timingSafeEqual(expected, given);
+}
 
 export interface StoredFileResult {
   url: string;
@@ -186,6 +217,57 @@ export class StorageService {
       'https://api.adhocx.com'
     ).replace(/\/+$/, '');
     return `${base}${clean}`;
+  }
+
+  /**
+   * Short-lived link to an identity document (Aadhaar, PAN, licence, RC...). Documents stored in our
+   * R2 bucket get a presigned GET (works once the bucket's public access is turned off); documents
+   * on local disk get an HMAC-signed /uploads link. Links expire after DOCUMENT_LINK_TTL_SECONDS.
+   * External URLs and data: URIs are returned unchanged.
+   */
+  async getDocumentAccessUrl(stored?: string | null, ttlSeconds = DOCUMENT_LINK_TTL_SECONDS): Promise<string> {
+    if (!stored || typeof stored !== 'string') return '';
+    const value = stored.trim();
+    if (!value || value === 'null' || value === 'undefined' || value.startsWith('data:')) return value === 'null' || value === 'undefined' ? '' : value;
+
+    const r2Key = this.r2KeyOf(value);
+    if (r2Key && this.s3Client) {
+      try {
+        // `as any`: duplicate @smithy/types copies in node_modules make the two SDK packages' client
+        // types nominally different; the runtime objects are the same S3 client.
+        return await getSignedUrl(this.s3Client as any, new GetObjectCommand({ Bucket: this.bucketName, Key: r2Key }) as any, {
+          expiresIn: ttlSeconds,
+        });
+      } catch (err: unknown) {
+        this.logger.warn(`Presigning ${r2Key} failed: ${err instanceof Error ? err.message : String(err)}`);
+        return '';
+      }
+    }
+
+    const localFile = this.localUploadNameOf(value);
+    if (localFile) {
+      const secret = uploadSigningSecret();
+      const base = this.getPublicUrl(`/uploads/${localFile}`);
+      if (!secret) return base;
+      const exp = Math.floor(Date.now() / 1000) + ttlSeconds;
+      return `${base}?exp=${exp}&sig=${signUploadPath(localFile, exp, secret)}`;
+    }
+
+    return this.getPublicUrl(value);
+  }
+
+  /** `documents/<file>` key when the URL points into our R2 bucket (public or bare key form). */
+  private r2KeyOf(value: string): string | null {
+    const bare = value.replace(/^\/+/, '');
+    if (bare.startsWith('documents/')) return bare;
+    if (this.publicUrl && value.startsWith(`${this.publicUrl}/`)) return value.slice(this.publicUrl.length + 1).split('?')[0];
+    return null;
+  }
+
+  /** File name when the value is a local /uploads path or URL. */
+  private localUploadNameOf(value: string): string | null {
+    const m = value.split('?')[0].match(/(?:^|\/)uploads\/([^/]+)$/);
+    return m ? path.basename(m[1]) : null;
   }
 
   async deleteFile(filename: string): Promise<void> {

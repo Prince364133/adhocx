@@ -1,3 +1,4 @@
+import { StorageService } from '../../common/storage/storage.service';
 import { Injectable, NotFoundException, BadRequestException, Logger, Optional } from '@nestjs/common';
 import {
   AdminDriverQueryDto,
@@ -24,7 +25,35 @@ export class AdminService {
     private readonly db: DatabaseService,
     private readonly audit: AuditService,
     @Optional() private readonly notifications?: NotificationsService,
+    @Optional() private readonly storage?: StorageService,
   ) {}
+
+  /** Identity documents go out as short-lived signed links (see StorageService.getDocumentAccessUrl). */
+  private async documentUrl(raw?: string | null): Promise<string> {
+    if (!raw) return '';
+    return this.storage ? this.storage.getDocumentAccessUrl(raw) : this.resolveAssetUrl(raw);
+  }
+
+  /** All document fields of a driver row, signed. `kyc` is the (possibly masked) kycDocuments copy. */
+  private async signDriverDocuments(d: any, kyc: Record<string, any>) {
+    if (Array.isArray(kyc.documents)) {
+      kyc.documents = await Promise.all(
+        kyc.documents.map(async (doc: any) => ({ ...doc, fileUrl: await this.documentUrl(doc.fileUrl || doc.url) })),
+      );
+    }
+    if (kyc.profilePhotoUrl) kyc.profilePhotoUrl = await this.documentUrl(kyc.profilePhotoUrl);
+    const opt = async (v?: string | null) => (v ? this.documentUrl(v) : undefined);
+    return {
+      dlFrontUrl: await opt(d.dlFrontUrl),
+      dlBackUrl: await opt(d.dlBackUrl),
+      rcDocUrl: await opt(d.rcDocUrl),
+      insuranceDocUrl: await opt(d.insuranceDocUrl),
+      vehiclePhotoUrl: await opt(d.vehiclePhotoUrl),
+      aadharFrontUrl: await opt(d.aadharFrontUrl),
+      aadharBackUrl: await opt(d.aadharBackUrl),
+      panDocUrl: await opt(d.panDocUrl),
+    };
+  }
 
   /**
    * List drivers with filtering and pagination for admin review.
@@ -68,34 +97,19 @@ export class AdminService {
       this.db.driver.count({ where }),
     ]);
 
-    const mappedItems = items.map((d: any) => {
+    const mappedItems = await Promise.all(items.map(async (d: any) => {
       const kyc = d.kycDocuments && typeof d.kycDocuments === 'object' ? { ...d.kycDocuments } : {};
-      if (Array.isArray(kyc.documents)) {
-        kyc.documents = kyc.documents.map((doc: any) => ({
-          ...doc,
-          fileUrl: this.resolveAssetUrl(doc.fileUrl || doc.url),
-        }));
-      }
-      if (kyc.profilePhotoUrl) {
-        kyc.profilePhotoUrl = this.resolveAssetUrl(kyc.profilePhotoUrl);
-      }
+      const docs = await this.signDriverDocuments(d, kyc);
       return {
         ...d,
         phone: d.phone || d.user?.phone || '',
         email: d.user?.email || kyc.email || undefined,
         fullName: sanitizeRealName(d.fullName) || sanitizeRealName(d.user?.fullName) || d.phone || 'Driver Applicant',
-        profilePhotoUrl: this.resolveAssetUrl(d.profilePhotoUrl || kyc.profilePhotoUrl),
-        dlFrontUrl: d.dlFrontUrl ? this.resolveAssetUrl(d.dlFrontUrl) : undefined,
-        dlBackUrl: d.dlBackUrl ? this.resolveAssetUrl(d.dlBackUrl) : undefined,
-        rcDocUrl: d.rcDocUrl ? this.resolveAssetUrl(d.rcDocUrl) : undefined,
-        insuranceDocUrl: d.insuranceDocUrl ? this.resolveAssetUrl(d.insuranceDocUrl) : undefined,
-        vehiclePhotoUrl: d.vehiclePhotoUrl ? this.resolveAssetUrl(d.vehiclePhotoUrl) : undefined,
-        aadharFrontUrl: d.aadharFrontUrl ? this.resolveAssetUrl(d.aadharFrontUrl) : undefined,
-        aadharBackUrl: d.aadharBackUrl ? this.resolveAssetUrl(d.aadharBackUrl) : undefined,
-        panDocUrl: d.panDocUrl ? this.resolveAssetUrl(d.panDocUrl) : undefined,
+        profilePhotoUrl: await this.documentUrl(d.profilePhotoUrl || kyc.profilePhotoUrl),
+        ...docs,
         kycDocuments: kyc,
       };
-    });
+    }));
 
     return {
       items: mappedItems,
@@ -180,28 +194,13 @@ export class AdminService {
     const isFinanceOrSuperAdmin = actorRole === 'FINANCE_ADMIN' || actorRole === 'SUPER_ADMIN';
     const processedKyc = isFinanceOrSuperAdmin ? driver.kycDocuments : this.maskSensitivePii(driver.kycDocuments);
     const kyc = processedKyc && typeof processedKyc === 'object' ? { ...processedKyc } : {};
-    if (Array.isArray(kyc.documents)) {
-      kyc.documents = kyc.documents.map((doc: any) => ({
-        ...doc,
-        fileUrl: this.resolveAssetUrl(doc.fileUrl || doc.url),
-      }));
-    }
-    if (kyc.profilePhotoUrl) {
-      kyc.profilePhotoUrl = this.resolveAssetUrl(kyc.profilePhotoUrl);
-    }
+    const docs = await this.signDriverDocuments(driver, kyc);
 
     return {
       ...driver,
-      dlFrontUrl: driver.dlFrontUrl ? this.resolveAssetUrl(driver.dlFrontUrl) : undefined,
-      dlBackUrl: driver.dlBackUrl ? this.resolveAssetUrl(driver.dlBackUrl) : undefined,
-      rcDocUrl: driver.rcDocUrl ? this.resolveAssetUrl(driver.rcDocUrl) : undefined,
-      insuranceDocUrl: driver.insuranceDocUrl ? this.resolveAssetUrl(driver.insuranceDocUrl) : undefined,
-      vehiclePhotoUrl: driver.vehiclePhotoUrl ? this.resolveAssetUrl(driver.vehiclePhotoUrl) : undefined,
-      aadharFrontUrl: driver.aadharFrontUrl ? this.resolveAssetUrl(driver.aadharFrontUrl) : undefined,
-      aadharBackUrl: driver.aadharBackUrl ? this.resolveAssetUrl(driver.aadharBackUrl) : undefined,
-      panDocUrl: driver.panDocUrl ? this.resolveAssetUrl(driver.panDocUrl) : undefined,
+      ...docs,
       kycDocuments: kyc,
-      profilePhotoUrl: this.resolveAssetUrl((driver.kycDocuments as any)?.profilePhotoUrl),
+      profilePhotoUrl: await this.documentUrl((driver.kycDocuments as any)?.profilePhotoUrl),
       phone: driver.phone || driver.user?.phone || '',
       email: driver.user?.email || (driver.kycDocuments as any)?.email || undefined,
       fullName: sanitizeRealName(driver.fullName) || sanitizeRealName(driver.user?.fullName) || driver.phone || 'Driver Applicant',
