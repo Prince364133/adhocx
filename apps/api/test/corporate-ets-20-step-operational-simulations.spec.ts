@@ -13,6 +13,7 @@ import { AuditService } from '../src/modules/audit/audit.service';
 import { LocationsService } from '../src/modules/locations/locations.service';
 import { GeoPoint, H3Index } from '@adhocx/domain-core';
 import { attachSortedSets } from './helpers/fake-sorted-sets';
+import { FIXTURE_INSURANCE_EXPIRY, filterDriversByIdIn, shapeDriver } from './helpers/corporate-driver-fixtures';
 
 /**
  * 20-Step Comprehensive Operational Simulation Suite for Corporate Managed ETS.
@@ -100,6 +101,9 @@ describe('Corporate Managed ETS: 20-Step Comprehensive Operational Simulations',
     drivers: new Map(),
     vehicles: new Map(),
   };
+  /** Vehicle rows owned by a driver (what `include: { vehicles }` loads). */
+  const vehiclesOf = (driverId: string) =>
+    Array.from(simDb.vehicles.values()).filter((v: any) => v.driverId === driverId);
 
   const redisStore = new Map<string, string>();
   const redisSets = new Map<string, Set<string>>();
@@ -402,8 +406,10 @@ describe('Corporate Managed ETS: 20-Step Comprehensive Operational Simulations',
       }),
     },
     driver: {
-      findUnique: jest.fn(async ({ where }: any) => simDb.drivers.get(where.id)),
-      findMany: jest.fn(async () => Array.from(simDb.drivers.values())),
+      findUnique: jest.fn(async (args: any) => shapeDriver(simDb.drivers.get(args.where.id), args, vehiclesOf)),
+      findMany: jest.fn(async (args: any = {}) =>
+          filterDriversByIdIn(Array.from(simDb.drivers.values()), args.where).map((d) => shapeDriver(d, args, vehiclesOf)),
+        ),
     },
     vehicle: {
       findFirst: jest.fn(async ({ where }: any) => {
@@ -503,7 +509,9 @@ describe('Corporate Managed ETS: 20-Step Comprehensive Operational Simulations',
         make: vCat === 'SEDAN' ? 'Maruti' : 'Toyota',
         model: vCat === 'SEDAN' ? 'Dzire' : 'Innova',
         plateNumber: `TS09AB${(2000 + i).toString()}`,
+        vehicleType: vCat,
         verificationStatus: 'VERIFIED',
+        insuranceExpiry: FIXTURE_INSURANCE_EXPIRY,
       });
     }
   });

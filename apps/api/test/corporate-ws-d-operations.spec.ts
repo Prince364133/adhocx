@@ -28,6 +28,7 @@ import {
   makeAudit,
   makeNotifications,
 } from './helpers/corporate-ws-d-fakes';
+import { verifiedVehicle } from './helpers/corporate-driver-fixtures';
 
 const DAY = new Date('2026-11-03T00:00:00.000Z');
 /** 07:00 IST on 2026-11-03 */
@@ -56,7 +57,12 @@ function seed(db: FakeDb) {
       vehicleType: 'SEDAN',
     });
   }
-  db.insert('vehicle', { id: 'veh-new', driverId: 'drv-new', registrationNumber: 'TS09NEW', model: 'Dzire', verificationStatus: 'VERIFIED' });
+  // Every driver owns a real VERIFIED Vehicle row (corporate eligibility ignores the inline vehicleType).
+  // drv-unv stays ineligible because the driver itself is PENDING.
+  for (const id of ['drv-old', 'drv-c', 'drv-unv']) {
+    db.insert('vehicle', verifiedVehicle(id, 'SEDAN', { registrationNumber: `TS09${id.toUpperCase()}` }));
+  }
+  db.insert('vehicle', verifiedVehicle('drv-new', 'SEDAN', { id: 'veh-new', registrationNumber: 'TS09NEW', model: 'Dzire' }));
   for (let i = 1; i <= 3; i++) {
     db.insert('corporateEmployee', { id: `e${i}`, tenantId: 't1', officeId: 'o1', employeeCode: `E${i}`, fullName: `Emp ${i}`, phoneNumber: `9${i}`, email: `e${i}@x` });
   }

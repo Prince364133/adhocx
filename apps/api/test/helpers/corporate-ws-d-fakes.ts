@@ -61,6 +61,10 @@ const RELATIONS: Record<string, Record<string, RelationSpec>> = {
   corporateInvoiceDispute: {
     creditNote: { table: 'corporateCreditNote', kind: 'one', localKey: 'id', foreignKey: 'disputeId' },
   },
+  // Corporate eligibility loads `driver.vehicles` (VERIFIED only); the inline driver.vehicleType never counts.
+  driver: {
+    vehicles: { table: 'vehicle', kind: 'many', localKey: 'id', foreignKey: 'driverId' },
+  },
 };
 
 /** Unique constraints enforced on create / createMany (Prisma P2002), as in schema.prisma. */

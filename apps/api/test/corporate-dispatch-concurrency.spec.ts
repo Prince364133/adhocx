@@ -17,6 +17,7 @@ import {
   CorporateDispatchService,
 } from '../src/domains/corporate/dispatch/corporate-dispatch.service';
 import { attachSortedSets } from './helpers/fake-sorted-sets';
+import { shapeDriver, withVerifiedVehicle } from './helpers/corporate-driver-fixtures';
 
 const tickYield = () => new Promise<void>((r) => setImmediate(r));
 
@@ -202,15 +203,16 @@ class FakeDb {
   };
 
   driver = {
-    findMany: async ({ where }: any) => {
+    findMany: async (args: any) => {
       await tickYield();
-      return (where.id.in as string[])
+      return (args.where.id.in as string[])
         .map((id) => this.drivers.get(id))
-        .filter((d) => d && d.availabilityStatus === 'AVAILABLE' && d.verificationStatus === 'VERIFIED');
+        .filter((d) => d && d.availabilityStatus === 'AVAILABLE' && d.verificationStatus === 'VERIFIED')
+        .map((d) => shapeDriver(d, args));
     },
-    findUnique: async ({ where }: any) => {
+    findUnique: async (args: any) => {
       await tickYield();
-      return this.drivers.get(where.id) ?? null;
+      return shapeDriver(this.drivers.get(args.where.id) ?? null, args);
     },
   };
 
@@ -248,15 +250,18 @@ function makeWorld(): World {
 
 function addDrivers(world: World, ids: string[]) {
   for (const id of ids) {
-    world.db.drivers.set(id, {
+    world.db.drivers.set(
       id,
-      userId: null,
-      fullName: `Driver ${id}`,
-      phone: '9999999999',
-      vehicleType: 'SEDAN',
-      availabilityStatus: 'AVAILABLE',
-      verificationStatus: 'VERIFIED',
-    });
+      withVerifiedVehicle({
+        id,
+        userId: null,
+        fullName: `Driver ${id}`,
+        phone: '9999999999',
+        vehicleType: 'SEDAN',
+        availabilityStatus: 'AVAILABLE',
+        verificationStatus: 'VERIFIED',
+      }),
+    );
   }
 }
 

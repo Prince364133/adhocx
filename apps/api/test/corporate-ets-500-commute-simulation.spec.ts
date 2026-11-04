@@ -12,6 +12,7 @@ import { NotificationsService } from '../src/modules/notifications/notifications
 import { AuditService } from '../src/modules/audit/audit.service';
 import { LocationsService } from '../src/modules/locations/locations.service';
 import { attachSortedSets } from './helpers/fake-sorted-sets';
+import { FIXTURE_INSURANCE_EXPIRY, filterDriversByIdIn, shapeDriver } from './helpers/corporate-driver-fixtures';
 
 /**
  * AdhocX Corporate Managed ETS: 500-Employee Full-Lifecycle Simulation & Stress Test Suite
@@ -70,6 +71,9 @@ describe('Corporate ETS Enterprise 500-Commuter Full-Lifecycle Simulation & Stre
     drivers: new Map(),
     vehicles: new Map(),
   };
+  /** Vehicle rows owned by a driver (what `include: { vehicles }` loads). */
+  const vehiclesOf = (driverId: string) =>
+    Array.from(simDb.vehicles.values()).filter((v: any) => v.driverId === driverId);
 
   const redisStore = new Map<string, string>();
   const redisSets = new Map<string, Set<string>>();
@@ -407,8 +411,10 @@ describe('Corporate ETS Enterprise 500-Commuter Full-Lifecycle Simulation & Stre
         findMany: jest.fn(async () => Array.from(simDb.sosAlerts.values())),
       },
       driver: {
-        findUnique: jest.fn(async ({ where }) => simDb.drivers.get(where.id)),
-        findMany: jest.fn(async () => Array.from(simDb.drivers.values())),
+        findUnique: jest.fn(async (args: any) => shapeDriver(simDb.drivers.get(args.where.id), args, vehiclesOf)),
+        findMany: jest.fn(async (args: any = {}) =>
+          filterDriversByIdIn(Array.from(simDb.drivers.values()), args.where).map((d) => shapeDriver(d, args, vehiclesOf)),
+        ),
       },
       vehicle: {
         findFirst: jest.fn(async ({ where }) => {
@@ -517,7 +523,9 @@ describe('Corporate ETS Enterprise 500-Commuter Full-Lifecycle Simulation & Stre
         make: vCategory === 'SEDAN' ? 'Maruti Suzuki' : 'Toyota',
         model: vCategory === 'SEDAN' ? 'Dzire' : 'Innova',
         plateNumber: `TS09AB${(1000 + i).toString()}`,
+        vehicleType: vCategory,
         verificationStatus: 'VERIFIED',
+        insuranceExpiry: FIXTURE_INSURANCE_EXPIRY,
       };
       simDb.vehicles.set(veh.id, veh);
     }

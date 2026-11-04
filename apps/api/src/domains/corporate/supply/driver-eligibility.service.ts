@@ -8,44 +8,64 @@ import {
 } from './corporate-supply.types';
 import { corporateRouteBusyWindow } from '../dispatch/corporate-dispatch.service';
 
+/** Passenger categories allowed on corporate routes, with licensed passenger seats (excluding the driver). */
+export const CORPORATE_PASSENGER_SEATS = {
+  HATCHBACK: 4,
+  SEDAN: 4,
+  SUV: 6,
+  TEMPO_TRAVELLER: 12,
+  BUS: 30,
+} as const;
+export type CorporatePassengerCategory = keyof typeof CORPORATE_PASSENGER_SEATS;
+
+/** Route categories each vehicle category may serve. A larger passenger car may serve a sedan route. */
+export const CORPORATE_CATEGORY_CAN_SERVE: Record<CorporatePassengerCategory, CorporatePassengerCategory[]> = {
+  HATCHBACK: ['HATCHBACK'],
+  SEDAN: ['SEDAN', 'HATCHBACK'],
+  SUV: ['SUV', 'SEDAN', 'HATCHBACK'],
+  TEMPO_TRAVELLER: ['TEMPO_TRAVELLER'],
+  BUS: ['BUS'],
+};
+
+/**
+ * Normalises a free-text vehicle type ("Sedan", "suv", "Tempo Traveller") to a passenger category.
+ * Returns null for goods vehicles (TATA_ACE, PICKUP_TRUCK, trucks) and anything unrecognised.
+ */
+export function corporatePassengerCategory(raw: unknown): CorporatePassengerCategory | null {
+  if (typeof raw !== 'string') return null;
+  const t = raw.trim().toUpperCase().replace(/[\s-]+/g, '_');
+  if (!t) return null;
+  if (t.includes('TATA_ACE') || t.includes('PICKUP') || t.includes('TRUCK')) return null;
+  if (t.includes('TEMPO')) return 'TEMPO_TRAVELLER';
+  if (t.includes('SUV')) return 'SUV';
+  if (t.includes('SEDAN')) return 'SEDAN';
+  if (t.includes('HATCHBACK')) return 'HATCHBACK';
+  if (t === 'BUS' || t.startsWith('BUS_') || t.endsWith('_BUS')) return 'BUS';
+  return null;
+}
+
 @Injectable()
 export class DriverEligibilityService {
   constructor(private readonly db: DatabaseService) {}
 
   /**
-   * Evaluates if a single driver and their registered vehicle are eligible to operate a corporate route.
+   * Evaluates whether one driver and one of their own registered vehicles may operate a corporate route.
+   * Only real VERIFIED Vehicle rows count: the driver profile's free-text vehicleType is never treated
+   * as a vehicle, and database errors propagate (dispatch retries) instead of degrading to a weaker check.
    */
   async checkDriverEligibility(driverId: string, route: any): Promise<DriverEligibilityResult> {
-    let driver: any = null;
-    try {
-      driver = await this.db.driver.findUnique({
-        where: { id: driverId },
-        include: {
-          vehicles: {
-            where: { verificationStatus: 'VERIFIED' },
-            orderBy: { createdAt: 'desc' },
-          },
-        },
-      });
-    } catch {
-      try {
-        driver = await this.db.driver.findUnique({
-          where: { id: driverId },
-        });
-      } catch {
-        driver = null;
-      }
-    }
-
+    const driver = await this.db.driver.findUnique({
+      where: { id: driverId },
+      include: { vehicles: { where: { verificationStatus: 'VERIFIED' }, orderBy: { createdAt: 'desc' } } },
+    });
     if (!driver) {
       return { driverId, isEligible: false, rejectionReason: 'DRIVER_NOT_FOUND' };
     }
-
     return this.evaluateDriverRecord(driver, route);
   }
 
   /**
-   * Filters a batch of driver IDs using efficient batch findMany, returning only fully eligible drivers.
+   * Filters a batch of driver IDs with one query, returning only fully eligible drivers.
    */
   async batchFilterEligibleDrivers(
     driverIds: string[],
@@ -59,32 +79,19 @@ export class DriverEligibilityService {
       return { eligibleDriverIds: [], driverVehicleMap: new Map(), rejectionReasons: new Map() };
     }
 
-    let drivers: any[] = [];
-    try {
-      drivers = (await this.db.driver.findMany({
+    const drivers: any[] =
+      (await this.db.driver.findMany({
         where: { id: { in: driverIds } },
-        include: {
-          vehicles: {
-            where: { verificationStatus: 'VERIFIED' },
-            orderBy: { createdAt: 'desc' },
-          },
-        },
+        include: { vehicles: { where: { verificationStatus: 'VERIFIED' }, orderBy: { createdAt: 'desc' } } },
       })) ?? [];
-    } catch {
-      try {
-        drivers = (await this.db.driver.findMany({
-          where: { id: { in: driverIds } },
-        })) ?? [];
-      } catch {
-        drivers = [];
-      }
-    }
 
     const eligibleDriverIds: string[] = [];
     const driverVehicleMap = new Map<string, string>();
     const rejectionReasons = new Map<string, DriverIneligibilityReason>();
+    const found = new Set<string>();
 
     for (const driver of drivers) {
+      found.add(driver.id);
       const res = await this.evaluateDriverRecord(driver, route);
       if (res.isEligible && res.matchedVehicleId) {
         eligibleDriverIds.push(driver.id);
@@ -93,18 +100,16 @@ export class DriverEligibilityService {
         rejectionReasons.set(driver.id, res.rejectionReason);
       }
     }
-
     for (const id of driverIds) {
-      if (!drivers.some((d) => d.id === id)) {
-        rejectionReasons.set(id, 'DRIVER_NOT_FOUND');
-      }
+      if (!found.has(id)) rejectionReasons.set(id, 'DRIVER_NOT_FOUND');
     }
 
     return { eligibleDriverIds, driverVehicleMap, rejectionReasons };
   }
 
   /**
-   * Internal evaluator verifying all 6 PRD eligibility rules against a populated driver record.
+   * Applies the PRD eligibility rules (ALLOC-01/06, ADM-07, ADH-02-03) to a driver loaded with
+   * their VERIFIED vehicles.
    */
   private async evaluateDriverRecord(driver: any, route: any): Promise<DriverEligibilityResult> {
     const driverId = driver.id;
@@ -112,95 +117,48 @@ export class DriverEligibilityService {
     if (driver.verificationStatus !== 'VERIFIED') {
       return { driverId, isEligible: false, rejectionReason: 'DRIVER_NOT_VERIFIED' };
     }
-
     if (driver.availabilityStatus !== 'AVAILABLE') {
       return { driverId, isEligible: false, rejectionReason: 'DRIVER_NOT_AVAILABLE' };
     }
 
-    // Resolve candidate vehicles (relation or inline driver vehicleType)
-    let candidateVehicles: any[] = Array.isArray(driver.vehicles) && driver.vehicles.length > 0 ? driver.vehicles : [];
-
-    if (candidateVehicles.length === 0) {
-      if (driver.vehicleType !== undefined) {
-        // Driver has inline vehicleType (test fixtures / legacy schema)
-        candidateVehicles = [
-          {
-            id: `veh-${driver.id}`,
-            driverId: driver.id,
-            vehicleType: driver.vehicleType,
-            verificationStatus: driver.verificationStatus,
-            insuranceExpiry: driver.insuranceExpiry ?? new Date(Date.now() + 180 * 86400000),
-          },
-        ];
-      } else {
-        try {
-          const dbVehicles = await this.db.vehicle.findMany({
-            where: { driverId, verificationStatus: 'VERIFIED' },
-            orderBy: { createdAt: 'desc' },
-          });
-          if (dbVehicles && dbVehicles.length > 0) {
-            candidateVehicles = dbVehicles;
-          }
-        } catch {
-          // ignore
-        }
-      }
-    }
-
+    // Defence in depth: the query already filters, but never trust an unverified row.
+    const candidateVehicles: any[] = (Array.isArray(driver.vehicles) ? driver.vehicles : []).filter(
+      (v: any) => v && v.verificationStatus === 'VERIFIED',
+    );
     if (candidateVehicles.length === 0) {
       return { driverId, isEligible: false, rejectionReason: 'NO_VERIFIED_VEHICLE' };
     }
 
-    const targetCategory = (route.vehicleCategory || 'SEDAN').toUpperCase();
+    const targetCategory = corporatePassengerCategory(route.vehicleCategory || 'SEDAN');
     const routeEnd = this.calculateRouteEndTime(route);
-    const requiredCapacity = route.maxCapacity || (targetCategory === 'SUV' ? 6 : 4);
+    const requiredCapacity =
+      Number(route.maxCapacity) || (targetCategory ? CORPORATE_PASSENGER_SEATS[targetCategory] : 4);
 
     let eligibleVehicle: any = null;
     let failureReason: DriverIneligibilityReason = 'VEHICLE_CATEGORY_MISMATCH';
 
     for (const vehicle of candidateVehicles) {
-      // 1. Strict Null / empty vehicle type check (Fixes PRD gap audit bug)
       if (!vehicle.vehicleType || typeof vehicle.vehicleType !== 'string' || vehicle.vehicleType.trim() === '') {
         failureReason = 'MISSING_VEHICLE_TYPE';
         continue;
       }
 
-      const vType = vehicle.vehicleType.toUpperCase();
-
-      // 2. Category matching
-      const isSuv = vType.includes('SUV');
-      const isSedan =
-        vType.includes('SEDAN') ||
-        (!isSuv && !vType.includes('HATCHBACK') && !vType.includes('AUTO') && !vType.includes('BIKE'));
-
-      if (targetCategory === 'SUV' && !isSuv) {
+      // Explicit passenger categories only: goods vehicles (TATA_ACE, PICKUP_TRUCK) and unknown
+      // types never match, and nothing is assumed to be a sedan by default.
+      const vehicleCategory = corporatePassengerCategory(vehicle.vehicleType);
+      if (!vehicleCategory || !targetCategory || !CORPORATE_CATEGORY_CAN_SERVE[vehicleCategory].includes(targetCategory)) {
         failureReason = 'VEHICLE_CATEGORY_MISMATCH';
         continue;
       }
 
-      if (targetCategory === 'SEDAN' && isSuv) {
-        // SUV has sufficient capacity to fulfill Sedan route
-      } else if (targetCategory === 'SEDAN' && !isSedan) {
-        failureReason = 'VEHICLE_CATEGORY_MISMATCH';
-        continue;
-      }
-
-      // 3. Seating Capacity check
-      const vehicleCapacity = isSuv ? 6 : 4;
-      if (vehicleCapacity < requiredCapacity) {
+      if (CORPORATE_PASSENGER_SEATS[vehicleCategory] < requiredCapacity) {
         failureReason = 'INSUFFICIENT_SEAT_CAPACITY';
         continue;
       }
 
-      // 4. Insurance Expiry check
-      if (vehicle.insuranceExpiry) {
-        const expiryDate = new Date(vehicle.insuranceExpiry);
-        if (expiryDate.getTime() <= routeEnd.getTime()) {
-          failureReason = 'INSURANCE_EXPIRED';
-          continue;
-        }
-      } else if (driver.vehicles && driver.vehicles.length > 0) {
-        // Production vehicle must have insurance expiry recorded
+      // Insurance must be on record and valid through the end of the route.
+      const expiry = vehicle.insuranceExpiry ? new Date(vehicle.insuranceExpiry) : null;
+      if (!expiry || Number.isNaN(expiry.getTime()) || expiry.getTime() <= routeEnd.getTime()) {
         failureReason = 'INSURANCE_EXPIRED';
         continue;
       }

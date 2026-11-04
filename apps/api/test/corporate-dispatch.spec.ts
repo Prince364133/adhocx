@@ -6,6 +6,7 @@ import { NotificationsService } from '../src/modules/notifications/notifications
 import { AuditService } from '../src/modules/audit/audit.service';
 import { LocationsService } from '../src/modules/locations/locations.service';
 import { attachSortedSets } from './helpers/fake-sorted-sets';
+import { withVerifiedVehicle } from './helpers/corporate-driver-fixtures';
 
 describe('Corporate Autonomous Dispatch & Dynamic Traffic Advancer (DDA)', () => {
   let dispatchService: CorporateDispatchService;
@@ -163,7 +164,7 @@ describe('Corporate Autonomous Dispatch & Dynamic Traffic Advancer (DDA)', () =>
       });
 
       mockDb.driver.findMany.mockResolvedValue([
-        {
+        withVerifiedVehicle({
           id: 'driver-1',
           fullName: 'Suresh Kumar',
           phone: '9876543210',
@@ -171,7 +172,7 @@ describe('Corporate Autonomous Dispatch & Dynamic Traffic Advancer (DDA)', () =>
           vehicleType: 'SEDAN',
           verificationStatus: 'VERIFIED',
           availabilityStatus: 'AVAILABLE',
-        },
+        }),
       ]);
 
       const result = await dispatchService.dispatchRoute('route-101');
@@ -224,7 +225,7 @@ describe('Corporate Autonomous Dispatch & Dynamic Traffic Advancer (DDA)', () =>
       });
 
       mockDb.driver.findMany.mockResolvedValue([
-        {
+        withVerifiedVehicle({
           id: 'driver-expanded-1',
           fullName: 'Ramesh Reddy',
           phone: '9876543211',
@@ -232,7 +233,7 @@ describe('Corporate Autonomous Dispatch & Dynamic Traffic Advancer (DDA)', () =>
           vehicleType: 'SEDAN',
           verificationStatus: 'VERIFIED',
           availabilityStatus: 'AVAILABLE',
-        },
+        }),
       ]);
 
       const result = await dispatchService.dispatchRoute('route-102');

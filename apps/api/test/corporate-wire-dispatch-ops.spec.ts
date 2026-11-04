@@ -21,6 +21,7 @@ import { CorporateOperationsService } from '../src/domains/corporate/operations/
 import { CorporateBillingService } from '../src/domains/corporate/billing/corporate-billing.service';
 import { RateCardService } from '../src/domains/corporate/billing/rate-card.service';
 import { FakeDb, FakeRedisService, makeAudit, makeNotifications, tickYield } from './helpers/corporate-ws-d-fakes';
+import { verifiedVehicle } from './helpers/corporate-driver-fixtures';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -118,7 +119,12 @@ function seed(db: FakeDb) {
       vehicleType,
     });
   }
-  db.insert('vehicle', { id: 'veh-new', driverId: 'drv-new', registrationNumber: 'TS09NEW', verificationStatus: 'VERIFIED' });
+  // Every driver owns a real VERIFIED Vehicle row (corporate eligibility ignores the inline vehicleType).
+  // drv-unv stays ineligible because the driver itself is PENDING.
+  for (const id of ['drv-old', 'drv-c', 'drv-unv']) {
+    db.insert('vehicle', verifiedVehicle(id, 'SEDAN', { registrationNumber: `TS09${id.toUpperCase()}` }));
+  }
+  db.insert('vehicle', verifiedVehicle('drv-new', 'SEDAN', { id: 'veh-new', registrationNumber: 'TS09NEW' }));
 }
 
 let seq = 0;

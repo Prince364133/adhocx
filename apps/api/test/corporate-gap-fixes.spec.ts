@@ -14,6 +14,7 @@ import {
 import { isValidShiftDate } from '../src/domains/corporate/replanning/cutoff-policy';
 import { CorporateRoutingController } from '../src/domains/corporate/routing/corporate-routing.controller';
 import { attachSortedSets } from './helpers/fake-sorted-sets';
+import { shapeDriver, withVerifiedVehicle } from './helpers/corporate-driver-fixtures';
 
 /**
  * Regression tests for the Nov 2026 audit gaps:
@@ -234,8 +235,10 @@ describe('CorporateDispatchService: busy drivers and atomic accept', () => {
         }),
       },
       driver: {
-        findMany: jest.fn(async ({ where }: any) => where.id.in.map((id: string) => drivers.get(id)).filter(Boolean)),
-        findUnique: jest.fn(async ({ where }: any) => drivers.get(where.id) ?? null),
+        findMany: jest.fn(async (args: any) =>
+          args.where.id.in.map((id: string) => drivers.get(id)).filter(Boolean).map((d: any) => shapeDriver(d, args)),
+        ),
+        findUnique: jest.fn(async (args: any) => shapeDriver(drivers.get(args.where.id) ?? null, args)),
       },
       vehicle: { findFirst: jest.fn(async () => null) },
       // Interactive transaction with rollback of route rows and earnings.
@@ -262,7 +265,7 @@ describe('CorporateDispatchService: busy drivers and atomic accept', () => {
     drivers = new Map(
       ['d-near', 'd-far'].map((id) => [
         id,
-        { id, userId: `u-${id}`, fullName: id, availabilityStatus: 'AVAILABLE', verificationStatus: 'VERIFIED', vehicleType: 'SEDAN' },
+        withVerifiedVehicle({ id, userId: `u-${id}`, fullName: id, availabilityStatus: 'AVAILABLE', verificationStatus: 'VERIFIED', vehicleType: 'SEDAN' }),
       ]),
     );
     nearby = ['d-near', 'd-far']; // proximity order
