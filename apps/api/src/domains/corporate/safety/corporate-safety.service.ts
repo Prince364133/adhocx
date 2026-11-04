@@ -50,6 +50,7 @@ export class CorporateSafetyService {
     const alert = await this.db.corporateSosAlert.create({
       data: {
         routeId: dto.routeId,
+        tenantId: route.tenantId,
         stopId: dto.stopId || null,
         triggeredById,
         triggeredByRole,
@@ -57,7 +58,7 @@ export class CorporateSafetyService {
         longitude: dto.longitude,
         batteryPct: dto.batteryPct ?? null,
         audioUrl: dto.audioUrl ?? null,
-        status: 'ACTIVE',
+        status: 'NEW',
       },
     });
 
@@ -144,7 +145,154 @@ export class CorporateSafetyService {
   }
 
   /**
-   * Resolve an active emergency alert with audit incident notes.
+   * Stage 2 FSM: Acknowledge emergency SOS alert by commander.
+   */
+  public async acknowledgeSosAlert(
+    alertId: string,
+    adminUserId: string,
+    adminName?: string,
+  ) {
+    const alert = await this.db.corporateSosAlert.findUnique({
+      where: { id: alertId },
+      include: { route: true },
+    });
+
+    if (!alert) {
+      throw new NotFoundException(`SOS Alert ${alertId} not found`);
+    }
+
+    if (alert.status === 'RESOLVED' || alert.status === 'FALSE_ALARM') {
+      throw new BadRequestException(`Cannot acknowledge closed alert in status ${alert.status}`);
+    }
+
+    const acknowledged = await this.db.corporateSosAlert.update({
+      where: { id: alertId },
+      data: {
+        status: 'ACKNOWLEDGED',
+        acknowledgedAt: new Date(),
+        assignedToAdminId: adminUserId,
+        assignedAdminName: adminName || 'Commander',
+      },
+    });
+
+    this.logger.log(`SOS Alert ${alertId} acknowledged by ${adminUserId} (${adminName})`);
+
+    this.notifications.emitEvent('admin:command-center:sos', 'CORPORATE_SOS_ACKNOWLEDGED', {
+      alertId,
+      routeId: alert.routeId,
+      assignedToAdminId: adminUserId,
+      assignedAdminName: adminName || 'Commander',
+      acknowledgedAt: acknowledged.acknowledgedAt,
+    });
+
+    await this.audit.log({
+      action: 'CORPORATE_SOS_ACKNOWLEDGED',
+      userId: adminUserId,
+      actorRole: 'SUPER_ADMIN',
+      entityId: alertId,
+      entityType: 'CORPORATE_SOS_ALERT',
+      metadata: { routeId: alert.routeId, assignedAdminName: adminName },
+    });
+
+    return acknowledged;
+  }
+
+  /**
+   * Stage 3 FSM: Mark alert under active investigation.
+   */
+  public async investigateSosAlert(
+    alertId: string,
+    adminUserId: string,
+    notes?: string,
+  ) {
+    const alert = await this.db.corporateSosAlert.findUnique({
+      where: { id: alertId },
+      include: { route: true },
+    });
+
+    if (!alert) {
+      throw new NotFoundException(`SOS Alert ${alertId} not found`);
+    }
+
+    if (alert.status === 'RESOLVED' || alert.status === 'FALSE_ALARM') {
+      throw new BadRequestException(`Cannot investigate closed alert in status ${alert.status}`);
+    }
+
+    const investigating = await this.db.corporateSosAlert.update({
+      where: { id: alertId },
+      data: {
+        status: 'INVESTIGATING',
+        assignedToAdminId: adminUserId,
+        resolutionNotes: notes ? notes.trim() : alert.resolutionNotes,
+      },
+    });
+
+    this.logger.log(`SOS Alert ${alertId} under active investigation by ${adminUserId}`);
+
+    this.notifications.emitEvent('admin:command-center:sos', 'CORPORATE_SOS_INVESTIGATING', {
+      alertId,
+      routeId: alert.routeId,
+      assignedToAdminId: adminUserId,
+      notes,
+    });
+
+    return investigating;
+  }
+
+  /**
+   * Stage 4 FSM: Escalate alert to highest priority police / field response.
+   */
+  public async escalateSosAlert(
+    alertId: string,
+    adminUserId: string,
+    reason?: string,
+  ) {
+    const alert = await this.db.corporateSosAlert.findUnique({
+      where: { id: alertId },
+      include: { route: true },
+    });
+
+    if (!alert) {
+      throw new NotFoundException(`SOS Alert ${alertId} not found`);
+    }
+
+    if (alert.status === 'RESOLVED' || alert.status === 'FALSE_ALARM') {
+      throw new BadRequestException(`Cannot escalate closed alert in status ${alert.status}`);
+    }
+
+    const escalated = await this.db.corporateSosAlert.update({
+      where: { id: alertId },
+      data: {
+        status: 'ESCALATED',
+        escalatedAt: new Date(),
+        assignedToAdminId: adminUserId,
+      },
+    });
+
+    this.logger.error(`🚨 SOS Alert ${alertId} escalated to highest priority by ${adminUserId}: ${reason}`);
+
+    this.notifications.emitEvent('admin:command-center:sos', 'CORPORATE_SOS_ESCALATED', {
+      alertId,
+      routeId: alert.routeId,
+      escalatedBy: adminUserId,
+      reason,
+      escalatedAt: escalated.escalatedAt,
+    });
+
+    await this.audit.log({
+      action: 'CORPORATE_SOS_ESCALATED',
+      userId: adminUserId,
+      actorRole: 'SUPER_ADMIN',
+      entityId: alertId,
+      entityType: 'CORPORATE_SOS_ALERT',
+      metadata: { routeId: alert.routeId, reason },
+    });
+
+    return escalated;
+  }
+
+  /**
+   * Stage 5 FSM: Resolve an active emergency alert with audit incident notes.
    */
   public async resolveSosAlert(
     alertId: string,
@@ -160,7 +308,7 @@ export class CorporateSafetyService {
       throw new NotFoundException(`SOS Alert ${alertId} not found`);
     }
 
-    if (alert.status !== 'ACTIVE') {
+    if (alert.status === 'RESOLVED' || alert.status === 'FALSE_ALARM') {
       throw new BadRequestException(`Alert is already in status ${alert.status}`);
     }
 
@@ -197,6 +345,53 @@ export class CorporateSafetyService {
     });
 
     return resolved;
+  }
+
+  /**
+   * 120-Second Autonomous Auto-Escalation:
+   * Any unacknowledged NEW/ACTIVE alert exceeding 120 seconds automatically transitions to ESCALATED.
+   */
+  public async checkAndAutoEscalateAlerts(timeoutSeconds: number = 120): Promise<string[]> {
+    const cutoff = new Date(Date.now() - timeoutSeconds * 1000);
+    const staleAlerts = await this.db.corporateSosAlert.findMany({
+      where: {
+        status: { in: ['NEW', 'ACTIVE'] },
+        createdAt: { lte: cutoff },
+      },
+      include: { route: true },
+    });
+
+    const escalatedIds: string[] = [];
+    for (const a of staleAlerts) {
+      await this.db.corporateSosAlert.update({
+        where: { id: a.id },
+        data: {
+          status: 'ESCALATED',
+          autoEscalated: true,
+          escalatedAt: new Date(),
+        },
+      });
+      escalatedIds.push(a.id);
+
+      this.logger.error(`🚨 [AUTO-ESCALATION] SOS Alert ${a.id} (Route: ${a.routeId}) unacknowledged after ${timeoutSeconds}s! Auto-escalated.`);
+
+      this.notifications.emitEvent('admin:command-center:sos', 'CORPORATE_SOS_AUTO_ESCALATED', {
+        alertId: a.id,
+        routeId: a.routeId,
+        tenantId: a.tenantId || a.route?.tenantId,
+        unacknowledgedDurationSeconds: Math.round((Date.now() - a.createdAt.getTime()) / 1000),
+      });
+
+      await this.audit.log({
+        action: 'CORPORATE_SOS_AUTO_ESCALATED',
+        actorRole: 'SYSTEM_AUTONOMOUS_SAFETY',
+        entityId: a.id,
+        entityType: 'CORPORATE_SOS_ALERT',
+        metadata: { routeId: a.routeId, timeoutSeconds },
+      });
+    }
+
+    return escalatedIds;
   }
 
   /**

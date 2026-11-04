@@ -210,9 +210,37 @@ export enum CorporateDriverEarningStatus {
 }
 
 export enum CorporateSosStatus {
+  NEW = 'NEW',
   ACTIVE = 'ACTIVE',
   ACKNOWLEDGED = 'ACKNOWLEDGED',
+  INVESTIGATING = 'INVESTIGATING',
+  ESCALATED = 'ESCALATED',
   RESPONDED = 'RESPONDED',
   RESOLVED = 'RESOLVED',
   FALSE_ALARM = 'FALSE_ALARM',
+}
+
+export enum CorporateTicketCategory {
+  CAB_DELAY = 'CAB_DELAY',
+  DRIVER_BEHAVIOR = 'DRIVER_BEHAVIOR',
+  ROUTE_ISSUE = 'ROUTE_ISSUE',
+  BILLING = 'BILLING',
+  LOST_ITEM = 'LOST_ITEM',
+  VEHICLE_CONDITION = 'VEHICLE_CONDITION',
+  SAFETY_CONCERN = 'SAFETY_CONCERN',
+  OTHER = 'OTHER',
+}
+
+export enum CorporateTicketPriority {
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH',
+  CRITICAL = 'CRITICAL',
+}
+
+export enum CorporateTicketStatus {
+  OPEN = 'OPEN',
+  IN_PROGRESS = 'IN_PROGRESS',
+  RESOLVED = 'RESOLVED',
+  CLOSED = 'CLOSED',
 }

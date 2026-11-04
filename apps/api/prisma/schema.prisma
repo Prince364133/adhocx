@@ -954,6 +954,9 @@ model CorporateTenant {
   invoices          CorporateInvoice[]
   users             User[]
   driverOffers      CorporateDriverOffer[]
+  supportTickets    CorporateSupportTicket[]
+  tripFeedbacks     CorporateTripFeedback[]
+  sosAlerts         CorporateSosAlert[]
 
   @@map("corporate_tenants")
 }
@@ -1004,6 +1007,8 @@ model CorporateEmployee {
   locations         CorporateEmployeeLocation[]
   transportRequests CorporateTransportRequest[]
   routeStops        CorporateRouteStop[]
+  supportTickets    CorporateSupportTicket[]
+  tripFeedbacks     CorporateTripFeedback[]
 
   @@unique([tenantId, employeeCode])
   @@index([tenantId])
@@ -1139,6 +1144,7 @@ model CorporateRouteStop {
   route            CorporateRoute             @relation(fields: [routeId], references: [id], onDelete: Cascade)
   transportRequest CorporateTransportRequest? @relation(fields: [transportRequestId], references: [id])
   employee         CorporateEmployee?         @relation(fields: [employeeId], references: [id])
+  feedback         CorporateTripFeedback?
 
   @@unique([routeId, stopSequence])
   @@index([routeId])
@@ -1204,35 +1210,124 @@ model CorporateDriverEarning {
 }
 
 enum CorporateSosStatus {
+  NEW
   ACTIVE
   ACKNOWLEDGED
+  INVESTIGATING
+  ESCALATED
   RESPONDED
   RESOLVED
   FALSE_ALARM
 }
 
 model CorporateSosAlert {
-  id              String             @id @default(uuid()) @db.Uuid
-  routeId         String             @map("route_id") @db.Uuid
-  stopId          String?            @map("stop_id") @db.Uuid
-  triggeredById   String             @map("triggered_by_id") @db.Uuid
-  triggeredByRole String             @map("triggered_by_role") @db.VarChar(32) // EMPLOYEE | DRIVER
-  latitude        Decimal            @db.Decimal(10, 7)
-  longitude       Decimal            @db.Decimal(10, 7)
-  batteryPct      Int?               @map("battery_pct")
-  audioUrl        String?            @map("audio_url")
-  status          CorporateSosStatus @default(ACTIVE)
-  resolvedAt      DateTime?          @map("resolved_at")
-  resolvedById    String?            @map("resolved_by_id") @db.Uuid
-  resolutionNotes String?            @map("resolution_notes")
-  createdAt       DateTime           @default(now()) @map("created_at")
-  updatedAt       DateTime           @default(now()) @updatedAt @map("updated_at")
+  id                String             @id @default(uuid()) @db.Uuid
+  tenantId          String?            @map("tenant_id") @db.Uuid
+  routeId           String             @map("route_id") @db.Uuid
+  stopId            String?            @map("stop_id") @db.Uuid
+  triggeredById     String             @map("triggered_by_id") @db.Uuid
+  triggeredByRole   String             @map("triggered_by_role") @db.VarChar(32) // EMPLOYEE | DRIVER
+  latitude          Decimal            @db.Decimal(10, 7)
+  longitude         Decimal            @db.Decimal(10, 7)
+  batteryPct        Int?               @map("battery_pct")
+  audioUrl          String?            @map("audio_url")
+  status            CorporateSosStatus @default(NEW)
+  acknowledgedAt    DateTime?          @map("acknowledged_at")
+  escalatedAt       DateTime?          @map("escalated_at")
+  autoEscalated     Boolean            @default(false) @map("auto_escalated")
+  assignedToAdminId String?            @map("assigned_to_admin_id") @db.Uuid
+  assignedAdminName String?            @map("assigned_admin_name") @db.VarChar(128)
+  resolvedAt        DateTime?          @map("resolved_at")
+  resolvedById      String?            @map("resolved_by_id") @db.Uuid
+  resolutionNotes   String?            @map("resolution_notes")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @default(now()) @updatedAt @map("updated_at")
 
-  route CorporateRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  route  CorporateRoute   @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  tenant CorporateTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([routeId])
+  @@index([tenantId])
   @@index([status])
   @@map("corporate_sos_alerts")
+}
+
+// ===== WS-C: Rider Self-Service & Support Tickets =====
+
+enum CorporateTicketCategory {
+  CAB_DELAY
+  DRIVER_BEHAVIOR
+  ROUTE_ISSUE
+  BILLING
+  LOST_ITEM
+  VEHICLE_CONDITION
+  SAFETY_CONCERN
+  OTHER
+}
+
+enum CorporateTicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum CorporateTicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+model CorporateSupportTicket {
+  id               String                  @id @default(uuid()) @db.Uuid
+  ticketNumber     String                  @unique @map("ticket_number") @db.VarChar(32)
+  tenantId         String                  @map("tenant_id") @db.Uuid
+  employeeId       String                  @map("employee_id") @db.Uuid
+  routeId          String?                 @map("route_id") @db.Uuid
+  stopId           String?                 @map("stop_id") @db.Uuid
+  category         CorporateTicketCategory @default(OTHER)
+  priority         CorporateTicketPriority @default(MEDIUM)
+  status           CorporateTicketStatus   @default(OPEN)
+  subject          String                  @db.VarChar(255)
+  description      String                  @db.Text
+  adminNotes       String?                 @map("admin_notes") @db.Text
+  resolutionNotes  String?                 @map("resolution_notes") @db.Text
+  assignedToUserId String?                 @map("assigned_to_user_id") @db.Uuid
+  slaMinutes       Int                     @default(240) @map("sla_minutes")
+  resolvedAt       DateTime?               @map("resolved_at")
+  resolvedByUserId String?                 @map("resolved_by_user_id") @db.Uuid
+  createdAt        DateTime                @default(now()) @map("created_at")
+  updatedAt        DateTime                @default(now()) @updatedAt @map("updated_at")
+
+  tenant   CorporateTenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employee CorporateEmployee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([employeeId])
+  @@index([status, priority])
+  @@map("corporate_support_tickets")
+}
+
+model CorporateTripFeedback {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  employeeId String   @map("employee_id") @db.Uuid
+  routeId    String   @map("route_id") @db.Uuid
+  stopId     String   @unique @map("stop_id") @db.Uuid
+  rating     Int      // 1 to 5
+  tags       String[] @default([])
+  comment    String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  tenant   CorporateTenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employee CorporateEmployee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  stop     CorporateRouteStop @relation(fields: [stopId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([employeeId])
+  @@index([routeId])
+  @@map("corporate_trip_feedback")
 }
 
 // ===== WS-B: tracking & events =====

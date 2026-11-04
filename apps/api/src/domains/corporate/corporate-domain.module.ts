@@ -57,6 +57,10 @@ import { CorporateOperationsController } from './operations/corporate-operations
 import { CorporateAnalyticsService } from './analytics/corporate-analytics.service';
 import { CorporateAnalyticsController } from './analytics/corporate-analytics.controller';
 
+// ===== WS-C ===== Rider Self-Service API, SOS FSM & Support Tickets
+import { CorporateRiderService } from './rider/corporate-rider.service';
+import { CorporateRiderController } from './rider/corporate-rider.controller';
+
 /**
  * Corporate ETS Domain (Bounded Context: Corporate Managed Commute Transportation)
  * Encapsulates Excel roster ingestion, shift templates, capacitated route planning on road travel times (sweep + local search heuristic),
@@ -95,6 +99,7 @@ import { CorporateAnalyticsController } from './analytics/corporate-analytics.co
     CorporateBillingService,
     CorporateOperationsService, // WS-D
     CorporateAnalyticsService, // WS-D
+    CorporateRiderService, // WS-C
   ],
   controllers: [
     CorporateTenantController,
@@ -106,6 +111,7 @@ import { CorporateAnalyticsController } from './analytics/corporate-analytics.co
     CorporateBillingController,
     CorporateOperationsController, // WS-D
     CorporateAnalyticsController, // WS-D
+    CorporateRiderController, // WS-C
   ],
   exports: [
     DriverEligibilityService,
@@ -120,6 +126,7 @@ import { CorporateAnalyticsController } from './analytics/corporate-analytics.co
     CorporateReplanningService,
     CorporateSafetyService,
     CorporateBillingService,
+    CorporateRiderService, // WS-C
   ],
 })
 export class CorporateDomainModule {}
