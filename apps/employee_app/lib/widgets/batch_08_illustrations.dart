@@ -101,3 +101,4 @@ class DeleteAccountDangerBadge extends StatelessWidget {
     );
   }
 }
+

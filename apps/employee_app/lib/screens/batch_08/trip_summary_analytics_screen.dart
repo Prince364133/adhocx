@@ -211,3 +211,4 @@ class _TripSummaryAnalyticsScreenState extends State<TripSummaryAnalyticsScreen>
     );
   }
 }
+

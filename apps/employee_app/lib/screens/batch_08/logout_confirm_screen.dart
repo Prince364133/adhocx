@@ -109,3 +109,4 @@ class _LogoutConfirmScreenState extends State<LogoutConfirmScreen> {
     );
   }
 }
+

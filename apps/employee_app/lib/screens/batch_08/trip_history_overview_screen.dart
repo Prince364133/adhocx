@@ -212,3 +212,4 @@ class _TripHistoryOverviewScreenState extends State<TripHistoryOverviewScreen> {
     );
   }
 }
+

@@ -246,3 +246,4 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
     );
   }
 }
+

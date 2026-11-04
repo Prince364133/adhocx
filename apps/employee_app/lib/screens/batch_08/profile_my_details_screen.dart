@@ -240,3 +240,4 @@ class _ProfileMyDetailsScreenState extends State<ProfileMyDetailsScreen> {
     );
   }
 }
+

@@ -119,3 +119,4 @@ class _SafetyTipsGuidelinesScreenState extends State<SafetyTipsGuidelinesScreen>
     );
   }
 }
+

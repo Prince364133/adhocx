@@ -201,3 +201,4 @@ class _NotificationsCenterScreenState extends State<NotificationsCenterScreen> {
     );
   }
 }
+

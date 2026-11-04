@@ -221,3 +221,4 @@ class _SosAlertConfirmedScreenState extends State<SosAlertConfirmedScreen> {
     );
   }
 }
+

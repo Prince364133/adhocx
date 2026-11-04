@@ -217,3 +217,4 @@ class _LiveSupportChatScreenState extends State<LiveSupportChatScreen> {
     );
   }
 }
+

@@ -123,3 +123,73 @@ apps/employee_app/
 └── README.md
 ```
 
+
+
+---
+
+## 5. Running the Employee App
+
+The AdhocX Corporate Employee App is designated to run on **Port 7005**:
+
+### Commands:
+```bash
+# Run from repository root:
+pnpm dev:employee
+
+# Or run directly inside apps/employee_app:
+cd apps/employee_app
+node scripts/dev.js
+```
+
+### URLs & Endpoints:
+- **Web App / Emulator:** [http://localhost:7005](http://localhost:7005)
+- **Health Check:** `http://localhost:7005/healthz`
+- **JSON Routes Catalog (107 Screens):** `http://localhost:7005/api/routes`
+- **Live Mock Data:** `http://localhost:7005/api/mock-data`
+
+### Monorepo Port Topology:
+| Port | Service | Location |
+|---|---|---|
+| `7001` | AdhocX Backend API | `apps/api` |
+| `7002` | AdhocX Admin Control Panel | `apps/admin` |
+| `7003` | AdhocX Driver & Vendor Client | `apps/mobile` |
+| **`7005`** | **AdhocX Corporate Employee Mobile App** | **`apps/employee_app`** |
+
+
+---
+
+## 6. Real Android Application & Play Store Release Architecture
+
+The AdhocX Corporate Employee App is a dedicated native Android application (`com.adhocx.employee`) structured identically to the AdhocX Driver application:
+
+### Package & Android Identity:
+- **Application ID:** `com.adhocx.employee`
+- **Application Label:** `AdhocX Employee`
+- **Minimum SDK:** Android 5.0 (API 21)
+- **Target / Compile SDK:** Android 15 (API 35)
+- **Architecture:** R8 Minified + ProGuard + MultiDex + Desugared JDK 17
+
+### Android Build Commands:
+```bash
+# 1. Build Production Release APK (for Direct Sideloading / Enterprise MDM Distribution):
+pnpm build:employee:apk
+# Direct Flutter:
+cd apps/employee_app && flutter build apk --release
+
+# 2. Build Google Play Store Android App Bundle (.aab):
+pnpm build:employee:appbundle
+# Direct Flutter:
+cd apps/employee_app && flutter build appbundle --release
+
+# 3. Launch Android Emulator (Pixel 7 API 34):
+pnpm emulator:employee
+
+# 4. Run Live Android Debug with Instant Hot Reload:
+pnpm dev:employee:android
+```
+
+### Android Native Features Configured:
+- **`AndroidManifest.xml`**: Hardware acceleration, singleTop launch mode, high-priority notifications, precise GPS permissions (`ACCESS_FINE_LOCATION`), camera permission for boarding QR scanner, and deep link intents (`adhocx://employee` and `https://app.adhocx.com/employee`).
+- **`MainActivity.kt`**: Modern Android edge-to-edge system bar compatibility (`WindowCompat.setDecorFitsSystemWindows`), `FlutterFragmentActivity`, and native MethodChannel.
+- **`proguard-rules.pro`**: Optimization and obfuscation rules preserving Google Play Services, Firebase, and Flutter engine classes.
+- **Eager Data Mounting**: `MockDataService` initializes and mounts the 8-batch JSON data bundle upon native startup (`main.dart`), powering all 107 screens in both standalone offline testing and connected live environments.

@@ -127,3 +127,4 @@ class _SosActivateScreenState extends State<SosActivateScreen> {
     );
   }
 }
+
