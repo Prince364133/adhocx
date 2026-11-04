@@ -10,7 +10,35 @@
 
 export const CORPORATE_TIMEZONE = 'Asia/Kolkata';
 export const IST_OFFSET_MINUTES = 330;
+/** Platform default; a tenant may override it in its CorporateTenantPolicy (cancelCutoffHours). */
 export const RESCHEDULE_CUTOFF_HOURS = 9;
+
+/** Minimal read surface for the tenant policy (Prisma client or a transaction client). */
+export interface TenantCutoffPolicyReader {
+  corporateTenantPolicy?: {
+    findFirst(args: any): Promise<{ cancelCutoffHours: number } | null>;
+  };
+}
+
+/**
+ * Cancel / reschedule cutoff (hours before pickup) of a tenant at `at`: the cancelCutoffHours of
+ * the latest CorporateTenantPolicy version with effectiveFrom <= at, else RESCHEDULE_CUTOFF_HOURS (9).
+ */
+export async function resolveCancelCutoffHours(
+  db: TenantCutoffPolicyReader | null | undefined,
+  tenantId: string | null | undefined,
+  at: Date = new Date(),
+): Promise<number> {
+  const delegate = db?.corporateTenantPolicy;
+  if (!tenantId || typeof delegate?.findFirst !== 'function') return RESCHEDULE_CUTOFF_HOURS;
+  const policy = await delegate.findFirst({
+    where: { tenantId, effectiveFrom: { lte: at } },
+    orderBy: [{ effectiveFrom: 'desc' }, { version: 'desc' }],
+    select: { cancelCutoffHours: true },
+  });
+  const hours = Number(policy?.cancelCutoffHours);
+  return Number.isFinite(hours) && hours >= 0 ? hours : RESCHEDULE_CUTOFF_HOURS;
+}
 
 export type PickupTimeSource = 'STOP_PLANNED_ETA' | 'ROUTE_DEPARTURE' | 'SHIFT_TIME';
 
@@ -28,6 +56,8 @@ export interface CutoffEvaluation {
   pickupSource: PickupTimeSource;
   minutesUntilCutoff: number;
   hoursUntilPickup: number;
+  /** Cutoff that was applied (tenant policy or the 9 h default). */
+  cutoffHours: number;
 }
 
 /** Calendar day (YYYY-MM-DD) of a Postgres DATE column value or a YYYY-MM-DD string. */
@@ -92,14 +122,15 @@ export function resolvePickupTime(request: {
   return { pickupAt: istWallClockToUtc(request.scheduledDate, request.shiftTime), source: 'SHIFT_TIME' };
 }
 
-/** Allowed iff now <= pickupAt - 9h (inclusive), or an explicit admin override is supplied. */
+/** Allowed iff now <= pickupAt - cutoffHours (inclusive, default 9 h), or an explicit admin override is supplied. */
 export function evaluateCutoff(
   pickupAt: Date,
   pickupSource: PickupTimeSource,
   now: Date,
   override?: CutoffOverride | null,
+  cutoffHours: number = RESCHEDULE_CUTOFF_HOURS,
 ): CutoffEvaluation {
-  const cutoffAt = new Date(pickupAt.getTime() - RESCHEDULE_CUTOFF_HOURS * 3600_000);
+  const cutoffAt = new Date(pickupAt.getTime() - cutoffHours * 3600_000);
   const withinWindow = now.getTime() <= cutoffAt.getTime();
   const overridden = !withinWindow && !!override;
   return {
@@ -110,5 +141,6 @@ export function evaluateCutoff(
     pickupSource,
     minutesUntilCutoff: Math.floor((cutoffAt.getTime() - now.getTime()) / 60_000),
     hoursUntilPickup: (pickupAt.getTime() - now.getTime()) / 3600_000,
+    cutoffHours,
   };
 }

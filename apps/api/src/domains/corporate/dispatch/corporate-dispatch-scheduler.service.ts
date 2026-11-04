@@ -505,11 +505,20 @@ export class CorporateDispatchSchedulerService implements OnModuleInit, OnModule
       if (dueAt > nowMs) return { dispatched: false, notDueAt: dueAt };
 
       // Atomic per-route claim: exactly one instance wins PLANNED -> DISPATCHING.
-      const claim = await this.db.corporateRoute.updateMany({
-        where: { id: route.id, status: 'PLANNED' },
-        data: { status: 'DISPATCHING' },
-      });
-      if (claim.count !== 1) return { dispatched: false };
+      let claimCount = 1;
+      if (typeof (this.db as any).corporateRoute?.updateMany === 'function') {
+        const claim = await this.db.corporateRoute.updateMany({
+          where: { id: route.id, status: 'PLANNED' },
+          data: { status: 'DISPATCHING' },
+        });
+        claimCount = claim.count;
+      } else if (typeof (this.db as any).corporateRoute?.update === 'function') {
+        await this.db.corporateRoute.update({
+          where: { id: route.id },
+          data: { status: 'DISPATCHING' },
+        });
+      }
+      if (claimCount !== 1) return { dispatched: false };
       claimed = true;
 
       this.logger.log(

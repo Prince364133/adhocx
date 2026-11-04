@@ -7,6 +7,31 @@ export enum UserRole {
   EMPLOYEE = 'EMPLOYEE',
 }
 
+export enum CorporateRole {
+  CORP_SUPER_ADMIN = 'CORP_SUPER_ADMIN',
+  HR = 'HR',
+  TRANSPORT = 'TRANSPORT',
+  FINANCE = 'FINANCE',
+  SAFETY = 'SAFETY',
+  READ_ONLY = 'READ_ONLY',
+  // PRD alias keys
+  TENANT_SUPER_ADMIN = 'CORP_SUPER_ADMIN',
+  TRANSPORT_DESK_ADMIN = 'TRANSPORT',
+  ROSTER_MANAGER = 'HR',
+  LINE_MANAGER = 'READ_ONLY',
+  FINANCE_CONTROLLER = 'FINANCE',
+  EMPLOYEE = 'READ_ONLY',
+}
+
+export enum CorporateUserRole {
+  CORP_SUPER_ADMIN = 'CORP_SUPER_ADMIN',
+  HR = 'HR',
+  TRANSPORT = 'TRANSPORT',
+  FINANCE = 'FINANCE',
+  SAFETY = 'SAFETY',
+  READ_ONLY = 'READ_ONLY',
+}
+
 export enum UserStatus {
   ACTIVE = 'ACTIVE',
   SUSPENDED = 'SUSPENDED',

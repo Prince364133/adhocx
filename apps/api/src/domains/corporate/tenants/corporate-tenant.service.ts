@@ -4,6 +4,7 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service';
 import { AuditService } from '../../../modules/audit/audit.service';
@@ -203,11 +204,11 @@ export class CorporateTenantService {
     return office;
   }
 
-  async listOffices(tenantId: string) {
+  async listOffices(tenantId: string, officeScope?: string[] | null) {
     await this.getTenantById(tenantId);
 
     return this.db.corporateOffice.findMany({
-      where: { tenantId },
+      where: { tenantId, ...(officeScope ? { id: { in: officeScope } } : {}) },
       orderBy: { name: 'asc' },
       include: {
         _count: {
@@ -329,6 +330,8 @@ export class CorporateTenantService {
       isActive?: boolean;
       page?: number;
       limit?: number;
+      /** WS-F office scope of the caller; null / undefined => all offices. */
+      officeScope?: string[] | null;
     },
   ) {
     const page = Math.max(1, query?.page || 1);
@@ -338,6 +341,12 @@ export class CorporateTenantService {
     const where: any = { tenantId };
 
     if (query?.officeId) where.officeId = query.officeId;
+    if (query?.officeScope) {
+      if (query.officeId && !query.officeScope.includes(query.officeId)) {
+        throw new ForbiddenException('Office is outside your corporate office scope');
+      }
+      if (!query.officeId) where.officeId = { in: query.officeScope };
+    }
     if (query?.department) where.department = query.department;
     if (query?.isActive !== undefined) where.isActive = query.isActive;
 
@@ -376,9 +385,10 @@ export class CorporateTenantService {
     };
   }
 
-  async getEmployeeById(tenantId: string, employeeId: string) {
+  async getEmployeeById(tenantId: string, employeeId: string, officeScope?: string[] | null) {
     const employee = await this.db.corporateEmployee.findFirst({
-      where: { id: employeeId, tenantId },
+      // Out-of-scope employees are reported as not found (no existence leak).
+      where: { id: employeeId, tenantId, ...(officeScope ? { officeId: { in: officeScope } } : {}) },
       include: {
         office: true,
         locations: { orderBy: { createdAt: 'desc' } },
@@ -400,8 +410,9 @@ export class CorporateTenantService {
     employeeId: string,
     dto: UpdateCorporateEmployeeDto,
     actorUserId?: string,
+    officeScope?: string[] | null,
   ) {
-    await this.getEmployeeById(tenantId, employeeId);
+    await this.getEmployeeById(tenantId, employeeId, officeScope);
 
     if (dto.officeId) {
       const office = await this.db.corporateOffice.findFirst({
@@ -446,8 +457,9 @@ export class CorporateTenantService {
     employeeId: string,
     dto: CreateEmployeeLocationDto,
     actorUserId?: string,
+    officeScope?: string[] | null,
   ) {
-    await this.getEmployeeById(tenantId, employeeId);
+    await this.getEmployeeById(tenantId, employeeId, officeScope);
 
     const lat = Number(dto.latitude);
     const lng = Number(dto.longitude);

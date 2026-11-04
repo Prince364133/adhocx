@@ -15,9 +15,18 @@ import {
   CORPORATE_TENANT_SCOPED_KEY,
   CorporateResourceMetadata,
 } from '../decorators/corporate-resource.decorator';
+import {
+  CORPORATE_PERMISSION_KEY,
+  CorporatePermission,
+  corporateOfficeScope,
+  corporateRoleHas,
+  effectiveCorporateRole,
+} from '../../domains/corporate/tenants/corporate-permissions';
 
 const TENANT_SELECT = { id: true, code: true, name: true, status: true } as const;
 const OWNED_SELECT = { id: true, tenantId: true, tenant: { select: TENANT_SELECT } } as const;
+/** Office-owned resources also return their office for the WS-F office-scope check. */
+const OFFICE_OWNED_SELECT = { ...OWNED_SELECT, officeId: true } as const;
 
 export interface CorporateTenantSummary {
   id: string;
@@ -40,6 +49,8 @@ interface ResolvedResource {
   employeeOnRoute?: boolean;
   /** driver: the User id that owns this Driver row. */
   driverUserId?: string | null;
+  /** roster / employee / office: the office the resource belongs to (office scope). */
+  officeId?: string | null;
 }
 
 const CORPORATE_TENANT_ROLES = new Set<string>([UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER]);
@@ -77,6 +88,13 @@ export function resolveScopedTenantId(request: any, ...candidates: Array<string 
  *   offer endpoints require body.driverId to be the caller's own Driver row.
  * - EMPLOYEE: only their own transport request / stop, or a route they ride on.
  *
+ * WS-F corporate roles: for CORPORATE_ADMIN / CORPORATE_MANAGER the effective corporate role
+ * (`corporateRole` claim, else CORPORATE_ADMIN -> CORP_SUPER_ADMIN, CORPORATE_MANAGER -> TRANSPORT)
+ * must hold the handler's @CorporatePermission. Office-scoped users (non-empty `corporateOfficeIds`)
+ * are limited to those offices: an officeId in params/query/body and the office of a resolved
+ * roster / employee / office resource must be in scope. The role and scope are bound to
+ * `request.corporateRole` / `request.corporateOfficeScope` (null = all offices) for list filtering.
+ *
  * At most one database read per request (two for driver offer endpoints).
  * The resolved tenant is bound to `request.corporateTenant` for @CurrentTenant.
  */
@@ -99,6 +117,10 @@ export class CorporateAccessGuard implements CanActivate {
     const resource = this.reflector.get<CorporateResourceMetadata | undefined>(CORPORATE_RESOURCE_KEY, handler);
     const tenantScoped = this.reflector.get<boolean | undefined>(CORPORATE_TENANT_SCOPED_KEY, handler);
 
+    if (CORPORATE_TENANT_ROLES.has(role)) {
+      this.applyCorporateRole(request, handler, user);
+    }
+
     if (tenantScoped) {
       await this.applyTenantScope(request, role, user);
     }
@@ -119,6 +141,31 @@ export class CorporateAccessGuard implements CanActivate {
     }
 
     return true;
+  }
+
+  // ---------------------------------------------------------------------------
+  // WS-F: corporate role permission + office scope (no database read)
+  // ---------------------------------------------------------------------------
+
+  private applyCorporateRole(request: any, handler: any, user: any): void {
+    const corporateRole = effectiveCorporateRole(user);
+    const officeScope = corporateOfficeScope(user);
+    request.corporateRole = corporateRole;
+    request.corporateOfficeScope = officeScope;
+
+    const permission = this.reflector.get<CorporatePermission | undefined>(CORPORATE_PERMISSION_KEY, handler);
+    if (permission && (!corporateRole || !corporateRoleHas(corporateRole, permission))) {
+      throw new ForbiddenException(`Corporate role ${corporateRole ?? 'NONE'} lacks permission ${permission}`);
+    }
+
+    if (officeScope) {
+      const body = request.body && typeof request.body === 'object' && !Buffer.isBuffer(request.body) ? request.body : undefined;
+      for (const candidate of [request.params?.officeId, request.query?.officeId, body?.officeId]) {
+        if (isPresent(candidate) && !officeScope.includes(String(candidate))) {
+          throw new ForbiddenException('Office is outside your corporate office scope');
+        }
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -254,13 +301,15 @@ export class CorporateAccessGuard implements CanActivate {
         return req ? { id: req.id, tenantId: req.tenantId, tenant: req.tenant ?? null, employeeId: req.employeeId } : null;
       }
       case 'roster':
-        return this.tenantOwned(await this.db.corporateRoster.findUnique({ where: { id }, select: OWNED_SELECT }));
+        return this.tenantOwned(await this.db.corporateRoster.findUnique({ where: { id }, select: OFFICE_OWNED_SELECT }));
       case 'invoice':
         return this.tenantOwned(await this.db.corporateInvoice.findUnique({ where: { id }, select: OWNED_SELECT }));
-      case 'office':
-        return this.tenantOwned(await this.db.corporateOffice.findUnique({ where: { id }, select: OWNED_SELECT }));
+      case 'office': {
+        const office: any = await this.db.corporateOffice.findUnique({ where: { id }, select: OWNED_SELECT });
+        return office ? { ...this.tenantOwned(office)!, officeId: office.id } : null;
+      }
       case 'employee': {
-        const emp: any = await this.db.corporateEmployee.findUnique({ where: { id }, select: OWNED_SELECT });
+        const emp: any = await this.db.corporateEmployee.findUnique({ where: { id }, select: OFFICE_OWNED_SELECT });
         return emp ? { ...this.tenantOwned(emp)!, employeeId: emp.id } : null;
       }
       case 'tenant': {
@@ -277,7 +326,7 @@ export class CorporateAccessGuard implements CanActivate {
   }
 
   private tenantOwned(row: any): ResolvedResource | null {
-    return row ? { id: row.id, tenantId: row.tenantId, tenant: row.tenant ?? null } : null;
+    return row ? { id: row.id, tenantId: row.tenantId, tenant: row.tenant ?? null, officeId: row.officeId ?? null } : null;
   }
 
   // ---------------------------------------------------------------------------
@@ -301,6 +350,10 @@ export class CorporateAccessGuard implements CanActivate {
         throw new ForbiddenException('Cross-tenant access denied');
       }
       if (res.tenant) this.assertTenantActive(res.tenant);
+      const officeScope: string[] | null = request.corporateOfficeScope ?? null;
+      if (officeScope && res.officeId && !officeScope.includes(res.officeId)) {
+        throw new ForbiddenException('Resource belongs to an office outside your corporate office scope');
+      }
       return;
     }
 

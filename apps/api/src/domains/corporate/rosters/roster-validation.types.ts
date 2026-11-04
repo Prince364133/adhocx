@@ -46,3 +46,14 @@ export interface RosterIngestionOutput {
   duplicateRequestsSkipped: number;
 }
 
+/** WS-F: result of a draft (mode=draft) upload. */
+export interface RosterDraftOutput {
+  rosterId: string;
+  tenantId: string;
+  officeId: string;
+  rosterDate: string;
+  version: number;
+  status: 'DRAFT';
+  totalEmployeesProcessed: number;
+  entriesCreated: number;
+}

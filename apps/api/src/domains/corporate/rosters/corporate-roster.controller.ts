@@ -11,6 +11,7 @@ import {
   HttpStatus,
   BadRequestException,
   NotFoundException,
+  ForbiddenException,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -26,6 +27,11 @@ import { RolesGuard } from '../../../common/guards/roles.guard';
 import { CorporateAccessGuard, resolveScopedTenantId } from '../../../common/guards/corporate-access.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { CorporateResource, CorporateTenantScoped } from '../../../common/decorators/corporate-resource.decorator';
+import { CorporatePermission, corporateRoleHas } from '../tenants/corporate-permissions';
+import { RosterLifecycleService } from './roster-lifecycle.service';
+
+/** Office scope bound by CorporateAccessGuard (null = all offices / platform admin). */
+const scopeOf = (req: any): string[] | null => req?.corporateOfficeScope ?? null;
 
 @ApiTags('Corporate ETS - Rosters')
 @ApiBearerAuth()
@@ -36,10 +42,12 @@ export class CorporateRosterController {
     private readonly rosterTemplateService: RosterTemplateService,
     private readonly rosterIngestionService: RosterIngestionService,
     private readonly db: DatabaseService,
+    private readonly rosterLifecycleService: RosterLifecycleService,
   ) {}
 
   @Get('template')
   @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporatePermission('rosters:read')
   @ApiOperation({ summary: 'Download the official AdhocX Corporate Roster Excel template (.xlsx)' })
   @ApiResponse({ status: 200, description: 'Excel template stream' })
   public async downloadTemplate(@Res() res: Response): Promise<void> {
@@ -57,6 +65,7 @@ export class CorporateRosterController {
   @Post('validate')
   @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @CorporateTenantScoped()
+  @CorporatePermission('rosters:write')
   @ApiOperation({ summary: 'Dry-run validate an uploaded Excel roster file without persisting changes' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -85,13 +94,20 @@ export class CorporateRosterController {
       throw new BadRequestException('Excel file is required as multipart/form-data field "file"');
     }
 
-    return this.rosterIngestionService.dryRunValidateRoster(tenantId, file.buffer);
+    return this.rosterIngestionService.dryRunValidateRoster(tenantId, file.buffer, scopeOf(req));
   }
 
   @Post('upload')
   @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @CorporateTenantScoped()
-  @ApiOperation({ summary: 'Upload, validate, and ingest corporate roster; generates transport requests' })
+  @CorporatePermission('rosters:write')
+  @ApiOperation({
+    summary: 'Upload, validate, and ingest corporate roster; generates transport requests',
+    description:
+      'Default (mode omitted or "publish"): published immediately and demand is generated (unchanged behaviour; ' +
+      'corporate users also need rosters:publish). mode=draft: stored as a new DRAFT roster version without demand; ' +
+      'then POST /corporate/rosters/:id/approve and /publish.',
+  })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -100,6 +116,7 @@ export class CorporateRosterController {
         file: { type: 'string', format: 'binary' },
         tenantId: { type: 'string' },
         uploadedByUserId: { type: 'string' },
+        mode: { type: 'string', enum: ['publish', 'draft'], default: 'publish' },
       },
       required: ['file', 'tenantId'],
     },
@@ -111,6 +128,8 @@ export class CorporateRosterController {
     @Query('tenantId') tenantIdFromQuery?: string,
     @Body('uploadedByUserId') uploadedByUserId?: string,
     @Req() req?: any,
+    @Body('mode') modeFromBody?: string,
+    @Query('mode') modeFromQuery?: string,
   ) {
     // Multipart bodies are parsed after guards run, so re-check the tenant scope here.
     const tenantId = resolveScopedTenantId(req, tenantIdFromBody, tenantIdFromQuery);
@@ -121,18 +140,32 @@ export class CorporateRosterController {
       throw new BadRequestException('Excel file is required as multipart/form-data field "file"');
     }
 
+    const mode = String(modeFromBody ?? modeFromQuery ?? 'publish').trim().toLowerCase();
+    if (mode !== 'publish' && mode !== 'draft') {
+      throw new BadRequestException('mode must be "publish" or "draft"');
+    }
     // The uploader recorded on the roster is the authenticated user, not a body field.
-    return this.rosterIngestionService.ingestAndPublishRoster(tenantId, file.buffer, req?.user?.id ?? uploadedByUserId);
+    const actorId = req?.user?.id ?? uploadedByUserId;
+    if (mode === 'draft') {
+      return this.rosterIngestionService.ingestDraftRoster(tenantId, file.buffer, actorId, scopeOf(req));
+    }
+    // Immediate publish generates demand, so a corporate user also needs rosters:publish.
+    if (req?.corporateRole && !corporateRoleHas(req.corporateRole, 'rosters:publish')) {
+      throw new ForbiddenException(`Corporate role ${req.corporateRole} must upload with mode=draft (no rosters:publish)`);
+    }
+    return this.rosterIngestionService.ingestAndPublishRoster(tenantId, file.buffer, actorId, scopeOf(req));
   }
 
   @Get()
   @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @CorporateTenantScoped()
-  @ApiOperation({ summary: 'List corporate rosters for a tenant' })
+  @CorporatePermission('rosters:read')
+  @ApiOperation({ summary: 'List corporate rosters for a tenant (office-scoped users: their offices)' })
   public async listRosters(
     @Query('tenantId') tenantId: string,
     @Query('rosterDate') rosterDate?: string,
     @Query('officeId') officeId?: string,
+    @Req() req?: any,
   ) {
     if (!tenantId) {
       throw new BadRequestException('tenantId query parameter is required');
@@ -140,7 +173,9 @@ export class CorporateRosterController {
 
     const where: any = { tenantId };
     if (officeId) {
-      where.officeId = officeId;
+      where.officeId = officeId; // the guard already rejected an out-of-scope officeId
+    } else if (scopeOf(req)) {
+      where.officeId = { in: scopeOf(req) };
     }
     if (rosterDate) {
       where.rosterDate = new Date(rosterDate);
@@ -170,6 +205,7 @@ export class CorporateRosterController {
   @Get(':id')
   @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @CorporateResource('roster', 'id')
+  @CorporatePermission('rosters:read')
   @ApiOperation({ summary: 'Get details of a specific corporate roster' })
   public async getRosterById(@Param('id') id: string) {
     const roster = await this.db.corporateRoster.findUnique({
@@ -217,9 +253,31 @@ export class CorporateRosterController {
     return roster;
   }
 
+  @Post(':id/approve')
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateResource('roster', 'id')
+  @CorporatePermission('rosters:approve')
+  @ApiOperation({ summary: 'Approve a DRAFT roster version (DRAFT -> APPROVED); idempotent; actor audited' })
+  public async approveRoster(@Param('id') id: string, @Req() req: any) {
+    return this.rosterLifecycleService.approve(id, this.actorOf(req));
+  }
+
+  @Post(':id/publish')
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateResource('roster', 'id')
+  @CorporatePermission('rosters:publish')
+  @ApiOperation({
+    summary: 'Publish an APPROVED roster version (APPROVED -> PUBLISHED) and generate demand idempotently',
+    description: 'Requests are keyed by idempotencyHash; re-publishing creates nothing. Holiday shift days are skipped.',
+  })
+  public async publishRoster(@Param('id') id: string, @Req() req: any) {
+    return this.rosterLifecycleService.publish(id, this.actorOf(req));
+  }
+
   @Get(':id/requests')
   @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @CorporateResource('roster', 'id')
+  @CorporatePermission('rosters:read')
   @ApiOperation({ summary: 'Get all transport requests belonging to a corporate roster' })
   public async getRosterTransportRequests(
     @Param('id') id: string,
@@ -258,5 +316,9 @@ export class CorporateRosterController {
       },
       orderBy: [{ shiftTime: 'asc' }, { createdAt: 'asc' }],
     });
+  }
+
+  private actorOf(req: any) {
+    return { id: req?.user?.id, role: req?.user?.role, corporateRole: req?.corporateRole ?? null };
   }
 }

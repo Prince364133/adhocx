@@ -9,7 +9,27 @@ import {
   RosterRowValidationError,
   RosterDryRunValidationResult,
   RosterIngestionOutput,
+  RosterDraftOutput,
 } from './roster-validation.types';
+import { resolveLogoutDate, ShiftTemplateLike } from '../scheduling/shift-calendar';
+
+/** createMany batch size for roster entries. */
+const ENTRY_BATCH = 1000;
+
+interface DemandLine {
+  direction: 'LOGIN' | 'LOGOUT';
+  /** Shift (login) day = roster_date. */
+  shiftDay: string;
+  /** Day the commute happens (differs from shiftDay for an overnight LOGOUT). */
+  scheduledDay: string;
+  shiftTime: string;
+  pickupLat: number;
+  pickupLng: number;
+  dropoffLat: number;
+  dropoffLng: number;
+  h3PickupIndex: string;
+  idempotencyHash: string;
+}
 
 @Injectable()
 export class RosterIngestionService {
@@ -26,6 +46,7 @@ export class RosterIngestionService {
   public async dryRunValidateRoster(
     tenantId: string,
     buffer: Buffer,
+    officeScope?: string[] | null,
   ): Promise<RosterDryRunValidationResult> {
     const tenant = await this.db.corporateTenant.findUnique({ where: { id: tenantId } });
     if (!tenant) {
@@ -111,6 +132,14 @@ export class RosterIngestionService {
           field: 'office_code',
           invalidValue: row.officeCode,
           message: `Office code '${row.officeCode}' is not registered under this corporate account`,
+        });
+      } else if (officeScope && !officeScope.includes(officeCodeMap.get(upperOfficeCode)!.id)) {
+        // WS-F: an office-scoped uploader may only roster employees of their own offices.
+        rowErrors.push({
+          rowNumber: row.rowNumber,
+          field: 'office_code',
+          invalidValue: row.officeCode,
+          message: `Office code '${row.officeCode}' is outside your corporate office scope`,
         });
       }
 
@@ -199,13 +228,19 @@ export class RosterIngestionService {
   /**
    * Ingests and commits the validated Excel roster, autonomously creating
    * employees, locations, rosters, and idempotent transport requests.
+   *
+   * Default upload mode (unchanged by WS-F): the roster is PUBLISHED immediately and demand is
+   * generated in the same transaction. WS-F only fixes the overnight LOGOUT date (logout <= login
+   * => next IST day) and records the uploader. For the DRAFT -> APPROVED -> PUBLISHED lifecycle use
+   * `ingestDraftRoster` (upload with mode=draft) and RosterLifecycleService.
    */
   public async ingestAndPublishRoster(
     tenantId: string,
     buffer: Buffer,
     actorUserId?: string,
+    officeScope?: string[] | null,
   ): Promise<RosterIngestionOutput> {
-    const dryRun = await this.dryRunValidateRoster(tenantId, buffer);
+    const dryRun = await this.dryRunValidateRoster(tenantId, buffer, officeScope);
     if (!dryRun.isValid) {
       throw new BadRequestException({
         message: 'Roster validation failed. Fix errors before publishing.',
@@ -240,133 +275,38 @@ export class RosterIngestionService {
           direction: firstRow.loginTime ? 'LOGIN' : 'LOGOUT',
           status: 'PUBLISHED',
           passengerCount: rows.length,
+          uploadedById: actorUserId ?? null,
+          publishedById: actorUserId ?? null,
+          publishedAt: new Date(),
         },
       });
 
       for (const row of rows) {
         const rowOffice = officeCodeMap.get(row.officeCode.trim().toUpperCase())!;
-        const genderVal = row.gender.toUpperCase() as 'MALE' | 'FEMALE' | 'OTHER';
+        const point = await this.upsertEmployeeFromRow(tx, tenantId, row, rowOffice);
 
-        // Coordinates resolution: use provided or default to office position with slight random jitter
-        const empLat = row.latitude && row.latitude !== 0 ? row.latitude : Number(rowOffice.latitude);
-        const empLng = row.longitude && row.longitude !== 0 ? row.longitude : Number(rowOffice.longitude);
-
-        // H3 resolution 8 index calculation
-        const h3Index = h3.latLngToCell(empLat, empLng, 8);
-
-        // Upsert CorporateEmployee
-        const employee = await tx.corporateEmployee.upsert({
-          where: {
-            tenantId_employeeCode: {
-              tenantId,
-              employeeCode: row.employeeId.trim(),
-            },
-          },
-          update: {
-            fullName: row.fullName.trim(),
-            email: row.email.trim(),
-            phoneNumber: row.phoneNumber.trim(),
-            gender: genderVal,
-            department: row.department?.trim() || null,
-            costCenter: row.costCenter?.trim() || null,
-            officeId: rowOffice.id,
-            isActive: true,
-          },
-          create: {
-            tenantId,
-            officeId: rowOffice.id,
-            employeeCode: row.employeeId.trim(),
-            fullName: row.fullName.trim(),
-            email: row.email.trim(),
-            phoneNumber: row.phoneNumber.trim(),
-            gender: genderVal,
-            department: row.department?.trim() || null,
-            costCenter: row.costCenter?.trim() || null,
-            isActive: true,
-          },
-        });
-
-        // Upsert Employee Location
-        await tx.corporateEmployeeLocation.create({
-          data: {
-            employeeId: employee.id,
-            addressText: row.homeAddress.trim(),
-            landmark: row.landmark?.trim() || null,
-            latitude: empLat,
-            longitude: empLng,
-            h3Res8Index: h3Index,
-            isDefault: true,
-          },
-        });
-
-        // 2. Generate Transport Requests
-        const scheduledDateObj = new Date(row.rosterDate);
-
-        // Morning Login Request (Pickup from Home -> Drop to Office)
-        if (row.loginTime && /^\d{2}:\d{2}$/.test(row.loginTime.trim())) {
-          const shiftTime = row.loginTime.trim();
-          const loginHash = crypto
-            .createHash('sha256')
-            .update(`${tenantId}_${employee.id}_${row.rosterDate}_${shiftTime}_LOGIN`)
-            .digest('hex');
-
+        // 2. Generate Transport Requests (LOGIN: home -> office, LOGOUT: office -> home)
+        for (const line of this.buildDemandLines(tenantId, point, row, rowOffice)) {
           try {
             await tx.corporateTransportRequest.create({
               data: {
                 tenantId,
                 rosterId: masterRoster.id,
-                employeeId: employee.id,
-                scheduledDate: scheduledDateObj,
-                shiftTime,
-                direction: 'LOGIN',
-                pickupLat: empLat,
-                pickupLng: empLng,
-                dropoffLat: rowOffice.latitude,
-                dropoffLng: rowOffice.longitude,
-                h3PickupIndex: h3Index,
+                employeeId: point.employeeId,
+                scheduledDate: new Date(line.scheduledDay),
+                shiftTime: line.shiftTime,
+                direction: line.direction,
+                pickupLat: line.pickupLat,
+                pickupLng: line.pickupLng,
+                dropoffLat: line.dropoffLat,
+                dropoffLng: line.dropoffLng,
+                h3PickupIndex: line.h3PickupIndex,
                 status: 'APPROVED',
-                idempotencyHash: loginHash,
+                idempotencyHash: line.idempotencyHash,
               },
             });
-            loginCreated++;
-          } catch (e: any) {
-            if (e.code === 'P2002') {
-              skippedDuplicates++;
-            } else {
-              throw e;
-            }
-          }
-        }
-
-        // Evening Logout Request (Pickup from Office -> Drop to Home)
-        if (row.logoutTime && /^\d{2}:\d{2}$/.test(row.logoutTime.trim())) {
-          const shiftTime = row.logoutTime.trim();
-          const logoutHash = crypto
-            .createHash('sha256')
-            .update(`${tenantId}_${employee.id}_${row.rosterDate}_${shiftTime}_LOGOUT`)
-            .digest('hex');
-
-          const officeH3 = rowOffice.h3Res8Index || h3.latLngToCell(Number(rowOffice.latitude), Number(rowOffice.longitude), 8);
-
-          try {
-            await tx.corporateTransportRequest.create({
-              data: {
-                tenantId,
-                rosterId: masterRoster.id,
-                employeeId: employee.id,
-                scheduledDate: scheduledDateObj,
-                shiftTime,
-                direction: 'LOGOUT',
-                pickupLat: rowOffice.latitude,
-                pickupLng: rowOffice.longitude,
-                dropoffLat: empLat,
-                dropoffLng: empLng,
-                h3PickupIndex: officeH3,
-                status: 'APPROVED',
-                idempotencyHash: logoutHash,
-              },
-            });
-            logoutCreated++;
+            if (line.direction === 'LOGIN') loginCreated++;
+            else logoutCreated++;
           } catch (e: any) {
             if (e.code === 'P2002') {
               skippedDuplicates++;
@@ -403,6 +343,229 @@ export class RosterIngestionService {
     });
 
     return result;
+  }
+
+  /**
+   * WS-F draft upload: validates, upserts employees / locations and stores the demand as
+   * CorporateRosterEntry lines of a new DRAFT roster version. No transport request exists until
+   * the version is approved and published (RosterLifecycleService.publish).
+   * Version = 1 + highest version for the same (tenant, office, rosterDate).
+   */
+  public async ingestDraftRoster(
+    tenantId: string,
+    buffer: Buffer,
+    actorUserId?: string,
+    officeScope?: string[] | null,
+  ): Promise<RosterDraftOutput> {
+    const dryRun = await this.dryRunValidateRoster(tenantId, buffer, officeScope);
+    if (!dryRun.isValid) {
+      throw new BadRequestException({
+        message: 'Roster validation failed. Fix errors before saving the draft.',
+        errorCount: dryRun.errors.length,
+        errors: dryRun.errors.slice(0, 50),
+      });
+    }
+
+    const rows = await this.parseExcelRows(buffer);
+    const offices = await this.db.corporateOffice.findMany({ where: { tenantId } });
+    const officeCodeMap = new Map(offices.map((o) => [o.code.toUpperCase(), o]));
+    const templates = await this.db.corporateShiftTemplate.findMany({
+      where: { tenantId, isActive: true },
+      select: { officeId: true, loginTime: true, logoutTime: true, isOvernight: true, isActive: true, weekdays: true },
+    });
+    const templatesByOffice = new Map<string, ShiftTemplateLike[]>();
+    for (const t of templates) {
+      templatesByOffice.set(t.officeId, [...(templatesByOffice.get(t.officeId) ?? []), t]);
+    }
+
+    const firstRow = rows[0];
+    const headOffice = officeCodeMap.get(firstRow.officeCode.trim().toUpperCase())!;
+    const rosterDate = new Date(`${firstRow.rosterDate}T00:00:00.000Z`);
+
+    const result = await this.db.$transaction(async (tx: any) => {
+      const latest = await tx.corporateRoster.findFirst({
+        where: { tenantId, officeId: headOffice.id, rosterDate },
+        orderBy: { version: 'desc' },
+        select: { version: true },
+      });
+      const roster = await tx.corporateRoster.create({
+        data: {
+          tenantId,
+          officeId: headOffice.id,
+          rosterDate,
+          shiftTime: firstRow.loginTime || firstRow.logoutTime || '08:00',
+          direction: firstRow.loginTime ? 'LOGIN' : 'LOGOUT',
+          status: 'DRAFT',
+          passengerCount: rows.length,
+          version: (latest?.version ?? 0) + 1,
+          uploadedById: actorUserId ?? null,
+        },
+      });
+
+      const entries: any[] = [];
+      for (const row of rows) {
+        const rowOffice = officeCodeMap.get(row.officeCode.trim().toUpperCase())!;
+        const point = await this.upsertEmployeeFromRow(tx, tenantId, row, rowOffice);
+        for (const line of this.buildDemandLines(tenantId, point, row, rowOffice, templatesByOffice.get(rowOffice.id))) {
+          entries.push({
+            rosterId: roster.id,
+            tenantId,
+            employeeId: point.employeeId,
+            officeId: rowOffice.id,
+            shiftDate: new Date(`${line.shiftDay}T00:00:00.000Z`),
+            scheduledDate: new Date(`${line.scheduledDay}T00:00:00.000Z`),
+            shiftTime: line.shiftTime,
+            direction: line.direction,
+            pickupLat: line.pickupLat,
+            pickupLng: line.pickupLng,
+            dropoffLat: line.dropoffLat,
+            dropoffLng: line.dropoffLng,
+            h3PickupIndex: line.h3PickupIndex,
+            idempotencyHash: line.idempotencyHash,
+          });
+        }
+      }
+      let entriesCreated = 0;
+      for (let i = 0; i < entries.length; i += ENTRY_BATCH) {
+        const res = await tx.corporateRosterEntry.createMany({ data: entries.slice(i, i + ENTRY_BATCH), skipDuplicates: true });
+        entriesCreated += res.count;
+      }
+      return { rosterId: roster.id, version: roster.version, entriesCreated };
+    });
+
+    const output: RosterDraftOutput = {
+      rosterId: result.rosterId,
+      tenantId,
+      officeId: headOffice.id,
+      rosterDate: firstRow.rosterDate,
+      version: result.version,
+      status: 'DRAFT',
+      totalEmployeesProcessed: rows.length,
+      entriesCreated: result.entriesCreated,
+    };
+    await this.audit.log({
+      action: 'CORPORATE_ROSTER_DRAFT_UPLOADED',
+      userId: actorUserId,
+      entityId: output.rosterId,
+      entityType: 'CORPORATE_ROSTER',
+      metadata: output as any,
+    });
+    return output;
+  }
+
+  /** Upserts the employee of a roster row and records its home location. */
+  private async upsertEmployeeFromRow(
+    tx: any,
+    tenantId: string,
+    row: RosterRowData,
+    rowOffice: any,
+  ): Promise<{ employeeId: string; lat: number; lng: number; h3Index: string }> {
+    const genderVal = row.gender.toUpperCase() as 'MALE' | 'FEMALE' | 'OTHER';
+
+    // Coordinates resolution: use provided or default to the office position
+    const empLat = row.latitude && row.latitude !== 0 ? row.latitude : Number(rowOffice.latitude);
+    const empLng = row.longitude && row.longitude !== 0 ? row.longitude : Number(rowOffice.longitude);
+
+    // H3 resolution 8 index calculation
+    const h3Index = h3.latLngToCell(empLat, empLng, 8);
+
+    const employee = await tx.corporateEmployee.upsert({
+      where: {
+        tenantId_employeeCode: {
+          tenantId,
+          employeeCode: row.employeeId.trim(),
+        },
+      },
+      update: {
+        fullName: row.fullName.trim(),
+        email: row.email.trim(),
+        phoneNumber: row.phoneNumber.trim(),
+        gender: genderVal,
+        department: row.department?.trim() || null,
+        costCenter: row.costCenter?.trim() || null,
+        officeId: rowOffice.id,
+        isActive: true,
+      },
+      create: {
+        tenantId,
+        officeId: rowOffice.id,
+        employeeCode: row.employeeId.trim(),
+        fullName: row.fullName.trim(),
+        email: row.email.trim(),
+        phoneNumber: row.phoneNumber.trim(),
+        gender: genderVal,
+        department: row.department?.trim() || null,
+        costCenter: row.costCenter?.trim() || null,
+        isActive: true,
+      },
+    });
+
+    await tx.corporateEmployeeLocation.create({
+      data: {
+        employeeId: employee.id,
+        addressText: row.homeAddress.trim(),
+        landmark: row.landmark?.trim() || null,
+        latitude: empLat,
+        longitude: empLng,
+        h3Res8Index: h3Index,
+        isDefault: true,
+      },
+    });
+
+    return { employeeId: employee.id, lat: empLat, lng: empLng, h3Index };
+  }
+
+  /**
+   * Demand lines of one roster row. The idempotency hash is
+   * sha256(tenant_employee_<service day>_<HH:mm>_<direction>), the same formula the upload has
+   * always used, so re-uploads and re-publishes never duplicate a commute. The service day of an
+   * overnight LOGOUT (20:00 -> 02:00) is the next IST calendar day.
+   */
+  private buildDemandLines(
+    tenantId: string,
+    point: { employeeId: string; lat: number; lng: number; h3Index: string },
+    row: RosterRowData,
+    rowOffice: any,
+    templates: ShiftTemplateLike[] = [],
+  ): DemandLine[] {
+    const lines: DemandLine[] = [];
+    const hash = (day: string, time: string, dir: string) =>
+      crypto.createHash('sha256').update(`${tenantId}_${point.employeeId}_${day}_${time}_${dir}`).digest('hex');
+    const loginTime = row.loginTime && /^\d{2}:\d{2}$/.test(row.loginTime.trim()) ? row.loginTime.trim() : undefined;
+    const logoutTime = row.logoutTime && /^\d{2}:\d{2}$/.test(row.logoutTime.trim()) ? row.logoutTime.trim() : undefined;
+
+    if (loginTime) {
+      lines.push({
+        direction: 'LOGIN',
+        shiftDay: row.rosterDate,
+        scheduledDay: row.rosterDate,
+        shiftTime: loginTime,
+        pickupLat: point.lat,
+        pickupLng: point.lng,
+        dropoffLat: Number(rowOffice.latitude),
+        dropoffLng: Number(rowOffice.longitude),
+        h3PickupIndex: point.h3Index,
+        idempotencyHash: hash(row.rosterDate, loginTime, 'LOGIN'),
+      });
+    }
+    if (logoutTime) {
+      const day = resolveLogoutDate(row.rosterDate, loginTime, logoutTime, templates);
+      const officeH3 =
+        rowOffice.h3Res8Index || h3.latLngToCell(Number(rowOffice.latitude), Number(rowOffice.longitude), 8);
+      lines.push({
+        direction: 'LOGOUT',
+        shiftDay: row.rosterDate,
+        scheduledDay: day,
+        shiftTime: logoutTime,
+        pickupLat: Number(rowOffice.latitude),
+        pickupLng: Number(rowOffice.longitude),
+        dropoffLat: point.lat,
+        dropoffLng: point.lng,
+        h3PickupIndex: officeH3,
+        idempotencyHash: hash(day, logoutTime, 'LOGOUT'),
+      });
+    }
+    return lines;
   }
 
   /**

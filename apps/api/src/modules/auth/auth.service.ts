@@ -783,11 +783,18 @@ export class AuthService implements OnModuleInit {
    */
   private async buildCorporateClaims(
     user: any,
-  ): Promise<{ corporateTenantId?: string; corporateEmployeeId?: string }> {
-    const claims: { corporateTenantId?: string; corporateEmployeeId?: string } = {};
+  ): Promise<{ corporateTenantId?: string; corporateEmployeeId?: string; corporateRole?: string; corporateOfficeIds?: string[] }> {
+    const claims: { corporateTenantId?: string; corporateEmployeeId?: string; corporateRole?: string; corporateOfficeIds?: string[] } = {};
     if (!user) return claims;
     if (user.corporateTenantId) {
       claims.corporateTenantId = user.corporateTenantId;
+    }
+    // WS-F: fine-grained corporate role + office scope (omitted when unset: legacy mapping applies).
+    if (user.role === UserRole.CORPORATE_ADMIN || user.role === UserRole.CORPORATE_MANAGER) {
+      if (user.corporateRole) claims.corporateRole = user.corporateRole;
+      if (Array.isArray(user.corporateOfficeIds) && user.corporateOfficeIds.length > 0) {
+        claims.corporateOfficeIds = user.corporateOfficeIds;
+      }
     }
     if (user.role === UserRole.EMPLOYEE) {
       const employee = await this.db.corporateEmployee.findUnique({

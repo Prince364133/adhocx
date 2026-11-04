@@ -29,6 +29,7 @@ import { CorporateReplanningService } from '../replanning/corporate-replanning.s
 import {
   CutoffOverride,
   evaluateCutoff,
+  resolveCancelCutoffHours,
   formatIst,
   isValidShiftDate,
   isValidShiftTime,
@@ -45,7 +46,6 @@ export class CorporateTripExecutionService {
   // Constants per PRD specification
   private readonly GEOFENCE_RADIUS_METERS = 150; // 150m arrival boundary
   private readonly STOP_WAIT_BUFFER_SECONDS = 300; // 5.0 minutes (300 seconds)
-  private readonly RESCHEDULE_CUTOFF_HOURS = 9; // 9 hours advance notice cutoff
 
   constructor(
     private readonly db: DatabaseService,
@@ -635,10 +635,11 @@ export class CorporateTripExecutionService {
     }
 
     const { pickupAt, source } = resolvePickupTime(req);
-    const cutoff = evaluateCutoff(pickupAt, source, now, override);
+    const cutoffHours = await resolveCancelCutoffHours(this.db as any, req.tenantId, now);
+    const cutoff = evaluateCutoff(pickupAt, source, now, override, cutoffHours);
     if (!cutoff.allowed) {
       throw new BadRequestException(
-        `Modification locked: Rescheduling and cancellations must be submitted at least ${this.RESCHEDULE_CUTOFF_HOURS} hours prior to scheduled shift pickup ` +
+        `Modification locked: Rescheduling and cancellations must be submitted at least ${cutoffHours} hours prior to scheduled shift pickup ` +
           `(pickup ${formatIst(pickupAt)}, cutoff ${formatIst(cutoff.cutoffAt)}; only ${cutoff.hoursUntilPickup.toFixed(1)}h remaining).`,
       );
     }

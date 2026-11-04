@@ -11,11 +11,21 @@ import { CorporateTrackingModule } from './tracking/corporate-tracking.module';
 // Tenants, Offices & Employees Sub-Module
 import { CorporateTenantService } from './tenants/corporate-tenant.service';
 import { CorporateTenantController } from './tenants/corporate-tenant.controller';
+// WS-F: corporate roles, policy, departments / cost centers
+import { CorporateTenantPolicyService } from './tenants/corporate-tenant-policy.service';
+import { CorporateOrgStructureService } from './tenants/corporate-org-structure.service';
+import { CorporateTenantUsersService } from './tenants/corporate-tenant-users.service';
 
 // Rosters Sub-Module
 import { RosterTemplateService } from './rosters/roster-template.service';
 import { RosterIngestionService } from './rosters/roster-ingestion.service';
 import { CorporateRosterController } from './rosters/corporate-roster.controller';
+import { RosterLifecycleService } from './rosters/roster-lifecycle.service';
+
+// WS-F: Scheduling (shift templates, holidays, autonomous planner)
+import { CorporateShiftTemplateService } from './scheduling/corporate-shift-template.service';
+import { CorporateAutoPlannerService } from './scheduling/corporate-auto-planner.service';
+import { CorporateSchedulingController } from './scheduling/corporate-scheduling.controller';
 
 // Routing Sub-Module
 import { RouteSolverService } from './routing/route-solver.service';
@@ -100,6 +110,13 @@ import { CorporateRiderController } from './rider/corporate-rider.controller';
     CorporateOperationsService, // WS-D
     CorporateAnalyticsService, // WS-D
     CorporateRiderService, // WS-C
+    // WS-F
+    CorporateTenantPolicyService,
+    CorporateOrgStructureService,
+    CorporateTenantUsersService,
+    RosterLifecycleService,
+    CorporateShiftTemplateService,
+    CorporateAutoPlannerService,
   ],
   controllers: [
     CorporateTenantController,
@@ -112,6 +129,7 @@ import { CorporateRiderController } from './rider/corporate-rider.controller';
     CorporateOperationsController, // WS-D
     CorporateAnalyticsController, // WS-D
     CorporateRiderController, // WS-C
+    CorporateSchedulingController, // WS-F
   ],
   exports: [
     DriverEligibilityService,
@@ -127,6 +145,10 @@ import { CorporateRiderController } from './rider/corporate-rider.controller';
     CorporateSafetyService,
     CorporateBillingService,
     CorporateRiderService, // WS-C
+    // WS-F
+    CorporateTenantPolicyService,
+    RosterLifecycleService,
+    CorporateAutoPlannerService,
   ],
 })
 export class CorporateDomainModule {}

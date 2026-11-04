@@ -19,7 +19,7 @@ import {
   istWallClockToUtc,
   isValidShiftDate,
   isValidShiftTime,
-  RESCHEDULE_CUTOFF_HOURS,
+  resolveCancelCutoffHours,
   toDateOnly,
 } from './cutoff-policy';
 import {
@@ -354,10 +354,11 @@ export class CorporateReplanningService {
       // The new shift's pickup must also respect the 9h cutoff (relevant when moving to an earlier shift).
       const timings = computeTimings(target.direction, target.passengers, target.office, target.anchor);
       const newPickup = target.direction === 'LOGOUT' ? timings.targetPickup1Time : timings.passengerEtas[target.passengers.indexOf(passenger)];
-      const newCutoff = evaluateCutoff(newPickup, target.direction === 'LOGOUT' ? 'ROUTE_DEPARTURE' : 'STOP_PLANNED_ETA', now, ctx.override);
+      const cutoffHours = ctx.cutoff?.cutoffHours ?? (await resolveCancelCutoffHours(this.db as any, req.tenantId, now));
+      const newCutoff = evaluateCutoff(newPickup, target.direction === 'LOGOUT' ? 'ROUTE_DEPARTURE' : 'STOP_PLANNED_ETA', now, ctx.override, cutoffHours);
       if (!newCutoff.allowed) {
         throw new BadRequestException(
-          `Modification locked: Rescheduling and cancellations must be submitted at least ${RESCHEDULE_CUTOFF_HOURS} hours prior to pickup ` +
+          `Modification locked: Rescheduling and cancellations must be submitted at least ${cutoffHours} hours prior to pickup ` +
             `(new shift ${newShiftTime}${dateChanged ? ` on ${targetDay}` : ''} pickup ${formatIst(newPickup)}, cutoff ${formatIst(newCutoff.cutoffAt)}).`,
         );
       }
