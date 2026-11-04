@@ -8,6 +8,11 @@
 
 ---
 
+> ## ⚠️ As-built status (verified against `staging` on 2026-11-04)
+> The `/v1/...` paths below are a target design. **The real corporate API has no `/v1` prefix and lives under `/corporate/...`.**
+> The authoritative list is the generated table in **§ As-built endpoint inventory** at the end of this document. Re-generate it from Nest route metadata whenever controllers change.
+
+
 > ### ⚠️ MANDATORY DESIGN & IMPLEMENTATION DIRECTIVE FOR ALL AI AGENTS & ENGINEERS
 > Every AI agent, prompt, developer, and automated assistant modifying or contributing to this codebase **MUST STRICTLY ADHERE** to the project's foundational guidelines:
 > 1. **Visual Foundation:** [`docs/04_DESIGN_SYSTEM.md and apps/marketing/DESIGN_AND_UI.md`](file:///c:/Users/saavi/Desktop/adhocx/docs/04_DESIGN_SYSTEM.md) (Colors, Typography, Spacing, Tokens, Radius, Component Styling)
@@ -167,3 +172,130 @@ $$\text{PENDING} \longrightarrow \text{ARRIVED} \longrightarrow \begin{cases} \t
 ---
 *All 15 authoritative specification documents are now established in `docs/corporate-ets/` as the single source of truth for the AdhocX Enterprise Commute System.*
 
+
+
+## As-built endpoint inventory (generated 2026-11-04 from Nest route metadata, staging @ 154e67d)
+
+Scope: `resource:<kind>` = the guard loads the record and checks the tenant, driver or employee owns it; `tenant` = forced to the caller's tenant; `driver-self` = the caller's own Driver row; `-` = ADMIN-only or public.
+
+| Method | Path | Roles | Scope | Controller |
+|---|---|---|---|---|
+| GET | `/corporate/analytics/metric-definitions` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | tenant | CorporateAnalyticsController |
+| GET | `/corporate/analytics/dashboard` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | tenant | CorporateAnalyticsController |
+| GET | `/corporate/analytics/attendance` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | tenant | CorporateAnalyticsController |
+| GET | `/corporate/analytics/reports/:type` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | tenant | CorporateAnalyticsController |
+| POST | `/corporate/billing/invoices/generate-batch` | ADMIN | - | CorporateBillingController |
+| GET | `/corporate/billing/invoices` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | tenant | CorporateBillingController |
+| GET | `/corporate/billing/invoices/:id` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:invoice | CorporateBillingController |
+| GET | `/corporate/billing/invoices/:id/pdf` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:invoice | CorporateBillingController |
+| POST | `/corporate/billing/payouts/prepare-batch` | ADMIN | - | CorporateBillingController |
+| GET | `/corporate/billing/drivers/:driverId/earnings` | ADMIN, DRIVER | resource:driver | CorporateBillingController |
+| POST | `/corporate/billing/invoices/:id/disputes` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:invoice | CorporateBillingController |
+| GET | `/corporate/billing/disputes` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | tenant | CorporateBillingController |
+| POST | `/corporate/billing/disputes/:id/accept` | ADMIN | - | CorporateBillingController |
+| POST | `/corporate/billing/disputes/:id/reject` | ADMIN | - | CorporateBillingController |
+| GET | `/corporate/billing/credit-notes` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | tenant | CorporateBillingController |
+| POST | `/corporate/billing/payouts/batches` | ADMIN | - | CorporateBillingController |
+| GET | `/corporate/billing/payouts/batches` | ADMIN | - | CorporateBillingController |
+| GET | `/corporate/billing/payouts/batches/:id` | ADMIN | - | CorporateBillingController |
+| POST | `/corporate/billing/payouts/batches/:id/approve` | ADMIN | - | CorporateBillingController |
+| POST | `/corporate/billing/payouts/batches/:id/submit` | ADMIN | - | CorporateBillingController |
+| GET | `/corporate/billing/reconciliations` | ADMIN | - | CorporateBillingController |
+| POST | `/corporate/billing/payouts/provider-callback` | none (signed webhook) | - | CorporatePayoutWebhookController |
+| POST | `/corporate/billing/rate-cards/corporate` | ADMIN | - | CorporateRateCardController |
+| GET | `/corporate/billing/rate-cards/corporate` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | tenant | CorporateRateCardController |
+| POST | `/corporate/billing/rate-cards/corporate/:id/retire` | ADMIN | - | CorporateRateCardController |
+| POST | `/corporate/billing/rate-cards/driver` | ADMIN | - | CorporateRateCardController |
+| GET | `/corporate/billing/rate-cards/driver` | ADMIN | - | CorporateRateCardController |
+| POST | `/corporate/billing/rate-cards/driver/:id/retire` | ADMIN | - | CorporateRateCardController |
+| POST | `/corporate/dispatch/routes/:id/start-now` | ADMIN | resource:route | CorporateDispatchController |
+| POST | `/corporate/dispatch/routes/:id/offers/accept` | ADMIN, DRIVER | resource:route | CorporateDispatchController |
+| POST | `/corporate/dispatch/routes/:id/offers/reject` | ADMIN, DRIVER | resource:route | CorporateDispatchController |
+| GET | `/corporate/dispatch/routes/:id/traffic-assessment` | ADMIN | resource:route | CorporateDispatchController |
+| GET | `/corporate/dispatch/routes/:id/status` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:route | CorporateDispatchController |
+| GET | `/corporate/dispatch/my-offer` | ADMIN, DRIVER | driver-self | CorporateDispatchController |
+| GET | `/corporate/dispatch/driver-offers` | ADMIN, DRIVER | driver-self | CorporateDispatchController |
+| GET | `/corporate/dispatch/driver-duties` | ADMIN, DRIVER | driver-self | CorporateDispatchController |
+| POST | `/corporate/trips/routes/:id/start` | ADMIN, DRIVER | resource:route | CorporateTripExecutionController |
+| POST | `/corporate/trips/routes/:id/stops/:stopId/arrive` | ADMIN, DRIVER | resource:stop | CorporateTripExecutionController |
+| POST | `/corporate/trips/routes/:id/stops/:stopId/verify-otp` | ADMIN, DRIVER | resource:stop | CorporateTripExecutionController |
+| POST | `/corporate/trips/routes/:id/stops/:stopId/no-show` | ADMIN, DRIVER | resource:stop | CorporateTripExecutionController |
+| POST | `/corporate/trips/routes/:id/complete` | ADMIN, DRIVER | resource:route | CorporateTripExecutionController |
+| GET | `/corporate/trips/routes/:id/stops/:stopId/boarding-qr` | ADMIN, EMPLOYEE | resource:stop | CorporateTripExecutionController |
+| POST | `/corporate/trips/routes/:id/stops/:stopId/verify-qr` | ADMIN, DRIVER | resource:stop | CorporateTripExecutionController |
+| POST | `/corporate/trips/routes/:id/telemetry` | ADMIN, DRIVER | resource:route | CorporateTripExecutionController |
+| GET | `/corporate/trips/routes/:id/waypoints` | ADMIN, DRIVER | resource:route | CorporateTripExecutionController |
+| POST | `/corporate/trips/requests/:id/reschedule` | ADMIN, CORPORATE_ADMIN, EMPLOYEE | resource:request | CorporateTripExecutionController |
+| POST | `/corporate/trips/requests/:id/admin-reschedule` | ADMIN | resource:request | CorporateTripExecutionController |
+| GET | `/corporate/trips/me/schedule` | ADMIN, EMPLOYEE | tenant | CorporateTripExecutionController |
+| GET | `/corporate/trips/me/next-trip` | ADMIN, EMPLOYEE | tenant | CorporateTripExecutionController |
+| GET | `/corporate/trips/me/trips` | ADMIN, EMPLOYEE | tenant | CorporateTripExecutionController |
+| GET | `/corporate/trips/driver/active-route` | ADMIN, DRIVER | driver-self | CorporateTripExecutionController |
+| GET | `/corporate/trips/driver/routes` | ADMIN, DRIVER | driver-self | CorporateTripExecutionController |
+| GET | `/corporate/ops/board` | ADMIN | - | CorporateOperationsController |
+| GET | `/corporate/ops/routes/:id/detail` | ADMIN | resource:route | CorporateOperationsController |
+| POST | `/corporate/ops/routes/:id/reassign` | ADMIN | resource:route | CorporateOperationsController |
+| GET | `/corporate/me` | EMPLOYEE, CORPORATE_ADMIN, CORPORATE_MANAGER, ADMIN | - | CorporateRiderController |
+| GET | `/corporate/me/schedule` | EMPLOYEE, CORPORATE_ADMIN, CORPORATE_MANAGER, ADMIN | - | CorporateRiderController |
+| GET | `/corporate/me/trips` | EMPLOYEE, CORPORATE_ADMIN, CORPORATE_MANAGER, ADMIN | - | CorporateRiderController |
+| GET | `/corporate/me/trips/next` | EMPLOYEE, CORPORATE_ADMIN, CORPORATE_MANAGER, ADMIN | - | CorporateRiderController |
+| GET | `/corporate/me/trips/:id/tracking` | EMPLOYEE, CORPORATE_ADMIN, CORPORATE_MANAGER, ADMIN | - | CorporateRiderController |
+| POST | `/corporate/me/trips/:id/safe-reach` | EMPLOYEE, CORPORATE_ADMIN, CORPORATE_MANAGER, ADMIN | - | CorporateRiderController |
+| POST | `/corporate/me/trips/:id/feedback` | EMPLOYEE, CORPORATE_ADMIN, CORPORATE_MANAGER, ADMIN | - | CorporateRiderController |
+| POST | `/corporate/me/tickets` | EMPLOYEE, CORPORATE_ADMIN, CORPORATE_MANAGER, ADMIN | - | CorporateRiderController |
+| GET | `/corporate/me/tickets` | EMPLOYEE, CORPORATE_ADMIN, CORPORATE_MANAGER, ADMIN | - | CorporateRiderController |
+| GET | `/corporate/me/notifications` | EMPLOYEE, CORPORATE_ADMIN, CORPORATE_MANAGER, ADMIN | - | CorporateRiderController |
+| GET | `/corporate/rosters/template` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | - | CorporateRosterController |
+| POST | `/corporate/rosters/validate` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | tenant | CorporateRosterController |
+| POST | `/corporate/rosters/upload` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | tenant | CorporateRosterController |
+| GET | `/corporate/rosters` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | tenant | CorporateRosterController |
+| GET | `/corporate/rosters/:id` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:roster | CorporateRosterController |
+| POST | `/corporate/rosters/:id/approve` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:roster | CorporateRosterController |
+| POST | `/corporate/rosters/:id/publish` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:roster | CorporateRosterController |
+| GET | `/corporate/rosters/:id/requests` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:roster | CorporateRosterController |
+| POST | `/corporate/routes/optimize` | ADMIN, CORPORATE_ADMIN | tenant | CorporateRoutingController |
+| GET | `/corporate/routes` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | tenant | CorporateRoutingController |
+| GET | `/corporate/routes/:id` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER, DRIVER | resource:route | CorporateRoutingController |
+| POST | `/corporate/safety/sos` | ADMIN, EMPLOYEE, DRIVER | resource:route | CorporateSafetyController |
+| GET | `/corporate/safety/alerts` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | tenant | CorporateSafetyController |
+| POST | `/corporate/safety/alerts/:id/acknowledge` | ADMIN | resource:sos | CorporateSafetyController |
+| POST | `/corporate/safety/alerts/:id/investigate` | ADMIN | resource:sos | CorporateSafetyController |
+| POST | `/corporate/safety/alerts/:id/escalate` | ADMIN | resource:sos | CorporateSafetyController |
+| POST | `/corporate/safety/alerts/:id/close` | ADMIN | resource:sos | CorporateSafetyController |
+| POST | `/corporate/safety/alerts/:id/resolve` | ADMIN | resource:sos | CorporateSafetyController |
+| POST | `/corporate/safety/routes/:id/check-deviation` | ADMIN, DRIVER | resource:route | CorporateSafetyController |
+| POST | `/corporate/safety/routes/:id/stops/:stopId/confirm-safe-drop` | ADMIN, DRIVER | resource:stop | CorporateSafetyController |
+| POST | `/corporate/support/tickets` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | tenant | CorporateSupportTicketController |
+| GET | `/corporate/support/tickets` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | tenant | CorporateSupportTicketController |
+| GET | `/corporate/support/tickets/:id` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER, EMPLOYEE | resource:ticket | CorporateSupportTicketController |
+| PATCH | `/corporate/support/tickets/:id/status` | ADMIN | resource:ticket | CorporateSupportTicketController |
+| GET | `/corporate/scheduling/shift-templates` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | tenant | CorporateSchedulingController |
+| POST | `/corporate/scheduling/shift-templates` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | tenant | CorporateSchedulingController |
+| GET | `/corporate/scheduling/holidays` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | tenant | CorporateSchedulingController |
+| POST | `/corporate/scheduling/holidays` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | tenant | CorporateSchedulingController |
+| POST | `/corporate/scheduling/auto-plan/run` | ADMIN | - | CorporateSchedulingController |
+| POST | `/corporate/tenants` | ADMIN | - | CorporateTenantController |
+| GET | `/corporate/tenants` | ADMIN | - | CorporateTenantController |
+| GET | `/corporate/tenants/:id` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:tenant | CorporateTenantController |
+| PATCH | `/corporate/tenants/:id` | ADMIN | resource:tenant | CorporateTenantController |
+| GET | `/corporate/tenants/:id/users` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:tenant | CorporateTenantController |
+| POST | `/corporate/tenants/:id/users` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:tenant | CorporateTenantController |
+| PATCH | `/corporate/tenants/:id/users/:userId` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:tenant | CorporateTenantController |
+| GET | `/corporate/tenants/:id/departments` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:tenant | CorporateTenantController |
+| POST | `/corporate/tenants/:id/departments` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:tenant | CorporateTenantController |
+| GET | `/corporate/tenants/:id/cost-centers` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:tenant | CorporateTenantController |
+| POST | `/corporate/tenants/:id/cost-centers` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:tenant | CorporateTenantController |
+| GET | `/corporate/tenants/:id/policy` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:tenant | CorporateTenantController |
+| GET | `/corporate/tenants/:id/policy/versions` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:tenant | CorporateTenantController |
+| POST | `/corporate/tenants/:id/policy` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:tenant | CorporateTenantController |
+| POST | `/corporate/tenants/:id/offices` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:tenant | CorporateTenantController |
+| GET | `/corporate/tenants/:id/offices` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:tenant | CorporateTenantController |
+| GET | `/corporate/tenants/:id/offices/:officeId` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:tenant | CorporateTenantController |
+| POST | `/corporate/tenants/:id/employees` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:tenant | CorporateTenantController |
+| GET | `/corporate/tenants/:id/employees` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:tenant | CorporateTenantController |
+| GET | `/corporate/tenants/:id/employees/:employeeId` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:tenant | CorporateTenantController |
+| PATCH | `/corporate/tenants/:id/employees/:employeeId` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:tenant | CorporateTenantController |
+| POST | `/corporate/tenants/:id/employees/:employeeId/locations` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:tenant | CorporateTenantController |
+| GET | `/corporate/trips/routes/:id/tracking` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER, DRIVER, EMPLOYEE | resource:route | CorporateTrackingController |
+| GET | `/corporate/trips/routes/:id/timeline` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:route | CorporateTrackingController |
+| GET | `/corporate/trips/routes/:id/playback` | ADMIN, CORPORATE_ADMIN, CORPORATE_MANAGER | resource:route | CorporateTrackingController |

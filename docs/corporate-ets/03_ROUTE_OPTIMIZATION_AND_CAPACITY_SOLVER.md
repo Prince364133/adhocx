@@ -8,6 +8,13 @@
 
 ---
 
+> ## ⚠️ As-built status (verified against `staging` on 2026-11-04). Read this before the design below.
+> - **The solver is NOT Google OR-Tools.** It is a deterministic TypeScript heuristic in `apps/api/src/domains/corporate/routing/corporate-route-planner.ts`: sweep clustering by bearing from the office, nearest-neighbour construction, 2-opt within a route, then swap/relocate between neighbouring routes.
+> - Hard constraints that are enforced: vehicle capacity (from the route category / tenant policy), maximum ride time (`maxRideTimeSeconds`, default 7200 s), and 300 s dwell per stop.
+> - Travel times come from `google-travel-time-matrix.adapter.ts` (Google Distance Matrix), with a haversine fallback when there is no key or the call fails.
+> - The OR-Tools Python sample further down is a **target design**, not code that exists. Replace the heuristic only after benchmarking on real rosters (PRD RTE-06).
+
+
 > ### ⚠️ MANDATORY DESIGN & IMPLEMENTATION DIRECTIVE FOR ALL AI AGENTS & ENGINEERS
 > Every AI agent, prompt, developer, and automated assistant modifying or contributing to this codebase **MUST STRICTLY ADHERE** to the project's foundational guidelines:
 > 1. **Visual Foundation:** [`docs/04_DESIGN_SYSTEM.md and apps/marketing/DESIGN_AND_UI.md`](file:///c:/Users/saavi/Desktop/adhocx/docs/04_DESIGN_SYSTEM.md) (Colors, Typography, Spacing, Tokens, Radius, Component Styling)

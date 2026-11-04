@@ -8,6 +8,14 @@
 
 ---
 
+> ## ⚠️ As-built status (verified against `staging` on 2026-11-04). Read this before the DDL below.
+> - **The schema is `apps/api/prisma/schema.prisma`**, with additive migrations in `apps/api/prisma/migrations/2026110*`. The DDL in this document is a target design.
+> - **PostGIS is not enabled.** Coordinates are `Decimal(10,7)` latitude/longitude columns. Driver proximity search uses Uber H3 plus Redis geo indexes (`modules/locations`), not GIST indexes.
+> - **There is no Postgres Row-Level Security.** Tenant isolation is enforced in the application by `common/guards/corporate-access.guard.ts` (`@CorporateResource`, `@CorporateTenantScoped`, `@CorporateDriverSelfScoped`) and covered by `test/corporate-access-control.spec.ts`, which also sweeps every corporate handler to confirm it is scoped.
+> - **GPS history:** `corporate_vehicle_positions` *is* partitioned, but **daily** on `received_at` (not monthly). Partitions are created and dropped by `CorporateGpsPartitionMaintenance`, with 90-day retention (`CORPORATE_GPS_RETENTION_DAYS`).
+> - Money is stored as `BigInt` paise. Credit notes and payout provider events are made immutable by DB triggers (migration `20261104000700`).
+
+
 > ### ⚠️ MANDATORY DESIGN & IMPLEMENTATION DIRECTIVE FOR ALL AI AGENTS & ENGINEERS
 > Every AI agent, prompt, developer, and automated assistant modifying or contributing to this codebase **MUST STRICTLY ADHERE** to the project's foundational guidelines:
 > 1. **Visual Foundation:** [`docs/04_DESIGN_SYSTEM.md and apps/marketing/DESIGN_AND_UI.md`](file:///c:/Users/saavi/Desktop/adhocx/docs/04_DESIGN_SYSTEM.md) (Colors, Typography, Spacing, Tokens, Radius, Component Styling)
