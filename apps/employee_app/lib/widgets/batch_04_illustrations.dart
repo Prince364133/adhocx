@@ -251,3 +251,4 @@ class DriverAvatarCard extends StatelessWidget {
     );
   }
 }
+

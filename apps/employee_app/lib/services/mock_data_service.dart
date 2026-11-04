@@ -63,5 +63,17 @@ class MockDataService {
     final data = await loadData();
     return data['boarding_completion'] as Map<String, dynamic>? ?? {};
   }
+
+  /// Get safety, SOS & helpdesk data (Batch 07)
+  static Future<Map<String, dynamic>> getSafetyData() async {
+    final data = await loadData();
+    return data['safety_sos_helpdesk'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// Get history, analytics, notifications & profile data (Batch 08)
+  static Future<Map<String, dynamic>> getHistoryProfileData() async {
+    final data = await loadData();
+    return data['history_notifications_profile'] as Map<String, dynamic>? ?? {};
+  }
 }
 

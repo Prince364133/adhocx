@@ -191,3 +191,4 @@ class _TripInProgressEnRouteScreenState extends State<TripInProgressEnRouteScree
     );
   }
 }
+

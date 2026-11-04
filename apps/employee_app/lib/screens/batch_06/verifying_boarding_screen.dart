@@ -71,3 +71,4 @@ class _VerifyingBoardingScreenState extends State<VerifyingBoardingScreen> {
     );
   }
 }
+

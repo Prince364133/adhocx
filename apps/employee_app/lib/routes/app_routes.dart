@@ -93,6 +93,37 @@ import '../screens/batch_06/trip_completed_summary_screen.dart';
 import '../screens/batch_06/safe_reach_confirmation_screen.dart';
 import '../screens/batch_06/post_trip_feedback_screen.dart';
 
+// Batch 07 Screens
+import '../screens/batch_07/safety_center_overview_screen.dart';
+import '../screens/batch_07/sos_activate_screen.dart';
+import '../screens/batch_07/sos_alert_confirmed_screen.dart';
+import '../screens/batch_07/safety_team_call_screen.dart';
+import '../screens/batch_07/report_incident_screen.dart';
+import '../screens/batch_07/raise_complaint_screen.dart';
+import '../screens/batch_07/lost_property_screen.dart';
+import '../screens/batch_07/my_requests_tickets_screen.dart';
+import '../screens/batch_07/request_details_tracking_screen.dart';
+import '../screens/batch_07/request_resolved_screen.dart';
+import '../screens/batch_07/emergency_contacts_screen.dart';
+import '../screens/batch_07/safety_tips_guidelines_screen.dart';
+import '../screens/batch_07/live_support_chat_screen.dart';
+
+// Batch 08 Screens
+import '../screens/batch_08/trip_history_overview_screen.dart';
+import '../screens/batch_08/trip_history_details_screen.dart';
+import '../screens/batch_08/trip_summary_analytics_screen.dart';
+import '../screens/batch_08/trip_feedback_form_screen.dart';
+import '../screens/batch_08/notifications_center_screen.dart';
+import '../screens/batch_08/profile_my_details_screen.dart';
+import '../screens/batch_08/edit_profile_screen.dart';
+import '../screens/batch_08/settings_overview_screen.dart';
+import '../screens/batch_08/select_language_screen.dart';
+import '../screens/batch_08/notification_preferences_screen.dart';
+import '../screens/batch_08/privacy_data_screen.dart';
+import '../screens/batch_08/about_adhocx_screen.dart';
+import '../screens/batch_08/logout_confirm_screen.dart';
+import '../screens/batch_08/delete_account_screen.dart';
+
 class AppRoutes {
   AppRoutes._();
 
@@ -189,6 +220,37 @@ class AppRoutes {
   static const String safeReachConfirmation = '/boarding/safe-reach';
   static const String postTripFeedback = '/boarding/feedback';
 
+  // Batch 07 Routes
+  static const String safetyOverview = '/safety/overview';
+  static const String safetySos = '/safety/sos';
+  static const String safetySosConfirmed = '/safety/sos-confirmed';
+  static const String safetyTeamCall = '/safety/team-call';
+  static const String safetyReportIncident = '/safety/report-incident';
+  static const String safetyRaiseComplaint = '/safety/raise-complaint';
+  static const String safetyLostProperty = '/safety/lost-property';
+  static const String safetyMyRequests = '/safety/my-requests';
+  static const String safetyRequestDetails = '/safety/request-details';
+  static const String safetyRequestResolved = '/safety/request-resolved';
+  static const String safetyEmergencyContacts = '/safety/emergency-contacts';
+  static const String safetyTips = '/safety/tips';
+  static const String safetyLiveChat = '/safety/live-chat';
+
+  // Batch 08 Routes
+  static const String historyOverview = '/history/overview';
+  static const String historyDetails = '/history/details';
+  static const String historyAnalytics = '/history/analytics';
+  static const String historyFeedback = '/history/feedback';
+  static const String notificationsCenter = '/notifications';
+  static const String profileDetails = '/profile/details';
+  static const String profileEdit = '/profile/edit';
+  static const String settingsOverview = '/settings';
+  static const String settingsLanguage = '/settings/language';
+  static const String settingsNotifications = '/settings/notifications';
+  static const String settingsPrivacy = '/settings/privacy';
+  static const String aboutAdhocx = '/about';
+  static const String logoutConfirm = '/logout-confirm';
+  static const String deleteAccount = '/delete-account';
+
   static final GoRouter router = GoRouter(
     initialLocation: splash,
     routes: [
@@ -284,6 +346,37 @@ class AppRoutes {
       GoRoute(path: tripCompletedSummary, builder: (context, state) => const TripCompletedSummaryScreen()),
       GoRoute(path: safeReachConfirmation, builder: (context, state) => const SafeReachConfirmationScreen()),
       GoRoute(path: postTripFeedback, builder: (context, state) => const PostTripFeedbackScreen()),
+
+      // Batch 07
+      GoRoute(path: safetyOverview, builder: (context, state) => const SafetyCenterOverviewScreen()),
+      GoRoute(path: safetySos, builder: (context, state) => const SosActivateScreen()),
+      GoRoute(path: safetySosConfirmed, builder: (context, state) => const SosAlertConfirmedScreen()),
+      GoRoute(path: safetyTeamCall, builder: (context, state) => const SafetyTeamCallScreen()),
+      GoRoute(path: safetyReportIncident, builder: (context, state) => const ReportIncidentScreen()),
+      GoRoute(path: safetyRaiseComplaint, builder: (context, state) => const RaiseComplaintScreen()),
+      GoRoute(path: safetyLostProperty, builder: (context, state) => const LostPropertyScreen()),
+      GoRoute(path: safetyMyRequests, builder: (context, state) => const MyRequestsTicketsScreen()),
+      GoRoute(path: safetyRequestDetails, builder: (context, state) => const RequestDetailsTrackingScreen()),
+      GoRoute(path: safetyRequestResolved, builder: (context, state) => const RequestResolvedScreen()),
+      GoRoute(path: safetyEmergencyContacts, builder: (context, state) => const EmergencyContactsScreen()),
+      GoRoute(path: safetyTips, builder: (context, state) => const SafetyTipsGuidelinesScreen()),
+      GoRoute(path: safetyLiveChat, builder: (context, state) => const LiveSupportChatScreen()),
+
+      // Batch 08
+      GoRoute(path: historyOverview, builder: (context, state) => const TripHistoryOverviewScreen()),
+      GoRoute(path: historyDetails, builder: (context, state) => const TripHistoryDetailsScreen()),
+      GoRoute(path: historyAnalytics, builder: (context, state) => const TripSummaryAnalyticsScreen()),
+      GoRoute(path: historyFeedback, builder: (context, state) => const TripFeedbackFormScreen()),
+      GoRoute(path: notificationsCenter, builder: (context, state) => const NotificationsCenterScreen()),
+      GoRoute(path: profileDetails, builder: (context, state) => const ProfileMyDetailsScreen()),
+      GoRoute(path: profileEdit, builder: (context, state) => const EditProfileScreen()),
+      GoRoute(path: settingsOverview, builder: (context, state) => const SettingsOverviewScreen()),
+      GoRoute(path: settingsLanguage, builder: (context, state) => const SelectLanguageScreen()),
+      GoRoute(path: settingsNotifications, builder: (context, state) => const NotificationPreferencesScreen()),
+      GoRoute(path: settingsPrivacy, builder: (context, state) => const PrivacyDataScreen()),
+      GoRoute(path: aboutAdhocx, builder: (context, state) => const AboutAdhocxScreen()),
+      GoRoute(path: logoutConfirm, builder: (context, state) => const LogoutConfirmScreen()),
+      GoRoute(path: deleteAccount, builder: (context, state) => const DeleteAccountScreen()),
     ],
   );
 }

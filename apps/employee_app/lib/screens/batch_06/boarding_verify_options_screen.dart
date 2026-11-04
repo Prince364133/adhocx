@@ -173,3 +173,4 @@ class _BoardingVerifyOptionsScreenState extends State<BoardingVerifyOptionsScree
     );
   }
 }
+

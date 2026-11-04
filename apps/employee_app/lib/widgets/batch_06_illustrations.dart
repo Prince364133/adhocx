@@ -218,3 +218,4 @@ class PostTripFinishGraphic extends StatelessWidget {
     );
   }
 }
+

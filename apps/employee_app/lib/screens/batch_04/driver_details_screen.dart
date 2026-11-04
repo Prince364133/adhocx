@@ -294,3 +294,4 @@ class _DriverDetailsScreenState extends State<DriverDetailsScreen> {
     );
   }
 }
+

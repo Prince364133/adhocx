@@ -213,3 +213,4 @@ class _AssignmentNotificationScreenState extends State<AssignmentNotificationScr
     );
   }
 }
+

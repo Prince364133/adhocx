@@ -178,3 +178,4 @@ class _WalkingDirectionsScreenState extends State<WalkingDirectionsScreen> {
     );
   }
 }
+

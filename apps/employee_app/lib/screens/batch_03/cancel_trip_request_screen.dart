@@ -242,3 +242,4 @@ class _CancelTripRequestScreenState extends State<CancelTripRequestScreen> {
     );
   }
 }
+

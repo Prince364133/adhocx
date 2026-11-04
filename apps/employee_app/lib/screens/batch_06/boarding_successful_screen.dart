@@ -167,3 +167,4 @@ class _BoardingSuccessfulScreenState extends State<BoardingSuccessfulScreen> {
     );
   }
 }
+

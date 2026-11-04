@@ -198,3 +198,4 @@ class _CabArrivedScreenState extends State<CabArrivedScreen> {
     );
   }
 }
+

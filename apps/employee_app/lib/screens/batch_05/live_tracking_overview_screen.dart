@@ -199,3 +199,4 @@ class _LiveTrackingOverviewScreenState extends State<LiveTrackingOverviewScreen>
     );
   }
 }
+

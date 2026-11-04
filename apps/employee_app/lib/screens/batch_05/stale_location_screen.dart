@@ -97,3 +97,4 @@ class _StaleLocationScreenState extends State<StaleLocationScreen> {
     );
   }
 }
+

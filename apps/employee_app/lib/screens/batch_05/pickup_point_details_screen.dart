@@ -242,3 +242,4 @@ class _PickupPointDetailsScreenState extends State<PickupPointDetailsScreen> {
     );
   }
 }
+

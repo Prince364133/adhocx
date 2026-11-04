@@ -29,7 +29,7 @@ class HomeScreenPlaceholder extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_none_rounded, color: AppColors.textPrimary),
-            onPressed: () {},
+            onPressed: () => context.push(AppRoutes.notificationsCenter),
           ),
         ],
       ),
@@ -108,6 +108,101 @@ class HomeScreenPlaceholder extends StatelessWidget {
               ),
 
               const SizedBox(height: 24),
+
+              // Batch 08: History, Notifications & Profile Section
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Batch 08 — History, Notifications & Profile',
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryBlueLight.withOpacity(0.4),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '14 Screens',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primaryBlueDark,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              _buildScreenTile(context, '1. Trip History (Overview)', AppRoutes.historyOverview),
+              _buildScreenTile(context, '2. Trip History Details', AppRoutes.historyDetails),
+              _buildScreenTile(context, '3. Trip Summary (Analytics)', AppRoutes.historyAnalytics),
+              _buildScreenTile(context, '4. Trip Feedback Rating', AppRoutes.historyFeedback),
+              _buildScreenTile(context, '5. Notifications Center', AppRoutes.notificationsCenter),
+              _buildScreenTile(context, '6. Profile (My Details)', AppRoutes.profileDetails),
+              _buildScreenTile(context, '7. Edit Profile', AppRoutes.profileEdit),
+              _buildScreenTile(context, '8. Settings Overview', AppRoutes.settingsOverview),
+              _buildScreenTile(context, '9. Language Selection', AppRoutes.settingsLanguage),
+              _buildScreenTile(context, '10. Notification Preferences', AppRoutes.settingsNotifications),
+              _buildScreenTile(context, '11. Privacy & Data', AppRoutes.settingsPrivacy),
+              _buildScreenTile(context, '12. About AdhocX', AppRoutes.aboutAdhocx),
+              _buildScreenTile(context, '13. Logout / Sign Out', AppRoutes.logoutConfirm),
+              _buildScreenTile(context, '14. Delete Account', AppRoutes.deleteAccount),
+
+              const SizedBox(height: 28),
+
+              // Batch 07: Safety, SOS & Helpdesk Section
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Batch 07 — Safety, SOS & Helpdesk',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEE2E2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '13 Screens',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFFDC2626),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              _buildScreenTile(context, '1. Safety Center (Overview)', AppRoutes.safetyOverview),
+              _buildScreenTile(context, '2. SOS — Activate (Hold 3s)', AppRoutes.safetySos),
+              _buildScreenTile(context, '3. SOS Alert Confirmed', AppRoutes.safetySosConfirmed),
+              _buildScreenTile(context, '4. Safety Team Call (In Progress)', AppRoutes.safetyTeamCall),
+              _buildScreenTile(context, '5. Report an Incident', AppRoutes.safetyReportIncident),
+              _buildScreenTile(context, '6. Raise a Complaint', AppRoutes.safetyRaiseComplaint),
+              _buildScreenTile(context, '7. Lost Property Claim', AppRoutes.safetyLostProperty),
+              _buildScreenTile(context, '8. My Requests / Tickets', AppRoutes.safetyMyRequests),
+              _buildScreenTile(context, '9. Request Details & Tracking', AppRoutes.safetyRequestDetails),
+              _buildScreenTile(context, '10. Request Resolved Notice', AppRoutes.safetyRequestResolved),
+              _buildScreenTile(context, '11. Emergency Contacts (112, 100)', AppRoutes.safetyEmergencyContacts),
+              _buildScreenTile(context, '12. Safety Tips & Guidelines', AppRoutes.safetyTips),
+              _buildScreenTile(context, '13. Live Support Chat', AppRoutes.safetyLiveChat),
+
+              const SizedBox(height: 28),
 
               // Batch 06: Boarding & Trip Completion Section
               Row(
@@ -415,8 +510,22 @@ class HomeScreenPlaceholder extends StatelessWidget {
       bottomNavigationBar: EmployeeBottomNavBar(
         currentIndex: 0,
         onTap: (index) {
-          if (index == 1) {
-            context.push(AppRoutes.scheduleToday);
+          switch (index) {
+            case 0:
+              context.push(AppRoutes.homeUpcomingPickup);
+              break;
+            case 1:
+              context.push(AppRoutes.scheduleToday);
+              break;
+            case 2:
+              context.push(AppRoutes.historyOverview);
+              break;
+            case 3:
+              context.push(AppRoutes.safetyOverview);
+              break;
+            case 4:
+              context.push(AppRoutes.profileDetails);
+              break;
           }
         },
       ),

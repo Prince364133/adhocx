@@ -434,6 +434,105 @@
       "defaultRating": 5,
       "tags": ["Polite Driver", "Clean Vehicle", "On-Time Arrival", "Safe Driving"]
     }
+  },
+  "safety_sos_helpdesk": {
+    "center": {
+      "title": "Safety Center",
+      "subtitle": "Your safety is our priority",
+      "description": "Quick access to emergency, support and safety tools."
+    },
+    "sos_alert": {
+      "title": "SOS Alert Sent",
+      "message": "Our safety team has been notified and is contacting you shortly.",
+      "liveAssistance": "You will receive a call from our safety team in a few moments.",
+      "timeline": [
+        { "title": "Alert Received", "time": "9:41 AM", "isDone": true },
+        { "title": "Team Assigned", "time": "In Progress", "isDone": false, "isActive": true },
+        { "title": "In Contact", "time": "Pending", "isDone": false }
+      ]
+    },
+    "emergency_contacts": [
+      { "name": "Company Helpdesk", "phone": "+91 98765 43210", "type": "company" },
+      { "name": "Security Control Room", "phone": "+91 98765 43211", "type": "security" },
+      { "name": "Local Emergency (Police)", "phone": "100", "type": "police" },
+      { "name": "Ambulance", "phone": "102", "type": "medical" },
+      { "name": "Fire Services", "phone": "101", "type": "fire" }
+    ],
+    "tickets": [
+      { "id": "ADH-991201", "category": "SOS Alert", "created": "09 Dec, 9:41 AM", "status": "Resolved", "color": "green" },
+      { "id": "ADH-784512", "category": "Unsafe Driving", "created": "09 Dec, 10:20 AM", "status": "In Progress", "color": "amber", "trip": "Login (Pickup) - 8:15 AM", "description": "Driver was overspeeding on the main road.", "resolution": "The driver has been warned and appropriate action has been taken." },
+      { "id": "ADH-642109", "category": "Driver Behavior", "created": "08 Dec, 6:15 PM", "status": "Open", "color": "blue" },
+      { "id": "ADH-519823", "category": "Lost Property", "created": "07 Dec, 8:30 PM", "status": "Resolved", "color": "green", "item": "I left my blue backpack in the cab." }
+    ],
+    "safety_tips": [
+      "Verify your cab and driver details before boarding.",
+      "Share your trip status if needed.",
+      "Use SOS in case of any emergency.",
+      "Report unsafe driving or misconduct.",
+      "Keep your belongings with you."
+    ],
+    "chat_messages": [
+      { "sender": "user", "text": "I need help with my last trip. The driver was very late.", "time": "10:24 AM" },
+      { "sender": "support", "text": "Please share your Trip ID or pickup time, we'll check and update you shortly.", "time": "10:25 AM" }
+    ]
+  },
+  "history_notifications_profile": {
+    "trip_history": {
+      "this_month": [
+        { "type": "Login Trip", "date": "Tue, 09 Dec, 8:15 AM", "status": "Completed", "driver": "Suresh R", "rating": 4.8, "pickup": "Home (Kondapur) - 8:15 AM", "drop": "HITEC City Office - 9:02 AM", "vehicle": "Maruti Ertiga TS09UB7845" },
+        { "type": "Logout Trip", "date": "Tue, 09 Dec, 6:30 PM", "status": "Completed", "driver": "Amit Kumar", "rating": 4.7, "pickup": "HITEC City Office - 6:30 PM", "drop": "Home (Kondapur) - 7:15 PM", "vehicle": "Swift Dzire TS10UC9281" },
+        { "type": "Login Trip", "date": "Mon, 08 Dec, 8:10 AM", "status": "Cancelled", "pickup": "Home (Kondapur)", "drop": "HITEC City Office" }
+      ],
+      "last_month": [
+        { "type": "Logout Trip", "date": "Fri, 29 Nov, 6:40 PM", "status": "Completed", "driver": "Suresh R", "rating": 4.8, "pickup": "HITEC City Office", "drop": "Home" }
+      ]
+    },
+    "analytics": {
+      "dateRange": "08 - 14 Dec 2026",
+      "totalTrips": 10,
+      "completed": 8,
+      "cancelled": 1,
+      "unserved": 1,
+      "totalDistance": "124.6 km",
+      "totalTime": "5 hr 42 min"
+    },
+    "notifications": [
+      { "title": "Cab Assigned", "body": "Your login trip (8:15 AM) has been assigned to Suresh R.", "time": "2 min ago", "type": "trips" },
+      { "title": "Trip Completed", "body": "Your drop trip has been completed successfully.", "time": "1 hr ago", "type": "trips" },
+      { "title": "Schedule Update", "body": "Your pickup time has been changed to 8:30 AM.", "time": "3 hrs ago", "type": "updates" },
+      { "title": "Support Update", "body": "Your complaint (ADH-784512) has been resolved.", "time": "Yesterday", "type": "support" }
+    ],
+    "profile": {
+      "fullName": "Ravi Kumar",
+      "employeeId": "EMP001245",
+      "organization": "HITEC Technologies",
+      "email": "ravi.kumar@hitec.com",
+      "phone": "+91 98765 43210",
+      "address": "Kondapur, Hyderabad"
+    },
+    "settings": {
+      "language": "English",
+      "locationAccess": "Always",
+      "biometricLogin": true,
+      "appVersion": "v2.1.0"
+    },
+    "languages": ["English", "Hindi", "Telugu", "Tamil", "Kannada", "Marathi"],
+    "notification_preferences": {
+      "tripUpdates": true,
+      "scheduleChanges": true,
+      "supportComplaints": true,
+      "safetySos": true,
+      "promotional": false
+    },
+    "about": {
+      "appName": "AdhocX",
+      "tagline": "Employee Transportation",
+      "version": "Version 2.1.0",
+      "description": "AdhocX is a corporate employee transportation platform that ensures safe, reliable and hassle-free commute for employees.",
+      "company": "Estemporaneo Technologies Private Limited",
+      "supportEmail": "support@adhocx.com",
+      "supportPhone": "+91 98765 43210"
+    }
   }
 }
 

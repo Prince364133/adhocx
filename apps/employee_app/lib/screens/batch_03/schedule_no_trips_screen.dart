@@ -76,3 +76,4 @@ class ScheduleNoTripsScreen extends StatelessWidget {
     );
   }
 }
+

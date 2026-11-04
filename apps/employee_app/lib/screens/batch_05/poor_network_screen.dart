@@ -134,3 +134,4 @@ class _PoorNetworkScreenState extends State<PoorNetworkScreen> {
     );
   }
 }
+

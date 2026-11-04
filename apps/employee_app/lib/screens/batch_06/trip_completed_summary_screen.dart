@@ -146,3 +146,4 @@ class _TripCompletedSummaryScreenState extends State<TripCompletedSummaryScreen>
     );
   }
 }
+

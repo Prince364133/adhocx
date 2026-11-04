@@ -185,3 +185,4 @@ class _TripProgressOnTripScreenState extends State<TripProgressOnTripScreen> {
     );
   }
 }
+

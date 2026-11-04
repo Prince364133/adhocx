@@ -108,3 +108,4 @@ class _ScanBoardingQrScreenState extends State<ScanBoardingQrScreen> {
     );
   }
 }
+

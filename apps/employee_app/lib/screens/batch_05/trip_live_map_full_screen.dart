@@ -161,3 +161,4 @@ class _TripLiveMapFullScreenState extends State<TripLiveMapFullScreen> {
     );
   }
 }
+

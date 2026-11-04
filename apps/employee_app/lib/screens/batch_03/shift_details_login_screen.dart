@@ -232,3 +232,4 @@ class _ShiftDetailsLoginScreenState extends State<ShiftDetailsLoginScreen> {
     );
   }
 }
+

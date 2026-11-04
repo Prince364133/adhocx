@@ -4,7 +4,7 @@ import path from 'path';
 const APP_DIR = path.resolve('apps/employee_app');
 const LIB_DIR = path.join(APP_DIR, 'lib');
 
-console.log('=== VERIFYING ADHOCX EMPLOYEE MOBILE APP (ALL 6 BATCHES — 80 SCREENS) ===\n');
+console.log('=== VERIFYING ADHOCX EMPLOYEE MOBILE APP (ALL 8 BATCHES — 107 SCREENS) ===\n');
 
 // 1. Check required configuration files & JSON data
 const reqFiles = [
@@ -22,6 +22,8 @@ for (const f of reqFiles) {
   }
   console.log(`[PASS] Verified file: ${f}`);
 }
+
+const screensDir = path.join(LIB_DIR, 'screens');
 
 // 2. Inventory of Batch 01 (15 Screens)
 const batch01Screens = [
@@ -43,7 +45,6 @@ const batch01Screens = [
 ];
 
 console.log('\n--- Checking Batch 01 Screens (15 Screens) ---');
-const screensDir = path.join(LIB_DIR, 'screens');
 for (let i = 0; i < batch01Screens.length; i++) {
   const name = batch01Screens[i];
   const full = path.join(screensDir, name);
@@ -205,7 +206,68 @@ for (let i = 0; i < batch06Screens.length; i++) {
   console.log(`[PASS] B6-${String(i + 1).padStart(2, '0')}: ${name} (${(stat.size / 1024).toFixed(1)} KB)`);
 }
 
-// 4. Scan all Dart files for syntax and import integrity
+// 8. Inventory of Batch 07 (13 Screens)
+const batch07Screens = [
+  'safety_center_overview_screen.dart',
+  'sos_activate_screen.dart',
+  'sos_alert_confirmed_screen.dart',
+  'safety_team_call_screen.dart',
+  'report_incident_screen.dart',
+  'raise_complaint_screen.dart',
+  'lost_property_screen.dart',
+  'my_requests_tickets_screen.dart',
+  'request_details_tracking_screen.dart',
+  'request_resolved_screen.dart',
+  'emergency_contacts_screen.dart',
+  'safety_tips_guidelines_screen.dart',
+  'live_support_chat_screen.dart',
+];
+
+console.log('\n--- Checking Batch 07 Screens (13 Screens) ---');
+const b7Dir = path.join(screensDir, 'batch_07');
+for (let i = 0; i < batch07Screens.length; i++) {
+  const name = batch07Screens[i];
+  const full = path.join(b7Dir, name);
+  if (!fs.existsSync(full)) {
+    console.error(`[FAIL] Missing Batch 07 screen #${i + 1}: ${name}`);
+    process.exit(1);
+  }
+  const stat = fs.statSync(full);
+  console.log(`[PASS] B7-${String(i + 1).padStart(2, '0')}: ${name} (${(stat.size / 1024).toFixed(1)} KB)`);
+}
+
+// 9. Inventory of Batch 08 (14 Screens)
+const batch08Screens = [
+  'trip_history_overview_screen.dart',
+  'trip_history_details_screen.dart',
+  'trip_summary_analytics_screen.dart',
+  'trip_feedback_form_screen.dart',
+  'notifications_center_screen.dart',
+  'profile_my_details_screen.dart',
+  'edit_profile_screen.dart',
+  'settings_overview_screen.dart',
+  'select_language_screen.dart',
+  'notification_preferences_screen.dart',
+  'privacy_data_screen.dart',
+  'about_adhocx_screen.dart',
+  'logout_confirm_screen.dart',
+  'delete_account_screen.dart',
+];
+
+console.log('\n--- Checking Batch 08 Screens (14 Screens) ---');
+const b8Dir = path.join(screensDir, 'batch_08');
+for (let i = 0; i < batch08Screens.length; i++) {
+  const name = batch08Screens[i];
+  const full = path.join(b8Dir, name);
+  if (!fs.existsSync(full)) {
+    console.error(`[FAIL] Missing Batch 08 screen #${i + 1}: ${name}`);
+    process.exit(1);
+  }
+  const stat = fs.statSync(full);
+  console.log(`[PASS] B8-${String(i + 1).padStart(2, '0')}: ${name} (${(stat.size / 1024).toFixed(1)} KB)`);
+}
+
+// 10. Scan all Dart files for syntax and import integrity
 function getDartFiles(dir) {
   let results = [];
   const list = fs.readdirSync(dir);
@@ -279,7 +341,7 @@ if (hasError) {
 
 console.log('[PASS] All Dart files passed delimiter and local import resolution checks.');
 
-// 9. Check app_routes.dart registers all screens
+// 11. Check app_routes.dart registers all screens
 const routesFile = fs.readFileSync(path.join(LIB_DIR, 'routes/app_routes.dart'), 'utf-8');
 const allScreens = [
   ...batch01Screens,
@@ -288,6 +350,8 @@ const allScreens = [
   ...batch04Screens,
   ...batch05Screens,
   ...batch06Screens,
+  ...batch07Screens,
+  ...batch08Screens,
 ];
 for (const s of allScreens) {
   const baseName = s.replace('.dart', '');
@@ -298,17 +362,26 @@ for (const s of allScreens) {
     process.exit(1);
   }
 }
-console.log(`[PASS] app_routes.dart registers all ${allScreens.length} screens across Batches 01 to 06.`);
+console.log(`[PASS] app_routes.dart registers all ${allScreens.length} screens across Batches 01 to 08.`);
 
-// 10. Check JSON mock data structure
+// 12. Check JSON mock data structure
 const jsonContent = JSON.parse(fs.readFileSync(path.join(APP_DIR, 'assets/data/mock_data.json'), 'utf-8'));
-const requiredSections = ['employee', 'trips', 'schedules', 'driver_assignment', 'live_tracking', 'boarding_completion'];
+const requiredSections = [
+  'employee',
+  'trips',
+  'schedules',
+  'driver_assignment',
+  'live_tracking',
+  'boarding_completion',
+  'safety_sos_helpdesk',
+  'history_notifications_profile',
+];
 for (const sec of requiredSections) {
   if (!jsonContent[sec]) {
     console.error(`[FAIL] mock_data.json missing section: ${sec}`);
     process.exit(1);
   }
 }
-console.log('[PASS] mock_data.json contains all required schema sections.');
+console.log('[PASS] mock_data.json contains all 8 required schema sections.');
 
-console.log('\n=== ALL BATCHES 01 THROUGH 06 VERIFICATIONS COMPLETED SUCCESSFULLY! (80 / 80 SCREENS FULLY VERIFIED) ===');
+console.log(`\n=== ALL BATCHES 01 THROUGH 08 VERIFICATIONS COMPLETED SUCCESSFULLY! (${allScreens.length} / ${allScreens.length} SCREENS FULLY VERIFIED) ===`);
