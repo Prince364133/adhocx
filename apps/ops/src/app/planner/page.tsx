@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { opsApi } from '../../lib/api/opsClient';
 import { CorporateTenantOption, RoutePlanningResult, CalculatedRoute, PlannedRouteStop } from '../../lib/api/opsTypes';
 import { Button } from '../../components/common/Button';
+import { SpatialTopologyCanvas } from '../../components/operations/SpatialTopologyCanvas';
 import {
   Cpu,
   CheckCircle,
@@ -25,6 +26,9 @@ import {
   ChevronUp,
   RefreshCw,
   ExternalLink,
+  Radar,
+  Map as MapIcon,
+  Database,
 } from 'lucide-react';
 
 const ROUTE_COLORS = [
@@ -67,6 +71,7 @@ export default function RouteOptimizerPage() {
   const [direction, setDirection] = useState<'LOGIN' | 'LOGOUT'>('LOGIN');
 
   // Solver & UI State
+  const [viewMode, setViewMode] = useState<'MAP' | 'TOPOLOGY'>('MAP');
   const [calculating, setCalculating] = useState(false);
   const [progressPct, setProgressPct] = useState(0);
   const [progressMsg, setProgressMsg] = useState('');
@@ -76,6 +81,8 @@ export default function RouteOptimizerPage() {
   const [expandedCabs, setExpandedCabs] = useState<Set<number>>(new Set());
   const [committedSuccess, setCommittedSuccess] = useState<{ routesCreated: number; stopsCreated: number } | null>(null);
   const [committing, setCommitting] = useState(false);
+  const [dbOptimizing, setDbOptimizing] = useState(false);
+  const [dbOptimizeResult, setDbOptimizeResult] = useState<any>(null);
 
   // Map Refs
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -287,8 +294,8 @@ export default function RouteOptimizerPage() {
     }
 
     setCalculating(true);
-    setProgressPct(10);
-    setProgressMsg('Uploading and parsing employee roster...');
+    setProgressPct(5);
+    setProgressMsg('Uploading roster and initiating streaming solver...');
     setErrorMsg(null);
     setPlanResult(null);
     setCommittedSuccess(null);
@@ -306,10 +313,11 @@ export default function RouteOptimizerPage() {
     formData.append('avoidHighways', String(avoidHighways));
 
     try {
-      setProgressPct(40);
-      setProgressMsg('Geocoding addresses & calculating proximity clusters...');
+      const result = await opsApi.planRoutesStream(formData, (evt) => {
+        if (evt.percent !== undefined) setProgressPct(evt.percent);
+        if (evt.message) setProgressMsg(evt.message);
+      });
 
-      const result = await opsApi.planRoutesFromFile(formData);
       setProgressPct(100);
       setProgressMsg('Route planning completed!');
       setPlanResult(result);
@@ -317,9 +325,52 @@ export default function RouteOptimizerPage() {
         setExpandedCabs(new Set([result.routes[0].cab]));
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Route planning failed. Please check your file headers.');
+      // Fallback to direct calculation if streaming is interrupted
+      try {
+        setProgressMsg('Streaming disconnected; falling back to direct calculation...');
+        const result = await opsApi.planRoutesFromFile(formData);
+        setProgressPct(100);
+        setProgressMsg('Route planning completed!');
+        setPlanResult(result);
+        if (result.routes.length > 0) {
+          setExpandedCabs(new Set([result.routes[0].cab]));
+        }
+      } catch (fallbackErr: any) {
+        setErrorMsg(fallbackErr.message || err.message || 'Route planning failed. Please check your file headers.');
+      }
     } finally {
       setCalculating(false);
+    }
+  }
+
+  async function handleOptimizeDbShift(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedTenantId || !selectedOfficeId) {
+      setErrorMsg('Please select a corporate client and office site');
+      return;
+    }
+
+    setDbOptimizing(true);
+    setErrorMsg(null);
+    setDbOptimizeResult(null);
+
+    try {
+      const res = await opsApi.optimizeShiftRoutes({
+        tenantId: selectedTenantId,
+        officeId: selectedOfficeId,
+        shiftDate,
+        shiftTime,
+        direction,
+        vehicleCategory: cabCapacity <= 4 ? 'SEDAN' : 'SUV',
+        maxCapacity: cabCapacity,
+        officeBufferMinutes: bufferMinutes,
+      });
+
+      setDbOptimizeResult(res);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to auto-optimize shift routes from database');
+    } finally {
+      setDbOptimizing(false);
     }
   }
 
@@ -524,37 +575,82 @@ export default function RouteOptimizerPage() {
           }}
         >
           {!planResult ? (
-            /* PARAMETER CONFIGURATION & FILE UPLOADER FORM */
-            <form onSubmit={handleCalculateRoutes} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border, #1E293B)' }}>
-                <h2 style={{ fontSize: '15px', fontWeight: 600, color: '#F8FAFC', margin: 0 }}>
-                  Roster Planning Configuration
-                </h2>
+            /* PARAMETER CONFIGURATION & DUAL INGEST TABS */
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              {/* Segmented Mode Selector */}
+              <div style={{ display: 'flex', borderBottom: '1px solid var(--border, #1E293B)', backgroundColor: '#070E22' }}>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('FILE_UPLOAD')}
+                  style={{
+                    flex: 1,
+                    padding: '12px 14px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    background: activeTab === 'FILE_UPLOAD' ? 'rgba(17, 103, 238, 0.15)' : 'transparent',
+                    color: activeTab === 'FILE_UPLOAD' ? '#5290F9' : '#94A3B8',
+                    border: 'none',
+                    borderBottom: activeTab === 'FILE_UPLOAD' ? '2px solid #1167EE' : '2px solid transparent',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  <FileSpreadsheet size={15} />
+                  <span>Roster File Ingest</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('DB_SHIFT')}
+                  style={{
+                    flex: 1,
+                    padding: '12px 14px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    background: activeTab === 'DB_SHIFT' ? 'rgba(17, 103, 238, 0.15)' : 'transparent',
+                    color: activeTab === 'DB_SHIFT' ? '#5290F9' : '#94A3B8',
+                    border: 'none',
+                    borderBottom: activeTab === 'DB_SHIFT' ? '2px solid #1167EE' : '2px solid transparent',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  <Database size={15} />
+                  <span>Live Shift Optimize</span>
+                </button>
               </div>
 
-              <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', flex: 1 }}>
-                {/* Office Destination */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94A3B8', marginBottom: '6px' }}>
-                    Office Destination / Central Hub *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={officeAddress}
-                    onChange={(e) => setOfficeAddress(e.target.value)}
-                    placeholder="e.g. Mindspace IT Park, Hitec City, Hyderabad"
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      backgroundColor: '#0F172A',
-                      border: '1px solid #334155',
-                      borderRadius: '6px',
-                      color: '#F8FAFC',
-                      fontSize: '13px',
-                    }}
-                  />
-                </div>
+              {activeTab === 'FILE_UPLOAD' ? (
+                /* FILE UPLOADER & HEURISTIC SOLVER */
+                <form onSubmit={handleCalculateRoutes} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+                  <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', flex: 1 }}>
+                    {/* Office Destination */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94A3B8', marginBottom: '6px' }}>
+                        Office Destination / Central Hub *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={officeAddress}
+                        onChange={(e) => setOfficeAddress(e.target.value)}
+                        placeholder="e.g. Mindspace IT Park, Hitec City, Hyderabad"
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          backgroundColor: '#0F172A',
+                          border: '1px solid #334155',
+                          borderRadius: '6px',
+                          color: '#F8FAFC',
+                          fontSize: '13px',
+                        }}
+                      />
+                    </div>
 
                 {/* Arrival Deadline */}
                 <div>
@@ -754,6 +850,197 @@ export default function RouteOptimizerPage() {
               </div>
             </form>
           ) : (
+            /* DATABASE SHIFT AUTO-OPTIMIZER FORM */
+            <form onSubmit={handleOptimizeDbShift} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+              <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', flex: 1 }}>
+                {/* Tenant Selector */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94A3B8', marginBottom: '6px' }}>
+                    Corporate Client (Tenant) *
+                  </label>
+                  <select
+                    value={selectedTenantId}
+                    onChange={(e) => {
+                      setSelectedTenantId(e.target.value);
+                      const t = tenants.find((item) => item.id === e.target.value);
+                      if (t && t.offices && t.offices.length > 0) {
+                        setSelectedOfficeId(t.offices[0].id);
+                      }
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      backgroundColor: '#0F172A',
+                      border: '1px solid #334155',
+                      borderRadius: '6px',
+                      color: '#F8FAFC',
+                      fontSize: '13px',
+                    }}
+                  >
+                    {tenants.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} ({t.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Office Site Selector */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94A3B8', marginBottom: '6px' }}>
+                    Office / Hub Location *
+                  </label>
+                  <select
+                    value={selectedOfficeId}
+                    onChange={(e) => setSelectedOfficeId(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      backgroundColor: '#0F172A',
+                      border: '1px solid #334155',
+                      borderRadius: '6px',
+                      color: '#F8FAFC',
+                      fontSize: '13px',
+                    }}
+                  >
+                    {tenants
+                      .find((t) => t.id === selectedTenantId)
+                      ?.offices?.map((off) => (
+                        <option key={off.id} value={off.id}>
+                          {off.name} ({off.code})
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                {/* Shift Date & Time */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94A3B8', marginBottom: '6px' }}>
+                      Shift Date *
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={shiftDate}
+                      onChange={(e) => setShiftDate(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        backgroundColor: '#0F172A',
+                        border: '1px solid #334155',
+                        borderRadius: '6px',
+                        color: '#F8FAFC',
+                        fontSize: '13px',
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94A3B8', marginBottom: '6px' }}>
+                      Shift Time *
+                    </label>
+                    <input
+                      type="time"
+                      required
+                      value={shiftTime}
+                      onChange={(e) => setShiftTime(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        backgroundColor: '#0F172A',
+                        border: '1px solid #334155',
+                        borderRadius: '6px',
+                        color: '#F8FAFC',
+                        fontSize: '13px',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Direction & Vehicle Category */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94A3B8', marginBottom: '6px' }}>
+                      Trip Direction
+                    </label>
+                    <select
+                      value={direction}
+                      onChange={(e: any) => setDirection(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        backgroundColor: '#0F172A',
+                        border: '1px solid #334155',
+                        borderRadius: '6px',
+                        color: '#F8FAFC',
+                        fontSize: '13px',
+                      }}
+                    >
+                      <option value="LOGIN">LOGIN (Pickup to Office)</option>
+                      <option value="LOGOUT">LOGOUT (Office to Drop)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94A3B8', marginBottom: '6px' }}>
+                      Vehicle Category
+                    </label>
+                    <select
+                      value={cabCapacity}
+                      onChange={(e) => setCabCapacity(Number(e.target.value))}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        backgroundColor: '#0F172A',
+                        border: '1px solid #334155',
+                        borderRadius: '6px',
+                        color: '#F8FAFC',
+                        fontSize: '13px',
+                      }}
+                    >
+                      <option value={4}>Sedan (4 Seater)</option>
+                      <option value={6}>SUV (6 Seater)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* DB Shift Optimization Summary if run */}
+                {dbOptimizeResult && (
+                  <div
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: '8px',
+                      backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                      border: '1px solid rgba(34, 197, 94, 0.3)',
+                      fontSize: '12px',
+                      color: '#4ADE80',
+                    }}
+                  >
+                    <strong>Optimization Success:</strong>
+                    <div style={{ marginTop: '4px', color: '#E2E8F0' }}>
+                      • Created {dbOptimizeResult.routesCreated ?? (Array.isArray(dbOptimizeResult) ? dbOptimizeResult.length : 0)} active routes<br />
+                      • Assigned {dbOptimizeResult.passengersAssigned ?? 0} employee bookings<br />
+                      • Visible immediately on the Live Dispatch Board
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Button */}
+              <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border, #1E293B)' }}>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  style={{ width: '100%' }}
+                  disabled={dbOptimizing}
+                  leftIcon={dbOptimizing ? <RefreshCw className="spin" size={16} /> : <Cpu size={16} />}
+                >
+                  {dbOptimizing ? 'Optimizing Fleet...' : 'Auto-Optimize Shift Routes'}
+                </Button>
+              </div>
+            </form>
+          )}
+        </div>
+      ) : (
             /* CALCULATED ROUTES ACCORDION LIST */
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
               <div
@@ -914,7 +1201,7 @@ export default function RouteOptimizerPage() {
           )}
         </div>
 
-        {/* RIGHT PANEL: INTERACTIVE GOOGLE MAPS VECTOR CANVAS */}
+        {/* RIGHT PANEL: DUAL-MODE VISUAL COCKPIT (GOOGLE MAPS VECTOR + SVG TOPOLOGY) */}
         <div
           style={{
             height: 'calc(100vh - 240px)',
@@ -926,8 +1213,77 @@ export default function RouteOptimizerPage() {
             position: 'relative',
           }}
         >
-          {/* Map Container */}
-          <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
+          {/* View Switcher Controls (Top Right) */}
+          {planResult && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '12px',
+                right: '14px',
+                zIndex: 20,
+                display: 'flex',
+                gap: '4px',
+                backgroundColor: 'rgba(15, 23, 42, 0.88)',
+                padding: '4px',
+                borderRadius: '8px',
+                border: '1px solid #334155',
+                backdropFilter: 'blur(8px)',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setViewMode('MAP')}
+                style={{
+                  padding: '6px 10px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  borderRadius: '6px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  backgroundColor: viewMode === 'MAP' ? '#1167EE' : 'transparent',
+                  color: viewMode === 'MAP' ? '#FFFFFF' : '#94A3B8',
+                }}
+              >
+                <MapIcon size={13} />
+                <span>Vector Map</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('TOPOLOGY')}
+                style={{
+                  padding: '6px 10px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  borderRadius: '6px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  backgroundColor: viewMode === 'TOPOLOGY' ? '#1167EE' : 'transparent',
+                  color: viewMode === 'TOPOLOGY' ? '#FFFFFF' : '#94A3B8',
+                }}
+              >
+                <Radar size={13} />
+                <span>Radar Topology</span>
+              </button>
+            </div>
+          )}
+
+          {/* Canvas Render: Either Google Maps or SVG Topology */}
+          {planResult && viewMode === 'TOPOLOGY' ? (
+            <SpatialTopologyCanvas
+              plan={planResult}
+              selectedCab={selectedCab}
+              onSelectCab={handleSelectCab}
+              routeColors={ROUTE_COLORS}
+            />
+          ) : (
+            <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
+          )}
 
           {/* Empty State Banner if no plan yet */}
           {!planResult && (
@@ -948,10 +1304,10 @@ export default function RouteOptimizerPage() {
             >
               <Compass size={36} style={{ color: '#5290F9', margin: '0 auto 12px' }} />
               <div style={{ fontSize: '15px', fontWeight: 600, color: '#F8FAFC' }}>
-                Interactive Vector Route Map
+                Interactive Vector Route Map & Radar Topology
               </div>
               <p style={{ fontSize: '12px', color: '#94A3B8', marginTop: '6px', maxWidth: '300px' }}>
-                Upload an employee roster on the left panel and click Calculate to view color-coded cab polylines, stop pins, and office catchment radius.
+                Upload an employee roster on the left panel or auto-optimize a shift to view color-coded cab polylines, stop pins, and office catchment radius.
               </p>
             </div>
           )}

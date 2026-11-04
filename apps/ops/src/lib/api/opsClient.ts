@@ -237,6 +237,78 @@ export const opsApi = {
     });
   },
 
+  planRoutesStream: async (
+    formData: FormData,
+    onProgress: (evt: { stage: string; percent: number; message: string; plan?: RoutePlanningResult }) => void,
+  ): Promise<RoutePlanningResult> => {
+    const baseUrl = getApiBaseUrl();
+    const token = getStoredOpsToken();
+    const res = await fetch(`${baseUrl}/corporate/routes/plan-stream`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      let msg = res.statusText;
+      try {
+        const j = JSON.parse(errText);
+        msg = j.message || msg;
+      } catch {
+        msg = errText || msg;
+      }
+      throw new Error(msg);
+    }
+
+    if (!res.body) {
+      throw new Error('ReadableStream not supported on response body');
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+    let finalPlan: RoutePlanningResult | null = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n\n');
+      buffer = lines.pop() || '';
+
+      for (const block of lines) {
+        if (!block.trim()) continue;
+        const eventMatch = block.match(/event:\s*([^\n]+)/);
+        const dataMatch = block.match(/data:\s*([^\n]+)/);
+        const eventType = eventMatch ? eventMatch[1].trim() : 'message';
+        if (dataMatch) {
+          try {
+            const data = JSON.parse(dataMatch[1].trim());
+            onProgress(data);
+            if (data.plan) {
+              finalPlan = data.plan;
+            }
+            if (eventType === 'error') {
+              throw new Error(data.message || 'Stream processing error');
+            }
+          } catch (e: any) {
+            if (e.message && e.message !== 'Unexpected end of JSON input') {
+              throw e;
+            }
+          }
+        }
+      }
+    }
+
+    if (!finalPlan) {
+      throw new Error('Routing calculation completed without returning a valid route plan');
+    }
+    return finalPlan;
+  },
+
   commitRoutePlan: async (payload: {
     tenantId: string;
     officeId: string;

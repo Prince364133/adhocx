@@ -81,6 +81,87 @@ export class CorporateRoutingController {
     );
   }
 
+  @Post('plan-stream')
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateTenantScoped()
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Stream route planning progress in real-time via Server-Sent Events (SSE)' })
+  public async planStream(
+    @UploadedFile() file: Express.Multer.File,
+    @Body() body: any,
+    @Res() res: Response,
+  ) {
+    if (!file || !file.buffer) {
+      throw new BadRequestException('A valid employee pickup file (.xlsx, .xls, .csv) must be uploaded');
+    }
+
+    const office = body.office || body.officeName;
+    const loginTime = body.loginTime || body.deadline;
+
+    if (!office) {
+      throw new BadRequestException('office address is required');
+    }
+    if (!loginTime) {
+      throw new BadRequestException('loginTime (or deadline) is required');
+    }
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    if (typeof (res as any).flushHeaders === 'function') {
+      (res as any).flushHeaders();
+    }
+
+    const sendSse = (event: string, payload: any) => {
+      res.write(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`);
+    };
+
+    try {
+      sendSse('progress', { stage: 'INIT', percent: 2, message: 'Initiating solver & loading roster...' });
+
+      const plan = await this.routePlannerService!.planFromFile(
+        file.buffer,
+        file.originalname || 'employees.xlsx',
+        {
+          office,
+          loginTime,
+          logoutTime: body.logoutTime,
+          officeRadiusKm: body.officeRadiusKm ? Number(body.officeRadiusKm) : 50,
+          bufferMinutes: body.bufferMinutes ? Number(body.bufferMinutes) : 15,
+          pickupWaitMinutes: body.pickupWaitMinutes ? Number(body.pickupWaitMinutes) : 5,
+          cabCapacity: body.cabCapacity ? Number(body.cabCapacity) : 4,
+          routingPreference: body.routingPreference || 'TRAFFIC_AWARE',
+          avoidTolls: body.avoidTolls === 'true' || body.avoidTolls === true,
+          avoidHighways: body.avoidHighways === 'true' || body.avoidHighways === true,
+        },
+        (type, percent, message, data) => {
+          sendSse('progress', { stage: type, percent, message, data });
+        },
+      );
+
+      sendSse('complete', { stage: 'COMPLETED', percent: 100, message: 'Route calculation completed successfully!', plan });
+      res.end();
+    } catch (err: any) {
+      sendSse('error', { stage: 'FAILED', percent: 0, message: err.message || 'Route planning encountered an error' });
+      res.end();
+    }
+  }
+
+  @Post('plan-from-file/stream')
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateTenantScoped()
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Alias for plan-stream via Server-Sent Events' })
+  public async planFromFileStream(
+    @UploadedFile() file: Express.Multer.File,
+    @Body() body: any,
+    @Res() res: Response,
+  ) {
+    return this.planStream(file, body, res);
+  }
+
   @Post('commit-plan')
   @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN)
   @CorporateTenantScoped()

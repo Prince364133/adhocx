@@ -212,10 +212,10 @@ export async function solveCabRoute(
     ordering && ordering.length === pending.length ? ordering.map((idx) => pending[idx]) : pending;
 
   const people = [driver, ...orderedPending];
-  const legs = route.legs;
+  const legs = Array.isArray(route.legs) ? route.legs : [];
 
   // Align leg durations
-  const legSeconds = legs.map((l) => l.durationSeconds);
+  const legSeconds = legs.map((l: any) => Number(l.durationSeconds) || 0);
   if (legSeconds.length > 0) {
     const sumLegs = legSeconds.reduce((a, b) => a + b, 0);
     legSeconds[legSeconds.length - 1] += Math.max(0, driveSeconds - sumLegs);

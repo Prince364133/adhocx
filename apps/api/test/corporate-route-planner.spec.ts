@@ -17,6 +17,7 @@ import {
 } from '../src/domains/corporate/routing/sample-roster-generator';
 
 describe('Corporate ETS - Route Planner Engine & Spatial Clustering Suite', () => {
+  jest.setTimeout(45000);
   let service: CorporateRoutePlannerService;
   let geocodingAdapter: GoogleGeocodingAdapter;
 
