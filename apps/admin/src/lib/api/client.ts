@@ -647,6 +647,23 @@ export const adminApi = {
 
   getCorporateRoute: (routeId: string) => apiClient<any>(`/corporate/routes/${routeId}`),
 
+  prepareCorporatePayoutBatch: (dto?: { driverIds?: string[]; cutoffDate?: string }) =>
+    apiClient<{
+      batchId: string;
+      totalDrivers: number;
+      totalEarningsCount: number;
+      totalGrossEarningsPaise: string;
+      totalGrossEarningsRupees: number;
+      totalTdsDeductedPaise: string;
+      totalTdsDeductedRupees: number;
+      totalNetPayoutPaise: string;
+      totalNetPayoutRupees: number;
+      disbursals: any[];
+    }>('/corporate/billing/payouts/prepare-batch', {
+      method: 'POST',
+      body: dto || {},
+    }),
+
   /** Manual "Start": dispatch now. Returns the dispatch outcome (OFFERED, NO_DRIVERS_FOUND, ...). */
   startCorporateRouteDispatch: (routeId: string) =>
     apiClient<{

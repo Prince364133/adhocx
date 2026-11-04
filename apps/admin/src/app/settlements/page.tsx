@@ -13,6 +13,7 @@ import {
   Button,
   Drawer,
 } from '../../components/common';
+import { CorporatePayoutBatchesSection } from './CorporatePayoutBatchesSection';
 
 const STATUS_TABS = [
   { id: 'ALL', label: 'All Settlements' },
@@ -22,6 +23,7 @@ const STATUS_TABS = [
 ];
 
 export default function SettlementsPage() {
+  const [activeModule, setActiveModule] = useState<'CORPORATE_BATCHES' | 'ON_DEMAND'>('CORPORATE_BATCHES');
   const [activeTab, setActiveTab] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [settlements, setSettlements] = useState<SettlementListItem[]>([]);
@@ -158,6 +160,56 @@ export default function SettlementsPage() {
         subtitle="Inspect withdrawal requests, verify bank IFSC details, authorize bank payouts, and audit automated refund rollbacks"
         liveStatus="Bank Gateway Synchronized"
       />
+
+      {/* Module Selector: Corporate ETS Batches vs On-Demand Settlements */}
+      <div
+        style={{
+          display: 'flex',
+          gap: '0.5rem',
+          borderBottom: '1px solid var(--border)',
+          paddingBottom: '0.75rem',
+          marginBottom: '1.25rem',
+          marginTop: '1rem',
+        }}
+      >
+        <button
+          onClick={() => setActiveModule('CORPORATE_BATCHES')}
+          style={{
+            background: activeModule === 'CORPORATE_BATCHES' ? 'var(--brand-primary)' : 'transparent',
+            color: activeModule === 'CORPORATE_BATCHES' ? '#FFFFFF' : 'var(--text-secondary)',
+            border: 'none',
+            padding: '0.5rem 1.25rem',
+            borderRadius: 'var(--radius-md)',
+            fontWeight: 700,
+            fontSize: '0.875rem',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease-in-out',
+          }}
+        >
+          Corporate Driver Payout Batches (Maker-Checker)
+        </button>
+        <button
+          onClick={() => setActiveModule('ON_DEMAND')}
+          style={{
+            background: activeModule === 'ON_DEMAND' ? 'var(--brand-primary)' : 'transparent',
+            color: activeModule === 'ON_DEMAND' ? '#FFFFFF' : 'var(--text-secondary)',
+            border: 'none',
+            padding: '0.5rem 1.25rem',
+            borderRadius: 'var(--radius-md)',
+            fontWeight: 700,
+            fontSize: '0.875rem',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease-in-out',
+          }}
+        >
+          On-Demand Driver Withdrawals
+        </button>
+      </div>
+
+      {activeModule === 'CORPORATE_BATCHES' ? (
+        <CorporatePayoutBatchesSection />
+      ) : (
+        <>
 
       {/* Settlement Metrics KPI Grid */}
       <div
@@ -559,6 +611,8 @@ export default function SettlementsPage() {
           </div>
         )}
       </Drawer>
+        </>
+      )}
     </div>
   );
 }
