@@ -2,9 +2,7 @@
 -- Migration 20261104000200_ws_c_rider_support_sos
 
 -- 1. Upgrade CorporateSosStatus enum with NEW, INVESTIGATING, ESCALATED
-ALTER TYPE "CorporateSosStatus" ADD VALUE IF NOT EXISTS 'NEW';
-ALTER TYPE "CorporateSosStatus" ADD VALUE IF NOT EXISTS 'INVESTIGATING';
-ALTER TYPE "CorporateSosStatus" ADD VALUE IF NOT EXISTS 'ESCALATED';
+-- Enum values NEW / INVESTIGATING / ESCALATED are added by 20261104000150_ws_c_sos_status_values.
 
 -- 2. Upgrade CorporateSosAlert table with FSM and auto-escalation audit columns
 ALTER TABLE "corporate_sos_alerts"
