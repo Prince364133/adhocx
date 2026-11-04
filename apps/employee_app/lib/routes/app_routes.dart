@@ -50,6 +50,21 @@ import '../screens/batch_03/request_status_approved_screen.dart';
 import '../screens/batch_03/request_status_rejected_screen.dart';
 import '../screens/batch_03/cancel_trip_request_screen.dart';
 
+// Batch 04 Screens
+import '../screens/batch_04/assignment_notification_screen.dart';
+import '../screens/batch_04/cab_assigned_overview_screen.dart';
+import '../screens/batch_04/driver_details_screen.dart';
+import '../screens/batch_04/vehicle_details_screen.dart';
+import '../screens/batch_04/pickup_sequence_screen.dart';
+import '../screens/batch_04/cab_reassigned_screen.dart';
+import '../screens/batch_04/assignment_delayed_screen.dart';
+import '../screens/batch_04/driver_replaced_screen.dart';
+import '../screens/batch_04/driver_delay_screen.dart';
+import '../screens/batch_04/vehicle_issue_screen.dart';
+import '../screens/batch_04/contact_driver_sheet_screen.dart';
+import '../screens/batch_04/assignment_history_screen.dart';
+import '../screens/batch_04/no_cab_available_screen.dart';
+
 class AppRoutes {
   AppRoutes._();
 
@@ -103,6 +118,21 @@ class AppRoutes {
   static const String requestRejected = '/schedule/request-rejected';
   static const String cancelTrip = '/schedule/cancel-trip';
 
+  // Batch 04 Routes
+  static const String assignmentNotification = '/driver/assignment-notification';
+  static const String cabAssignedOverview = '/driver/assigned-overview';
+  static const String driverDetails = '/driver/details';
+  static const String vehicleDetails = '/driver/vehicle-details';
+  static const String pickupSequence = '/driver/pickup-sequence';
+  static const String cabReassigned = '/driver/cab-reassigned';
+  static const String assignmentDelayed = '/driver/assignment-delayed';
+  static const String driverReplaced = '/driver/driver-replaced';
+  static const String driverDelay = '/driver/driver-delay';
+  static const String vehicleIssue = '/driver/vehicle-issue';
+  static const String contactDriverSheet = '/driver/contact';
+  static const String assignmentHistory = '/driver/assignment-history';
+  static const String noCabAvailable = '/driver/no-cab-available';
+
   static final GoRouter router = GoRouter(
     initialLocation: splash,
     routes: [
@@ -155,6 +185,21 @@ class AppRoutes {
       GoRoute(path: requestApproved, builder: (context, state) => const RequestStatusApprovedScreen()),
       GoRoute(path: requestRejected, builder: (context, state) => const RequestStatusRejectedScreen()),
       GoRoute(path: cancelTrip, builder: (context, state) => const CancelTripRequestScreen()),
+
+      // Batch 04
+      GoRoute(path: assignmentNotification, builder: (context, state) => const AssignmentNotificationScreen()),
+      GoRoute(path: cabAssignedOverview, builder: (context, state) => const CabAssignedOverviewScreen()),
+      GoRoute(path: driverDetails, builder: (context, state) => const DriverDetailsScreen()),
+      GoRoute(path: vehicleDetails, builder: (context, state) => const VehicleDetailsScreen()),
+      GoRoute(path: pickupSequence, builder: (context, state) => const PickupSequenceScreen()),
+      GoRoute(path: cabReassigned, builder: (context, state) => const CabReassignedScreen()),
+      GoRoute(path: assignmentDelayed, builder: (context, state) => const AssignmentDelayedScreen()),
+      GoRoute(path: driverReplaced, builder: (context, state) => const DriverReplacedScreen()),
+      GoRoute(path: driverDelay, builder: (context, state) => const DriverDelayScreen()),
+      GoRoute(path: vehicleIssue, builder: (context, state) => const VehicleIssueScreen()),
+      GoRoute(path: contactDriverSheet, builder: (context, state) => const ContactDriverSheetScreen()),
+      GoRoute(path: assignmentHistory, builder: (context, state) => const AssignmentHistoryScreen()),
+      GoRoute(path: noCabAvailable, builder: (context, state) => const NoCabAvailableScreen()),
     ],
   );
 }

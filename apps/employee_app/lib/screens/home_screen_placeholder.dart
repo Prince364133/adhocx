@@ -109,6 +109,53 @@ class HomeScreenPlaceholder extends StatelessWidget {
 
               const SizedBox(height: 24),
 
+              // Batch 04: Driver & Cab Assignment Section
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Batch 04 — Driver & Cab Assignment',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.warningLight,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '13 Screens',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.warning,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              _buildScreenTile(context, '1. Assignment Notification', AppRoutes.assignmentNotification),
+              _buildScreenTile(context, '2. Cab Assigned (Overview)', AppRoutes.cabAssignedOverview),
+              _buildScreenTile(context, '3. Driver Details', AppRoutes.driverDetails),
+              _buildScreenTile(context, '4. Vehicle Details', AppRoutes.vehicleDetails),
+              _buildScreenTile(context, '5. Pickup Sequence (4 Stops)', AppRoutes.pickupSequence),
+              _buildScreenTile(context, '6. Cab Reassigned', AppRoutes.cabReassigned),
+              _buildScreenTile(context, '7. Assignment Delayed', AppRoutes.assignmentDelayed),
+              _buildScreenTile(context, '8. Driver Replaced', AppRoutes.driverReplaced),
+              _buildScreenTile(context, '9. Driver Delay', AppRoutes.driverDelay),
+              _buildScreenTile(context, '10. Vehicle Issue', AppRoutes.vehicleIssue),
+              _buildScreenTile(context, '11. Contact Driver Sheet', AppRoutes.contactDriverSheet),
+              _buildScreenTile(context, '12. Assignment History', AppRoutes.assignmentHistory),
+              _buildScreenTile(context, '13. No Cab Available', AppRoutes.noCabAvailable),
+
+              const SizedBox(height: 28),
+
               // Batch 03: Schedule & Calendar Section
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -218,6 +218,13 @@
     }
   },
   "driver_assignment": {
+    "notification": {
+      "time": "8:10",
+      "date": "Tue, 09 Dec",
+      "app": "AdhocX",
+      "title": "Cab Assigned",
+      "message": "Your login trip (8:15 AM) has been assigned to driver Suresh R."
+    },
     "driver": {
       "name": "Suresh R",
       "rating": 4.8,
@@ -239,34 +246,55 @@
       "fitnessPermit": "Valid"
     },
     "pickup_sequence": [
-      { "name": "Ravi Kumar (You)", "time": "8:15 AM", "location": "Home - Kondapur", "isCurrent": true, "status": "Current Pickup" },
-      { "name": "Anil Verma", "time": "8:20 AM", "location": "Green Meadows", "status": "Next Pickup" },
-      { "name": "Priya Shah", "time": "8:27 AM", "location": "City Center", "status": "Scheduled" },
-      { "name": "Neha Reddy", "time": "8:34 AM", "location": "Kondapur", "status": "Scheduled" },
+      { "name": "Ravi Kumar (You)", "time": "8:15 AM", "location": "Home", "isCurrent": true, "status": "Current Pickup" },
+      { "name": "Anil Verma", "time": "8:20 AM", "location": "Green Meadows", "isCurrent": false, "status": "Next Pickup" },
+      { "name": "Priya Shah", "time": "8:27 AM", "location": "City Center", "isCurrent": false, "status": "Scheduled" },
+      { "name": "Neha Reddy", "time": "8:34 AM", "location": "Kondapur", "isCurrent": false, "status": "Scheduled" },
       { "name": "HITEC City Office", "time": "9:02 AM", "location": "Office Campus", "isDrop": true, "status": "Final Drop" }
     ],
     "reassigned_cab": {
       "driverName": "Amit Kumar",
       "driverRating": 4.7,
+      "previousDriver": "Suresh R",
       "vehicleModel": "Swift Dzire",
       "plateNumber": "TS10UC9281",
       "vehicleColor": "Silver",
-      "capacity": "5 Seater"
+      "capacity": "5 Seater",
+      "reason": "operational reason"
+    },
+    "assignment_delayed": {
+      "title": "Assignment Delayed",
+      "message": "We are facing a slight delay in assigning a cab for your trip. We're working on it and will update you shortly.",
+      "tripType": "Login Trip",
+      "time": "8:15 AM",
+      "route": "Home -> Office"
     },
     "delay": {
+      "title": "Driver Delay",
+      "subtitle": "Your cab is running late",
       "estimatedArrival": "8:25 AM",
       "delayMinutes": 10,
       "reason": "Traffic congestion on route."
     },
     "vehicle_issue": {
+      "title": "Vehicle Issue",
       "message": "The assigned cab has a vehicle issue. We're arranging an alternate cab for your trip.",
       "expectedUpdateIn": "~ 5 min"
     },
+    "contact_options": [
+      { "type": "call", "title": "Call Driver", "subtitle": "Talk directly with your driver", "icon": "phone" },
+      { "type": "message", "title": "Message Driver", "subtitle": "Send a text message", "icon": "message" },
+      { "type": "share_location", "title": "Share Location", "subtitle": "Share your live location", "icon": "location_pin" }
+    ],
     "history": [
-      { "time": "8:05 AM", "event": "Assigned", "details": "Suresh R • TS09UB7845" },
-      { "time": "8:20 AM", "event": "Reassigned", "details": "Amit Kumar • TS10UC9281" },
-      { "time": "8:22 AM", "event": "Updated", "details": "Pickup time revised to 8:15 AM" }
-    ]
+      { "time": "8:05 AM", "status": "Assigned", "details": "Suresh R • TS09UB7845", "color": "green" },
+      { "time": "8:20 AM", "status": "Reassigned", "details": "Amit Kumar • TS10UC9281", "color": "blue" },
+      { "time": "8:22 AM", "status": "Updated", "details": "Pickup time revised to 8:15 AM", "color": "gray" }
+    ],
+    "no_cab_available": {
+      "title": "No Cab Available",
+      "message": "We couldn't assign a cab for your trip at the moment. Our team is working to find an alternate option. You'll be notified once assigned."
+    }
   },
   "live_tracking": {
     "pickupPoint": {
