@@ -121,6 +121,7 @@ export const CORPORATE_ROLE_PERMISSIONS: Readonly<Record<CorporateRole, Readonly
     'costcenters:write',
     'policy:read',
     'invoices:read',
+    'billing:write', // raise invoice disputes (wire/billing-payouts)
     'reports:read',
   ]),
   [CorporateRole.SAFETY]: new Set<CorporatePermission>([

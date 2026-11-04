@@ -11,6 +11,9 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule, {
     logger: ['log', 'error', 'warn', 'debug', 'verbose'],
+    // Keep req.rawBody so signed webhooks (corporate payout provider callback) are verified
+    // over the exact bytes received. JSON parsing of req.body is unchanged.
+    rawBody: true,
   });
 
   const configService = app.get(ConfigService);

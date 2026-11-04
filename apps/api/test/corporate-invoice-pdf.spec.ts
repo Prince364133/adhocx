@@ -8,6 +8,8 @@ import { CorporateAccessGuard } from '../src/common/guards/corporate-access.guar
 import { DatabaseService } from '../src/database/database.service';
 import { NotificationsService } from '../src/modules/notifications/notifications.service';
 import { AuditService } from '../src/modules/audit/audit.service';
+import { CorporatePayoutService } from '../src/domains/corporate/billing/corporate-payout.service';
+import { CorporateInvoiceDisputeService } from '../src/domains/corporate/billing/corporate-invoice-dispute.service';
 
 describe('Corporate Tax Invoice PDF Stream (Sec 31 CGST Act)', () => {
   let service: CorporateBillingService;
@@ -101,6 +103,9 @@ describe('Corporate Tax Invoice PDF Stream (Sec 31 CGST Act)', () => {
         { provide: DatabaseService, useValue: mockDb },
         { provide: NotificationsService, useValue: mockNotifications },
         { provide: AuditService, useValue: mockAudit },
+        // Controller collaborators not exercised by the PDF tests.
+        { provide: CorporatePayoutService, useValue: {} },
+        { provide: CorporateInvoiceDisputeService, useValue: {} },
       ],
     })
       // Handlers are invoked directly here; access control is covered in corporate-access-control.spec.ts.

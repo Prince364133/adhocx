@@ -463,30 +463,38 @@ describe('D. reassign voids the old earning', () => {
   });
 
   it('VOIDED earnings are excluded from payout batches and earnings totals', async () => {
-    const { db, ops, dispatch } = build();
-    const id = addAssigned(db, PICKUP);
-    await ops.reassignRoute(id, { reason: 'swap driver', newDriverId: 'drv-new' });
-    await dispatch.acceptRouteOffer(id, 'drv-new');
-    // An unrelated, untouched earning of the old driver on another route.
-    db.insert('corporateDriverEarning', {
-      id: 'earn-other', driverId: 'drv-old', routeId: 'route-x', routeFarePaise: BigInt(40000),
-      totalEarnedPaise: BigInt(40000), payoutStatus: 'UNPAID', payoutBatchId: null, createdAt: iso('2026-11-02T00:00:00.000Z'),
-    });
-    const billing = new CorporateBillingService(db as any, makeNotifications() as any, makeAudit() as any);
+    // Same scenario twice: createPayoutBatch claims the UNPAID earnings it batches (they move to
+    // PROCESSING), so the legacy prepare path is checked on its own identical copy.
+    const scenario = async () => {
+      const { db, ops, dispatch } = build();
+      const id = addAssigned(db, PICKUP);
+      await ops.reassignRoute(id, { reason: 'swap driver', newDriverId: 'drv-new' });
+      await dispatch.acceptRouteOffer(id, 'drv-new');
+      // An unrelated, untouched earning of the old driver on another route.
+      db.insert('corporateDriverEarning', {
+        id: 'earn-other', driverId: 'drv-old', routeId: 'route-x', routeFarePaise: BigInt(40000),
+        totalEarnedPaise: BigInt(40000), payoutStatus: 'UNPAID', payoutBatchId: null, createdAt: iso('2026-11-02T00:00:00.000Z'),
+      });
+      return { db, id, billing: new CorporateBillingService(db as any, makeNotifications() as any, makeAudit() as any) };
+    };
+    const { db, id, billing } = await scenario();
 
     const summary = await billing.getDriverEarningsSummary('drv-old');
     expect(summary).toMatchObject({ totalRoutesCount: 1, totalEarnedPaise: '40000', unpaidPaise: '40000' });
 
     const batch: any = await billing.createPayoutBatch({} as any, 'u-maker', 'idem-1');
     expect(batch).toMatchObject({ totalRoutes: 2, grossPaise: 66000n + 40000n });
+    // The voided row is untouched by the batch.
+    expect(db.tables.corporateDriverEarning.get(`earn-${id}`)).toMatchObject({ payoutStatus: 'VOIDED', payoutBatchId: null });
 
-    const prepared = await billing.prepareDriverPayoutBatch();
+    const legacy = await scenario();
+    const prepared = await legacy.billing.prepareDriverPayoutBatch();
     expect(prepared.disbursements.map((d: any) => [d.driverId, d.grossPaise]).sort()).toEqual([
       ['drv-new', '66000'],
       ['drv-old', '40000'],
     ]);
     // The voided row is untouched by payouts.
-    expect(db.tables.corporateDriverEarning.get(`earn-${id}`)).toMatchObject({ payoutStatus: 'VOIDED', payoutBatchId: null });
+    expect(legacy.db.tables.corporateDriverEarning.get(`earn-${legacy.id}`)).toMatchObject({ payoutStatus: 'VOIDED', payoutBatchId: null });
   });
 
   it('a second reassign does not re-void or count the already voided earning', async () => {
