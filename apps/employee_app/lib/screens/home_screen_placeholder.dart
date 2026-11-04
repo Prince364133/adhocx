@@ -109,6 +109,52 @@ class HomeScreenPlaceholder extends StatelessWidget {
 
               const SizedBox(height: 24),
 
+              // Batch 06: Boarding & Trip Completion Section
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Batch 06 — Boarding & Completion',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.successLight,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '12 Screens',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.success,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              _buildScreenTile(context, '1. Boarding — Verify Options', AppRoutes.boardingVerifyOptions),
+              _buildScreenTile(context, '2. Boarding OTP Input', AppRoutes.boardingOtpInput),
+              _buildScreenTile(context, '3. Scan QR for Boarding', AppRoutes.scanBoardingQr),
+              _buildScreenTile(context, '4. Verifying Boarding...', AppRoutes.verifyingBoarding),
+              _buildScreenTile(context, '5. Boarding Confirmed!', AppRoutes.boardingSuccessful),
+              _buildScreenTile(context, '6. Error — Invalid OTP State', AppRoutes.wrongOtp),
+              _buildScreenTile(context, '7. Error — Boarding Issue', AppRoutes.boardingIssue),
+              _buildScreenTile(context, '8. Trip In Progress (En Route)', AppRoutes.tripInProgressEnRoute),
+              _buildScreenTile(context, '9. Reached Destination', AppRoutes.dropReached),
+              _buildScreenTile(context, '10. Trip Completed!', AppRoutes.tripCompletedSummary),
+              _buildScreenTile(context, '11. Safe Reach Confirmation', AppRoutes.safeReachConfirmation),
+              _buildScreenTile(context, '12. Post-Trip Feedback', AppRoutes.postTripFeedback),
+
+              const SizedBox(height: 28),
+
               // Batch 05: Live Tracking & Navigation Section
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -371,19 +371,62 @@
   },
   "boarding_completion": {
     "verification_options": {
-      "methods": ["Enter Boarding OTP", "Scan Boarding QR"],
+      "title": "Board Your Cab",
+      "subtitle": "Verify your boarding with a 6-digit OTP from the driver.",
+      "tripType": "Login (Pickup)",
+      "driverName": "Suresh R",
+      "vehicleNumber": "TS09UB7845",
       "otp": "583271",
       "otpExpiresIn": "02:58",
       "qrCodeData": "ADHOCX-ROSTER-20261209-EMP10294"
     },
+    "boarding_confirmed": {
+      "title": "Boarding Confirmed!",
+      "subtitle": "You're now on board.",
+      "pickedUp": "8:15 AM",
+      "boarded": "8:17 AM",
+      "inProgress": "On the way to office"
+    },
     "error_states": {
-      "invalid_otp": "The OTP you entered is incorrect. Please check and try again.",
-      "boarding_issue": "We couldn't verify your boarding. Please try again or contact support if the issue persists."
+      "invalid_otp": {
+        "title": "Invalid OTP",
+        "message": "The OTP you entered is incorrect. Please check and try again.",
+        "failedOtp": "58327"
+      },
+      "boarding_issue": {
+        "title": "Boarding Issue",
+        "message": "We couldn't verify your boarding. Please try again or contact support if the issue persists.",
+        "tripType": "Login (Pickup)",
+        "driverName": "Suresh R"
+      }
+    },
+    "trip_in_progress": {
+      "title": "Trip In Progress",
+      "subtitle": "You're on your way to the office.",
+      "eta": "24 min",
+      "distance": "12.4 km",
+      "destination": "HITEC City Office"
+    },
+    "destination_reached": {
+      "title": "Reached Destination",
+      "subtitle": "You have arrived at your drop location.",
+      "location": "HITEC City Office",
+      "arrivedAt": "9:02 AM"
+    },
+    "trip_completed": {
+      "title": "Trip Completed!",
+      "subtitle": "Your trip has been completed successfully.",
+      "tripType": "Login (Pickup)",
+      "pickupTime": "8:15 AM",
+      "dropTime": "9:02 AM",
+      "duration": "47 min",
+      "distance": "12.4 km"
     },
     "safe_reach": {
       "title": "Did You Reach Safely?",
       "subtitle": "Please confirm that you've reached your destination safely.",
-      "options": ["Yes, I'm Safe", "I Need Help"]
+      "primary": "Yes, I'm Safe",
+      "secondary": "I Need Help"
     },
     "feedback": {
       "title": "Trip Completed",

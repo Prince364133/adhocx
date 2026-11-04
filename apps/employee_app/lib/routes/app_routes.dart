@@ -79,6 +79,20 @@ import '../screens/batch_05/stale_location_screen.dart';
 import '../screens/batch_05/poor_network_screen.dart';
 import '../screens/batch_05/reconnecting_screen.dart';
 
+// Batch 06 Screens
+import '../screens/batch_06/boarding_verify_options_screen.dart';
+import '../screens/batch_06/boarding_otp_input_screen.dart';
+import '../screens/batch_06/scan_boarding_qr_screen.dart';
+import '../screens/batch_06/verifying_boarding_screen.dart';
+import '../screens/batch_06/boarding_successful_screen.dart';
+import '../screens/batch_06/wrong_otp_screen.dart';
+import '../screens/batch_06/boarding_issue_screen.dart';
+import '../screens/batch_06/trip_in_progress_en_route_screen.dart';
+import '../screens/batch_06/drop_reached_screen.dart';
+import '../screens/batch_06/trip_completed_summary_screen.dart';
+import '../screens/batch_06/safe_reach_confirmation_screen.dart';
+import '../screens/batch_06/post_trip_feedback_screen.dart';
+
 class AppRoutes {
   AppRoutes._();
 
@@ -161,6 +175,20 @@ class AppRoutes {
   static const String poorNetwork = '/tracking/poor-network';
   static const String reconnecting = '/tracking/reconnecting';
 
+  // Batch 06 Routes
+  static const String boardingVerifyOptions = '/boarding/verify-options';
+  static const String boardingOtpInput = '/boarding/otp-input';
+  static const String scanBoardingQr = '/boarding/scan-qr';
+  static const String verifyingBoarding = '/boarding/verifying';
+  static const String boardingSuccessful = '/boarding/success';
+  static const String wrongOtp = '/boarding/wrong-otp';
+  static const String boardingIssue = '/boarding/issue';
+  static const String tripInProgressEnRoute = '/boarding/trip-in-progress';
+  static const String dropReached = '/boarding/drop-reached';
+  static const String tripCompletedSummary = '/boarding/trip-completed';
+  static const String safeReachConfirmation = '/boarding/safe-reach';
+  static const String postTripFeedback = '/boarding/feedback';
+
   static final GoRouter router = GoRouter(
     initialLocation: splash,
     routes: [
@@ -242,6 +270,20 @@ class AppRoutes {
       GoRoute(path: staleLocation, builder: (context, state) => const StaleLocationScreen()),
       GoRoute(path: poorNetwork, builder: (context, state) => const PoorNetworkScreen()),
       GoRoute(path: reconnecting, builder: (context, state) => const ReconnectingScreen()),
+
+      // Batch 06
+      GoRoute(path: boardingVerifyOptions, builder: (context, state) => const BoardingVerifyOptionsScreen()),
+      GoRoute(path: boardingOtpInput, builder: (context, state) => const BoardingOtpInputScreen()),
+      GoRoute(path: scanBoardingQr, builder: (context, state) => const ScanBoardingQrScreen()),
+      GoRoute(path: verifyingBoarding, builder: (context, state) => const VerifyingBoardingScreen()),
+      GoRoute(path: boardingSuccessful, builder: (context, state) => const BoardingSuccessfulScreen()),
+      GoRoute(path: wrongOtp, builder: (context, state) => const WrongOtpScreen()),
+      GoRoute(path: boardingIssue, builder: (context, state) => const BoardingIssueScreen()),
+      GoRoute(path: tripInProgressEnRoute, builder: (context, state) => const TripInProgressEnRouteScreen()),
+      GoRoute(path: dropReached, builder: (context, state) => const DropReachedScreen()),
+      GoRoute(path: tripCompletedSummary, builder: (context, state) => const TripCompletedSummaryScreen()),
+      GoRoute(path: safeReachConfirmation, builder: (context, state) => const SafeReachConfirmationScreen()),
+      GoRoute(path: postTripFeedback, builder: (context, state) => const PostTripFeedbackScreen()),
     ],
   );
 }
