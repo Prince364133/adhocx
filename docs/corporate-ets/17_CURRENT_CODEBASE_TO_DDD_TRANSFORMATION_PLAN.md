@@ -12,6 +12,10 @@
 > 1. **Live Production Protection:** The production backend is active, operational, and serving live traffic on AWS EC2/ECS. **NO code modifications from this refactoring or enterprise build may be pushed directly to the `production` branch.**
 > 2. **Dedicated Staging Isolation:** All work described in this document must be executed, committed, and tested exclusively on the **`staging`** branch.
 > 3. **CI/CD Deployment Gate:** Production deployment workflows (`.github/workflows/production-deploy.yml`) are hard-locked to `branches: [production]`. Pushes to `staging` will never trigger live AWS production deployments.
+> 4. **Mandatory UI/UX & Architecture Compliance:** Every AI agent, prompt, developer, and automated assistant modifying or contributing to this codebase **MUST STRICTLY ADHERE** to:
+>    - [`docs/04_DESIGN_SYSTEM.md and apps/marketing/DESIGN_AND_UI.md`](file:///c:/Users/saavi/Desktop/adhocx/docs/04_DESIGN_SYSTEM.md)
+>    - [`docs/05_UI_UX_GUIDELINES.md`](file:///c:/Users/saavi/Desktop/adhocx/docs/05_UI_UX_GUIDELINES.md)
+>    - [`docs/20_AI_AGENT_RULES.md`](file:///c:/Users/saavi/Desktop/adhocx/docs/20_AI_AGENT_RULES.md)
 
 ---
 
