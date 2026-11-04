@@ -14,11 +14,8 @@ import { AuditService } from '../../../modules/audit/audit.service';
 import {
   CorporateDispatchKeys,
   CorporateDispatchService,
-  corporateRouteBusyWindow,
-  CORPORATE_DRIVER_TURNAROUND_MINUTES,
   withdrawCorporateRouteOffer,
 } from '../dispatch/corporate-dispatch.service';
-import { CorporateRouteOfferData } from '../dispatch/corporate-dispatch.types';
 import { CorporateRiderNotifier } from '../execution/corporate-rider-notifier.service';
 import {
   AT_RISK_LOOKBACK_MINUTES,
@@ -34,11 +31,6 @@ import {
   routeTelemetryKey,
 } from './operations.types';
 
-/** Mirrors the dispatch service's 60 s offer window for a directed (ops-chosen) offer. */
-const DIRECT_OFFER_TTL_SECONDS = 60;
-/** Same lock key the dispatch service holds while issuing an offer for a route. */
-const dispatchLockKey = (routeId: string) => `corporate:dispatch:lock:${routeId}`;
-const DIRECT_OFFER_LOCK_WAIT_MS = 3000;
 /** Upper bound of live (not date-scoped) routes inspected for stale GPS / offer state per board call. */
 const LIVE_SCAN_LIMIT = 1000;
 const AT_RISK_LIMIT = 200;
@@ -303,13 +295,16 @@ export class CorporateOperationsService {
       if (newDriverId === previousDriverId) {
         throw new BadRequestException('newDriverId is the driver currently assigned to this route');
       }
-      newDriver = await this.assertDirectOfferDriver(route, newDriverId);
+      // Full single-driver eligibility (verified, category, seats, insurance, duty hours, overlap,
+      // no other live offer) BEFORE anything changes: an ineligible driver is a 409 with the reason.
+      newDriver = (await this.dispatch.assertDriverCanTakeRoute(route, newDriverId)).driver;
     }
 
     // The previous driver's accrued (not yet settled) earning for this route is withdrawn with the
-    // assignment. A settled / batched earning means billing already moved: refuse instead of guessing.
+    // assignment by VOIDING it (never deleted: the row stays for audit and is excluded from payouts
+    // and totals). A settled / batched earning means billing already moved: refuse instead of guessing.
     const earnings: any[] = await db.corporateDriverEarning.findMany({
-      where: { routeId, driverId: previousDriverId },
+      where: { routeId, driverId: previousDriverId, payoutStatus: { not: 'VOIDED' } },
     });
     if (earnings.some((e) => e.payoutStatus !== 'UNPAID' || e.payoutBatchId)) {
       throw new ConflictException(
@@ -318,22 +313,35 @@ export class CorporateOperationsService {
     }
     const referenceFarePaise = earnings.length > 0 ? Number(earnings[0].routeFarePaise) : null;
 
+    const reassignmentId = randomUUID();
+    const voidedAt = new Date();
     await db.$transaction(async (tx: any) => {
       const res = await tx.corporateRoute.updateMany({
         where: { id: routeId, status: 'ASSIGNED', driverId: previousDriverId },
-        data: { status: 'DISPATCHING', driverId: null, vehicleId: null },
+        // atRisk resets: the route is unassigned again, so ALLOC-05 may escalate it afresh.
+        data: { status: 'DISPATCHING', driverId: null, vehicleId: null, atRisk: false },
       });
       if (res.count !== 1) {
         throw new ConflictException(`Route ${routeId} was changed concurrently; reload and retry`);
       }
       if (earnings.length > 0) {
-        await tx.corporateDriverEarning.deleteMany({
+        const voided = await tx.corporateDriverEarning.updateMany({
           where: { id: { in: earnings.map((e) => e.id) }, payoutStatus: 'UNPAID', payoutBatchId: null },
+          data: {
+            payoutStatus: 'VOIDED',
+            voidedAt,
+            voidReason: `REASSIGNED ${reassignmentId}: ${reason}`.slice(0, 500),
+          },
         });
+        if (voided.count !== earnings.length) {
+          // A payout batch picked the earning up in between: roll back the whole reassign.
+          throw new ConflictException(
+            `Route ${routeId} earning of driver ${previousDriverId} entered a payout batch concurrently; resolve it in billing first`,
+          );
+        }
       }
     });
 
-    const reassignmentId = randomUUID();
     const client = this.redis.getClient();
     if (client) {
       try {
@@ -364,6 +372,7 @@ export class CorporateOperationsService {
           routeFarePaise: String(e.routeFarePaise),
           totalEarnedPaise: String(e.totalEarnedPaise),
         })),
+        earningDisposition: 'VOIDED',
       },
     });
 
@@ -382,13 +391,9 @@ export class CorporateOperationsService {
       status: 'DISPATCHING',
     });
 
-    let dispatchResult: Record<string, any>;
-    if (newDriver && referenceFarePaise !== null) {
-      dispatchResult = await this.offerDirect(route, newDriver, referenceFarePaise);
-    } else {
-      dispatchResult = await this.autoDispatch(routeId, actor.id);
-      if (newDriver) dispatchResult = { ...dispatchResult, note: 'NO_FARE_REFERENCE_FOR_DIRECT_OFFER' };
-    }
+    const dispatchResult: Record<string, any> = newDriver
+      ? await this.offerDirect(routeId, newDriver.id, referenceFarePaise, actor, reason)
+      : await this.autoDispatch(routeId, actor.id);
 
     return {
       routeId,
@@ -398,42 +403,6 @@ export class CorporateOperationsService {
       mode: newDriverId ? 'DIRECT_OFFER' : 'AUTO_DISPATCH',
       dispatch: dispatchResult,
     };
-  }
-
-  private async assertDirectOfferDriver(route: any, driverId: string): Promise<any> {
-    const db: any = this.db;
-    const driver: any = await db.driver.findUnique({
-      where: { id: driverId },
-      select: { id: true, userId: true, fullName: true, verificationStatus: true },
-    });
-    if (!driver) throw new NotFoundException(`Driver ${driverId} not found`);
-    if (driver.verificationStatus !== 'VERIFIED') {
-      throw new ConflictException(`Driver ${driverId} is not verified`);
-    }
-
-    const mine = corporateRouteBusyWindow(route);
-    const gap = CORPORATE_DRIVER_TURNAROUND_MINUTES * 60_000;
-    const commitments: any[] =
-      (await db.corporateRoute.findMany({
-        where: { driverId, status: { in: ['ASSIGNED', 'IN_TRANSIT'] }, id: { not: route.id } },
-        select: { id: true, direction: true, targetPickup1Time: true, targetOfficeArrivalTime: true, estDurationSeconds: true },
-      })) ?? [];
-    const clash = commitments.find((c) => {
-      const w = corporateRouteBusyWindow(c);
-      return w.start < mine.end + gap && mine.start < w.end + gap;
-    });
-    if (clash) {
-      throw new ConflictException(`Driver ${driverId} is committed to route ${clash.id} in an overlapping window`);
-    }
-
-    const client = this.redis.getClient();
-    if (client) {
-      const hold = await client.get(CorporateDispatchKeys.driverHold(driverId));
-      if (hold && hold !== route.id) {
-        throw new ConflictException(`Driver ${driverId} currently holds a live offer for route ${hold}`);
-      }
-    }
-    return driver;
   }
 
   private async autoDispatch(routeId: string, actorUserId?: string): Promise<Record<string, any>> {
@@ -457,95 +426,33 @@ export class CorporateOperationsService {
   }
 
   /**
-   * Offers the route to one ops-chosen driver using the dispatch service's Redis contract, so the
-   * driver accepts through the normal `POST /corporate/dispatch/routes/:id/accept` path and an
-   * unanswered offer is reaped and cascaded to autonomous dispatch like any other.
+   * Offers the route to one ops-chosen driver through `CorporateDispatchService.offerRouteToDriver`
+   * (same Redis keys / TTL / CorporateDriverOffer row as autonomous dispatch), so the driver accepts
+   * through the normal accept path and an unanswered offer is reaped and cascaded like any other.
+   * The replacement keeps the route's accepted fare when there was one; otherwise the rate card prices it.
+   * The route is already DISPATCHING here, so a failure (lock busy, driver took another offer in
+   * the meantime) hands the route to the scheduler instead of failing the reassign.
    */
-  private async offerDirect(route: any, driver: any, farePaise: number): Promise<Record<string, any>> {
-    const client = this.redis.getClient();
-    if (!client) return this.autoDispatch(route.id);
-
-    const lockKey = dispatchLockKey(route.id);
-    const deadline = Date.now() + DIRECT_OFFER_LOCK_WAIT_MS;
-    let token = await this.redis.acquireLockToken(lockKey, 30);
-    while (!token && Date.now() < deadline) {
-      await new Promise((r) => setTimeout(r, 25 + Math.floor(Math.random() * 25)));
-      token = await this.redis.acquireLockToken(lockKey, 30);
-    }
-    if (!token) {
-      await this.queueForScheduler(route.id);
-      return { routeId: route.id, status: 'QUEUED', reason: 'route lock busy; autonomous dispatch will continue' };
-    }
-
+  private async offerDirect(
+    routeId: string,
+    driverId: string,
+    farePaise: number | null,
+    actor: OpsActor,
+    reason: string,
+  ): Promise<Record<string, any>> {
     try {
-      const fresh: any = await (this.db as any).corporateRoute.findUnique({
-        where: { id: route.id },
-        select: { status: true, assignedPassengerCount: true, targetPickup1Time: true },
-      });
-      if (!fresh || fresh.status !== 'DISPATCHING') {
-        return { routeId: route.id, status: 'ALREADY_ASSIGNED' };
-      }
-      // Ops intent wins over an offer the scheduler issued in the meantime.
-      await withdrawCorporateRouteOffer(client, route.id);
-
-      const holdKey = CorporateDispatchKeys.driverHold(driver.id);
-      const ok = await client.set(holdKey, route.id, 'EX', DIRECT_OFFER_TTL_SECONDS + 5, 'NX');
-      if (ok !== 'OK' && (await client.get(holdKey)) !== route.id) {
-        await this.queueForScheduler(route.id);
-        return { routeId: route.id, status: 'QUEUED', reason: 'requested driver took another offer' };
-      }
-
-      const offerExpiresAt = new Date(Date.now() + DIRECT_OFFER_TTL_SECONDS * 1000);
-      const offer: CorporateRouteOfferData = {
-        routeId: route.id,
-        driverId: driver.id,
-        tenantName: route.tenant?.name,
-        shiftDate: new Date(route.shiftDate).toISOString().slice(0, 10),
-        shiftTime: route.shiftTime,
-        direction: route.direction,
-        passengerCount: fresh.assignedPassengerCount ?? route.assignedPassengerCount,
-        totalDistanceMeters: route.estDistanceMeters,
-        targetPickup1Time: fresh.targetPickup1Time ?? route.targetPickup1Time,
+      const res = await this.dispatch.offerRouteToDriver(routeId, driverId, {
         farePaise,
-        offerExpiresAt,
-        stopsCount: (route.stops ?? []).length,
-        originAddress: route.direction === 'LOGIN' ? 'Stop 1 (First Commuter Pickup)' : `${route.office?.name} (Corporate Staging Bay)`,
-        destinationAddress: route.office?.name,
-      };
-      await client.set(CorporateDispatchKeys.offer(route.id), JSON.stringify(offer), 'EX', DIRECT_OFFER_TTL_SECONDS);
-      await client.sadd(CorporateDispatchKeys.ACTIVE_OFFERS_SET, route.id);
-      await client.zadd(CorporateDispatchKeys.OFFER_EXPIRY_ZSET, offerExpiresAt.getTime(), route.id);
-      await client.del(CorporateDispatchKeys.unserved(route.id));
-      await client.set(CorporateDispatchKeys.offerDriver(route.id), driver.id, 'EX', DIRECT_OFFER_TTL_SECONDS + 60);
-
-      this.notifications.emitEvent(`driver:${driver.id}`, 'CORPORATE_ROUTE_OFFER', { ...offer, directedByOps: true });
-      if (driver.userId) {
-        try {
-          await this.notifications.sendPushToUser(driver.userId, {
-            title: 'Corporate route offered to you',
-            body: `Corporate commute (${route.direction}) needs a replacement cab: ${offer.passengerCount} passengers. Tap to accept within 60s.`,
-            data: { routeId: route.id, action: 'CORPORATE_ROUTE_OFFER', expiresAt: offerExpiresAt.toISOString() },
-          });
-        } catch (err: any) {
-          this.logger.warn(`Push to driver ${driver.id} failed: ${err?.message}`);
-        }
-      }
-      await this.audit.log({
-        action: 'CORPORATE_DISPATCH_DIRECT_OFFER',
-        actorRole: 'ADMIN',
-        entityType: 'CORPORATE_ROUTE',
-        entityId: route.id,
-        metadata: { offeredToDriverId: driver.id, offerExpiresAt: offerExpiresAt.toISOString() },
+        actorUserId: actor.id,
+        actorRole: actor.role ?? 'ADMIN',
+        reason,
+        directedByOps: true,
       });
-      return {
-        routeId: route.id,
-        status: 'OFFERED',
-        offeredToDriverId: driver.id,
-        offeredDriverName: driver.fullName,
-        offerExpiresAt: offerExpiresAt.toISOString(),
-      };
-    } finally {
-      await this.redis.releaseLockToken(lockKey, token);
+      return { ...res, offerExpiresAt: res.offerExpiresAt?.toISOString() };
+    } catch (err: any) {
+      this.logger.warn(`Directed offer of ${routeId} to ${driverId} not issued: ${err?.message}`);
+      await this.queueForScheduler(routeId);
+      return { routeId, status: 'QUEUED', reason: err?.message ?? 'directed offer deferred' };
     }
   }
 

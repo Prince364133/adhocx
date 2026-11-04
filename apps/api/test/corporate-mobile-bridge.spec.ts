@@ -202,6 +202,13 @@ describe('Corporate Mobile Bridge & Driver/Employee Flow Verification', () => {
             acceptRouteOffer: jest.fn(async () => ({ success: true, routeId: 'route-test-corp-1' })),
             rejectRouteOffer: jest.fn(async () => ({ success: true })),
             assessDynamicTraffic: jest.fn(async () => ({ delayMinutes: 15 })),
+            // my-offer delegates here: run the real read path against this suite's Redis / DB fakes.
+            getDriverActiveOffer: jest.fn((driverId: string) =>
+              CorporateDispatchService.prototype.getDriverActiveOffer.call(
+                { redis: mockRedis, db: mockDb } as any,
+                driverId,
+              ),
+            ),
           },
         },
         CorporateTripExecutionService,

@@ -25,6 +25,8 @@ export interface DispatchSchedulerTickResult {
   skipped?: boolean;
   /** Routes this tick's scan put on the shared work queue. */
   queuedRoutes?: number;
+  /** Routes newly flagged at-risk (ALLOC-05) by this tick; each alerts ops exactly once. */
+  escalatedRoutes?: string[];
 }
 
 export interface DispatchWorkResult {
@@ -218,6 +220,7 @@ export class CorporateDispatchSchedulerService implements OnModuleInit, OnModule
       dispatchedRoutes: [],
       reapedOffers: [],
       recoveredRoutes: [],
+      escalatedRoutes: [],
       skipped: true,
     };
     if (this.isTicking || this.shuttingDown) return empty;
@@ -231,6 +234,7 @@ export class CorporateDispatchSchedulerService implements OnModuleInit, OnModule
         routes: string[];
         queued: number;
         recoveredRoutes: string[];
+        escalatedRoutes: string[];
       };
       try {
         // 1. Safety net: reap expired offers by scanning the active set (the expiry queue is the fast path)
@@ -247,12 +251,16 @@ export class CorporateDispatchSchedulerService implements OnModuleInit, OnModule
           this.lastRecoveryAtMs = nowMs;
           recoveredRoutes = await this.recoverStuckRoutes(nowMs);
         }
-        scan = { reapedOffers, ...upcoming, recoveredRoutes };
+
+        // 4. ALLOC-05 escalation, once per tick across instances (under the tick lock). The
+        //    conditional atRisk flag keeps it idempotent if the lock ever expires mid-tick.
+        const escalatedRoutes = await this.escalateAtRiskRoutes(nowMs);
+        scan = { reapedOffers, ...upcoming, recoveredRoutes, escalatedRoutes };
       } finally {
         await this.releaseTickLock();
       }
 
-      // 4. This instance also works the queue now (the others do on their own worker poll).
+      // 5. This instance also works the queue now (the others do on their own worker poll).
       //    Routes this scan just reaped or re-dispatched carry a brand-new offer: leave it alone.
       const work = await this.drainQueue(nowMs, new Set([...scan.reapedOffers, ...scan.recoveredRoutes]));
       return {
@@ -261,6 +269,7 @@ export class CorporateDispatchSchedulerService implements OnModuleInit, OnModule
         reapedOffers: [...scan.reapedOffers, ...work.reapedOffers],
         recoveredRoutes: scan.recoveredRoutes,
         queuedRoutes: scan.queued,
+        escalatedRoutes: scan.escalatedRoutes,
         skipped: false,
       };
     })();
@@ -288,6 +297,16 @@ export class CorporateDispatchSchedulerService implements OnModuleInit, OnModule
     } finally {
       this.isWorking = false;
       this.currentWork = undefined;
+    }
+  }
+
+  /** Never fails the tick: an escalation error is logged and retried on the next tick. */
+  private async escalateAtRiskRoutes(nowMs: number): Promise<string[]> {
+    try {
+      return (await this.dispatchService.checkAndEscalateAtRiskRoutes(nowMs)) ?? [];
+    } catch (err: any) {
+      this.logger.error(`At-risk escalation failed: ${err?.message ?? err}`);
+      return [];
     }
   }
 

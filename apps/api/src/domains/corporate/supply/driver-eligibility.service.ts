@@ -227,7 +227,12 @@ export class DriverEligibilityService {
     // 6. Overlap & Turnaround Check (PRD ALLOC-01: minimum 30-min turnaround between corporate duties)
     const overlapCheck = await this.evaluateTurnaroundOverlap(driverId, route);
     if (!overlapCheck.allowed) {
-      return { driverId, isEligible: false, rejectionReason: 'ROUTE_TIME_OVERLAP' };
+      return {
+        driverId,
+        isEligible: false,
+        rejectionReason: 'ROUTE_TIME_OVERLAP',
+        conflictingRouteId: overlapCheck.conflictingRouteId,
+      };
     }
 
     return {
@@ -289,7 +294,7 @@ export class DriverEligibilityService {
   private async evaluateTurnaroundOverlap(
     driverId: string,
     route: any,
-  ): Promise<{ allowed: boolean }> {
+  ): Promise<{ allowed: boolean; conflictingRouteId?: string }> {
     const turnaroundMs = CORPORATE_DRIVER_TURNAROUND_MINUTES * 60_000;
     const targetWindow = corporateRouteBusyWindow(route);
 
@@ -303,6 +308,7 @@ export class DriverEligibilityService {
             ...(route.id ? { id: { not: route.id } } : {}),
           },
           select: {
+            id: true,
             direction: true,
             targetPickup1Time: true,
             targetOfficeArrivalTime: true,
@@ -318,7 +324,7 @@ export class DriverEligibilityService {
       const cWindow = corporateRouteBusyWindow(r);
       // Overlap considering turnaround gap: [start - gap, end + gap]
       if (targetWindow.start < cWindow.end + turnaroundMs && cWindow.start < targetWindow.end + turnaroundMs) {
-        return { allowed: false };
+        return { allowed: false, conflictingRouteId: r.id };
       }
     }
 

@@ -42,5 +42,30 @@ export interface CorporateDispatchWaveResult {
   offeredToDriverId?: string;
   offeredDriverName?: string;
   candidatesCount: number;
+  /** Directed offers: when the live offer expires. */
+  offerExpiresAt?: Date;
+}
+
+/** How a driver offer was priced. */
+export interface OfferPricing {
+  farePaise: number;
+  /** CorporateDriverRateCard used (RATE_CARD only). */
+  rateCardId?: string;
+  /** RATE_CARD = versioned driver card; FALLBACK = legacy constants (no card); OVERRIDE = caller-supplied fare. */
+  source: 'RATE_CARD' | 'FALLBACK' | 'OVERRIDE';
+}
+
+/** Options for `CorporateDispatchService.offerRouteToDriver`. */
+export interface DirectedOfferOptions {
+  /** Fixed fare in paise (e.g. the reassigned route's accepted fare); default = driver rate card. */
+  farePaise?: number | null;
+  actorUserId?: string;
+  actorRole?: string;
+  /** Free-text reason, recorded in the audit entry. */
+  reason?: string;
+  /** Flag on the driver's offer event (default true). */
+  directedByOps?: boolean;
+  /** How long to wait for the per-route dispatch lock before 409 (default 3000 ms). */
+  lockWaitMs?: number;
 }
 

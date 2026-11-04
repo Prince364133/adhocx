@@ -20,6 +20,8 @@ export interface DriverEligibilityResult {
   rejectionReason?: DriverIneligibilityReason;
   matchedVehicleId?: string;
   dutyHoursLast24h?: number;
+  /** ROUTE_TIME_OVERLAP: the committed route that clashes. */
+  conflictingRouteId?: string;
 }
 
 export interface DriverDutySummary {

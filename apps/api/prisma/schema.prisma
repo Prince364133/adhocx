@@ -939,6 +939,8 @@ enum CorporateDriverEarningStatus {
   UNPAID
   PROCESSING
   PAID
+  /// wire/dispatch-ops: earning withdrawn by a manual reassign. Kept for audit, never paid or summed.
+  VOIDED
 }
 
 model CorporateTenant {
@@ -1230,6 +1232,10 @@ model CorporateDriverEarning {
   payoutStatus           CorporateDriverEarningStatus @default(UNPAID) @map("payout_status")
   createdAt              DateTime                     @default(now()) @map("created_at")
   updatedAt              DateTime                     @default(now()) @updatedAt @map("updated_at")
+  // ===== wire/dispatch-ops: earnings are voided, never deleted =====
+  voidedAt               DateTime?                    @map("voided_at")
+  voidReason             String?                      @map("void_reason") @db.VarChar(500)
+  // ===== end wire/dispatch-ops =====
 
   driver      Driver                @relation(fields: [driverId], references: [id])
   route       CorporateRoute        @relation(fields: [routeId], references: [id])

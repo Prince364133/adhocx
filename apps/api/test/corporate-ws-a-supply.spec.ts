@@ -37,6 +37,7 @@ describe('Corporate ETS Workstream A (WS-A): Supply Eligibility, Persisted Offer
       findUnique: jest.fn(),
       findMany: jest.fn().mockResolvedValue([]),
       update: jest.fn(),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     corporateDriverOffer: {
       upsert: jest.fn().mockResolvedValue({ id: 'offer-1', status: 'SENT' }),
@@ -519,8 +520,9 @@ describe('Corporate ETS Workstream A (WS-A): Supply Eligibility, Persisted Offer
 
       const escalated = await dispatchService.checkAndEscalateAtRiskRoutes();
       expect(escalated).toContain('route-at-risk-1');
-      expect(mockDb.corporateRoute.update).toHaveBeenCalledWith({
-        where: { id: 'route-at-risk-1' },
+      // Conditional flag (idempotent across instances): only a still-unflagged, unassigned route is updated.
+      expect(mockDb.corporateRoute.updateMany).toHaveBeenCalledWith({
+        where: { id: 'route-at-risk-1', atRisk: false, status: { in: ['PLANNED', 'DISPATCHING'] } },
         data: { atRisk: true },
       });
       expect(mockNotifications.emitEvent).toHaveBeenCalledWith(
