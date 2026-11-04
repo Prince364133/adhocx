@@ -64,3 +64,4 @@ class MockDataService {
     return data['boarding_completion'] as Map<String, dynamic>? ?? {};
   }
 }
+

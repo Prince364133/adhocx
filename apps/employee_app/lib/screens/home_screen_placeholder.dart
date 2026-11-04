@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/employee_brand_logo.dart';
 import '../widgets/employee_secondary_button.dart';
+import '../widgets/employee_bottom_nav_bar.dart';
 import '../state/employee_auth_provider.dart';
 import '../routes/app_routes.dart';
 
@@ -86,7 +87,7 @@ class HomeScreenPlaceholder extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      user?.fullName ?? 'Corporate Employee',
+                      user?.fullName ?? 'Ravi Kumar',
                       style: GoogleFonts.inter(
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
@@ -108,116 +109,100 @@ class HomeScreenPlaceholder extends StatelessWidget {
 
               const SizedBox(height: 24),
 
-              // Batch 01 Completion Banner
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
+              // Batch 02: Home & Trip Overview Section
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Batch 02 — Home & Trip Overview',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
                     ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.successLight,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(
-                            Icons.check_circle_rounded,
-                            color: AppColors.success,
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Batch 01 Implemented',
-                                style: GoogleFonts.inter(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              Text(
-                                'Authentication & Onboarding Complete',
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.successLight,
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    const SizedBox(height: 14),
-                    Text(
-                      'All 15 screens for Batch 01 have been built strictly according to the UI mockup and PRD specifications.',
+                    child: Text(
+                      '14 Screens',
                       style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
-                        height: 1.45,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.success,
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _pill('Flow A (Mobile OTP)'),
-                        _pill('Flow B (Company SSO)'),
-                        _pill('15 Screens Ready'),
-                        _pill('Edge Cases Covered'),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Quick Screen Switcher (for QA and Review)
-              Text(
-                'Review Batch 01 Screens',
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
 
-              _buildScreenTile(context, '1. Splash Screen', AppRoutes.splash),
-              _buildScreenTile(context, '2. Welcome Screen', AppRoutes.welcome),
-              _buildScreenTile(context, '3. Login Options', AppRoutes.loginOptions),
-              _buildScreenTile(context, '4. Mobile Number Entry', AppRoutes.mobileNumber),
-              _buildScreenTile(context, '5. OTP Verification', AppRoutes.otpVerify),
-              _buildScreenTile(context, '6. Company SSO (Alt)', AppRoutes.companySso),
-              _buildScreenTile(context, '7. Employee Verified', AppRoutes.employeeVerified),
-              _buildScreenTile(context, '8. Location Permission', AppRoutes.permissionLocation),
-              _buildScreenTile(context, '9. Notification Permission', AppRoutes.permissionNotification),
+              _buildScreenTile(context, '1. Home — Upcoming Pickup', AppRoutes.homeUpcomingPickup),
+              _buildScreenTile(context, '2. Home — Upcoming Drop', AppRoutes.homeUpcomingDrop),
+              _buildScreenTile(context, '3. No Upcoming Trips', AppRoutes.homeNoTrips),
+              _buildScreenTile(context, '4. Trip — Planning', AppRoutes.tripPlanning),
+              _buildScreenTile(context, '5. Trip — Assigned', AppRoutes.tripAssigned),
+              _buildScreenTile(context, '6. Trip — Approaching', AppRoutes.tripApproaching),
+              _buildScreenTile(context, '7. Trip — Arrived', AppRoutes.tripArrived),
+              _buildScreenTile(context, '8. Trip — Boarded', AppRoutes.tripBoarded),
+              _buildScreenTile(context, '9. Trip — In Progress', AppRoutes.tripInProgress),
+              _buildScreenTile(context, '10. Trip — Completed', AppRoutes.tripCompleted),
+              _buildScreenTile(context, '11. Trip — Cancelled', AppRoutes.tripCancelled),
+              _buildScreenTile(context, '12. Trip — Unserved', AppRoutes.tripUnserved),
+              _buildScreenTile(context, '13. Trip Details (Timeline)', AppRoutes.tripDetails),
+              _buildScreenTile(context, '14. Driver & Vehicle Details', AppRoutes.tripDriverVehicle),
+
+              const SizedBox(height: 28),
+
+              // Batch 01: Auth & Onboarding Section
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Batch 01 — Auth & Onboarding',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryBlueLight.withOpacity(0.4),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '15 Screens',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primaryBlueDark,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              _buildScreenTile(context, '01. Splash Screen', AppRoutes.splash),
+              _buildScreenTile(context, '02. Welcome Screen', AppRoutes.welcome),
+              _buildScreenTile(context, '03. Login Options', AppRoutes.loginOptions),
+              _buildScreenTile(context, '04. Enter Mobile Number', AppRoutes.mobileNumber),
+              _buildScreenTile(context, '05. Verify OTP', AppRoutes.otpVerify),
+              _buildScreenTile(context, '06. Company SSO (Alt)', AppRoutes.companySso),
+              _buildScreenTile(context, '07. Account Verified', AppRoutes.employeeVerified),
+              _buildScreenTile(context, '08. Allow Location Access', AppRoutes.permissionLocation),
+              _buildScreenTile(context, '09. Enable Notifications', AppRoutes.permissionNotification),
               _buildScreenTile(context, '10. Onboarding (1/3 Schedule)', AppRoutes.onboardingSchedule),
               _buildScreenTile(context, '11. Onboarding (2/3 Tracking)', AppRoutes.onboardingTracking),
               _buildScreenTile(context, '12. Onboarding (3/3 Safety SOS)', AppRoutes.onboardingSafety),
-              _buildScreenTile(context, '13. Onboarding Complete', AppRoutes.onboardingComplete),
-              _buildScreenTile(context, '14. Error - Invalid OTP State', AppRoutes.invalidOtp),
-              _buildScreenTile(context, '15. Transport Unavailable (Not Eligible)', AppRoutes.transportUnavailable),
+              _buildScreenTile(context, '13. You\'re All Set!', AppRoutes.onboardingComplete),
+              _buildScreenTile(context, '14. Error — Invalid OTP State', AppRoutes.invalidOtp),
+              _buildScreenTile(context, '15. Transport Access Not Available', AppRoutes.transportUnavailable),
 
               const SizedBox(height: 24),
 
@@ -240,24 +225,7 @@ class HomeScreenPlaceholder extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _pill(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.primaryBlueLight.withOpacity(0.4),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        text,
-        style: GoogleFonts.inter(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: AppColors.primaryBlueDark,
-        ),
-      ),
+      bottomNavigationBar: const EmployeeBottomNavBar(currentIndex: 0),
     );
   }
 
@@ -285,4 +253,3 @@ class HomeScreenPlaceholder extends StatelessWidget {
     );
   }
 }
-

@@ -16,9 +16,26 @@ import '../screens/invalid_otp_screen.dart';
 import '../screens/transport_unavailable_screen.dart';
 import '../screens/home_screen_placeholder.dart';
 
+// Batch 02 Screens
+import '../screens/batch_02/home_upcoming_pickup_screen.dart';
+import '../screens/batch_02/home_upcoming_drop_screen.dart';
+import '../screens/batch_02/home_no_upcoming_trip_screen.dart';
+import '../screens/batch_02/trip_planning_screen.dart';
+import '../screens/batch_02/trip_assigned_screen.dart';
+import '../screens/batch_02/trip_approaching_screen.dart';
+import '../screens/batch_02/trip_arrived_screen.dart';
+import '../screens/batch_02/trip_boarded_screen.dart';
+import '../screens/batch_02/trip_in_progress_screen.dart';
+import '../screens/batch_02/trip_completed_screen.dart';
+import '../screens/batch_02/trip_cancelled_screen.dart';
+import '../screens/batch_02/trip_unserved_screen.dart';
+import '../screens/batch_02/trip_details_completed_screen.dart';
+import '../screens/batch_02/driver_vehicle_details_screen.dart';
+
 class AppRoutes {
   AppRoutes._();
 
+  // Batch 01 Routes
   static const String splash = '/';
   static const String welcome = '/welcome';
   static const String loginOptions = '/login-options';
@@ -36,74 +53,58 @@ class AppRoutes {
   static const String transportUnavailable = '/error/transport-unavailable';
   static const String home = '/home';
 
+  // Batch 02 Routes
+  static const String homeUpcomingPickup = '/home/upcoming-pickup';
+  static const String homeUpcomingDrop = '/home/upcoming-drop';
+  static const String homeNoTrips = '/home/no-trips';
+  static const String tripPlanning = '/trips/planning';
+  static const String tripAssigned = '/trips/assigned';
+  static const String tripApproaching = '/trips/approaching';
+  static const String tripArrived = '/trips/arrived';
+  static const String tripBoarded = '/trips/boarded';
+  static const String tripInProgress = '/trips/in-progress';
+  static const String tripCompleted = '/trips/completed';
+  static const String tripCancelled = '/trips/cancelled';
+  static const String tripUnserved = '/trips/unserved';
+  static const String tripDetails = '/trips/details';
+  static const String tripDriverVehicle = '/trips/driver-vehicle';
+
   static final GoRouter router = GoRouter(
     initialLocation: splash,
     routes: [
-      GoRoute(
-        path: splash,
-        builder: (context, state) => const SplashScreen(),
-      ),
-      GoRoute(
-        path: welcome,
-        builder: (context, state) => const WelcomeScreen(),
-      ),
-      GoRoute(
-        path: loginOptions,
-        builder: (context, state) => const LoginOptionsScreen(),
-      ),
-      GoRoute(
-        path: mobileNumber,
-        builder: (context, state) => const MobileNumberScreen(),
-      ),
-      GoRoute(
-        path: otpVerify,
-        builder: (context, state) => const OtpVerificationScreen(),
-      ),
-      GoRoute(
-        path: companySso,
-        builder: (context, state) => const CompanySsoScreen(),
-      ),
-      GoRoute(
-        path: employeeVerified,
-        builder: (context, state) => const EmployeeVerificationScreen(),
-      ),
-      GoRoute(
-        path: permissionLocation,
-        builder: (context, state) => const LocationPermissionScreen(),
-      ),
-      GoRoute(
-        path: permissionNotification,
-        builder: (context, state) => const NotificationPermissionScreen(),
-      ),
-      GoRoute(
-        path: onboardingSchedule,
-        builder: (context, state) => const OnboardingScheduleScreen(),
-      ),
-      GoRoute(
-        path: onboardingTracking,
-        builder: (context, state) => const OnboardingTrackingScreen(),
-      ),
-      GoRoute(
-        path: onboardingSafety,
-        builder: (context, state) => const OnboardingSafetyScreen(),
-      ),
-      GoRoute(
-        path: onboardingComplete,
-        builder: (context, state) => const OnboardingCompleteScreen(),
-      ),
-      GoRoute(
-        path: invalidOtp,
-        builder: (context, state) => const InvalidOtpScreen(),
-      ),
-      GoRoute(
-        path: transportUnavailable,
-        builder: (context, state) => const TransportUnavailableScreen(),
-      ),
-      GoRoute(
-        path: home,
-        builder: (context, state) => const HomeScreenPlaceholder(),
-      ),
+      // Batch 01
+      GoRoute(path: splash, builder: (context, state) => const SplashScreen()),
+      GoRoute(path: welcome, builder: (context, state) => const WelcomeScreen()),
+      GoRoute(path: loginOptions, builder: (context, state) => const LoginOptionsScreen()),
+      GoRoute(path: mobileNumber, builder: (context, state) => const MobileNumberScreen()),
+      GoRoute(path: otpVerify, builder: (context, state) => const OtpVerificationScreen()),
+      GoRoute(path: companySso, builder: (context, state) => const CompanySsoScreen()),
+      GoRoute(path: employeeVerified, builder: (context, state) => const EmployeeVerificationScreen()),
+      GoRoute(path: permissionLocation, builder: (context, state) => const LocationPermissionScreen()),
+      GoRoute(path: permissionNotification, builder: (context, state) => const NotificationPermissionScreen()),
+      GoRoute(path: onboardingSchedule, builder: (context, state) => const OnboardingScheduleScreen()),
+      GoRoute(path: onboardingTracking, builder: (context, state) => const OnboardingTrackingScreen()),
+      GoRoute(path: onboardingSafety, builder: (context, state) => const OnboardingSafetyScreen()),
+      GoRoute(path: onboardingComplete, builder: (context, state) => const OnboardingCompleteScreen()),
+      GoRoute(path: invalidOtp, builder: (context, state) => const InvalidOtpScreen()),
+      GoRoute(path: transportUnavailable, builder: (context, state) => const TransportUnavailableScreen()),
+      GoRoute(path: home, builder: (context, state) => const HomeScreenPlaceholder()),
+
+      // Batch 02
+      GoRoute(path: homeUpcomingPickup, builder: (context, state) => const HomeUpcomingPickupScreen()),
+      GoRoute(path: homeUpcomingDrop, builder: (context, state) => const HomeUpcomingDropScreen()),
+      GoRoute(path: homeNoTrips, builder: (context, state) => const HomeNoUpcomingTripScreen()),
+      GoRoute(path: tripPlanning, builder: (context, state) => const TripPlanningScreen()),
+      GoRoute(path: tripAssigned, builder: (context, state) => const TripAssignedScreen()),
+      GoRoute(path: tripApproaching, builder: (context, state) => const TripApproachingScreen()),
+      GoRoute(path: tripArrived, builder: (context, state) => const TripArrivedScreen()),
+      GoRoute(path: tripBoarded, builder: (context, state) => const TripBoardedScreen()),
+      GoRoute(path: tripInProgress, builder: (context, state) => const TripInProgressScreen()),
+      GoRoute(path: tripCompleted, builder: (context, state) => const TripCompletedScreen()),
+      GoRoute(path: tripCancelled, builder: (context, state) => const TripCancelledScreen()),
+      GoRoute(path: tripUnserved, builder: (context, state) => const TripUnservedScreen()),
+      GoRoute(path: tripDetails, builder: (context, state) => const TripDetailsCompletedScreen()),
+      GoRoute(path: tripDriverVehicle, builder: (context, state) => const DriverVehicleDetailsScreen()),
     ],
   );
 }
-

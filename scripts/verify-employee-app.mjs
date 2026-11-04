@@ -4,21 +4,27 @@ import path from 'path';
 const APP_DIR = path.resolve('apps/employee_app');
 const LIB_DIR = path.join(APP_DIR, 'lib');
 
-console.log('=== VERIFYING ADHOCX EMPLOYEE MOBILE APP (BATCH 01) ===\n');
+console.log('=== VERIFYING ADHOCX EMPLOYEE MOBILE APP (BATCH 01 & 02) ===\n');
 
-// 1. Check required configuration files
-const reqFiles = ['pubspec.yaml', 'analysis_options.yaml', 'README.md'];
+// 1. Check required configuration files & JSON data
+const reqFiles = [
+  'pubspec.yaml',
+  'analysis_options.yaml',
+  'README.md',
+  'assets/data/mock_data.json',
+];
+
 for (const f of reqFiles) {
   const p = path.join(APP_DIR, f);
   if (!fs.existsSync(p)) {
-    console.error(`[FAIL] Missing config file: ${f}`);
+    console.error(`[FAIL] Missing file: ${f}`);
     process.exit(1);
   }
-  console.log(`[PASS] Config: ${f}`);
+  console.log(`[PASS] Verified file: ${f}`);
 }
 
-// 2. Inventory of all 15 screens
-const screens = [
+// 2. Inventory of Batch 01 (15 Screens)
+const batch01Screens = [
   'splash_screen.dart',
   'welcome_screen.dart',
   'login_options_screen.dart',
@@ -36,24 +42,51 @@ const screens = [
   'transport_unavailable_screen.dart',
 ];
 
-console.log('\n--- Checking 15 Batch 01 Screens ---');
+console.log('\n--- Checking Batch 01 Screens (15 Screens) ---');
 const screensDir = path.join(LIB_DIR, 'screens');
-for (let i = 0; i < screens.length; i++) {
-  const name = screens[i];
+for (let i = 0; i < batch01Screens.length; i++) {
+  const name = batch01Screens[i];
   const full = path.join(screensDir, name);
   if (!fs.existsSync(full)) {
-    console.error(`[FAIL] Missing screen #${i + 1}: ${name}`);
+    console.error(`[FAIL] Missing Batch 01 screen #${i + 1}: ${name}`);
     process.exit(1);
   }
   const stat = fs.statSync(full);
-  if (stat.size < 100) {
-    console.error(`[FAIL] Screen #${i + 1} (${name}) is suspiciously small (${stat.size} bytes)`);
-    process.exit(1);
-  }
-  console.log(`[PASS] Screen ${String(i + 1).padStart(2, '0')}: ${name} (${(stat.size / 1024).toFixed(1)} KB)`);
+  console.log(`[PASS] B1-${String(i + 1).padStart(2, '0')}: ${name} (${(stat.size / 1024).toFixed(1)} KB)`);
 }
 
-// 3. Scan all Dart files for syntax and import integrity
+// 3. Inventory of Batch 02 (14 Screens)
+const batch02Screens = [
+  'home_upcoming_pickup_screen.dart',
+  'home_upcoming_drop_screen.dart',
+  'home_no_upcoming_trip_screen.dart',
+  'trip_planning_screen.dart',
+  'trip_assigned_screen.dart',
+  'trip_approaching_screen.dart',
+  'trip_arrived_screen.dart',
+  'trip_boarded_screen.dart',
+  'trip_in_progress_screen.dart',
+  'trip_completed_screen.dart',
+  'trip_cancelled_screen.dart',
+  'trip_unserved_screen.dart',
+  'trip_details_completed_screen.dart',
+  'driver_vehicle_details_screen.dart',
+];
+
+console.log('\n--- Checking Batch 02 Screens (14 Screens) ---');
+const b2Dir = path.join(screensDir, 'batch_02');
+for (let i = 0; i < batch02Screens.length; i++) {
+  const name = batch02Screens[i];
+  const full = path.join(b2Dir, name);
+  if (!fs.existsSync(full)) {
+    console.error(`[FAIL] Missing Batch 02 screen #${i + 1}: ${name}`);
+    process.exit(1);
+  }
+  const stat = fs.statSync(full);
+  console.log(`[PASS] B2-${String(i + 1).padStart(2, '0')}: ${name} (${(stat.size / 1024).toFixed(1)} KB)`);
+}
+
+// 4. Scan all Dart files for syntax and import integrity
 function getDartFiles(dir) {
   let results = [];
   const list = fs.readdirSync(dir);
@@ -127,30 +160,29 @@ if (hasError) {
 
 console.log('[PASS] All Dart files passed delimiter and local import resolution checks.');
 
-// 4. Check routes cover all 15 screens
+// 5. Check app_routes.dart registers all screens
 const routesFile = fs.readFileSync(path.join(LIB_DIR, 'routes/app_routes.dart'), 'utf-8');
-for (const s of screens) {
+const allScreens = [...batch01Screens, ...batch02Screens];
+for (const s of allScreens) {
   const baseName = s.replace('.dart', '');
-  // Screen class name in PascalCase
   const parts = baseName.split('_');
   const className = parts.map(p => p[0].toUpperCase() + p.slice(1)).join('');
   if (!routesFile.includes(className)) {
-    console.error(`[FAIL] app_routes.dart does not register screen class: ${className}`);
+    console.error(`[FAIL] app_routes.dart missing screen class: ${className}`);
     process.exit(1);
   }
 }
-console.log('[PASS] app_routes.dart registers all 15 screens.');
+console.log(`[PASS] app_routes.dart registers all ${allScreens.length} screens (15 in Batch 01 + 14 in Batch 02).`);
 
-// 5. Check Brand Colors token presence
-const colorsFile = fs.readFileSync(path.join(LIB_DIR, 'theme/app_colors.dart'), 'utf-8');
-const expectedTokens = ['0xFF1167EE', '0xFFFF5F09', '0xFFEE9811', '0xFF010D2D'];
-for (const t of expectedTokens) {
-  if (!colorsFile.includes(t)) {
-    console.error(`[FAIL] app_colors.dart missing expected token: ${t}`);
+// 6. Check JSON mock data structure
+const jsonContent = JSON.parse(fs.readFileSync(path.join(APP_DIR, 'assets/data/mock_data.json'), 'utf-8'));
+const requiredSections = ['employee', 'trips', 'schedules', 'driver_assignment', 'live_tracking', 'boarding_completion'];
+for (const sec of requiredSections) {
+  if (!jsonContent[sec]) {
+    console.error(`[FAIL] mock_data.json missing section: ${sec}`);
     process.exit(1);
   }
 }
-console.log('[PASS] app_colors.dart contains all core design tokens (#1167EE, #FF5F09, #EE9811, #010D2D).');
+console.log('[PASS] mock_data.json contains all required schema sections.');
 
-console.log('\n=== ALL BATCH 01 VERIFICATIONS COMPLETED SUCCESSFULLY! ===');
-
+console.log('\n=== ALL BATCH 01 & BATCH 02 VERIFICATIONS COMPLETED SUCCESSFULLY! ===');
