@@ -140,6 +140,26 @@ export class TripEventRecorder {
     });
   }
 
+  async recordOfferWithdrawn(routeId: string, driverId: string, reason?: string): Promise<void> {
+    await this.record({
+      routeId,
+      type: 'OFFER_WITHDRAWN',
+      actorId: null,
+      actorRole: 'SYSTEM',
+      payload: { driverId, reason: reason ?? 'REASSIGNED_OR_CANCELLED' },
+    });
+  }
+
+  async recordRouteAtRisk(routeId: string, leadMinutes: number, targetPickup1Time: Date): Promise<void> {
+    await this.record({
+      routeId,
+      type: 'ROUTE_ESCALATED_AT_RISK',
+      actorId: null,
+      actorRole: 'SYSTEM',
+      payload: { leadMinutes, targetPickup1Time: targetPickup1Time.toISOString() },
+    });
+  }
+
   // ---- Replanning helper ----
 
   async recordReplan(e: ReplanEventInput): Promise<void> {

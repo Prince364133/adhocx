@@ -243,6 +243,7 @@ model Driver {
   subscriptionPayments DriverSubscriptionPayment[]
   corporateRoutes      CorporateRoute[]
   corporateEarnings    CorporateDriverEarning[]
+  corporateOffers      CorporateDriverOffer[]
 
   @@map("drivers")
 }
@@ -952,6 +953,7 @@ model CorporateTenant {
   routes            CorporateRoute[]
   invoices          CorporateInvoice[]
   users             User[]
+  driverOffers      CorporateDriverOffer[]
 
   @@map("corporate_tenants")
 }
@@ -1106,6 +1108,8 @@ model CorporateRoute {
   invoiceLines   CorporateInvoiceLine[]
   driverEarnings CorporateDriverEarning[]
   sosAlerts      CorporateSosAlert[]
+  driverOffers   CorporateDriverOffer[]
+  atRisk         Boolean                     @default(false) @map("at_risk")
 
   @@index([tenantId, shiftDate, shiftTime])
   @@index([driverId])
@@ -1295,3 +1299,40 @@ model CorporateRouteAssignmentEvent {
   @@map("corporate_route_assignment_events")
 }
 // ===== end WS-B =====
+
+// ===== WS-A: Supply eligibility, persisted offers & escalation (docs/corporate-ets/19 §1 WS-A) =====
+
+enum CorporateDriverOfferStatus {
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  WITHDRAWN
+}
+
+model CorporateDriverOffer {
+  id           String                     @id @default(uuid()) @db.Uuid
+  tenantId     String                     @map("tenant_id") @db.Uuid
+  routeId      String                     @map("route_id") @db.Uuid
+  driverId     String                     @map("driver_id") @db.Uuid
+  attempt      Int                        @default(1)
+  status       CorporateDriverOfferStatus @default(SENT)
+  payoutPaise  BigInt                     @map("payout_paise")
+  expiresAt    DateTime                   @map("expires_at")
+  respondedAt  DateTime?                  @map("responded_at")
+  rejectReason String?                    @map("reject_reason") @db.VarChar(128)
+  createdAt    DateTime                   @default(now()) @map("created_at")
+  updatedAt    DateTime                   @default(now()) @updatedAt @map("updated_at")
+
+  tenant CorporateTenant @relation(fields: [tenantId], references: [id])
+  route  CorporateRoute  @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  driver Driver          @relation(fields: [driverId], references: [id])
+
+  @@unique([routeId, driverId, attempt])
+  @@index([driverId, status, expiresAt])
+  @@index([routeId, status])
+  @@index([tenantId, createdAt])
+  @@map("corporate_driver_offers")
+}
+
+// ===== end WS-A =====

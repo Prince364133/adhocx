@@ -29,6 +29,7 @@ import {
 
 // Dispatch & DDA Sub-Module
 import { CorporateDispatchService } from './dispatch/corporate-dispatch.service';
+import { DriverEligibilityService } from './supply/driver-eligibility.service';
 import { CorporateDispatchSchedulerService } from './dispatch/corporate-dispatch-scheduler.service';
 import { CorporateDispatchController } from './dispatch/corporate-dispatch.controller';
 import { GoogleTrafficEstimatorAdapter } from './dispatch/traffic/google-traffic-estimator.adapter';
@@ -72,6 +73,7 @@ import { CorporateAnalyticsController } from './analytics/corporate-analytics.co
     CorporateTrackingModule,
   ],
   providers: [
+    DriverEligibilityService,
     CorporateTenantService,
     RosterTemplateService,
     RosterIngestionService,
@@ -106,6 +108,7 @@ import { CorporateAnalyticsController } from './analytics/corporate-analytics.co
     CorporateAnalyticsController, // WS-D
   ],
   exports: [
+    DriverEligibilityService,
     CorporateTenantService,
     RosterTemplateService,
     RosterIngestionService,

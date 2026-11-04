@@ -151,5 +151,23 @@ export class CorporateDispatchController {
       offer: parsedOffer,
     };
   }
-}
+  @Get('driver-offers')
+  @Roles(UserRole.ADMIN, UserRole.DRIVER)
+  @CorporateTenantScoped()
+  @ApiOperation({ summary: 'Retrieve currently active corporate route offer for authenticated driver (UI Reconnect)' })
+  public async getDriverOffers(@Req() req: any) {
+    const driver = await this.db.driver.findUnique({ where: { userId: req.user.id } });
+    if (!driver) return { hasActiveOffer: false };
+    return this.dispatchService.getDriverActiveOffer(driver.id);
+  }
 
+  @Get('driver-duties')
+  @Roles(UserRole.ADMIN, UserRole.DRIVER)
+  @CorporateTenantScoped()
+  @ApiOperation({ summary: 'Retrieve upcoming assigned corporate routes and duties for authenticated driver' })
+  public async getDriverDuties(@Req() req: any) {
+    const driver = await this.db.driver.findUnique({ where: { userId: req.user.id } });
+    if (!driver) return [];
+    return this.dispatchService.getDriverAssignedDuties(driver.id);
+  }
+}

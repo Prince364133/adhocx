@@ -26,6 +26,12 @@ import {
 } from './traffic/traffic-estimator.port';
 import { heuristicTrafficDelay } from './traffic/heuristic-traffic';
 import { TripEventRecorder } from '../tracking/trip-event-recorder.service';
+import { DriverEligibilityService } from '../supply/driver-eligibility.service';
+import {
+  CORPORATE_ESCALATION_LEAD_MIN,
+  DriverActiveOfferResponse,
+  DriverDutySummary,
+} from '../supply/corporate-supply.types';
 
 function envPositiveNumber(name: string, fallback: number): number {
   const raw = process.env[name];
@@ -52,7 +58,7 @@ export const CorporateDispatchKeys = {
  * exclusive hold). Used when a route is cancelled while DISPATCHING so the driver's offer card
  * disappears instead of waiting out the 60s TTL. Returns the driver whose offer was withdrawn.
  */
-export async function withdrawCorporateRouteOffer(client: any, routeId: string): Promise<string | null> {
+export async function withdrawCorporateRouteOffer(client: any, routeId: string, db?: any): Promise<string | null> {
   if (!client) return null;
   let driverId: string | null = null;
   const raw = await client.get(CorporateDispatchKeys.offer(routeId));
@@ -71,6 +77,14 @@ export async function withdrawCorporateRouteOffer(client: any, routeId: string):
   await client.del(CorporateDispatchKeys.unserved(routeId));
   if (driverId && (await client.get(CorporateDispatchKeys.driverHold(driverId))) === routeId) {
     await client.del(CorporateDispatchKeys.driverHold(driverId));
+  }
+  if (driverId && db?.corporateDriverOffer) {
+    try {
+      await db.corporateDriverOffer.updateMany({
+        where: { routeId, driverId, status: 'SENT' },
+        data: { status: 'WITHDRAWN', respondedAt: new Date() },
+      });
+    } catch {}
   }
   return driverId;
 }
@@ -134,6 +148,11 @@ export class CorporateDispatchService {
 
   /** WS-B trip timeline (property-injected so the constructor signature is unchanged). */
   @Optional() @Inject(TripEventRecorder) private readonly tripEvents?: TripEventRecorder;
+  @Optional() @Inject(DriverEligibilityService) private readonly driverEligibilityService?: DriverEligibilityService;
+
+  private getEligibilityService(): DriverEligibilityService {
+    return this.driverEligibilityService ?? new DriverEligibilityService(this.db);
+  }
 
   /**
    * Dynamic Dispatch Advancer (DDA) for a scheduled corporate route.
@@ -624,6 +643,42 @@ export class CorporateDispatchService {
         );
       }
 
+      // WS-A: Persist CorporateDriverOffer in Postgres
+      if (this.db?.corporateDriverOffer) {
+        try {
+          const existingCount = await this.db.corporateDriverOffer.count({
+            where: { routeId, driverId: selectedDriver.id },
+          });
+          const attemptNumber = existingCount + 1;
+          await this.db.corporateDriverOffer.upsert({
+            where: {
+              routeId_driverId_attempt: {
+                routeId,
+                driverId: selectedDriver.id,
+                attempt: attemptNumber,
+              },
+            },
+            create: {
+              tenantId: route.tenantId,
+              routeId,
+              driverId: selectedDriver.id,
+              attempt: attemptNumber,
+              status: 'SENT',
+              payoutPaise: BigInt(farePaise),
+              expiresAt: offerExpiresAt,
+            },
+            update: {
+              status: 'SENT',
+              payoutPaise: BigInt(farePaise),
+              expiresAt: offerExpiresAt,
+              updatedAt: new Date(),
+            },
+          });
+        } catch (e: any) {
+          this.logger.warn(`Failed to persist CorporateDriverOffer: ${e?.message ?? e}`);
+        }
+      }
+
       // Send Realtime WebSocket Event + FCM Push to Driver
       this.notifications.emitEvent(`driver:${selectedDriver.id}`, 'CORPORATE_ROUTE_OFFER', offerData);
 
@@ -678,7 +733,18 @@ export class CorporateDispatchService {
     const preClient = this.redis.getClient();
     if (preClient) {
       const preRaw = await preClient.get(CorporateDispatchKeys.offer(routeId));
-      if (!preRaw) throw new BadRequestException('Route offer has expired or is no longer valid');
+      if (!preRaw) {
+        if (this.db?.corporateDriverOffer) {
+          const dbOffer = await this.db.corporateDriverOffer.findFirst({
+            where: { routeId, driverId },
+            orderBy: { createdAt: 'desc' },
+          });
+          if (dbOffer && (dbOffer.status === 'EXPIRED' || dbOffer.status === 'WITHDRAWN')) {
+            throw new ConflictException(`Offer has expired or was withdrawn (status: ${dbOffer.status})`);
+          }
+        }
+        throw new BadRequestException('Route offer has expired or is no longer valid');
+      }
       if ((JSON.parse(preRaw) as CorporateRouteOfferData).driverId !== driverId) {
         throw new BadRequestException('This offer was dispatched to another driver');
       }
@@ -809,6 +875,14 @@ export class CorporateDispatchService {
       });
 
       await this.tripEvents?.recordOfferAccepted({ tenantId: updatedRoute.tenantId, routeId, driverId, actorId: driver.userId, payload: { farePaise: offer.farePaise, vehicleId: vehicle?.id ?? null } });
+      if (this.db?.corporateDriverOffer) {
+        try {
+          await this.db.corporateDriverOffer.updateMany({
+            where: { routeId, driverId, status: 'SENT' },
+            data: { status: 'ACCEPTED', respondedAt: new Date() },
+          });
+        } catch {}
+      }
       return updatedRoute;
     } finally {
       await this.redis.releaseLockToken(lockKey, lockAcquired);
@@ -848,6 +922,19 @@ export class CorporateDispatchService {
       `Driver ${driverId} rejected route ${routeId} (Reason: ${reason || 'NONE'}). Cascading to next candidate...`,
     );
 
+    if (this.db?.corporateDriverOffer) {
+      try {
+        const isExpired = /EXPIRED|TIMEOUT/i.test(reason || '');
+        await this.db.corporateDriverOffer.updateMany({
+          where: { routeId, driverId, status: 'SENT' },
+          data: {
+            status: isExpired ? 'EXPIRED' : 'REJECTED',
+            respondedAt: new Date(),
+            rejectReason: reason || (isExpired ? 'OFFER_TIMEOUT_EXPIRED' : 'DECLINED_BY_DRIVER'),
+          },
+        });
+      } catch {}
+    }
     await this.tripEvents?.recordOfferDeclined(routeId, driverId, reason);
     // Cascade to next driver
     await this.dispatchRoute(routeId, false);
@@ -934,9 +1021,18 @@ export class CorporateDispatchService {
 
     if (candidateIds.length === 0) return [];
 
+    // WS-A: Strict eligibility filtering via DriverEligibilityService
+    const eligibilitySvc = this.getEligibilityService();
+    const { eligibleDriverIds, driverVehicleMap } = await eligibilitySvc.batchFilterEligibleDrivers(
+      candidateIds,
+      forRoute || { vehicleCategory },
+    );
+
+    if (eligibleDriverIds.length === 0) return [];
+
     const drivers = await this.db.driver.findMany({
       where: {
-        id: { in: candidateIds },
+        id: { in: eligibleDriverIds },
         availabilityStatus: 'AVAILABLE',
         verificationStatus: 'VERIFIED',
       },
@@ -944,48 +1040,173 @@ export class CorporateDispatchService {
 
     const driverMap = new Map(drivers.map((d) => [d.id, d]));
 
-    // Drivers already committed to another corporate route whose time window (plus turnaround)
-    // overlaps this one are skipped, even though their live status may still read AVAILABLE.
-    if (forRoute?.targetPickup1Time && driverMap.size > 0) {
-      const mine = corporateRouteBusyWindow(forRoute);
-      const gap = CORPORATE_DRIVER_TURNAROUND_MINUTES * 60_000;
-      const commitments: any[] =
-        (await this.db.corporateRoute.findMany({
-          where: {
-            driverId: { in: [...driverMap.keys()] },
-            status: { in: ['ASSIGNED', 'IN_TRANSIT'] },
-            ...(forRoute.id ? { id: { not: forRoute.id } } : {}),
+    // Preserve proximity order from nearby search
+    return candidateIds
+      .filter((id) => driverMap.has(id))
+      .map((id) => {
+        const d = driverMap.get(id)!;
+        return {
+          ...d,
+          matchedVehicleId: driverVehicleMap.get(id),
+        };
+      });
+  }
+
+  /**
+   * WS-A Escalation (ALLOC-05): Detects unassigned routes at risk within 30 min of pickup-1,
+   * flags atRisk = true in DB, and emits corporate.route.at_risk for command centre alerting.
+   */
+  async checkAndEscalateAtRiskRoutes(): Promise<string[]> {
+    const leadMs = CORPORATE_ESCALATION_LEAD_MIN * 60_000;
+    const cutoff = new Date(Date.now() + leadMs);
+    const atRiskRoutes = await this.db.corporateRoute.findMany({
+      where: {
+        status: { in: ['PLANNED', 'DISPATCHING'] },
+        atRisk: false,
+        targetPickup1Time: { lte: cutoff },
+      },
+      include: { stops: true },
+    });
+
+    const escalatedRouteIds: string[] = [];
+    for (const r of atRiskRoutes) {
+      await this.db.corporateRoute.update({
+        where: { id: r.id },
+        data: { atRisk: true },
+      });
+      escalatedRouteIds.push(r.id);
+      this.logger.warn(`[ALLOC-05] Route ${r.id} is unassigned <= 30m before pickup! Flagged atRisk.`);
+
+      this.notifications.emitEvent('admin:operations', 'CORPORATE_ROUTE_AT_RISK', {
+        routeId: r.id,
+        tenantId: r.tenantId,
+        targetPickup1Time: r.targetPickup1Time,
+        stopsCount: r.stops?.length ?? 0,
+      });
+
+      if (this.tripEvents) {
+        await this.tripEvents.recordRouteAtRisk(
+          r.id,
+          Math.round((new Date(r.targetPickup1Time).getTime() - Date.now()) / 60000),
+          r.targetPickup1Time,
+        );
+      }
+    }
+    return escalatedRouteIds;
+  }
+
+  /**
+   * WS-A Reconnect: Returns active 60s offer for driver app reconnect.
+   */
+  async getDriverActiveOffer(driverId: string): Promise<DriverActiveOfferResponse> {
+    const client = this.redis.getClient();
+    let routeId: string | null = null;
+    if (client) {
+      routeId = await client.get(CorporateDispatchKeys.driverHold(driverId));
+    }
+
+    if (routeId && client) {
+      const rawOffer = await client.get(CorporateDispatchKeys.offer(routeId));
+      if (rawOffer) {
+        const ttl = await client.ttl(CorporateDispatchKeys.offer(routeId));
+        const parsed = JSON.parse(rawOffer);
+        return {
+          hasActiveOffer: true,
+          offer: {
+            ...parsed,
+            id: routeId,
+            remainingSeconds: Math.max(0, ttl),
           },
-          select: {
-            driverId: true,
-            direction: true,
-            targetPickup1Time: true,
-            targetOfficeArrivalTime: true,
-            estDurationSeconds: true,
-          },
-        })) ?? [];
-      for (const c of commitments) {
-        const w = corporateRouteBusyWindow(c);
-        if (w.start < mine.end + gap && mine.start < w.end + gap) driverMap.delete(c.driverId);
+        };
       }
     }
 
-    // Match compatible vehicle category (if specified) and preserve proximity order
-    return candidateIds
-      .map((id) => driverMap.get(id))
-      .filter((d): d is NonNullable<typeof d> => {
-        if (!d) return false;
-        if (!vehicleCategory) return true;
-        if (d.vehicleType) {
-          const vType = d.vehicleType.toUpperCase();
-          const target = vehicleCategory.toUpperCase();
-          return (
-            vType.includes(target) ||
-            (target === 'SEDAN' && vType.includes('SEDAN')) ||
-            (target === 'SUV' && vType.includes('SUV'))
-          );
-        }
-        return true;
+    // Fallback to database CorporateDriverOffer if Redis key just expired or during reconnect
+    if (this.db?.corporateDriverOffer) {
+      const dbOffer = await this.db.corporateDriverOffer.findFirst({
+        where: {
+          driverId,
+          status: 'SENT',
+          expiresAt: { gt: new Date() },
+        },
+        include: {
+          route: {
+            include: { tenant: true, stops: { orderBy: { stopSequence: 'asc' } } },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
       });
+
+      if (dbOffer && dbOffer.route) {
+        const remainingSeconds = Math.max(
+          0,
+          Math.floor((new Date(dbOffer.expiresAt).getTime() - Date.now()) / 1000),
+        );
+        const stops = dbOffer.route.stops ?? [];
+        return {
+          hasActiveOffer: true,
+          offer: {
+            id: dbOffer.id,
+            routeId: dbOffer.routeId,
+            tenantName: dbOffer.route.tenant?.name ?? 'Corporate Client',
+            shiftDate: dbOffer.route.shiftDate.toISOString().substring(0, 10),
+            shiftTime: dbOffer.route.shiftTime,
+            direction: dbOffer.route.direction as any,
+            passengerCount: dbOffer.route.assignedPassengerCount,
+            totalDistanceMeters: dbOffer.route.estDistanceMeters,
+            targetPickup1Time: dbOffer.route.targetPickup1Time,
+            farePaise: Number(dbOffer.payoutPaise),
+            offerExpiresAt: dbOffer.expiresAt,
+            remainingSeconds,
+            stopsCount: stops.length,
+            originAddress: `Stop 1 (${stops[0]?.stopType ?? 'PICKUP'})`,
+            destinationAddress: `Stop ${stops.length} (${stops[stops.length - 1]?.stopType ?? 'DROPOFF'})`,
+          },
+        };
+      }
+    }
+
+    return { hasActiveOffer: false };
+  }
+
+  /**
+   * WS-A Driver Duties: Returns all upcoming committed corporate routes assigned to this driver.
+   */
+  async getDriverAssignedDuties(driverId: string): Promise<DriverDutySummary[]> {
+    const routes = await this.db.corporateRoute.findMany({
+      where: {
+        driverId,
+        status: { in: ['ASSIGNED', 'IN_TRANSIT'] },
+      },
+      include: {
+        tenant: true,
+        stops: { orderBy: { stopSequence: 'asc' } },
+      },
+      orderBy: { targetPickup1Time: 'asc' },
+    });
+
+    return routes.map((r) => ({
+      routeId: r.id,
+      tenantId: r.tenantId,
+      tenantName: r.tenant?.name ?? 'Corporate Client',
+      shiftDate: r.shiftDate.toISOString().substring(0, 10),
+      shiftTime: r.shiftTime,
+      direction: r.direction as any,
+      vehicleCategory: r.vehicleCategory,
+      status: r.status,
+      targetPickup1Time: r.targetPickup1Time,
+      targetOfficeArrivalTime: r.targetOfficeArrivalTime,
+      estDistanceMeters: r.estDistanceMeters,
+      estDurationSeconds: r.estDurationSeconds,
+      passengerCount: r.assignedPassengerCount,
+      stopsCount: r.stops?.length ?? 0,
+      stops: (r.stops ?? []).map((s) => ({
+        sequence: s.stopSequence,
+        stopType: s.stopType,
+        locationText: `Stop ${s.stopSequence} (${s.stopType})`,
+        plannedEta: s.plannedEta,
+        status: s.status,
+      })),
+    }));
   }
 }

@@ -115,6 +115,8 @@ export const CorporateTripEventTypes = [
   'STOP_ADDED',
   'STOP_REMOVED',
   'DRIVER_REASSIGNED',
+  'OFFER_WITHDRAWN',
+  'ROUTE_ESCALATED_AT_RISK',
 ] as const;
 export type CorporateTripEventType = (typeof CorporateTripEventTypes)[number];
 
