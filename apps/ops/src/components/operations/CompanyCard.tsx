@@ -208,3 +208,4 @@ export const CompanyCard: React.FC<CompanyCardProps> = ({
     </div>
   );
 };
+

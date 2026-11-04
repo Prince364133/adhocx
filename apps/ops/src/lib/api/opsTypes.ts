@@ -151,3 +151,4 @@ export interface AvailableDriverOption {
   isYellowPlateVerified: boolean;
   currentDutyHours: number;
 }
+
