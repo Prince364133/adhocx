@@ -1,4 +1,5 @@
 require('dotenv').config();
+const { requireConfirmedDatabase, requireEnv } = require('./_db-guard');
 const { PrismaClient } = require('@prisma/client');
 const crypto = require('crypto');
 
@@ -11,9 +12,10 @@ function hashPassword(password) {
 }
 
 async function main() {
+  requireConfirmedDatabase({ destructive: false });
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@adhocx.com';
   const adminPhone = process.env.ADMIN_PHONE || '+919876543210';
-  const adminPassword = process.env.ADMIN_PASSWORD || 'Admin@AdhocX2026!';
+  const adminPassword = requireEnv('ADMIN_PASSWORD', { minLength: 12 });
   const adminName = 'AdhocX Administrator';
 
   console.log(`🔐 Seeding Admin credentials for: ${adminEmail} (${adminPhone})...`);

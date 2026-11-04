@@ -1,10 +1,12 @@
 require('dotenv').config();
+const { requireConfirmedDatabase } = require('./_db-guard');
 const { PrismaClient } = require('@prisma/client');
 const Redis = require('ioredis');
 
 const prisma = new PrismaClient();
 
 async function main() {
+  requireConfirmedDatabase({ destructive: true });
   console.log('🔄 Starting complete database wipe for AdhocX...');
 
   // 1. Check existing counts

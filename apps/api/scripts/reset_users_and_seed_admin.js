@@ -1,5 +1,6 @@
 const path = require('path');
 const dotenv = require('dotenv');
+const { requireConfirmedDatabase, requireEnv } = require('./_db-guard');
 const crypto = require('crypto');
 
 // Load environment configuration
@@ -16,6 +17,7 @@ function hashPassword(password) {
 }
 
 async function main() {
+  requireConfirmedDatabase({ destructive: true });
   console.log('====================================================');
   console.log('🚀 Starting User & Operational Data Reset');
   console.log('====================================================');
@@ -96,7 +98,7 @@ async function main() {
   console.log('\n--- Seeding Fresh Admin Account ---');
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@adhocx.com';
   const adminPhone = process.env.ADMIN_PHONE || '+919876543210';
-  const adminPassword = process.env.ADMIN_PASSWORD || 'Admin@AdhocX2026!';
+  const adminPassword = requireEnv('ADMIN_PASSWORD', { minLength: 12 });
   const adminFullName = 'AdhocX Administrator';
   const passwordHash = hashPassword(adminPassword);
 
