@@ -7,7 +7,7 @@ import 'package:adhocx_employee/widgets/employee_app_bar.dart';
 import 'package:adhocx_employee/widgets/employee_primary_button.dart';
 import 'package:adhocx_employee/widgets/illustration_widgets.dart';
 import 'package:adhocx_employee/state/employee_auth_provider.dart';
-import '../../models/auth_state.dart';
+import 'package:adhocx_employee/models/auth_state.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
 
 class CompanySsoScreen extends StatefulWidget {
@@ -192,6 +192,7 @@ class _CompanySsoScreenState extends State<CompanySsoScreen> {
     );
   }
 }
+
 
 
 
