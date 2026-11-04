@@ -75,14 +75,14 @@ export const ARTICLES_CONTENT: Record<string, ArticleData> = {
     date: 'Oct 10, 2026',
     author: 'AdhocX Driver Community Desk',
     authorRole: 'Driver Partner Relations & Welfare Operations',
-    summary: 'An operational breakdown of fuel efficiency, daily run tariffs, and how the Century Milestone bonus maximizes monthly net driver payouts.',
-    directAnswer: 'Commercial cab drivers in Hyderabad operating 4-seater sedans and 7-seater MUVs benefit from steady corporate shifts and direct bank settlements. Through AdhocX’s direct marketplace model and Century Milestone cash bonuses, drivers retain significantly more income compared to traditional consumer cab platforms.',
+    summary: 'An operational breakdown of fuel efficiency, daily run tariffs, and how direct bank settlements and pre-scheduled corporate routes maximize monthly net driver earnings.',
+    directAnswer: 'Commercial cab drivers in Hyderabad operating 4-seater sedans and 7-seater MUVs benefit from steady corporate shifts and direct bank settlements. Through AdhocX’s direct marketplace model and transparent scheduled corporate shifts, drivers retain significantly more income compared to traditional consumer cab platforms.',
     coverImage: 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=1200&q=80',
     keyTakeaways: [
       'Commercial CNG/Petrol sedans (Maruti Dzire) provide exceptional operating efficiency for urban IT corridor duty.',
       '7-seater MUVs (Maruti Ertiga, Innova Crysta) command higher average trip values for airport transfers and corporate team transit.',
       'AdhocX provides direct settlements, returning customer trip fares directly to driver bank accounts with zero hidden deductions.',
-      'The Century Milestone Bonus adds direct cash into the driver’s bank account for verified trip milestones.'
+      'AdhocX automated settlements deposit trip earnings directly into the driver’s bank account.'
     ],
     contentHtml: `
       <h2>The Cost-Per-Kilometer Reality for Hyderabad Commercial Drivers</h2>
@@ -110,9 +110,9 @@ export const ARTICLES_CONTENT: Record<string, ArticleData> = {
         <li><strong>Transparent Trip Details:</strong> Distance, toll, and drop location are visible before trip confirmation—no forced blind acceptances.</li>
       </ul>
 
-      <h2>The Century Milestone Program</h2>
+      <h2>Consistent Fulfillment & Direct Bank Settlement</h2>
       <p>
-        To reward consistency and high fulfillment standards, AdhocX introduced the Century Milestone Bonus. Drivers who achieve completed trip milestones automatically receive cash rewards directly into their registered bank account.
+        To reward consistency and high fulfillment standards, AdhocX provides rapid automated settlements. Drivers who fulfill corporate shift duties receive earnings directly into their registered bank account with complete transparency.
       </p>
     `
   },

@@ -10,278 +10,90 @@ const { activeNav = '', logoTag = '' } = Astro.props;
 <header class="header-sticky" id="site-header">
   <div class="container header-inner">
     <!-- Brand Logo -->
-    <a href="/" class="brand-logo" id="header-brand-logo">
+    <a href="/" class="brand-logo" id="header-brand-logo" aria-label="AdhocX Corporate Homepage">
       <span class="logo-text">Adhoc<span class="logo-accent">X</span></span>
       {logoTag && <span class="logo-tag">{logoTag}</span>}
     </a>
 
-    <!-- Primary Navigation with Triple Mega-Menu Suite -->
+    <!-- Primary Navigation Suite -->
     <ul class="nav-links" id="primary-nav-links">
-      <!-- 1. Platform (Mega-Menu: Screenshot 1) -->
-      <li class="nav-item-dropdown" id="nav-dropdown-platform">
-        <button type="button" class="nav-link" aria-expanded="false" aria-haspopup="true">
-          <span>Platform</span>
-          <svg class="caret-icon" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
-          </svg>
-        </button>
-
-        <!-- Platform Mega-Menu Panel -->
-        <div class="mega-menu-panel" id="platform-mega-menu">
-          <!-- Col 1: Core Modules -->
-          <div>
-            <div class="mega-menu-col-title">Core Modules</div>
-            <div class="mega-menu-list">
-              <a href="/vendors#corporate-form" class="mega-menu-item">
-                <div class="mega-menu-item-title">Corporate Travel & Spot Cabs</div>
-                <div class="mega-menu-item-desc">Flights, airport transfers, hotels and executive spot cabs on the same policy engine</div>
-              </a>
-              <a href="/ets" class="mega-menu-item">
-                <div class="mega-menu-item-title">Employee Transport Software (ETS)</div>
-                <div class="mega-menu-item-desc">Rosters, routing, programmatic allocation and tracking end to end</div>
-              </a>
-              <a href="/vendors#unified" class="mega-menu-item">
-                <div class="mega-menu-item-title">Travel + Transport in One</div>
-                <div class="mega-menu-item-desc">Both on one policy engine, one GST invoice, and single approval chain</div>
-              </a>
-              <a href="/vendors#calculator" class="mega-menu-item">
-                <div class="mega-menu-item-title">Cost Calculator</div>
-                <div class="mega-menu-item-desc">Estimate your annual corporate travel and mobility spend</div>
-              </a>
-            </div>
-          </div>
-
-          <!-- Col 2: Network -->
-          <div>
-            <div class="mega-menu-col-title">Network</div>
-            <div class="mega-menu-list">
-              <a href="/vendors" class="mega-menu-item">
-                <div class="mega-menu-item-title">Managed Transport</div>
-                <div class="mega-menu-item-desc">AdhocX as your dedicated ETS and commercial fleet partner across Telangana & Hyderabad</div>
-              </a>
-              <a href="/drivers" class="mega-menu-item">
-                <div class="mega-menu-item-title">Vendor & Fleet Management</div>
-                <div class="mega-menu-item-desc">The unified console your vendors dispatch, track, and invoice from</div>
-              </a>
-            </div>
-          </div>
-
-          <!-- Col 3: Platform Governance -->
-          <div>
-            <div class="mega-menu-col-title">Platform</div>
-            <div class="mega-menu-list">
-              <a href="/safety" class="mega-menu-item">
-                <div class="mega-menu-item-title">Security & Compliance</div>
-                <div class="mega-menu-item-desc">100% yellow-plate verified, driver KYC, GPS telemetry & Telangana transport regulations</div>
-              </a>
-              <a href="/pricing" class="mega-menu-item">
-                <div class="mega-menu-item-title">Pricing</div>
-                <div class="mega-menu-item-desc">Usage-based, by module and site with guaranteed 1-hour bank refund SLA</div>
-              </a>
-            </div>
-          </div>
-
-          <!-- Col 4: Featured Benchmark Report -->
-          <div>
-            <div class="mega-menu-featured-card">
-              <div>
-                <span class="mega-menu-featured-badge badge-blue">NEW</span>
-                <div class="mega-menu-featured-title">Ground spend benchmark 2026</div>
-                <p class="mega-menu-featured-desc">
-                  What 200 India enterprise transport programmes actually pay per trip, by city (Telangana / Hyderabad) and vehicle class.
-                </p>
-              </div>
-              <a href="/blogs" class="mega-menu-featured-link">
-                <span>Read the report</span>
-                <span>→</span>
-              </a>
-            </div>
-          </div>
-        </div>
-      </li>
-
-      <!-- 2. Solutions (Mega-Menu: Screenshot 2) -->
-      <li class="nav-item-dropdown" id="nav-dropdown-solutions">
-        <button type="button" class="nav-link" aria-expanded="false" aria-haspopup="true">
-          <span>Solutions</span>
-          <svg class="caret-icon" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
-          </svg>
-        </button>
-
-        <!-- Solutions Mega-Menu Panel -->
-        <div class="mega-menu-panel" id="solutions-mega-menu">
-          <!-- Col 1: By Role -->
-          <div>
-            <div class="mega-menu-col-title">By Role</div>
-            <div class="mega-menu-list">
-              <a href="/ets#hr-mobility" class="mega-menu-item">
-                <div class="mega-menu-item-title">HR & Mobility</div>
-                <div class="mega-menu-item-desc">Rosters, safety compliance, SOS telemetry, employee experience</div>
-              </a>
-              <a href="/ets#admin-portal" class="mega-menu-item">
-                <div class="mega-menu-item-title">Transport Admin</div>
-                <div class="mega-menu-item-desc">One automated queue instead of an overflowing WhatsApp inbox</div>
-              </a>
-            </div>
-          </div>
-
-          <!-- Col 2: By Outcome -->
-          <div>
-            <div class="mega-menu-col-title">By Outcome</div>
-            <div class="mega-menu-list">
-              <a href="/pricing#reconciliation" class="mega-menu-item">
-                <div class="mega-menu-item-title">Finance & CFO</div>
-                <div class="mega-menu-item-desc">Rate cards, three-way match, single monthly ERP sync</div>
-              </a>
-              <a href="/vendors#outcome-ops" class="mega-menu-item">
-                <div class="mega-menu-item-title">Mid-Market Ops</div>
-                <div class="mega-menu-item-desc">Enterprise control without the dedicated fleet management team</div>
-              </a>
-            </div>
-          </div>
-
-          <!-- Col 3: Proof & Knowledge -->
-          <div>
-            <div class="mega-menu-col-title">Proof</div>
-            <div class="mega-menu-list">
-              <a href="/vendors#customer-stories" class="mega-menu-item">
-                <div class="mega-menu-item-title">Customer Stories</div>
-                <div class="mega-menu-item-desc">How programmes run on AdhocX with zero dropout</div>
-              </a>
-              <a href="/vendors#compare" class="mega-menu-item">
-                <div class="mega-menu-item-title">Compare AdhocX</div>
-                <div class="mega-menu-item-desc">Side by side with unorganized vendor desks and fragmented WhatsApp groups</div>
-              </a>
-              <a href="/faq" class="mega-menu-item">
-                <div class="mega-menu-item-title">Enterprise FAQ</div>
-                <div class="mega-menu-item-desc">Compliance, billing, SLAs and routing questions answered</div>
-              </a>
-              <a href="/blogs#glossary" class="mega-menu-item">
-                <div class="mega-menu-item-title">Glossary</div>
-                <div class="mega-menu-item-desc">ETS, nodal pickup, escorts and the rest, defined</div>
-              </a>
-            </div>
-          </div>
-
-          <!-- Col 4: Featured Guide Card -->
-          <div>
-            <div class="mega-menu-featured-card">
-              <div>
-                <span class="mega-menu-featured-badge badge-warm">GUIDE</span>
-                <div class="mega-menu-featured-title">Switching transport vendors</div>
-                <p class="mega-menu-featured-desc">
-                  A 30-day plan to migrate operators without a single minute of service gap or employee disruption.
-                </p>
-              </div>
-              <a href="/blogs#guide-switching" class="mega-menu-featured-link">
-                <span>Get the guide</span>
-                <span>→</span>
-              </a>
-            </div>
-          </div>
-        </div>
-      </li>
-
-      <!-- 3. Customers Link -->
+      <!-- 1. Services -->
       <li>
-        <a href="/vendors#customer-stories" class:list={["nav-link", { active: activeNav === 'customers' }]} id="nav-customers">
-          Customers
+        <a href="/services" class:list={["nav-link", { active: activeNav === 'services' }]} id="nav-services">
+          Services
         </a>
       </li>
 
-      <!-- 4. Pricing Link -->
+      <!-- 2. Mobile Apps (Dropdown) -->
+      <li class="nav-item-dropdown" id="nav-dropdown-apps">
+        <button type="button" class="nav-link" aria-expanded="false" aria-haspopup="true">
+          <span>Mobile Apps</span>
+          <svg class="caret-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+          </svg>
+        </button>
+
+        <div class="mega-menu-panel" style="max-width: 580px; grid-template-columns: 1fr 1fr; gap: var(--space-6);">
+          <div>
+            <div class="mega-menu-col-title">Commuters</div>
+            <div class="mega-menu-list">
+              <a href="/employee-app" class="mega-menu-item">
+                <div class="mega-menu-item-title">Employee Mobile App</div>
+                <div class="mega-menu-item-desc">Rosters, live GPS vehicle tracking, OTP boarding, and 1-tap SOS</div>
+              </a>
+            </div>
+          </div>
+
+          <div>
+            <div class="mega-menu-col-title">Commercial Fleet</div>
+            <div class="mega-menu-list">
+              <a href="/driver-app" class="mega-menu-item">
+                <div class="mega-menu-item-title">Driver Mobile App</div>
+                <div class="mega-menu-item-desc">Direct onboarding, advance shift offers, navigation, and bank settlements</div>
+              </a>
+            </div>
+          </div>
+        </div>
+      </li>
+
+      <!-- 3. Industries -->
+      <li>
+        <a href="/industries" class:list={["nav-link", { active: activeNav === 'industries' }]} id="nav-industries">
+          Industries
+        </a>
+      </li>
+
+      <!-- 4. Safety & Governance -->
+      <li>
+        <a href="/safety" class:list={["nav-link", { active: activeNav === 'safety' }]} id="nav-safety">
+          Safety & SLAs
+        </a>
+      </li>
+
+      <!-- 5. Commercial Framework & RFP -->
       <li>
         <a href="/pricing" class:list={["nav-link", { active: activeNav === 'pricing' }]} id="nav-pricing">
-          Pricing
+          Proposals & RFP
         </a>
       </li>
 
-      <!-- 5. Company (Mega-Menu: Screenshots 3 & 4) -->
-      <li class="nav-item-dropdown" id="nav-dropdown-company">
-        <button type="button" class="nav-link" aria-expanded="false" aria-haspopup="true">
-          <span>Company</span>
-          <svg class="caret-icon" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
-          </svg>
-        </button>
-
-        <!-- Company Mega-Menu Panel -->
-        <div class="mega-menu-panel" id="company-mega-menu">
-          <!-- Col 1: AdhocX -->
-          <div>
-            <div class="mega-menu-col-title">AdhocX</div>
-            <div class="mega-menu-list">
-              <a href="/about" class="mega-menu-item">
-                <div class="mega-menu-item-title">About Us</div>
-                <div class="mega-menu-item-desc">Who we are and our operational mission</div>
-              </a>
-              <a href="/safety" class="mega-menu-item">
-                <div class="mega-menu-item-title">Compliance & SLAs</div>
-                <div class="mega-menu-item-desc">Commercial yellow-board standards & bank SLAs</div>
-              </a>
-            </div>
-          </div>
-
-          <!-- Col 2: Talk to Us -->
-          <div>
-            <div class="mega-menu-col-title">Talk to Us</div>
-            <div class="mega-menu-list">
-              <a href="/contact" class="mega-menu-item">
-                <div class="mega-menu-item-title">Contact & Demo</div>
-                <div class="mega-menu-item-desc">Book a 30-minute programme review</div>
-              </a>
-              <a href="/drivers" class="mega-menu-item">
-                <div class="mega-menu-item-title">Become a Partner</div>
-                <div class="mega-menu-item-desc">Bring your fleet onto the network</div>
-              </a>
-            </div>
-          </div>
-
-          <!-- Col 3: Trust -->
-          <div>
-            <div class="mega-menu-col-title">Trust</div>
-            <div class="mega-menu-list">
-              <a href="/safety" class="mega-menu-item">
-                <div class="mega-menu-item-title">Security & Safety</div>
-                <div class="mega-menu-item-desc">24/7 Command Center, escort rules & 99.8% uptime</div>
-              </a>
-              <a href="/vendors#customer-stories" class="mega-menu-item">
-                <div class="mega-menu-item-title">Customers</div>
-                <div class="mega-menu-item-desc">Enterprises running on AdhocX</div>
-              </a>
-            </div>
-          </div>
-
-          <!-- Col 4: Featured Demo Card -->
-          <div>
-            <div class="mega-menu-featured-card">
-              <div>
-                <span class="mega-menu-featured-badge badge-blue">DEMO</span>
-                <div class="mega-menu-featured-title">Book an Enterprise Demo</div>
-                <p class="mega-menu-featured-desc">
-                  Custom rate cards & automated fleet sourcing for tech corridors.
-                </p>
-              </div>
-              <a href="/contact" class="mega-menu-featured-link">
-                <span>Request rate card</span>
-                <span>→</span>
-              </a>
-            </div>
-          </div>
-        </div>
+      <!-- 6. About Us -->
+      <li>
+        <a href="/about" class:list={["nav-link", { active: activeNav === 'about' }]} id="nav-about">
+          About Us
+        </a>
       </li>
 
-      <!-- Mobile Only Actions inside drawer -->
+      <!-- Mobile Only Action inside drawer -->
       <li class="mobile-only-action">
-        <a href="/contact" class="btn btn-primary" style="width:100%;justify-content:center;">Book a demo</a>
+        <a href="/contact" class="btn btn-primary" style="width:100%;justify-content:center;">Request Proposal</a>
       </li>
     </ul>
 
-    <!-- Header Right Actions (Matches reference screenshot CTA) -->
+    <!-- Header Right Actions -->
     <div class="header-actions">
       <a href="/contact" class="btn btn-primary nav-action-btn" id="btn-header-demo">
-        Book a demo
+        Request Proposal &rarr;
       </a>
       <!-- Mobile Menu Toggle Button -->
       <button class="menu-toggle" id="menu-toggle-btn" aria-label="Toggle Navigation Menu" aria-expanded="false">
@@ -356,78 +168,58 @@ const { activeNav = '', logoTag = '' } = Astro.props;
       if (window.innerWidth > 768) {
         activeCloseTimeout = setTimeout(() => {
           item.classList.remove('is-open');
-          if (btn) {
-            btn.setAttribute('aria-expanded', 'false');
-            btn.blur();
-          }
+          if (btn) btn.setAttribute('aria-expanded', 'false');
         }, 150);
       }
     });
 
-    // Click toggle (Desktop & Mobile)
+    // Mobile / Click behavior
     btn?.addEventListener('click', (e) => {
-      e.preventDefault();
       e.stopPropagation();
-      const isCurrentlyOpen = item.classList.contains('is-open');
-      if (isCurrentlyOpen) {
-        item.classList.remove('is-open');
-        btn.setAttribute('aria-expanded', 'false');
-        btn.blur();
+      const isOpen = item.classList.contains('is-open');
+      if (isOpen) {
+        closeAllDropdowns();
       } else {
         openDropdown(item);
       }
     });
   });
 
-  // Clicking outside any dropdown closes all open panels
+  // Close dropdown on outside click or ESC key
   document.addEventListener('click', (e) => {
-    const target = e.target as HTMLElement | null;
-    if (!target?.closest('.nav-item-dropdown') && !target?.closest('#menu-toggle-btn')) {
+    const target = e.target as HTMLElement;
+    if (!target.closest('.nav-item-dropdown')) {
       closeAllDropdowns();
     }
   });
 
-  // ESC key closes all dropdowns
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       closeAllDropdowns();
-      if (window.innerWidth <= 768 && navLinks?.classList.contains('open')) {
-        navLinks.classList.remove('open');
-        if (hamburger) hamburger.style.display = 'block';
-        if (close) close.style.display = 'none';
-        toggleBtn?.setAttribute('aria-expanded', 'false');
+      if (toggleBtn?.getAttribute('aria-expanded') === 'true') {
+        toggleBtn.click();
       }
     }
   });
 
-  // Close dropdowns and drawer when any link is clicked inside nav or mega-menus
-  navLinks?.querySelectorAll('a').forEach(link => {
-    link.addEventListener('click', () => {
-      closeAllDropdowns();
-      if (window.innerWidth <= 768) {
-        navLinks.classList.remove('open');
-        if (hamburger) hamburger.style.display = 'block';
-        if (close) close.style.display = 'none';
-        toggleBtn?.setAttribute('aria-expanded', 'false');
-      }
-    });
+  // Mobile drawer toggle
+  toggleBtn?.addEventListener('click', () => {
+    const isExpanded = toggleBtn.getAttribute('aria-expanded') === 'true';
+    toggleBtn.setAttribute('aria-expanded', String(!isExpanded));
+    navLinks?.classList.toggle('is-open');
+
+    if (hamburger && close) {
+      hamburger.style.display = isExpanded ? 'block' : 'none';
+      close.style.display = isExpanded ? 'none' : 'block';
+    }
   });
 
-  // Mobile Drawer Toggle
-  toggleBtn?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const isOpen = navLinks?.classList.toggle('open');
-    if (hamburger) hamburger.style.display = isOpen ? 'none' : 'block';
-    if (close) close.style.display = isOpen ? 'block' : 'none';
-    toggleBtn.setAttribute('aria-expanded', String(isOpen));
-  });
-
-  // Sticky shadow on scroll
+  // Header scroll shadow
   window.addEventListener('scroll', () => {
-    if (window.scrollY > 8) {
-      header?.classList.add('scrolled');
+    if (window.scrollY > 20) {
+      header?.classList.add('is-scrolled');
     } else {
-      header?.classList.remove('scrolled');
+      header?.classList.remove('is-scrolled');
     }
-  });
+  }, { passive: true });
 </script>

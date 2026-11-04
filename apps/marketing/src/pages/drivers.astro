@@ -1,21 +1,11 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import EarningsCalculator from '../components/EarningsCalculator';
 import Icon from '../components/Icon.astro';
-import FaqAccordion, { type FaqItem } from '../components/FaqAccordion.astro';
+import FaqAccordion from '../components/FaqAccordion.astro';
+import EarningsCalculator from '../components/EarningsCalculator';
+import type { FaqItem } from '../data/faqData';
 
 const jsonLd = [
-  {
-    "@context": "https://schema.org",
-    "@type": "WebPage",
-    "name": "AdhocX Driver Portal — Commercial Yellow-Plate Mobility Partner",
-    "description": "Join India's fastest-growing corporate commercial mobility network in Hyderabad. Complete trip milestones and claim cash rewards directly to your bank account with zero platform deductions.",
-    "publisher": {
-      "@type": "Organization",
-      "name": "Estemporaneo Technologies Private Limited",
-      "url": "https://www.adhocx.com"
-    }
-  },
   {
     "@context": "https://schema.org",
     "@type": "HowTo",
@@ -44,7 +34,7 @@ const jsonLd = [
         "@type": "HowToStep",
         "position": 4,
         "name": "Go Online & Earn",
-        "text": "Accept pre-scheduled corporate routes, enjoy direct bank payouts, and unlock your milestone bonuses."
+        "text": "Accept pre-scheduled corporate routes, enjoy direct bank payouts, and fulfill verified corporate shift routes."
       }
     ]
   },
@@ -54,10 +44,10 @@ const jsonLd = [
     "mainEntity": [
       {
         "@type": "Question",
-        "name": "How does the Century Milestone Bonus work for commercial drivers?",
+        "name": "How does trip allocation and scheduling work for commercial drivers?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Newly registered commercial yellow-plate drivers who complete their initial trip milestones unlock cash performance rewards credited directly to their registered bank account with transparent settlements."
+          "text": "AdhocX drivers receive pre-scheduled corporate employee pickup and drop rosters in advance. Drivers can review route timing, pickup nodes, and destination details before accepting."
         }
       },
       {
@@ -90,9 +80,9 @@ const jsonLd = [
 
 const driverFaqs: FaqItem[] = [
   {
-    question: "How does the Century Milestone Bonus work?",
-    highlight: "Complete initial trip milestones as a verified AdhocX commercial driver to receive performance cash rewards directly into your bank account with zero platform deductions.",
-    answer: "Every completed corporate trip, airport transfer, or spot commercial booking automatically logs into your milestone tracker in the driver app. When you reach your verified trip milestone, rewards are immediately released to your registered bank account in the next settlement cycle."
+    question: "How does trip allocation and scheduling work?",
+    highlight: "Pre-scheduled employee shift rosters and airport transfers are dispatched directly to your driver app with transparent route details.",
+    answer: "Every assigned corporate route displays scheduled pickup timing, designated employee nodes, and destination tech parks. You can plan your driving schedule in advance without roaming or waiting at taxi stands."
   },
   {
     question: "What documents are required to register as a commercial driver?",
@@ -114,7 +104,7 @@ const driverFaqs: FaqItem[] = [
 
 <BaseLayout
   title="Drive with AdhocX — Commercial Cab Partner Network (Hyderabad)"
-  description="Join Hyderabad's premier B2B commercial transport network for 4 & 7 seater cabs. Pre-scheduled corporate routes, direct bank payouts, transparent settlements, and Century Milestone rewards."
+  description="Join Hyderabad's premier B2B commercial transport network for 4 & 7 seater cabs. Pre-scheduled corporate routes, direct bank payouts, transparent settlements, and yellow-plate fleet operations."
   canonical="https://www.adhocx.com/drivers"
   activeNav="drivers"
   jsonLd={jsonLd}
@@ -127,16 +117,6 @@ const driverFaqs: FaqItem[] = [
   <section class="hero-section" style="background: linear-gradient(180deg, #F6F3FF 0%, #FFFFFF 100%);">
     <div class="container hero-grid">
       <div class="hero-content">
-        <div class="hero-tag">
-          <span class="badge badge-primary">
-            <Icon name="sparkles" size={14} color="var(--color-primary-600)" />
-            Century Milestone Rewards (T&C Apply*)
-          </span>
-          <span class="badge badge-info">
-            <Icon name="car" size={14} color="var(--color-info)" />
-            4 & 7 Seater Commercial Cabs
-          </span>
-        </div>
         <h1 class="display-title" style="color: var(--color-primary-900);">
           Drive Commercial. <br />
           <span style="color: var(--color-primary-600);">Get Confirmed Corporate Trips.</span>
@@ -145,25 +125,24 @@ const driverFaqs: FaqItem[] = [
         <!-- Direct Answer Callout for GEO & Featured Snippets -->
         <div class="direct-answer-callout">
           <p class="body-large" style="margin: 0; color: var(--color-primary-900); font-weight: 500;">
-            <strong>AdhocX Driver Network</strong> connects commercial yellow-plate taxi drivers with pre-scheduled corporate shift transport, executive airport runs, and enterprise spot bookings across Hyderabad. Enjoy direct bank payouts, transparent settlements, and cash milestone rewards on your duties.
+            <strong>AdhocX Driver Network</strong> connects commercial yellow-plate taxi drivers with pre-scheduled corporate shift transport, executive airport runs, and enterprise spot bookings across Hyderabad. Enjoy direct bank payouts, transparent settlements, and steady corporate duties.
           </p>
         </div>
 
         <div class="hero-actions">
-          <a href="https://play.google.com/store/apps/details?id=com.adhocx.app" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-large">
+          <a href="#onboarding" class="btn btn-primary btn-large">
+            Document Checklist & Onboarding →
+          </a>
+          <a href="https://play.google.com/store/apps/details?id=com.adhocx.app" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-large">
             <Icon name="download" size={18} />
             Download on Google Play →
-          </a>
-          <a href="#onboarding" class="btn btn-secondary btn-large">
-            <Icon name="file-text" size={18} />
-            Document Checklist
           </a>
         </div>
 
         <div class="hero-metrics metrics-4" style="border-top: 1px solid var(--color-border);">
           <div class="metric-item">
-            <div class="metric-val" style="color: var(--color-primary-600); font-size: 1.15rem;">Performance</div>
-            <div class="metric-lbl">Milestone Rewards</div>
+            <div class="metric-val" style="color: var(--color-primary-600); font-size: 1.15rem;">Scheduled</div>
+            <div class="metric-lbl">Confirmed Routes</div>
           </div>
           <div class="metric-item">
             <div class="metric-val" style="color: var(--color-primary-600); font-size: 1.15rem;">Direct Bank</div>
@@ -171,7 +150,7 @@ const driverFaqs: FaqItem[] = [
           </div>
           <div class="metric-item">
             <div class="metric-val" style="color: var(--color-success); font-size: 1.15rem;">Transparent</div>
-            <div class="metric-lbl">Direct Bank Settlements</div>
+            <div class="metric-lbl">Direct Settlements</div>
           </div>
           <div class="metric-item">
             <div class="metric-val" style="color: var(--color-primary-600); font-size: 1.15rem;">4 & 7 Seater</div>
@@ -180,91 +159,32 @@ const driverFaqs: FaqItem[] = [
         </div>
       </div>
 
-      <!-- Bonus Card Highlight -->
-      <div class="hero-card-wrapper" id="bonus" data-animate>
-        <div class="card driver-hero-bonus-card">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4);">
-            <span class="badge badge-primary">
-              <Icon name="sparkles" size={14} color="var(--color-primary-600)" />
-              Century Milestone Program
+      <!-- Hero Car Fleet Visual -->
+      <div class="hero-visual-wrapper" data-animate>
+        <div class="hero-car-frame" style="position: relative; border-radius: 1.25rem; overflow: hidden; box-shadow: 0 20px 40px -15px rgba(1, 13, 45, 0.16); border: 1px solid var(--color-border); background: #ffffff;">
+          <img
+            src="/corporate-cab-fleet.jpg"
+            alt="AdhocX Commercial 4-Seater Sedan and 7-Seater Fleet for Enterprise Corporate Mobility"
+            width="640"
+            height="400"
+            style="width: 100%; height: auto; display: block; object-fit: cover; aspect-ratio: 16 / 10;"
+            loading="eager"
+          />
+          <div style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(180deg, transparent 0%, rgba(1, 13, 45, 0.85) 100%); padding: 1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between; color: #ffffff;">
+            <div>
+              <div style="font-weight: 700; font-size: 0.95rem; letter-spacing: -0.01em;">Verified Commercial Fleet</div>
+              <div style="font-size: 0.8rem; color: #CEE0FD; opacity: 0.9;">4-Seater Sedans & 7-Seater MUVs • Telangana & Hyderabad</div>
+            </div>
+            <span style="background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.35); font-size: 0.75rem; font-weight: 600; padding: 0.35rem 0.75rem; border-radius: 9999px;">
+              Yellow Plate Assured
             </span>
-            <span style="font-weight: 800; color: var(--color-primary-600); font-size: 1.15rem;">Milestone Cash*</span>
-          </div>
-
-          <h3 class="h3-title" style="margin-bottom: var(--space-2); color: var(--color-primary-900);">
-            Drive Commercial → Unlock Milestone Bonuses
-          </h3>
-          <p class="body-text" style="margin-bottom: var(--space-5); color: var(--color-text-secondary);">
-            Special incentive for verified commercial yellow-plate 4-seater and 7-seater chauffeurs in Hyderabad. Complete your trip milestones for direct bank credit.
-          </p>
-
-          <!-- Milestone Progress Simulator -->
-          <div class="milestone-progress-container">
-            <div class="milestone-steps-row">
-              <div class="milestone-step active">
-                <span class="step-dot"><Icon name="check" size={12} color="#ffffff" /></span>
-                <span class="step-lbl">Start</span>
-              </div>
-              <div class="milestone-line active"></div>
-              <div class="milestone-step active">
-                <span class="step-dot"><Icon name="check" size={12} color="#ffffff" /></span>
-                <span class="step-lbl">Onboard</span>
-              </div>
-              <div class="milestone-line active"></div>
-              <div class="milestone-step active">
-                <span class="step-dot"><Icon name="sparkles" size={12} color="#ffffff" /></span>
-                <span class="step-lbl">Milestones</span>
-              </div>
-              <div class="milestone-line"></div>
-              <div class="milestone-step highlight-goal">
-                <span class="step-dot"><Icon name="bank-note" size={12} color="#ffffff" /></span>
-                <span class="step-lbl">Bonus</span>
-              </div>
-            </div>
-            <div class="milestone-status-text">
-              <strong>Goal:</strong> Complete your verified trips = <strong>Milestone Cash Unlocked</strong>
-            </div>
-          </div>
-
-          <!-- Feature Highlights -->
-          <div style="display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-5);">
-            <div class="bonus-highlight-row">
-              <Icon name="car" size={20} color="var(--color-primary-600)" />
-              <div>
-                <div style="font-weight: 700; font-size: 0.9rem; color: var(--color-primary-900);">4-Seater Sedans</div>
-                <div style="font-size: 0.8rem; color: var(--color-text-secondary);">Dzire, Etios, Aura — steady daily corporate employee shifts</div>
-              </div>
-            </div>
-
-            <div class="bonus-highlight-row">
-              <Icon name="users" size={20} color="var(--color-primary-600)" />
-              <div>
-                <div style="font-weight: 700; font-size: 0.9rem; color: var(--color-primary-900);">6 & 7 Seater MUVs / SUVs</div>
-                <div style="font-size: 0.8rem; color: var(--color-text-secondary);">Ertiga, XL6, Innova Crysta — premium airport & team duties</div>
-              </div>
-            </div>
-
-            <div class="bonus-highlight-row bonus-success">
-              <Icon name="bank-note" size={20} color="var(--color-success)" />
-              <div>
-                <div style="font-weight: 700; font-size: 0.9rem; color: #166534;">Directly Credited to Bank</div>
-                <div style="font-size: 0.75rem; color: #15803d;">Direct IMPS / UPI payout • Fast automated settlements</div>
-              </div>
-            </div>
-          </div>
-
-          <a href="https://play.google.com/store/apps/details?id=com.adhocx.app" target="_blank" rel="noopener noreferrer" class="btn btn-primary" style="width: 100%; justify-content: center; min-height: 44px;">
-            Download Driver App on Google Play →
-          </a>
-          <div style="font-size: 0.7rem; color: var(--color-text-muted); text-align: center; margin-top: 8px;">
-            * Commercial yellow-plate taxi drivers only. Terms and conditions apply.
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Interactive Earnings Calculator Island -->
+  <!-- Commercial Vehicle Classes & Driver App Features Island -->
   <section class="section-padding" id="calculator" style="background: var(--color-surface-muted);">
     <div class="container">
       <div class="section-header" style="text-align: center;">
@@ -376,7 +296,7 @@ const driverFaqs: FaqItem[] = [
           <div class="step-number">4</div>
           <h3 class="h4-title" style="margin-bottom: 8px;">Go Online & Earn</h3>
           <p class="body-text">
-            Start accepting confirmed corporate trips, enjoy direct bank payouts, and unlock your milestone rewards.
+            Start accepting confirmed corporate trips, enjoy direct bank payouts, and fulfill verified corporate shift routes.
           </p>
         </div>
       </div>
@@ -431,7 +351,7 @@ const driverFaqs: FaqItem[] = [
             <Icon name="check-circle" size={20} color="var(--color-success)" />
             <div>
               <strong>Bank Passbook / Cancelled Cheque</strong>
-              <div class="text-caption">For direct bank payouts & milestone bonus</div>
+              <div class="text-caption">For direct bank payouts & trip settlements</div>
             </div>
           </div>
         </div>
@@ -444,7 +364,7 @@ const driverFaqs: FaqItem[] = [
     items={driverFaqs}
     title="Frequently Asked Driver Questions"
     badge="Driver Partner Help Desk"
-    description="Clear answers on milestone rewards, regular and instant payouts, direct bank settlements, and corporate trip allocations."
+    description="Clear answers on trip schedules, regular and instant payouts, direct bank settlements, and corporate trip allocations."
     id="driver-faqs"
   />
 
@@ -453,7 +373,7 @@ const driverFaqs: FaqItem[] = [
     <div class="container" style="position: relative; z-index: 1;">
       <h2 class="h2-title" style="margin-bottom: var(--space-4);">Ready to Earn with Dignity & Guaranteed Trips?</h2>
       <p class="body-large" style="max-width: 580px; margin: 0 auto var(--space-8);">
-        Download the AdhocX Driver app now on Google Play, upload your commercial documents, and claim your Century Milestone rewards.
+        Download the AdhocX Driver app now on Google Play, upload your commercial documents, and start receiving confirmed corporate trips.
       </p>
       <div class="cta-actions" style="margin-top: 0;">
         <a href="https://play.google.com/store/apps/details?id=com.adhocx.app" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-large">
@@ -479,97 +399,15 @@ const driverFaqs: FaqItem[] = [
     box-shadow: var(--shadow-sm);
   }
 
-  .driver-hero-bonus-card {
-    border: 2px solid var(--color-primary-500);
-    padding: var(--space-8);
-    box-shadow: var(--shadow-xl);
-    background: #FFFFFF;
-  }
-
-  .milestone-progress-container {
-    background: var(--color-surface-muted);
-    border-radius: var(--radius-lg);
-    padding: var(--space-4);
-    margin-bottom: var(--space-5);
-    border: 1px solid var(--color-border);
-  }
-
-  .milestone-steps-row {
+  .hero-visual-wrapper {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: var(--space-3);
-  }
-
-  .milestone-step {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-  }
-
-  .step-dot {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: var(--color-surface);
-    border: 2px solid var(--color-primary-600);
-    display: flex;
-    align-items: center;
     justify-content: center;
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--color-primary-600);
-  }
-
-  .milestone-step.highlight-goal .step-dot {
-    background: var(--color-success);
-    border-color: var(--color-success);
-    color: #FFFFFF;
-    width: 36px;
-    height: 36px;
-    font-size: 0.8rem;
-  }
-
-  .step-lbl {
-    font-size: 0.72rem;
-    color: var(--color-text-secondary);
-    font-weight: 600;
-  }
-
-  .milestone-line {
-    flex: 1;
-    height: 2px;
-    background: var(--color-border-strong);
-    margin: 0 4px;
-    margin-bottom: 16px;
-  }
-
-  .milestone-line.active {
-    background: var(--color-primary-600);
-  }
-
-  .milestone-status-text {
-    font-size: 0.85rem;
-    color: var(--color-primary-900);
-    text-align: center;
-    border-top: 1px solid var(--color-border);
-    padding-top: var(--space-2);
-  }
-
-  .bonus-highlight-row {
-    display: flex;
     align-items: center;
-    gap: 12px;
-    background: var(--color-primary-50);
-    padding: 12px 14px;
-    border-radius: var(--radius-md);
-    border-left: 4px solid var(--color-primary-600);
   }
 
-  .bonus-highlight-row.bonus-success {
-    background: var(--color-success-bg);
-    border-left-color: var(--color-success);
+  .hero-car-frame {
+    width: 100%;
+    max-width: 580px;
   }
 
   .benefit-icon-box {

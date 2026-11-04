@@ -1,28 +1,24 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import EnterpriseLeadForm from '../components/EnterpriseLeadForm';
 
 const jsonLd = {
   "@context": "https://schema.org",
-  "@type": "Product",
-  "name": "AdhocX Enterprise Corporate Transport Commercial Rate Cards",
-  "description": "Transparent, auditable corporate mobility rate cards for Hyderabad enterprises. Fixed shift packages, per-km rates for 4-seater and 7-seater cabs, zero surge, and 1-hour refund guarantee.",
-  "brand": {
-    "@type": "Brand",
-    "name": "AdhocX"
+  "@type": "Service",
+  "name": "AdhocX Enterprise Corporate Transport Commercial Proposals",
+  "description": "Transparent, auditable corporate mobility commercial frameworks for Hyderabad enterprises. Custom shift packages, per-km commercial rate cards for 4-seater and 7-seater fleets, zero surge, and automated 3-way match reconciliation.",
+  "provider": {
+    "@type": "Organization",
+    "name": "AdhocX (Estemporaneo Technologies Private Limited)",
+    "url": "https://www.adhocx.com"
   },
-  "offers": {
-    "@type": "AggregateOffer",
-    "priceCurrency": "INR",
-    "lowPrice": "1200",
-    "highPrice": "4500",
-    "offerCount": "6"
-  }
+  "areaServed": ["Telangana", "Hyderabad"]
 };
 ---
 
 <BaseLayout
-  title="Corporate Transport Pricing & Commercial Rate Cards — AdhocX Hyderabad"
-  description="Transparent, auditable corporate mobility rate cards for Hyderabad enterprises. Fixed shift packages, per-km rates for Dzire, Ertiga, and Innova, zero surge, and 1-hour refund guarantee."
+  title="Corporate Commercial Framework & Custom Proposals — AdhocX Hyderabad"
+  description="Transparent, auditable corporate mobility commercial frameworks for Hyderabad enterprises. Custom shift packages, verified 4-seater and 7-seater fleets, zero surge, and automated 3-way match reconciliation."
   canonical="https://www.adhocx.com/pricing"
   activeNav="pricing"
   jsonLd={jsonLd}
@@ -32,20 +28,20 @@ const jsonLd = {
     <div class="container text-center" style="max-width: 860px; margin: 0 auto;">
       <div class="badge badge-blue" style="margin-bottom: var(--space-4);">
         <span class="status-dot-pulse"></span>
-        <span>Transparent Commercial Pricing &bull; Auditable B2B Rate Cards</span>
+        <span>Transparent Commercial Governance &bull; Tailored Enterprise Quotations</span>
       </div>
       <h1 class="display-title" style="color: var(--color-text-primary); margin-bottom: var(--space-6);">
-        Predictable Enterprise Transport Economics. Zero Hidden Surcharges.
+        Predictable Enterprise Mobility Economics. Zero Hidden Surcharges.
       </h1>
       <p class="body-large" style="color: var(--color-text-secondary); margin-bottom: var(--space-8); line-height: 1.6;">
-        Eliminate vendor middlemen markups. <span class="logo-text" style="font-size: 1.15em;">Adhoc<span class="logo-accent">X</span></span> provides direct corporate contract pricing across 4-seater sedans, 6/7-seater MUVs, and executive MPVs with guaranteed 3-way match reconciliation.
+        Eliminate unvetted vendor markups and opaque manual billing. <span class="logo-text" style="font-size: 1.15em;">Adhoc<span class="logo-accent">X</span></span> provides direct corporate contract pricing across commercial 4-seater sedans, 6/7-seater MUVs, and executive vehicles with automated 3-way match reconciliation.
       </p>
       <div style="display: flex; gap: var(--space-4); justify-content: center; flex-wrap: wrap;">
-        <a href="/contact" class="btn btn-primary btn-large">
+        <a href="#request-quote" class="btn btn-primary btn-large">
           Request Custom Corporate Rate Card &rarr;
         </a>
-        <a href="#commercial-cards" class="btn btn-secondary btn-large">
-          View Fleet Rate Slabs
+        <a href="#commercial-models" class="btn btn-secondary btn-large">
+          Explore Commercial Models
         </a>
       </div>
     </div>
@@ -56,232 +52,186 @@ const jsonLd = {
     <div class="container">
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-6); text-align: center;">
         <div>
-          <div style="font-size: 2rem; font-weight: 800; color: var(--color-primary-600);">Zero Surge</div>
-          <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-top: 4px;">Fixed Rates in Rains & Peaks</div>
+          <div style="font-size: 1.5rem; font-weight: 800; color: var(--color-primary-600);">Zero Surge</div>
+          <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-top: 4px;">Predictable Rates in Weather & Peak Hours</div>
         </div>
         <div>
-          <div style="font-size: 2rem; font-weight: 800; color: var(--color-primary-600);">1-Hour Refund</div>
-          <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-top: 4px;">Direct Bank SLA Guarantee</div>
+          <div style="font-size: 1.5rem; font-weight: 800; color: var(--color-primary-600);">1-Hour SLA Credit</div>
+          <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-top: 4px;">Direct Commercial Guarantee on Unserved Demand</div>
         </div>
         <div>
-          <div style="font-size: 2rem; font-weight: 800; color: var(--color-primary-600);">3-Way Match</div>
-          <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-top: 4px;">Roster vs GPS vs Invoice</div>
+          <div style="font-size: 1.5rem; font-weight: 800; color: var(--color-primary-600);">3-Way Match</div>
+          <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-top: 4px;">Roster vs. GPS Geofence vs. GST Invoice</div>
         </div>
         <div>
-          <div style="font-size: 2rem; font-weight: 800; color: var(--color-primary-600);">100% Direct</div>
-          <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-top: 4px;">No Vendor Broker Commission</div>
+          <div style="font-size: 1.5rem; font-weight: 800; color: var(--color-primary-600);">100% Direct</div>
+          <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-top: 4px;">No Middleman Broker or Aggregator Deductions</div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Rate Cards Grid -->
-  <section id="commercial-cards" style="padding: var(--space-16) 0; background: var(--color-surface-muted);">
+  <!-- Commercial Models Breakdown -->
+  <section id="commercial-models" style="padding: var(--space-16) 0; background: var(--color-surface-muted);">
     <div class="container">
       <div class="text-center" style="max-width: 800px; margin: 0 auto var(--space-12);">
-        <span class="badge badge-warm" style="margin-bottom: var(--space-3);">Standard Hyderabad Commercial Fleet Slabs</span>
+        <span class="badge badge-warm" style="margin-bottom: var(--space-3);">Tailored B2B Contracts</span>
         <h2 style="font-size: 2rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-4);">
-          Commercial Rate Cards by Vehicle Tier
+          Flexible Commercial Frameworks for Every Operation
         </h2>
         <p style="color: var(--color-text-secondary); font-size: 1rem; line-height: 1.6;">
-          All rates are 100% yellow-plate compliant, including commercial passenger insurance, RTA fitness, and verified driver partners.
+          Whether your enterprise operates 24/7 rotating shifts or daytime executive transit, our transparent rate structures are calibrated to your corporate corridors and headcount.
         </p>
       </div>
 
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-8);">
         
-        <!-- Card 1: 4-Seater Sedans -->
+        <!-- Model 1: 4-Seater Commercial Sedans -->
         <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between;">
           <div>
-            <div class="badge badge-blue" style="margin-bottom: var(--space-3);">4-Seater Commercial Sedan</div>
-            <h3 style="font-size: 1.5rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-2);">
-              Maruti Dzire / Etios / Tigor EV
+            <div class="badge badge-blue" style="margin-bottom: var(--space-3);">4-Seater Commercial Sedans</div>
+            <h3 style="font-size: 1.4rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-2);">
+              Daily Point-to-Point Shift Commutes
             </h3>
             <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.5; margin-bottom: var(--space-6);">
-              Ideal for daily point-to-point shift pickups, employee drops, and executive campus commute.
+              Optimized for employee doorstep and nodal shift transitions across Hyderabad tech corridors (Dzire, Etios, Tigor EV).
             </p>
 
             <div style="display: flex; flex-direction: column; gap: var(--space-3); border-top: 1px solid var(--color-border); padding-top: var(--space-4); margin-bottom: var(--space-6);">
-              <div style="display: flex; justify-content: space-between; font-size: 0.9375rem;">
-                <span style="color: var(--color-text-secondary);">4 Hrs / 40 Km Package:</span>
-                <strong style="color: var(--color-text-primary);">&#8377;1,250 &ndash; &#8377;1,450</strong>
+              <div style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.9rem; color: var(--color-text-secondary);">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>Dedicated shift duration packages customized to your office hours</span>
               </div>
-              <div style="display: flex; justify-content: space-between; font-size: 0.9375rem;">
-                <span style="color: var(--color-text-secondary);">8 Hrs / 80 Km Package:</span>
-                <strong style="color: var(--color-text-primary);">&#8377;2,200 &ndash; &#8377;2,500</strong>
+              <div style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.9rem; color: var(--color-text-secondary);">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>Automated multi-stop routing with geofenced pickup arrival timestamps</span>
               </div>
-              <div style="display: flex; justify-content: space-between; font-size: 0.9375rem;">
-                <span style="color: var(--color-text-secondary);">Extra Km Rate:</span>
-                <strong style="color: var(--color-text-primary);">&#8377;14.00 &ndash; &#8377;15.50 / km</strong>
-              </div>
-              <div style="display: flex; justify-content: space-between; font-size: 0.9375rem;">
-                <span style="color: var(--color-text-secondary);">Extra Hour Rate:</span>
-                <strong style="color: var(--color-text-primary);">&#8377;120 / hr</strong>
+              <div style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.9rem; color: var(--color-text-secondary);">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>Clean yellow-board commercial vehicles with valid RTO passenger permits</span>
               </div>
             </div>
           </div>
 
-          <a href="/contact" class="btn btn-outline" style="width: 100%; text-align: center; justify-content: center;">
-            Request Sedan Rate Card
+          <a href="#request-quote" class="btn btn-outline" style="width: 100%; text-align: center; justify-content: center;">
+            Request Sedan Proposal &rarr;
           </a>
         </div>
 
-        <!-- Card 2: 6/7-Seater MUVs -->
+        <!-- Model 2: 6/7-Seater MUVs -->
         <div style="background: var(--color-surface); border: 2px solid var(--color-primary-600); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-lg); position: relative; display: flex; flex-direction: column; justify-content: space-between;">
           <div style="position: absolute; top: -14px; right: 24px; background: var(--color-primary-600); color: #ffffff; font-size: 0.75rem; font-weight: 700; padding: 4px 12px; border-radius: var(--radius-full); text-transform: uppercase; letter-spacing: 0.05em;">
-            Most Popular for ETS
+            High-Efficiency ETS
           </div>
           <div>
-            <div class="badge badge-warm" style="margin-bottom: var(--space-3);">6/7-Seater Commercial MUV</div>
-            <h3 style="font-size: 1.5rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-2);">
-              Maruti Ertiga / Carens / Innova
+            <div class="badge badge-warm" style="margin-bottom: var(--space-3);">6 & 7-Seater Commercial MUVs</div>
+            <h3 style="font-size: 1.4rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-2);">
+              Grouped Shift Transit & Nodal Corridors
             </h3>
             <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.5; margin-bottom: var(--space-6);">
-              High-density shift nodal transit and grouped employee routes across HITEC City and Gachibowli.
+              High-density workforce transit maximizing seat occupancy and reducing overall corporate mobility expenditure (Ertiga, XL6, Carens).
             </p>
 
             <div style="display: flex; flex-direction: column; gap: var(--space-3); border-top: 1px solid var(--color-border); padding-top: var(--space-4); margin-bottom: var(--space-6);">
-              <div style="display: flex; justify-content: space-between; font-size: 0.9375rem;">
-                <span style="color: var(--color-text-secondary);">4 Hrs / 40 Km Package:</span>
-                <strong style="color: var(--color-text-primary);">&#8377;1,750 &ndash; &#8377;1,950</strong>
+              <div style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.9rem; color: var(--color-text-secondary);">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>Clustered employee routing minimizing route detour times</span>
               </div>
-              <div style="display: flex; justify-content: space-between; font-size: 0.9375rem;">
-                <span style="color: var(--color-text-secondary);">8 Hrs / 80 Km Package:</span>
-                <strong style="color: var(--color-text-primary);">&#8377;2,900 &ndash; &#8377;3,300</strong>
+              <div style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.9rem; color: var(--color-text-secondary);">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>Automated female safe-drop sequencing for late-night & early-morning shifts</span>
               </div>
-              <div style="display: flex; justify-content: space-between; font-size: 0.9375rem;">
-                <span style="color: var(--color-text-secondary);">Extra Km Rate:</span>
-                <strong style="color: var(--color-text-primary);">&#8377;18.00 &ndash; &#8377;20.00 / km</strong>
-              </div>
-              <div style="display: flex; justify-content: space-between; font-size: 0.9375rem;">
-                <span style="color: var(--color-text-secondary);">Extra Hour Rate:</span>
-                <strong style="color: var(--color-text-primary);">&#8377;150 / hr</strong>
+              <div style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.9rem; color: var(--color-text-secondary);">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>Dynamic OTP/QR boarding verification at every scheduled employee stop</span>
               </div>
             </div>
           </div>
 
-          <a href="/contact" class="btn btn-primary" style="width: 100%; text-align: center; justify-content: center;">
-            Request MUV Rate Card
+          <a href="#request-quote" class="btn btn-primary" style="width: 100%; text-align: center; justify-content: center;">
+            Request MUV Proposal &rarr;
           </a>
         </div>
 
-        <!-- Card 3: Executive MPVs & Airport Transfers -->
+        <!-- Model 3: Executive MPVs & Airport Spot Cabs -->
         <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between;">
           <div>
-            <div class="badge badge-blue" style="margin-bottom: var(--space-3);">Executive MPV & Spot Cabs</div>
-            <h3 style="font-size: 1.5rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-2);">
-              Innova Crysta / Hycross / VIP EV
+            <div class="badge badge-blue" style="margin-bottom: var(--space-3);">Executive Mobility & RGIA Transfers</div>
+            <h3 style="font-size: 1.4rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-2);">
+              Leadership & Client Delegation Transport
             </h3>
             <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.5; margin-bottom: var(--space-6);">
-              Dedicated leadership mobility, client delegations, and RGIA airport transfers.
+              Dedicated premium vehicles for senior leadership, business guests, and RGIA airport transfers (Innova Crysta, Hycross, VIP Fleets).
             </p>
 
             <div style="display: flex; flex-direction: column; gap: var(--space-3); border-top: 1px solid var(--color-border); padding-top: var(--space-4); margin-bottom: var(--space-6);">
-              <div style="display: flex; justify-content: space-between; font-size: 0.9375rem;">
-                <span style="color: var(--color-text-secondary);">RGIA Airport Transfer Slab:</span>
-                <strong style="color: var(--color-text-primary);">&#8377;1,850 &ndash; &#8377;2,400</strong>
+              <div style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.9rem; color: var(--color-text-secondary);">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>Priority vehicle assignment with top-rated commercial chauffeurs</span>
               </div>
-              <div style="display: flex; justify-content: space-between; font-size: 0.9375rem;">
-                <span style="color: var(--color-text-secondary);">8 Hrs / 80 Km Package:</span>
-                <strong style="color: var(--color-text-primary);">&#8377;3,800 &ndash; &#8377;4,500</strong>
+              <div style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.9rem; color: var(--color-text-secondary);">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>Fixed corporate point-to-point airport agreements with flight delay tracking</span>
               </div>
-              <div style="display: flex; justify-content: space-between; font-size: 0.9375rem;">
-                <span style="color: var(--color-text-secondary);">Extra Km Rate:</span>
-                <strong style="color: var(--color-text-primary);">&#8377;24.00 &ndash; &#8377;28.00 / km</strong>
-              </div>
-              <div style="display: flex; justify-content: space-between; font-size: 0.9375rem;">
-                <span style="color: var(--color-text-secondary);">Extra Hour Rate:</span>
-                <strong style="color: var(--color-text-primary);">&#8377;250 / hr</strong>
+              <div style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.9rem; color: var(--color-text-secondary);">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>Executive vehicle sanitization standards and climate-controlled interiors</span>
               </div>
             </div>
           </div>
 
-          <a href="/contact" class="btn btn-outline" style="width: 100%; text-align: center; justify-content: center;">
-            Request Executive Card
+          <a href="#request-quote" class="btn btn-outline" style="width: 100%; text-align: center; justify-content: center;">
+            Request Executive Proposal &rarr;
           </a>
         </div>
-
       </div>
     </div>
   </section>
 
-  <!-- Reconciliation & 1-Hour SLA Section -->
-  <section id="reconciliation" style="padding: var(--space-16) 0; background: var(--color-surface);">
+  <!-- Financial Audit & Transparency Engine -->
+  <section class="section-padding" style="background: var(--color-surface);">
     <div class="container">
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-12); align-items: center;">
         <div>
-          <span class="badge badge-blue" style="margin-bottom: var(--space-3);">Finance & CFO Governance</span>
+          <span class="badge badge-primary" style="margin-bottom: var(--space-3);">Audit-Grade Financial Controls</span>
           <h2 style="font-size: 2rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-4);">
-            How 3-Way Match Billing Protects Your Corporate Budget
+            How AdhocX Eliminates Corporate Transport Billing Leakage
           </h2>
-          <p style="color: var(--color-text-secondary); font-size: 1rem; line-height: 1.6; margin-bottom: var(--space-4);">
-            Traditional vendor billing forces finance teams to audit thousands of manual paper slips at the end of each month. AdhocX replaces this chaos with automated, real-time programmatic verification.
+          <p class="body-large" style="margin-bottom: var(--space-6);">
+            Traditional vendor desks rely on physical log sheets, manual odometer readings, and disputed fuel slips. AdhocX digitizes and verifies every billing milestone automatically.
           </p>
-          <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-4); font-size: 0.9375rem; color: var(--color-text-secondary);">
-            <li style="display: flex; gap: var(--space-3); align-items: flex-start;">
-              <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--color-primary-50); display: flex; align-items: center; justify-content: center; color: var(--color-primary-600); flex-shrink: 0; margin-top: 2px;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
-              </div>
-              <div>
-                <strong style="color: var(--color-text-primary);">Roster Demand Match:</strong> Every billed leg must trace back to an authorized employee shift record published by HR.
-              </div>
-            </li>
-            <li style="display: flex; gap: var(--space-3); align-items: flex-start;">
-              <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--color-primary-50); display: flex; align-items: center; justify-content: center; color: var(--color-primary-600); flex-shrink: 0; margin-top: 2px;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
-              </div>
-              <div>
-                <strong style="color: var(--color-text-primary);">PostGIS Telemetry Validation:</strong> Actual distance is computed from geofenced pickup and drop events, stripping phantom detours.
-              </div>
-            </li>
-            <li style="display: flex; gap: var(--space-3); align-items: flex-start;">
-              <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--color-primary-50); display: flex; align-items: center; justify-content: center; color: var(--color-primary-600); flex-shrink: 0; margin-top: 2px;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
-              </div>
-              <div>
-                <strong style="color: var(--color-text-primary);">Contract Rate Card Lock:</strong> System applies your agreed MSA rate cards automatically. No ad-hoc markup by dispatchers.
-              </div>
-            </li>
-          </ul>
-        </div>
 
-        <div style="background: var(--color-surface-muted); border: 2px solid var(--color-primary-600); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-md);">
-          <div style="display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4);">
-            <div style="width: 36px; height: 36px; border-radius: 8px; background: var(--color-primary-50); display: flex; align-items: center; justify-content: center; color: var(--color-primary-600);">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+          <div style="display: flex; flex-direction: column; gap: var(--space-4);">
+            <div style="display: flex; gap: var(--space-3); align-items: flex-start;">
+              <div style="width: 2rem; height: 2rem; border-radius: 50%; background: #EFF6FF; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">1</div>
+              <div>
+                <strong style="color: var(--color-text-primary);">GPS & Geofence Verification:</strong>
+                <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: 2px;">Trips are audited against real vehicle movement timestamps. Deadhead mileage is eliminated from corporate invoicing.</p>
+              </div>
             </div>
-            <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--color-text-primary); margin: 0;">1-Hour Bank Refund SLA</h3>
-          </div>
-          <p style="font-size: 0.9375rem; color: var(--color-text-secondary); line-height: 1.6; margin-bottom: var(--space-4);">
-            We stand behind our operational precision with an industry-first guarantee. If a ride fails to be fulfilled or an SLA breach is confirmed:
-          </p>
-          <div style="background: var(--color-surface); padding: var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border); font-size: 0.875rem; color: var(--color-text-primary); margin-bottom: var(--space-4);">
-            <strong>Escrow-Backed Resolution:</strong> Funds for disputed trips are reversed via IMPS or credited to your corporate balance within <strong>60 minutes</strong> of verification.
-          </div>
-          <div style="font-size: 0.8125rem; color: var(--color-text-secondary);">
-            Standard in all AdhocX enterprise contracts across Hyderabad and regional commercial hubs.
+
+            <div style="display: flex; gap: var(--space-3); align-items: flex-start;">
+              <div style="width: 2rem; height: 2rem; border-radius: 50%; background: #EFF6FF; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">2</div>
+              <div>
+                <strong style="color: var(--color-text-primary);">Contract Rate Card Lock:</strong>
+                <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: 2px;">Your agreed master service agreement terms are permanently locked into the system, preventing unexpected fee spikes.</p>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: var(--space-3); align-items: flex-start;">
+              <div style="width: 2rem; height: 2rem; border-radius: 50%; background: #EFF6FF; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">3</div>
+              <div>
+                <strong style="color: var(--color-text-primary);">Consolidated Monthly GST Invoicing:</strong>
+                <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: 2px;">Single itemized monthly GST invoice with internal cost center breakdowns for seamless ERP integration.</p>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
-  </section>
 
-  <!-- CTA Strip -->
-  <section style="padding: var(--space-16) 0; background: linear-gradient(135deg, var(--color-primary-900) 0%, #032969 100%); color: #ffffff; text-align: center;">
-    <div class="container" style="max-width: 760px; margin: 0 auto;">
-      <h2 style="font-size: 2.25rem; font-weight: 800; margin-bottom: var(--space-4); color: #ffffff;">
-        Receive a Customized Rate Proposal for Your Campus
-      </h2>
-      <p style="font-size: 1.125rem; color: var(--color-primary-200); margin-bottom: var(--space-8); line-height: 1.6;">
-        Share your shift volumes and campus location. Our enterprise commercial team will model your projected annual cost savings.
-      </p>
-      <div style="display: flex; gap: var(--space-4); justify-content: center; flex-wrap: wrap;">
-        <a href="/contact" class="btn btn-primary btn-large" style="background: var(--color-brand-x); border-color: var(--color-brand-x);">
-          Request Custom Proposal &rarr;
-        </a>
-        <a href="/faq" class="btn btn-outline btn-large" style="color: #ffffff; border-color: rgba(255,255,255,0.4);">
-          Read Pricing FAQs
-        </a>
+        <!-- Right Side: Embedded Request Form Island -->
+        <div id="request-quote">
+          <EnterpriseLeadForm client:load defaultPurpose="Custom Corporate Quotation & Rate Card" />
+        </div>
       </div>
     </div>
   </section>

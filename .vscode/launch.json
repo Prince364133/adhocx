@@ -5,6 +5,26 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "employee_app",
+            "cwd": "apps\\employee_app",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "employee_app (profile mode)",
+            "cwd": "apps\\employee_app",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "employee_app (release mode)",
+            "cwd": "apps\\employee_app",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        },
+        {
             "name": "mobile",
             "cwd": "apps\\mobile",
             "request": "launch",

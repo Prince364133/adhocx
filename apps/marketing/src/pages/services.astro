@@ -1,0 +1,252 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import EnterpriseLeadForm from '../components/EnterpriseLeadForm';
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "name": "AdhocX Enterprise Employee Transportation Services (ETS)",
+  "provider": {
+    "@type": "Organization",
+    "name": "AdhocX (Estemporaneo Technologies Private Limited)",
+    "url": "https://www.adhocx.com"
+  },
+  "serviceType": "Corporate Employee Commute Management",
+  "areaServed": ["Telangana", "Hyderabad", "HITEC City", "Gachibowli", "Financial District"],
+  "description": "Comprehensive corporate employee transportation services: automated shift roster fulfillment, commercial 4 & 7 seater yellow-plate fleets, 24/7 command center monitoring, and auditable single-invoice billing."
+};
+---
+
+<BaseLayout
+  title="Employee Transportation Services (ETS) — Enterprise Corporate Mobility | AdhocX"
+  description="End-to-end B2B corporate employee commute management across Hyderabad tech parks: automated shift routing, verified commercial 4 & 7 seater yellow-board fleets, female safe drops, and GPS-audited reconciliation."
+  canonical="https://www.adhocx.com/services"
+  activeNav="services"
+  jsonLd={jsonLd}
+>
+  <!-- Hero Section -->
+  <section class="page-hero-section" style="background: linear-gradient(180deg, var(--color-primary-50) 0%, #ffffff 100%); padding: var(--space-16) 0 var(--space-12);">
+    <div class="container text-center" style="max-width: 900px; margin: 0 auto;">
+      <div class="badge badge-blue" style="margin-bottom: var(--space-4);">
+        <span class="status-dot-pulse"></span>
+        <span>Corporate Commute Solutions &bull; Direct B2B Fulfillment</span>
+      </div>
+      <h1 class="display-title" style="color: var(--color-text-primary); margin-bottom: var(--space-6);">
+        Complete Employee Transportation. <br />
+        <span style="color: var(--color-primary-600);">Automated from Roster to Ride.</span>
+      </h1>
+      <p class="body-large" style="color: var(--color-text-secondary); margin-bottom: var(--space-8); line-height: 1.6;">
+        Replace fragmented WhatsApp groups, unvetted middleman brokers, and disputed paper duty slips. <span class="logo-text" style="font-size: 1.15em;">Adhoc<span class="logo-accent">X</span></span> contracts directly with enterprises to deliver safe, predictable employee commutes across Hyderabad's premier technology corridors.
+      </p>
+      <div style="display: flex; gap: var(--space-4); justify-content: center; flex-wrap: wrap;">
+        <a href="#request-proposal" class="btn btn-primary btn-large">
+          Request Corporate Mobility Proposal &rarr;
+        </a>
+        <a href="#commute-models" class="btn btn-secondary btn-large">
+          Explore Service Modules
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Key Fleet & Operational Standards Bar -->
+  <section style="background: var(--color-surface); border-top: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); padding: var(--space-8) 0;">
+    <div class="container">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-6); text-align: center;">
+        <div>
+          <div style="font-size: 1.4rem; font-weight: 800; color: var(--color-primary-600);">100% Commercial</div>
+          <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-top: 4px;">Yellow-Board Fleet Only (Dzire, Ertiga, Innova)</div>
+        </div>
+        <div>
+          <div style="font-size: 1.4rem; font-weight: 800; color: var(--color-primary-600);">Direct Contract</div>
+          <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-top: 4px;">No Third-Party Broker Intermediaries</div>
+        </div>
+        <div>
+          <div style="font-size: 1.4rem; font-weight: 800; color: var(--color-primary-600);">24/7 Command Center</div>
+          <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-top: 4px;">Live Telemetry, SOS & Rapid Dispatch Support</div>
+        </div>
+        <div>
+          <div style="font-size: 1.4rem; font-weight: 800; color: var(--color-primary-600);">3-Way Audit</div>
+          <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-top: 4px;">Roster vs. GPS Geofence vs. GST Invoice</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 Core Service Capabilities -->
+  <section id="commute-models" class="section-padding" style="background: var(--color-surface-muted);">
+    <div class="container">
+      <div class="text-center" style="max-width: 800px; margin: 0 auto var(--space-12);">
+        <span class="badge badge-warm" style="margin-bottom: var(--space-3);">Core Mobility Services</span>
+        <h2 style="font-size: 2.25rem; font-weight: 800; color: var(--color-text-primary); margin-bottom: var(--space-4);">
+          Engineered for Corporate Scale and Commuter Peace of Mind
+        </h2>
+        <p style="color: var(--color-text-secondary); font-size: 1.05rem; line-height: 1.6;">
+          From high-volume daily shift pickups to executive travel, AdhocX provides unified corporate ground transport under one service agreement.
+        </p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-8);">
+        
+        <!-- Service 1: Daily Shift Commute & Roster Fulfillment -->
+        <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <div style="width: 3rem; height: 3rem; border-radius: 0.75rem; background: #EFF6FF; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+            </div>
+            <h3 style="font-size: 1.35rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-3);">
+              Scheduled Shift Pickups & Drops
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--color-text-secondary); line-height: 1.6; margin-bottom: var(--space-6);">
+              Automated fulfillment of approved corporate rosters for morning logins, evening logouts, and overnight shifts. Clustered routing groups employees logically to minimize commute durations.
+            </p>
+            <ul style="display: flex; flex-direction: column; gap: 10px; font-size: 0.875rem; color: var(--color-text-secondary); border-top: 1px solid var(--color-border); padding-top: var(--space-4);">
+              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Doorstep & nodal stop optimization with 5-minute dwell buffers</li>
+              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Dynamic OTP/QR boarding verification prevents passenger mix-ups</li>
+              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Corporate cutoff policy enforcement for orderly roster changes</li>
+            </ul>
+          </div>
+          <div style="margin-top: var(--space-6);">
+            <a href="#request-proposal" class="btn btn-outline" style="width: 100%; text-align: center; justify-content: center;">
+              Request Shift Commute Proposal &rarr;
+            </a>
+          </div>
+        </div>
+
+        <!-- Service 2: Women's Night Shift Safety & Protocol -->
+        <div style="background: var(--color-surface); border: 2px solid var(--color-primary-600); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-lg); position: relative; display: flex; flex-direction: column; justify-content: space-between;">
+          <div style="position: absolute; top: -14px; right: 24px; background: var(--color-primary-600); color: #ffffff; font-size: 0.75rem; font-weight: 700; padding: 4px 12px; border-radius: var(--radius-full); text-transform: uppercase; letter-spacing: 0.05em;">
+            Safety Assured
+          </div>
+          <div>
+            <div style="width: 3rem; height: 3rem; border-radius: 0.75rem; background: #ECE6FE; color: #5728B2; display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              </svg>
+            </div>
+            <h3 style="font-size: 1.35rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-3);">
+              Women's Night Safety & Escort Governance
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--color-text-secondary); line-height: 1.6; margin-bottom: var(--space-6);">
+              Comprehensive night safety protocols designed in strict compliance with Telangana Department of Transport and Cyberabad Security Council (SCSC) guidelines for corporate night shifts.
+            </p>
+            <ul style="display: flex; flex-direction: column; gap: 10px; font-size: 0.875rem; color: var(--color-text-secondary); border-top: 1px solid var(--color-border); padding-top: var(--space-4);">
+              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>First-pickup and last-drop female safety routing protocols</li>
+              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Mandatory verified security guard escort integration where mandated</li>
+              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>In-app safe-reach confirmation and continuous GPS corridor tracking</li>
+            </ul>
+          </div>
+          <div style="margin-top: var(--space-6);">
+            <a href="#request-proposal" class="btn btn-primary" style="width: 100%; text-align: center; justify-content: center;">
+              Request Night Safety Plan &rarr;
+            </a>
+          </div>
+        </div>
+
+        <!-- Service 3: Executive Travel & Airport Spot Mobility -->
+        <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <div style="width: 3rem; height: 3rem; border-radius: 0.75rem; background: #EFF6FF; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+              </svg>
+            </div>
+            <h3 style="font-size: 1.35rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-3);">
+              Executive Travel & RGIA Airport Transfers
+            </h3>
+            <p style="font-size: 0.9rem; color: var(--color-text-secondary); line-height: 1.6; margin-bottom: var(--space-6);">
+              On-demand executive spot cabs and pre-booked airport transfers for senior management, visiting client delegations, and corporate board members across Hyderabad.
+            </p>
+            <ul style="display: flex; flex-direction: column; gap: 10px; font-size: 0.875rem; color: var(--color-text-secondary); border-top: 1px solid var(--color-border); padding-top: var(--space-4);">
+              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Top-tier fleet: Innova Crysta, Hycross, Ertiga & executive sedans</li>
+              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Flight tracking integration ensures drivers are stationed on time</li>
+              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Masked virtual calling protects corporate executive contact privacy</li>
+            </ul>
+          </div>
+          <div style="margin-top: var(--space-6);">
+            <a href="#request-proposal" class="btn btn-outline" style="width: 100%; text-align: center; justify-content: center;">
+              Request Executive Fleet Proposal &rarr;
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Commercial Fleet Composition -->
+  <section class="section-padding" style="background: var(--color-surface);">
+    <div class="container">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-12); align-items: center;">
+        <div>
+          <span class="badge badge-primary" style="margin-bottom: var(--space-3);">Verified Commercial Fleet</span>
+          <h2 style="font-size: 2.25rem; font-weight: 800; color: var(--color-text-primary); margin-bottom: var(--space-4);">
+            Strictly Commercial Yellow-Plate Vehicles
+          </h2>
+          <p class="body-large" style="margin-bottom: var(--space-6); color: var(--color-text-secondary);">
+            AdhocX enforces a 100% yellow-plate commercial fleet mandate. We never dispatch private white-plate cars or uninspected vehicles.
+          </p>
+
+          <div style="display: flex; flex-direction: column; gap: var(--space-4);">
+            <div style="display: flex; gap: var(--space-3); align-items: flex-start;">
+              <div style="width: 2rem; height: 2rem; border-radius: 6px; background: #CEE0FD; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="10" width="18" height="7" rx="2"></rect><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle><path d="M5 10l2-5h10l2 5"></path></svg>
+              </div>
+              <div>
+                <strong style="color: var(--color-text-primary);">4-Seater Commercial Sedans:</strong>
+                <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: 2px;">Maruti Suzuki Dzire, Toyota Etios, Tata Tigor EV. Clean interiors, AC, calibrated speed governors, and GPS tracking.</p>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: var(--space-3); align-items: flex-start;">
+              <div style="width: 2rem; height: 2rem; border-radius: 6px; background: #CEE0FD; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="13" rx="2"></rect><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle><path d="M5 7l2-4h10l2 4"></path></svg>
+              </div>
+              <div>
+                <strong style="color: var(--color-text-primary);">6 & 7-Seater Commercial MUVs:</strong>
+                <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: 2px;">Maruti Ertiga, XL6, Kia Carens, Toyota Innova Crysta. Ideal for high-efficiency nodal routes and grouped team shifts.</p>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: var(--space-3); align-items: flex-start;">
+              <div style="width: 2rem; height: 2rem; border-radius: 6px; background: #CEE0FD; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+              </div>
+              <div>
+                <strong style="color: var(--color-text-primary);">Compliance & Document Audits:</strong>
+                <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: 2px;">Every vehicle RC, commercial fitness certificate, passenger liability insurance, and driver police verification is verified digitally before dispatch.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div style="border-radius: 1.25rem; overflow: hidden; box-shadow: var(--shadow-xl); border: 1px solid var(--color-border);">
+            <img
+              src="/corporate-cab-fleet.jpg"
+              alt="AdhocX Verified Commercial 4-Seater and 7-Seater Cab Fleet in Hyderabad"
+              width="640"
+              height="400"
+              style="width: 100%; height: auto; display: block; object-fit: cover; aspect-ratio: 16 / 10;"
+              loading="lazy"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Lead Capture Section -->
+  <section id="request-proposal" class="section-padding" style="background: var(--color-surface-muted);">
+    <div class="container" style="max-width: 900px; margin: 0 auto;">
+      <EnterpriseLeadForm client:load defaultPurpose="Enterprise Commute / ETS RFP Proposal" />
+    </div>
+  </section>
+</BaseLayout>
+

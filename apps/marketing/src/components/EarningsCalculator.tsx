@@ -52,7 +52,7 @@ const VEHICLE_TIERS: VehicleTier[] = [
       'Pre-scheduled confirmed corporate pickup & drop rosters',
       'Direct in-app route dispatch with transparent drop details',
       'Instant settlement to registered bank account or UPI on demand',
-      'Milestone program with unlocked performance rewards in app'
+      'Verified corporate shift assignments with direct in-app tracking'
     ],
     specs: [
       { label: 'Passenger Capacity', value: '4 Passengers' },
@@ -211,7 +211,7 @@ export default function EarningsCalculator() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px', marginBottom: '18px' }}>
           {activeTier.features.map((feat, idx) => (
             <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '0.85rem', color: '#334155' }}>
-              <span style={{ color: '#16a34a', fontWeight: 800, flexShrink: 0 }}>✓</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '3px' }} aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>
               <span>{feat}</span>
             </div>
           ))}
@@ -248,7 +248,7 @@ export default function EarningsCalculator() {
               Get the AdhocX Driver App on Google Play
             </div>
             <div style={{ fontSize: '0.85rem', color: '#475569', marginTop: '4px' }}>
-              Upload documents, track corporate assignments, and unlock Century Milestone bonuses.
+              Upload documents, track corporate assignments, and manage direct bank settlements.
             </div>
           </div>
 

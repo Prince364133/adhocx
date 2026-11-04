@@ -24,7 +24,7 @@ const SEED_ARTICLES: BlogArticle[] = [
     category: 'Driver Welfare & Earnings',
     date: '2026-10-10T00:00:00.000Z',
     author: 'AdhocX Driver Community Desk',
-    summary: 'An operational breakdown of fuel efficiency, daily run tariffs, and how the Century Milestone bonus maximizes monthly net driver payouts.'
+    summary: 'An operational breakdown of fuel efficiency, daily run tariffs, and how direct bank settlements and pre-scheduled corporate routes maximize monthly net driver earnings.'
   },
   {
     slug: '1-hour-bank-refund-sla-in-corporate-mobility',

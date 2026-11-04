@@ -1,0 +1,538 @@
+{
+  "employee": {
+    "id": "usr_emp_10294",
+    "employeeId": "EMP10294",
+    "name": "Ravi Kumar",
+    "greeting": "Good Morning",
+    "organization": "Estemporaneo Tech Pvt. Ltd.",
+    "office": "HITEC City Office, Hyderabad",
+    "email": "ravi.kumar@estemporaneo.com",
+    "phone": "+91 98765 43210",
+    "homeAddress": "Flat 402, Green Meadows, Kondapur, Hyderabad",
+    "isTransportEligible": true
+  },
+  "trips": {
+    "upcoming_pickup": {
+      "id": "trip_up_01",
+      "type": "Office Pickup (Login)",
+      "date": "Today, 09 Dec 2026",
+      "time": "8:15 AM",
+      "status": "Assigned",
+      "driver": {
+        "name": "Suresh R",
+        "rating": 4.8,
+        "tripsCount": 412,
+        "phone": "+91 98765 00111",
+        "vehicleNumber": "TS09UB7845",
+        "vehicleModel": "Maruti Ertiga",
+        "vehicleColor": "White",
+        "capacity": "7 Seater",
+        "fuelType": "CNG"
+      },
+      "pickupPoint": "Home - Green Meadows, Kondapur",
+      "dropPoint": "HITEC City Office",
+      "etaMinutes": 6,
+      "distanceKm": 1.8
+    },
+    "upcoming_drop": {
+      "id": "trip_up_02",
+      "type": "Office Drop (Logout)",
+      "date": "Today, 09 Dec 2026",
+      "time": "6:30 PM",
+      "status": "Assigned",
+      "driver": {
+        "name": "Suresh R",
+        "rating": 4.8,
+        "vehicleNumber": "TS09UB7845",
+        "vehicleModel": "Maruti Ertiga",
+        "capacity": "7 Seater"
+      },
+      "pickupPoint": "HITEC City Office",
+      "dropPoint": "Home - Green Meadows, Kondapur"
+    },
+    "planning": {
+      "id": "trip_plan_03",
+      "status": "Planning",
+      "message": "We are planning your trip. Your cab will be assigned soon.",
+      "pickupPoint": "Home - Hitech City",
+      "pickupTime": "8:15 AM",
+      "shift": "Login Shift (09:00 AM)"
+    },
+    "assigned": {
+      "id": "trip_asgn_04",
+      "status": "Assigned",
+      "driver": {
+        "name": "Suresh R",
+        "rating": 4.8,
+        "vehicleNumber": "TS09UB7845",
+        "vehicleModel": "Maruti Ertiga",
+        "vehicleColor": "White",
+        "capacity": "7 Seater"
+      },
+      "pickupPoint": "Home - Hitech City",
+      "pickupTime": "8:15 AM"
+    },
+    "approaching": {
+      "id": "trip_appr_05",
+      "status": "Approaching",
+      "arrivingIn": "~ 6 min",
+      "distance": "1.8 km away",
+      "driver": {
+        "name": "Suresh R",
+        "rating": 4.8,
+        "vehicleNumber": "TS09UB7845"
+      }
+    },
+    "arrived": {
+      "id": "trip_arr_06",
+      "status": "Arrived",
+      "message": "Your cab has arrived! Please board now.",
+      "boardingOtp": "583271",
+      "driver": {
+        "name": "Suresh R",
+        "rating": 4.8,
+        "vehicleNumber": "TS09UB7845"
+      }
+    },
+    "boarded": {
+      "id": "trip_brd_07",
+      "status": "Boarded",
+      "message": "You're on board! Trip is in progress to your office.",
+      "drop": "HITEC City Office"
+    },
+    "in_progress": {
+      "id": "trip_prog_08",
+      "status": "In Progress",
+      "destination": "HITEC City Office",
+      "etaMinutes": 24,
+      "distanceKm": 12.4
+    },
+    "completed": {
+      "id": "trip_comp_09",
+      "status": "Completed",
+      "type": "Login (Pickup)",
+      "date": "09 Dec 2026",
+      "pickupTime": "8:15 AM",
+      "dropTime": "9:02 AM",
+      "duration": "47 min",
+      "distance": "12.4 km",
+      "destination": "HITEC City Office",
+      "timeline": [
+        { "event": "Trip Scheduled", "time": "8:00 AM" },
+        { "event": "Cab Assigned", "time": "8:05 AM" },
+        { "event": "Cab Arrived", "time": "8:14 AM" },
+        { "event": "Boarded", "time": "8:16 AM" },
+        { "event": "In Progress", "time": "8:16 AM - 9:02 AM" },
+        { "event": "Completed", "time": "9:02 AM" }
+      ]
+    },
+    "cancelled": {
+      "id": "trip_canc_10",
+      "status": "Cancelled",
+      "message": "Your this trip has been cancelled as per your request.",
+      "pickupPoint": "Home - Hitech City",
+      "scheduledTime": "8:15 AM",
+      "cancelledAt": "Today, 7:42 AM"
+    },
+    "unserved": {
+      "id": "trip_unsrv_11",
+      "status": "Unserved",
+      "title": "Trip Not Served",
+      "message": "We couldn't allocate a cab for this trip. Please contact support if you need assistance."
+    }
+  },
+  "schedules": {
+    "today": {
+      "date": "Tue, 09 Dec 2026",
+      "pickup": {
+        "type": "Login (Pickup)",
+        "time": "8:15 AM",
+        "route": "Home -> Office"
+      },
+      "drop": {
+        "type": "Logout (Drop)",
+        "time": "6:30 PM",
+        "route": "Office -> Home"
+      }
+    },
+    "weekly": [
+      { "day": "Mon, 08 Dec", "status": "Completed", "tripsCount": 2 },
+      { "day": "Tue, 09 Dec", "status": "Upcoming", "tripsCount": 2 },
+      { "day": "Wed, 10 Dec", "status": "Upcoming", "tripsCount": 2 },
+      { "day": "Thu, 11 Dec", "status": "Upcoming", "tripsCount": 2 },
+      { "day": "Fri, 12 Dec", "status": "Upcoming", "tripsCount": 2 },
+      { "day": "Sat, 13 Dec", "status": "No Trip", "tripsCount": 0 },
+      { "day": "Sun, 14 Dec", "status": "No Trip", "tripsCount": 0 }
+    ],
+    "shift_details_standard": {
+      "type": "Login Shift",
+      "date": "Tue, 09 Dec 2026",
+      "shiftHours": "9:00 AM - 6:00 PM",
+      "office": "HITEC City Office",
+      "rosterPickup": {
+        "time": "8:15 AM",
+        "location": "Home (Kondapur)"
+      },
+      "rosterDrop": {
+        "time": "6:30 PM",
+        "location": "HITEC City Office"
+      }
+    },
+    "shift_details_overnight": {
+      "type": "Overnight Shift",
+      "date": "Wed, 10 Dec - Thu, 11 Dec",
+      "shiftHours": "10:00 PM - 6:00 AM",
+      "office": "HITEC City Office",
+      "rosterPickup": {
+        "time": "9:15 PM",
+        "location": "Home (Miyapur)"
+      },
+      "rosterDrop": {
+        "time": "6:15 AM",
+        "location": "Home (Miyapur)"
+      }
+    },
+    "change_requests": {
+      "pending": {
+        "id": "cr_101",
+        "status": "Pending Approval",
+        "message": "Your change request is under review by your transport team.",
+        "requestType": "Change Pickup Location",
+        "newLocation": "Green Meadows, Kondapur",
+        "tripDate": "Tue, 09 Dec 2026"
+      },
+      "approved": {
+        "id": "cr_102",
+        "status": "Approved",
+        "message": "Your pickup location has been updated for the selected trip.",
+        "requestType": "Change Pickup Location",
+        "newLocation": "Green Meadows, Kondapur",
+        "tripDate": "Tue, 09 Dec 2026"
+      },
+      "rejected": {
+        "id": "cr_103",
+        "status": "Rejected",
+        "message": "Your change request was not approved as it is outside the allowed policy.",
+        "reason": "Request is after the cutoff time (6:00 PM, 08 Dec 2026)."
+      }
+    }
+  },
+  "driver_assignment": {
+    "notification": {
+      "time": "8:10",
+      "date": "Tue, 09 Dec",
+      "app": "AdhocX",
+      "title": "Cab Assigned",
+      "message": "Your login trip (8:15 AM) has been assigned to driver Suresh R."
+    },
+    "driver": {
+      "name": "Suresh R",
+      "rating": 4.8,
+      "tripsCompleted": 412,
+      "experience": "6+ years",
+      "licenseStatus": "Commercial Verified",
+      "backgroundCheck": "Completed",
+      "phone": "+91 98765 00111",
+      "photoUrl": "assets/images/driver_avatar.png"
+    },
+    "vehicle": {
+      "model": "Maruti Ertiga",
+      "plateNumber": "TS09UB7845",
+      "color": "White",
+      "seating": "7 Seater",
+      "fuel": "CNG",
+      "registrationRc": "Verified",
+      "insurance": "Valid",
+      "fitnessPermit": "Valid"
+    },
+    "pickup_sequence": [
+      { "name": "Ravi Kumar (You)", "time": "8:15 AM", "location": "Home", "isCurrent": true, "status": "Current Pickup" },
+      { "name": "Anil Verma", "time": "8:20 AM", "location": "Green Meadows", "isCurrent": false, "status": "Next Pickup" },
+      { "name": "Priya Shah", "time": "8:27 AM", "location": "City Center", "isCurrent": false, "status": "Scheduled" },
+      { "name": "Neha Reddy", "time": "8:34 AM", "location": "Kondapur", "isCurrent": false, "status": "Scheduled" },
+      { "name": "HITEC City Office", "time": "9:02 AM", "location": "Office Campus", "isDrop": true, "status": "Final Drop" }
+    ],
+    "reassigned_cab": {
+      "driverName": "Amit Kumar",
+      "driverRating": 4.7,
+      "previousDriver": "Suresh R",
+      "vehicleModel": "Swift Dzire",
+      "plateNumber": "TS10UC9281",
+      "vehicleColor": "Silver",
+      "capacity": "5 Seater",
+      "reason": "operational reason"
+    },
+    "assignment_delayed": {
+      "title": "Assignment Delayed",
+      "message": "We are facing a slight delay in assigning a cab for your trip. We're working on it and will update you shortly.",
+      "tripType": "Login Trip",
+      "time": "8:15 AM",
+      "route": "Home -> Office"
+    },
+    "delay": {
+      "title": "Driver Delay",
+      "subtitle": "Your cab is running late",
+      "estimatedArrival": "8:25 AM",
+      "delayMinutes": 10,
+      "reason": "Traffic congestion on route."
+    },
+    "vehicle_issue": {
+      "title": "Vehicle Issue",
+      "message": "The assigned cab has a vehicle issue. We're arranging an alternate cab for your trip.",
+      "expectedUpdateIn": "~ 5 min"
+    },
+    "contact_options": [
+      { "type": "call", "title": "Call Driver", "subtitle": "Talk directly with your driver", "icon": "phone" },
+      { "type": "message", "title": "Message Driver", "subtitle": "Send a text message", "icon": "message" },
+      { "type": "share_location", "title": "Share Location", "subtitle": "Share your live location", "icon": "location_pin" }
+    ],
+    "history": [
+      { "time": "8:05 AM", "status": "Assigned", "details": "Suresh R • TS09UB7845", "color": "green" },
+      { "time": "8:20 AM", "status": "Reassigned", "details": "Amit Kumar • TS10UC9281", "color": "blue" },
+      { "time": "8:22 AM", "status": "Updated", "details": "Pickup time revised to 8:15 AM", "color": "gray" }
+    ],
+    "no_cab_available": {
+      "title": "No Cab Available",
+      "message": "We couldn't assign a cab for your trip at the moment. Our team is working to find an alternate option. You'll be notified once assigned."
+    }
+  },
+  "live_tracking": {
+    "overview": {
+      "title": "Today's Pickup",
+      "status": "In Progress",
+      "eta": "~ 6 min",
+      "driver": {
+        "name": "Suresh R",
+        "rating": 4.8,
+        "model": "Maruti Ertiga",
+        "plateNumber": "TS09UB7845",
+        "capacity": "7 Seater"
+      }
+    },
+    "pickupPoint": {
+      "title": "Home - Green Meadows, Kondapur, Hyderabad",
+      "walkingTime": "3 min (220 m)",
+      "scheduledTime": "8:15 AM",
+      "advisory": "Be at the pickup point 5 minutes early.",
+      "directions": "Turn right in 100 m, Green Meadows Main Road"
+    },
+    "walkingDirections": {
+      "instruction": "Turn right in 100 m",
+      "subInstruction": "Green Meadows Main Road",
+      "distance": "220 m (3 min)",
+      "target": "To your pickup point"
+    },
+    "liveState": {
+      "arrivingIn": "6 min",
+      "distance": "2.4 km towards your pickup",
+      "etaMinutes": 6,
+      "currentSpeedKmph": 34
+    },
+    "approaching": {
+      "title": "Your cab is on the way!",
+      "eta": "Arriving in ~ 6 min",
+      "distance": "1.8 km away"
+    },
+    "arrived": {
+      "title": "Your cab has arrived! Please board now.",
+      "otp": "583271"
+    },
+    "tripProgress": {
+      "title": "Trip in Progress",
+      "headline": "En Route to Office",
+      "eta": "18 min",
+      "distance": "7.6 km",
+      "destination": "HITEC City Office"
+    },
+    "routeAndStops": [
+      { "name": "Your Pickup", "time": "8:15 AM", "location": "Home", "status": "Boarded", "isYou": true },
+      { "name": "Priya Shah", "time": "8:20 AM", "location": "Green Meadows", "status": "Boarded" },
+      { "name": "Anil Verma", "time": "8:27 AM", "location": "Miyapur", "status": "Boarded" },
+      { "name": "Office - HITEC City", "time": "8:35 AM", "location": "HITEC City Office", "status": "Drop", "isDrop": true }
+    ],
+    "exceptions": {
+      "gps_unavailable": {
+        "title": "GPS Unavailable",
+        "message": "We couldn't get the latest location from your cab. We're trying to reconnect and will update you shortly."
+      },
+      "stale_location": {
+        "title": "Location May Be Outdated",
+        "message": "The cab's last known location was 2 min ago. We're attempting to get a fresh update."
+      },
+      "poor_network": {
+        "title": "Poor Network",
+        "message": "Your internet connection is weak. Live updates may be delayed."
+      },
+      "reconnecting": {
+        "title": "Reconnecting...",
+        "message": "Trying to restore live tracking for your trip."
+      }
+    }
+  },
+  "boarding_completion": {
+    "verification_options": {
+      "title": "Board Your Cab",
+      "subtitle": "Verify your boarding with a 6-digit OTP from the driver.",
+      "tripType": "Login (Pickup)",
+      "driverName": "Suresh R",
+      "vehicleNumber": "TS09UB7845",
+      "otp": "583271",
+      "otpExpiresIn": "02:58",
+      "qrCodeData": "ADHOCX-ROSTER-20261209-EMP10294"
+    },
+    "boarding_confirmed": {
+      "title": "Boarding Confirmed!",
+      "subtitle": "You're now on board.",
+      "pickedUp": "8:15 AM",
+      "boarded": "8:17 AM",
+      "inProgress": "On the way to office"
+    },
+    "error_states": {
+      "invalid_otp": {
+        "title": "Invalid OTP",
+        "message": "The OTP you entered is incorrect. Please check and try again.",
+        "failedOtp": "58327"
+      },
+      "boarding_issue": {
+        "title": "Boarding Issue",
+        "message": "We couldn't verify your boarding. Please try again or contact support if the issue persists.",
+        "tripType": "Login (Pickup)",
+        "driverName": "Suresh R"
+      }
+    },
+    "trip_in_progress": {
+      "title": "Trip In Progress",
+      "subtitle": "You're on your way to the office.",
+      "eta": "24 min",
+      "distance": "12.4 km",
+      "destination": "HITEC City Office"
+    },
+    "destination_reached": {
+      "title": "Reached Destination",
+      "subtitle": "You have arrived at your drop location.",
+      "location": "HITEC City Office",
+      "arrivedAt": "9:02 AM"
+    },
+    "trip_completed": {
+      "title": "Trip Completed!",
+      "subtitle": "Your trip has been completed successfully.",
+      "tripType": "Login (Pickup)",
+      "pickupTime": "8:15 AM",
+      "dropTime": "9:02 AM",
+      "duration": "47 min",
+      "distance": "12.4 km"
+    },
+    "safe_reach": {
+      "title": "Did You Reach Safely?",
+      "subtitle": "Please confirm that you've reached your destination safely.",
+      "primary": "Yes, I'm Safe",
+      "secondary": "I Need Help"
+    },
+    "feedback": {
+      "title": "Trip Completed",
+      "subtitle": "How was your trip?",
+      "defaultRating": 5,
+      "tags": ["Polite Driver", "Clean Vehicle", "On-Time Arrival", "Safe Driving"]
+    }
+  },
+  "safety_sos_helpdesk": {
+    "center": {
+      "title": "Safety Center",
+      "subtitle": "Your safety is our priority",
+      "description": "Quick access to emergency, support and safety tools."
+    },
+    "sos_alert": {
+      "title": "SOS Alert Sent",
+      "message": "Our safety team has been notified and is contacting you shortly.",
+      "liveAssistance": "You will receive a call from our safety team in a few moments.",
+      "timeline": [
+        { "title": "Alert Received", "time": "9:41 AM", "isDone": true },
+        { "title": "Team Assigned", "time": "In Progress", "isDone": false, "isActive": true },
+        { "title": "In Contact", "time": "Pending", "isDone": false }
+      ]
+    },
+    "emergency_contacts": [
+      { "name": "Company Helpdesk", "phone": "+91 98765 43210", "type": "company" },
+      { "name": "Security Control Room", "phone": "+91 98765 43211", "type": "security" },
+      { "name": "Local Emergency (Police)", "phone": "100", "type": "police" },
+      { "name": "Ambulance", "phone": "102", "type": "medical" },
+      { "name": "Fire Services", "phone": "101", "type": "fire" }
+    ],
+    "tickets": [
+      { "id": "ADH-991201", "category": "SOS Alert", "created": "09 Dec, 9:41 AM", "status": "Resolved", "color": "green" },
+      { "id": "ADH-784512", "category": "Unsafe Driving", "created": "09 Dec, 10:20 AM", "status": "In Progress", "color": "amber", "trip": "Login (Pickup) - 8:15 AM", "description": "Driver was overspeeding on the main road.", "resolution": "The driver has been warned and appropriate action has been taken." },
+      { "id": "ADH-642109", "category": "Driver Behavior", "created": "08 Dec, 6:15 PM", "status": "Open", "color": "blue" },
+      { "id": "ADH-519823", "category": "Lost Property", "created": "07 Dec, 8:30 PM", "status": "Resolved", "color": "green", "item": "I left my blue backpack in the cab." }
+    ],
+    "safety_tips": [
+      "Verify your cab and driver details before boarding.",
+      "Share your trip status if needed.",
+      "Use SOS in case of any emergency.",
+      "Report unsafe driving or misconduct.",
+      "Keep your belongings with you."
+    ],
+    "chat_messages": [
+      { "sender": "user", "text": "I need help with my last trip. The driver was very late.", "time": "10:24 AM" },
+      { "sender": "support", "text": "Please share your Trip ID or pickup time, we'll check and update you shortly.", "time": "10:25 AM" }
+    ]
+  },
+  "history_notifications_profile": {
+    "trip_history": {
+      "this_month": [
+        { "type": "Login Trip", "date": "Tue, 09 Dec, 8:15 AM", "status": "Completed", "driver": "Suresh R", "rating": 4.8, "pickup": "Home (Kondapur) - 8:15 AM", "drop": "HITEC City Office - 9:02 AM", "vehicle": "Maruti Ertiga TS09UB7845" },
+        { "type": "Logout Trip", "date": "Tue, 09 Dec, 6:30 PM", "status": "Completed", "driver": "Amit Kumar", "rating": 4.7, "pickup": "HITEC City Office - 6:30 PM", "drop": "Home (Kondapur) - 7:15 PM", "vehicle": "Swift Dzire TS10UC9281" },
+        { "type": "Login Trip", "date": "Mon, 08 Dec, 8:10 AM", "status": "Cancelled", "pickup": "Home (Kondapur)", "drop": "HITEC City Office" }
+      ],
+      "last_month": [
+        { "type": "Logout Trip", "date": "Fri, 29 Nov, 6:40 PM", "status": "Completed", "driver": "Suresh R", "rating": 4.8, "pickup": "HITEC City Office", "drop": "Home" }
+      ]
+    },
+    "analytics": {
+      "dateRange": "08 - 14 Dec 2026",
+      "totalTrips": 10,
+      "completed": 8,
+      "cancelled": 1,
+      "unserved": 1,
+      "totalDistance": "124.6 km",
+      "totalTime": "5 hr 42 min"
+    },
+    "notifications": [
+      { "title": "Cab Assigned", "body": "Your login trip (8:15 AM) has been assigned to Suresh R.", "time": "2 min ago", "type": "trips" },
+      { "title": "Trip Completed", "body": "Your drop trip has been completed successfully.", "time": "1 hr ago", "type": "trips" },
+      { "title": "Schedule Update", "body": "Your pickup time has been changed to 8:30 AM.", "time": "3 hrs ago", "type": "updates" },
+      { "title": "Support Update", "body": "Your complaint (ADH-784512) has been resolved.", "time": "Yesterday", "type": "support" }
+    ],
+    "profile": {
+      "fullName": "Ravi Kumar",
+      "employeeId": "EMP001245",
+      "organization": "HITEC Technologies",
+      "email": "ravi.kumar@hitec.com",
+      "phone": "+91 98765 43210",
+      "address": "Kondapur, Hyderabad"
+    },
+    "settings": {
+      "language": "English",
+      "locationAccess": "Always",
+      "biometricLogin": true,
+      "appVersion": "v2.1.0"
+    },
+    "languages": ["English", "Hindi", "Telugu", "Tamil", "Kannada", "Marathi"],
+    "notification_preferences": {
+      "tripUpdates": true,
+      "scheduleChanges": true,
+      "supportComplaints": true,
+      "safetySos": true,
+      "promotional": false
+    },
+    "about": {
+      "appName": "AdhocX",
+      "tagline": "Employee Transportation",
+      "version": "Version 2.1.0",
+      "description": "AdhocX is a corporate employee transportation platform that ensures safe, reliable and hassle-free commute for employees.",
+      "company": "Estemporaneo Technologies Private Limited",
+      "supportEmail": "support@adhocx.com",
+      "supportPhone": "+91 98765 43210"
+    }
+  }
+}
+

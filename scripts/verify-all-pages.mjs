@@ -3,13 +3,16 @@ import path from 'path';
 
 const pages = [
   { name: 'Home', file: 'index.html', titleContains: 'AdhocX' },
+  { name: 'Services', file: 'services.html', titleContains: 'Corporate Employee Transportation' },
+  { name: 'Employee App', file: 'employee-app.html', titleContains: 'Employee Mobile App' },
+  { name: 'Driver App', file: 'driver-app.html', titleContains: 'Driver Mobile App' },
+  { name: 'Industries', file: 'industries.html', titleContains: 'Industries We Serve' },
   { name: 'About', file: 'about.html', titleContains: 'About AdhocX' },
   { name: 'Contact', file: 'contact.html', titleContains: 'Contact AdhocX' },
   { name: 'FAQ', file: 'faq.html', titleContains: 'Frequently Asked Questions' },
   { name: 'ETS', file: 'ets.html', titleContains: 'Employee Transport Software' },
   { name: 'Safety', file: 'safety.html', titleContains: 'Enterprise Transport Safety' },
-  { name: 'Pricing', file: 'pricing.html', titleContains: 'Corporate Transport Pricing' },
-  { name: 'Vendors', file: 'vendors.html', titleContains: 'Corporate Fleet Solutions' },
+  { name: 'Pricing', file: 'pricing.html', titleContains: 'Commercial Framework' },
   { name: 'Drivers', file: 'drivers.html', titleContains: 'Drive with AdhocX' },
   { name: 'Blogs', file: 'blogs.html', titleContains: 'Blog' },
   { name: 'Terms', file: 'terms.html', titleContains: 'Terms' },
@@ -18,7 +21,7 @@ const pages = [
 
 let allPassed = true;
 
-console.log('=== VERIFYING ALL 12 ADHOCX MARKETING PAGES ===\n');
+console.log('=== VERIFYING ALL ADHOCX MARKETING PAGES ===\n');
 
 for (const p of pages) {
   const filePath = path.resolve(p.file);
@@ -45,38 +48,74 @@ for (const p of pages) {
     allPassed = false;
   }
 
-  // Check 3: Canonical Link
+  // Check 3: Zero ₹ currency symbols
+  if (content.includes('₹')) {
+    console.error(`[FAIL] ${p.name} (${p.file}): Currency symbol ₹ detected! Must be 0 pricing digits.`);
+    allPassed = false;
+  }
+
+  // Check 4: Zero ₹2,000 bonus mentions
+  if (content.includes('2,000 Bonus') || content.includes('₹2,000')) {
+    console.error(`[FAIL] ${p.name} (${p.file}): '₹2,000 Bonus' residual found!`);
+    allPassed = false;
+  }
+
+  // Check 5: Canonical Link
   const hasCanonical = content.includes('rel="canonical"');
   if (!hasCanonical) {
     console.error(`[FAIL] ${p.name} (${p.file}): Canonical link missing.`);
     allPassed = false;
   }
 
-  // Check 4: JSON-LD
+  // Check 6: JSON-LD
   const hasJsonLd = content.includes('application/ld+json');
   if (!hasJsonLd) {
     console.error(`[FAIL] ${p.name} (${p.file}): JSON-LD schema missing.`);
     allPassed = false;
   }
 
-  console.log(`[PASS] ${p.name} (${p.file}): Size ${(content.length / 1024).toFixed(1)} KB | Brand OK | Zero Emojis | SEO OK`);
+  console.log(`[PASS] ${p.name} (${p.file}): ${(content.length / 1024).toFixed(1)} KB | Brand OK | Zero Emojis | Zero ₹ | SEO OK`);
 }
 
-// Check Header & Footer navigation integrity across pages
+// Check Drivers page has the car fleet image and NO bonus card
+const driversContent = fs.readFileSync(path.resolve('drivers.html'), 'utf8');
+if (!driversContent.includes('corporate-cab-fleet.jpg')) {
+  console.error('[FAIL] drivers.html is missing corporate-cab-fleet.jpg image!');
+  allPassed = false;
+} else {
+  console.log('[PASS] drivers.html contains verified corporate-cab-fleet.jpg visual');
+}
+
+if (driversContent.includes('driver-hero-bonus-card') || driversContent.includes('Launch Incentive')) {
+  console.error('[FAIL] drivers.html still contains driver-hero-bonus-card or Launch Incentive!');
+  allPassed = false;
+} else {
+  console.log('[PASS] drivers.html has completely removed driver-hero-bonus-card and unwanted header badges');
+}
+
+// Check Global Header links
 const indexContent = fs.readFileSync(path.resolve('index.html'), 'utf8');
-const headerLinks = ['/about', '/contact', '/faq', '/ets', '/safety', '/pricing'];
+const headerLinks = ['/services', '/employee-app', '/driver-app', '/industries', '/safety', '/pricing', '/about', '/contact'];
 for (const link of headerLinks) {
   if (!indexContent.includes(link)) {
-    console.error(`[FAIL] Global header/footer missing route link: ${link}`);
+    console.error(`[FAIL] Global navigation missing route link: ${link}`);
     allPassed = false;
   } else {
     console.log(`[PASS] Global Navigation contains: ${link}`);
   }
 }
 
-if (allPassed) {
-  console.log('\nALL PAGE & BRAND INTEGRITY CHECKS PASSED SUCCESSFULLY!');
+// Check AI Corporate Assistant island is mounted
+if (!indexContent.includes('CorporateAiAssistant')) {
+  console.error('[FAIL] index.html missing CorporateAiAssistant island!');
+  allPassed = false;
 } else {
-  console.error('\nSOME CHECKS FAILED!');
+  console.log('[PASS] Corporate AI Assistant island mounted successfully');
+}
+
+if (allPassed) {
+  console.log('\n=== ALL PAGE, BRAND, ZERO-PRICING & ASSET CHECKS PASSED SUCCESSFULLY! ===');
+} else {
+  console.error('\n=== SOME CHECKS FAILED! ===');
   process.exit(1);
 }
