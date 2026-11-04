@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { adminApi, ApiError, CorporatePayoutBatch, CorporatePayoutLine } from '../../lib/api/client';
+import { adminApi, ApiError } from '../../lib/api/client';
+import { CorporatePayoutBatch, CorporatePayoutBatchListItem, CorporatePayoutRow } from '../../lib/api/types';
 import { Button, StatusBadge, Drawer } from '../../components/common';
 import { ShieldCheck, AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
 
@@ -34,7 +35,7 @@ const errorText = (err: unknown) =>
       : String(err);
 
 export function CorporatePayoutBatchesSection() {
-  const [batches, setBatches] = useState<CorporatePayoutBatch[]>([]);
+  const [batches, setBatches] = useState<CorporatePayoutBatchListItem[]>([]);
   const [listLoading, setListLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [selected, setSelected] = useState<CorporatePayoutBatch | null>(null);
@@ -227,7 +228,7 @@ function BatchDetail({
   onApprove: () => void;
   onSubmit: () => void;
 }) {
-  const payouts: CorporatePayoutLine[] = (batch.payouts ?? []).filter((p) => p.kind !== 'REVERSAL');
+  const payouts: CorporatePayoutRow[] = (batch.payouts ?? []).filter((p: CorporatePayoutRow) => p.kind !== 'REVERSAL');
   const failed = payouts.filter((p) => p.status === 'FAILED').length;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>

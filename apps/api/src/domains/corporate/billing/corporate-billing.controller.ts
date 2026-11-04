@@ -116,7 +116,6 @@ export class CorporateBillingController {
     res.end(buffer);
   }
 
-  /**
   @Post('payouts/prepare-batch')
   @Roles(UserRole.ADMIN)
   @ApiOperation({
@@ -148,8 +147,7 @@ export class CorporateBillingController {
     return this.billingService.previewDriverPayoutBatch({
       driverIds: driverIds ? driverIds.split(',').map((d) => d.trim()).filter(Boolean) : undefined,
       cutoffDate,
-    } as DriverPayoutBatchDto);
-  }
+    } as { driverIds?: string[]; cutoffDate?: string });
   }
 
   @Get('drivers/:driverId/earnings')
