@@ -2,7 +2,7 @@ import { CorporateSafetyService } from '../src/domains/corporate/safety/corporat
 import { DatabaseService } from '../src/database/database.service';
 import { NotificationsService } from '../src/modules/notifications/notifications.service';
 import { AuditService } from '../src/modules/audit/audit.service';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 
 describe('CorporateSafetyService - P0 SOS, Deviation & Command Centre', () => {
   let service: CorporateSafetyService;
@@ -159,7 +159,7 @@ describe('CorporateSafetyService - P0 SOS, Deviation & Command Centre', () => {
           status: 'RESOLVED' as any,
           resolutionNotes: 'Duplicate close',
         }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(ConflictException);
     });
   });
 

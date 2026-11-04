@@ -12,13 +12,16 @@ import { NotificationsService } from '../../../modules/notifications/notificatio
 import { AuditService } from '../../../modules/audit/audit.service';
 import { CorporateSafetyService } from '../safety/corporate-safety.service';
 import { CorporateTripExecutionService } from '../execution/corporate-trip-execution.service';
+import { CorporateSupportTicketService } from '../safety/corporate-support-ticket.service';
 import {
   CreateSupportTicketDto,
+  RiderNextTripResponse,
   RiderNotificationItem,
   RiderProfileResponse,
   RiderScheduleItem,
   RiderScheduleResponse,
   RiderTripSummary,
+  RiderTripsOptions,
   RiderTripTrackingResponse,
   SubmitSafeReachDto,
   SubmitTripFeedbackDto,
@@ -28,7 +31,6 @@ import {
   CorporateGender,
   CorporateRouteStatus,
   CorporateStopStatus,
-  CorporateTicketPriority,
   CorporateTransportDirection,
 } from '@adhocx/contracts';
 import * as crypto from 'crypto';
@@ -44,6 +46,11 @@ function haversineDistanceMeters(lat1: number, lon1: number, lat2: number, lon2:
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+const toPoint = (lat: unknown, lng: unknown): { latitude: number; longitude: number } | null =>
+  lat === null || lat === undefined || lng === null || lng === undefined
+    ? null
+    : { latitude: Number(lat), longitude: Number(lng) };
+
 @Injectable()
 export class CorporateRiderService {
   private readonly logger = new Logger(CorporateRiderService.name);
@@ -54,6 +61,7 @@ export class CorporateRiderService {
     private readonly redis: RedisService,
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
+    private readonly tickets: CorporateSupportTicketService,
     @Optional() private readonly safetyService?: CorporateSafetyService,
     @Optional() private readonly executionService?: CorporateTripExecutionService,
   ) {}
@@ -180,11 +188,19 @@ export class CorporateRiderService {
         vehicleCategory: route?.vehicleCategory ?? 'SEDAN',
         canCancel: canModify,
         canReschedule: canModify,
+        pickupPoint: toPoint(req.pickupLat, req.pickupLng),
+        dropoffPoint: toPoint(req.dropoffLat, req.dropoffLng),
       };
     });
 
     return {
       employeeId: emp.id,
+      employee: {
+        id: emp.id,
+        code: emp.employeeCode,
+        fullName: emp.fullName,
+        officeName: emp.office?.name ?? null,
+      },
       startDate: start.toISOString().substring(0, 10),
       endDate: end.toISOString().substring(0, 10),
       totalRides: schedule.length,
@@ -196,12 +212,18 @@ export class CorporateRiderService {
    * GET /corporate/me/trips
    * Commuter trip history and upcoming trips with full vehicle, driver and OTP details.
    */
-  async getRiderTrips(userId: string, limit: number = 20, offset: number = 0): Promise<RiderTripSummary[]> {
+  async getRiderTrips(
+    userId: string,
+    limit: number = 20,
+    offset: number = 0,
+    options: RiderTripsOptions = {},
+  ): Promise<RiderTripSummary[]> {
     const emp = await this.resolveEmployee(userId);
 
     const stops = await this.db.corporateRouteStop.findMany({
       where: {
         employeeId: emp.id,
+        ...(options.stopStatuses && options.stopStatuses.length > 0 ? { status: { in: options.stopStatuses } } : {}),
       },
       include: {
         route: {
@@ -209,6 +231,7 @@ export class CorporateRiderService {
             driver: {
               include: { user: true },
             },
+            vehicle: true,
             office: true,
           },
         },
@@ -225,6 +248,7 @@ export class CorporateRiderService {
     return stops.map((s) => {
       const route = s.route;
       const driver = route?.driver;
+      const assignedVehicle = (route as any)?.vehicle;
       const isLateNight = route.direction === 'LOGOUT';
       const isFemale = emp.gender === 'FEMALE';
       const femaleSafeDropRequired = isLateNight && isFemale;
@@ -257,9 +281,9 @@ export class CorporateRiderService {
           : null,
         vehicle: driver
           ? {
-              id: `veh-${driver.id}`,
-              plateNumber: driver.vehiclePlate || 'AP29TX1234',
-              model: driver.vehicleModel || 'Maruti Dzire',
+              id: assignedVehicle?.id ?? `veh-${driver.id}`,
+              plateNumber: assignedVehicle?.registrationNumber || driver.vehiclePlate || 'AP29TX1234',
+              model: assignedVehicle?.model || driver.vehicleModel || 'Maruti Dzire',
               color: (driver as any).vehicleColor || 'White',
               category: route.vehicleCategory || 'SEDAN',
             }
@@ -270,6 +294,82 @@ export class CorporateRiderService {
         femaleSafeDropConfirmed,
       };
     });
+  }
+
+  /**
+   * GET /corporate/me/trips/next
+   * Next active or upcoming trip card for the commuter home screen (EMP-02-01, EMP-02-02).
+   */
+  async getRiderNextTrip(userId: string): Promise<RiderNextTripResponse> {
+    const emp = await this.resolveEmployee(userId);
+
+    const stop: any = await this.db.corporateRouteStop.findFirst({
+      where: {
+        employeeId: emp.id,
+        status: { in: ['PENDING', 'ARRIVED', 'BOARDED'] },
+        route: {
+          status: { in: ['PLANNED', 'DISPATCHING', 'ASSIGNED', 'IN_TRANSIT'] },
+        },
+      },
+      include: {
+        route: {
+          include: {
+            driver: true,
+            vehicle: true,
+            office: true,
+          },
+        },
+      },
+      orderBy: { plannedEta: 'asc' },
+    });
+
+    if (!stop) {
+      return {
+        hasActiveTrip: false,
+        message: 'No upcoming corporate trips scheduled at this time.',
+      };
+    }
+
+    const route = stop.route;
+    return {
+      hasActiveTrip: true,
+      stopId: stop.id,
+      routeId: stop.routeId,
+      routeNumber: `CR-${stop.routeId.slice(0, 8).toUpperCase()}`,
+      direction: route.direction,
+      routeStatus: route.status,
+      stopStatus: stop.status,
+      stopSequence: stop.stopSequence,
+      plannedEta: stop.plannedEta,
+      actualArrivalTime: stop.actualArrivalTime ?? null,
+      actualDepartureTime: stop.actualDepartureTime ?? null,
+      boardingOtp: stop.boardingOtp,
+      pickupLocation: {
+        latitude: Number(stop.latitude),
+        longitude: Number(stop.longitude),
+        addressText: emp.locations?.[0]?.addressText || 'Designated Pickup Node',
+      },
+      officeDestination: {
+        id: route.office.id,
+        name: route.office.name,
+        addressText: route.office.addressText,
+      },
+      driver: route.driver
+        ? {
+            id: route.driver.id,
+            name: route.driver.fullName || 'Assigned Driver',
+            phone: route.driver.phone ?? null,
+          }
+        : null,
+      vehicle: route.vehicle
+        ? {
+            id: route.vehicle.id,
+            registrationNumber: route.vehicle.registrationNumber,
+            model: route.vehicle.model,
+            vehicleType: route.vehicle.vehicleType,
+          }
+        : null,
+    };
   }
 
   /**
@@ -537,53 +637,7 @@ export class CorporateRiderService {
    */
   async createSupportTicket(userId: string, dto: CreateSupportTicketDto): Promise<SupportTicketResponse> {
     const emp = await this.resolveEmployee(userId);
-
-    if (!dto.subject || dto.subject.trim() === '') {
-      throw new BadRequestException('Subject is required');
-    }
-
-    if (!dto.description || dto.description.trim() === '') {
-      throw new BadRequestException('Description is required');
-    }
-
-    const priority = dto.priority || CorporateTicketPriority.MEDIUM;
-    // SLA calculation: CRITICAL = 30m, HIGH = 60m, others = 240m (4h)
-    let slaMinutes = 240;
-    if (priority === CorporateTicketPriority.CRITICAL) {
-      slaMinutes = 30;
-    } else if (priority === CorporateTicketPriority.HIGH) {
-      slaMinutes = 60;
-    }
-
-    const ticketNumber = `TCK-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`;
-
-    const ticket = await this.db.corporateSupportTicket.create({
-      data: {
-        ticketNumber,
-        tenantId: emp.tenantId,
-        employeeId: emp.id,
-        routeId: dto.routeId ?? null,
-        stopId: dto.stopId ?? null,
-        category: dto.category,
-        priority,
-        status: 'OPEN',
-        subject: dto.subject.trim(),
-        description: dto.description.trim(),
-        slaMinutes,
-      },
-    });
-
-    this.notifications.emitEvent('admin:support', 'CORPORATE_TICKET_CREATED', {
-      ticketId: ticket.id,
-      ticketNumber: ticket.ticketNumber,
-      tenantId: emp.tenantId,
-      employeeId: emp.id,
-      priority,
-      category: dto.category,
-      subject: ticket.subject,
-    });
-
-    return ticket as SupportTicketResponse;
+    return this.tickets.createTicket(emp, dto);
   }
 
   /**
@@ -592,13 +646,7 @@ export class CorporateRiderService {
    */
   async getRiderSupportTickets(userId: string): Promise<SupportTicketResponse[]> {
     const emp = await this.resolveEmployee(userId);
-
-    const tickets = await this.db.corporateSupportTicket.findMany({
-      where: { employeeId: emp.id },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    return tickets as SupportTicketResponse[];
+    return this.tickets.listEmployeeTickets(emp.id);
   }
 
   /**

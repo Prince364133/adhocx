@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CorporateRiderService } from '../src/domains/corporate/rider/corporate-rider.service';
 import { CorporateSafetyService } from '../src/domains/corporate/safety/corporate-safety.service';
+import { CorporateSupportTicketService } from '../src/domains/corporate/safety/corporate-support-ticket.service';
 import { DatabaseService } from '../src/database/database.service';
 import { RedisService } from '../src/redis/redis.service';
 import { NotificationsService } from '../src/modules/notifications/notifications.service';
@@ -136,6 +137,7 @@ describe('Corporate ETS Workstream C: Rider Self-Service API, SOS FSM & Support 
       providers: [
         CorporateRiderService,
         CorporateSafetyService,
+        CorporateSupportTicketService,
         { provide: DatabaseService, useValue: mockDb },
         { provide: RedisService, useValue: mockRedis },
         { provide: NotificationsService, useValue: mockNotifications },
@@ -723,15 +725,15 @@ describe('Corporate ETS Workstream C: Rider Self-Service API, SOS FSM & Support 
 
       await expect(
         safetyService.acknowledgeSosAlert('sos-closed', 'admin-1'),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(ConflictException);
 
       await expect(
         safetyService.investigateSosAlert('sos-closed', 'admin-1'),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(ConflictException);
 
       await expect(
         safetyService.escalateSosAlert('sos-closed', 'admin-1'),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(ConflictException);
 
       await expect(
         safetyService.resolveSosAlert('sos-closed', 'admin-1', {
@@ -739,7 +741,7 @@ describe('Corporate ETS Workstream C: Rider Self-Service API, SOS FSM & Support 
           status: CorporateSosStatus.FALSE_ALARM,
           resolutionNotes: 'Duplicate close attempt',
         }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(ConflictException);
     });
 
     it('120-Second Autonomous Auto-Escalation: transitions unacknowledged alerts older than 120s', async () => {
@@ -765,10 +767,11 @@ describe('Corporate ETS Workstream C: Rider Self-Service API, SOS FSM & Support 
 
       expect(escalatedIds).toContain('sos-stale-1');
       expect(mockDb.corporateSosAlert.update).toHaveBeenCalledWith({
-        where: { id: 'sos-stale-1' },
+        where: { id: 'sos-stale-1', status: 'NEW', acknowledgedAt: null, escalationLevel: 0 },
         data: expect.objectContaining({
           status: 'ESCALATED',
           autoEscalated: true,
+          escalationLevel: 1,
         }),
       });
 

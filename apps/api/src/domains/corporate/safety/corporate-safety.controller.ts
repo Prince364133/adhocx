@@ -8,8 +8,10 @@ import {
   Req,
   BadRequestException,
   UseGuards,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { CorporateSafetyService } from './corporate-safety.service';
 import {
   TriggerSosAlertDto,
@@ -23,6 +25,22 @@ import { RolesGuard } from '../../../common/guards/roles.guard';
 import { CorporateAccessGuard } from '../../../common/guards/corporate-access.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { CorporateResource, CorporateTenantScoped } from '../../../common/decorators/corporate-resource.decorator';
+import { SOS_CLOSE_OUTCOMES, SosCloseOutcome, SosLifecycleNotesDto } from './safety.types';
+
+const NOTES_BODY = {
+  schema: {
+    type: 'object',
+    properties: {
+      notes: { type: 'string', example: 'Called driver and commuter; cab stationary at signal' },
+    },
+  },
+} as const;
+
+const requireNotes = (dto: SosLifecycleNotesDto | undefined): string => {
+  const notes = typeof dto?.notes === 'string' ? dto.notes.trim() : '';
+  if (!notes) throw new BadRequestException('notes are required');
+  return notes;
+};
 
 @ApiTags('Corporate ETS - Safety SOS & Command Centre')
 @ApiBearerAuth()
@@ -62,10 +80,79 @@ export class CorporateSafetyController {
     return this.safetyService.listSosAlerts({ status, routeId, tenantId });
   }
 
+  @Post('alerts/:id/acknowledge')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.ADMIN)
+  @CorporateResource('sos', 'id')
+  @ApiOperation({ summary: 'SOS stage 2: commander acknowledges a NEW / ACTIVE (or unacknowledged ESCALATED) alert' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { notes: { type: 'string' }, adminName: { type: 'string', example: 'Commander John' } },
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Alert acknowledged' })
+  @ApiResponse({ status: 409, description: 'Illegal transition (already acknowledged or closed)' })
+  public async acknowledgeAlert(@Param('id') alertId: string, @Body() dto: SosLifecycleNotesDto, @Req() req: any) {
+    const notes = typeof dto?.notes === 'string' ? dto.notes : undefined;
+    return this.safetyService.acknowledgeSosAlert(alertId, req.user.id, dto?.adminName || req.user?.name, notes);
+  }
+
+  @Post('alerts/:id/investigate')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.ADMIN)
+  @CorporateResource('sos', 'id')
+  @ApiOperation({ summary: 'SOS stage 3: mark an acknowledged / escalated alert under active investigation' })
+  @ApiBody(NOTES_BODY)
+  @ApiResponse({ status: 200, description: 'Alert under investigation' })
+  @ApiResponse({ status: 409, description: 'Illegal transition (not acknowledged yet, or closed)' })
+  public async investigateAlert(@Param('id') alertId: string, @Body() dto: SosLifecycleNotesDto, @Req() req: any) {
+    const notes = typeof dto?.notes === 'string' ? dto.notes : undefined;
+    return this.safetyService.investigateSosAlert(alertId, req.user.id, notes);
+  }
+
+  @Post('alerts/:id/escalate')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.ADMIN)
+  @CorporateResource('sos', 'id')
+  @ApiOperation({ summary: 'SOS stage 4: escalate to police / field response (raises the escalation level)' })
+  @ApiBody(NOTES_BODY)
+  @ApiResponse({ status: 200, description: 'Alert escalated' })
+  @ApiResponse({ status: 409, description: 'Illegal transition (already escalated or closed)' })
+  public async escalateAlert(@Param('id') alertId: string, @Body() dto: SosLifecycleNotesDto, @Req() req: any) {
+    return this.safetyService.escalateSosAlert(alertId, req.user.id, requireNotes(dto));
+  }
+
+  @Post('alerts/:id/close')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.ADMIN)
+  @CorporateResource('sos', 'id')
+  @ApiOperation({ summary: 'SOS stage 5: close an open alert as RESOLVED (default) or FALSE_ALARM with incident notes' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        notes: { type: 'string' },
+        outcome: { type: 'string', enum: [...SOS_CLOSE_OUTCOMES], default: 'RESOLVED' },
+      },
+      required: ['notes'],
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Alert closed' })
+  @ApiResponse({ status: 409, description: 'Alert already closed' })
+  public async closeAlert(@Param('id') alertId: string, @Body() dto: SosLifecycleNotesDto, @Req() req: any) {
+    const notes = requireNotes(dto);
+    const outcome: SosCloseOutcome = dto?.outcome ?? 'RESOLVED';
+    if (!SOS_CLOSE_OUTCOMES.includes(outcome)) {
+      throw new BadRequestException(`outcome must be one of ${SOS_CLOSE_OUTCOMES.join(', ')}`);
+    }
+    return this.safetyService.closeSosAlert(alertId, req.user.id, notes, outcome);
+  }
+
   @Post('alerts/:id/resolve')
   @Roles(UserRole.ADMIN)
   @CorporateResource('sos', 'id')
-  @ApiOperation({ summary: 'Resolve an active emergency alert with incident resolution notes' })
+  @ApiOperation({ summary: 'Alias of POST /alerts/:id/close: resolve an open alert with incident resolution notes' })
   @ApiResponse({ status: 200, description: 'Alert resolved' })
   public async resolveAlert(
     @Param('id') alertId: string,

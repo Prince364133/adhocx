@@ -1267,6 +1267,8 @@ model CorporateSosAlert {
   acknowledgedAt    DateTime?          @map("acknowledged_at")
   escalatedAt       DateTime?          @map("escalated_at")
   autoEscalated     Boolean            @default(false) @map("auto_escalated")
+  // ===== wire/safety-support: escalation ladder (one level per ack-SLA breach or manual escalation) =====
+  escalationLevel   Int                @default(0) @map("escalation_level")
   assignedToAdminId String?            @map("assigned_to_admin_id") @db.Uuid
   assignedAdminName String?            @map("assigned_admin_name") @db.VarChar(128)
   resolvedAt        DateTime?          @map("resolved_at")
@@ -1281,6 +1283,7 @@ model CorporateSosAlert {
   @@index([routeId])
   @@index([tenantId])
   @@index([status])
+  @@index([status, createdAt])
   @@map("corporate_sos_alerts")
 }
 

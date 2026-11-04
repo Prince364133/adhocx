@@ -11,6 +11,8 @@ import { NotificationsService } from '../src/modules/notifications/notifications
 import { AuditService } from '../src/modules/audit/audit.service';
 import { CorporateRiderNotifier } from '../src/domains/corporate/execution/corporate-rider-notifier.service';
 import { CorporateReplanningService } from '../src/domains/corporate/replanning/corporate-replanning.service';
+import { CorporateRiderService } from '../src/domains/corporate/rider/corporate-rider.service';
+import { CorporateSupportTicketService } from '../src/domains/corporate/safety/corporate-support-ticket.service';
 import { JwtAuthGuard } from '../src/common/guards/auth.guard';
 import { RolesGuard } from '../src/common/guards/roles.guard';
 import { CorporateAccessGuard } from '../src/common/guards/corporate-access.guard';
@@ -136,7 +138,8 @@ describe('Corporate Mobile Bridge & Driver/Employee Flow Verification', () => {
       },
       corporateEmployee: {
         findFirst: jest.fn(async ({ where }: any) => {
-          if (where.userId === dummyEmployee.userId || where.id === dummyEmployee.id) {
+          const clauses = Array.isArray(where.OR) ? where.OR : [where];
+          if (clauses.some((c: any) => c.userId === dummyEmployee.userId || c.id === dummyEmployee.id)) {
             return dummyEmployee;
           }
           return null;
@@ -181,6 +184,7 @@ describe('Corporate Mobile Bridge & Driver/Employee Flow Verification', () => {
           {
             id: 'req-shift-1',
             shiftDate: new Date('2026-11-10'),
+            scheduledDate: new Date('2026-11-10'),
             shiftTime: '08:00',
             direction: 'LOGIN',
             status: 'ROUTED',
@@ -205,6 +209,8 @@ describe('Corporate Mobile Bridge & Driver/Employee Flow Verification', () => {
           },
         },
         CorporateTripExecutionService,
+        CorporateRiderService,
+        CorporateSupportTicketService,
         { provide: DatabaseService, useValue: mockDb },
         { provide: RedisService, useValue: mockRedis },
         { provide: NotificationsService, useValue: { sendSms: jest.fn(), sendPush: jest.fn(), emitEvent: jest.fn() } },

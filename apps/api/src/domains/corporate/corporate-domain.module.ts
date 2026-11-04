@@ -56,6 +56,9 @@ import { CorporateReplanningService } from './replanning/corporate-replanning.se
 // Safety SOS, Route Deviation & Command Centre Sub-Module
 import { CorporateSafetyService } from './safety/corporate-safety.service';
 import { CorporateSafetyController } from './safety/corporate-safety.controller';
+import { CorporateSosEscalationScheduler } from './safety/corporate-sos-escalation.scheduler';
+import { CorporateSupportTicketService } from './safety/corporate-support-ticket.service';
+import { CorporateSupportTicketController } from './safety/corporate-support-ticket.controller';
 
 // Dual Financial Ledgers, Invoicing & Driver Settlements Sub-Module
 import { CorporateBillingService } from './billing/corporate-billing.service';
@@ -106,6 +109,8 @@ import { CorporateRiderController } from './rider/corporate-rider.controller';
     CorporateRiderNotifier,
     CorporateReplanningService,
     CorporateSafetyService,
+    CorporateSosEscalationScheduler,
+    CorporateSupportTicketService,
     CorporateBillingService,
     CorporateOperationsService, // WS-D
     CorporateAnalyticsService, // WS-D
@@ -125,6 +130,7 @@ import { CorporateRiderController } from './rider/corporate-rider.controller';
     CorporateDispatchController,
     CorporateTripExecutionController,
     CorporateSafetyController,
+    CorporateSupportTicketController,
     CorporateBillingController,
     CorporateOperationsController, // WS-D
     CorporateAnalyticsController, // WS-D
@@ -143,6 +149,7 @@ import { CorporateRiderController } from './rider/corporate-rider.controller';
     CorporateRiderNotifier,
     CorporateReplanningService,
     CorporateSafetyService,
+    CorporateSupportTicketService,
     CorporateBillingService,
     CorporateRiderService, // WS-C
     // WS-F

@@ -10,6 +10,7 @@ export type CorporateResourceKind =
   | 'employee'
   | 'tenant'
   | 'sos'
+  | 'ticket'
   | 'driver';
 
 export interface CorporateResourceOptions {
@@ -54,6 +55,7 @@ export const CorporateResource = (
  * Marks a list/create handler that takes `tenantId` in the query or body.
  * For CORPORATE_ADMIN / CORPORATE_MANAGER the guard forces `tenantId` to the
  * tenant in their token and rejects any different client-supplied value
- * (query, body or X-Corporate-Tenant-ID header). ADMIN may target any tenant.
+ * (query, body or X-Corporate-Tenant-ID header). EMPLOYEE is bound to the tenant
+ * of their employee profile the same way. ADMIN may target any tenant.
  */
 export const CorporateTenantScoped = () => SetMetadata(CORPORATE_TENANT_SCOPED_KEY, true);
