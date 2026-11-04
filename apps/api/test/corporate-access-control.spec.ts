@@ -27,6 +27,7 @@ import { CorporateTripExecutionController } from '../src/domains/corporate/execu
 import { CorporateRosterController } from '../src/domains/corporate/rosters/corporate-roster.controller';
 import { CorporateRoutingController } from '../src/domains/corporate/routing/corporate-routing.controller';
 import { CorporateSafetyController } from '../src/domains/corporate/safety/corporate-safety.controller';
+import { CorporateRouteCancellationController } from '../src/domains/corporate/operations/corporate-operations.controller';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -480,10 +481,11 @@ describe('Corporate access control', () => {
       expect(rolesOf(CorporateTenantController, 'createTenant')).toEqual([UserRole.ADMIN]);
       expect(rolesOf(CorporateTenantController, 'listTenants')).toEqual([UserRole.ADMIN]);
       expect(rolesOf(CorporateTenantController, 'updateTenant')).toEqual([UserRole.ADMIN]);
-      expect(rolesOf(CorporateBillingController, 'previewPayoutBatch')).toEqual([UserRole.ADMIN]);
+      expect(rolesOf(CorporateBillingController, 'preparePayoutBatch')).toEqual([UserRole.ADMIN]); // retired: 410
       expect(rolesOf(CorporateBillingController, 'createPayoutBatch')).toEqual([UserRole.ADMIN]);
       expect(rolesOf(CorporateBillingController, 'approvePayoutBatch')).toEqual([UserRole.ADMIN]);
       expect(rolesOf(CorporateBillingController, 'submitPayoutBatch')).toEqual([UserRole.ADMIN]);
+      expect(rolesOf(CorporateRouteCancellationController, 'cancel')).toEqual([UserRole.ADMIN]);
       expect(rolesOf(CorporateSafetyController, 'resolveAlert')).toEqual([UserRole.ADMIN]);
     });
   });

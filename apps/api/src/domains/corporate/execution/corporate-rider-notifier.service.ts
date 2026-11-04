@@ -16,7 +16,8 @@ export type RiderLifecycleEvent =
   | 'NO_SHOW'
   | 'DROPPED'
   | 'PICKUP_RETIMED'
-  | 'CAB_REPLACED';
+  | 'CAB_REPLACED'
+  | 'ROUTE_CANCELLED';
 
 /**
  * Websocket event names on the `employee:{id}` channel.
@@ -32,6 +33,7 @@ export const RIDER_WS_EVENTS: Record<RiderLifecycleEvent, string> = {
   DROPPED: 'RIDE_DROPPED',
   PICKUP_RETIMED: 'CORPORATE_PICKUP_UPDATED',
   CAB_REPLACED: 'CORPORATE_CAB_REPLACED',
+  ROUTE_CANCELLED: 'CORPORATE_ROUTE_CANCELLED',
 };
 
 export const NO_SHOW_DEFAULT_REASON =
@@ -234,6 +236,37 @@ export class CorporateRiderNotifier {
       );
     } catch (err: any) {
       this.logger.error(`notifyCabReplaced(${routeId}) failed: ${err?.message}`);
+      return [];
+    }
+  }
+
+  /**
+   * Ops cancelled the route (command centre): tell every employee whose stop was still open. The
+   * stops are passed in because they are already CANCELLED when this runs. Deduped per
+   * cancellation. The internal ops reason is never sent to employees.
+   */
+  public async notifyRouteCancelled(
+    route: { id: string; tenantId: string },
+    stops: Array<{ id: string; stopSequence: number; employeeId?: string | null; plannedEta?: Date | string | null }>,
+    cancellationId: string,
+  ): Promise<RiderNotificationOutcome[]> {
+    try {
+      return await Promise.all(
+        stops
+          .filter((s) => s.employeeId)
+          .map((s) =>
+            this.notify('ROUTE_CANCELLED', {
+              routeId: route.id,
+              tenantId: route.tenantId,
+              employeeId: s.employeeId as string,
+              stopId: s.id,
+              stopSequence: s.stopSequence,
+              payload: { cancellationId, plannedPickupAt: s.plannedEta ?? null },
+            }),
+          ),
+      );
+    } catch (err: any) {
+      this.logger.error(`notifyRouteCancelled(${route.id}) failed: ${err?.message}`);
       return [];
     }
   }
@@ -469,6 +502,9 @@ export class CorporateRiderNotifier {
     if (event === 'CAB_REPLACED' && ctx.payload?.reassignmentId) {
       return `${base}:${ctx.payload.reassignmentId}`;
     }
+    if (event === 'ROUTE_CANCELLED' && ctx.payload?.cancellationId) {
+      return `${base}:${ctx.payload.cancellationId}`;
+    }
     return base;
   }
 
@@ -560,6 +596,11 @@ export class CorporateRiderNotifier {
         return {
           title: 'Cab changed',
           body: `Hi ${firstName}, your cab for this commute has been changed. A replacement cab is being arranged and you will get its details shortly. Your pickup time is unchanged.`,
+        };
+      case 'ROUTE_CANCELLED':
+        return {
+          title: 'Cab trip cancelled',
+          body: `Hi ${firstName}, the operations team has cancelled the cab trip planned for this commute. No cab will come for this pickup. Please contact your transport desk if you still need a ride.`,
         };
     }
   }

@@ -21,7 +21,6 @@ import { CorporateOperationsService } from '../src/domains/corporate/operations/
 import { CorporateBillingService } from '../src/domains/corporate/billing/corporate-billing.service';
 import { RateCardService } from '../src/domains/corporate/billing/rate-card.service';
 import { FakeDb, FakeRedisService, makeAudit, makeNotifications, tickYield } from './helpers/corporate-ws-d-fakes';
-import { verifiedVehicle } from './helpers/corporate-driver-fixtures';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -119,12 +118,7 @@ function seed(db: FakeDb) {
       vehicleType,
     });
   }
-  // Every driver owns a real VERIFIED Vehicle row (corporate eligibility ignores the inline vehicleType).
-  // drv-unv stays ineligible because the driver itself is PENDING.
-  for (const id of ['drv-old', 'drv-c', 'drv-unv']) {
-    db.insert('vehicle', verifiedVehicle(id, 'SEDAN', { registrationNumber: `TS09${id.toUpperCase()}` }));
-  }
-  db.insert('vehicle', verifiedVehicle('drv-new', 'SEDAN', { id: 'veh-new', registrationNumber: 'TS09NEW' }));
+  db.insert('vehicle', { id: 'veh-new', driverId: 'drv-new', registrationNumber: 'TS09NEW', verificationStatus: 'VERIFIED' });
 }
 
 let seq = 0;
@@ -493,14 +487,13 @@ describe('D. reassign voids the old earning', () => {
     // The voided row is untouched by the batch.
     expect(db.tables.corporateDriverEarning.get(`earn-${id}`)).toMatchObject({ payoutStatus: 'VOIDED', payoutBatchId: null });
 
-    const legacy = await scenario();
-    const prepared = await legacy.billing.previewDriverPayoutBatch();
-    expect(prepared.disbursements.map((d: any) => [d.driverId, d.grossPaise]).sort()).toEqual([
+    // Per-driver payout rows never include the voided earning.
+    const payouts = db.all('corporatePayout').filter((p) => p.batchId === batch.id);
+    expect(payouts.map((p) => [p.driverId, String(p.grossPaise)]).sort()).toEqual([
       ['drv-new', '66000'],
       ['drv-old', '40000'],
     ]);
-    // The voided row is untouched by payouts.
-    expect(legacy.db.tables.corporateDriverEarning.get(`earn-${legacy.id}`)).toMatchObject({ payoutStatus: 'VOIDED', payoutBatchId: null });
+    expect(payouts.some((p) => p.earningIds.includes(`earn-${id}`))).toBe(false);
   });
 
   it('a second reassign does not re-void or count the already voided earning', async () => {

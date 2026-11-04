@@ -13,7 +13,6 @@ import { AuditService } from '../src/modules/audit/audit.service';
 import { LocationsService } from '../src/modules/locations/locations.service';
 import { GeoPoint, H3Index } from '@adhocx/domain-core';
 import { attachSortedSets } from './helpers/fake-sorted-sets';
-import { FIXTURE_INSURANCE_EXPIRY, filterDriversByIdIn, shapeDriver } from './helpers/corporate-driver-fixtures';
 
 /**
  * 20-Step Comprehensive Operational Simulation Suite for Corporate Managed ETS.
@@ -86,6 +85,7 @@ describe('Corporate Managed ETS: 20-Step Comprehensive Operational Simulations',
     sosAlerts: Map<string, any>;
     drivers: Map<string, any>;
     vehicles: Map<string, any>;
+    payouts?: any[];
   } = {
     tenants: new Map(),
     offices: new Map(),
@@ -101,9 +101,6 @@ describe('Corporate Managed ETS: 20-Step Comprehensive Operational Simulations',
     drivers: new Map(),
     vehicles: new Map(),
   };
-  /** Vehicle rows owned by a driver (what `include: { vehicles }` loads). */
-  const vehiclesOf = (driverId: string) =>
-    Array.from(simDb.vehicles.values()).filter((v: any) => v.driverId === driverId);
 
   const redisStore = new Map<string, string>();
   const redisSets = new Map<string, Set<string>>();
@@ -406,10 +403,8 @@ describe('Corporate Managed ETS: 20-Step Comprehensive Operational Simulations',
       }),
     },
     driver: {
-      findUnique: jest.fn(async (args: any) => shapeDriver(simDb.drivers.get(args.where.id), args, vehiclesOf)),
-      findMany: jest.fn(async (args: any = {}) =>
-          filterDriversByIdIn(Array.from(simDb.drivers.values()), args.where).map((d) => shapeDriver(d, args, vehiclesOf)),
-        ),
+      findUnique: jest.fn(async ({ where }: any) => simDb.drivers.get(where.id)),
+      findMany: jest.fn(async () => Array.from(simDb.drivers.values())),
     },
     vehicle: {
       findFirst: jest.fn(async ({ where }: any) => {
@@ -436,6 +431,17 @@ describe('Corporate Managed ETS: 20-Step Comprehensive Operational Simulations',
       ]),
       findFirst: jest.fn(async () => null),
     },
+    corporatePayoutBatch: {
+      findUnique: jest.fn(async () => null),
+      create: jest.fn(async ({ data }: any) => ({ id: 'batch-step20', ...data })),
+    },
+    corporatePayout: {
+      createMany: jest.fn(async ({ data }: any) => {
+        simDb.payouts = data;
+        return { count: data.length };
+      }),
+    },
+    $executeRaw: jest.fn(async () => 1),
     $transaction: jest.fn(async (cb: (db: any) => Promise<any>) => cb(mockDb)),
   };
 
@@ -509,9 +515,7 @@ describe('Corporate Managed ETS: 20-Step Comprehensive Operational Simulations',
         make: vCat === 'SEDAN' ? 'Maruti' : 'Toyota',
         model: vCat === 'SEDAN' ? 'Dzire' : 'Innova',
         plateNumber: `TS09AB${(2000 + i).toString()}`,
-        vehicleType: vCat,
         verificationStatus: 'VERIFIED',
-        insuranceExpiry: FIXTURE_INSURANCE_EXPIRY,
       });
     }
   });
@@ -900,15 +904,22 @@ describe('Corporate Managed ETS: 20-Step Comprehensive Operational Simulations',
       simDb.earnings.set(earn.id, earn);
     }
 
-    const payout = await billingService.previewDriverPayoutBatch({
-      driverIds: ['drv-1', 'drv-2', 'drv-3', 'drv-4', 'drv-5'],
-    });
+    // Maker step of the payout batch (legacy prepare-batch is retired: it marked PAID with no checker).
+    const payout: any = await billingService.createPayoutBatch(
+      { driverIds: ['drv-1', 'drv-2', 'drv-3', 'drv-4', 'drv-5'] },
+      'admin-maker',
+      'step20-payout-batch',
+    );
 
     // 10 routes * ₹700 (700000 paise) + Step 08 route * ₹1000 (100000 paise) = ₹8,000.00 gross (800000 paise)
     // 1% TDS = ₹80.00 (8000 paise)
     // Net Payout = ₹7,920.00 (792000 paise)
-    expect(payout.totalGrossPaise).toBe('800000');
-    expect(payout.totalTdsPaise).toBe('8000');
-    expect(payout.totalNetPayoutPaise).toBe('792000');
+    expect(payout.status).toBe('SUBMITTED'); // awaits a different admin's approval
+    expect(String(payout.grossPaise)).toBe('800000');
+    expect(String(payout.tdsPaise)).toBe('8000');
+    expect(String(payout.netPayoutPaise)).toBe('792000');
+    expect(simDb.payouts!.every((p: any) => p.status === 'PENDING')).toBe(true);
+    // Nothing is PAID until the payout provider confirms it.
+    expect([...simDb.earnings.values()].some((e: any) => e.payoutStatus === 'PAID')).toBe(false);
   });
 });

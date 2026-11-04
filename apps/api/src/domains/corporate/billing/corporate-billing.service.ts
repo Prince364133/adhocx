@@ -593,6 +593,12 @@ export class CorporateBillingService {
     };
   }
 
+  // The legacy one-step payout (`prepareDriverPayoutBatch`, POST payouts/prepare-batch) marked
+  // earnings PAID with no maker-checker and no provider confirmation. It is retired: payouts go
+  // through createPayoutBatch -> approvePayoutBatch -> CorporatePayoutService.submitBatch, and an
+  // earning becomes PAID only from a signed provider confirmation.
+
+
   /**
    * Driver Commute Earnings Summary
    */

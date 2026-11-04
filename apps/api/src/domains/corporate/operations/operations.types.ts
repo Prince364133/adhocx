@@ -80,6 +80,17 @@ export class ReassignRouteDto {
   newDriverId?: string;
 }
 
+/** Routes an ADMIN may cancel: nothing has started moving yet. IN_TRANSIT / COMPLETED are refused. */
+export const CANCELLABLE_ROUTE_STATUSES: readonly string[] = ['PLANNED', 'DISPATCHING', 'ASSIGNED'];
+
+export class CancelRouteDto {
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(3)
+  @MaxLength(500)
+  reason!: string;
+}
+
 /** Today's calendar day in IST (YYYY-MM-DD), independent of the server TZ. */
 export function istToday(now: Date = new Date()): string {
   return new Date(now.getTime() + IST_OFFSET_MINUTES * 60_000).toISOString().slice(0, 10);
