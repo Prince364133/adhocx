@@ -65,6 +65,20 @@ import '../screens/batch_04/contact_driver_sheet_screen.dart';
 import '../screens/batch_04/assignment_history_screen.dart';
 import '../screens/batch_04/no_cab_available_screen.dart';
 
+// Batch 05 Screens
+import '../screens/batch_05/live_tracking_overview_screen.dart';
+import '../screens/batch_05/trip_live_map_full_screen.dart';
+import '../screens/batch_05/pickup_point_details_screen.dart';
+import '../screens/batch_05/walking_directions_screen.dart';
+import '../screens/batch_05/cab_approaching_screen.dart';
+import '../screens/batch_05/cab_arrived_screen.dart';
+import '../screens/batch_05/trip_progress_on_trip_screen.dart';
+import '../screens/batch_05/route_and_stops_screen.dart';
+import '../screens/batch_05/gps_unavailable_screen.dart';
+import '../screens/batch_05/stale_location_screen.dart';
+import '../screens/batch_05/poor_network_screen.dart';
+import '../screens/batch_05/reconnecting_screen.dart';
+
 class AppRoutes {
   AppRoutes._();
 
@@ -133,6 +147,20 @@ class AppRoutes {
   static const String assignmentHistory = '/driver/assignment-history';
   static const String noCabAvailable = '/driver/no-cab-available';
 
+  // Batch 05 Routes
+  static const String liveTrackingOverview = '/tracking/overview';
+  static const String tripLiveMapFull = '/tracking/map-full';
+  static const String pickupPointDetails = '/tracking/pickup-point';
+  static const String walkingDirections = '/tracking/walking-directions';
+  static const String cabApproaching = '/tracking/cab-approaching';
+  static const String cabArrived = '/tracking/cab-arrived';
+  static const String tripProgressOnTrip = '/tracking/trip-progress';
+  static const String routeAndStops = '/tracking/route-stops';
+  static const String gpsUnavailable = '/tracking/gps-unavailable';
+  static const String staleLocation = '/tracking/stale-location';
+  static const String poorNetwork = '/tracking/poor-network';
+  static const String reconnecting = '/tracking/reconnecting';
+
   static final GoRouter router = GoRouter(
     initialLocation: splash,
     routes: [
@@ -200,6 +228,20 @@ class AppRoutes {
       GoRoute(path: contactDriverSheet, builder: (context, state) => const ContactDriverSheetScreen()),
       GoRoute(path: assignmentHistory, builder: (context, state) => const AssignmentHistoryScreen()),
       GoRoute(path: noCabAvailable, builder: (context, state) => const NoCabAvailableScreen()),
+
+      // Batch 05
+      GoRoute(path: liveTrackingOverview, builder: (context, state) => const LiveTrackingOverviewScreen()),
+      GoRoute(path: tripLiveMapFull, builder: (context, state) => const TripLiveMapFullScreen()),
+      GoRoute(path: pickupPointDetails, builder: (context, state) => const PickupPointDetailsScreen()),
+      GoRoute(path: walkingDirections, builder: (context, state) => const WalkingDirectionsScreen()),
+      GoRoute(path: cabApproaching, builder: (context, state) => const CabApproachingScreen()),
+      GoRoute(path: cabArrived, builder: (context, state) => const CabArrivedScreen()),
+      GoRoute(path: tripProgressOnTrip, builder: (context, state) => const TripProgressOnTripScreen()),
+      GoRoute(path: routeAndStops, builder: (context, state) => const RouteAndStopsScreen()),
+      GoRoute(path: gpsUnavailable, builder: (context, state) => const GpsUnavailableScreen()),
+      GoRoute(path: staleLocation, builder: (context, state) => const StaleLocationScreen()),
+      GoRoute(path: poorNetwork, builder: (context, state) => const PoorNetworkScreen()),
+      GoRoute(path: reconnecting, builder: (context, state) => const ReconnectingScreen()),
     ],
   );
 }

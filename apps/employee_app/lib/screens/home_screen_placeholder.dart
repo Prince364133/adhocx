@@ -109,6 +109,52 @@ class HomeScreenPlaceholder extends StatelessWidget {
 
               const SizedBox(height: 24),
 
+              // Batch 05: Live Tracking & Navigation Section
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Batch 05 — Live Tracking & Navigation',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryBlueLight.withOpacity(0.4),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '12 Screens',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primaryBlueDark,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              _buildScreenTile(context, '1. Live Tracking (Overview)', AppRoutes.liveTrackingOverview),
+              _buildScreenTile(context, '2. Trip Live Map (Full)', AppRoutes.tripLiveMapFull),
+              _buildScreenTile(context, '3. Pickup Point Details', AppRoutes.pickupPointDetails),
+              _buildScreenTile(context, '4. Walking Directions', AppRoutes.walkingDirections),
+              _buildScreenTile(context, '5. Cab Approaching', AppRoutes.cabApproaching),
+              _buildScreenTile(context, '6. Cab Arrived (OTP 583271)', AppRoutes.cabArrived),
+              _buildScreenTile(context, '7. Trip Progress (On Trip)', AppRoutes.tripProgressOnTrip),
+              _buildScreenTile(context, '8. Route & Stops Manifest', AppRoutes.routeAndStops),
+              _buildScreenTile(context, '9. Exception — GPS Unavailable', AppRoutes.gpsUnavailable),
+              _buildScreenTile(context, '10. Exception — Stale Location', AppRoutes.staleLocation),
+              _buildScreenTile(context, '11. Exception — Poor Network', AppRoutes.poorNetwork),
+              _buildScreenTile(context, '12. Exception — Reconnecting...', AppRoutes.reconnecting),
+
+              const SizedBox(height: 28),
+
               // Batch 04: Driver & Cab Assignment Section
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,

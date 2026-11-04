@@ -297,10 +297,30 @@
     }
   },
   "live_tracking": {
+    "overview": {
+      "title": "Today's Pickup",
+      "status": "In Progress",
+      "eta": "~ 6 min",
+      "driver": {
+        "name": "Suresh R",
+        "rating": 4.8,
+        "model": "Maruti Ertiga",
+        "plateNumber": "TS09UB7845",
+        "capacity": "7 Seater"
+      }
+    },
     "pickupPoint": {
       "title": "Home - Green Meadows, Kondapur, Hyderabad",
       "walkingTime": "3 min (220 m)",
+      "scheduledTime": "8:15 AM",
+      "advisory": "Be at the pickup point 5 minutes early.",
       "directions": "Turn right in 100 m, Green Meadows Main Road"
+    },
+    "walkingDirections": {
+      "instruction": "Turn right in 100 m",
+      "subInstruction": "Green Meadows Main Road",
+      "distance": "220 m (3 min)",
+      "target": "To your pickup point"
     },
     "liveState": {
       "arrivingIn": "6 min",
@@ -308,11 +328,45 @@
       "etaMinutes": 6,
       "currentSpeedKmph": 34
     },
+    "approaching": {
+      "title": "Your cab is on the way!",
+      "eta": "Arriving in ~ 6 min",
+      "distance": "1.8 km away"
+    },
+    "arrived": {
+      "title": "Your cab has arrived! Please board now.",
+      "otp": "583271"
+    },
+    "tripProgress": {
+      "title": "Trip in Progress",
+      "headline": "En Route to Office",
+      "eta": "18 min",
+      "distance": "7.6 km",
+      "destination": "HITEC City Office"
+    },
+    "routeAndStops": [
+      { "name": "Your Pickup", "time": "8:15 AM", "location": "Home", "status": "Boarded", "isYou": true },
+      { "name": "Priya Shah", "time": "8:20 AM", "location": "Green Meadows", "status": "Boarded" },
+      { "name": "Anil Verma", "time": "8:27 AM", "location": "Miyapur", "status": "Boarded" },
+      { "name": "Office - HITEC City", "time": "8:35 AM", "location": "HITEC City Office", "status": "Drop", "isDrop": true }
+    ],
     "exceptions": {
-      "gps_unavailable": "We couldn't get the latest location from your cab. We're trying to reconnect and will update you shortly.",
-      "stale_location": "The cab's last known location was 2 min ago. We're attempting to get a fresh update.",
-      "poor_network": "Your internet connection is weak. Live updates may be delayed.",
-      "reconnecting": "Trying to restore live tracking for your trip."
+      "gps_unavailable": {
+        "title": "GPS Unavailable",
+        "message": "We couldn't get the latest location from your cab. We're trying to reconnect and will update you shortly."
+      },
+      "stale_location": {
+        "title": "Location May Be Outdated",
+        "message": "The cab's last known location was 2 min ago. We're attempting to get a fresh update."
+      },
+      "poor_network": {
+        "title": "Poor Network",
+        "message": "Your internet connection is weak. Live updates may be delayed."
+      },
+      "reconnecting": {
+        "title": "Reconnecting...",
+        "message": "Trying to restore live tracking for your trip."
+      }
     }
   },
   "boarding_completion": {
