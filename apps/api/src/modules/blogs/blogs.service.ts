@@ -4,6 +4,7 @@ import { CreateBlogDto } from './dto/create-blog.dto';
 import { UpdateBlogDto } from './dto/update-blog.dto';
 import { QueryBlogDto } from './dto/query-blog.dto';
 import { BlogStatus } from '@prisma/client';
+import { sanitizeBlogHtml, sanitizeImageUrl } from './blog-html-sanitizer';
 
 export interface BlogPostItem {
   id: string;
@@ -467,10 +468,10 @@ AdhocX offers enterprise logistics audits to analyze your monthly cab expenditur
           title: dto.title,
           slug,
           excerpt: dto.excerpt,
-          content: dto.content,
+          content: sanitizeBlogHtml(dto.content) ?? '',
           category: dto.category,
           tags: dto.tags || [],
-          coverImage: dto.coverImage || null,
+          coverImage: sanitizeImageUrl(dto.coverImage),
           authorName: dto.authorName || 'AdhocX Team',
           authorRole: dto.authorRole || 'Fleet Operations & Mobility Research',
           status,
@@ -522,6 +523,8 @@ AdhocX offers enterprise logistics audits to analyze your monthly cab expenditur
 
     try {
       const data: any = { ...dto };
+      if (dto.content !== undefined) data.content = sanitizeBlogHtml(dto.content) ?? '';
+      if (dto.coverImage !== undefined) data.coverImage = sanitizeImageUrl(dto.coverImage);
       if (slug) data.slug = slug;
       if (readTime) data.readTime = readTime;
       if (status) {

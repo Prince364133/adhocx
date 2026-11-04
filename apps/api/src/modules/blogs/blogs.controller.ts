@@ -9,8 +9,13 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse as SwaggerResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse as SwaggerResponse } from '@nestjs/swagger';
+import { UserRole } from '@adhocx/contracts';
+import { JwtAuthGuard } from '../../common/guards/auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { BlogsService } from './blogs.service';
 import { CreateBlogDto } from './dto/create-blog.dto';
 import { UpdateBlogDto } from './dto/update-blog.dto';
@@ -55,7 +60,11 @@ export class BlogsController {
 }
 
 @ApiTags('Admin Blog Management')
+@ApiBearerAuth()
 @Controller('admin/blogs')
+// Admin-only: these endpoints create, edit and delete public marketing content.
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
 export class AdminBlogsController {
   constructor(private readonly blogsService: BlogsService) {}
 

@@ -70,7 +70,10 @@ async function bootstrap() {
       ) {
         return callback(null, true);
       }
-      return callback(null, true);
+      // Unknown browser origins get no CORS headers (the browser then blocks the response).
+      // Add extra origins with the CORS_ORIGINS setting (app.corsOrigins). Non-browser clients
+      // (mobile apps, servers) send no Origin header and are unaffected.
+      return callback(null, false);
     },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: [
