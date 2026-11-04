@@ -957,6 +957,7 @@ model CorporateTenant {
   supportTickets    CorporateSupportTicket[]
   tripFeedbacks     CorporateTripFeedback[]
   sosAlerts         CorporateSosAlert[]
+  rateCards         CorporateRateCard[]
 
   @@map("corporate_tenants")
 }
@@ -1201,11 +1202,13 @@ model CorporateDriverEarning {
   createdAt              DateTime                     @default(now()) @map("created_at")
   updatedAt              DateTime                     @default(now()) @updatedAt @map("updated_at")
 
-  driver Driver         @relation(fields: [driverId], references: [id])
-  route  CorporateRoute @relation(fields: [routeId], references: [id])
+  driver      Driver                @relation(fields: [driverId], references: [id])
+  route       CorporateRoute        @relation(fields: [routeId], references: [id])
+  payoutBatch CorporatePayoutBatch? @relation(fields: [payoutBatchId], references: [id])
 
   @@index([driverId, payoutStatus])
   @@index([routeId])
+  @@index([payoutBatchId])
   @@map("corporate_driver_earnings")
 }
 
@@ -1328,6 +1331,80 @@ model CorporateTripFeedback {
   @@index([employeeId])
   @@index([routeId])
   @@map("corporate_trip_feedback")
+}
+
+// ===== WS-E: Dual Rate Cards & Driver Payout Batch FSM =====
+
+enum CorporatePayoutBatchStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  PROCESSING
+  PAID
+  FAILED
+}
+
+model CorporatePayoutBatch {
+  id                    String                     @id @default(uuid()) @db.Uuid
+  batchNumber           String                     @unique @map("batch_number") @db.VarChar(32)
+  idempotencyKey        String                     @unique @map("idempotency_key") @db.VarChar(64)
+  status                CorporatePayoutBatchStatus @default(DRAFT)
+  totalDrivers          Int                        @map("total_drivers")
+  totalRoutes           Int                        @map("total_routes")
+  grossPaise            BigInt                     @map("gross_paise")
+  tdsPaise              BigInt                     @map("tds_paise") // 1% Section 194C
+  netPayoutPaise        BigInt                     @map("net_payout_paise")
+  createdByUserId       String                     @map("created_by_user_id") @db.Uuid
+  approvedByUserId      String?                    @map("approved_by_user_id") @db.Uuid
+  approvedAt            DateTime?                  @map("approved_at")
+  processedAt           DateTime?                  @map("processed_at")
+  disbursementReference String?                    @map("disbursement_reference") @db.VarChar(64)
+  failureReason         String?                    @map("failure_reason")
+  createdAt             DateTime                   @default(now()) @map("created_at")
+  updatedAt             DateTime                   @default(now()) @updatedAt @map("updated_at")
+
+  earnings CorporateDriverEarning[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("corporate_payout_batches")
+}
+
+model CorporateRateCard {
+  id                 String    @id @default(uuid()) @db.Uuid
+  tenantId           String    @map("tenant_id") @db.Uuid
+  vehicleCategory    String    @default("SEDAN") @map("vehicle_category") @db.VarChar(16)
+  baseFarePaise      BigInt    @map("base_fare_paise")
+  baseDistanceMeters Int       @default(10000) @map("base_distance_meters")
+  perKmPaise         BigInt    @map("per_km_paise")
+  perExtraStopPaise  BigInt    @default(0) @map("per_extra_stop_paise")
+  effectiveFrom      DateTime  @default(now()) @map("effective_from")
+  effectiveTo        DateTime? @map("effective_to")
+  isActive           Boolean   @default(true) @map("is_active")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  tenant CorporateTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, vehicleCategory, isActive])
+  @@map("corporate_rate_cards")
+}
+
+model CorporateDriverRateCard {
+  id                     String    @id @default(uuid()) @db.Uuid
+  vehicleCategory        String    @default("SEDAN") @map("vehicle_category") @db.VarChar(16)
+  basePayoutPaise        BigInt    @map("base_payout_paise")
+  baseDistanceMeters     Int       @default(10000) @map("base_distance_meters")
+  perKmPaise             BigInt    @map("per_km_paise")
+  tollReimbursementPaise BigInt    @default(0) @map("toll_reimbursement_paise")
+  effectiveFrom          DateTime  @default(now()) @map("effective_from")
+  effectiveTo            DateTime? @map("effective_to")
+  isActive               Boolean   @default(true) @map("is_active")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@index([vehicleCategory, isActive])
+  @@map("corporate_driver_rate_cards")
 }
 
 // ===== WS-B: tracking & events =====

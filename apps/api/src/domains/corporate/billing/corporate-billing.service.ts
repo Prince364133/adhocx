@@ -3,6 +3,7 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service';
 import { NotificationsService } from '../../../modules/notifications/notifications.service';
@@ -582,6 +583,358 @@ export class CorporateBillingService {
       estimatedTdsPaise: estimatedTdsPaise.toString(),
       netPaidPaise: ((paidPaise * 99n) / 100n).toString(),
       netUnpaidPaise: ((unpaidPaise * 99n) / 100n).toString(),
+    };
+  }
+
+  /**
+   * WS-E: Resolves corporate client route fare using versioned CorporateRateCard.
+   * Falls back to default ₹400 base (first 10km) + ₹25/km if no custom rate card is configured.
+   */
+  public async resolveClientFare(
+    tenantId: string,
+    vehicleCategory: string = 'SEDAN',
+    distanceMeters: number,
+    stopsCount: number = 1,
+  ): Promise<{
+    baseFarePaise: bigint;
+    distancePaise: bigint;
+    stopsPaise: bigint;
+    totalAmountPaise: bigint;
+    rateCardId?: string;
+  }> {
+    let rateCard: any = null;
+    try {
+      if (this.db?.corporateRateCard?.findFirst) {
+        rateCard = await this.db.corporateRateCard.findFirst({
+          where: {
+            tenantId,
+            vehicleCategory: { equals: vehicleCategory, mode: 'insensitive' },
+            isActive: true,
+          },
+          orderBy: { effectiveFrom: 'desc' },
+        });
+      }
+    } catch {
+      rateCard = null;
+    }
+
+    const baseFarePaise = rateCard ? rateCard.baseFarePaise : this.DEFAULT_BASE_FARE_PAISE;
+    const baseDistanceMeters = rateCard ? rateCard.baseDistanceMeters : 10000;
+    const perKmPaise = rateCard ? rateCard.perKmPaise : this.DEFAULT_RATE_PER_KM_PAISE;
+    const perExtraStopPaise = rateCard ? rateCard.perExtraStopPaise : 0n;
+
+    const extraMeters = Math.max(0, distanceMeters - baseDistanceMeters);
+    const extraKm = Math.ceil(extraMeters / 1000);
+    const distancePaise = BigInt(extraKm) * perKmPaise;
+
+    const extraStops = Math.max(0, stopsCount - 1);
+    const stopsPaise = BigInt(extraStops) * perExtraStopPaise;
+
+    const totalAmountPaise = baseFarePaise + distancePaise + stopsPaise;
+
+    return {
+      baseFarePaise,
+      distancePaise,
+      stopsPaise,
+      totalAmountPaise,
+      rateCardId: rateCard?.id,
+    };
+  }
+
+  /**
+   * WS-E: Resolves independent driver payout using versioned CorporateDriverRateCard.
+   * Falls back to default ₹300 base (first 10km) + ₹18/km if no custom card is configured.
+   */
+  public async resolveDriverPayout(
+    vehicleCategory: string = 'SEDAN',
+    distanceMeters: number,
+  ): Promise<{
+    basePayoutPaise: bigint;
+    distancePaise: bigint;
+    totalPayoutPaise: bigint;
+    rateCardId?: string;
+  }> {
+    let driverCard: any = null;
+    try {
+      if (this.db?.corporateDriverRateCard?.findFirst) {
+        driverCard = await this.db.corporateDriverRateCard.findFirst({
+          where: {
+            vehicleCategory: { equals: vehicleCategory, mode: 'insensitive' },
+            isActive: true,
+          },
+          orderBy: { effectiveFrom: 'desc' },
+        });
+      }
+    } catch {
+      driverCard = null;
+    }
+
+    const basePayoutPaise = driverCard ? driverCard.basePayoutPaise : 30000n; // ₹300
+    const baseDistanceMeters = driverCard ? driverCard.baseDistanceMeters : 10000;
+    const perKmPaise = driverCard ? driverCard.perKmPaise : 1800n; // ₹18/km
+
+    const extraMeters = Math.max(0, distanceMeters - baseDistanceMeters);
+    const extraKm = Math.ceil(extraMeters / 1000);
+    const distancePaise = BigInt(extraKm) * perKmPaise;
+
+    const totalPayoutPaise = basePayoutPaise + distancePaise;
+
+    return {
+      basePayoutPaise,
+      distancePaise,
+      totalPayoutPaise,
+      rateCardId: driverCard?.id,
+    };
+  }
+
+  /**
+   * WS-E: Creates a driver payout batch with idempotency key enforcement.
+   * Status: SUBMITTED (awaiting checker approval).
+   */
+  public async createPayoutBatch(
+    dto: DriverPayoutBatchDto,
+    makerUserId: string,
+    idempotencyKey?: string,
+  ) {
+    const key = idempotencyKey || `payout-batch-${Date.now()}-${randomUUID().slice(0, 8)}`;
+
+    if (this.db?.corporatePayoutBatch?.findUnique) {
+      const existing = await this.db.corporatePayoutBatch.findUnique({
+        where: { idempotencyKey: key },
+        include: { earnings: true },
+      });
+      if (existing) {
+        return existing;
+      }
+    }
+
+    const where: any = { payoutStatus: 'UNPAID' };
+    if (dto?.driverIds && dto.driverIds.length > 0) {
+      where.driverId = { in: dto.driverIds };
+    }
+    if (dto?.cutoffDate) {
+      where.createdAt = { lte: new Date(dto.cutoffDate) };
+    }
+
+    const unpaidEarnings = await this.db.corporateDriverEarning.findMany({
+      where,
+      include: {
+        driver: { select: { id: true, fullName: true, phone: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (unpaidEarnings.length === 0) {
+      throw new BadRequestException('No unpaid driver commute earnings available for payout batch');
+    }
+
+    const uniqueDriverIds = new Set(unpaidEarnings.map((e) => e.driverId));
+    let grossPaise = 0n;
+    for (const e of unpaidEarnings) {
+      grossPaise += e.totalEarnedPaise;
+    }
+
+    // 1% TDS under Section 194C
+    const tdsPaise = (grossPaise * 1n) / 100n;
+    const netPayoutPaise = grossPaise - tdsPaise;
+
+    const batchNumber = `PAY-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    let createdBatch: any = null;
+    if (this.db?.corporatePayoutBatch?.create) {
+      createdBatch = await this.db.corporatePayoutBatch.create({
+        data: {
+          batchNumber,
+          idempotencyKey: key,
+          status: 'SUBMITTED',
+          totalDrivers: uniqueDriverIds.size,
+          totalRoutes: unpaidEarnings.length,
+          grossPaise,
+          tdsPaise,
+          netPayoutPaise,
+          createdByUserId: makerUserId,
+        },
+      });
+
+      // Link earnings and transition to PROCESSING
+      await this.db.corporateDriverEarning.updateMany({
+        where: { id: { in: unpaidEarnings.map((e) => e.id) } },
+        data: {
+          payoutStatus: 'PROCESSING',
+          payoutBatchId: createdBatch.id,
+        },
+      });
+    } else {
+      createdBatch = {
+        id: randomUUID(),
+        batchNumber,
+        idempotencyKey: key,
+        status: 'SUBMITTED',
+        totalDrivers: uniqueDriverIds.size,
+        totalRoutes: unpaidEarnings.length,
+        grossPaise,
+        tdsPaise,
+        netPayoutPaise,
+        createdByUserId: makerUserId,
+        createdAt: new Date(),
+      };
+    }
+
+    this.logger.log(
+      `Created payout batch ${batchNumber}: ₹${(Number(netPayoutPaise) / 100).toFixed(2)} across ${uniqueDriverIds.size} drivers (${unpaidEarnings.length} routes)`,
+    );
+
+    this.notifications.emitEvent('admin:finance', 'CORPORATE_PAYOUT_BATCH_SUBMITTED', {
+      batchId: createdBatch.id,
+      batchNumber,
+      totalDrivers: uniqueDriverIds.size,
+      netPayoutPaise: netPayoutPaise.toString(),
+    });
+
+    await this.audit.log({
+      action: 'CORPORATE_PAYOUT_BATCH_CREATED',
+      userId: makerUserId,
+      actorRole: 'FINANCE_CONTROLLER',
+      entityId: createdBatch.id,
+      entityType: 'CORPORATE_PAYOUT_BATCH',
+      metadata: {
+        batchNumber,
+        totalDrivers: uniqueDriverIds.size,
+        netPayoutPaise: netPayoutPaise.toString(),
+      },
+    });
+
+    return createdBatch;
+  }
+
+  /**
+   * WS-E: Approves payout batch with Maker-Checker constraint.
+   * Creator cannot approve their own batch.
+   */
+  public async approvePayoutBatch(batchId: string, checkerUserId: string) {
+    const batch = await this.db.corporatePayoutBatch.findUnique({
+      where: { id: batchId },
+    });
+
+    if (!batch) {
+      throw new NotFoundException(`Payout batch ${batchId} not found`);
+    }
+
+    if (batch.status !== 'SUBMITTED' && batch.status !== 'DRAFT') {
+      throw new BadRequestException(`Cannot approve batch in status ${batch.status}`);
+    }
+
+    // Strict Maker-Checker constraint enforcement
+    if (batch.createdByUserId === checkerUserId) {
+      throw new ForbiddenException(
+        'Maker-Checker violation: Batch creator cannot approve their own payout batch',
+      );
+    }
+
+    const approved = await this.db.corporatePayoutBatch.update({
+      where: { id: batchId },
+      data: {
+        status: 'APPROVED',
+        approvedByUserId: checkerUserId,
+        approvedAt: new Date(),
+      },
+    });
+
+    this.logger.log(`Payout batch ${batch.batchNumber} approved by checker ${checkerUserId}`);
+
+    this.notifications.emitEvent('admin:finance', 'CORPORATE_PAYOUT_BATCH_APPROVED', {
+      batchId: approved.id,
+      batchNumber: approved.batchNumber,
+      approvedByUserId: checkerUserId,
+    });
+
+    await this.audit.log({
+      action: 'CORPORATE_PAYOUT_BATCH_APPROVED',
+      userId: checkerUserId,
+      actorRole: 'SUPER_ADMIN',
+      entityId: batchId,
+      entityType: 'CORPORATE_PAYOUT_BATCH',
+      metadata: { batchNumber: batch.batchNumber },
+    });
+
+    return approved;
+  }
+
+  /**
+   * WS-E: Processes payout batch (disbursement settlement) and marks all earnings PAID.
+   */
+  public async processPayoutBatch(batchId: string, disbursementReference?: string) {
+    const batch = await this.db.corporatePayoutBatch.findUnique({
+      where: { id: batchId },
+    });
+
+    if (!batch) {
+      throw new NotFoundException(`Payout batch ${batchId} not found`);
+    }
+
+    if (batch.status !== 'APPROVED') {
+      throw new BadRequestException(
+        `Batch must be in APPROVED status before processing. Current status: ${batch.status}`,
+      );
+    }
+
+    const ref = disbursementReference || `IMPS-${Date.now()}`;
+
+    const paidBatch = await this.db.corporatePayoutBatch.update({
+      where: { id: batchId },
+      data: {
+        status: 'PAID',
+        processedAt: new Date(),
+        disbursementReference: ref,
+      },
+    });
+
+    // Mark all linked earnings as PAID
+    await this.db.corporateDriverEarning.updateMany({
+      where: { payoutBatchId: batchId },
+      data: { payoutStatus: 'PAID' },
+    });
+
+    this.logger.log(`Payout batch ${batch.batchNumber} settled with reference ${ref}`);
+
+    this.notifications.emitEvent('admin:finance', 'CORPORATE_PAYOUT_BATCH_PAID', {
+      batchId,
+      batchNumber: batch.batchNumber,
+      disbursementReference: ref,
+    });
+
+    return paidBatch;
+  }
+
+  /**
+   * WS-E: List payout batches
+   */
+  public async listPayoutBatches(query?: { status?: string; page?: number; limit?: number }) {
+    const page = Math.max(1, query?.page || 1);
+    const limit = Math.min(100, Math.max(1, query?.limit || 20));
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (query?.status) where.status = query.status;
+
+    const [total, items] = await Promise.all([
+      this.db.corporatePayoutBatch.count({ where }),
+      this.db.corporatePayoutBatch.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    return {
+      items,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   }
 }

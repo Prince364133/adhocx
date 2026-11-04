@@ -244,3 +244,12 @@ export enum CorporateTicketStatus {
   RESOLVED = 'RESOLVED',
   CLOSED = 'CLOSED',
 }
+
+export enum CorporatePayoutBatchStatus {
+  DRAFT = 'DRAFT',
+  SUBMITTED = 'SUBMITTED',
+  APPROVED = 'APPROVED',
+  PROCESSING = 'PROCESSING',
+  PAID = 'PAID',
+  FAILED = 'FAILED',
+}
