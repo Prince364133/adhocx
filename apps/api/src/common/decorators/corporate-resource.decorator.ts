@@ -59,3 +59,13 @@ export const CorporateResource = (
  * of their employee profile the same way. ADMIN may target any tenant.
  */
 export const CorporateTenantScoped = () => SetMetadata(CORPORATE_TENANT_SCOPED_KEY, true);
+
+export const CORPORATE_DRIVER_SELF_KEY = 'corporate:driver-self';
+
+/**
+ * Marks a driver "my data" handler (offer inbox, duties, active route) that resolves the
+ * caller's own Driver row from req.user.id. Drivers carry no corporate tenant claim, so
+ * @CorporateTenantScoped would reject them. The guard allows ADMIN, and DRIVER only when a
+ * Driver profile is linked to the account; every other role is denied.
+ */
+export const CorporateDriverSelfScoped = () => SetMetadata(CORPORATE_DRIVER_SELF_KEY, true);

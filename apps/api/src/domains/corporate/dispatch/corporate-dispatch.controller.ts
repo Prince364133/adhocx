@@ -14,7 +14,7 @@ import { JwtAuthGuard } from '../../../common/guards/auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { CorporateAccessGuard } from '../../../common/guards/corporate-access.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
-import { CorporateResource, CorporateTenantScoped } from '../../../common/decorators/corporate-resource.decorator';
+import { CorporateResource, CorporateDriverSelfScoped } from '../../../common/decorators/corporate-resource.decorator';
 import { DatabaseService } from '../../../database/database.service';
 
 import { CorporateDispatchService } from './corporate-dispatch.service';
@@ -122,7 +122,7 @@ export class CorporateDispatchController {
 
   @Get('my-offer')
   @Roles(UserRole.ADMIN, UserRole.DRIVER)
-  @CorporateTenantScoped()
+  @CorporateDriverSelfScoped()
   @ApiOperation({ summary: 'Check if driver has a live 60-second corporate route offer (UI-04-01)' })
   public async getMyActiveOffer(@Req() req: any): Promise<{
     hasOffer: boolean;
@@ -146,7 +146,7 @@ export class CorporateDispatchController {
   }
   @Get('driver-offers')
   @Roles(UserRole.ADMIN, UserRole.DRIVER)
-  @CorporateTenantScoped()
+  @CorporateDriverSelfScoped()
   @ApiOperation({ summary: 'Retrieve currently active corporate route offer for authenticated driver (UI Reconnect)' })
   public async getDriverOffers(@Req() req: any) {
     const driver = await this.db.driver.findUnique({ where: { userId: req.user.id } });
@@ -156,7 +156,7 @@ export class CorporateDispatchController {
 
   @Get('driver-duties')
   @Roles(UserRole.ADMIN, UserRole.DRIVER)
-  @CorporateTenantScoped()
+  @CorporateDriverSelfScoped()
   @ApiOperation({ summary: 'Retrieve upcoming assigned corporate routes and duties for authenticated driver' })
   public async getDriverDuties(@Req() req: any) {
     const driver = await this.db.driver.findUnique({ where: { userId: req.user.id } });

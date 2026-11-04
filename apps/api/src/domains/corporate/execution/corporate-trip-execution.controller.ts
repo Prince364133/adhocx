@@ -14,7 +14,7 @@ import { JwtAuthGuard } from '../../../common/guards/auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { CorporateAccessGuard } from '../../../common/guards/corporate-access.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
-import { CorporateResource, CorporateTenantScoped } from '../../../common/decorators/corporate-resource.decorator';
+import { CorporateResource, CorporateTenantScoped, CorporateDriverSelfScoped } from '../../../common/decorators/corporate-resource.decorator';
 import { CorporateTripExecutionService } from './corporate-trip-execution.service';
 import { CorporateRiderService } from '../rider/corporate-rider.service';
 import {
@@ -320,7 +320,7 @@ export class CorporateTripExecutionController {
 
   @Get('driver/active-route')
   @Roles(UserRole.ADMIN, UserRole.DRIVER)
-  @CorporateTenantScoped()
+  @CorporateDriverSelfScoped()
   @ApiOperation({ summary: 'View active corporate route assigned to the driver with ordered stops and dwell timers (UI-05-01)' })
   public async getDriverActiveRoute(@Req() req: any) {
     return this.executionService.getDriverActiveRoute(req.user.id);
@@ -328,7 +328,7 @@ export class CorporateTripExecutionController {
 
   @Get('driver/routes')
   @Roles(UserRole.ADMIN, UserRole.DRIVER)
-  @CorporateTenantScoped()
+  @CorporateDriverSelfScoped()
   @ApiOperation({ summary: 'View all corporate routes assigned to the authenticated driver (UI-05-02)' })
   public async getDriverRoutes(@Req() req: any) {
     return this.executionService.getDriverCorporateTrips(req.user.id);

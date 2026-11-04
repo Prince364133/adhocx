@@ -16,6 +16,7 @@ import { RolesGuard } from '../src/common/guards/roles.guard';
 import { CorporateAccessGuard, resolveScopedTenantId } from '../src/common/guards/corporate-access.guard';
 import { ROLES_KEY } from '../src/common/decorators/roles.decorator';
 import {
+  CORPORATE_DRIVER_SELF_KEY,
   CORPORATE_RESOURCE_KEY,
   CORPORATE_TENANT_SCOPED_KEY,
 } from '../src/common/decorators/corporate-resource.decorator';
@@ -172,6 +173,35 @@ describe('Corporate access control', () => {
         runChain(CorporateTripExecutionController, 'adminRescheduleOrCancel',
           req(undefined, { headers: { authorization: `Bearer ${caToken}` }, params: { id: 'req-1' } })),
       ).rejects.toThrow(ForbiddenException);
+    });
+
+    // Drivers carry no corporate tenant claim; these handlers self-scope by the caller's Driver row.
+    const DRIVER_SELF_HANDLERS: Array<[any, string]> = [
+      [CorporateDispatchController, 'getMyActiveOffer'],
+      [CorporateDispatchController, 'getDriverOffers'],
+      [CorporateDispatchController, 'getDriverDuties'],
+      [CorporateTripExecutionController, 'getDriverActiveRoute'],
+      [CorporateTripExecutionController, 'getDriverRoutes'],
+    ];
+
+    it.each(DRIVER_SELF_HANDLERS)('lets a real DRIVER token through the full chain on %p.%s', async (controller, method) => {
+      const token = await jwt.signAsync({ ...driverA });
+      const r = req(undefined, { headers: { authorization: `Bearer ${token}` } });
+      await expect(runChain(controller, method, r)).resolves.toBe(true);
+    });
+
+    it.each(DRIVER_SELF_HANDLERS)('denies a DRIVER-role token with no linked driver profile on %p.%s', async (controller, method) => {
+      const token = await jwt.signAsync({ id: 'u-drv-ghost', role: UserRole.DRIVER });
+      const r = req(undefined, { headers: { authorization: `Bearer ${token}` } });
+      await expect(runChain(controller, method, r)).rejects.toThrow(ForbiddenException);
+    });
+
+    it.each(DRIVER_SELF_HANDLERS)('still denies EMPLOYEE and CORPORATE_ADMIN on driver handler %p.%s', async (controller, method) => {
+      for (const u of [employeeE1, corpAdmin1]) {
+        const token = await jwt.signAsync({ ...u });
+        const r = req(undefined, { headers: { authorization: `Bearer ${token}` } });
+        await expect(runChain(controller, method, r)).rejects.toThrow(ForbiddenException);
+      }
     });
 
     it('access guard itself rejects a request with no authenticated user (401)', async () => {
@@ -421,9 +451,15 @@ describe('Corporate access control', () => {
             continue;
           }
           const nonAdmin = roles.some((r) => r !== UserRole.ADMIN);
+          // Driver self-scope is only acceptable when no corporate/employee role can reach the handler.
+          const driverSelf = Reflect.getMetadata(CORPORATE_DRIVER_SELF_KEY, fn) === true;
+          if (driverSelf && roles.some((r) => r !== UserRole.ADMIN && r !== UserRole.DRIVER)) {
+            problems.push(`${where}: @CorporateDriverSelfScoped on a handler open to non-driver roles`);
+          }
           const scoped =
             Reflect.getMetadata(CORPORATE_RESOURCE_KEY, fn) !== undefined ||
-            Reflect.getMetadata(CORPORATE_TENANT_SCOPED_KEY, fn) === true;
+            Reflect.getMetadata(CORPORATE_TENANT_SCOPED_KEY, fn) === true ||
+            driverSelf;
           // The roster template is a blank, data-free spreadsheet: role-gated but not tenant data.
           const exempt = where === 'CorporateRosterController.downloadTemplate';
           if (nonAdmin && !scoped && !exempt) {

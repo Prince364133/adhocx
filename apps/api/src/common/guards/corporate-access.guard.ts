@@ -11,6 +11,7 @@ import { Reflector } from '@nestjs/core';
 import { UserRole } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
 import {
+  CORPORATE_DRIVER_SELF_KEY,
   CORPORATE_RESOURCE_KEY,
   CORPORATE_TENANT_SCOPED_KEY,
   CorporateResourceMetadata,
@@ -117,6 +118,18 @@ export class CorporateAccessGuard implements CanActivate {
     const handler = context.getHandler();
     const resource = this.reflector.get<CorporateResourceMetadata | undefined>(CORPORATE_RESOURCE_KEY, handler);
     const tenantScoped = this.reflector.get<boolean | undefined>(CORPORATE_TENANT_SCOPED_KEY, handler);
+    const driverSelf = this.reflector.get<boolean | undefined>(CORPORATE_DRIVER_SELF_KEY, handler);
+
+    if (driverSelf && role !== UserRole.ADMIN) {
+      if (role !== UserRole.DRIVER) {
+        throw new ForbiddenException('Driver-only endpoint');
+      }
+      const own: any = await this.db.driver.findUnique({ where: { userId: user.id }, select: { id: true } });
+      if (!own) {
+        throw new ForbiddenException('No driver profile linked to this account');
+      }
+      request.corporateDriverId = own.id;
+    }
 
     if (CORPORATE_TENANT_ROLES.has(role)) {
       this.applyCorporateRole(request, handler, user);
