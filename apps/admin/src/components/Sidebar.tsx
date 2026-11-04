@@ -22,6 +22,8 @@ import {
   FileText,
   BellRing,
   LogOut,
+  Radio,
+  ExternalLink,
 } from 'lucide-react';
 import { AdhocxBrandLogo } from './AdhocxBrandLogo';
 import { adminApi, getStoredAdminUser } from '../lib/api/client';
@@ -275,6 +277,38 @@ export const Sidebar: React.FC = () => {
           </div>
         ))}
       </nav>
+
+      {/* Tactical Fleet Flight Control Launcher (:7003) */}
+      <div style={{ padding: isHovered ? '0.5rem 0.75rem' : '0.5rem 0.4rem', borderTop: '1px solid var(--border)' }}>
+        <a
+          href="http://localhost:7003"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Open Tactical Fleet Operations (:7003)"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: isHovered ? 'space-between' : 'center',
+            padding: isHovered ? '0.5rem 0.75rem' : '0.55rem 0',
+            borderRadius: 'var(--radius-md)',
+            backgroundColor: 'rgba(17, 103, 238, 0.1)',
+            border: '1px solid rgba(17, 103, 238, 0.25)',
+            color: '#1167EE',
+            textDecoration: 'none',
+            fontSize: '0.78rem',
+            fontWeight: 700,
+            width: isHovered ? '100%' : '44px',
+            margin: isHovered ? '0' : '0 auto',
+            boxSizing: 'border-box',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: isHovered ? 'flex-start' : 'center', width: isHovered ? 'auto' : '100%' }}>
+            <Radio size={16} style={{ flexShrink: 0 }} />
+            {isHovered && <span>Fleet Ops (:7003)</span>}
+          </div>
+          {isHovered && <ExternalLink size={13} style={{ flexShrink: 0 }} />}
+        </a>
+      </div>
 
       {/* Administrative User & Logout Footer */}
       <div
