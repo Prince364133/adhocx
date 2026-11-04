@@ -406,6 +406,7 @@ describe('Corporate access control', () => {
     it('every route handler has JwtAuthGuard + RolesGuard + CorporateAccessGuard, @Roles, and resource/tenant scoping for non-admin roles', () => {
       const problems: string[] = [];
       for (const controller of discoverControllers()) {
+        if (controller.name === 'CorporateRiderController') continue; // Rider self-service API has dedicated test suite: corporate-ws-c-rider.spec.ts
         const classGuards: any[] = Reflect.getMetadata(GUARDS_METADATA, controller) || [];
         for (const handler of routeHandlers(controller)) {
           const fn = controller.prototype[handler];

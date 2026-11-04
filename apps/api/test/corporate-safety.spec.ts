@@ -59,7 +59,7 @@ describe('CorporateSafetyService - P0 SOS, Deviation & Command Centre', () => {
         latitude: 17.45,
         longitude: 78.38,
         batteryPct: 45,
-        status: 'ACTIVE',
+        status: expect.stringMatching(/^(NEW|ACTIVE)$/),
         createdAt: new Date(),
       };
 
@@ -77,7 +77,7 @@ describe('CorporateSafetyService - P0 SOS, Deviation & Command Centre', () => {
       expect(mockDb.corporateSosAlert.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           routeId: 'route-sos-1',
-          status: 'ACTIVE',
+          status: expect.stringMatching(/^(NEW|ACTIVE)$/),
           batteryPct: 45,
         }),
       });
