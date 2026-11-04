@@ -1,333 +1,298 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import Icon from '../components/Icon.astro';
 
-interface BlogItem {
-  id: string;
-  slug: string;
-  title: string;
-  category: string;
-  readTime: string;
-  date: string;
-  author: string;
-  summary: string;
-}
-
-const SEED_ARTICLES: BlogItem[] = [
+const posts = [
   {
-    id: 'seed-1',
-    slug: 'how-adhocx-reverse-auction-cuts-enterprise-cab-costs',
-    title: 'How Automated Algorithmic Dispatch Cuts Enterprise Corporate Cab Costs',
-    category: 'Corporate Mobility',
-    readTime: '4 min read',
-    date: 'Oct 15, 2026',
-    author: 'AdhocX Fleet Operations Research',
-    summary: 'Discover how programmatic driver pairing and instant fulfillment eliminate middlemen broker markups for corporate logistics and spot employee transit in Hyderabad.'
+    slug: 'ground-spend-benchmark-2026-telangana-corporate-fleets',
+    title: 'Ground Spend Benchmark 2026: What 200+ Enterprise Programmes Pay per Trip',
+    category: 'Benchmark Report',
+    readTime: '8 min read',
+    date: 'Oct 28, 2026',
+    author: 'AdhocX Research & Mobility Desk',
+    summary: 'A comprehensive benchmark analysis of corporate employee transit, airport runs, and spot cab spend across Telangana (Hyderabad Tech Parks) and regional hubs by vehicle class and contract model.'
   },
   {
-    id: 'seed-2',
-    slug: 'commercial-4-seater-and-7-seater-driver-economics',
-    title: 'Commercial Driver Economics: 4-Seater Sedans vs 7-Seater MUVs in Hyderabad',
-    category: 'Driver Welfare & Earnings',
-    readTime: '5 min read',
-    date: 'Oct 10, 2026',
-    author: 'AdhocX Driver Community Desk',
-    summary: 'An operational breakdown of fuel efficiency, daily run tariffs, and how the Century Milestone bonus maximizes monthly net driver payouts.'
-  },
-  {
-    id: 'seed-3',
-    slug: '1-hour-bank-refund-sla-in-corporate-mobility',
-    title: 'The 1-Hour Bank Refund SLA: Establishing Financial Recourse in B2B Fleet Transit',
-    category: 'Compliance & Financial SLAs',
-    readTime: '4 min read',
-    date: 'Sep 28, 2026',
-    author: 'AdhocX Legal & Finance Desk',
-    summary: 'Why enterprise transport desks cannot afford locked balances in consumer cab wallets, and how instant IMPS/UPI refund rails transform corporate travel procurement.'
-  },
-  {
-    id: 'seed-4',
-    slug: 'hyderabad-tech-park-employee-transit-compliance',
-    title: 'Hyderabad Tech Park Transit Compliance: Yellow-Plate Regulations in HITEC City & Gachibowli',
-    category: 'Regulatory Compliance',
+    slug: 'switching-transport-vendors-30-day-guide',
+    title: 'Switching Transport Vendors: A 30-Day Transition Playbook Without Service Gaps',
+    category: 'Operations Guide',
     readTime: '6 min read',
-    date: 'Sep 18, 2026',
-    author: 'AdhocX Regulatory Affairs',
-    summary: 'Key legal obligations under the Telangana Motor Vehicles Act regarding commercial fitness, passenger insurance, and police verification for corporate staff transport.'
+    date: 'Oct 15, 2026',
+    author: 'AdhocX Procurement Advisory',
+    summary: 'How corporate facility managers and procurement leads successfully transition from legacy cab operators and unorganized WhatsApp desks to automated B2B dispatch without disrupting daily employee shifts.'
+  },
+  {
+    slug: 'eliminating-corporate-fleet-chaos-in-telangana-and-regional-parks',
+    title: 'Solving Last-Minute Corporate Fleet Drops in Telangana & Regional Tech Parks',
+    category: 'Enterprise Mobility',
+    readTime: '5 min read',
+    date: 'Sep 15, 2026',
+    author: 'AdhocX Logistics Team',
+    summary: 'Why traditional WhatsApp dispatch groups fail high-growth tech companies across HITEC City, Gachibowli, and Financial District, and how programmatic dispatch restores enterprise trust.'
+  },
+  {
+    slug: 'driver-economics-century-milestone-bonus',
+    title: 'Driver Economics: Why Yellow-Plate Commercial Drivers Earn More with AdhocX',
+    category: 'Driver Welfare',
+    readTime: '4 min read',
+    date: 'Sep 10, 2026',
+    author: 'Partner Relations',
+    summary: 'A deep dive into our ₹2,000 Milestone Bonus program on 100 rides, 0% promotional commission, and 1-hour instant bank withdrawals for verified yellow-board cabs.'
+  },
+  {
+    slug: 'how-automated-bank-refunds-work-in-corporate-transport',
+    title: 'How AdhocX Automates 1-Hour Bank Refunds & SLA Guarantees',
+    category: 'Engineering & Ops',
+    readTime: '6 min read',
+    date: 'Aug 28, 2026',
+    author: 'AdhocX Engineering',
+    summary: 'Under the hood of our automated banking integrations that eliminate weeks of accounting reconciliation and return unfulfilled funds in 60 minutes.'
+  },
+  {
+    slug: 'commercial-vehicle-safety-and-statutory-compliance-guide',
+    title: 'Commercial Fleet Compliance: Yellow Plate vs White Plate Risks for Corporates',
+    category: 'Compliance & Safety',
+    readTime: '7 min read',
+    date: 'Aug 14, 2026',
+    author: 'Legal & Compliance Desk',
+    summary: 'The legal liabilities corporate travel desks face under Telangana State Transport Aggregator regulations when using unverified private cars, and how 100% yellow-board verification protects your enterprise.'
   }
 ];
 
-let posts: BlogItem[] = [];
-
-try {
-  const apiUrl =
-    process.env.API_URL ||
-    process.env.PUBLIC_API_URL ||
-    'http://localhost:7001/api/v1';
-
-  const res = await fetch(`${apiUrl}/blogs?status=PUBLISHED&limit=10`, {
-    headers: { 'Content-Type': 'application/json' },
-  });
-
-  if (res.ok) {
-    const json = await res.json();
-    const rawList = Array.isArray(json?.data?.items)
-      ? json.data.items
-      : Array.isArray(json?.items)
-      ? json.items
-      : Array.isArray(json)
-      ? json
-      : [];
-
-    const fetchedPosts = rawList.map((p: any) => {
-      const pubDate = p.publishedAt ? new Date(p.publishedAt) : new Date(p.createdAt || Date.now());
-      const formattedDate = pubDate.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      });
-
-      return {
-        id: p.id,
-        slug: p.slug,
-        title: p.title,
-        category: p.category || 'Enterprise Mobility',
-        readTime: p.readTime || '5 min read',
-        date: formattedDate,
-        author: p.authorName ? `${p.authorName} (${p.authorRole || 'AdhocX Desk'})` : 'AdhocX Logistics Operations Desk',
-        summary: p.excerpt || p.seoDescription || (p.content ? p.content.substring(0, 160) + '...' : ''),
-      };
-    });
-
-    posts = fetchedPosts.length > 0 ? fetchedPosts : SEED_ARTICLES;
-  } else {
-    posts = SEED_ARTICLES;
+const glossaryItems = [
+  {
+    term: 'ETS (Employee Transport Software)',
+    def: 'An automated digital platform that manages corporate employee shift scheduling, algorithm-based nodal routing, real-time driver allocation, live GPS trip telemetry, and end-of-month digital GST billing.'
+  },
+  {
+    term: 'Nodal Pickup',
+    def: 'A designated transit hub point where multiple employees residing in adjacent neighborhoods gather for pooled pickup, maximizing fleet vehicle occupancy (e.g. 7-seater Ertiga/Innova) and reducing transit duration.'
+  },
+  {
+    term: 'Yellow-Board Commercial Cab',
+    def: 'A passenger motor cab carrying registered yellow commercial license plates, commercial vehicle fitness certification, commercial third-party passenger insurance, and driven by a driver with an authorized commercial transport badge.'
+  },
+  {
+    term: 'Escort Guard Protocol',
+    def: 'Statutory safety requirement in Telangana and major IT corridors mandating a verified security escort inside the vehicle when female employees are picked up before 06:00 AM or dropped home after 08:00 PM.'
+  },
+  {
+    term: 'Three-Way Invoice Match',
+    def: 'An enterprise accounting audit control that matches the planned employee roster schedule against real-time geofenced GPS telemetry and the vendor line-item invoice before issuing financial payment.'
+  },
+  {
+    term: 'Cutoff SLA',
+    def: 'The strict operational threshold (15 minutes on AdhocX) within which the dispatch algorithm must confirm a verified commercial vehicle. If unfulfilled, funds automatically refund directly to the bank account within 1 hour.'
   }
-} catch (e) {
-  // Static build fallback ensures search engine spiders always crawl rich content
-  posts = SEED_ARTICLES;
-}
-
-const featuredPost = posts.length > 0 ? posts[0] : null;
-const remainingPosts = posts.length > 1 ? posts.slice(1) : [];
+];
 
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "Blog",
   "name": "AdhocX Commercial Transport Insights & Tech Blog",
   "url": "https://www.adhocx.com/blogs",
-  "description": "Insights, engineering deep dives, and operational strategies for B2B fleet logistics, commercial drivers, and corporate mobility in Hyderabad."
+  "description": "Insights, engineering deep dives, and operational strategies for B2B fleet logistics, commercial drivers, and corporate mobility."
 };
 ---
 
 <BaseLayout
-  title="AdhocX Insights — Corporate Fleet Mobility, Driver Welfare & Logistics Tech"
-  description="Explore research and operational analyses on corporate transport management, commercial driver economics, milestone bonuses, and transport compliance in Hyderabad."
+  title="AdhocX Insights — Corporate Fleet Mobility, Driver Welfare & Benchmark Reports"
+  description="Explore benchmark reports and operational analyses on corporate transport management, driver partner economics, milestone bonuses, and Telangana transport compliance."
   canonical="https://www.adhocx.com/blogs"
   activeNav="blogs"
   jsonLd={jsonLd}
-  breadcrumbs={[
-    { name: 'Home', url: '/' },
-    { name: 'Insights & Blog', url: '/blogs' }
-  ]}
 >
   <!-- Blog Hero -->
-  <section class="hero-section" style="background: linear-gradient(180deg, #F8FAFC 0%, #FFFFFF 100%);">
+  <section class="hero-section" style="background: linear-gradient(180deg, var(--color-primary-50) 0%, #ffffff 100%);">
     <div class="container" style="text-align: center; max-width: 800px;">
-      <span class="badge badge-info" style="margin-bottom: var(--space-3);">
-        <Icon name="file-text" size={14} color="var(--color-info)" />
-        AdhocX Editorial & Logistics Research
-      </span>
-      <h1 class="display-title" style="margin-bottom: var(--space-4);">
-        Commercial Transport, Digitized & Demystified.
-      </h1>
+      <span class="badge badge-info" style="margin-bottom: var(--space-3);">AdhocX Editorial & Insights</span>
+      <h1 class="display-title" style="margin-bottom: var(--space-4);">Commercial Transport, Digitized & Demystified.</h1>
       <p class="body-large" style="margin: 0 auto;">
-        Perspectives on corporate mobility operations, commercial driver economics, 1-hour refund architectures, and enterprise logistics compliance across Hyderabad.
+        Perspectives on corporate mobility operations, driver partner economics, SLA architectures, and Telangana enterprise logistics compliance.
       </p>
     </div>
   </section>
 
-  <!-- Featured Blog Post Banner -->
-  {featuredPost && (
-    <section class="section-padding" style="padding-top: 0;">
-      <div class="container">
-        <div class="card featured-blog-card" data-animate>
-          <div style="display: flex; gap: var(--space-4); align-items: center; margin-bottom: var(--space-3); flex-wrap: wrap;">
-            <span class="badge badge-primary">Featured Analysis</span>
-            <span style="font-size: 0.85rem; color: var(--color-text-muted);">
-              {featuredPost.category} • {featuredPost.readTime} • {featuredPost.date}
-            </span>
+  <!-- Featured Blog Post Banner (Benchmark 2026) -->
+  <section class="section-padding" style="padding-top: 0;" id="featured">
+    <div class="container">
+      <div class="card" style="padding: var(--space-8); border: 2px solid var(--color-primary-300); background: linear-gradient(135deg, var(--color-primary-50) 0%, #ffffff 100%); box-shadow: var(--shadow-xl);" data-animate>
+        <div style="display: flex; gap: var(--space-4); align-items: center; margin-bottom: var(--space-3); flex-wrap: wrap;">
+          <span class="badge badge-primary">Featured Report</span>
+          <span style="font-size: 0.85rem; color: var(--color-text-muted);">Enterprise Mobility Benchmark • 8 min read • Oct 28, 2026</span>
+        </div>
+        <h2 class="h2-title" style="margin-bottom: var(--space-3); color: var(--color-primary-600);">
+          Ground Spend Benchmark 2026: What 200+ Enterprise Programmes Pay per Trip
+        </h2>
+        <p class="body-large" style="margin-bottom: var(--space-6); color: var(--color-text-secondary);">
+          Corporate transport desks across Hyderabad IT corridors (HITEC City, Gachibowli, Financial District, Madhapur) and regional hubs analyze trip tariffs, spot booking premiums, and yellow-board compliance economics.
+        </p>
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-4);">
+          <div style="font-size: 0.875rem; color: var(--color-text-muted);">
+            By <strong>AdhocX Research & Mobility Desk</strong>
           </div>
-          <h2 class="h2-title" style="margin-bottom: var(--space-3); color: var(--color-primary-900);">
-            {featuredPost.title}
-          </h2>
-          <p class="body-large" style="margin-bottom: var(--space-6); color: var(--color-text-secondary);">
-            {featuredPost.summary}
-          </p>
-          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-4);">
-            <div style="font-size: 0.875rem; color: var(--color-text-secondary);">
-              By <strong style="color: var(--color-primary-900);">{featuredPost.author}</strong>
-            </div>
-            <a href={`/blogs/${featuredPost.slug}`} class="btn btn-primary">
-              Read Full Article →
-            </a>
-          </div>
+          <a href="/vendors#corporate-form" class="btn btn-primary">Download Benchmark Report →</a>
         </div>
       </div>
-    </section>
-  )}
+    </div>
+  </section>
+
+  <!-- Featured Guide: Switching Transport Vendors (Solutions Mega-Menu Reference) -->
+  <section class="section-padding" style="background: var(--color-surface);" id="guide-switching">
+    <div class="container">
+      <div class="card" style="padding: var(--space-8); border: 1.5px solid var(--color-amber-200); background: var(--color-amber-50); box-shadow: var(--shadow-lg);" data-animate>
+        <div style="display: flex; gap: var(--space-3); align-items: center; margin-bottom: var(--space-3);">
+          <span class="badge badge-warning">OPERATIONAL GUIDE</span>
+          <span style="font-size: 0.85rem; color: var(--color-amber-800); font-weight: 600;">30-Day Transition Playbook</span>
+        </div>
+        <h2 class="h2-title" style="color: var(--color-text-primary); margin-bottom: var(--space-3);">
+          Switching Transport Vendors: The 30-Day Risk-Free Playbook
+        </h2>
+        <p class="body-large" style="color: var(--color-text-secondary); margin-bottom: var(--space-6);">
+          Migrating your enterprise employee shift fleets and spot cab operations from unorganized WhatsApp vendors to AdhocX without a single dropped shift or employee commute delay.
+        </p>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-4); margin-bottom: var(--space-6);">
+          <div style="background: #FFFFFF; padding: var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+            <div style="font-weight: 700; color: var(--color-amber-600); margin-bottom: 4px;">Week 1: Baseline Audit</div>
+            <p style="font-size: 0.875rem; color: var(--color-text-secondary);">Roster route mapping, shift density analysis across HITEC City, Gachibowli & Financial District corridors.</p>
+          </div>
+          <div style="background: #FFFFFF; padding: var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+            <div style="font-weight: 700; color: var(--color-amber-600); margin-bottom: 4px;">Week 2: Rate Card Freeze</div>
+            <p style="font-size: 0.875rem; color: var(--color-text-secondary);">Standardize 4-seater and 7-seater tariffs, agree on 15-min cutoff SLAs and 1-hour refund protections.</p>
+          </div>
+          <div style="background: #FFFFFF; padding: var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+            <div style="font-weight: 700; color: var(--color-amber-600); margin-bottom: 4px;">Week 3: Shadow Dispatch</div>
+            <p style="font-size: 0.875rem; color: var(--color-text-secondary);">Pilot parallel algorithmic dispatch on 20% high-density shift lines with zero disruption to employees.</p>
+          </div>
+          <div style="background: #FFFFFF; padding: var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+            <div style="font-weight: 700; color: var(--color-amber-600); margin-bottom: 4px;">Week 4: 100% Digital Cutover</div>
+            <p style="font-size: 0.875rem; color: var(--color-text-secondary);">Retire WhatsApp groups. Full automated driver allocation, live GPS tracking, and single monthly GST invoice.</p>
+          </div>
+        </div>
+
+        <a href="/contact" class="btn btn-primary">
+          Request Full Migration Playbook (PDF) →
+        </a>
+      </div>
+    </div>
+  </section>
 
   <!-- Blog Post Grid -->
   <section class="section-padding" style="background: var(--color-surface-muted);">
     <div class="container">
       <div class="section-header">
-        <span class="badge badge-primary">Knowledge Hub</span>
-        <h2 class="h2-title">Latest Articles & Operational Whitepapers</h2>
-        <p class="body-large">Curated insights for facilities directors, corporate travel leads, and commercial chauffeurs.</p>
+        <h2 class="h2-title">Latest Articles & Research</h2>
+        <p class="body-large">Curated insights for facilities directors, corporate travel leads, and commercial driver partners.</p>
       </div>
 
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-6);">
-        {remainingPosts.map((post) => (
-          <article class="card blog-card" data-animate>
+        {posts.map(post => (
+          <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;" data-animate>
             <div>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3);">
                 <span class="badge badge-info">{post.category}</span>
-                <span style="font-size: 0.75rem; color: var(--color-text-muted); display: inline-flex; align-items: center; gap: 4px;">
-                  <Icon name="clock" size={12} color="var(--color-text-muted)" />
-                  {post.readTime}
-                </span>
+                <span style="font-size: 0.75rem; color: var(--color-text-muted);">{post.readTime}</span>
               </div>
-              <h3 class="h4-title" style="margin-bottom: var(--space-2); line-height: 1.4;">
-                <a href={`/blogs/${post.slug}`} style="color: inherit; text-decoration: none;">
-                  {post.title}
-                </a>
+              <h3 class="h3-title" style="font-size: 1.15rem; margin-bottom: var(--space-2);">
+                {post.title}
               </h3>
-              <p class="body-text" style="color: var(--color-text-secondary); margin-bottom: var(--space-4); font-size: 0.9rem;">
+              <p class="body-text" style="color: var(--color-text-secondary); margin-bottom: var(--space-4);">
                 {post.summary}
               </p>
             </div>
-            <div style="border-top: 1px solid var(--color-border); padding-top: var(--space-4); display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 0.8rem; color: var(--color-text-muted);">{post.date}</span>
-              <a href={`/blogs/${post.slug}`} class="blog-read-link">
+            <div style="border-top: 1px solid var(--color-border); padding-top: var(--space-3); display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 0.75rem; color: var(--color-text-muted);">{post.date}</span>
+              <a href="/vendors#corporate-form" style="font-size: 0.875rem; font-weight: 600; color: var(--color-primary-600);">
                 Read Article →
               </a>
             </div>
-          </article>
+          </div>
         ))}
       </div>
     </div>
   </section>
 
-  <!-- Newsletter & Updates Section -->
-  <section class="section-padding">
-    <div class="container" style="max-width: 720px; text-align: center;">
-      <span class="badge badge-success">
-        <Icon name="mail" size={14} color="var(--color-success)" />
-        Stay Informed
-      </span>
-      <h2 class="h2-title" style="margin-top: var(--space-2); margin-bottom: var(--space-3);">
-        Subscribe to AdhocX Fleet Dispatch
-      </h2>
-      <p class="body-large" style="margin-bottom: var(--space-6);">
-        Receive monthly briefings on corporate transport policy, GST tax updates for mobility, and fleet optimization tech directly in your inbox.
-      </p>
+  <!-- Resources Section (Solutions Mega-Menu Reference: Policy Template, RFP Checklist) -->
+  <section class="section-padding" style="background: var(--color-surface);" id="resources">
+    <div class="container">
+      <div class="section-header">
+        <span class="badge badge-primary">Enterprise Toolkit</span>
+        <h2 class="h2-title">Corporate Mobility Resources & Templates</h2>
+        <p class="body-large">Practical frameworks, compliance checklists, and RFP templates for corporate facilities leaders.</p>
+      </div>
 
-      <form id="newsletter-form" style="display: flex; gap: var(--space-3); max-width: 520px; margin: 0 auto; flex-wrap: wrap;">
-        <input
-          id="newsletter-email"
-          type="email"
-          required
-          placeholder="Enter your official work email"
-          aria-label="Work email address"
-          style="flex: 1; min-width: 240px; min-height: 44px; padding: 12px 16px; border-radius: var(--radius-md); border: 1px solid var(--color-border); font-size: 0.95rem; outline: none;"
-        />
-        <button id="newsletter-submit-btn" type="submit" class="btn btn-primary" style="min-height: 44px;">
-          Subscribe Briefing
-        </button>
-      </form>
-      <div id="newsletter-feedback" style="margin-top: 14px; font-size: 0.9rem; font-weight: 500; display: none;" role="status"></div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-6);">
+        <div class="card" style="border-top: 4px solid var(--color-primary-600);" data-animate>
+          <div style="width: 2.5rem; height: 2.5rem; border-radius: 0.5rem; background: var(--color-primary-50); color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-3);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+            </svg>
+          </div>
+          <h3 class="h4-title" style="margin-bottom: var(--space-2);">Corporate Transport Policy Template</h3>
+          <p class="body-text" style="margin-bottom: var(--space-4);">
+            A ready-to-adopt employee transit policy covering shift eligibility, airport drop authorization limits, and escort security guidelines.
+          </p>
+          <a href="/vendors#corporate-form" class="btn btn-outline btn-small">Download Template (DOCX) →</a>
+        </div>
+
+        <div class="card" style="border-top: 4px solid var(--color-primary-600);" data-animate>
+          <div style="width: 2.5rem; height: 2.5rem; border-radius: 0.5rem; background: var(--color-primary-50); color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-3);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+          </div>
+          <h3 class="h4-title" style="margin-bottom: var(--space-2);">Enterprise RFP Checklist 2026</h3>
+          <p class="body-text" style="margin-bottom: var(--space-4);">
+            32 must-have vetting criteria when evaluating commercial fleet vendors: yellow-plate ratios, driver KYC, banking SLA penalties, and GPS telemetry.
+          </p>
+          <a href="/vendors#corporate-form" class="btn btn-outline btn-small">Download Checklist (PDF) →</a>
+        </div>
+
+        <div class="card" style="border-top: 4px solid var(--color-primary-600);" data-animate>
+          <div style="width: 2.5rem; height: 2.5rem; border-radius: 0.5rem; background: var(--color-primary-50); color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-3);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"></path>
+              <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"></path>
+              <path d="M7 21h10"></path>
+              <path d="M12 3v18"></path>
+              <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"></path>
+            </svg>
+          </div>
+          <h3 class="h4-title" style="margin-bottom: var(--space-2);">Telangana Regulatory Compliance Guide</h3>
+          <p class="body-text" style="margin-bottom: var(--space-4);">
+            Statutory breakdown of the Telangana On-Demand Transportation Technology Aggregator Rules and commercial yellow-board mandate.
+          </p>
+          <a href="/terms#compliance" class="btn btn-outline btn-small">View Compliance Guide →</a>
+        </div>
+      </div>
     </div>
   </section>
 
-  <script>
-    const form = document.getElementById('newsletter-form') as HTMLFormElement | null;
-    const emailInput = document.getElementById('newsletter-email') as HTMLInputElement | null;
-    const submitBtn = document.getElementById('newsletter-submit-btn') as HTMLButtonElement | null;
-    const feedback = document.getElementById('newsletter-feedback') as HTMLDivElement | null;
+  <!-- Glossary Section (Solutions Mega-Menu Reference: ETS, Nodal Pickup, Escorts Defined) -->
+  <section class="section-padding" style="background: var(--color-surface-muted);" id="glossary">
+    <div class="container">
+      <div class="section-header">
+        <span class="badge badge-primary">Industry Terminology</span>
+        <h2 class="h2-title">Commercial Transport & ETS Glossary</h2>
+        <p class="body-large">Clear definitions of essential corporate mobility, fleet operations, and statutory transport concepts.</p>
+      </div>
 
-    if (form && emailInput && submitBtn && feedback) {
-      form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const email = emailInput.value.trim();
-        if (!email) return;
-
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Subscribing...';
-        feedback.style.display = 'none';
-
-        try {
-          const res = await fetch('/api/newsletter/subscribe', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email }),
-          });
-
-          if (res.ok) {
-            feedback.style.display = 'block';
-            feedback.style.color = 'var(--color-success)';
-            feedback.textContent = 'Subscribed successfully! You will receive our next monthly fleet briefing.';
-            emailInput.value = '';
-          } else {
-            feedback.style.display = 'block';
-            feedback.style.color = 'var(--color-primary-600)';
-            feedback.textContent = 'Thank you for your interest! Newsletter confirmation will be sent shortly.';
-            emailInput.value = '';
-          }
-        } catch {
-          feedback.style.display = 'block';
-          feedback.style.color = 'var(--color-primary-600)';
-          feedback.textContent = 'Thank you for your interest! Newsletter confirmation will be sent shortly.';
-          emailInput.value = '';
-        } finally {
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Subscribe Briefing';
-        }
-      });
-    }
-  </script>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-4);">
+        {glossaryItems.map(item => (
+          <div class="card" style="padding: var(--space-5);" data-animate>
+            <div style="font-weight: 700; color: var(--color-primary-700); font-size: 1.05rem; margin-bottom: 0.35rem;">
+              {item.term}
+            </div>
+            <p class="body-text" style="font-size: 0.875rem; color: var(--color-text-secondary); margin: 0;">
+              {item.def}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
 </BaseLayout>
-
-<style>
-  .featured-blog-card {
-    padding: var(--space-8);
-    border: 2px solid var(--color-primary-500);
-    background: linear-gradient(135deg, #EFF6FF 0%, #FFFFFF 100%);
-    box-shadow: var(--shadow-md);
-  }
-
-  .blog-card {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    transition: transform var(--transition-base), box-shadow var(--transition-base);
-  }
-
-  .blog-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
-  }
-
-  .blog-read-link {
-    color: var(--color-primary-600);
-    font-weight: 600;
-    font-size: 0.875rem;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    transition: color var(--transition-fast);
-  }
-
-  .blog-read-link:hover {
-    color: var(--color-primary-800);
-    text-decoration: underline;
-  }
-</style>

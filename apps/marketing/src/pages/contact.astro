@@ -1,0 +1,208 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import EnterpriseLeadForm from '../components/EnterpriseLeadForm';
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "ContactPage",
+  "name": "Contact AdhocX — Enterprise Transport Command Center",
+  "url": "https://www.adhocx.com/contact",
+  "description": "Connect with the AdhocX enterprise team. Book a 30-minute corporate mobility demo, access our 24/7 Hyderabad safety command hotline, or visit our HITEC City headquarters.",
+  "mainEntity": {
+    "@type": "LocalBusiness",
+    "name": "AdhocX Technologies (Estemporaneo Technologies Private Limited)",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "Level 4, Cyber Gateway, HITEC City, Madhapur",
+      "addressLocality": "Hyderabad",
+      "addressRegion": "Telangana",
+      "postalCode": "500081",
+      "addressCountry": "IN"
+    },
+    "telephone": "+91-40-4821-7700",
+    "email": "enterprise@adhocx.in",
+    "openingHours": "Mo-Su 00:00-24:00"
+  }
+};
+---
+
+<BaseLayout
+  title="Contact AdhocX — Corporate Transport Command Hub & Consultation | Hyderabad"
+  description="Connect with the AdhocX enterprise team. Book an executive mobility consultation, access our 24/7 Hyderabad safety command center, or visit our HITEC City headquarters."
+  canonical="https://www.adhocx.com/contact"
+  activeNav="company"
+  jsonLd={jsonLd}
+>
+  <!-- Hero Section -->
+  <section class="page-hero-section" style="background: linear-gradient(180deg, var(--color-primary-50) 0%, #ffffff 100%); padding: var(--space-16) 0 var(--space-12);">
+    <div class="container text-center" style="max-width: 860px; margin: 0 auto;">
+      <div class="badge badge-blue" style="margin-bottom: var(--space-4);">
+        <span class="status-dot-pulse"></span>
+        <span>24/7 Enterprise Command Center &bull; HITEC City, Hyderabad</span>
+      </div>
+      <h1 class="display-title" style="color: var(--color-text-primary); margin-bottom: var(--space-6);">
+        Let's Discuss Your Campus Mobility Strategy.
+      </h1>
+      <p class="body-large" style="color: var(--color-text-secondary); margin-bottom: 0; line-height: 1.6;">
+        Whether you are managing daily shift transport for 200 engineers in Gachibowli or procuring executive airport transfers across Telangana, our enterprise logistics desk responds with verified rate cards and SLA guarantees.
+      </p>
+    </div>
+  </section>
+
+  <!-- Interactive Contact Hub: Left Details + Right Form -->
+  <section style="padding: var(--space-12) 0 var(--space-16); background: var(--color-surface);">
+    <div class="container">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: var(--space-12); align-items: flex-start;">
+        
+        <!-- Left: Corporate Hub Info, Phone, Email & SLAs -->
+        <div>
+          <span class="badge badge-warm" style="margin-bottom: var(--space-3);">Direct Contact Channels</span>
+          <h2 style="font-size: 1.875rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-4);">
+            Enterprise Logistics & Safety Desks
+          </h2>
+          <p style="color: var(--color-text-secondary); font-size: 0.9375rem; line-height: 1.6; margin-bottom: var(--space-6);">
+            Enterprise transport managers and facility directors receive dedicated account managers with direct lines to our 24/7 operations room.
+          </p>
+
+          <!-- Contact Cards -->
+          <div style="display: flex; flex-direction: column; gap: var(--space-4); margin-bottom: var(--space-8);">
+            <!-- Card 1: Enterprise RFP -->
+            <div style="background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-5);">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2);">
+                <span style="font-weight: 700; color: var(--color-text-primary); font-size: 1rem;">Enterprise RFP & Pilot Inquiries</span>
+                <span class="badge badge-blue" style="font-size: 0.75rem;">SLA &lt; 4 Hours</span>
+              </div>
+              <div style="font-size: 0.875rem; color: var(--color-text-secondary); margin-bottom: var(--space-2);">
+                For formal bids, custom route audits, and campus transport agreements.
+              </div>
+              <a href="mailto:enterprise@adhocx.in" style="font-weight: 600; color: var(--color-primary-600); text-decoration: none; font-size: 0.9375rem;">
+                enterprise@adhocx.in
+              </a>
+            </div>
+
+            <!-- Card 2: 24/7 Safety Command Center -->
+            <div style="background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-5);">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2);">
+                <span style="font-weight: 700; color: var(--color-text-primary); font-size: 1rem;">24/7 Safety & SOS Hotline</span>
+                <span class="badge badge-warm" style="font-size: 0.75rem;">Instant / Sub-15s</span>
+              </div>
+              <div style="font-size: 0.875rem; color: var(--color-text-secondary); margin-bottom: var(--space-2);">
+                Real-time incident response, SOS escalation, and late-night escort check-ins.
+              </div>
+              <div style="display: flex; align-items: center; gap: var(--space-3);">
+                <a href="tel:+914048217700" style="font-weight: 700; color: var(--color-text-primary); text-decoration: none; font-size: 1.125rem;">
+                  +91 40 4821 7700
+                </a>
+                <span style="color: var(--color-text-muted);">&bull;</span>
+                <a href="mailto:safety@adhocx.in" style="color: var(--color-primary-600); text-decoration: none; font-size: 0.875rem; font-weight: 600;">
+                  safety@adhocx.in
+                </a>
+              </div>
+            </div>
+
+            <!-- Card 3: Billing & Finance -->
+            <div style="background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-5);">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2);">
+                <span style="font-weight: 700; color: var(--color-text-primary); font-size: 1rem;">Billing, Tax Invoices & Ledger Desk</span>
+                <span class="badge badge-blue" style="font-size: 0.75rem;">SLA &lt; 2 Hours</span>
+              </div>
+              <div style="font-size: 0.875rem; color: var(--color-text-secondary); margin-bottom: var(--space-2);">
+                Automated 3-way reconciliation, GST e-invoices, and 1-hour refund requests.
+              </div>
+              <a href="mailto:billing@adhocx.in" style="font-weight: 600; color: var(--color-primary-600); text-decoration: none; font-size: 0.9375rem;">
+                billing@adhocx.in
+              </a>
+            </div>
+          </div>
+
+          <!-- Physical Locations -->
+          <div style="border-top: 1px solid var(--color-border); padding-top: var(--space-6);">
+            <h3 style="font-size: 1.125rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-3);">
+              Hyderabad Regional Offices
+            </h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
+              <div>
+                <div style="font-weight: 600; font-size: 0.875rem; color: var(--color-text-primary);">Headquarters & Command</div>
+                <p style="font-size: 0.8125rem; color: var(--color-text-secondary); line-height: 1.5; margin-top: 4px;">
+                  Level 4, Cyber Gateway,<br />
+                  HITEC City, Madhapur,<br />
+                  Hyderabad, Telangana 500081
+                </p>
+              </div>
+              <div>
+                <div style="font-weight: 600; font-size: 0.875rem; color: var(--color-text-primary);">Driver Verification Hub</div>
+                <p style="font-size: 0.8125rem; color: var(--color-text-secondary); line-height: 1.5; margin-top: 4px;">
+                  ISB Road, Gachibowli,<br />
+                  Hyderabad, Telangana 500032
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Interactive Consultation Form -->
+        <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-lg);">
+          <div style="margin-bottom: var(--space-6);">
+            <h3 style="font-size: 1.5rem; font-weight: 800; color: var(--color-text-primary); margin-bottom: var(--space-2);">
+              Request Corporate Rate Card & Demo
+            </h3>
+            <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.5; margin: 0;">
+              Share your campus transit requirements. A senior mobility specialist will review your routes and present a pilot proposal within 30 minutes.
+            </p>
+          </div>
+          
+          <EnterpriseLeadForm client:load />
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Enterprise SLA Commitment Strip -->
+  <section style="background: var(--color-surface-muted); border-top: 1px solid var(--color-border); padding: var(--space-12) 0;">
+    <div class="container text-center" style="max-width: 800px; margin: 0 auto var(--space-8);">
+      <h2 style="font-size: 1.75rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-2);">
+        Our Contracted Enterprise Support SLAs
+      </h2>
+      <p style="font-size: 0.9375rem; color: var(--color-text-secondary); margin: 0;">
+        We hold ourselves to rigorous, financially-backed performance targets specified in every Master Service Agreement.
+      </p>
+    </div>
+
+    <div class="container">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-6);">
+        <div style="background: var(--color-surface); padding: var(--space-6); border-radius: var(--radius-lg); border: 1px solid var(--color-border); text-align: center;">
+          <div style="font-size: 1.75rem; font-weight: 800; color: var(--color-primary-600); margin-bottom: var(--space-2);">&lt; 15 Sec</div>
+          <div style="font-weight: 700; font-size: 0.9375rem; color: var(--color-text-primary); margin-bottom: var(--space-1);">SOS Dispatch Pickup</div>
+          <p style="font-size: 0.8125rem; color: var(--color-text-secondary); line-height: 1.4; margin: 0;">
+            Immediate human command response with automated telemetry forwarding.
+          </p>
+        </div>
+
+        <div style="background: var(--color-surface); padding: var(--space-6); border-radius: var(--radius-lg); border: 1px solid var(--color-border); text-align: center;">
+          <div style="font-size: 1.75rem; font-weight: 800; color: var(--color-primary-600); margin-bottom: var(--space-2);">&lt; 15 Min</div>
+          <div style="font-weight: 700; font-size: 0.9375rem; color: var(--color-text-primary); margin-bottom: var(--space-1);">Route Reassignment</div>
+          <p style="font-size: 0.8125rem; color: var(--color-text-secondary); line-height: 1.4; margin: 0;">
+            Immediate backup cab dispatch in the event of mechanical breakdown.
+          </p>
+        </div>
+
+        <div style="background: var(--color-surface); padding: var(--space-6); border-radius: var(--radius-lg); border: 1px solid var(--color-border); text-align: center;">
+          <div style="font-size: 1.75rem; font-weight: 800; color: var(--color-primary-600); margin-bottom: var(--space-2);">1 Hour</div>
+          <div style="font-weight: 700; font-size: 0.9375rem; color: var(--color-text-primary); margin-bottom: var(--space-1);">Direct Bank Refund</div>
+          <p style="font-size: 0.8125rem; color: var(--color-text-secondary); line-height: 1.4; margin: 0;">
+            Instant credit settlement for verified disputed or unserved rides.
+          </p>
+        </div>
+
+        <div style="background: var(--color-surface); padding: var(--space-6); border-radius: var(--radius-lg); border: 1px solid var(--color-border); text-align: center;">
+          <div style="font-size: 1.75rem; font-weight: 800; color: var(--color-primary-600); margin-bottom: var(--space-2);">99.8%</div>
+          <div style="font-weight: 700; font-size: 0.9375rem; color: var(--color-text-primary); margin-bottom: var(--space-1);">API Platform Uptime</div>
+          <p style="font-size: 0.8125rem; color: var(--color-text-secondary); line-height: 1.4; margin: 0;">
+            Enterprise cloud SLA with automated multi-zone failover and data redundancy.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

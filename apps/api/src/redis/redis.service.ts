@@ -53,7 +53,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
       await this.client.connect();
       this.isConnected = true;
-      this.logger.log(`✅ Live Redis / Valkey connected successfully (${redisUrl ? 'via REDIS_URL' : `${host}:${port}`})`);
+      this.logger.log(` Live Redis / Valkey connected successfully (${redisUrl ? 'via REDIS_URL' : `${host}:${port}`})`);
     } catch (err: any) {
       this.isConnected = false;
       this.logger.warn(

@@ -1,0 +1,143 @@
+/* ==========================================================================
+   AdhocX Design Tokens - Universal Centralized Design System
+   Palette: Action Blue #1167EE | Amber Gold #EE9811 | Slate Neutrals #EDEFF0 - #191B1C
+   Telangana Operational Scenario Governance
+   ========================================================================== */
+
+:root {
+  /* Official Brand Logo Color Identity (from footer/header logo: Blue #0948AC & Amber Gold #EE9811) */
+  --color-brand-adhoc: #0948AC;
+  --color-brand-x: #EE9811;
+
+  /* Primary Brand Action (Blue Scale) */
+  --color-primary-base: #1167EE;
+  --color-primary-gradient-start: #1167EE;
+  --color-primary-gradient-end: #0948AC;
+  --color-primary-gradient: linear-gradient(135deg, #1167EE 0%, #0948AC 100%);
+  --color-primary-gradient-hover: linear-gradient(135deg, #0948AC 0%, #032969 100%);
+  --color-primary-gradient-subtle: linear-gradient(135deg, rgba(17, 103, 238, 0.08) 0%, rgba(9, 72, 172, 0.12) 100%);
+  
+  --color-primary-900: #010D2D; /* Deepest midnight navy / Dark UI background */
+  --color-primary-800: #032969; /* Strong dark surface / Footer */
+  --color-primary-700: #0948AC; /* Dark UI elements / Card background */
+  --color-primary-600: #1167EE; /* Primary Action Blue */
+  --color-primary-500: #1167EE; /* Interactive / Highlight Blue */
+  --color-primary-400: #5290F9; /* Vivid interactive blue */
+  --color-primary-300: #91B9FB; /* Soft blue border / accent */
+  --color-primary-100: #CEE0FD; /* Primary light blue tint */
+  --color-primary-50: #F0F5FF;  /* Subtle background tint */
+
+  /* Brand Warm Accent (Amber Gold Scale) */
+  --color-accent-base: #EE9811;
+  --color-accent-hover: #C17A0B;
+  --color-accent-gradient: linear-gradient(135deg, #EE9811 0%, #C17A0B 100%);
+  --color-amber-900: #351E01; /* Deepest bronze brown */
+  --color-amber-800: #613B03; /* Rich bronze brown */
+  --color-amber-700: #915B06; /* Deep gold brown text */
+  --color-amber-600: #C17A0B; /* Dark amber hover */
+  --color-amber-500: #EE9811; /* Primary Amber Gold Accent */
+  --color-amber-200: #FEC98E; /* Warm peach tint / border */
+  --color-amber-50: #FFFBF7;  /* Warm surface / highlight fill */
+
+  /* Neutral Surface Palette */
+  --color-bg: #EDEFF0;          /* Application / Page background */
+  --color-surface: #FFFFFF;     /* Cards / Panels / Main surface */
+  --color-surface-muted: #F8F9FA; /* Secondary clean surface */
+  --color-surface-warm: #FFFBF7;  /* Warm highlight surface */
+  --color-border: #C2C9CC;      /* Default crisp borders */
+  --color-border-strong: #9BA3A8; /* Emphasized borders */
+  --color-border-blue: #91B9FB; /* Subtle blue borders */
+  --color-border-amber: #FEC98E; /* Subtle amber borders */
+
+  /* Neutral Text Palette (Strictly no pure #000000) */
+  --color-text-primary: #191B1C;   /* Primary high-contrast text */
+  --color-text-secondary: #595F61; /* Supporting text */
+  --color-text-muted: #9BA3A8;     /* Low-emphasis metadata text */
+  --color-text-inverse: #FFFFFF;   /* Inverse white text on dark */
+
+  /* Semantic Colors */
+  --color-success: #16A34A;     /* Completed / Verified Yellow-Board */
+  --color-success-bg: #DCFCE7;  /* Success pill background */
+  --color-warning: #EE9811;     /* Pending / Attention Required (Amber) */
+  --color-warning-bg: #FFFBF7;  /* Warning pill background */
+  --color-error: #DC2626;       /* Failures / Rejected / Cancelled */
+  --color-error-bg: #FEE2E2;    /* Error pill background */
+  --color-info: #1167EE;        /* Informational brand blue */
+  --color-info-bg: #CEE0FD;     /* Info blue pill background */
+
+  /* Typography Scale (REM-based relative scaling) */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-size-display: clamp(2rem, 4vw + 1rem, 2.75rem);
+  --font-size-h1: clamp(1.75rem, 3vw + 0.5rem, 2.25rem);
+  --font-size-h2: clamp(1.35rem, 2vw + 0.5rem, 1.75rem);
+  --font-size-h3: 1.25rem;
+  --font-size-h4: 1.125rem;
+  --font-size-body-large: 1.0625rem;
+  --font-size-body: 0.9375rem;
+  --font-size-small: 0.8125rem;
+  --font-size-caption: 0.75rem;
+
+  /* Font Weights */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Line Heights */
+  --line-height-tight: 1.15;
+  --line-height-heading: 1.25;
+  --line-height-body: 1.55;
+  --line-height-relaxed: 1.65;
+
+  /* Relative Spacing Grid (REM Units) */
+  --space-1: 0.25rem;  /* 4px */
+  --space-2: 0.5rem;   /* 8px */
+  --space-3: 0.75rem;  /* 12px */
+  --space-4: 1rem;     /* 16px */
+  --space-5: 1.25rem;  /* 20px */
+  --space-6: 1.5rem;   /* 24px */
+  --space-8: 2rem;     /* 32px */
+  --space-10: 2.5rem;  /* 40px */
+  --space-12: 3rem;    /* 48px */
+  --space-16: 4rem;    /* 64px */
+  --space-20: 5rem;    /* 80px */
+  --space-24: 6rem;    /* 96px */
+
+  /* Legacy pixel aliases for backward-compatibility */
+  --space-8-px: 8px;
+  --space-12-px: 12px;
+  --space-16-px: 16px;
+  --space-20-px: 20px;
+  --space-24-px: 24px;
+  --space-32-px: 32px;
+  --space-40-px: 40px;
+  --space-48-px: 48px;
+  --space-64-px: 64px;
+
+  /* Border Radius */
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.625rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-pill: 9999px;
+
+  /* Elevation & Shadows */
+  --shadow-level-0: none;
+  --shadow-level-1: 0 1px 3px 0 rgba(25, 27, 28, 0.05), 0 1px 2px 0 rgba(25, 27, 28, 0.03);
+  --shadow-level-2: 0 10px 15px -3px rgba(25, 27, 28, 0.08), 0 4px 6px -2px rgba(25, 27, 28, 0.03);
+  --shadow-level-3: 0 20px 25px -5px rgba(17, 103, 238, 0.12), 0 10px 10px -5px rgba(17, 103, 238, 0.06);
+  --shadow-blue-glow: 0 8px 20px -4px rgba(17, 103, 238, 0.35);
+  --shadow-amber-glow: 0 8px 20px -4px rgba(238, 152, 17, 0.35);
+  --shadow-focus: 0 0 0 3px rgba(17, 103, 238, 0.3);
+
+  /* Layout Widths (Relative clamp) */
+  --container-max-width: 1240px;
+  --container-legal-width: 880px;
+  --header-height: 4.5rem;
+
+  /* Motion & Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}

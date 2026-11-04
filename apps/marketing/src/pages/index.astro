@@ -1,829 +1,917 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import Icon from '../components/Icon.astro';
-import FaqAccordion, { type FaqItem } from '../components/FaqAccordion.astro';
 
-const jsonLd = [
-  {
-    "@context": "https://schema.org",
-    "@type": "Service",
-    "@id": "https://www.adhocx.com/#corporate-transport-service",
-    "name": "B2B Corporate Commercial Transport & Fleet Sourcing",
-    "serviceType": "Enterprise Mobility & Employee Cab Logistics",
-    "provider": {
-      "@type": "Organization",
-      "name": "Estemporaneo Technologies Private Limited",
-      "url": "https://www.adhocx.com"
-    },
-    "areaServed": [
-      {
-        "@type": "City",
-        "name": "Hyderabad"
-      },
-      {
-        "@type": "Place",
-        "name": "HITEC City"
-      },
-      {
-        "@type": "Place",
-        "name": "Financial District"
-      },
-      {
-        "@type": "Place",
-        "name": "Gachibowli"
-      }
-    ],
-    "description": "Algorithmic commercial cab fulfillment platform connecting corporate logistics desks with verified 4-seater and 7-seater yellow-plate drivers. Features 15-minute search cutoff SLAs, unified GST invoicing, and 1-hour bank refund rails.",
-    "hasOfferCatalog": {
-      "@type": "OfferCatalog",
-      "name": "Commercial Corporate Cab Tiers",
-      "itemListElement": [
-        {
-          "@type": "Offer",
-          "itemOffered": {
-            "@type": "Service",
-            "name": "Commercial 4-Seater Sedan (Dzire / Etios)"
-          }
-        },
-        {
-          "@type": "Offer",
-          "itemOffered": {
-            "@type": "Service",
-            "name": "Commercial 6/7-Seater MUV / SUV (Ertiga / Innova Crysta)"
-          }
-        }
-      ]
-    }
-  },
-  {
-    "@context": "https://schema.org",
-    "@type": "HowTo",
-    "name": "How to Source B2B Commercial Cabs with AdhocX",
-    "description": "Step-by-step workflow for enterprise transport desks to schedule employee transit and spot cabs in Hyderabad.",
-    "step": [
-      {
-        "@type": "HowToStep",
-        "position": 1,
-        "name": "Raise Corporate Trip Requirement",
-        "text": "Submit single or recurring fleet demand specifying pickup schedule, route, and 4 or 7 seater vehicle tier via the enterprise dashboard or API."
-      },
-      {
-        "@type": "HowToStep",
-        "position": 2,
-        "name": "Algorithmic Dispatch & 15-Minute SLA Cutoff",
-        "text": "The AdhocX engine matches requirements with verified commercial yellow-plate drivers, guaranteeing driver assignment in under 90 seconds."
-      },
-      {
-        "@type": "HowToStep",
-        "position": 3,
-        "name": "Live Telemetry & Automated Bank Reconciliation",
-        "text": "Track trips in real time with digital OTP boarding and receive automated single-invoice GST billing with 1-hour refund rails for cancellations."
-      }
-    ]
-  },
-  {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    "mainEntity": [
-      {
-        "@type": "Question",
-        "name": "What is AdhocX and how does the B2B commercial transport marketplace work?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "AdhocX is an automated B2B commercial cab fulfillment marketplace in Hyderabad. It connects corporate travel desks with background-verified commercial 4-seater and 7-seater drivers, eliminating manual WhatsApp cab dispatching with algorithmic 90-second pairing and guaranteed SLAs."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "How does the 1-hour bank refund guarantee operate?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "If a corporate requirement is canceled within eligible SLA terms or cannot be matched within the 15-minute search cutoff window, funds are credited directly back to the enterprise's registered bank account within 60 minutes via instant IMPS/UPI banking rails."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "What commercial vehicles are supported on the AdhocX platform?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "AdhocX exclusively fulfills bookings with commercial yellow-plate vehicles including 4-seater sedans (Maruti Dzire, Toyota Etios) and 6/7-seater SUVs/MUVs (Maruti Ertiga, Toyota Innova Crysta), all carrying valid commercial fitness and commercial insurance."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "How do commercial drivers qualify for the Century Milestone Bonus?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Verified commercial drivers who complete the required trip milestones unlock cash performance rewards paid directly to their bank account with transparent direct settlements."
-        }
-      }
-    ]
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "AdhocX Technologies Private Limited",
+  "url": "https://www.adhocx.com",
+  "logo": "https://www.adhocx.com/assets/logo.png",
+  "contactPoint": {
+    "@type": "ContactPoint",
+    "email": "support@adhocx.in",
+    "telephone": "+91-8490834945",
+    "contactType": "customer service",
+    "areaServed": "IN"
   }
-];
-
-const homeFaqs: FaqItem[] = [
-  {
-    question: "What is AdhocX and how does the B2B commercial transport marketplace work?",
-    highlight: "AdhocX is an automated B2B commercial cab fulfillment marketplace in Hyderabad. It connects corporate travel desks with background-verified commercial 4-seater and 7-seater drivers, replacing manual WhatsApp cab dispatching with programmatic driver allocation and guaranteed SLAs.",
-    answer: "Traditional corporate cab sourcing relies on chaotic phone calls and unvetted WhatsApp groups where fares fluctuate unpredictably and drivers cancel last minute. AdhocX digitizes the entire lifecycle: enterprise transport managers raise demand via an automated dashboard, our dispatch engine algorithmically pairs the booking with nearby verified yellow-plate chauffeurs, and consolidated monthly GST invoicing simplifies accounting."
-  },
-  {
-    question: "How does the bank refund guarantee operate for corporate clients?",
-    highlight: "If a booking cannot be matched within our strict allocation SLA cutoff, or if an eligible cancellation occurs, the full booking funds are credited back to the corporate bank account via direct banking rails.",
-    answer: "Unlike consumer aggregators that lock corporate balances into proprietary platform wallets or take days to process refunds, AdhocX maintains direct real-time banking integration with corporate accounts to eliminate cash flow friction for corporate transport desks."
-  },
-  {
-    question: "What commercial vehicles and capacity tiers are supported on the platform?",
-    highlight: "We exclusively onboard verified commercial yellow-plate vehicles: 4-seater sedans (Maruti Dzire, Toyota Etios, Hyundai Aura) and 6/7-seater MUVs/SUVs (Maruti Ertiga, Toyota Innova Crysta).",
-    answer: "Every vehicle undergoes strict document audits verifying commercial taxi registration (yellow board), valid RTO fitness certificate, commercial passenger liability insurance, and comprehensive vehicle hygiene checks before being allowed on corporate routes."
-  },
-  {
-    question: "How do commercial drivers qualify for the Century Milestone Bonus?",
-    highlight: "Commercial 4-seater and 7-seater drivers who complete initial milestones receive performance rewards directly into their bank account with transparent direct settlements.",
-    answer: "The Century Milestone incentive is open to all newly onboarded commercial taxi drivers in Hyderabad. Drivers retain full trip earnings with transparent direct settlements, and milestone rewards are disbursed via regular direct deposits or on-demand fast payouts."
-  }
-];
+};
 ---
 
 <BaseLayout
-  title="AdhocX — B2B Corporate Cab Fulfillment & Commercial Transport Marketplace Hyderabad"
-  description="Hyderabad's premier automated B2B corporate cab fulfillment marketplace. Algorithmic dispatch for 4 & 7 seater yellow-plate fleets, reliable on-time SLA, direct bank refunds, and driver milestone rewards."
+  title="AdhocX — B2B Commercial Ground Transport Operating System"
+  description="AdhocX is the operating system for corporate ground transport. Companies book and control trips, rental operators run their business, and travel companies fulfil demand across India."
   canonical="https://www.adhocx.com/"
   jsonLd={jsonLd}
 >
-  <!-- Hero Section -->
-  <section class="hero-section" id="hero">
-    <div class="container hero-grid">
-      <div class="hero-content">
-        <div class="hero-tag">
-          <span class="badge badge-primary">
-            <Icon name="shield-check" size={14} color="var(--color-primary-600)" />
-            Enterprise B2B Transport Marketplace
-          </span>
-          <span class="badge badge-info">
-            <Icon name="map-pin" size={14} color="var(--color-info)" />
-            Hyderabad 4 & 7 Seater Fleets
-          </span>
-        </div>
-        <h1 class="display-title">
-          Reliable, Fast & Operational Commercial Transport.
+  <!-- =========================================================================
+       SECTION 1: HERO SECTION (Reference: Screenshot 1)
+       "Every corporate cab trip. One system from booking to billing."
+       ========================================================================= -->
+  <section class="adhocx-hero-section" id="hero">
+    <div class="container adhocx-hero-grid">
+      <!-- Left Hero Column: Copy & Actions -->
+      <div class="hero-left-content">
+        <!-- H1 Title -->
+        <h1 class="adhocx-hero-h1">
+          Every corporate cab trip. <span class="adhocx-hero-accent">One system from booking to billing.</span>
         </h1>
 
-        <!-- AEO Featured Snippet Direct Answer -->
-        <div class="direct-answer-banner">
-          <p class="body-large" style="margin: 0; color: var(--color-primary-900); font-weight: 500;">
-            <strong>AdhocX</strong> connects enterprise transport vendors with verified commercial 4-seater and 7-seater yellow-plate drivers across Hyderabad's IT corridors. Built for operational certainty, rapid driver assignment, transparent contract terms, and direct bank payouts.
-          </p>
-        </div>
+        <!-- Subtitle Description -->
+        <p class="adhocx-hero-desc">
+          AdhocX is the operating system for corporate ground transport. Companies book and control trips, rental operators run their business, and travel companies fulfil demand across India.
+        </p>
 
-        <div class="hero-actions">
-          <a href="/vendors#corporate-form" class="btn btn-primary btn-large" id="btn-hero-enterprise">
-            <Icon name="building" size={18} />
-            Source Corporate Fleet
+        <!-- CTA Buttons -->
+        <div class="adhocx-hero-actions">
+          <a href="/vendors#corporate-form" class="btn-pill-primary" id="btn-hero-demo">
+            <span>Book a demo</span>
+            <span aria-hidden="true">→</span>
           </a>
-          <a href="/drivers" class="btn btn-secondary btn-large" id="btn-hero-driver">
-            <Icon name="car" size={18} />
-            Drive with AdhocX
+          <a href="/vendors" class="btn-pill-secondary" id="btn-hero-path">
+            Choose your path
           </a>
         </div>
 
-        <div class="hero-metrics metrics-3">
-          <div class="metric-item">
-            <div class="metric-val">Rapid</div>
-            <div class="metric-lbl">Algorithmic Auto-Dispatch</div>
+        <!-- 3 Value Checks -->
+        <div class="adhocx-hero-checks">
+          <div class="adhocx-check-item">
+            <svg class="adhocx-check-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+            <span>Bookings in one place</span>
           </div>
-          <div class="metric-item">
-            <div class="metric-val">Direct</div>
-            <div class="metric-lbl">Bank Payout & Refunds</div>
+
+          <div class="adhocx-check-item">
+            <svg class="adhocx-check-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+            <span>Every trip tracked</span>
           </div>
-          <div class="metric-item">
-            <div class="metric-val">Verified</div>
-            <div class="metric-lbl">Commercial Yellow-Plate</div>
+
+          <div class="adhocx-check-item">
+            <svg class="adhocx-check-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+            <span>Billing backed by trip records</span>
           </div>
         </div>
       </div>
 
-      <div class="hero-card-side">
-        <div class="hero-visual-card" data-animate>
-          <div class="card-accent-strip"></div>
-          
-          <!-- Vehicle Fleet Visual Showcase -->
-          <div class="fleet-image-frame">
-            <img 
-              src="/images/hero-fleet.jpg" 
-              alt="AdhocX B2B Commercial Vehicle Fleet - 4-Seater Sedans & 7-Seater Executive MUVs in Hyderabad IT Park"
-              class="fleet-hero-img"
-              width="600"
-              height="450"
-              loading="eager"
-            />
-            
-            <div class="fleet-image-gradient"></div>
+      <!-- Right Hero Column: Interactive SaaS Mockup Canvas -->
+      <div class="hero-mockup-wrapper">
+        <div class="hero-blueprint-grid"></div>
 
-            <!-- Floating Status Badges -->
-            <div class="fleet-top-pills">
-              <span class="glass-pill live-pill">
-                <span class="pulse-dot"></span> Live Fleet Dispatch • HITEC City
+        <!-- Overlaid Top Pill: New Booking -->
+        <div class="hero-floating-booking">
+          <div style="width: 2rem; height: 2rem; border-radius: 0.5rem; background: #EFF6FF; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.3c.4-.2.6-.6.5-1.1z"/>
+            </svg>
+          </div>
+          <div>
+            <div style="font-size: 0.6875rem; text-transform: uppercase; color: #64748B; font-weight: 700; letter-spacing: 0.05em;">NEW BOOKING</div>
+            <div style="font-size: 0.875rem; font-weight: 700; color: #191B1C;">Airport transfer</div>
+          </div>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="margin-left: 0.5rem;">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="16 12 12 8 8 12"></polyline>
+          </svg>
+        </div>
+
+        <!-- Central Dashboard Frame -->
+        <div class="hero-dashboard-window">
+          <!-- Top Window Bar -->
+          <div class="dashboard-topbar">
+            <div class="dashboard-search-sim">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <span style="color: #94A3B8;">Search bookings, cabs...</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.875rem;">
+              <span class="dashboard-live-badge">
+                <span style="width: 6px; height: 6px; border-radius: 50%; background: var(--color-success); display: inline-block;"></span>
+                Live
               </span>
-              <span class="glass-pill verified-pill">
-                <Icon name="shield-check" size={13} color="#22C55E" /> Commercial Yellow-Plate
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+              </svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Body with mini sidebar & simulated booking console -->
+          <div class="dashboard-body-split">
+            <!-- Mini icon sidebar -->
+            <div class="dashboard-sidebar-mini">
+              <span class="active">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+              </span>
+              <span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3 3 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
+              </span>
+              <span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="22" x2="9" y2="22.01"></line><line x1="15" y1="22" x2="15" y2="22.01"></line><line x1="9" y1="6" x2="9" y2="6.01"></line><line x1="15" y1="6" x2="15" y2="6.01"></line><line x1="9" y1="10" x2="9" y2="10.01"></line><line x1="15" y1="10" x2="15" y2="10.01"></line><line x1="9" y1="14" x2="9" y2="14.01"></line><line x1="15" y1="14" x2="15" y2="14.01"></line></svg>
+              </span>
+              <span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+              </span>
+              <span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
               </span>
             </div>
 
-            <!-- Floating Bottom Fleet Info -->
-            <div class="fleet-floating-info">
-              <div class="fleet-tagline-row">
-                <div class="fleet-tagline-title">
-                  <Icon name="car" size={16} color="#B195FA" />
-                  <span>Commercial Fleet Categories</span>
+            <!-- Booking Console Interface -->
+            <div class="dashboard-main-area">
+              <div class="hero-booking-form-sim">
+                <div class="hero-input-field">
+                  <div style="font-size: 0.625rem; color: #64748B;">PICKUP</div>
+                  <strong>RGIA Hyderabad Airport</strong>
                 </div>
-                <span class="fleet-city-tag">Hyderabad</span>
+                <div class="hero-input-field">
+                  <div style="font-size: 0.625rem; color: #64748B;">DROP</div>
+                  <strong>HITEC City Tech Park</strong>
+                </div>
               </div>
-              
-              <div class="fleet-types-chips">
-                <span class="chip-item">
-                  <strong>4-Seater Sedan</strong> (Dzire • Etios • Aura)
-                </span>
-                <span class="chip-item">
-                  <strong>6/7-Seater MUV</strong> (Ertiga • Innova Crysta)
-                </span>
+
+              <!-- Commercial Sedan Graphic Card -->
+              <div class="hero-cab-visual">
+                <div>
+                  <div style="font-size: 0.8125rem; font-weight: 700; color: var(--color-text-primary);">Commercial Sedan (Dzire / Etios)</div>
+                  <div style="font-size: 0.6875rem; color: #64748B;">100% Commercial Yellow-Plate • AC</div>
+                </div>
+                <!-- Sedan Car SVG -->
+                <svg width="68" height="32" viewBox="0 0 68 32" fill="none">
+                  <path d="M4 22L12 12H44L56 16L64 22V28H4V22Z" fill="#FFFFFF" stroke="#1167EE" stroke-width="2"/>
+                  <circle cx="16" cy="28" r="4.5" fill="#191B1C"/>
+                  <circle cx="50" cy="28" r="4.5" fill="#191B1C"/>
+                  <line x1="26" y1="12" x2="26" y2="22" stroke="#91B9FB" stroke-width="1.5"/>
+                  <line x1="38" y1="12" x2="38" y2="22" stroke="#91B9FB" stroke-width="1.5"/>
+                </svg>
+              </div>
+
+              <!-- Auto-Dispatch Button Inside Simulated UI -->
+              <div style="margin-top: 1rem; display: flex; justify-content: flex-end;">
+                <div style="background: var(--color-primary-600); color: #FFFFFF; font-size: 0.75rem; font-weight: 700; padding: 0.45rem 1rem; border-radius: 0.375rem;">
+                  Auto-Allot Cab
+                </div>
               </div>
             </div>
           </div>
+        </div>
 
-          <!-- Operational Verification & Fast Actions -->
-          <div class="fleet-card-body">
-            <div class="fleet-stats-grid">
-              <div class="fleet-stat-box">
-                <span class="text-caption">Dispatch Engine</span>
-                <div class="stat-highlight">Fast Algorithmic Allocation</div>
-              </div>
-              <div class="fleet-stat-box">
-                <span class="text-caption">Driver Verification</span>
-                <div class="stat-highlight">Commercial DL & RTO Fitness</div>
-              </div>
-            </div>
-
-            <div class="card-actions-row">
-              <a href="/vendors#corporate-form" class="btn btn-primary" style="flex: 1.1; justify-content: center; font-size: 14px; min-height: 44px;">
-                <Icon name="building" size={16} />
-                Source Fleet
-              </a>
-              <a href="https://play.google.com/store/apps/details?id=com.adhocx.app" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="flex: 1.1; justify-content: center; font-size: 14px; min-height: 44px;">
-                <Icon name="download" size={16} />
-                Driver App
-              </a>
-            </div>
+        <!-- Overlaid Dark Blue Floating Driver Card -->
+        <div class="hero-floating-driver">
+          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.6875rem; opacity: 0.9; margin-bottom: 0.5rem;">
+            <span>TRIP TS-2841</span>
+            <span style="display: inline-flex; align-items: center; gap: 0.25rem;">
+              <span style="width: 5px; height: 5px; border-radius: 50%; background: #4ADE80; display: inline-block;"></span>
+              Live
+            </span>
+          </div>
+          <div style="font-size: 0.9375rem; font-weight: 700; margin-bottom: 0.75rem;">Driver en route</div>
+          <div style="font-size: 0.75rem; line-height: 1.5; margin-bottom: 0.75rem; border-left: 2px solid #5290F9; padding-left: 0.5rem;">
+            <div><strong>Pickup:</strong> RGIA Hyderabad Airport</div>
+            <div><strong>Drop:</strong> HITEC City Tech Hub</div>
+          </div>
+          <div style="display: flex; justify-content: flex-end;">
+            <span style="background: rgba(255, 255, 255, 0.2); font-size: 0.6875rem; padding: 0.2rem 0.5rem; border-radius: var(--radius-pill); font-weight: 600;">
+              Live tracking
+            </span>
           </div>
         </div>
-      </div>
-    </div>
-  </section>
 
-  <!-- Stats Bar -->
-  <section style="padding: 0 0 var(--space-12);">
-    <div class="container">
-      <div class="stats-bar" data-animate>
-        <div class="stat-item">
-          <div class="stat-value">High Reliability</div>
-          <div class="stat-label">On-Time SLA Delivery</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value">Instant</div>
-          <div class="stat-label">Algorithmic Driver Allocation</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value">Verified</div>
-          <div class="stat-label">Yellow-Plate Commercial Only</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value">Transparent</div>
-          <div class="stat-label">Zero Surcharge Guarantee</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Dual Portal Gateway -->
-  <section class="section-padding" id="portals">
-    <div class="container">
-      <div class="section-header" style="text-align: center;">
-        <span class="badge badge-primary">Role-Specific Workspaces</span>
-        <h2 class="h2-title">Dedicated Portals for Corporate Desks & Fleet Drivers</h2>
-        <p class="body-large" style="margin: 0 auto; max-width: 650px;">
-          AdhocX delivers purpose-built workflows for corporate travel managers sourcing bulk commercial fleets and professional drivers seeking guaranteed corporate tariffs.
-        </p>
-      </div>
-
-      <div class="dual-portals-grid">
-        <!-- Vendor Portal Card -->
-        <div class="portal-card portal-vendor" data-animate>
+        <!-- Overlaid Billing Verified Pill -->
+        <div class="hero-floating-billing">
+          <span style="font-weight: 800; color: var(--color-primary-600); font-size: 0.875rem;">₹</span>
           <div>
-            <div class="portal-card-header">
-              <div class="portal-icon-box">
-                <Icon name="building" size={24} color="var(--color-primary-600)" />
-              </div>
-              <div>
-                <span class="badge badge-primary" style="margin-bottom: 4px;">For Corporate Vendors</span>
-                <h3 class="h3-title">Fleet Sourcing & Spot Cabs</h3>
-              </div>
-            </div>
-            <p class="body-text">
-              Procure verified 4-seater sedans and 7-seater MUVs for scheduled employee shifts, airport executive transfers, and emergency spot cabs with 15-minute search cutoff SLAs.
-            </p>
-            <ul class="portal-feature-list">
-              <li class="portal-feature-item">
-                <Icon name="check-circle" size={18} color="var(--color-primary-600)" />
-                <span><strong>Instant Dispatch:</strong> Automated programmatic assignment eliminates WhatsApp dispatch chaos.</span>
-              </li>
-              <li class="portal-feature-item">
-                <Icon name="bank-note" size={18} color="var(--color-primary-600)" />
-                <span><strong>1-Hour Bank Refund:</strong> Automatic refund rails directly to company bank accounts for unassigned trips.</span>
-              </li>
-              <li class="portal-feature-item">
-                <Icon name="shield-check" size={18} color="var(--color-primary-600)" />
-                <span><strong>Single GST Invoice:</strong> Consolidated monthly billing with digital trip sheets and OTP validation.</span>
-              </li>
-            </ul>
-          </div>
-          <div style="margin-top: 24px;">
-            <a href="/vendors#corporate-form" class="btn btn-primary" style="width: 100%; justify-content: center; min-height: 44px;">
-              Enter Vendor Portal →
-            </a>
+            <div style="font-size: 0.625rem; color: #64748B; font-weight: 700;">BILLING</div>
+            <div style="font-weight: 700; color: #191B1C;">Trip verified</div>
           </div>
         </div>
 
-        <!-- Driver Portal Card -->
-        <div class="portal-card portal-driver" data-animate>
-          <div>
-            <div class="portal-card-header">
-              <div class="portal-icon-box" style="background: var(--color-primary-100); color: var(--color-primary-600);">
-                <Icon name="car" size={24} color="var(--color-primary-600)" />
-              </div>
-              <div>
-                <span class="badge badge-primary" style="margin-bottom: 4px;">For Commercial Drivers</span>
-                <h3 class="h3-title">Commercial Chauffeur Network</h3>
-              </div>
-            </div>
-            <p class="body-text">
-              Connect to scheduled corporate employee routes, business executive airport transfers, and outstation corporate duties with confirmed trip allocations.
-            </p>
-            <ul class="portal-feature-list">
-              <li class="portal-feature-item">
-                <Icon name="sparkles" size={18} color="var(--color-success)" />
-                <span><strong>Milestone Rewards:</strong> Complete trip milestones to claim performance cash bonuses (T&C Apply*).</span>
-              </li>
-              <li class="portal-feature-item">
-                <Icon name="clock" size={18} color="var(--color-primary-600)" />
-                <span><strong>Instant Bank Payout:</strong> Withdraw earnings directly to your bank account or UPI on demand.</span>
-              </li>
-              <li class="portal-feature-item">
-                <Icon name="shield-check" size={18} color="var(--color-primary-600)" />
-                <span><strong>Transparent Earnings:</strong> Retain your full trip earnings with clear account statements and zero hidden deductions.</span>
-              </li>
-            </ul>
+        <!-- Bottom Status Progression Pill -->
+        <div class="hero-status-progression">
+          <div class="prog-item">
+            <span class="prog-lbl">BOOK</span>
+            <span class="prog-val">Created</span>
           </div>
-          <div style="margin-top: 24px;">
-            <a href="/drivers" class="btn btn-primary" style="width: 100%; justify-content: center; min-height: 44px;">
-              Drive with AdhocX →
-            </a>
+          <span style="color: #CBD5E1;">—</span>
+          <div class="prog-item">
+            <span class="prog-lbl">TRACK</span>
+            <span class="prog-val" style="color: var(--color-primary-600);">Live</span>
+          </div>
+          <span style="color: #CBD5E1;">—</span>
+          <div class="prog-item">
+            <span class="prog-lbl">BILL</span>
+            <span class="prog-val" style="color: var(--color-success);">Verified</span>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- How It Works Section -->
-  <section class="section-padding" style="background: var(--color-surface-muted);" id="marketplace">
+
+  <!-- =========================================================================
+       SECTION 2: WHY ADHOCX (Reference: Screenshot 2)
+       "The difference shows up from day one"
+       ========================================================================= -->
+  <section class="why-adhocx-section" id="why-adhocx">
     <div class="container">
-      <div class="section-header" style="text-align: center;">
-        <span class="badge badge-primary">Operational Workflow</span>
-        <h2 class="h2-title">How the AdhocX Marketplace Operates</h2>
-        <p class="body-large" style="margin: 0 auto; max-width: 650px;">
-          Built from the ground up for predictable, automated B2B fleet logistics with zero phone-tag or unverified vehicles.
-        </p>
+      <!-- Badge -->
+      <div class="why-badge">
+        <span class="adhocx-hero-dot"></span>
+        <span>Why AdhocX</span>
       </div>
 
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-6);">
-        <div class="card" data-animate>
-          <div class="step-number">01</div>
-          <h3 class="h4-title" style="margin-bottom: 8px;">Corporate Demand Raised</h3>
-          <p class="body-text">
-            Enterprise clients request single or recurring 4-seater and 7-seater vehicles with pickup schedules and transparent contract terms.
-          </p>
-        </div>
+      <!-- Section Title -->
+      <h2 class="why-h2">
+        The difference shows up <span class="highlight-day">from day one</span>
+      </h2>
 
-        <div class="card" data-animate>
-          <div class="step-number">02</div>
-          <h3 class="h4-title" style="margin-bottom: 8px;">Automated Driver Assignment</h3>
-          <p class="body-text">
-            Our dispatch engine algorithmically pairs verified local commercial drivers swiftly with instant confirmation and real-time tracking.
-          </p>
-        </div>
-
-        <div class="card" data-animate>
-          <div class="step-number">03</div>
-          <h3 class="h4-title" style="margin-bottom: 8px;">Direct Bank Refund SLA</h3>
-          <p class="body-text">
-            Eligible refunds reach the vendor's bank account directly upon effective cancellation trigger via instant banking rails.
-          </p>
-        </div>
-      </div>
-
-      <div class="cta-actions" style="margin-top: var(--space-8); display: flex; justify-content: center; gap: 16px; flex-wrap: wrap;">
-        <a href="/vendors#corporate-form" class="btn btn-primary btn-large">
-          <Icon name="building" size={18} />
-          Source Corporate Fleet Now
-        </a>
-        <a href="/drivers" class="btn btn-secondary btn-large">
-          <Icon name="car" size={18} />
-          Drive with Us
-        </a>
-      </div>
-    </div>
-  </section>
-
-  <!-- Driver Bonus Teaser -->
-  <section class="section-padding">
-    <div class="container" style="max-width: 840px;">
-      <div class="card bonus-teaser-card" data-animate>
-        <div style="display: inline-flex; align-items: center; gap: 6px; margin-bottom: var(--space-3);" class="badge badge-primary">
-          <Icon name="sparkles" size={14} color="var(--color-primary-600)" />
-          Exclusive Driver Milestone Rewards
-        </div>
-        <h2 class="h2-title" style="margin-bottom: var(--space-3); color: var(--color-primary-900);">
-          Drive with AdhocX & Unlock Milestone Rewards
-        </h2>
-        <p class="body-large" style="max-width: 600px; margin: 0 auto var(--space-6);">
-          Special joining and performance incentive for verified commercial 4-seater and 7-seater drivers in Hyderabad. Complete your trip milestones and receive rewards credited directly to your bank account.
-        </p>
-
-        <div class="bonus-specs-grid">
-          <div class="bonus-spec-card">
-            <div class="text-caption">Reward Program</div>
-            <div class="bonus-spec-val" style="font-size: 1.15rem;">Milestone Bonus*</div>
-          </div>
-          <div class="bonus-spec-card">
-            <div class="text-caption">Payout Method</div>
-            <div class="bonus-spec-val" style="font-size: 1.15rem;">Direct Bank</div>
-          </div>
-          <div class="bonus-spec-card">
-            <div class="text-caption">Earnings Model</div>
-            <div class="bonus-spec-val" style="color: var(--color-success); font-size: 1.15rem;">Zero Deductions</div>
-          </div>
-          <div class="bonus-spec-card">
-            <div class="text-caption">Settlement SLA</div>
-            <div class="bonus-spec-val" style="font-size: 1.15rem;">Fast Payouts</div>
-          </div>
-        </div>
-
-        <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: var(--space-4);">
-          <a
-            href="https://play.google.com/store/apps/details?id=com.adhocx.app"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="btn btn-primary btn-large"
-            id="btn-playstore-driver-home"
-          >
-            <Icon name="download" size={18} />
-            Download Driver App on Google Play →
-          </a>
-          <a href="/drivers" class="btn btn-secondary btn-large">
-            <Icon name="car" size={18} />
-            Driver Details
-          </a>
-        </div>
-        <div style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: 12px;">
-          * Century Milestone Program. Commercial yellow-plate taxi drivers only. Terms and conditions apply.
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Interactive FAQ Accordion -->
-  <FaqAccordion
-    items={homeFaqs}
-    title="Frequently Asked Questions: B2B Commercial Mobility"
-    badge="Enterprise & Driver Help Desk"
-    description="Explore transparent answers on operational SLAs, 1-hour refund mechanisms, and commercial compliance in Hyderabad."
-    id="home-faqs"
-  />
-
-  <!-- Final CTA Section -->
-  <section class="cta-section">
-    <div class="container" style="position: relative; z-index: 1;">
-      <h2 class="h2-title" style="margin-bottom: var(--space-4);">Ready to Transform Your Transport Operations?</h2>
-      <p class="body-large" style="max-width: 580px; margin: 0 auto var(--space-8);">
-        Whether you are sourcing corporate fleets or looking to drive commercially — AdhocX provides guaranteed fulfillment and transparent payouts.
+      <!-- Lead Description -->
+      <p class="why-desc">
+        AdhocX does not replace the relationships that make transport work. It makes every booking, trip and payment visible.
       </p>
-      <div class="cta-actions" style="margin-top: 0;">
-        <a href="/vendors#corporate-form" class="btn btn-primary btn-large">
-          <Icon name="building" size={18} />
-          Source Corporate Fleet
-        </a>
-        <a href="/drivers" class="btn btn-secondary btn-large">
-          <Icon name="car" size={18} />
-          Drive with AdhocX
-        </a>
+
+      <!-- 3 Columns Comparison Grid with Top Blue Borders -->
+      <div class="why-grid">
+        <!-- Col 01 -->
+        <div class="why-card">
+          <div>
+            <div class="why-card-num">01</div>
+            <h3 class="why-card-title">Built for the corporate cab program — not retrofitted</h3>
+            <p class="why-card-desc">
+              Approvals, cost centres, GST e-invoicing, duty slips and HRMS sync are first-class — not bolted on top of a consumer ride app.
+            </p>
+          </div>
+          <div class="why-compare-pill">
+            <span class="dot"></span>
+            <span>vs. consumer ride apps</span>
+          </div>
+        </div>
+
+        <!-- Col 02 -->
+        <div class="why-card">
+          <div>
+            <div class="why-card-num">02</div>
+            <h3 class="why-card-title">Your vendors. Your SLAs. Our orchestration.</h3>
+            <p class="why-card-desc">
+              Keep the suppliers and rates you've already negotiated. AdhocX auto-allots, tracks SLA and consolidates billing across all of them.
+            </p>
+          </div>
+          <div class="why-compare-pill">
+            <span class="dot"></span>
+            <span>vs. single-vendor lock-in</span>
+          </div>
+        </div>
+
+        <!-- Col 03 -->
+        <div class="why-card">
+          <div>
+            <div class="why-card-num">03</div>
+            <h3 class="why-card-title">Audit-ready by default</h3>
+            <p class="why-card-desc">
+              Every invoice line is matched to GPS telemetry and a signed digital duty slip. Finance closes the month without reconciling spreadsheets.
+            </p>
+          </div>
+          <div class="why-compare-pill">
+            <span class="dot"></span>
+            <span>vs. manual spreadsheet reconciliation</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- =========================================================================
+       SECTION 3: GOVERNANCE & COMPLIANCE (Reference: Screenshot 3)
+       Dark Midnight Navy Card: Policy enforced at booking, not reconciled at month-end.
+       ========================================================================= -->
+  <section class="governance-section" id="governance">
+    <div class="container">
+      <div class="governance-dark-container">
+        <div class="governance-grid">
+          <!-- Left Column: Copy & Link -->
+          <div>
+            <span class="gov-tag">GOVERNANCE & COMPLIANCE</span>
+            <h2 class="gov-h2">
+              Policy enforced at booking, not reconciled at month-end.
+            </h2>
+            <p class="gov-p">
+              Out-of-policy fares, hotels and rides are blocked or routed for approval before a ticket is issued or a vehicle allocated. Every booking carries its cost centre, approver and GST details into your ERP.
+            </p>
+            <a href="/terms#compliance" class="gov-link">
+              <span>Read the security & compliance brief</span>
+              <span aria-hidden="true">→</span>
+            </a>
+          </div>
+
+          <!-- Right Column: 2x2 Grid with Distinct Color Badges -->
+          <div class="governance-tiles-grid">
+            <!-- Tile 01: Green Badge -->
+            <div class="gov-tile">
+              <span class="gov-badge gov-badge-green">01</span>
+              <h3 class="gov-tile-title">Pre-trip controls</h3>
+              <p class="gov-tile-desc">
+                Fare class, hotel caps, vehicle type and budget rules checked before booking.
+              </p>
+            </div>
+
+            <!-- Tile 02: Sky Blue Badge -->
+            <div class="gov-tile">
+              <span class="gov-badge gov-badge-cyan">02</span>
+              <h3 class="gov-tile-title">Safety compliance</h3>
+              <p class="gov-tile-desc">
+                Escort rules, driver vetting and night-shift protocols enforced automatically.
+              </p>
+            </div>
+
+            <!-- Tile 03: Amber Gold Badge -->
+            <div class="gov-tile">
+              <span class="gov-badge gov-badge-amber">03</span>
+              <h3 class="gov-tile-title">Audit trail</h3>
+              <p class="gov-tile-desc">
+                Every change, approval and cancellation timestamped and exportable.
+              </p>
+            </div>
+
+            <!-- Tile 04: Purple Badge -->
+            <div class="gov-tile">
+              <span class="gov-badge gov-badge-purple">04</span>
+              <h3 class="gov-tile-title">ERP sync</h3>
+              <p class="gov-tile-desc">
+                Cost centres, GST data and invoices flow into SAP, Oracle or Zoho.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- =========================================================================
+       SECTION 4: BUILT FOR EVERY STAKEHOLDER (Reference: Screenshot 4)
+       Interactive 5-Tab Console: Everyone who touches a trip gets their own view.
+       ========================================================================= -->
+  <section class="stakeholders-section" id="stakeholders">
+    <div class="container">
+      <span class="stakeholder-tag">BUILT FOR EVERY STAKEHOLDER</span>
+      <h2 class="stakeholder-h2">
+        Everyone who touches a trip gets their own view.
+      </h2>
+
+      <!-- 5-Tab Navigation Pill Bar -->
+      <div class="stakeholder-tabs-nav" role="tablist" aria-label="Stakeholder views">
+        <button type="button" class="stakeholder-tab-btn active" data-tab="panel-hr" role="tab" aria-selected="true" id="tab-hr">
+          HR & mobility
+        </button>
+        <button type="button" class="stakeholder-tab-btn" data-tab="panel-admin" role="tab" aria-selected="false" id="tab-admin">
+          Travel & admin desk
+        </button>
+        <button type="button" class="stakeholder-tab-btn" data-tab="panel-finance" role="tab" aria-selected="false" id="tab-finance">
+          Finance & CFO
+        </button>
+        <button type="button" class="stakeholder-tab-btn" data-tab="panel-vendors" role="tab" aria-selected="false" id="tab-vendors">
+          Vendor partners
+        </button>
+        <button type="button" class="stakeholder-tab-btn" data-tab="panel-ops" role="tab" aria-selected="false" id="tab-ops">
+          Mid-market ops
+        </button>
+      </div>
+
+      <!-- Tab Panels Container -->
+      <div class="stakeholder-panels-container">
+        <!-- 1. HR & Mobility (Active in Screenshot 4) -->
+        <div class="stakeholder-panel active" id="panel-hr" role="tabpanel" aria-labelledby="tab-hr">
+          <div class="panel-info-side">
+            <h3 class="panel-title">Employee transport without the spreadsheets.</h3>
+            <p class="panel-desc">
+              Rosters, shifts, shared routing and safety compliance run from one console across every city you operate in.
+            </p>
+            <div class="panel-bullets">
+              <div class="panel-bullet-item">
+                <span class="panel-marker-square"></span>
+                <span>Shift rosters and route optimisation</span>
+              </div>
+              <div class="panel-bullet-item">
+                <span class="panel-marker-square"></span>
+                <span>Female-safety and escort compliance rules</span>
+              </div>
+              <div class="panel-bullet-item">
+                <span class="panel-marker-square"></span>
+                <span>Self-serve booking in the AdhocX app</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Console Card Mockup (Exact Screenshot 4 Details) -->
+          <div class="console-card">
+            <div class="console-card-title">Shift roster — Hyderabad • Night</div>
+            
+            <div class="console-metrics-grid">
+              <div class="console-stat-box">
+                <div class="stat-val">46</div>
+                <div class="stat-lbl">On-duty vehicles</div>
+              </div>
+              <div class="console-stat-box">
+                <div class="stat-val">312</div>
+                <div class="stat-lbl">Employees routed</div>
+              </div>
+              <div class="console-stat-box">
+                <div class="stat-val">38m</div>
+                <div class="stat-lbl">Avg. ride time</div>
+              </div>
+              <div class="console-stat-box">
+                <div class="stat-val text-green">100%</div>
+                <div class="stat-lbl">Escort compliance</div>
+              </div>
+            </div>
+
+            <div class="console-divider"></div>
+
+            <div class="console-roster-list">
+              <div class="console-roster-row">
+                <div class="roster-left">
+                  <span>HTC-04 · HITEC City</span>
+                </div>
+                <div class="roster-mid">
+                  <span>21:30</span>
+                  <span>6 / 6</span>
+                  <span class="tag-dispatched">Dispatched</span>
+                </div>
+              </div>
+
+              <div class="console-roster-row">
+                <div class="roster-left">
+                  <span>GCB-11 · Gachibowli</span>
+                </div>
+                <div class="roster-mid">
+                  <span>22:00</span>
+                  <span>5 / 6</span>
+                  <span class="tag-boarding">Boarding</span>
+                </div>
+              </div>
+
+              <div class="console-roster-row">
+                <div class="roster-left">
+                  <span>FIN-02 · Financial District</span>
+                </div>
+                <div class="roster-mid">
+                  <span>22:00</span>
+                  <span>4 / 6</span>
+                  <span class="tag-escort">Escort assigned</span>
+                </div>
+              </div>
+
+              <div class="console-roster-row">
+                <div class="roster-left">
+                  <span>MDH-08 · Madhapur</span>
+                </div>
+                <div class="roster-mid">
+                  <span>22:30</span>
+                  <span>6 / 6</span>
+                  <span class="tag-scheduled">Scheduled</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Travel & Admin Desk -->
+        <div class="stakeholder-panel" id="panel-admin" role="tabpanel" aria-labelledby="tab-admin">
+          <div class="panel-info-side">
+            <h3 class="panel-title">Spot cabs & ad-hoc travel with instant fulfillment.</h3>
+            <p class="panel-desc">
+              Airport pickups, urgent executive hops, and outstation trips dispatched with commercial 4 & 7 seater cabs in under 90 seconds.
+            </p>
+            <div class="panel-bullets">
+              <div class="panel-bullet-item">
+                <span class="panel-marker-square"></span>
+                <span>Automated policy checks & instant approvals</span>
+              </div>
+              <div class="panel-bullet-item">
+                <span class="panel-marker-square"></span>
+                <span>Live driver telemetry & flight delay adjustments</span>
+              </div>
+              <div class="panel-bullet-item">
+                <span class="panel-marker-square"></span>
+                <span>Direct rate lock with zero surge pricing</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="console-card">
+            <div class="console-card-title">Travel desk — Spot dispatch & transfers</div>
+            <div class="console-metrics-grid">
+              <div class="console-stat-box">
+                <div class="stat-val">18</div>
+                <div class="stat-lbl">Active spot cabs</div>
+              </div>
+              <div class="console-stat-box">
+                <div class="stat-val">&lt; 90s</div>
+                <div class="stat-lbl">Avg. allocation</div>
+              </div>
+              <div class="console-stat-box">
+                <div class="stat-val" style="display: inline-flex; align-items: center; justify-content: center; gap: 3px;">
+                  4.9
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="#EE9811" stroke="none">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                  </svg>
+                </div>
+                <div class="stat-lbl">Driver rating</div>
+              </div>
+              <div class="console-stat-box">
+                <div class="stat-val text-green">99.8%</div>
+                <div class="stat-lbl">SLA adherence</div>
+              </div>
+            </div>
+            <div class="console-divider"></div>
+            <div class="console-roster-list">
+              <div class="console-roster-row">
+                <div class="roster-left"><span>BLR-T2 · Airport Spot</span></div>
+                <div class="roster-mid"><span>10:15</span><span>Innova Crysta</span><span class="tag-boarding">En Route</span></div>
+              </div>
+              <div class="console-roster-row">
+                <div class="roster-left"><span>ORR-07 · Client Transit</span></div>
+                <div class="roster-mid"><span>10:30</span><span>Swift Dzire</span><span class="tag-dispatched">Assigned</span></div>
+              </div>
+              <div class="console-roster-row">
+                <div class="roster-left"><span>MG-02 · Outstation Pune</span></div>
+                <div class="roster-mid"><span>11:00</span><span>Ertiga 7-Seat</span><span class="tag-dispatched">Confirmed</span></div>
+              </div>
+              <div class="console-roster-row">
+                <div class="roster-left"><span>EC-19 · Tech Park Spot</span></div>
+                <div class="roster-mid"><span>11:15</span><span>Executive Cab</span><span class="tag-scheduled">Scheduled</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Finance & CFO -->
+        <div class="stakeholder-panel" id="panel-finance" role="tabpanel" aria-labelledby="tab-finance">
+          <div class="panel-info-side">
+            <h3 class="panel-title">Automated audit & GST e-invoicing without spreadsheets.</h3>
+            <p class="panel-desc">
+              Match every ride to driver GPS telemetry, signed digital duty slips, and your ERP cost centres without manual reconciliation.
+            </p>
+            <div class="panel-bullets">
+              <div class="panel-bullet-item">
+                <span class="panel-marker-square"></span>
+                <span>100% telemetry-backed duty slips</span>
+              </div>
+              <div class="panel-bullet-item">
+                <span class="panel-marker-square"></span>
+                <span>Real-time GST compliant invoice generation</span>
+              </div>
+              <div class="panel-bullet-item">
+                <span class="panel-marker-square"></span>
+                <span>Zero unauthorized ride expense leakages</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="console-card">
+            <div class="console-card-title">Billing & reconciliation — Live Month</div>
+            <div class="console-metrics-grid">
+              <div class="console-stat-box">
+                <div class="stat-val">₹42.8L</div>
+                <div class="stat-lbl">Monthly billing</div>
+              </div>
+              <div class="console-stat-box">
+                <div class="stat-val text-green">100%</div>
+                <div class="stat-lbl">Duty slip matched</div>
+              </div>
+              <div class="console-stat-box">
+                <div class="stat-val text-amber">₹6.4L</div>
+                <div class="stat-lbl">Policy savings</div>
+              </div>
+              <div class="console-stat-box">
+                <div class="stat-val text-green">0</div>
+                <div class="stat-lbl">Disputed invoices</div>
+              </div>
+            </div>
+            <div class="console-divider"></div>
+            <div class="console-roster-list">
+              <div class="console-roster-row">
+                <div class="roster-left"><span>INV-9021 · HITEC City ETS</span></div>
+                <div class="roster-mid"><span>₹14.2L</span><span>SAP Synced</span><span class="tag-dispatched">Reconciled</span></div>
+              </div>
+              <div class="console-roster-row">
+                <div class="roster-left"><span>INV-9022 · Airport Transfers</span></div>
+                <div class="roster-mid"><span>₹8.6L</span><span>Oracle Synced</span><span class="tag-boarding">Verified</span></div>
+              </div>
+              <div class="console-roster-row">
+                <div class="roster-left"><span>INV-9023 · Executive Transit</span></div>
+                <div class="roster-mid"><span>₹11.1L</span><span>Zoho Synced</span><span class="tag-dispatched">Reconciled</span></div>
+              </div>
+              <div class="console-roster-row">
+                <div class="roster-left"><span>INV-9024 · Spot Fleets</span></div>
+                <div class="roster-mid"><span>₹8.9L</span><span>GPS Matched</span><span class="tag-scheduled">Audit Ready</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Vendor Partners -->
+        <div class="stakeholder-panel" id="panel-vendors" role="tabpanel" aria-labelledby="tab-vendors">
+          <div class="panel-info-side">
+            <h3 class="panel-title">Empower your existing suppliers with unified dispatch.</h3>
+            <p class="panel-desc">
+              Keep the fleet operators you trust. AdhocX provides them the technology to run trips, track drivers, and receive fast payouts.
+            </p>
+            <div class="panel-bullets">
+              <div class="panel-bullet-item">
+                <span class="panel-marker-square"></span>
+                <span>Auto-allocation by performance & driver SLA</span>
+              </div>
+              <div class="panel-bullet-item">
+                <span class="panel-marker-square"></span>
+                <span>100% yellow-plate commercial fleet verification</span>
+              </div>
+              <div class="panel-bullet-item">
+                <span class="panel-marker-square"></span>
+                <span>1-hour fast withdrawal & direct bank settlement</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="console-card">
+            <div class="console-card-title">Vendor partner fleet status — Regional Fleets</div>
+            <div class="console-metrics-grid">
+              <div class="console-stat-box">
+                <div class="stat-val">142</div>
+                <div class="stat-lbl">Fleet cabs deployed</div>
+              </div>
+              <div class="console-stat-box">
+                <div class="stat-val text-green">99.2%</div>
+                <div class="stat-lbl">Fulfillment SLA</div>
+              </div>
+              <div class="console-stat-box">
+                <div class="stat-val text-amber">₹2.1L</div>
+                <div class="stat-lbl">Daily driver payout</div>
+              </div>
+              <div class="console-stat-box">
+                <div class="stat-val">1 hr</div>
+                <div class="stat-lbl">Settlement speed</div>
+              </div>
+            </div>
+            <div class="console-divider"></div>
+            <div class="console-roster-list">
+              <div class="console-roster-row">
+                <div class="roster-left"><span>VND-01 · Hyderabad Fleet Desk</span></div>
+                <div class="roster-mid"><span>48 Cabs</span><span>99.6% SLA</span><span class="tag-dispatched">Top Tier</span></div>
+              </div>
+              <div class="console-roster-row">
+                <div class="roster-left"><span>VND-03 · Telangana Commercial</span></div>
+                <div class="roster-mid"><span>36 Cabs</span><span>98.9% SLA</span><span class="tag-boarding">Active</span></div>
+              </div>
+              <div class="console-roster-row">
+                <div class="roster-left"><span>VND-07 · Metro Fleet Hub</span></div>
+                <div class="roster-mid"><span>32 Cabs</span><span>99.1% SLA</span><span class="tag-dispatched">Active</span></div>
+              </div>
+              <div class="console-roster-row">
+                <div class="roster-left"><span>VND-12 · Deccan Commercial Cabs</span></div>
+                <div class="roster-mid"><span>26 Cabs</span><span>98.5% SLA</span><span class="tag-scheduled">Verified</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. Mid-Market Ops -->
+        <div class="stakeholder-panel" id="panel-ops" role="tabpanel" aria-labelledby="tab-ops">
+          <div class="panel-info-side">
+            <h3 class="panel-title">Fast multi-city rollout in days, not months.</h3>
+            <p class="panel-desc">
+              Launch transport operations for branch offices across regional tech hubs without installing complex on-premise software.
+            </p>
+            <div class="panel-bullets">
+              <div class="panel-bullet-item">
+                <span class="panel-marker-square"></span>
+                <span>Zero setup fee with pay-as-you-go commercial cabs</span>
+              </div>
+              <div class="panel-bullet-item">
+                <span class="panel-marker-square"></span>
+                <span>Out-of-the-box Telangana RTO commercial compliance</span>
+              </div>
+              <div class="panel-bullet-item">
+                <span class="panel-marker-square"></span>
+                <span>24/7 centralized operations & SOS command desk</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="console-card">
+            <div class="console-card-title">Multi-site operations — Hub summary</div>
+            <div class="console-metrics-grid">
+              <div class="console-stat-box">
+                <div class="stat-val">4</div>
+                <div class="stat-lbl">Active tech hubs</div>
+              </div>
+              <div class="console-stat-box">
+                <div class="stat-val">1,280</div>
+                <div class="stat-lbl">Monthly commuters</div>
+              </div>
+              <div class="console-stat-box">
+                <div class="stat-val text-green">100%</div>
+                <div class="stat-lbl">SOS coverage</div>
+              </div>
+              <div class="console-stat-box">
+                <div class="stat-val">98.7%</div>
+                <div class="stat-lbl">On-time arrival</div>
+              </div>
+            </div>
+            <div class="console-divider"></div>
+            <div class="console-roster-list">
+              <div class="console-roster-row">
+                <div class="roster-left"><span>Hyderabad · HITEC City Hub</span></div>
+                <div class="roster-mid"><span>64 Cabs</span><span>Live</span><span class="tag-dispatched">Optimized</span></div>
+              </div>
+              <div class="console-roster-row">
+                <div class="roster-left"><span>Hyderabad · Gachibowli Tech Park</span></div>
+                <div class="roster-mid"><span>42 Cabs</span><span>Live</span><span class="tag-dispatched">Optimized</span></div>
+              </div>
+              <div class="console-roster-row">
+                <div class="roster-left"><span>Hyderabad · Financial District Hub</span></div>
+                <div class="roster-mid"><span>28 Cabs</span><span>Live</span><span class="tag-boarding">Live</span></div>
+              </div>
+              <div class="console-roster-row">
+                <div class="roster-left"><span>Warangal · Regional Tech Hub</span></div>
+                <div class="roster-mid"><span>14 Cabs</span><span>Live</span><span class="tag-scheduled">Live</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       SECTION 5: ADHOCX EMPLOYEE APP (Reference: Screenshot 2)
+       "Travel, simplified — in every employee's pocket."
+       ========================================================================= -->
+  <section class="adhocx-app-section" id="employee-app">
+    <div class="container adhocx-app-grid">
+      <!-- Left Column: Copy & App Download Actions -->
+      <div class="app-left-content">
+        <span class="app-tag-badge">● AdhocX APP</span>
+        <h2 class="app-h2">
+          Travel, simplified — in every employee's pocket.
+        </h2>
+        <p class="app-desc">
+          Book cabs, confirm rosters, track rides live and raise SOS from one app. Flights, hotels and employee transport under one roof.
+        </p>
+
+        <!-- Google Play Store -->
+        <div class="app-download-badges">
+          <a href="/drivers#download-android" class="app-badge-btn" aria-label="Get AdhocX on Google Play">
+            <span class="app-badge-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <path d="M3.6 2.5a1.2 1.2 0 0 0-.6 1.1v16.8a1.2 1.2 0 0 0 .6 1.1l9.5-9.5L3.6 2.5z" fill="#00C1DE"/>
+                <path d="M16.7 15.6l-3.6-3.6-9.5 9.5a1.1 1.1 0 0 0 1.4.1l11.7-6z" fill="#FF3A44"/>
+                <path d="M16.7 8.4L5 2.4a1.1 1.1 0 0 0-1.4.1l9.5 9.5 3.6-3.6z" fill="#00E676"/>
+                <path d="M20.8 10.7l-4.1-2.3-3.6 3.6 3.6 3.6 4.1-2.3c1.2-.7 1.2-1.9 0-2.6z" fill="#FFD000"/>
+              </svg>
+            </span>
+            <span class="app-badge-text">
+              <span class="app-badge-subtitle">GET IT ON</span>
+              <span class="app-badge-title">Google Play</span>
+            </span>
+          </a>
+        </div>
+
+        <!-- Trust Badges & Compliance Indicators -->
+        <div class="app-trust-pills">
+          <div class="app-trust-pill">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span>100% Yellow-Plate Commercial Cabs</span>
+          </div>
+          <div class="app-trust-pill">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-base)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span>24/7 SOS & Live Telemetry</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Modern SaaS Mobile App Illustration (Matches Screenshot 2) -->
+      <div class="app-mockup-wrapper">
+        <div class="app-illustration-frame">
+          <img
+            id="employee-app-main-img"
+            src="/employee-app-illustration.jpg"
+            alt="AdhocX Employee Transport Mobile App"
+            class="app-illustration-img"
+            width="540"
+            height="460"
+            loading="lazy"
+            decoding="async"
+          />
+
+          <!-- Interactive View Toggle -->
+          <div class="app-variant-toggle" role="group" aria-label="App illustration view">
+            <button
+              type="button"
+              class="app-toggle-btn active"
+              id="btn-view-app"
+              data-src="/employee-app-illustration.jpg"
+              aria-pressed="true"
+            >
+              App Experience
+            </button>
+            <button
+              type="button"
+              class="app-toggle-btn"
+              id="btn-view-3d"
+              data-src="/employee-app-variant.jpg"
+              aria-pressed="false"
+            >
+              Corridor Telemetry
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </section>
 </BaseLayout>
 
-<style>
-  .direct-answer-banner {
-    background: var(--color-surface);
-    border-left: 4px solid var(--color-primary-600);
-    padding: var(--space-4) var(--space-5);
-    border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
-    margin-bottom: var(--space-6);
-    box-shadow: var(--shadow-sm);
-  }
+<script>
+  // Interactive App Illustration Variant Toggle
+  const appImg = document.getElementById('employee-app-main-img') as HTMLImageElement | null;
+  const toggleBtns = document.querySelectorAll<HTMLButtonElement>('.app-toggle-btn');
 
-  /* Hero Visual Card & Fleet Showcase */
-  .hero-visual-card {
-    background: var(--color-surface, #ffffff);
-    border: 1px solid rgba(90, 48, 176, 0.22);
-    border-radius: 20px;
-    box-shadow: 0 20px 40px -10px rgba(90, 48, 176, 0.18), 0 1px 3px rgba(0, 0, 0, 0.05);
-    position: relative;
-    overflow: hidden;
-    transition: transform var(--transition-base), box-shadow var(--transition-base);
-  }
+  toggleBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const newSrc = btn.getAttribute('data-src');
+      if (appImg && newSrc) {
+        appImg.src = newSrc;
+        toggleBtns.forEach((b) => {
+          b.classList.remove('active');
+          b.setAttribute('aria-pressed', 'false');
+        });
+        btn.classList.add('active');
+        btn.setAttribute('aria-pressed', 'true');
+      }
+    });
+  });
 
-  .hero-visual-card:hover {
-    box-shadow: 0 25px 50px -10px rgba(90, 48, 176, 0.25), 0 0 0 1px rgba(90, 48, 176, 0.3);
-  }
+  // Interactive Stakeholder Tab Switcher
+  const tabButtons = document.querySelectorAll<HTMLButtonElement>('.stakeholder-tab-btn');
+  const tabPanels = document.querySelectorAll<HTMLElement>('.stakeholder-panel');
 
-  .card-accent-strip {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: var(--color-primary-gradient);
-    z-index: 3;
-  }
+  tabButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const targetId = btn.getAttribute('data-tab');
 
-  .fleet-image-frame {
-    position: relative;
-    width: 100%;
-    height: 290px;
-    overflow: hidden;
-    background: #1B0E38;
-  }
+      // Update button active state & accessibility
+      tabButtons.forEach((b) => {
+        b.classList.remove('active');
+        b.setAttribute('aria-selected', 'false');
+      });
+      btn.classList.add('active');
+      btn.setAttribute('aria-selected', 'true');
 
-  .fleet-hero-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center bottom;
-    display: block;
-    transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  .hero-visual-card:hover .fleet-hero-img {
-    transform: scale(1.03);
-  }
-
-  .fleet-image-gradient {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-      180deg,
-      rgba(27, 14, 56, 0.7) 0%,
-      rgba(27, 14, 56, 0.05) 45%,
-      rgba(27, 14, 56, 0.88) 100%
-    );
-    pointer-events: none;
-  }
-
-  .fleet-top-pills {
-    position: absolute;
-    top: 14px;
-    left: 14px;
-    right: 14px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-    z-index: 2;
-    flex-wrap: wrap;
-  }
-
-  .glass-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-  }
-
-  .live-pill {
-    background: rgba(27, 14, 56, 0.8);
-    color: #4ADE80;
-  }
-
-  .verified-pill {
-    background: rgba(27, 14, 56, 0.8);
-    color: #F8FAFC;
-  }
-
-  .pulse-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #22C55E;
-    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
-    animation: pulse-green 2s infinite;
-  }
-
-  @keyframes pulse-green {
-    0% {
-      transform: scale(0.95);
-      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
-    }
-    70% {
-      transform: scale(1);
-      box-shadow: 0 0 0 6px rgba(34, 197, 94, 0);
-    }
-    100% {
-      transform: scale(0.95);
-      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
-    }
-  }
-
-  .fleet-floating-info {
-    position: absolute;
-    bottom: 12px;
-    left: 14px;
-    right: 14px;
-    z-index: 2;
-  }
-
-  .fleet-tagline-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 6px;
-  }
-
-  .fleet-tagline-title {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: #FFFFFF;
-    font-size: 0.8125rem;
-    font-weight: 700;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
-  }
-
-  .fleet-city-tag {
-    background: rgba(177, 149, 250, 0.25);
-    color: #E9D5FF;
-    border: 1px solid rgba(177, 149, 250, 0.4);
-    font-size: 0.6875rem;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 9999px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .fleet-types-chips {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-  }
-
-  .chip-item {
-    background: rgba(27, 14, 56, 0.8);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    color: #E2E8F0;
-    font-size: 0.72rem;
-    padding: 4px 10px;
-    border-radius: 6px;
-    line-height: 1.3;
-  }
-
-  .chip-item strong {
-    color: #FFFFFF;
-  }
-
-  .fleet-card-body {
-    padding: 18px 20px 20px 20px;
-  }
-
-  .fleet-stats-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    background: var(--color-surface-muted, #F8FAFC);
-    border: 1px solid var(--color-border, #E2E8F0);
-    border-radius: var(--radius-lg, 12px);
-    padding: 12px 14px;
-    margin-bottom: 16px;
-  }
-
-  .fleet-stat-box .text-caption {
-    font-size: 0.7rem;
-    color: var(--color-text-muted);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    display: block;
-    margin-bottom: 2px;
-  }
-
-  .fleet-stat-box .stat-highlight {
-    font-size: 0.875rem;
-    font-weight: 700;
-    color: var(--color-primary-700, #5A30B0);
-    line-height: 1.25;
-  }
-
-  .card-actions-row {
-    display: flex;
-    gap: 12px;
-  }
-
-  @media (max-width: 640px) {
-    .fleet-image-frame {
-      height: 230px;
-    }
-
-    .fleet-top-pills {
-      top: 10px;
-      left: 10px;
-      right: 10px;
-      gap: 6px;
-    }
-
-    .glass-pill {
-      font-size: 0.6875rem;
-      padding: 4px 8px;
-    }
-
-    .fleet-floating-info {
-      bottom: 8px;
-      left: 10px;
-      right: 10px;
-    }
-
-    .chip-item {
-      font-size: 0.65rem;
-      padding: 3px 6px;
-    }
-
-    .fleet-card-body {
-      padding: 14px 14px 16px 14px;
-    }
-
-    .fleet-stats-grid {
-      grid-template-columns: 1fr;
-      gap: 8px;
-      padding: 10px 12px;
-    }
-
-    .card-actions-row {
-      flex-direction: column;
-      gap: 8px;
-    }
-  }
-
-  .bonus-teaser-card {
-    border: 2px solid var(--color-primary-500);
-    padding: var(--space-8);
-    text-align: center;
-    box-shadow: var(--shadow-xl);
-    background: #FFFFFF;
-  }
-
-  .bonus-specs-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-    gap: var(--space-4);
-    margin-bottom: var(--space-6);
-  }
-
-  .bonus-spec-card {
-    background: var(--color-surface-muted);
-    padding: var(--space-4);
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--color-border);
-  }
-
-  .bonus-spec-val {
-    font-size: 1.25rem;
-    font-weight: 800;
-    color: var(--color-primary-600);
-    margin-top: 4px;
-  }
-</style>
+      // Update panel visibility
+      tabPanels.forEach((panel) => {
+        if (panel.id === targetId) {
+          panel.classList.add('active');
+        } else {
+          panel.classList.remove('active');
+        }
+      });
+    });
+  });
+</script>

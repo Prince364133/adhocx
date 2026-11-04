@@ -1,0 +1,1 @@
+import"./hoisted.DDMNYWWu.js";function a(){document.querySelectorAll("[data-faq-item]").forEach(t=>{const e=t.querySelector(".faq-trigger"),r=t.querySelector(".faq-content");!e||!r||e.addEventListener("click",()=>{const n=e.getAttribute("aria-expanded")==="true";e.setAttribute("aria-expanded",String(!n)),r.hidden=n})})}a();document.addEventListener("astro:page-load",a);

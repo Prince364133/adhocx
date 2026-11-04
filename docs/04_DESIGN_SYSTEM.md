@@ -1,4 +1,4 @@
-﻿# 04 — DESIGN SYSTEM
+# 04 — DESIGN SYSTEM
 
 **Product:** AdhocX
 **Document:** Design System
@@ -161,41 +161,82 @@ All colors must be defined as centralized design tokens.
 
 Components must never randomly introduce custom colors.
 
+AdhocX visual architecture is anchored by a high-clarity dual-palette:
+* **Primary Brand Action Blue (`#1167EE`)**: Commands interactive authority, high reliability, primary CTAs, and enterprise fulfillment status.
+* **Warm Amber Gold Accent (`#EE9811`)**: High-visibility highlight, driver bonus programs, partner incentives, and operational alerts.
+* **Midnight Navy & Crisp Slate Neutrals (`#010D2D` to `#191B1C`)**: Enterprise-grade contrast, low eye fatigue, and professional logistics telemetry.
+* **Regional Scenario Governance**: Built for high-volume commercial transport operations across Telangana (Hyderabad tech corridors: HITEC City, Gachibowli, Financial District, Madhapur) and regional hubs, strictly enforcing 100% yellow-plate commercial compliance.
+
 ---
 
-## 6.1 Primary
+## 6.1 Primary Brand Action (Blue Scale)
 
-| Token       | Hex       | Usage                     |
-| ----------- | --------- | ------------------------- |
-| Primary 900 | `#0B1220` | deepest brand/dark UI     |
-| Primary 800 | `#111827` | strong dark surfaces      |
-| Primary 700 | `#1E293B` | dark UI elements          |
-| Primary 600 | `#2563EB` | primary actions           |
-| Primary 500 | `#3B82F6` | interactive/highlight     |
-| Primary 400 | `#60A5FA` | lighter interactive state |
+| Token       | Hex       | Usage                                |
+| ----------- | --------- | ------------------------------------ |
+| Blue 900    | `#010D2D` | deepest midnight navy / dark UI      |
+| Blue 800    | `#032969` | dark UI cards / strong dark surfaces |
+| Blue 700    | `#0948AC` | hover state for primary buttons      |
+| Blue 500    | `#1167EE` | **Primary Brand Action Blue / CTAs** |
+| Blue 400    | `#5290F9` | lighter interactive state / accent   |
+| Blue 200    | `#91B9FB` | soft interactive border / active tag |
+| Blue 50     | `#CEE0FD` | subtle blue surface / info pill bg   |
 
 Primary action color:
 
 ```text
-#2563EB
+#1167EE
+```
+
+Primary gradient:
+
+```text
+linear-gradient(135deg, #1167EE 0%, #0948AC 100%)
+```
+
+---
+
+## 6.2 Brand Warm Accent (Amber Gold Scale)
+
+| Token       | Hex       | Usage                                |
+| ----------- | --------- | ------------------------------------ |
+| Amber 900   | `#351E01` | deepest bronze brown                 |
+| Amber 800   | `#613B03` | rich bronze brown border / shadow    |
+| Amber 700   | `#915B06` | deep gold brown text on light bg     |
+| Amber 600   | `#C17A0B` | dark amber hover state               |
+| Amber 500   | `#EE9811` | **Primary Amber Gold Brand Accent**  |
+| Amber 200   | `#FEC98E` | light amber tint / promo border      |
+| Amber 50    | `#FFFBF7` | warm light surface / highlight fill  |
+
+Warm Accent action color:
+
+```text
+#EE9811
+```
+
+Warm Accent gradient:
+
+```text
+linear-gradient(135deg, #EE9811 0%, #C17A0B 100%)
 ```
 
 ---
 
 # 7. Neutral Colors
 
-| Token          | Hex       | Usage                  |
-| -------------- | --------- | ---------------------- |
-| Background     | `#F8FAFC` | application background |
-| Surface        | `#FFFFFF` | cards/panels           |
-| Surface Muted  | `#F1F5F9` | secondary surfaces     |
-| Border         | `#E2E8F0` | default borders        |
-| Border Strong  | `#CBD5E1` | emphasized borders     |
-| Text Primary   | `#0F172A` | primary text           |
-| Text Secondary | `#475569` | supporting text        |
-| Text Muted     | `#94A3B8` | low-emphasis text      |
+| Token          | Hex       | Usage                            |
+| -------------- | --------- | -------------------------------- |
+| Background     | `#EDEFF0` | application / page background    |
+| Surface        | `#FFFFFF` | cards / panels / light surface   |
+| Surface Warm   | `#FFFBF7` | warm promo panels / alerts       |
+| Surface Muted  | `#EDEFF0` | secondary surfaces / muted areas |
+| Border         | `#C2C9CC` | default crisp borders            |
+| Border Strong  | `#9BA3A8` | emphasized borders / dividers    |
+| Text Primary   | `#191B1C` | primary text (high contrast)     |
+| Text Secondary | `#595F61` | supporting descriptive text      |
+| Text Muted     | `#94A3B8` | low-emphasis metadata text       |
+| Text Inverse   | `#FFFFFF` | text on dark surfaces            |
 
-Do not use pure black for normal text.
+Do not use pure `#000000` for normal text.
 
 ---
 
@@ -205,12 +246,13 @@ Do not use pure black for normal text.
 
 ```text
 Success: #16A34A
+Success Bg: #DCFCE7
 ```
 
 Used for:
 
 * completed
-* verified
+* verified commercial yellow-plate badge
 * active success states
 * successful payments
 * successful assignments
@@ -220,15 +262,16 @@ Used for:
 ## Warning
 
 ```text
-Warning: #D97706
+Warning: #EE9811
+Warning Bg: #FFFBF7
 ```
 
 Used for:
 
-* pending
-* approaching expiry
+* pending driver assignment
+* approaching 15-minute cutoff
 * attention required
-* delayed operational state
+* delayed operational telemetry
 
 ---
 
@@ -236,13 +279,14 @@ Used for:
 
 ```text
 Error: #DC2626
+Error Bg: #FEE2E2
 ```
 
 Used for:
 
 * failures
-* rejected
-* cancelled
+* rejected KYC / vehicle fitness
+* cancelled bookings
 * destructive actions
 * validation errors
 
@@ -251,14 +295,15 @@ Used for:
 ## Info
 
 ```text
-Info: #0284C7
+Info: #1167EE
+Info Bg: #CEE0FD
 ```
 
 Used for:
 
 * informational messages
 * neutral operational updates
-* contextual information
+* contextual marketplace announcements
 
 ---
 
@@ -453,13 +498,13 @@ Borders should often provide enough separation without shadows.
 Default border:
 
 ```text
-1px solid #E2E8F0
+1px solid #C2C9CC
 ```
 
 Strong border:
 
 ```text
-1px solid #CBD5E1
+1px solid #9BA3A8
 ```
 
 Borders should be:

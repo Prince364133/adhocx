@@ -1,202 +1,99 @@
 ---
-import Icon from './Icon.astro';
+// AdhocX Enterprise Footer (Play Store aligned)
 ---
 
-<footer class="footer-dark" id="site-footer">
+<footer class="footer-enterprise-ref" id="site-footer">
   <div class="container">
-    <div class="footer-grid">
-      <div class="footer-brand">
-        <a href="/" class="brand-logo" aria-label="AdhocX Home">
-          <span class="logo-text" style="color: #FFFFFF; font-weight: 800; font-size: 1.5rem;">Adhoc<span class="logo-accent" style="color: var(--color-primary-400);">X</span></span>
+    <div class="footer-ref-grid">
+      <!-- Col 1: Brand, Tagline, App Downloads & Certificate Badges -->
+      <div class="footer-ref-brand">
+        <a href="/" class="brand-logo" id="footer-brand-logo" aria-label="AdhocX Home">
+          <span class="logo-text" style="font-size: 1.75rem;">Adhoc<span class="logo-accent">X</span></span>
         </a>
-        <p style="color: #CBD5E1; margin-top: 14px; font-size: 0.9rem; line-height: 1.6; max-width: 380px;">
-          <strong>Estemporaneo Technologies Private Limited</strong> operates India's automated B2B commercial transport fulfillment marketplace. Sourcing verified yellow-plate 4-seater and 7-seater cabs for enterprise mobility desks and commercial fleet operators.
+
+        <p class="footer-brand-desc">
+          Corporate mobility, employee transportation and travel management for enterprises across India.
         </p>
-        <div class="footer-geo-tags" style="margin-top: 16px; display: flex; flex-wrap: wrap; gap: 6px;">
-          <span class="geo-tag"><Icon name="map-pin" size={12} color="#B195FA" /> Hyderabad (HQ)</span>
-          <span class="geo-tag">HITEC City</span>
-          <span class="geo-tag">Financial District</span>
-          <span class="geo-tag">Gachibowli</span>
-          <span class="geo-tag">RGIA Shamshabad</span>
+
+        <!-- Google Play Store Button -->
+        <div class="app-download-badges">
+          <a href="/drivers#download-android" class="app-badge-btn" aria-label="Get AdhocX on Google Play">
+            <span class="app-badge-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <path d="M3.6 2.5a1.2 1.2 0 0 0-.6 1.1v16.8a1.2 1.2 0 0 0 .6 1.1l9.5-9.5L3.6 2.5z" fill="#00C1DE"/>
+                <path d="M16.7 15.6l-3.6-3.6-9.5 9.5a1.1 1.1 0 0 0 1.4.1l11.7-6z" fill="#FF3A44"/>
+                <path d="M16.7 8.4L5 2.4a1.1 1.1 0 0 0-1.4.1l9.5 9.5 3.6-3.6z" fill="#00E676"/>
+                <path d="M20.8 10.7l-4.1-2.3-3.6 3.6 3.6 3.6 4.1-2.3c1.2-.7 1.2-1.9 0-2.6z" fill="#FFD000"/>
+              </svg>
+            </span>
+            <span class="app-badge-text">
+              <span class="app-badge-subtitle">GET IT ON</span>
+              <span class="app-badge-title">Google Play</span>
+            </span>
+          </a>
         </div>
       </div>
 
+      <!-- Col 2: Platform Links -->
       <div>
-        <div class="footer-title">Enterprise Solutions</div>
-        <ul class="footer-links">
-          <li><a href="/vendors">Corporate Transport Desks</a></li>
-          <li><a href="/vendors#corporate-form">Corporate Access RFP</a></li>
-          <li><a href="/vendors#fleet-overview">4 & 7 Seater Commercial Fleets</a></li>
-          <li><a href="/#marketplace">Algorithmic Dispatch Engine</a></li>
-          <li><a href="/terms#refunds">1-Hour Bank Refund SLA</a></li>
-          <li><a href="/blogs">Enterprise Mobility Insights</a></li>
-        </ul>
+        <div class="footer-ref-col-title">PLATFORM</div>
+        <div class="footer-ref-links">
+          <a href="/vendors#corporate-form">Corporate Travel</a>
+          <a href="/ets">Employee Transport Software</a>
+          <a href="/#city-status">By city</a>
+          <a href="/vendors#unified">Travel + Transport in one</a>
+          <a href="/vendors">Managed Transport</a>
+          <a href="/drivers">Vendor & Fleet Management</a>
+        </div>
       </div>
 
+      <!-- Col 3: Solutions Links -->
       <div>
-        <div class="footer-title">Commercial Drivers</div>
-        <ul class="footer-links">
-          <li><a href="/drivers">Commercial Driver Hub</a></li>
-          <li><a href="/drivers#bonus">Century Milestone Rewards*</a></li>
-          <li><a href="/drivers#calculator">Driver App & Vehicle Guide</a></li>
-          <li><a href="/drivers#onboarding">Document Verification Checklist</a></li>
-          <li><a href="/drivers#faq">Driver Payout FAQ</a></li>
-        </ul>
+        <div class="footer-ref-col-title">SOLUTIONS</div>
+        <div class="footer-ref-links">
+          <a href="/ets#hr-mobility">HR & mobility</a>
+          <a href="/pricing#reconciliation">Finance & CFO</a>
+          <a href="/ets#admin-portal">Transport admin</a>
+          <a href="/vendors#outcome-ops">Mid-market ops</a>
+        </div>
       </div>
 
+      <!-- Col 4: Company Links -->
       <div>
-        <div class="footer-title">Governance & Compliance</div>
-        <ul class="footer-links">
-          <li><a href="/terms">Terms of Service & SLAs</a></li>
-          <li><a href="/privacy">Privacy & Data Protection</a></li>
-          <li><a href="/privacy#contact">Grievance Officer</a></li>
-          <li><a href="/terms#compliance">Commercial RTO Yellow-Board Rules</a></li>
-          <li><a href="/delete-account">Account Deletion Request</a></li>
-        </ul>
+        <div class="footer-ref-col-title">COMPANY</div>
+        <div class="footer-ref-links">
+          <a href="/about">About us</a>
+          <a href="/vendors#customer-stories">Customers</a>
+          <a href="/drivers">Careers</a>
+          <a href="/contact">Contact</a>
+        </div>
+      </div>
+
+      <!-- Col 5: Resources Links -->
+      <div>
+        <div class="footer-ref-col-title">RESOURCES</div>
+        <div class="footer-ref-links">
+          <a href="/blogs">Blog & research</a>
+          <a href="/faq">Enterprise FAQ</a>
+          <a href="/vendors#calculator">Cost calculator</a>
+          <a href="/blogs#resources">Resources</a>
+          <a href="/blogs#glossary">Glossary</a>
+          <a href="/vendors#compare">Compare AdhocX</a>
+          <a href="/pricing">Pricing</a>
+          <a href="/safety">Security & Safety</a>
+          <a href="/privacy">Privacy Policy</a>
+        </div>
       </div>
     </div>
 
-    <div class="footer-compliance-row">
-      <div class="compliance-badge">
-        <Icon name="shield-check" size={16} color="#16A34A" />
-        <span>Commercial Yellow-Plate Vehicles (Dzire, Etios, Ertiga, Innova Crysta)</span>
-      </div>
-      <div class="compliance-badge">
-        <Icon name="clock" size={16} color="#60A5FA" />
-        <span>Allocation SLA • Fast Direct Bank Payout Rails</span>
-      </div>
-    </div>
-
-    <div class="footer-bottom">
+    <!-- Bottom Legal & Corridor Bar -->
+    <div class="footer-bottom-bar">
       <div>
-        © 2026 Estemporaneo Technologies Private Limited. All rights reserved. Registered under Companies Act, India.
+        © 2026 Estemporaneo Technologies Private Limited (AdhocX). All rights reserved.
       </div>
-      <div class="footer-contacts">
-        <span>Support: <a href="mailto:support@adhocx.com" style="color: #B195FA; font-weight: 600;">support@adhocx.com</a></span>
-        <span class="sep">•</span>
-        <span>Corporate Desk: <strong>+91 7893545818</strong></span>
+      <div>
+        Telangana (Hyderabad Corridors: HITEC City, Gachibowli, Financial District) • Regional Commercial Network
       </div>
     </div>
   </div>
 </footer>
-
-<style>
-  .footer-dark {
-    background: #1B0E38;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 60px 0 30px 0;
-    color: #CBD5E1;
-  }
-
-  .footer-grid {
-    display: grid;
-    grid-template-columns: 2fr 1fr 1fr 1fr;
-    gap: 40px;
-    margin-bottom: 32px;
-  }
-
-  @media (max-width: 900px) {
-    .footer-grid {
-      grid-template-columns: 1fr 1fr;
-      gap: 32px;
-    }
-  }
-
-  @media (max-width: 600px) {
-    .footer-grid {
-      grid-template-columns: 1fr;
-      gap: 28px;
-    }
-  }
-
-  .footer-title {
-    color: #D5C6FD;
-    font-weight: 700;
-    font-size: 0.92rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 14px;
-  }
-
-  .footer-links {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .footer-links a {
-    color: #CBD5E1;
-    font-size: 0.9rem;
-    text-decoration: none;
-    transition: color 0.15s ease;
-    display: inline-block;
-    padding: 2px 0;
-  }
-
-  .footer-links a:hover {
-    color: #FFFFFF;
-    text-decoration: underline;
-  }
-
-  .footer-geo-tags {
-    margin-top: 14px;
-  }
-
-  .geo-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    background: rgba(255, 255, 255, 0.06);
-    color: #E2E8F0;
-    font-size: 0.75rem;
-    padding: 4px 8px;
-    border-radius: var(--radius-sm);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  .footer-compliance-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
-    padding: 16px 0;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    margin-bottom: 24px;
-  }
-
-  .compliance-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.82rem;
-    color: #CBD5E1;
-    background: rgba(255, 255, 255, 0.04);
-    padding: 6px 12px;
-    border-radius: var(--radius-md);
-  }
-
-  .footer-bottom {
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    padding-top: 24px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
-    font-size: 0.85rem;
-    color: #94A3B8;
-  }
-
-  .footer-contacts {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-
-  .sep {
-    color: rgba(255, 255, 255, 0.2);
-  }
-</style>

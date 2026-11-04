@@ -1,0 +1,240 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const faqs = [
+  // Category: HR & People Mobility
+  {
+    category: "hr",
+    categoryLabel: "HR & People Mobility",
+    question: "How does AdhocX ingest employee shift rosters from enterprise HRMS platforms?",
+    answer: "AdhocX integrates directly via REST API adapters with enterprise HRMS systems including Darwinbox, Workday, SAP SuccessFactors, and Zoho People. Alternatively, HR teams can upload standard XLSX or CSV rosters into the Corporate Client Portal. Our ingestion engine runs automated dry-run validation to detect invalid geocodes, duplicate entries, and off-shift conflicts before publishing."
+  },
+  {
+    category: "hr",
+    categoryLabel: "HR & People Mobility",
+    question: "What is the corporate shift cutoff window for roster modifications?",
+    answer: "The shift cutoff window is fully configurable per corporate tenant (typically 2 to 3 hours prior to shift commencement). Employees can submit cancellation or pickup change requests via the Employee Mobile App within this window. Once the cutoff passes, changes require Transport Desk exception approval to protect route predictability."
+  },
+  {
+    category: "hr",
+    categoryLabel: "HR & People Mobility",
+    question: "How does the platform ensure safety for women employees on night shifts?",
+    answer: "Under Telangana state regulations, AdhocX enforces mandatory security escort guards for all female employees traveling between 8:00 PM and 6:00 AM. Our PostGIS routing engine enforces first-pickup and last-drop escort rules, ensuring a female employee is never left alone with the driver in the vehicle."
+  },
+
+  // Category: Transport Desk & Operations
+  {
+    category: "ops",
+    categoryLabel: "Transport Operations & Admins",
+    question: "How does the PostGIS routing engine optimize vehicle allocation?",
+    answer: "Our spatial routing engine clusters employees based on residential proximity, shift timings, and corporate campus destinations. Routes are capped at a maximum of 60 minutes commute time, minimizing deadhead kilometers and maintaining an average seat occupancy above 85% on 4-seater sedans and 6/7-seater MUVs."
+  },
+  {
+    category: "ops",
+    categoryLabel: "Transport Operations & Admins",
+    question: "How is employee boarding authenticated without physical paper trip sheets?",
+    answer: "Boarding is verified digitally through dynamic, time-expiring OTPs or secure QR challenge codes presented by the employee and scanned/validated by the driver's mobile app. This creates an immutable, timestamped boarding event bound to the trip ID and GPS coordinates."
+  },
+  {
+    category: "ops",
+    categoryLabel: "Transport Operations & Admins",
+    question: "What protocol activates when a cab experiences a mechanical breakdown or delay?",
+    answer: "If a vehicle is stalled or deviates from its corridor for more than 5 minutes, our 24/7 HITEC City command center receives an automated telemetry alarm. The dispatch supervisor instantly reassigns the route to the nearest available standby driver, notifying passengers via SMS and in-app alerts with updated ETA."
+  },
+
+  // Category: Finance, CFO & Billing
+  {
+    category: "finance",
+    categoryLabel: "Finance, CFO & Billing",
+    question: "What is automated 3-way match billing and how does it prevent overcharging?",
+    answer: "Every billable invoice line is automatically cross-referenced against three immutable data sources: (1) Approved corporate roster request, (2) Actual PostGIS GPS odometer telemetry, and (3) Contracted rate cards. Any unauthorized detours or unserved legs are flagged and stripped prior to invoice generation."
+  },
+  {
+    category: "finance",
+    categoryLabel: "Finance, CFO & Billing",
+    question: "Does AdhocX charge surge pricing during peak hours, bad weather, or monsoon rains?",
+    answer: "No. Enterprise contracts on AdhocX operate under fixed commercial rate cards with pre-agreed kilometer and shift package slabs. We strictly prohibit demand-based surge pricing. Fuel price fluctuations are governed transparently by formulaic indexation clauses agreed in the MSA."
+  },
+  {
+    category: "finance",
+    categoryLabel: "Finance, CFO & Billing",
+    question: "How does the guaranteed 1-hour bank refund SLA work?",
+    answer: "If a ride is marked unserved due to driver non-arrival or a verified SLA breach occurs, our finance system issues an immediate account credit or direct IMPS/NEFT bank refund within 60 minutes of ticket verification. We do not hold disputed corporate funds."
+  },
+
+  // Category: Drivers & Vehicle Owners
+  {
+    category: "drivers",
+    categoryLabel: "Driver Partners & Fleets",
+    question: "How do independent drivers register and qualify for corporate routes?",
+    answer: "Drivers register directly via the AdhocX Driver App. Requirements include a commercial driving license with valid transport (TR) badge, clean police background verification, vehicle commercial Registration Certificate (yellow plate), active passenger fitness certificate, and commercial insurance. All documents undergo manual multi-point verification."
+  },
+  {
+    category: "drivers",
+    categoryLabel: "Driver Partners & Fleets",
+    question: "What platform commission does AdhocX deduct from drivers on enterprise routes?",
+    answer: "AdhocX operates a 0% commission model on dedicated enterprise corporate transport routes. Driver partners are paid fixed, contracted route earnings directly into their verified bank accounts via automated weekly payouts, eliminating vendor middlemen cuts."
+  },
+
+  // Category: Legal, Security & Compliance
+  {
+    category: "compliance",
+    categoryLabel: "Legal, Security & Compliance",
+    question: "Are private vehicles (white plates) ever deployed for corporate trips?",
+    answer: "Strictly prohibited. Every vehicle active on the AdhocX network must hold valid commercial yellow-board registration and commercial taxi permits issued by the Regional Transport Authority (RTA). Private white-plate vehicles cannot be onboarded into our dispatch engine."
+  },
+  {
+    category: "compliance",
+    categoryLabel: "Legal, Security & Compliance",
+    question: "How does AdhocX comply with the Digital Personal Data Protection (DPDP) Act?",
+    answer: "All employee personal identifiable information (PII)—including phone numbers, home addresses, and shift schedules—is encrypted at rest (AES-256) and in transit (TLS 1.3). Driver apps only see optimized pickup sequence waypoints and use masked virtual proxy calling, preventing drivers from accessing employee personal phone numbers."
+  }
+];
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": faqs.map(f => ({
+    "@type": "Question",
+    "name": f.question,
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": f.answer
+    }
+  }))
+};
+---
+
+<BaseLayout
+  title="Enterprise ETS & Corporate Mobility FAQ — AdhocX Hyderabad"
+  description="Exhaustive answers to enterprise questions on AdhocX employee transport software, PostGIS routing, 3-way match billing, driver background checks, and night escort safety compliance."
+  canonical="https://www.adhocx.com/faq"
+  activeNav="resources"
+  jsonLd={jsonLd}
+>
+  <!-- Hero Section -->
+  <section class="page-hero-section" style="background: linear-gradient(180deg, var(--color-primary-50) 0%, #ffffff 100%); padding: var(--space-16) 0 var(--space-12);">
+    <div class="container text-center" style="max-width: 860px; margin: 0 auto;">
+      <div class="badge badge-blue" style="margin-bottom: var(--space-4);">
+        <span class="status-dot-pulse"></span>
+        <span>Enterprise Knowledge Base &bull; Governance & Compliance</span>
+      </div>
+      <h1 class="display-title" style="color: var(--color-text-primary); margin-bottom: var(--space-6);">
+        Frequently Asked Questions
+      </h1>
+      <p class="body-large" style="color: var(--color-text-secondary); margin-bottom: 0; line-height: 1.6;">
+        Explore detailed technical, operational, and commercial answers regarding AdhocX enterprise employee transport, software integrations, and statutory compliance.
+      </p>
+    </div>
+  </section>
+
+  <!-- Interactive Filter Tabs & FAQ Accordion Section -->
+  <section style="padding: var(--space-12) 0 var(--space-16); background: var(--color-surface);">
+    <div class="container" style="max-width: 900px; margin: 0 auto;">
+      
+      <!-- Persona Filter Buttons -->
+      <div style="display: flex; gap: var(--space-2); flex-wrap: wrap; justify-content: center; margin-bottom: var(--space-10);">
+        <button type="button" class="faq-filter-btn active" data-filter="all">All Topics</button>
+        <button type="button" class="faq-filter-btn" data-filter="hr">HR & Mobility</button>
+        <button type="button" class="faq-filter-btn" data-filter="ops">Transport Ops</button>
+        <button type="button" class="faq-filter-btn" data-filter="finance">Finance & Billing</button>
+        <button type="button" class="faq-filter-btn" data-filter="drivers">Driver Partners</button>
+        <button type="button" class="faq-filter-btn" data-filter="compliance">Compliance & Legal</button>
+      </div>
+
+      <!-- FAQ Accordion List -->
+      <div class="faq-list" style="display: flex; flex-direction: column; gap: var(--space-4);">
+        {faqs.map((faq, index) => (
+          <details class="faq-item" data-category={faq.category} style="background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-5); transition: all 0.2s ease;">
+            <summary style="font-weight: 700; font-size: 1.0625rem; color: var(--color-text-primary); cursor: pointer; display: flex; justify-content: space-between; align-items: center; list-style: none; user-select: none;">
+              <span style="display: flex; align-items: center; gap: var(--space-3);">
+                <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--color-primary-600);"></span>
+                <span>{faq.question}</span>
+              </span>
+              <svg class="faq-caret" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0; margin-left: var(--space-3); transition: transform 0.2s ease;">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </summary>
+            <div style="margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--color-border); color: var(--color-text-secondary); font-size: 0.9375rem; line-height: 1.6;">
+              <div style="margin-bottom: var(--space-2);">
+                <span class="badge badge-blue" style="font-size: 0.6875rem; text-transform: uppercase;">{faq.categoryLabel}</span>
+              </div>
+              {faq.answer}
+            </div>
+          </details>
+        ))}
+      </div>
+
+      <!-- Bottom Inquiries Help Card -->
+      <div style="margin-top: var(--space-12); background: linear-gradient(135deg, var(--color-primary-50) 0%, #ffffff 100%); border: 1px solid var(--color-border-blue); border-radius: var(--radius-xl); padding: var(--space-8); text-align: center;">
+        <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-2);">
+          Have a Specific RFP or Technical Inquiry?
+        </h3>
+        <p style="font-size: 0.9375rem; color: var(--color-text-secondary); max-width: 540px; margin: 0 auto var(--space-6); line-height: 1.5;">
+          Our enterprise engineering and operations directors in HITEC City are available to review your shift matrices and compliance requirements.
+        </p>
+        <div style="display: flex; gap: var(--space-4); justify-content: center; flex-wrap: wrap;">
+          <a href="/contact" class="btn btn-primary">
+            Contact Enterprise Desk &rarr;
+          </a>
+          <a href="/ets" class="btn btn-secondary">
+            Explore ETS Software Architecture
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .faq-filter-btn {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-pill);
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .faq-filter-btn:hover {
+    border-color: var(--color-primary-600);
+    color: var(--color-primary-600);
+  }
+  .faq-filter-btn.active {
+    background: var(--color-primary-600);
+    border-color: var(--color-primary-600);
+    color: #ffffff;
+  }
+  details[open] summary .faq-caret {
+    transform: rotate(180deg);
+  }
+  details summary::-webkit-details-marker {
+    display: none;
+  }
+</style>
+
+<script>
+  const filterBtns = document.querySelectorAll<HTMLButtonElement>('.faq-filter-btn');
+  const faqItems = document.querySelectorAll<HTMLElement>('.faq-item');
+
+  filterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const filter = btn.getAttribute('data-filter');
+
+      filterBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      faqItems.forEach(item => {
+        const itemCat = item.getAttribute('data-category');
+        if (filter === 'all' || itemCat === filter) {
+          item.style.display = 'block';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+    });
+  });
+</script>
