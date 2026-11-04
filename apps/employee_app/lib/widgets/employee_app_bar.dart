@@ -47,3 +47,4 @@ class EmployeeAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Size get preferredSize => const Size.fromHeight(56);
 }
+

@@ -153,3 +153,4 @@ for (const t of expectedTokens) {
 console.log('[PASS] app_colors.dart contains all core design tokens (#1167EE, #FF5F09, #EE9811, #010D2D).');
 
 console.log('\n=== ALL BATCH 01 VERIFICATIONS COMPLETED SUCCESSFULLY! ===');
+

@@ -11,3 +11,4 @@ class InvalidOtpScreen extends StatelessWidget {
     return const OtpVerificationScreen(initialError: true);
   }
 }
+

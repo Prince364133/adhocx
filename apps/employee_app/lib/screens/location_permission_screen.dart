@@ -108,3 +108,4 @@ class LocationPermissionScreen extends StatelessWidget {
     );
   }
 }
+

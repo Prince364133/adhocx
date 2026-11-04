@@ -43,3 +43,4 @@ class TransportIneligibleException implements Exception {
   @override
   String toString() => message;
 }
+

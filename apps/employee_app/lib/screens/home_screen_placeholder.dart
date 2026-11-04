@@ -285,3 +285,4 @@ class HomeScreenPlaceholder extends StatelessWidget {
     );
   }
 }
+

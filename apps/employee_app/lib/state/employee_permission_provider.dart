@@ -62,3 +62,4 @@ class EmployeePermissionProvider extends ChangeNotifier {
     notifyListeners();
   }
 }
+

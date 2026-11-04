@@ -108,3 +108,4 @@ class NotificationPermissionScreen extends StatelessWidget {
     );
   }
 }
+

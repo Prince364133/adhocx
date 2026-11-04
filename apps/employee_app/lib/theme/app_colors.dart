@@ -78,3 +78,4 @@ class AppColors {
     colors: [secondaryOrange, Color(0xFFFF7E39)],
   );
 }
+

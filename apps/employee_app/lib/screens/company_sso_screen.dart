@@ -192,3 +192,4 @@ class _CompanySsoScreenState extends State<CompanySsoScreen> {
     );
   }
 }
+
