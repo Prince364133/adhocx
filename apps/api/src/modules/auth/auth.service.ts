@@ -1,7 +1,13 @@
-import { Injectable, UnauthorizedException, BadRequestException, NotFoundException, ForbiddenException, ConflictException, OnModuleInit, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, NotFoundException, ForbiddenException, ConflictException, OnModuleInit, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
+import { promisify } from 'util';
+
+const pbkdf2Async = promisify(crypto.pbkdf2);
+/** OWASP (2023) minimum for PBKDF2-HMAC-SHA512. Old hashes (no iteration suffix) used 10,000. */
+const PBKDF2_ITERATIONS = 210_000;
+const LEGACY_PBKDF2_ITERATIONS = 10_000;
 import {
   RequestOtpDto,
   RequestOtpResponseDto,
@@ -40,65 +46,115 @@ export class AuthService implements OnModuleInit {
     }
   }
 
+  /**
+   * First-boot bootstrap only: creates the first ADMIN when none exists, from ADMIN_EMAIL /
+   * ADMIN_PASSWORD (no built-in default password). It never touches existing users: the old version
+   * promoted ANY user matching the admin email/phone (default +919876543210) to ADMIN on every boot,
+   * keeping that user's own password.
+   */
   private async ensureAdminExists(): Promise<void> {
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@adhocx.com';
-    const adminPhone = process.env.ADMIN_PHONE || '+919876543210';
-    const adminPassword = process.env.ADMIN_PASSWORD || 'Admin@AdhocX2026!';
+    const anyAdmin = await this.db.user.findFirst({ where: { role: 'ADMIN' }, select: { id: true } });
+    if (anyAdmin) return;
 
-    const existing = await this.db.user.findFirst({
+    const adminEmail = process.env.ADMIN_EMAIL?.trim();
+    const adminPhone = process.env.ADMIN_PHONE?.trim() || undefined;
+    const adminPassword = process.env.ADMIN_PASSWORD;
+    if (!adminEmail || !adminPassword || adminPassword.length < 12) {
+      this.logger.warn(
+        'No ADMIN account exists. Set ADMIN_EMAIL and ADMIN_PASSWORD (12+ characters) to create the first one at startup.',
+      );
+      return;
+    }
+
+    const clash = await this.db.user.findFirst({
       where: {
         OR: [
           { email: { equals: adminEmail, mode: 'insensitive' } },
-          { phone: adminPhone },
-          { role: 'ADMIN' },
+          ...(adminPhone ? [{ phone: adminPhone }] : []),
         ],
       },
+      select: { id: true, role: true },
     });
-
-    if (!existing || !existing.passwordHash || existing.role !== 'ADMIN') {
-      const passwordHash = this.hashPassword(adminPassword);
-      if (existing) {
-        await this.db.user.update({
-          where: { id: existing.id },
-          data: {
-            email: existing.email || adminEmail,
-            role: 'ADMIN',
-            fullName: existing.fullName || 'AdhocX Administrator',
-            passwordHash: existing.passwordHash || passwordHash,
-            status: 'ACTIVE',
-          },
-        });
-        this.logger.log(`Admin account confirmed and secured: ${existing.id}`);
-      } else {
-        await this.db.user.create({
-          data: {
-            phone: adminPhone,
-            email: adminEmail,
-            fullName: 'AdhocX Administrator',
-            role: 'ADMIN',
-            passwordHash,
-            status: 'ACTIVE',
-          },
-        });
-        this.logger.log(`Default administrative account initialized: ${adminEmail}`);
-      }
+    if (clash) {
+      this.logger.error(
+        `Not creating the first ADMIN: ADMIN_EMAIL/ADMIN_PHONE already belongs to user ${clash.id} (${clash.role}). ` +
+          'Existing users are never promoted automatically; choose a different email/phone.',
+      );
+      return;
     }
+
+    await this.db.user.create({
+      data: {
+        ...(adminPhone ? { phone: adminPhone } : {}),
+        email: adminEmail,
+        fullName: 'AdhocX Administrator',
+        role: 'ADMIN',
+        passwordHash: await this.hashPassword(adminPassword),
+        status: 'ACTIVE',
+      },
+    });
+    this.logger.log(`First administrative account created: ${adminEmail}`);
   }
 
   /**
    * Cryptographic Password Hashing (PBKDF2 with Cryptographic Salt)
    */
-  private hashPassword(password: string): string {
+  /** `salt:hash:iterations` (async, so a login never blocks the event loop for other requests). */
+  private async hashPassword(password: string): Promise<string> {
     const salt = crypto.randomBytes(16).toString('hex');
-    const hash = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
-    return `${salt}:${hash}`;
+    const hash = (await pbkdf2Async(password, salt, PBKDF2_ITERATIONS, 64, 'sha512')).toString('hex');
+    return `${salt}:${hash}:${PBKDF2_ITERATIONS}`;
   }
 
-  private verifyPassword(password: string, storedHash: string): boolean {
+  /** Accepts current `salt:hash:iterations` and legacy `salt:hash` (10,000 iterations). */
+  private async verifyPassword(password: string, storedHash: string): Promise<boolean> {
     if (!storedHash || !storedHash.includes(':')) return false;
-    const [salt, key] = storedHash.split(':');
-    const hashToVerify = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
-    return crypto.timingSafeEqual(Buffer.from(key, 'hex'), Buffer.from(hashToVerify, 'hex'));
+    const [salt, key, iterRaw] = storedHash.split(':');
+    const iterations = iterRaw ? Number(iterRaw) : LEGACY_PBKDF2_ITERATIONS;
+    if (!salt || !key || !Number.isInteger(iterations) || iterations < 1) return false;
+    const expected = Buffer.from(key, 'hex');
+    const actual = await pbkdf2Async(password, salt, iterations, 64, 'sha512');
+    return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
+  }
+
+  /** After a successful login, re-hash passwords still stored with the legacy iteration count. */
+  private async upgradePasswordHashIfNeeded(userId: string, password: string, storedHash: string): Promise<void> {
+    const iterations = Number(storedHash.split(':')[2] ?? LEGACY_PBKDF2_ITERATIONS);
+    if (iterations >= PBKDF2_ITERATIONS) return;
+    try {
+      await this.db.user.update({ where: { id: userId }, data: { passwordHash: await this.hashPassword(password) } });
+    } catch (err: any) {
+      this.logger.warn(`Password hash upgrade skipped for ${userId}: ${err?.message ?? err}`);
+    }
+  }
+
+  private otpEquals(expected: string, given: unknown): boolean {
+    const a = Buffer.from(String(expected));
+    const b = Buffer.from(String(given ?? ''));
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+  }
+
+  private async invalidateOtps(value: string, requestId?: string): Promise<void> {
+    await this.redis.del(`otp_direct:${value}`);
+    await this.redis.del(`otp_reset:${value}`);
+    if (requestId) await this.redis.del(`otp:${requestId}:${value}`);
+  }
+
+  /**
+   * Fixed-window attempt limit (Redis, with RedisService's in-memory fallback). Throws 429 when exceeded.
+   * `onExceeded` runs once the limit is hit (e.g. invalidate the OTP being guessed).
+   */
+  private async enforceAttemptLimit(
+    key: string,
+    limit: number,
+    windowSeconds: number,
+    message: string,
+    onExceeded?: () => Promise<void>,
+  ): Promise<void> {
+    const { allowed } = await this.redis.checkRateLimit(key, limit, windowSeconds);
+    if (allowed) return;
+    if (onExceeded) await onExceeded().catch(() => undefined);
+    throw new HttpException(message, HttpStatus.TOO_MANY_REQUESTS);
   }
 
   /**
@@ -148,6 +204,12 @@ export class AuthService implements OnModuleInit {
   async adminLogin(dto: LoginDto & { mfaCode?: string }): Promise<any> {
     const { isEmail, value, phoneVariants } = this.normalizeIdentifier(dto.identifier);
     this.logger.log(`🛡️ [ADMIN LOGIN ATTEMPT] Identifier: ${value} (isEmail: ${isEmail})`);
+    await this.enforceAttemptLimit(
+      `admin_login:${value.toLowerCase()}`,
+      5,
+      15 * 60,
+      'Too many admin login attempts. Try again in 15 minutes.',
+    );
 
     let user: any;
     try {
@@ -177,11 +239,12 @@ export class AuthService implements OnModuleInit {
       throw new UnauthorizedException('Invalid administrative credentials. Administrative password not configured.');
     }
 
-    const isValidPassword = this.verifyPassword(dto.password, user.passwordHash);
+    const isValidPassword = await this.verifyPassword(dto.password, user.passwordHash);
     if (!isValidPassword) {
       this.logger.warn(`Admin login failed: invalid password for user ${value}`);
       throw new UnauthorizedException('Invalid administrative ID or password');
     }
+    await this.upgradePasswordHashIfNeeded(user.id, dto.password, user.passwordHash);
 
     // STRICT SERVER-SIDE ROLE ENFORCEMENT
     const userRoleStr = String(user.role).trim().toUpperCase();
@@ -268,6 +331,12 @@ export class AuthService implements OnModuleInit {
   async login(dto: LoginDto): Promise<AuthResponseDto> {
     const { isEmail, value, phoneVariants } = this.normalizeIdentifier(dto.identifier);
     this.logger.log(`🔑 [LOGIN ATTEMPT] Identifier: ${value} (isEmail: ${isEmail})`);
+    await this.enforceAttemptLimit(
+      `pwd_login:${value.toLowerCase()}`,
+      10,
+      15 * 60,
+      'Too many login attempts. Try again in 15 minutes, or sign in with an OTP.',
+    );
 
     let user: any;
     try {
@@ -301,11 +370,12 @@ export class AuthService implements OnModuleInit {
       );
     }
 
-    const isValidPassword = this.verifyPassword(dto.password, user.passwordHash);
+    const isValidPassword = await this.verifyPassword(dto.password, user.passwordHash);
     if (!isValidPassword) {
       this.logger.warn(`Login failed: invalid password for user ${value}`);
       throw new UnauthorizedException('Incorrect password. Please try again or reset your password.');
     }
+    await this.upgradePasswordHashIfNeeded(user.id, dto.password, user.passwordHash);
 
     if (dto.role) {
       const requestedRole = this.mapUserRole(dto.role);
@@ -423,6 +493,15 @@ export class AuthService implements OnModuleInit {
 
     const { isEmail, value } = this.normalizeIdentifier(rawIdentifier);
 
+    // A 6-digit code is guessable without a limit: 5 tries per 10 minutes, then the code is voided.
+    await this.enforceAttemptLimit(
+      `otp_verify:${value}`,
+      5,
+      10 * 60,
+      'Too many incorrect codes. Request a new OTP and try again.',
+      () => this.invalidateOtps(value, requestId),
+    );
+
     let cachedOtp: string | null = null;
     try {
       if (requestId) {
@@ -433,16 +512,17 @@ export class AuthService implements OnModuleInit {
       }
     } catch (_) {}
 
-    if (!cachedOtp || cachedOtp !== otp) {
+    if (!cachedOtp || !this.otpEquals(cachedOtp, otp)) {
       throw new UnauthorizedException('Invalid or expired OTP code');
     }
 
-    if (requestId) {
-      try {
-        await this.redis.del(`otp:${requestId}:${value}`);
-        await this.redis.del(`otp_direct:${value}`);
-      } catch (_) {}
-    }
+    // Single use for sign-in. The forgot-password screen signs in with this code and then submits it
+    // again to reset-password, so it survives only as a reset-only code until it expires.
+    try {
+      await this.redis.set(`otp_reset:${value}`, cachedOtp, 10 * 60);
+      if (requestId) await this.redis.del(`otp:${requestId}:${value}`);
+      await this.redis.del(`otp_direct:${value}`);
+    } catch (_) {}
 
     // Find or create user in live authoritative DB
     let user: any = null;
@@ -703,7 +783,7 @@ export class AuthService implements OnModuleInit {
       throw new BadRequestException('Password must be at least 6 characters long');
     }
 
-    const passwordHash = this.hashPassword(dto.password);
+    const passwordHash = await this.hashPassword(dto.password);
 
     try {
       await this.db.user.update({
@@ -728,18 +808,29 @@ export class AuthService implements OnModuleInit {
   async resetPassword(dto: ResetPasswordDto) {
     const { isEmail, value, phoneVariants } = this.normalizeIdentifier(dto.identifier);
 
-    // Verify OTP against Redis cache
+    await this.enforceAttemptLimit(
+      `otp_verify:${value}`,
+      5,
+      10 * 60,
+      'Too many incorrect codes. Request a new OTP and try again.',
+      () => this.invalidateOtps(value),
+    );
+
+    // Verify OTP against Redis cache (a code already used to sign in is still valid here once)
     let cachedOtp: string | null = null;
+    let resetOnlyOtp: string | null = null;
     try {
       cachedOtp = await this.redis.get(`otp_direct:${value}`);
+      resetOnlyOtp = await this.redis.get(`otp_reset:${value}`);
     } catch (_) {}
 
-    if (!cachedOtp || cachedOtp !== dto.otp) {
+    const otpOk = (cachedOtp && this.otpEquals(cachedOtp, dto.otp)) || (resetOnlyOtp && this.otpEquals(resetOnlyOtp, dto.otp));
+    if (!otpOk) {
       throw new UnauthorizedException('Invalid or expired OTP code');
     }
 
     // Hash new password
-    const passwordHash = this.hashPassword(dto.password);
+    const passwordHash = await this.hashPassword(dto.password);
 
     let user: any;
     try {
@@ -762,7 +853,7 @@ export class AuthService implements OnModuleInit {
         data: { passwordHash },
       });
 
-      await this.redis.del(`otp_direct:${value}`);
+      await this.invalidateOtps(value);
       this.logger.log(`🔒 Password reset successfully for user ${user.id} (${value})`);
     } catch (err: any) {
       this.logger.error(`Reset password failed for user ${value}: ${err.message}`);
