@@ -31,10 +31,10 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     INVESTIGATING: { bg: 'rgba(238, 152, 17, 0.18)', text: '#FBBF24', border: 'rgba(238, 152, 17, 0.4)' },
 
     // Blue (In Transit, Assigned)
-    IN_TRANSIT: { bg: 'rgba(17, 103, 238, 0.15)', text: '#60A5FA', border: 'rgba(17, 103, 238, 0.35)' },
-    ASSIGNED: { bg: 'rgba(17, 103, 238, 0.15)', text: '#60A5FA', border: 'rgba(17, 103, 238, 0.35)' },
-    PLANNED: { bg: 'rgba(17, 103, 238, 0.12)', text: '#93C5FD', border: 'rgba(17, 103, 238, 0.25)' },
-    ACKNOWLEDGED: { bg: 'rgba(17, 103, 238, 0.15)', text: '#60A5FA', border: 'rgba(17, 103, 238, 0.35)' },
+    IN_TRANSIT: { bg: 'rgba(87, 40, 178, 0.15)', text: '#60A5FA', border: 'rgba(87, 40, 178, 0.35)' },
+    ASSIGNED: { bg: 'rgba(87, 40, 178, 0.15)', text: '#60A5FA', border: 'rgba(87, 40, 178, 0.35)' },
+    PLANNED: { bg: 'rgba(87, 40, 178, 0.12)', text: '#93C5FD', border: 'rgba(87, 40, 178, 0.25)' },
+    ACKNOWLEDGED: { bg: 'rgba(87, 40, 178, 0.15)', text: '#60A5FA', border: 'rgba(87, 40, 178, 0.35)' },
 
     // Red (Critical, Delayed, Cancelled, SOS)
     DELAYED: { bg: 'rgba(220, 38, 38, 0.18)', text: '#F87171', border: 'rgba(220, 38, 38, 0.4)' },

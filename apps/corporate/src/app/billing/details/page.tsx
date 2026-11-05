@@ -52,7 +52,7 @@ export default function InvoiceDetailsPage() {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              backgroundColor: '#1167EE',
+              backgroundColor: '#5728B2',
               color: '#FFFFFF',
               border: 'none',
               borderRadius: 'var(--radius-md)',
@@ -60,7 +60,7 @@ export default function InvoiceDetailsPage() {
               fontSize: '13px',
               fontWeight: 700,
               cursor: 'pointer',
-              boxShadow: '0 2px 4px rgba(17,103,238,0.25)',
+              boxShadow: '0 2px 4px rgba(87, 40, 178,0.25)',
             }}
           >
             <Download size={15} />
@@ -107,7 +107,7 @@ export default function InvoiceDetailsPage() {
 
         <div>
           <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Trip Count</div>
-          <div style={{ fontSize: '14px', fontWeight: 700, color: '#1167EE' }}>1,102 Trips</div>
+          <div style={{ fontSize: '14px', fontWeight: 700, color: '#5728B2' }}>1,102 Trips</div>
         </div>
 
         <div>
@@ -138,8 +138,8 @@ export default function InvoiceDetailsPage() {
               fontWeight: 700,
               border: 'none',
               backgroundColor: 'transparent',
-              color: activeTab === 'summary' ? '#1167EE' : '#64748B',
-              borderBottom: `2px solid ${activeTab === 'summary' ? '#1167EE' : 'transparent'}`,
+              color: activeTab === 'summary' ? '#5728B2' : '#64748B',
+              borderBottom: `2px solid ${activeTab === 'summary' ? '#5728B2' : 'transparent'}`,
               cursor: 'pointer',
             }}
           >
@@ -153,8 +153,8 @@ export default function InvoiceDetailsPage() {
               fontWeight: 700,
               border: 'none',
               backgroundColor: 'transparent',
-              color: activeTab === 'trips' ? '#1167EE' : '#64748B',
-              borderBottom: `2px solid ${activeTab === 'trips' ? '#1167EE' : 'transparent'}`,
+              color: activeTab === 'trips' ? '#5728B2' : '#64748B',
+              borderBottom: `2px solid ${activeTab === 'trips' ? '#5728B2' : 'transparent'}`,
               cursor: 'pointer',
             }}
           >
@@ -168,8 +168,8 @@ export default function InvoiceDetailsPage() {
               fontWeight: 700,
               border: 'none',
               backgroundColor: 'transparent',
-              color: activeTab === 'payments' ? '#1167EE' : '#64748B',
-              borderBottom: `2px solid ${activeTab === 'payments' ? '#1167EE' : 'transparent'}`,
+              color: activeTab === 'payments' ? '#5728B2' : '#64748B',
+              borderBottom: `2px solid ${activeTab === 'payments' ? '#5728B2' : 'transparent'}`,
               cursor: 'pointer',
             }}
           >
@@ -183,8 +183,8 @@ export default function InvoiceDetailsPage() {
               fontWeight: 700,
               border: 'none',
               backgroundColor: 'transparent',
-              color: activeTab === 'adjustments' ? '#1167EE' : '#64748B',
-              borderBottom: `2px solid ${activeTab === 'adjustments' ? '#1167EE' : 'transparent'}`,
+              color: activeTab === 'adjustments' ? '#5728B2' : '#64748B',
+              borderBottom: `2px solid ${activeTab === 'adjustments' ? '#5728B2' : 'transparent'}`,
               cursor: 'pointer',
             }}
           >
@@ -198,8 +198,8 @@ export default function InvoiceDetailsPage() {
               fontWeight: 700,
               border: 'none',
               backgroundColor: 'transparent',
-              color: activeTab === 'documents' ? '#1167EE' : '#64748B',
-              borderBottom: `2px solid ${activeTab === 'documents' ? '#1167EE' : 'transparent'}`,
+              color: activeTab === 'documents' ? '#5728B2' : '#64748B',
+              borderBottom: `2px solid ${activeTab === 'documents' ? '#5728B2' : 'transparent'}`,
               cursor: 'pointer',
             }}
           >
@@ -257,9 +257,9 @@ export default function InvoiceDetailsPage() {
                   <td colSpan={3} style={{ color: '#64748B' }}>Tax (GST 18%)</td>
                   <td style={{ textAlign: 'right', color: '#64748B' }}>Included</td>
                 </tr>
-                <tr style={{ backgroundColor: '#EFF6FF', borderTop: '2px solid #1167EE' }}>
-                  <td colSpan={3} style={{ fontWeight: 800, color: '#1167EE', fontSize: '14px' }}>Total Invoice Amount</td>
-                  <td style={{ textAlign: 'right', fontWeight: 800, color: '#1167EE', fontSize: '15px' }}>₹ 4,21,000</td>
+                <tr style={{ backgroundColor: '#EFF6FF', borderTop: '2px solid #5728B2' }}>
+                  <td colSpan={3} style={{ fontWeight: 800, color: '#5728B2', fontSize: '14px' }}>Total Invoice Amount</td>
+                  <td style={{ textAlign: 'right', fontWeight: 800, color: '#5728B2', fontSize: '15px' }}>₹ 4,21,000</td>
                 </tr>
               </tbody>
             </table>
@@ -287,7 +287,7 @@ export default function InvoiceDetailsPage() {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: '#64748B' }}>PO / Contract No.</span>
-                  <span style={{ fontWeight: 700, color: '#1167EE' }}>PO-HTEC-2026-019</span>
+                  <span style={{ fontWeight: 700, color: '#5728B2' }}>PO-HTEC-2026-019</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: '#64748B' }}>Rate Card</span>

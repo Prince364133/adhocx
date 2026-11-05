@@ -206,7 +206,7 @@ export default function ExceptionsDashboardPage() {
                           style={{
                             fontSize: '11px',
                             fontWeight: 600,
-                            color: item.status === 'Escalated' ? '#DC2626' : item.status === 'In Review' ? '#D97706' : '#1167EE',
+                            color: item.status === 'Escalated' ? '#DC2626' : item.status === 'In Review' ? '#D97706' : '#5728B2',
                           }}
                         >
                           {item.status}
@@ -220,7 +220,7 @@ export default function ExceptionsDashboardPage() {
                             fontSize: '11px',
                             fontWeight: 700,
                             backgroundColor: '#EFF6FF',
-                            color: '#1167EE',
+                            color: '#5728B2',
                             border: '1px solid #BFDBFE',
                             borderRadius: '4px',
                             cursor: 'pointer',

@@ -48,11 +48,11 @@ export default function EmployeeImportWizardPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 720, margin: '0 auto', position: 'relative' }}>
           {/* Step 1 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 2 }}>
-            <div style={{ width: 30, height: 30, borderRadius: '50%', backgroundColor: '#1167EE', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700 }}>
+            <div style={{ width: 30, height: 30, borderRadius: '50%', backgroundColor: '#5728B2', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700 }}>
               1
             </div>
             <div>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: '#1167EE' }}>Upload File</div>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#5728B2' }}>Upload File</div>
               <div style={{ fontSize: '11px', color: '#64748B' }}>Add your data file</div>
             </div>
           </div>
@@ -121,7 +121,7 @@ export default function EmployeeImportWizardPage() {
               <div style={{ width: 44, height: 44, borderRadius: 8, backgroundColor: '#DCFCE7', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <FileSpreadsheet size={24} />
               </div>
-              <div style={{ width: 44, height: 44, borderRadius: 8, backgroundColor: '#EFF6FF', color: '#1167EE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 44, height: 44, borderRadius: 8, backgroundColor: '#EFF6FF', color: '#5728B2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <UploadCloud size={24} />
               </div>
             </div>
@@ -129,7 +129,7 @@ export default function EmployeeImportWizardPage() {
             <div style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
               Drag and drop your file here
             </div>
-            <div style={{ fontSize: '13px', color: '#1167EE', fontWeight: 600, marginTop: '2px' }}>
+            <div style={{ fontSize: '13px', color: '#5728B2', fontWeight: 600, marginTop: '2px' }}>
               or click to browse
             </div>
 
@@ -193,7 +193,7 @@ export default function EmployeeImportWizardPage() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                backgroundColor: '#1167EE',
+                backgroundColor: '#5728B2',
                 color: '#FFFFFF',
                 border: 'none',
                 borderRadius: '8px',
@@ -201,7 +201,7 @@ export default function EmployeeImportWizardPage() {
                 fontSize: '13px',
                 fontWeight: 700,
                 cursor: selectedFile ? 'pointer' : 'not-allowed',
-                boxShadow: '0 2px 4px rgba(17,103,238,0.25)',
+                boxShadow: '0 2px 4px rgba(87, 40, 178,0.25)',
               }}
             >
               <span>Next: Map Fields</span>
@@ -213,7 +213,7 @@ export default function EmployeeImportWizardPage() {
         {/* Right: Import Guidelines Card */}
         <div className="surface-card" style={{ padding: '24px', backgroundColor: '#FFFFFF', flex: '1 1 35%' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-            <Info size={18} color="#1167EE" />
+            <Info size={18} color="#5728B2" />
             <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
               Import Guidelines
             </h3>
@@ -245,7 +245,7 @@ export default function EmployeeImportWizardPage() {
                 width: '100%',
                 height: 38,
                 backgroundColor: '#F8FAFC',
-                color: '#1167EE',
+                color: '#5728B2',
                 border: '1px solid #BFDBFE',
                 borderRadius: '6px',
                 fontSize: '12px',

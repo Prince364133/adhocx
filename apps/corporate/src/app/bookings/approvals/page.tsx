@@ -93,8 +93,8 @@ export default function ApprovalInboxPage() {
               fontWeight: 700,
               border: 'none',
               backgroundColor: 'transparent',
-              color: activeTab === 'all' ? '#1167EE' : '#64748B',
-              borderBottom: `2px solid ${activeTab === 'all' ? '#1167EE' : 'transparent'}`,
+              color: activeTab === 'all' ? '#5728B2' : '#64748B',
+              borderBottom: `2px solid ${activeTab === 'all' ? '#5728B2' : 'transparent'}`,
               cursor: 'pointer',
             }}
           >
@@ -108,8 +108,8 @@ export default function ApprovalInboxPage() {
               fontWeight: 700,
               border: 'none',
               backgroundColor: 'transparent',
-              color: activeTab === 'pickup' ? '#1167EE' : '#64748B',
-              borderBottom: `2px solid ${activeTab === 'pickup' ? '#1167EE' : 'transparent'}`,
+              color: activeTab === 'pickup' ? '#5728B2' : '#64748B',
+              borderBottom: `2px solid ${activeTab === 'pickup' ? '#5728B2' : 'transparent'}`,
               cursor: 'pointer',
             }}
           >
@@ -123,8 +123,8 @@ export default function ApprovalInboxPage() {
               fontWeight: 700,
               border: 'none',
               backgroundColor: 'transparent',
-              color: activeTab === 'adhoc' ? '#1167EE' : '#64748B',
-              borderBottom: `2px solid ${activeTab === 'adhoc' ? '#1167EE' : 'transparent'}`,
+              color: activeTab === 'adhoc' ? '#5728B2' : '#64748B',
+              borderBottom: `2px solid ${activeTab === 'adhoc' ? '#5728B2' : 'transparent'}`,
               cursor: 'pointer',
             }}
           >
@@ -138,8 +138,8 @@ export default function ApprovalInboxPage() {
               fontWeight: 700,
               border: 'none',
               backgroundColor: 'transparent',
-              color: activeTab === 'cancellation' ? '#1167EE' : '#64748B',
-              borderBottom: `2px solid ${activeTab === 'cancellation' ? '#1167EE' : 'transparent'}`,
+              color: activeTab === 'cancellation' ? '#5728B2' : '#64748B',
+              borderBottom: `2px solid ${activeTab === 'cancellation' ? '#5728B2' : 'transparent'}`,
               cursor: 'pointer',
             }}
           >
@@ -153,8 +153,8 @@ export default function ApprovalInboxPage() {
               fontWeight: 700,
               border: 'none',
               backgroundColor: 'transparent',
-              color: activeTab === 'policy' ? '#1167EE' : '#64748B',
-              borderBottom: `2px solid ${activeTab === 'policy' ? '#1167EE' : 'transparent'}`,
+              color: activeTab === 'policy' ? '#5728B2' : '#64748B',
+              borderBottom: `2px solid ${activeTab === 'policy' ? '#5728B2' : 'transparent'}`,
               cursor: 'pointer',
             }}
           >
@@ -194,7 +194,7 @@ export default function ApprovalInboxPage() {
                         padding: '2px 8px',
                         borderRadius: 4,
                         backgroundColor: '#EFF6FF',
-                        color: '#1167EE',
+                        color: '#5728B2',
                         border: '1px solid #BFDBFE',
                       }}
                     >

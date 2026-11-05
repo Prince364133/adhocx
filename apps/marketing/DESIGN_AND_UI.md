@@ -28,9 +28,9 @@ The AdhocX Marketing Web App bridges high-converting promotional storytelling wi
   --color-primary-900: #0B1220; /* Dark Navy / Brand Backgrounds */
   --color-primary-800: #111827; /* Dark Surfaces / Footers */
   --color-primary-700: #1E293B; /* Card Surfaces (Dark Mode / Hero) */
-  --color-primary-600: #2563EB; /* Primary Action Blue */
-  --color-primary-500: #3B82F6; /* Interactive Blue */
-  --color-primary-400: #60A5FA; /* Lighter Accent Blue */
+  --color-primary-600: #5728B2; /* Primary Action Blue */
+  --color-primary-500: #733DD9; /* Interactive Blue */
+  --color-primary-400: #B794F4; /* Lighter Accent Blue */
 
   /* Neutral Surfaces */
   --color-bg: #F8FAFC;          /* Page Light Background */
@@ -85,16 +85,16 @@ The AdhocX Marketing Web App bridges high-converting promotional storytelling wi
 
 ### 3.1 Global Header & Navigation (`<Header.astro>`)
 * **Background:** Sticky with backdrop blur (`rgba(255, 255, 255, 0.95)` / `backdrop-filter: blur(8px)`).
-* **Left:** Wordmark Logo **AdhocX** with primary blue typography.
+* **Left:** Wordmark Logo **AdhocX** with primary brand (#5728B2) typography.
 * **Center Navigation:** `For Corporate Users`, `For Drivers & Fleets`, `Driver Bonus (₹2K)`, `Safety`, `Pricing`.
 * **Right CTAs:**
   * Driver Portal: `Drive with Us` (Outlined Button)
-  * Corporate Login / Book: `Corporate Portal` (Primary Filled Button `#2563EB`)
+  * Corporate Login / Book: `Corporate Portal` (Primary Filled Button `#5728B2`)
 
 ---
 
 ### 3.2 Driver Milestone Bonus Card (`<DriverMilestoneCard.astro>`)
-* **Visual Treatment:** Highlight container with subtle emerald-to-blue gradient border accent (`#16A34A` to `#2563EB`).
+* **Visual Treatment:** Highlight container with subtle emerald-to-blue gradient border accent (`#16A34A` to `#5728B2`).
 * **Header Badge:** `Special Promotion • Century Driver Program` in emerald pill badge.
 * **Headline:** `Complete 100 Rides → Get ₹2,000 Bonus`
 * **Breakdown Subgrid:**

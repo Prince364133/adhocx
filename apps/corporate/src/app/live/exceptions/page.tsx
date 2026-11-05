@@ -133,7 +133,7 @@ export default function TrackingExceptionsPage() {
                 fontWeight: 700,
                 border: 'none',
                 cursor: 'pointer',
-                backgroundColor: activeTab === 'list' ? '#1167EE' : '#F1F5F9',
+                backgroundColor: activeTab === 'list' ? '#5728B2' : '#F1F5F9',
                 color: activeTab === 'list' ? '#FFFFFF' : '#475569',
               }}
             >
@@ -152,7 +152,7 @@ export default function TrackingExceptionsPage() {
                 fontWeight: 700,
                 border: 'none',
                 cursor: 'pointer',
-                backgroundColor: activeTab === 'map' ? '#1167EE' : '#F1F5F9',
+                backgroundColor: activeTab === 'map' ? '#5728B2' : '#F1F5F9',
                 color: activeTab === 'map' ? '#FFFFFF' : '#475569',
               }}
             >
@@ -237,7 +237,7 @@ export default function TrackingExceptionsPage() {
                           style={{
                             fontSize: '11px',
                             fontWeight: 700,
-                            color: item.status === 'Escalated' ? '#DC2626' : item.status === 'In Review' ? '#D97706' : '#1167EE',
+                            color: item.status === 'Escalated' ? '#DC2626' : item.status === 'In Review' ? '#D97706' : '#5728B2',
                           }}
                         >
                           {item.status}
@@ -251,7 +251,7 @@ export default function TrackingExceptionsPage() {
                             fontSize: '11px',
                             fontWeight: 700,
                             backgroundColor: item.action === 'Resolve' ? '#FEE2E2' : '#EFF6FF',
-                            color: item.action === 'Resolve' ? '#DC2626' : '#1167EE',
+                            color: item.action === 'Resolve' ? '#DC2626' : '#5728B2',
                             border: `1px solid ${item.action === 'Resolve' ? '#FCA5A5' : '#BFDBFE'}`,
                             borderRadius: '4px',
                             cursor: 'pointer',

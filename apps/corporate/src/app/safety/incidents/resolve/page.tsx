@@ -106,7 +106,7 @@ export default function IncidentResolutionTimelinePage() {
                       borderRadius: '50%',
                       backgroundColor: idx === 0 ? '#DC2626' : 'var(--corporate-blue)',
                       border: '2px solid #FFFFFF',
-                      boxShadow: '0 0 0 2px rgba(17, 103, 238, 0.2)',
+                      boxShadow: '0 0 0 2px rgba(87, 40, 178, 0.2)',
                     }}
                   />
                   {idx < incident.resolutionTimeline.length - 1 && (

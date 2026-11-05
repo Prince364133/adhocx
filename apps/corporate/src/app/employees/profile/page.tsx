@@ -44,7 +44,7 @@ export default function EmployeeProfilePage() {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              backgroundColor: '#1167EE',
+              backgroundColor: '#5728B2',
               color: '#FFFFFF',
               border: 'none',
               borderRadius: 'var(--radius-md)',
@@ -52,7 +52,7 @@ export default function EmployeeProfilePage() {
               fontSize: '13px',
               fontWeight: 700,
               cursor: 'pointer',
-              boxShadow: '0 2px 4px rgba(17,103,238,0.25)',
+              boxShadow: '0 2px 4px rgba(87, 40, 178,0.25)',
             }}
           >
             <Edit2 size={14} />
@@ -134,7 +134,7 @@ export default function EmployeeProfilePage() {
                 borderRadius: 6,
                 border: 'none',
                 backgroundColor: activeTab === 'overview' ? '#EFF6FF' : 'transparent',
-                color: activeTab === 'overview' ? '#1167EE' : '#475569',
+                color: activeTab === 'overview' ? '#5728B2' : '#475569',
                 fontSize: '13px',
                 fontWeight: activeTab === 'overview' ? 700 : 500,
                 cursor: 'pointer',
@@ -156,7 +156,7 @@ export default function EmployeeProfilePage() {
                 borderRadius: 6,
                 border: 'none',
                 backgroundColor: activeTab === 'transport' ? '#EFF6FF' : 'transparent',
-                color: activeTab === 'transport' ? '#1167EE' : '#475569',
+                color: activeTab === 'transport' ? '#5728B2' : '#475569',
                 fontSize: '13px',
                 fontWeight: activeTab === 'transport' ? 700 : 500,
                 cursor: 'pointer',
@@ -178,7 +178,7 @@ export default function EmployeeProfilePage() {
                 borderRadius: 6,
                 border: 'none',
                 backgroundColor: activeTab === 'history' ? '#EFF6FF' : 'transparent',
-                color: activeTab === 'history' ? '#1167EE' : '#475569',
+                color: activeTab === 'history' ? '#5728B2' : '#475569',
                 fontSize: '13px',
                 fontWeight: activeTab === 'history' ? 700 : 500,
                 cursor: 'pointer',
@@ -200,7 +200,7 @@ export default function EmployeeProfilePage() {
                 borderRadius: 6,
                 border: 'none',
                 backgroundColor: activeTab === 'roster' ? '#EFF6FF' : 'transparent',
-                color: activeTab === 'roster' ? '#1167EE' : '#475569',
+                color: activeTab === 'roster' ? '#5728B2' : '#475569',
                 fontSize: '13px',
                 fontWeight: activeTab === 'roster' ? 700 : 500,
                 cursor: 'pointer',
@@ -222,7 +222,7 @@ export default function EmployeeProfilePage() {
                 borderRadius: 6,
                 border: 'none',
                 backgroundColor: activeTab === 'documents' ? '#EFF6FF' : 'transparent',
-                color: activeTab === 'documents' ? '#1167EE' : '#475569',
+                color: activeTab === 'documents' ? '#5728B2' : '#475569',
                 fontSize: '13px',
                 fontWeight: activeTab === 'documents' ? 700 : 500,
                 cursor: 'pointer',
@@ -244,7 +244,7 @@ export default function EmployeeProfilePage() {
                 borderRadius: 6,
                 border: 'none',
                 backgroundColor: activeTab === 'activity' ? '#EFF6FF' : 'transparent',
-                color: activeTab === 'activity' ? '#1167EE' : '#475569',
+                color: activeTab === 'activity' ? '#5728B2' : '#475569',
                 fontSize: '13px',
                 fontWeight: activeTab === 'activity' ? 700 : 500,
                 cursor: 'pointer',
@@ -267,7 +267,7 @@ export default function EmployeeProfilePage() {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: '#EFF6FF', color: '#1167EE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: '#EFF6FF', color: '#5728B2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Briefcase size={16} />
                 </div>
                 <div>
@@ -277,7 +277,7 @@ export default function EmployeeProfilePage() {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: '#EFF6FF', color: '#1167EE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: '#EFF6FF', color: '#5728B2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Mail size={16} />
                 </div>
                 <div>
@@ -287,7 +287,7 @@ export default function EmployeeProfilePage() {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: '#EFF6FF', color: '#1167EE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: '#EFF6FF', color: '#5728B2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Phone size={16} />
                 </div>
                 <div>
@@ -297,7 +297,7 @@ export default function EmployeeProfilePage() {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: '#EFF6FF', color: '#1167EE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: '#EFF6FF', color: '#5728B2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Briefcase size={16} />
                 </div>
                 <div>
@@ -307,7 +307,7 @@ export default function EmployeeProfilePage() {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: '#EFF6FF', color: '#1167EE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: '#EFF6FF', color: '#5728B2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Building2 size={16} />
                 </div>
                 <div>
@@ -317,7 +317,7 @@ export default function EmployeeProfilePage() {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: '#EFF6FF', color: '#1167EE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: '#EFF6FF', color: '#5728B2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <ShieldCheck size={16} />
                 </div>
                 <div>
@@ -394,7 +394,7 @@ export default function EmployeeProfilePage() {
 
               <div>
                 <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Today&apos;s Trip</div>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: '#1167EE', marginTop: '2px' }}>
+                <div style={{ fontSize: '14px', fontWeight: 700, color: '#5728B2', marginTop: '2px' }}>
                   TS09UB7845 (Pickup 7:42 AM)
                 </div>
               </div>

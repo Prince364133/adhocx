@@ -68,9 +68,9 @@ export default function EmployeesLayout({ children }: { children: React.ReactNod
                   fontSize: '12px',
                   fontWeight: isActive ? 700 : 500,
                   textDecoration: 'none',
-                  backgroundColor: isActive ? '#1167EE' : '#F8FAFC',
+                  backgroundColor: isActive ? '#5728B2' : '#F8FAFC',
                   color: isActive ? '#FFFFFF' : '#475569',
-                  border: `1px solid ${isActive ? '#1167EE' : '#E2E8F0'}`,
+                  border: `1px solid ${isActive ? '#5728B2' : '#E2E8F0'}`,
                   transition: 'all 0.15s ease',
                 }}
               >

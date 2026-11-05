@@ -89,12 +89,12 @@ export default function EmployeeLiveTrackingPage() {
                   padding: '6px 12px',
                   borderRadius: 'var(--radius-pill)',
                   backgroundColor: selectedEmployee.id === emp.id ? '#EFF6FF' : '#F1F5F9',
-                  border: `1px solid ${selectedEmployee.id === emp.id ? '#1167EE' : '#CBD5E1'}`,
+                  border: `1px solid ${selectedEmployee.id === emp.id ? '#5728B2' : '#CBD5E1'}`,
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
                 }}
               >
-                <div style={{ width: 22, height: 22, borderRadius: '50%', backgroundColor: '#1167EE', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700 }}>
+                <div style={{ width: 22, height: 22, borderRadius: '50%', backgroundColor: '#5728B2', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700 }}>
                   {emp.fullName.slice(0, 2).toUpperCase()}
                 </div>
                 <span style={{ fontSize: '12px', fontWeight: 700, color: '#0F172A' }}>
@@ -228,8 +228,8 @@ export default function EmployeeLiveTrackingPage() {
                       height: 24,
                       borderRadius: '50%',
                       backgroundColor: isCompleted ? '#DCFCE7' : isCurrent ? '#EFF6FF' : '#F1F5F9',
-                      color: isCompleted ? '#16A34A' : isCurrent ? '#1167EE' : '#94A3B8',
-                      border: `2px solid ${isCompleted ? '#16A34A' : isCurrent ? '#1167EE' : '#CBD5E1'}`,
+                      color: isCompleted ? '#16A34A' : isCurrent ? '#5728B2' : '#94A3B8',
+                      border: `2px solid ${isCompleted ? '#16A34A' : isCurrent ? '#5728B2' : '#CBD5E1'}`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -237,13 +237,13 @@ export default function EmployeeLiveTrackingPage() {
                       marginTop: '2px',
                     }}
                   >
-                    {isCompleted ? <CheckCircle2 size={14} /> : <Circle size={10} fill={isCurrent ? '#1167EE' : 'none'} />}
+                    {isCompleted ? <CheckCircle2 size={14} /> : <Circle size={10} fill={isCurrent ? '#5728B2' : 'none'} />}
                   </div>
 
                   {/* Step details */}
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '13px', fontWeight: isCurrent ? 800 : 600, color: isCurrent ? '#1167EE' : '#0F172A' }}>
+                      <span style={{ fontSize: '13px', fontWeight: isCurrent ? 800 : 600, color: isCurrent ? '#5728B2' : '#0F172A' }}>
                         {step.title}
                       </span>
                       <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748B' }}>
@@ -291,7 +291,7 @@ export default function EmployeeLiveTrackingPage() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ width: 38, height: 38, borderRadius: 8, backgroundColor: '#EFF6FF', color: '#1167EE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 38, height: 38, borderRadius: 8, backgroundColor: '#EFF6FF', color: '#5728B2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <User size={18} />
               </div>
               <div>
@@ -341,7 +341,7 @@ export default function EmployeeLiveTrackingPage() {
                   width: '100%',
                   height: 36,
                   backgroundColor: '#EFF6FF',
-                  color: '#1167EE',
+                  color: '#5728B2',
                   border: '1px solid #BFDBFE',
                   borderRadius: '6px',
                   fontSize: '12px',

@@ -15,7 +15,7 @@ import MetricCard from '../../../components/common/MetricCard';
 import DonutChart from '../../../components/charts/DonutChart';
 
 const shiftUsageChartData = [
-  { label: 'General Day (09:00 - 18:00)', count: 1246, pct: 54, color: '#1167EE' },
+  { label: 'General Day (09:00 - 18:00)', count: 1246, pct: 54, color: '#5728B2' },
   { label: 'Morning A (08:00 - 17:00)', count: 684, pct: 24, color: '#38BDF8' },
   { label: 'Night Shift (22:00 - 07:00)', count: 398, pct: 16, color: '#8B5CF6' },
   { label: 'Rotating Special', count: 240, pct: 6, color: '#F59E0B' },

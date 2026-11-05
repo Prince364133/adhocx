@@ -39,7 +39,7 @@ class AdhocxBrandLogo extends StatelessWidget {
               TextSpan(
                 text: 'X',
                 style: TextStyle(
-                  color: AppColors.brandOrange,
+                  color: const Color(0xFFFF5F09),
                   fontWeight: FontWeight.w900,
                   fontSize: fontSize * 1.04,
                   fontFamily: 'Inter',
@@ -114,7 +114,7 @@ class AdhocxBrandIcon extends StatelessWidget {
               TextSpan(
                 text: 'X',
                 style: TextStyle(
-                  color: AppColors.brandOrange,
+                  color: const Color(0xFFFF5F09),
                   fontWeight: FontWeight.w900,
                   fontSize: size * 0.48,
                   fontFamily: 'Inter',

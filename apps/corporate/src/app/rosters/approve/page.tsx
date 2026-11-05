@@ -63,7 +63,7 @@ export default function RosterApprovalPublishingPage() {
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            backgroundColor: selectedIds.length > 0 ? '#1167EE' : '#94A3B8',
+            backgroundColor: selectedIds.length > 0 ? '#5728B2' : '#94A3B8',
             color: '#FFFFFF',
             border: 'none',
             borderRadius: 'var(--radius-md)',
@@ -71,7 +71,7 @@ export default function RosterApprovalPublishingPage() {
             fontSize: '13px',
             fontWeight: 700,
             cursor: selectedIds.length > 0 ? 'pointer' : 'not-allowed',
-            boxShadow: '0 2px 4px rgba(17,103,238,0.25)',
+            boxShadow: '0 2px 4px rgba(87, 40, 178,0.25)',
           }}
         >
           <Send size={15} />
@@ -90,8 +90,8 @@ export default function RosterApprovalPublishingPage() {
               fontWeight: 700,
               border: 'none',
               backgroundColor: 'transparent',
-              color: activeTab === 'pending' ? '#1167EE' : '#64748B',
-              borderBottom: `2px solid ${activeTab === 'pending' ? '#1167EE' : 'transparent'}`,
+              color: activeTab === 'pending' ? '#5728B2' : '#64748B',
+              borderBottom: `2px solid ${activeTab === 'pending' ? '#5728B2' : 'transparent'}`,
               cursor: 'pointer',
             }}
           >
@@ -105,8 +105,8 @@ export default function RosterApprovalPublishingPage() {
               fontWeight: 700,
               border: 'none',
               backgroundColor: 'transparent',
-              color: activeTab === 'published' ? '#1167EE' : '#64748B',
-              borderBottom: `2px solid ${activeTab === 'published' ? '#1167EE' : 'transparent'}`,
+              color: activeTab === 'published' ? '#5728B2' : '#64748B',
+              borderBottom: `2px solid ${activeTab === 'published' ? '#5728B2' : 'transparent'}`,
               cursor: 'pointer',
             }}
           >
@@ -120,8 +120,8 @@ export default function RosterApprovalPublishingPage() {
               fontWeight: 700,
               border: 'none',
               backgroundColor: 'transparent',
-              color: activeTab === 'history' ? '#1167EE' : '#64748B',
-              borderBottom: `2px solid ${activeTab === 'history' ? '#1167EE' : 'transparent'}`,
+              color: activeTab === 'history' ? '#5728B2' : '#64748B',
+              borderBottom: `2px solid ${activeTab === 'history' ? '#5728B2' : 'transparent'}`,
               cursor: 'pointer',
             }}
           >

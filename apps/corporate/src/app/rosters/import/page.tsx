@@ -15,11 +15,11 @@ import {
 } from 'lucide-react';
 
 const MOCK_PREVIEW_ROWS = [
-  { empId: 'EMP02467', name: 'Priya Sharma', shift: 'Day', shiftColor: '#1167EE', office: 'HiTEC City', date: '08 Dec 2026' },
+  { empId: 'EMP02467', name: 'Priya Sharma', shift: 'Day', shiftColor: '#5728B2', office: 'HiTEC City', date: '08 Dec 2026' },
   { empId: 'EMP02911', name: 'Rohit Singh', shift: 'Night', shiftColor: '#7C3AED', office: 'Kondapur', date: '08 Dec 2026' },
   { empId: 'EMP03124', name: 'Neha Verma', shift: 'Evening', shiftColor: '#D97706', office: 'Gachibowli', date: '08 Dec 2026' },
-  { empId: 'EMP01893', name: 'Amit Kumar', shift: 'Day', shiftColor: '#1167EE', office: 'HiTEC City', date: '08 Dec 2026' },
-  { empId: 'EMP03376', name: 'Anjali Rao', shift: 'Day', shiftColor: '#1167EE', office: 'Madhapur', date: '08 Dec 2026' },
+  { empId: 'EMP01893', name: 'Amit Kumar', shift: 'Day', shiftColor: '#5728B2', office: 'HiTEC City', date: '08 Dec 2026' },
+  { empId: 'EMP03376', name: 'Anjali Rao', shift: 'Day', shiftColor: '#5728B2', office: 'Madhapur', date: '08 Dec 2026' },
 ];
 
 export default function RosterImportPreviewPage() {
@@ -50,28 +50,28 @@ export default function RosterImportPreviewPage() {
       <div className="surface-card" style={{ padding: '16px 24px', backgroundColor: '#FFFFFF' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 720, margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: '#1167EE', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: '#5728B2', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
               1
             </div>
-            <span style={{ fontSize: '13px', fontWeight: 700, color: '#1167EE' }}>Upload File</span>
+            <span style={{ fontSize: '13px', fontWeight: 700, color: '#5728B2' }}>Upload File</span>
           </div>
 
           <div style={{ height: 2, flex: 1, backgroundColor: '#CBD5E1', margin: '0 12px' }} />
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: '#1167EE', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: '#5728B2', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
               2
             </div>
-            <span style={{ fontSize: '13px', fontWeight: 700, color: '#1167EE' }}>Map Columns</span>
+            <span style={{ fontSize: '13px', fontWeight: 700, color: '#5728B2' }}>Map Columns</span>
           </div>
 
           <div style={{ height: 2, flex: 1, backgroundColor: '#CBD5E1', margin: '0 12px' }} />
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: '#1167EE', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: '#5728B2', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
               3
             </div>
-            <span style={{ fontSize: '13px', fontWeight: 700, color: '#1167EE' }}>Preview & Validate</span>
+            <span style={{ fontSize: '13px', fontWeight: 700, color: '#5728B2' }}>Preview & Validate</span>
           </div>
 
           <div style={{ height: 2, flex: 1, backgroundColor: '#CBD5E1', margin: '0 12px' }} />
@@ -110,7 +110,7 @@ export default function RosterImportPreviewPage() {
             <div style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
               Drag & drop your roster file here
             </div>
-            <div style={{ fontSize: '13px', color: '#1167EE', fontWeight: 600, marginTop: '2px' }}>
+            <div style={{ fontSize: '13px', color: '#5728B2', fontWeight: 600, marginTop: '2px' }}>
               or click to browse
             </div>
 
@@ -175,7 +175,7 @@ export default function RosterImportPreviewPage() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                backgroundColor: '#1167EE',
+                backgroundColor: '#5728B2',
                 color: '#FFFFFF',
                 border: 'none',
                 borderRadius: '6px',
@@ -183,7 +183,7 @@ export default function RosterImportPreviewPage() {
                 fontSize: '13px',
                 fontWeight: 700,
                 cursor: 'pointer',
-                boxShadow: '0 2px 4px rgba(17,103,238,0.25)',
+                boxShadow: '0 2px 4px rgba(87, 40, 178,0.25)',
               }}
             >
               <span>Validate & Review</span>

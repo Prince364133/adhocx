@@ -57,7 +57,7 @@ export default function BookingDetailsPage() {
               alignItems: 'center',
               gap: '6px',
               backgroundColor: '#EFF6FF',
-              color: '#1167EE',
+              color: '#5728B2',
               border: '1px solid #BFDBFE',
               borderRadius: 'var(--radius-md)',
               padding: '8px 14px',
@@ -118,7 +118,7 @@ export default function BookingDetailsPage() {
 
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>Request Type</span>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: '#1167EE', backgroundColor: '#EFF6FF', padding: '2px 8px', borderRadius: 4 }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: '#5728B2', backgroundColor: '#EFF6FF', padding: '2px 8px', borderRadius: 4 }}>
                 Roster (Auto)
               </span>
             </div>
@@ -154,7 +154,7 @@ export default function BookingDetailsPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '14px', marginBottom: '18px' }}>
               <div>
                 <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Assigned Cab</div>
-                <div style={{ fontSize: '14px', fontWeight: 800, color: '#1167EE' }}>TS09UB7845</div>
+                <div style={{ fontSize: '14px', fontWeight: 800, color: '#5728B2' }}>TS09UB7845</div>
               </div>
               <div>
                 <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Driver</div>
@@ -183,14 +183,14 @@ export default function BookingDetailsPage() {
                   </div>
                 </div>
 
-                <div style={{ height: 2, flex: 1, backgroundColor: '#1167EE', margin: '0 12px' }} />
+                <div style={{ height: 2, flex: 1, backgroundColor: '#5728B2', margin: '0 12px' }} />
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{ width: 22, height: 22, borderRadius: '50%', backgroundColor: '#EFF6FF', color: '#1167EE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ width: 22, height: 22, borderRadius: '50%', backgroundColor: '#EFF6FF', color: '#5728B2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <Car size={14} />
                   </div>
                   <div>
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#1167EE' }}>In Transit</div>
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#5728B2' }}>In Transit</div>
                     <div style={{ fontSize: '11px', color: '#64748B' }}>ETA 08:35 AM</div>
                   </div>
                 </div>

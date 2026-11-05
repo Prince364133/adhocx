@@ -94,7 +94,7 @@ class OnboardingScheduleScreen extends StatelessWidget {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Color(0x331167EE),
+                            color: Color(0x335728B2),
                             blurRadius: 14,
                             offset: Offset(0, 6),
                           ),

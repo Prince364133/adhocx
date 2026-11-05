@@ -93,7 +93,7 @@ export default function EmployeeDirectoryPage() {
               alignItems: 'center',
               gap: '6px',
               backgroundColor: '#EFF6FF',
-              color: '#1167EE',
+              color: '#5728B2',
               border: '1px solid #BFDBFE',
               borderRadius: 'var(--radius-md)',
               padding: '8px 14px',
@@ -112,7 +112,7 @@ export default function EmployeeDirectoryPage() {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              backgroundColor: '#1167EE',
+              backgroundColor: '#5728B2',
               color: '#FFFFFF',
               border: 'none',
               borderRadius: 'var(--radius-md)',
@@ -120,7 +120,7 @@ export default function EmployeeDirectoryPage() {
               fontSize: '13px',
               fontWeight: 700,
               cursor: 'pointer',
-              boxShadow: '0 2px 4px rgba(17,103,238,0.25)',
+              boxShadow: '0 2px 4px rgba(87, 40, 178,0.25)',
             }}
           >
             <Plus size={16} />
@@ -234,7 +234,7 @@ export default function EmployeeDirectoryPage() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: '#EFF6FF', color: '#1167EE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: '#EFF6FF', color: '#5728B2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Users size={16} />
           </div>
           <div>
@@ -383,7 +383,7 @@ export default function EmployeeDirectoryPage() {
                           alignItems: 'center',
                           justifyContent: 'center',
                           backgroundColor: '#EFF6FF',
-                          color: '#1167EE',
+                          color: '#5728B2',
                           border: '1px solid #BFDBFE',
                         }}
                         title="View Profile"
@@ -446,7 +446,7 @@ export default function EmployeeDirectoryPage() {
             >
               <ChevronLeft size={14} color="#64748B" />
             </button>
-            <button style={{ width: 28, height: 28, borderRadius: 4, border: '1px solid #1167EE', backgroundColor: '#1167EE', color: '#FFFFFF', fontSize: 12, fontWeight: 700 }}>
+            <button style={{ width: 28, height: 28, borderRadius: 4, border: '1px solid #5728B2', backgroundColor: '#5728B2', color: '#FFFFFF', fontSize: 12, fontWeight: 700 }}>
               1
             </button>
             <button style={{ width: 28, height: 28, borderRadius: 4, border: '1px solid #CBD5E1', backgroundColor: '#FFFFFF', color: '#475569', fontSize: 12, fontWeight: 600 }}>

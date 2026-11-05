@@ -322,7 +322,7 @@ export class CorporateRoutePlannerService {
       { header: 'Time Source', key: 'timeSource', width: 28 },
     ];
     s1.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    s1.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1167EE' } };
+    s1.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF5728B2' } };
 
     for (const r of plan.routes) {
       s1.addRow({

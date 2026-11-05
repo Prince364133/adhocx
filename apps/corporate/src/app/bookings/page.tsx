@@ -58,7 +58,7 @@ export default function BookingQueuePage() {
   const getTypeBadge = (type: BookingRequestItem['type']) => {
     switch (type) {
       case 'Roster':
-        return { bg: '#EFF6FF', color: '#1167EE', border: '#BFDBFE' };
+        return { bg: '#EFF6FF', color: '#5728B2', border: '#BFDBFE' };
       case 'Ad-hoc':
         return { bg: '#F3E8FF', color: '#7C3AED', border: '#D8B4FE' };
       case 'Change':
@@ -75,7 +75,7 @@ export default function BookingQueuePage() {
       case 'Pending':
         return { bg: '#FEF3C7', color: '#D97706', border: '#FCD34D' };
       case 'Needs Approval':
-        return { bg: '#EFF6FF', color: '#1167EE', border: '#BFDBFE' };
+        return { bg: '#EFF6FF', color: '#5728B2', border: '#BFDBFE' };
       case 'Cancelled':
         return { bg: '#F1F5F9', color: '#94A3B8', border: '#CBD5E1' };
     }
@@ -100,7 +100,7 @@ export default function BookingQueuePage() {
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            backgroundColor: '#1167EE',
+            backgroundColor: '#5728B2',
             color: '#FFFFFF',
             border: 'none',
             borderRadius: 'var(--radius-md)',
@@ -108,7 +108,7 @@ export default function BookingQueuePage() {
             fontSize: '13px',
             fontWeight: 700,
             cursor: 'pointer',
-            boxShadow: '0 2px 4px rgba(17,103,238,0.25)',
+            boxShadow: '0 2px 4px rgba(87, 40, 178,0.25)',
           }}
         >
           <Plus size={16} />
@@ -128,8 +128,8 @@ export default function BookingQueuePage() {
               fontWeight: 700,
               border: 'none',
               backgroundColor: 'transparent',
-              color: activeTab === 'all' ? '#1167EE' : '#64748B',
-              borderBottom: `2px solid ${activeTab === 'all' ? '#1167EE' : 'transparent'}`,
+              color: activeTab === 'all' ? '#5728B2' : '#64748B',
+              borderBottom: `2px solid ${activeTab === 'all' ? '#5728B2' : 'transparent'}`,
               cursor: 'pointer',
             }}
           >
@@ -143,8 +143,8 @@ export default function BookingQueuePage() {
               fontWeight: 700,
               border: 'none',
               backgroundColor: 'transparent',
-              color: activeTab === 'adhoc' ? '#1167EE' : '#64748B',
-              borderBottom: `2px solid ${activeTab === 'adhoc' ? '#1167EE' : 'transparent'}`,
+              color: activeTab === 'adhoc' ? '#5728B2' : '#64748B',
+              borderBottom: `2px solid ${activeTab === 'adhoc' ? '#5728B2' : 'transparent'}`,
               cursor: 'pointer',
             }}
           >
@@ -158,8 +158,8 @@ export default function BookingQueuePage() {
               fontWeight: 700,
               border: 'none',
               backgroundColor: 'transparent',
-              color: activeTab === 'change' ? '#1167EE' : '#64748B',
-              borderBottom: `2px solid ${activeTab === 'change' ? '#1167EE' : 'transparent'}`,
+              color: activeTab === 'change' ? '#5728B2' : '#64748B',
+              borderBottom: `2px solid ${activeTab === 'change' ? '#5728B2' : 'transparent'}`,
               cursor: 'pointer',
             }}
           >
@@ -173,8 +173,8 @@ export default function BookingQueuePage() {
               fontWeight: 700,
               border: 'none',
               backgroundColor: 'transparent',
-              color: activeTab === 'cancellation' ? '#1167EE' : '#64748B',
-              borderBottom: `2px solid ${activeTab === 'cancellation' ? '#1167EE' : 'transparent'}`,
+              color: activeTab === 'cancellation' ? '#5728B2' : '#64748B',
+              borderBottom: `2px solid ${activeTab === 'cancellation' ? '#5728B2' : 'transparent'}`,
               cursor: 'pointer',
             }}
           >
@@ -301,7 +301,7 @@ export default function BookingQueuePage() {
                           padding: '4px 10px',
                           borderRadius: 4,
                           backgroundColor: '#EFF6FF',
-                          color: '#1167EE',
+                          color: '#5728B2',
                           border: '1px solid #BFDBFE',
                           fontSize: '11px',
                           fontWeight: 700,

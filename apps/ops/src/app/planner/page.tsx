@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 
 const ROUTE_COLORS = [
-  '#1167EE', // Electric Indigo
+  '#5728B2', // Electric Indigo
   '#047857', // Emerald Green
   '#EE9811', // Amber Gold
   '#A21CAF', // Purple
@@ -236,7 +236,7 @@ export default function RouteOptimizerPage() {
         const infoWindow = new google.maps.InfoWindow({
           content: `
             <div style="color: #0F172A; padding: 4px; font-family: sans-serif; font-size: 13px;">
-              <strong style="color: #1167EE; font-size: 14px;">Stop ${letter}: ${stop.name}</strong><br/>
+              <strong style="color: #5728B2; font-size: 14px;">Stop ${letter}: ${stop.name}</strong><br/>
               <span style="color: #64748B;">${stop.matchedAddress}</span><br/>
               ${stop.outOfRadius ? '<span style="color: #EF4444; font-weight: bold;">⚠️ Outside Catchment Radius</span><br/>' : ''}
               <strong>Pickup ETA:</strong> ${stop.eta} (Dwell until ${stop.dwellUntil})<br/>
@@ -580,10 +580,10 @@ export default function RouteOptimizerPage() {
                     padding: '12px 14px',
                     fontSize: '13px',
                     fontWeight: 600,
-                    background: activeTab === 'FILE_UPLOAD' ? 'rgba(17, 103, 238, 0.15)' : 'transparent',
+                    background: activeTab === 'FILE_UPLOAD' ? 'rgba(87, 40, 178, 0.15)' : 'transparent',
                     color: activeTab === 'FILE_UPLOAD' ? '#5290F9' : '#94A3B8',
                     border: 'none',
-                    borderBottom: activeTab === 'FILE_UPLOAD' ? '2px solid #1167EE' : '2px solid transparent',
+                    borderBottom: activeTab === 'FILE_UPLOAD' ? '2px solid #5728B2' : '2px solid transparent',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -602,10 +602,10 @@ export default function RouteOptimizerPage() {
                     padding: '12px 14px',
                     fontSize: '13px',
                     fontWeight: 600,
-                    background: activeTab === 'DB_SHIFT' ? 'rgba(17, 103, 238, 0.15)' : 'transparent',
+                    background: activeTab === 'DB_SHIFT' ? 'rgba(87, 40, 178, 0.15)' : 'transparent',
                     color: activeTab === 'DB_SHIFT' ? '#5290F9' : '#94A3B8',
                     border: 'none',
-                    borderBottom: activeTab === 'DB_SHIFT' ? '2px solid #1167EE' : '2px solid transparent',
+                    borderBottom: activeTab === 'DB_SHIFT' ? '2px solid #5728B2' : '2px solid transparent',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -775,11 +775,11 @@ export default function RouteOptimizerPage() {
                       alignItems: 'center',
                       justifyContent: 'center',
                       cursor: 'pointer',
-                      backgroundColor: selectedFile ? 'rgba(17, 103, 238, 0.08)' : '#0F172A',
-                      borderColor: selectedFile ? '#1167EE' : '#334155',
+                      backgroundColor: selectedFile ? 'rgba(87, 40, 178, 0.08)' : '#0F172A',
+                      borderColor: selectedFile ? '#5728B2' : '#334155',
                     }}
                   >
-                    <UploadCloud size={24} style={{ color: selectedFile ? '#1167EE' : '#64748B', marginBottom: '6px' }} />
+                    <UploadCloud size={24} style={{ color: selectedFile ? '#5728B2' : '#64748B', marginBottom: '6px' }} />
                     <span style={{ fontSize: '12px', color: selectedFile ? '#F8FAFC' : '#94A3B8', fontWeight: 500, textAlign: 'center' }}>
                       {selectedFile ? selectedFile.name : 'Click or Drag & Drop Roster File'}
                     </span>
@@ -824,7 +824,7 @@ export default function RouteOptimizerPage() {
                     <span style={{ fontWeight: 600, color: '#38BDF8' }}>{progressPct}%</span>
                   </div>
                   <div style={{ width: '100%', height: '6px', backgroundColor: '#334155', borderRadius: '3px', overflow: 'hidden' }}>
-                    <div style={{ width: `${progressPct}%`, height: '100%', backgroundColor: '#1167EE', transition: 'width 0.3s ease' }} />
+                    <div style={{ width: `${progressPct}%`, height: '100%', backgroundColor: '#5728B2', transition: 'width 0.3s ease' }} />
                   </div>
                 </div>
               )}
@@ -1071,7 +1071,7 @@ export default function RouteOptimizerPage() {
                         style={{
                           borderRadius: '8px',
                           border: isSelected ? `2px solid ${color}` : '1px solid #1E293B',
-                          backgroundColor: isSelected ? 'rgba(17, 103, 238, 0.08)' : '#0F172A',
+                          backgroundColor: isSelected ? 'rgba(87, 40, 178, 0.08)' : '#0F172A',
                           overflow: 'hidden',
                         }}
                       >
@@ -1236,7 +1236,7 @@ export default function RouteOptimizerPage() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '5px',
-                  backgroundColor: viewMode === 'MAP' ? '#1167EE' : 'transparent',
+                  backgroundColor: viewMode === 'MAP' ? '#5728B2' : 'transparent',
                   color: viewMode === 'MAP' ? '#FFFFFF' : '#94A3B8',
                 }}
               >
@@ -1256,7 +1256,7 @@ export default function RouteOptimizerPage() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '5px',
-                  backgroundColor: viewMode === 'TOPOLOGY' ? '#1167EE' : 'transparent',
+                  backgroundColor: viewMode === 'TOPOLOGY' ? '#5728B2' : 'transparent',
                   color: viewMode === 'TOPOLOGY' ? '#FFFFFF' : '#94A3B8',
                 }}
               >

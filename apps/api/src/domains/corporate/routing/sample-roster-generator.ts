@@ -45,7 +45,7 @@ export async function generateSampleExcelBuffer(): Promise<Buffer> {
   headerRow.fill = {
     type: 'pattern',
     pattern: 'solid',
-    fgColor: { argb: 'FF1167EE' }, // AdhocX Electric Indigo
+    fgColor: { argb: 'FF5728B2' }, // AdhocX Electric Indigo
   };
   headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
   headerRow.height = 28;

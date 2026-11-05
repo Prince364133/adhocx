@@ -177,11 +177,11 @@ export default function CorporateAiAssistant() {
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
-            background: 'linear-gradient(135deg, #1167EE 0%, #0948AC 100%)',
+            background: 'linear-gradient(135deg, #5728B2 0%, #0948AC 100%)',
             color: '#ffffff',
             padding: '14px 22px',
             borderRadius: '9999px',
-            boxShadow: '0 8px 25px rgba(17, 103, 238, 0.45)',
+            boxShadow: '0 8px 25px rgba(87, 40, 178, 0.45)',
             border: 'none',
             cursor: 'pointer',
             fontWeight: 700,
@@ -304,7 +304,7 @@ export default function CorporateAiAssistant() {
                   }}
                 >
                   <div style={{
-                    background: isUser ? '#1167EE' : '#ffffff',
+                    background: isUser ? '#5728B2' : '#ffffff',
                     color: isUser ? '#ffffff' : '#1e293b',
                     padding: '12px 14px',
                     borderRadius: isUser ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
@@ -432,7 +432,7 @@ export default function CorporateAiAssistant() {
               type="submit"
               disabled={isLoading || !inputMessage.trim()}
               style={{
-                background: inputMessage.trim() ? '#1167EE' : '#94a3b8',
+                background: inputMessage.trim() ? '#5728B2' : '#94a3b8',
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: '8px',

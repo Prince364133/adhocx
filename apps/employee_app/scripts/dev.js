@@ -164,7 +164,7 @@ function generateAppHtml(mockData) {
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     :root {
-      --primary: #1167EE;
+      --primary: #5728B2;
       --secondary: #FF5F09;
       --navy: #010D2D;
       --surface: #F8FAFC;

@@ -42,7 +42,7 @@ export const BarComparisonChart: React.FC<BarComparisonChartProps> = ({
           <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>Scheduled</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: '#1167EE' }} />
+          <span style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: '#5728B2' }} />
           <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>Completed</span>
         </div>
       </div>
@@ -107,7 +107,7 @@ export const BarComparisonChart: React.FC<BarComparisonChartProps> = ({
                 width={barWidth}
                 height={completedHeight}
                 rx={2}
-                fill={isHovered ? '#0948AC' : '#1167EE'}
+                fill={isHovered ? '#0948AC' : '#5728B2'}
                 style={{ transition: 'fill 0.15s ease' }}
               />
 

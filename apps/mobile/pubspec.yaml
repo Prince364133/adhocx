@@ -67,7 +67,7 @@ flutter_launcher_icons:
     generate: true
     image_path: "assets/images/adhocx_icon.png"
     background_color: "#FFFFFF"
-    theme_color: "#5B42F3"
+    theme_color: "#5728B2"
 
 flutter:
   uses-material-design: true # CRITICAL: Required for Material icon font - DO NOT REMOVE

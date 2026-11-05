@@ -30,7 +30,7 @@ export const CompanyCard: React.FC<CompanyCardProps> = ({
         backgroundColor: 'var(--bg-surface-elevated, #111D3D)',
         border: `1px solid ${
           isSelected
-            ? 'var(--brand-blue-500, #1167EE)'
+            ? 'var(--brand-blue-500, #5728B2)'
             : hasExceptions
             ? 'rgba(238, 152, 17, 0.4)'
             : 'var(--border-subtle, #1E3060)'
@@ -58,7 +58,7 @@ export const CompanyCard: React.FC<CompanyCardProps> = ({
           right: 0,
           height: '3px',
           backgroundColor: isSelected
-            ? 'var(--brand-blue-500, #1167EE)'
+            ? 'var(--brand-blue-500, #5728B2)'
             : hasExceptions
             ? 'var(--brand-amber-500, #EE9811)'
             : 'transparent',
@@ -74,8 +74,8 @@ export const CompanyCard: React.FC<CompanyCardProps> = ({
                 width: '36px',
                 height: '36px',
                 borderRadius: 'var(--radius-md, 8px)',
-                backgroundColor: 'rgba(17, 103, 238, 0.15)',
-                border: '1px solid rgba(17, 103, 238, 0.3)',
+                backgroundColor: 'rgba(87, 40, 178, 0.15)',
+                border: '1px solid rgba(87, 40, 178, 0.3)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',

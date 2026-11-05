@@ -3,7 +3,7 @@
 **Corporate Employee Transportation & Daily Commuter Mobility Application**  
 **Package:** `adhocx_employee`  
 **Location:** `apps/employee_app`  
-**Brand Architecture:** Primary Blue `#1167EE`, Secondary Orange `#FF5F09`, Warm Amber `#EE9811`, Dark Navy `#010D2D`
+**Brand Architecture:** Primary Blue `#5728B2`, Secondary Orange `#FF5F09`, Warm Amber `#EE9811`, Dark Navy `#010D2D`
 
 ---
 
@@ -82,7 +82,7 @@ apps/employee_app/
 │   ├── routes/
 │   │   └── app_routes.dart                # GoRouter route declarations
 │   ├── theme/
-│   │   ├── app_colors.dart                # #1167EE, #FF5F09, #EE9811, #010D2D tokens
+│   │   ├── app_colors.dart                # #5728B2, #FF5F09, #EE9811, #010D2D tokens
 │   │   ├── app_typography.dart            # GoogleFonts.inter hierarchy
 │   │   └── app_theme.dart                 # ThemeData with button, input, & bar styles
 │   ├── models/
@@ -96,7 +96,7 @@ apps/employee_app/
 │   │   └── employee_permission_provider.dart # Permission handler state
 │   ├── widgets/
 │   │   ├── employee_brand_logo.dart       # AdhocX logo with orange "X"
-│   │   ├── employee_primary_button.dart   # #1167EE full-width pill button
+│   │   ├── employee_primary_button.dart   # #5728B2 full-width pill button
 │   │   ├── employee_secondary_button.dart # Outlined pill button
 │   │   ├── employee_otp_input.dart        # 6-box auto-focus OTP component
 │   │   ├── employee_app_bar.dart          # Back arrow top bar

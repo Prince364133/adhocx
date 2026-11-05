@@ -110,7 +110,7 @@ export default function RosterCalendarPage() {
   const getShiftBadge = (shift: string) => {
     switch (shift) {
       case 'Day':
-        return { bg: '#EFF6FF', color: '#1167EE', border: '#BFDBFE' };
+        return { bg: '#EFF6FF', color: '#5728B2', border: '#BFDBFE' };
       case 'Night':
         return { bg: '#F3E8FF', color: '#7C3AED', border: '#D8B4FE' };
       case 'Evening':
@@ -146,7 +146,7 @@ export default function RosterCalendarPage() {
               border: 'none',
               fontSize: '12px',
               fontWeight: 700,
-              backgroundColor: viewMode === 'day' ? '#1167EE' : 'transparent',
+              backgroundColor: viewMode === 'day' ? '#5728B2' : 'transparent',
               color: viewMode === 'day' ? '#FFFFFF' : '#475569',
               cursor: 'pointer',
             }}
@@ -161,7 +161,7 @@ export default function RosterCalendarPage() {
               border: 'none',
               fontSize: '12px',
               fontWeight: 700,
-              backgroundColor: viewMode === 'week' ? '#1167EE' : 'transparent',
+              backgroundColor: viewMode === 'week' ? '#5728B2' : 'transparent',
               color: viewMode === 'week' ? '#FFFFFF' : '#475569',
               cursor: 'pointer',
             }}
@@ -176,7 +176,7 @@ export default function RosterCalendarPage() {
               border: 'none',
               fontSize: '12px',
               fontWeight: 700,
-              backgroundColor: viewMode === 'month' ? '#1167EE' : 'transparent',
+              backgroundColor: viewMode === 'month' ? '#5728B2' : 'transparent',
               color: viewMode === 'month' ? '#FFFFFF' : '#475569',
               cursor: 'pointer',
             }}

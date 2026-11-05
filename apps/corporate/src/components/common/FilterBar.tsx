@@ -253,7 +253,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           display: 'flex',
           alignItems: 'center',
           gap: '6px',
-          backgroundColor: '#1167EE',
+          backgroundColor: '#5728B2',
           color: '#FFFFFF',
           border: 'none',
           borderRadius: 'var(--radius-md)',
@@ -261,7 +261,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           fontSize: '12px',
           fontWeight: 600,
           cursor: 'pointer',
-          boxShadow: '0 1px 2px rgba(17,103,238,0.2)',
+          boxShadow: '0 1px 2px rgba(87, 40, 178,0.2)',
           transition: 'background-color 0.15s ease',
         }}
       >

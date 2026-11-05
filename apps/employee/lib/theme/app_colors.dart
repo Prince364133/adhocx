@@ -5,13 +5,13 @@ class AppColors {
   AppColors._();
 
   // ── Primary Royal Purple Brand (Auth, Hero & Main Actions) ───────────────
-  static const Color primary = Color(0xFF5B42F3); // Main Brand Royal Purple
-  static const Color primaryHover = Color(0xFF4E35DE); // Deep Purple
-  static const Color primaryDark = Color(0xFF3727A6); // Dark Purple
-  static const Color primaryLight = Color(0xFF7C68F5); // Light Purple Accent
+  static const Color primary = Color(0xFF5728B2); // Main Brand Royal Purple
+  static const Color primaryHover = Color(0xFF431E8E); // Deep Purple
+  static const Color primaryDark = Color(0xFF2D145E); // Dark Purple
+  static const Color primaryLight = Color(0xFF733DD9); // Light Purple Accent
   static const Color primarySubtle = Color(0xFFEEF2FF); // Purple 50 tint
-  static const Color primaryGradientStart = Color(0xFF6347F9);
-  static const Color primaryGradientEnd = Color(0xFF4328E0);
+  static const Color primaryGradientStart = Color(0xFF5728B2);
+  static const Color primaryGradientEnd = Color(0xFF431E8E);
 
   // ── Secondary & Enterprise Status Accents ─────────────────────────────────
   static const Color accentGreen = Color(0xFF22C55E); // Green 500

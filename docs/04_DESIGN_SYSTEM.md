@@ -162,35 +162,36 @@ All colors must be defined as centralized design tokens.
 Components must never randomly introduce custom colors.
 
 AdhocX visual architecture is anchored by a high-clarity dual-palette:
-* **Primary Brand Action Blue (`#1167EE`)**: Commands interactive authority, high reliability, primary CTAs, and enterprise fulfillment status.
+* **Primary Brand Color (`#5728B2`)**: Commands interactive authority, high reliability, primary CTAs, and enterprise fulfillment status.
+* **Brand Logo Accent Orange (`#FF5F09`)**: Logo "X" accent, key operational indicators, and high-energy highlights.
 * **Warm Amber Gold Accent (`#EE9811`)**: High-visibility highlight, driver bonus programs, partner incentives, and operational alerts.
 * **Midnight Navy & Crisp Slate Neutrals (`#010D2D` to `#191B1C`)**: Enterprise-grade contrast, low eye fatigue, and professional logistics telemetry.
 * **Regional Scenario Governance**: Built for high-volume commercial transport operations across Telangana (Hyderabad tech corridors: HITEC City, Gachibowli, Financial District, Madhapur) and regional hubs, strictly enforcing 100% yellow-plate commercial compliance.
 
 ---
 
-## 6.1 Primary Brand Action (Blue Scale)
+## 6.1 Primary Brand Action (Brand Scale — #5728B2)
 
 | Token       | Hex       | Usage                                |
 | ----------- | --------- | ------------------------------------ |
-| Blue 900    | `#010D2D` | deepest midnight navy / dark UI      |
-| Blue 800    | `#032969` | dark UI cards / strong dark surfaces |
-| Blue 700    | `#0948AC` | hover state for primary buttons      |
-| Blue 500    | `#1167EE` | **Primary Brand Action Blue / CTAs** |
-| Blue 400    | `#5290F9` | lighter interactive state / accent   |
-| Blue 200    | `#91B9FB` | soft interactive border / active tag |
-| Blue 50     | `#CEE0FD` | subtle blue surface / info pill bg   |
+| Brand 900   | `#1B0E38` | deepest midnight purple / dark UI    |
+| Brand 800   | `#2D145E` | dark UI cards / strong dark surfaces |
+| Brand 700   | `#431E8E` | hover state for primary buttons      |
+| Brand 500   | `#5728B2` | **Primary Brand Color / CTAs**       |
+| Brand 400   | `#733DD9` | lighter interactive state / accent   |
+| Brand 200   | `#B794F4` | soft interactive border / active tag |
+| Brand 50    | `#F3E8FF` | subtle brand surface / info pill bg  |
 
 Primary action color:
 
 ```text
-#1167EE
+#5728B2
 ```
 
 Primary gradient:
 
 ```text
-linear-gradient(135deg, #1167EE 0%, #0948AC 100%)
+linear-gradient(135deg, #5728B2 0%, #431E8E 100%)
 ```
 
 ---
@@ -295,7 +296,7 @@ Used for:
 ## Info
 
 ```text
-Info: #1167EE
+Info: #5728B2
 Info Bg: #CEE0FD
 ```
 

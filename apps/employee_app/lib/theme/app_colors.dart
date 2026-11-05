@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 /// Centralized color palette for the AdhocX Employee Mobile App.
 /// Adheres strictly to the AdhocX Design System (docs/04_DESIGN_SYSTEM.md):
-/// - Primary Brand Blue: #1167EE
+/// - Primary Brand Blue: #5728B2
 /// - Secondary Brand Orange: #FF5F09
 /// - Warm Amber Gold Accent: #EE9811
 /// - Midnight Navy: #010D2D
@@ -10,12 +10,12 @@ class AppColors {
   AppColors._();
 
   // Primary Brand Blue
-  static const Color primaryBlue = Color(0xFF1167EE);
+  static const Color primaryBlue = Color(0xFF5728B2);
   static const Color primary = primaryBlue;
-  static const Color primaryBlueDark = Color(0xFF0948AC);
-  static const Color primaryBlueDarker = Color(0xFF032969);
-  static const Color primaryBlueLight = Color(0xFFCEE0FD);
-  static const Color primaryBlueSoft = Color(0xFFEFF6FF);
+  static const Color primaryBlueDark = Color(0xFF431E8E);
+  static const Color primaryBlueDarker = Color(0xFF2D145E);
+  static const Color primaryBlueLight = Color(0xFFF3E8FF);
+  static const Color primaryBlueSoft = Color(0xFFFAF5FF);
 
   // Secondary Brand Orange (AdhocX Logo "X" Accent & Secondary Color)
   static const Color secondaryOrange = Color(0xFFFF5F09);
@@ -46,7 +46,7 @@ class AppColors {
   // Borders & Dividers
   static const Color border = Color(0xFFE2E8F0);
   static const Color borderSubtle = Color(0xFFEEF2F6);
-  static const Color borderFocused = Color(0xFF1167EE);
+  static const Color borderFocused = Color(0xFF5728B2);
 
   // Semantic Status
   static const Color success = Color(0xFF16A34A);

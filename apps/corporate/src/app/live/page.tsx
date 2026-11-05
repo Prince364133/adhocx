@@ -70,7 +70,7 @@ export default function LiveOperationsMapPage() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: '#EFF6FF', color: '#1167EE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: '#EFF6FF', color: '#5728B2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Users size={16} />
           </div>
           <div>
@@ -139,7 +139,7 @@ export default function LiveOperationsMapPage() {
               style={{
                 fontSize: '12px',
                 fontWeight: 700,
-                color: '#1167EE',
+                color: '#5728B2',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
@@ -173,7 +173,7 @@ export default function LiveOperationsMapPage() {
                   borderRadius: '4px',
                   border: 'none',
                   cursor: 'pointer',
-                  backgroundColor: filterType === 'ALL' ? '#1167EE' : '#F1F5F9',
+                  backgroundColor: filterType === 'ALL' ? '#5728B2' : '#F1F5F9',
                   color: filterType === 'ALL' ? '#FFFFFF' : '#475569',
                 }}
               >
@@ -188,7 +188,7 @@ export default function LiveOperationsMapPage() {
                   borderRadius: '4px',
                   border: 'none',
                   cursor: 'pointer',
-                  backgroundColor: filterType === 'LOGIN' ? '#1167EE' : '#F1F5F9',
+                  backgroundColor: filterType === 'LOGIN' ? '#5728B2' : '#F1F5F9',
                   color: filterType === 'LOGIN' ? '#FFFFFF' : '#475569',
                 }}
               >
@@ -203,7 +203,7 @@ export default function LiveOperationsMapPage() {
                   borderRadius: '4px',
                   border: 'none',
                   cursor: 'pointer',
-                  backgroundColor: filterType === 'LOGOUT' ? '#1167EE' : '#F1F5F9',
+                  backgroundColor: filterType === 'LOGOUT' ? '#5728B2' : '#F1F5F9',
                   color: filterType === 'LOGOUT' ? '#FFFFFF' : '#475569',
                 }}
               >
@@ -222,7 +222,7 @@ export default function LiveOperationsMapPage() {
                   style={{
                     padding: '12px 14px',
                     borderRadius: 'var(--radius-lg)',
-                    border: `1px solid ${isSelected ? '#1167EE' : '#E2E8F0'}`,
+                    border: `1px solid ${isSelected ? '#5728B2' : '#E2E8F0'}`,
                     backgroundColor: isSelected ? '#EFF6FF' : '#FFFFFF',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
@@ -230,7 +230,7 @@ export default function LiveOperationsMapPage() {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Car size={15} color={isSelected ? '#1167EE' : '#64748B'} />
+                      <Car size={15} color={isSelected ? '#5728B2' : '#64748B'} />
                       <span style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A' }}>
                         {trip.cabNumber}
                       </span>

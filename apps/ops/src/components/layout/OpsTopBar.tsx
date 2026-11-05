@@ -71,24 +71,18 @@ export const OpsTopBar: React.FC = () => {
       {/* Left: Brand & Flight Control Status */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div
+          <img
+            src="/adhocx_icon.svg"
+            alt="AdhocX"
             style={{
               width: '28px',
               height: '28px',
-              borderRadius: 'var(--radius-sm, 6px)',
-              background: 'linear-gradient(135deg, #1167EE 0%, #0948AC 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 800,
-              fontSize: '15px',
-              color: '#FFFFFF',
+              borderRadius: '6px',
+              display: 'block',
             }}
-          >
-            A
-          </div>
-          <span style={{ fontWeight: 800, fontSize: '15px', letterSpacing: '0.02em', color: '#F8FAFC' }}>
-            ADHOCX <span style={{ color: 'var(--brand-amber-500, #EE9811)' }}>OPS</span>
+          />
+          <span style={{ fontWeight: 900, fontSize: '16px', letterSpacing: '-0.02em', color: '#F8FAFC' }}>
+            Adhoc<span style={{ color: '#FF5F09', fontWeight: 900 }}>X</span> <span style={{ color: 'var(--brand-amber-500, #EE9811)', fontSize: '11px', fontWeight: 800, marginLeft: '4px', letterSpacing: '0.06em' }}>OPS</span>
           </span>
         </div>
 

@@ -74,9 +74,9 @@ export const RouteCard: React.FC<RouteCardProps> = ({
               fontWeight: 700,
               padding: '2px 8px',
               borderRadius: 'var(--radius-xs, 4px)',
-              backgroundColor: route.direction === 'LOGIN' ? 'rgba(17, 103, 238, 0.15)' : 'rgba(238, 152, 17, 0.15)',
+              backgroundColor: route.direction === 'LOGIN' ? 'rgba(87, 40, 178, 0.15)' : 'rgba(238, 152, 17, 0.15)',
               color: route.direction === 'LOGIN' ? 'var(--brand-blue-400, #5290F9)' : 'var(--brand-amber-500, #EE9811)',
-              border: `1px solid ${route.direction === 'LOGIN' ? 'rgba(17, 103, 238, 0.3)' : 'rgba(238, 152, 17, 0.3)'}`,
+              border: `1px solid ${route.direction === 'LOGIN' ? 'rgba(87, 40, 178, 0.3)' : 'rgba(238, 152, 17, 0.3)'}`,
             }}
           >
             {route.direction} · {route.shiftTime}

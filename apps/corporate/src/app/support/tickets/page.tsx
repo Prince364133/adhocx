@@ -84,7 +84,7 @@ export default function SupportTicketListPage() {
                 cursor: 'pointer',
                 backgroundColor: isActive ? 'var(--corporate-blue)' : '#FFFFFF',
                 color: isActive ? '#FFFFFF' : 'var(--text-secondary)',
-                boxShadow: isActive ? '0 1px 3px rgba(17, 103, 238, 0.3)' : 'none',
+                boxShadow: isActive ? '0 1px 3px rgba(87, 40, 178, 0.3)' : 'none',
                 transition: 'all 0.15s ease',
               }}
             >

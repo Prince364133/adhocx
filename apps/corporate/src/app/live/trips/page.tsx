@@ -57,7 +57,7 @@ export default function LiveTripDetailsPage() {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              backgroundColor: '#1167EE',
+              backgroundColor: '#5728B2',
               color: '#FFFFFF',
               border: 'none',
               borderRadius: 'var(--radius-md)',
@@ -65,7 +65,7 @@ export default function LiveTripDetailsPage() {
               fontSize: '13px',
               fontWeight: 700,
               cursor: 'pointer',
-              boxShadow: '0 2px 4px rgba(17,103,238,0.25)',
+              boxShadow: '0 2px 4px rgba(87, 40, 178,0.25)',
             }}
           >
             <span>Actions</span>
@@ -81,7 +81,7 @@ export default function LiveTripDetailsPage() {
           <div className="surface-card" style={{ padding: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Navigation size={15} color="#1167EE" />
+                <Navigation size={15} color="#5728B2" />
                 <span style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>
                   Sequential Waypoint Route
                 </span>
@@ -128,7 +128,7 @@ export default function LiveTripDetailsPage() {
 
             <div>
               <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Capacity</div>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: '#1167EE' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#5728B2' }}>
                 {trip.vehicle.seatsOccupied} / {trip.vehicle.totalSeats} Seats
               </div>
             </div>
@@ -161,8 +161,8 @@ export default function LiveTripDetailsPage() {
                 fontWeight: 700,
                 border: 'none',
                 backgroundColor: 'transparent',
-                color: activeTab === 'info' ? '#1167EE' : '#64748B',
-                borderBottom: `2px solid ${activeTab === 'info' ? '#1167EE' : 'transparent'}`,
+                color: activeTab === 'info' ? '#5728B2' : '#64748B',
+                borderBottom: `2px solid ${activeTab === 'info' ? '#5728B2' : 'transparent'}`,
                 cursor: 'pointer',
               }}
             >
@@ -176,8 +176,8 @@ export default function LiveTripDetailsPage() {
                 fontWeight: 700,
                 border: 'none',
                 backgroundColor: 'transparent',
-                color: activeTab === 'employees' ? '#1167EE' : '#64748B',
-                borderBottom: `2px solid ${activeTab === 'employees' ? '#1167EE' : 'transparent'}`,
+                color: activeTab === 'employees' ? '#5728B2' : '#64748B',
+                borderBottom: `2px solid ${activeTab === 'employees' ? '#5728B2' : 'transparent'}`,
                 cursor: 'pointer',
               }}
             >
@@ -191,8 +191,8 @@ export default function LiveTripDetailsPage() {
                 fontWeight: 700,
                 border: 'none',
                 backgroundColor: 'transparent',
-                color: activeTab === 'timeline' ? '#1167EE' : '#64748B',
-                borderBottom: `2px solid ${activeTab === 'timeline' ? '#1167EE' : 'transparent'}`,
+                color: activeTab === 'timeline' ? '#5728B2' : '#64748B',
+                borderBottom: `2px solid ${activeTab === 'timeline' ? '#5728B2' : 'transparent'}`,
                 cursor: 'pointer',
               }}
             >
@@ -213,7 +213,7 @@ export default function LiveTripDetailsPage() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid #F1F5F9' }}>
                 <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>Corridor</span>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: '#1167EE' }}>{trip.route}</span>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#5728B2' }}>{trip.route}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid #F1F5F9' }}>
                 <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>Planned Pickup</span>
@@ -292,8 +292,8 @@ export default function LiveTripDetailsPage() {
                       height: 26,
                       borderRadius: '50%',
                       backgroundColor: stop.status === 'Completed' ? '#DCFCE7' : '#EFF6FF',
-                      color: stop.status === 'Completed' ? '#16A34A' : '#1167EE',
-                      border: `2px solid ${stop.status === 'Completed' ? '#16A34A' : '#1167EE'}`,
+                      color: stop.status === 'Completed' ? '#16A34A' : '#5728B2',
+                      border: `2px solid ${stop.status === 'Completed' ? '#16A34A' : '#5728B2'}`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',

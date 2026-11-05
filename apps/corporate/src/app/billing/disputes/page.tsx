@@ -79,7 +79,7 @@ export default function BillingDisputesPage() {
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            backgroundColor: '#1167EE',
+            backgroundColor: '#5728B2',
             color: '#FFFFFF',
             border: 'none',
             borderRadius: 'var(--radius-md)',
@@ -87,7 +87,7 @@ export default function BillingDisputesPage() {
             fontSize: '13px',
             fontWeight: 700,
             cursor: 'pointer',
-            boxShadow: '0 2px 4px rgba(17,103,238,0.25)',
+            boxShadow: '0 2px 4px rgba(87, 40, 178,0.25)',
           }}
         >
           <Plus size={16} />
@@ -137,7 +137,7 @@ export default function BillingDisputesPage() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#EFF6FF', color: '#1167EE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#EFF6FF', color: '#5728B2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <IndianRupee size={18} />
           </div>
           <div>
@@ -170,7 +170,7 @@ export default function BillingDisputesPage() {
                 fontSize: '12px',
                 fontWeight: 700,
                 border: 'none',
-                backgroundColor: activeTab === 'all' ? '#1167EE' : '#F1F5F9',
+                backgroundColor: activeTab === 'all' ? '#5728B2' : '#F1F5F9',
                 color: activeTab === 'all' ? '#FFFFFF' : '#475569',
                 cursor: 'pointer',
               }}
@@ -269,7 +269,7 @@ export default function BillingDisputesPage() {
                   <tr key={item.id}>
                     <td><input type="checkbox" /></td>
                     <td style={{ fontWeight: 800, color: '#0F172A' }}>{item.disputeId}</td>
-                    <td style={{ fontWeight: 600, color: '#1167EE' }}>{item.invoiceNo}</td>
+                    <td style={{ fontWeight: 600, color: '#5728B2' }}>{item.invoiceNo}</td>
                     <td style={{ fontSize: '12px', color: '#475569' }}>{item.office}</td>
                     <td style={{ fontSize: '12px', color: '#0F172A' }}>{item.reason}</td>
                     <td style={{ fontWeight: 800, color: '#0F172A' }}>₹ {item.amount.toLocaleString()}</td>
@@ -298,7 +298,7 @@ export default function BillingDisputesPage() {
                             borderRadius: 4,
                             border: '1px solid #BFDBFE',
                             backgroundColor: '#EFF6FF',
-                            color: '#1167EE',
+                            color: '#5728B2',
                             fontSize: '11px',
                             fontWeight: 700,
                             cursor: 'pointer',

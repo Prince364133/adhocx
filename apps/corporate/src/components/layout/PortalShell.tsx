@@ -176,24 +176,18 @@ function TopBar() {
       {/* Left: Brand + Tenant Selector */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
         <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-          <div
+          <img
+            src="/adhocx_icon.svg"
+            alt="AdhocX"
             style={{
               width: 30,
               height: 30,
               borderRadius: '6px',
-              background: 'linear-gradient(135deg, #1167EE 0%, #0948AC 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 800,
-              fontSize: 16,
-              color: '#FFFFFF',
+              display: 'block',
             }}
-          >
-            A
-          </div>
-          <span style={{ fontWeight: 800, fontSize: 16, letterSpacing: '-0.01em', color: '#0F172A' }}>
-            Adhoc<span style={{ color: '#1167EE' }}>X</span>
+          />
+          <span style={{ fontWeight: 900, fontSize: 17, letterSpacing: '-0.02em', color: '#0F172A' }}>
+            Adhoc<span style={{ color: '#FF5F09', fontWeight: 900 }}>X</span>
           </span>
         </Link>
 
@@ -215,7 +209,7 @@ function TopBar() {
             cursor: 'pointer',
           }}
         >
-          <Building size={14} color="#1167EE" />
+          <Building size={14} color="#5728B2" />
           <span>{tenant?.name || 'HiTEC Technologies'}</span>
           <ChevronDown size={14} color="#64748B" />
         </div>
@@ -246,7 +240,7 @@ function TopBar() {
           }}
           onFocus={(e) => {
             e.target.style.backgroundColor = '#FFFFFF';
-            e.target.style.borderColor = '#1167EE';
+            e.target.style.borderColor = '#5728B2';
           }}
           onBlur={(e) => {
             e.target.style.backgroundColor = '#F1F5F9';

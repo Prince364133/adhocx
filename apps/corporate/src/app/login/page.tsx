@@ -57,7 +57,7 @@ export default function CorporateLoginPage() {
               width: 48,
               height: 48,
               borderRadius: '10px',
-              background: 'linear-gradient(135deg, #1167EE 0%, #0948AC 100%)',
+              background: 'linear-gradient(135deg, #5728B2 0%, #0948AC 100%)',
               color: '#FFFFFF',
               fontSize: '22px',
               fontWeight: 800,
@@ -70,7 +70,7 @@ export default function CorporateLoginPage() {
             A
           </div>
           <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
-            Adhoc<span style={{ color: '#1167EE' }}>X</span> Corporate Portal
+            Adhoc<span style={{ color: '#5728B2' }}>X</span> Corporate Portal
           </h1>
           <p style={{ fontSize: '13px', color: '#64748B', marginTop: '4px' }}>
             Enterprise commute management & fleet governance
@@ -90,7 +90,7 @@ export default function CorporateLoginPage() {
             marginBottom: '20px',
           }}
         >
-          <Building2 size={18} color="#1167EE" />
+          <Building2 size={18} color="#5728B2" />
           <div>
             <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>
               HiTEC Technologies
@@ -159,7 +159,7 @@ export default function CorporateLoginPage() {
           style={{
             width: '100%',
             height: 42,
-            backgroundColor: '#1167EE',
+            backgroundColor: '#5728B2',
             color: '#FFFFFF',
             border: 'none',
             borderRadius: '8px',
@@ -170,7 +170,7 @@ export default function CorporateLoginPage() {
             alignItems: 'center',
             justifyContent: 'center',
             gap: '8px',
-            boxShadow: '0 4px 12px rgba(17, 103, 238, 0.25)',
+            boxShadow: '0 4px 12px rgba(87, 40, 178, 0.25)',
             transition: 'background-color 0.15s ease',
           }}
         >

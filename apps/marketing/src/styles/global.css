@@ -1,6 +1,6 @@
 /* ============================================================================
    AdhocX Marketing — Global Design System (Universal Centralized Tokens)
-   Colors: Primary Action Blue #1167EE | Amber Gold #EE9811 | Slate Neutrals #EDEFF0 - #191B1C
+   Colors: Primary Action Blue #5728B2 | Amber Gold #EE9811 | Slate Neutrals #EDEFF0 - #191B1C
    Telangana Operational Scenario Governance
    ============================================================================ */
 
@@ -14,19 +14,19 @@
   --color-brand-x: #FF5F09;
 
   /* Brand Primary - Action Blue Scale */
-  --color-primary-900: #010D2D;
-  --color-primary-800: #032969;
-  --color-primary-700: #0948AC;
-  --color-primary-600: #1167EE;
-  --color-primary-500: #1167EE;
-  --color-primary-400: #5290F9;
-  --color-primary-300: #91B9FB;
-  --color-primary-200: #CEE0FD;
-  --color-primary-100: #CEE0FD;
-  --color-primary-50: #F0F5FF;
-  --color-primary-gradient: linear-gradient(135deg, #1167EE 0%, #0948AC 100%);
-  --color-primary-gradient-hover: linear-gradient(135deg, #0948AC 0%, #032969 100%);
-  --color-primary-gradient-subtle: linear-gradient(135deg, rgba(17, 103, 238, 0.08) 0%, rgba(9, 72, 172, 0.12) 100%);
+  --color-primary-900: #1B0E38;
+  --color-primary-800: #2D145E;
+  --color-primary-700: #431E8E;
+  --color-primary-600: #5728B2;
+  --color-primary-500: #5728B2;
+  --color-primary-400: #733DD9;
+  --color-primary-300: #9F7AEA;
+  --color-primary-200: #B794F4;
+  --color-primary-100: #E9D8FD;
+  --color-primary-50: #FAF5FF;
+  --color-primary-gradient: linear-gradient(135deg, #5728B2 0%, #431E8E 100%);
+  --color-primary-gradient-hover: linear-gradient(135deg, #431E8E 0%, #2D145E 100%);
+  --color-primary-gradient-subtle: linear-gradient(135deg, rgba(87, 40, 178, 0.08) 0%, rgba(67, 30, 142, 0.12) 100%);
 
   /* Brand Warm Accent - Amber Gold Scale */
   --color-accent-base: #EE9811;
@@ -64,7 +64,7 @@
   --color-warning-bg: #FFFBF7;
   --color-error: #DC2626;
   --color-error-bg: #FEE2E2;
-  --color-info: #1167EE;
+  --color-info: #5728B2;
   --color-info-bg: #CEE0FD;
 
   /* Relative Spacing (REM units) */
@@ -96,8 +96,8 @@
   --shadow-md: 0 4px 6px -1px rgba(25, 27, 28, 0.07), 0 2px 4px -1px rgba(25, 27, 28, 0.04);
   --shadow-lg: 0 10px 15px -3px rgba(25, 27, 28, 0.08), 0 4px 6px -2px rgba(25, 27, 28, 0.03);
   --shadow-xl: 0 20px 25px -5px rgba(25, 27, 28, 0.08), 0 10px 10px -5px rgba(25, 27, 28, 0.02);
-  --shadow-glow: 0 0 0 3px rgba(17, 103, 238, 0.25);
-  --shadow-blue-glow: 0 8px 20px -4px rgba(17, 103, 238, 0.35);
+  --shadow-glow: 0 0 0 3px rgba(87, 40, 178, 0.25);
+  --shadow-blue-glow: 0 8px 20px -4px rgba(87, 40, 178, 0.35);
   --shadow-amber-glow: 0 8px 20px -4px rgba(238, 152, 17, 0.35);
   --shadow-glow-success: 0 0 0 3px rgba(22, 163, 74, 0.25);
 
@@ -273,14 +273,14 @@ input, select, textarea {
   background: var(--color-primary-gradient);
   color: var(--color-text-inverse);
   border-color: var(--color-primary-600);
-  box-shadow: 0 4px 14px rgba(17, 103, 238, 0.28);
+  box-shadow: 0 4px 14px rgba(87, 40, 178, 0.28);
 }
 
 .btn-primary:hover {
   background: var(--color-primary-gradient-hover);
   border-color: var(--color-primary-700);
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(17, 103, 238, 0.4);
+  box-shadow: 0 6px 20px rgba(87, 40, 178, 0.4);
 }
 
 .btn-secondary {
@@ -710,7 +710,7 @@ input, select, textarea {
   right: -15%;
   width: 550px;
   height: 550px;
-  background: radial-gradient(circle, rgba(17, 103, 238, 0.07) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(87, 40, 178, 0.07) 0%, transparent 70%);
   border-radius: 50%;
   pointer-events: none;
 }
@@ -2098,7 +2098,7 @@ input, select, textarea {
   width: 20rem;
   height: 20rem;
   border-radius: 50%;
-  background: linear-gradient(135deg, #1167EE 0%, #0948AC 100%);
+  background: linear-gradient(135deg, #5728B2 0%, #431E8E 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2210,7 +2210,7 @@ input, select, textarea {
   left: 0;
   right: 0;
   height: 55%;
-  background: var(--color-primary-600); /* #1167EE */
+  background: var(--color-primary-600); /* #5728B2 */
   z-index: 1;
 }
 
@@ -2587,7 +2587,7 @@ input, select, textarea {
   right: -10%;
   width: 600px;
   height: 600px;
-  background: radial-gradient(circle, rgba(17, 103, 238, 0.05) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(87, 40, 178, 0.05) 0%, transparent 70%);
   border-radius: 50%;
   pointer-events: none;
 }
@@ -2607,7 +2607,7 @@ input, select, textarea {
   gap: 0.5rem;
   padding: 0.375rem 0.875rem;
   border-radius: var(--radius-pill);
-  background: rgba(17, 103, 238, 0.05);
+  background: rgba(87, 40, 178, 0.05);
   border: 1px solid var(--color-border-blue);
   font-size: 0.8125rem;
   font-weight: 600;
@@ -2622,7 +2622,7 @@ input, select, textarea {
   border-radius: 50%;
   background: var(--color-primary-600);
   display: inline-block;
-  box-shadow: 0 0 0 3px rgba(17, 103, 238, 0.2);
+  box-shadow: 0 0 0 3px rgba(87, 40, 178, 0.2);
 }
 
 .adhocx-hero-h1 {
@@ -2664,7 +2664,7 @@ input, select, textarea {
   font-weight: 600;
   padding: 0.875rem 1.75rem;
   border-radius: var(--radius-pill);
-  box-shadow: 0 4px 14px rgba(17, 103, 238, 0.35);
+  box-shadow: 0 4px 14px rgba(87, 40, 178, 0.35);
   transition: all var(--transition-base);
   text-decoration: none;
 }
@@ -2672,7 +2672,7 @@ input, select, textarea {
 .btn-pill-primary:hover {
   background: var(--color-primary-700);
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(17, 103, 238, 0.45);
+  box-shadow: 0 6px 20px rgba(87, 40, 178, 0.45);
   color: #FFFFFF;
 }
 
@@ -2733,8 +2733,8 @@ input, select, textarea {
   bottom: -5%;
   background-size: 32px 32px;
   background-image: 
-    linear-gradient(to right, rgba(17, 103, 238, 0.05) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(17, 103, 238, 0.05) 1px, transparent 1px);
+    linear-gradient(to right, rgba(87, 40, 178, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(87, 40, 178, 0.05) 1px, transparent 1px);
   border-radius: 1.5rem;
   pointer-events: none;
 }
@@ -2854,7 +2854,7 @@ input, select, textarea {
   position: absolute;
   bottom: 0.5rem;
   right: -1rem;
-  background: linear-gradient(135deg, #0948AC 0%, #032969 100%);
+  background: linear-gradient(135deg, #431E8E 0%, #2D145E 100%);
   color: #FFFFFF;
   border-radius: var(--radius-xl);
   padding: 1rem 1.25rem;
@@ -2929,7 +2929,7 @@ input, select, textarea {
   gap: 0.5rem;
   padding: 0.35rem 0.85rem;
   border-radius: var(--radius-pill);
-  background: rgba(17, 103, 238, 0.05);
+  background: rgba(87, 40, 178, 0.05);
   border: 1px solid var(--color-border-blue);
   font-size: 0.8125rem;
   font-weight: 600;
@@ -3489,7 +3489,7 @@ input, select, textarea {
   background: #0948AC;
   border-color: #5290F9;
   transform: translateY(-2px);
-  box-shadow: 0 8px 18px rgba(17, 103, 238, 0.3);
+  box-shadow: 0 8px 18px rgba(87, 40, 178, 0.3);
   color: #FFFFFF;
 }
 
@@ -3538,7 +3538,7 @@ input, select, textarea {
   right: -5%;
   width: 500px;
   height: 500px;
-  background: radial-gradient(circle, rgba(17, 103, 238, 0.05) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(87, 40, 178, 0.05) 0%, transparent 70%);
   border-radius: 50%;
   pointer-events: none;
 }

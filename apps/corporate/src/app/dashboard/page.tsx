@@ -40,7 +40,7 @@ export default function CompanyOverviewPage() {
           value={mockExecutiveMetrics.totalEmployees.toLocaleString()}
           icon={<Users size={18} />}
           trend={{ value: mockExecutiveMetrics.employeesDelta, isPositive: true }}
-          highlightColor="#1167EE"
+          highlightColor="#5728B2"
         />
         <MetricCard
           label="Scheduled Trips"
@@ -111,7 +111,7 @@ export default function CompanyOverviewPage() {
               style={{
                 fontSize: '11px',
                 fontWeight: 700,
-                color: '#1167EE',
+                color: '#5728B2',
                 backgroundColor: '#EFF6FF',
                 padding: '4px 10px',
                 borderRadius: 'var(--radius-pill)',
@@ -150,7 +150,7 @@ export default function CompanyOverviewPage() {
               height: 38,
               borderRadius: '8px',
               backgroundColor: '#EFF6FF',
-              color: '#1167EE',
+              color: '#5728B2',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

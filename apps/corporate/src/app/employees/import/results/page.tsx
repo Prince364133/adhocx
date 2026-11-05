@@ -58,7 +58,7 @@ export default function ImportValidationResultsPage() {
       case 'Duplicate':
         return { bg: '#FEF3C7', color: '#D97706', border: '#FCD34D' };
       case 'Warning':
-        return { bg: '#EFF6FF', color: '#1167EE', border: '#BFDBFE' };
+        return { bg: '#EFF6FF', color: '#5728B2', border: '#BFDBFE' };
     }
   };
 
@@ -107,7 +107,7 @@ export default function ImportValidationResultsPage() {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              backgroundColor: '#1167EE',
+              backgroundColor: '#5728B2',
               color: '#FFFFFF',
               border: 'none',
               borderRadius: 'var(--radius-md)',
@@ -115,7 +115,7 @@ export default function ImportValidationResultsPage() {
               fontSize: '13px',
               fontWeight: 700,
               cursor: 'pointer',
-              boxShadow: '0 2px 4px rgba(17,103,238,0.25)',
+              boxShadow: '0 2px 4px rgba(87, 40, 178,0.25)',
             }}
           >
             <Upload size={15} />
@@ -176,11 +176,11 @@ export default function ImportValidationResultsPage() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#EFF6FF', color: '#1167EE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#EFF6FF', color: '#5728B2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <AlertTriangle size={18} />
           </div>
           <div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: '#1167EE' }}>16</div>
+            <div style={{ fontSize: '18px', fontWeight: 800, color: '#5728B2' }}>16</div>
             <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Warnings</div>
           </div>
         </div>
@@ -200,7 +200,7 @@ export default function ImportValidationResultsPage() {
                 fontWeight: 700,
                 border: 'none',
                 cursor: 'pointer',
-                backgroundColor: activeTab === 'all' ? '#1167EE' : '#F1F5F9',
+                backgroundColor: activeTab === 'all' ? '#5728B2' : '#F1F5F9',
                 color: activeTab === 'all' ? '#FFFFFF' : '#475569',
               }}
             >
@@ -245,8 +245,8 @@ export default function ImportValidationResultsPage() {
                 fontWeight: 700,
                 border: 'none',
                 cursor: 'pointer',
-                backgroundColor: activeTab === 'warnings' ? '#1167EE' : '#EFF6FF',
-                color: activeTab === 'warnings' ? '#FFFFFF' : '#1167EE',
+                backgroundColor: activeTab === 'warnings' ? '#5728B2' : '#EFF6FF',
+                color: activeTab === 'warnings' ? '#FFFFFF' : '#5728B2',
               }}
             >
               Warnings (16)

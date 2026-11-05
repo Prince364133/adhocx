@@ -60,7 +60,7 @@ export default function InvoiceListPage() {
       case 'Overdue':
         return { bg: '#FEE2E2', color: '#DC2626', border: '#FCA5A5' };
       case 'Pending':
-        return { bg: '#EFF6FF', color: '#1167EE', border: '#BFDBFE' };
+        return { bg: '#EFF6FF', color: '#5728B2', border: '#BFDBFE' };
     }
   };
 
@@ -83,7 +83,7 @@ export default function InvoiceListPage() {
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            backgroundColor: '#1167EE',
+            backgroundColor: '#5728B2',
             color: '#FFFFFF',
             border: 'none',
             borderRadius: 'var(--radius-md)',
@@ -91,7 +91,7 @@ export default function InvoiceListPage() {
             fontSize: '13px',
             fontWeight: 700,
             cursor: 'pointer',
-            boxShadow: '0 2px 4px rgba(17,103,238,0.25)',
+            boxShadow: '0 2px 4px rgba(87, 40, 178,0.25)',
           }}
         >
           <Plus size={16} />
@@ -207,7 +207,7 @@ export default function InvoiceListPage() {
                             borderRadius: 4,
                             border: '1px solid #BFDBFE',
                             backgroundColor: '#EFF6FF',
-                            color: '#1167EE',
+                            color: '#5728B2',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -268,7 +268,7 @@ export default function InvoiceListPage() {
             <button style={{ width: 28, height: 28, borderRadius: 4, border: '1px solid #CBD5E1', backgroundColor: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <ChevronLeft size={14} color="#64748B" />
             </button>
-            <button style={{ width: 28, height: 28, borderRadius: 4, border: '1px solid #1167EE', backgroundColor: '#1167EE', color: '#FFFFFF', fontSize: 12, fontWeight: 700 }}>
+            <button style={{ width: 28, height: 28, borderRadius: 4, border: '1px solid #5728B2', backgroundColor: '#5728B2', color: '#FFFFFF', fontSize: 12, fontWeight: 700 }}>
               1
             </button>
             <button style={{ width: 28, height: 28, borderRadius: 4, border: '1px solid #CBD5E1', backgroundColor: '#FFFFFF', color: '#475569', fontSize: 12, fontWeight: 600 }}>

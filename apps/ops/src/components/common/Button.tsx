@@ -45,7 +45,7 @@ export const Button: React.FC<ButtonProps> = ({
 
   const variantStyles: Record<string, React.CSSProperties> = {
     primary: {
-      backgroundColor: 'var(--brand-blue-500, #1167EE)',
+      backgroundColor: 'var(--brand-blue-500, #5728B2)',
       color: '#FFFFFF',
       borderColor: 'var(--brand-blue-600, #0948AC)',
     },

@@ -15,7 +15,7 @@ import MetricCard from '../../../components/common/MetricCard';
 import DonutChart from '../../../components/charts/DonutChart';
 
 const deptCostDonutData = [
-  { label: 'Engineering', count: 1240000, pct: 43.1, color: '#1167EE' },
+  { label: 'Engineering', count: 1240000, pct: 43.1, color: '#5728B2' },
   { label: 'Customer Ops', count: 810000, pct: 28.2, color: '#8B5CF6' },
   { label: 'Product Team', count: 520000, pct: 18.1, color: '#38BDF8' },
   { label: 'HR & Facilities', count: 180000, pct: 6.3, color: '#16A34A' },

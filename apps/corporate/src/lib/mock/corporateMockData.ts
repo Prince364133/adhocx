@@ -42,7 +42,7 @@ export const mockExecutiveMetrics: ExecutiveMetrics = {
 
 export const mockTripStatusBreakdown = [
   { label: 'Completed', count: 372, pct: 90.3, color: '#16A34A' },
-  { label: 'In Progress', count: 96, pct: 23.3, color: '#1167EE' },
+  { label: 'In Progress', count: 96, pct: 23.3, color: '#5728B2' },
   { label: 'Unserved', count: 28, pct: 5.8, color: '#DC2626' },
   { label: 'Cancelled', count: 16, pct: 3.9, color: '#94A3B8' },
 ];
@@ -69,7 +69,7 @@ export const mockTransportAnalytics = {
   totalTransportCostLakhs: 18.4,
   costDelta: '+2.6%',
   tripDistribution: [
-    { label: 'Login (Pickup)', count: 214, pct: 52, color: '#1167EE' },
+    { label: 'Login (Pickup)', count: 214, pct: 52, color: '#5728B2' },
     { label: 'Logout (Drop)', count: 181, pct: 44, color: '#8B5CF6' },
     { label: 'Ad-hoc', count: 17, pct: 4, color: '#EE9811' },
   ],

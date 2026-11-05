@@ -166,7 +166,7 @@ export const StopItineraryDrawer: React.FC<StopItineraryDrawerProps> = ({
                         width: '24px',
                         height: '24px',
                         borderRadius: '50%',
-                        backgroundColor: isOffice ? 'var(--brand-amber-500, #EE9811)' : 'var(--brand-blue-500, #1167EE)',
+                        backgroundColor: isOffice ? 'var(--brand-amber-500, #EE9811)' : 'var(--brand-blue-500, #5728B2)',
                         color: '#FFFFFF',
                         display: 'flex',
                         alignItems: 'center',

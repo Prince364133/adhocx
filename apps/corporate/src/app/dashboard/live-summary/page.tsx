@@ -110,7 +110,7 @@ export default function LiveOperationsSummaryPage() {
               style={{
                 fontSize: '12px',
                 fontWeight: 700,
-                color: '#1167EE',
+                color: '#5728B2',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
@@ -131,7 +131,7 @@ export default function LiveOperationsSummaryPage() {
                   style={{
                     padding: '14px 16px',
                     borderRadius: 'var(--radius-lg)',
-                    border: `1px solid ${isSelected ? '#1167EE' : '#E2E8F0'}`,
+                    border: `1px solid ${isSelected ? '#5728B2' : '#E2E8F0'}`,
                     backgroundColor: isSelected ? '#EFF6FF' : '#FFFFFF',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
@@ -139,7 +139,7 @@ export default function LiveOperationsSummaryPage() {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Car size={16} color={isSelected ? '#1167EE' : '#64748B'} />
+                      <Car size={16} color={isSelected ? '#5728B2' : '#64748B'} />
                       <span style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>
                         {trip.cabNumber}
                       </span>

@@ -134,7 +134,7 @@ export default function CompanyHubPage() {
           value={tenants.length}
           subtext="Active transport contracts"
           icon={<Building2 size={20} />}
-          highlightColor="var(--brand-blue-500, #1167EE)"
+          highlightColor="var(--brand-blue-500, #5728B2)"
         />
         <MetricCard
           label="Active Fleet On Road"

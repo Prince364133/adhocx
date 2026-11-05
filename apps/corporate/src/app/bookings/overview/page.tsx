@@ -14,7 +14,7 @@ import { DonutChart } from '../../../components/charts/DonutChart';
 import { AreaTrendChart } from '../../../components/charts/AreaTrendChart';
 
 const MOCK_REQUEST_TYPES_DONUT = [
-  { label: 'Roster (Auto)', count: 2108, pct: 82.1, color: '#1167EE' },
+  { label: 'Roster (Auto)', count: 2108, pct: 82.1, color: '#5728B2' },
   { label: 'Ad-hoc', count: 292, pct: 11.4, color: '#8B5CF6' },
   { label: 'Change Request', count: 110, pct: 4.3, color: '#F59E0B' },
   { label: 'Cancellation', count: 58, pct: 2.2, color: '#DC2626' },
@@ -58,7 +58,7 @@ export default function BookingOverviewPage() {
           label="Total Requests"
           value="2,568"
           icon={<Ticket size={18} />}
-          highlightColor="#1167EE"
+          highlightColor="#5728B2"
         />
         <MetricCard
           label="Confirmed"

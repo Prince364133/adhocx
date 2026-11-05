@@ -84,7 +84,7 @@ export const MiniLiveMap: React.FC<MiniLiveMapProps> = ({
         <path
           d={pathD}
           fill="none"
-          stroke="#1167EE"
+          stroke="#5728B2"
           strokeWidth="5"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -95,10 +95,10 @@ export const MiniLiveMap: React.FC<MiniLiveMapProps> = ({
         <circle cx="140" cy="230" r="4" fill="#FFFFFF" />
 
         {/* Waypoint Stops */}
-        <circle cx="280" cy="215" r="7" fill="#1167EE" />
+        <circle cx="280" cy="215" r="7" fill="#5728B2" />
         <text x="280" y="219" fill="#FFFFFF" fontSize="9" fontWeight="700" textAnchor="middle">1</text>
 
-        <circle cx="440" cy="180" r="7" fill="#1167EE" />
+        <circle cx="440" cy="180" r="7" fill="#5728B2" />
         <text x="440" y="184" fill="#FFFFFF" fontSize="9" fontWeight="700" textAnchor="middle">2</text>
 
         {/* Destination Pin (HiTEC City Hub) */}
@@ -108,13 +108,13 @@ export const MiniLiveMap: React.FC<MiniLiveMapProps> = ({
         {/* Live Vehicle Marker */}
         <g transform="translate(435, 175)">
           {/* Animated pulse ring */}
-          <circle cx="0" cy="0" r="16" fill="#1167EE" opacity="0.2">
+          <circle cx="0" cy="0" r="16" fill="#5728B2" opacity="0.2">
             <animate attributeName="r" values="12;24;12" dur="2s" repeatCount="indefinite" />
             <animate attributeName="opacity" values="0.4;0;0.4" dur="2s" repeatCount="indefinite" />
           </circle>
 
           {/* Vehicle Icon Circle */}
-          <circle cx="0" cy="0" r="14" fill="#1167EE" stroke="#FFFFFF" strokeWidth="2.5" />
+          <circle cx="0" cy="0" r="14" fill="#5728B2" stroke="#FFFFFF" strokeWidth="2.5" />
           <path
             d="M -6 -3 L -4 -7 L 4 -7 L 6 -3 L 6 4 L -6 4 Z"
             fill="#FFFFFF"
@@ -158,7 +158,7 @@ export const MiniLiveMap: React.FC<MiniLiveMapProps> = ({
           </span>
         </div>
         <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 500 }}>
-          ETA: <strong style={{ color: '#1167EE' }}>{activeEta}</strong> · 5 stops
+          ETA: <strong style={{ color: '#5728B2' }}>{activeEta}</strong> · 5 stops
         </div>
       </div>
 

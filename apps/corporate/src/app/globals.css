@@ -2,16 +2,16 @@
 
 :root {
   /* ── Brand Action Tokens ── */
-  --brand-blue-900: #010D2D;
-  --brand-blue-800: #032969;
-  --brand-blue-700: #0948AC;
-  --brand-blue-600: #0D57CD;
-  --brand-blue-500: #1167EE;
-  --brand-blue-400: #3B82F6;
-  --brand-blue-300: #60A5FA;
-  --brand-blue-200: #93C5FD;
-  --brand-blue-100: #DBEAFE;
-  --brand-blue-50: #EFF6FF;
+  --brand-blue-900: #1B0E38;
+  --brand-blue-800: #2D145E;
+  --brand-blue-700: #431E8E;
+  --brand-blue-600: #4E22A3;
+  --brand-blue-500: #5728B2;
+  --brand-blue-400: #733DD9;
+  --brand-blue-300: #9F7AEA;
+  --brand-blue-200: #B794F4;
+  --brand-blue-100: #F3E8FF;
+  --brand-blue-50: #FAF5FF;
 
   --brand-amber-900: #351E01;
   --brand-amber-800: #613B03;
@@ -36,13 +36,13 @@
   --sidebar-border: #16284F;
   --sidebar-text: #F8FAFC;
   --sidebar-text-muted: #94A3B8;
-  --sidebar-active-bg: #1167EE;
+  --sidebar-active-bg: #5728B2;
   --sidebar-active-text: #FFFFFF;
 
   /* ── Borders & Outlines ── */
   --border-subtle: #E2E8F0;
   --border-strong: #CBD5E1;
-  --border-focus: #1167EE;
+  --border-focus: #5728B2;
 
   /* ── High Contrast Typography ── */
   --text-primary: #0F172A;
@@ -63,7 +63,7 @@
   --color-danger-bg: #FEE2E2;
   --color-danger-border: #FCA5A5;
 
-  --color-info: #1167EE;
+  --color-info: #5728B2;
   --color-info-bg: #EFF6FF;
   --color-info-border: #BFDBFE;
 
@@ -172,7 +172,7 @@ body {
 }
 .field-input:focus {
   border-color: var(--border-focus);
-  box-shadow: 0 0 0 3px rgba(17, 103, 238, 0.15);
+  box-shadow: 0 0 0 3px rgba(87, 40, 178, 0.15);
 }
 
 /* ── Tables ── */

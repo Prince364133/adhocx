@@ -2,13 +2,13 @@
 
 :root {
   /* ── 04_DESIGN_SYSTEM.md Brand Action Tokens (Primary Blue & Warm Amber Gold) ── */
-  --brand-blue-900: #010D2D;
-  --brand-blue-800: #032969;
-  --brand-blue-700: #0948AC;
-  --brand-blue-500: #1167EE;
-  --brand-blue-400: #5290F9;
-  --brand-blue-200: #91B9FB;
-  --brand-blue-50: #CEE0FD;
+  --brand-blue-900: #1B0E38;
+  --brand-blue-800: #2D145E;
+  --brand-blue-700: #431E8E;
+  --brand-blue-500: #5728B2;
+  --brand-blue-400: #733DD9;
+  --brand-blue-200: #B794F4;
+  --brand-blue-50: #F3E8FF;
 
   --brand-amber-900: #351E01;
   --brand-amber-800: #613B03;
@@ -28,7 +28,7 @@
 
   --border-subtle: #1E3060;
   --border-strong: #2D4685;
-  --border-focus: #1167EE;
+  --border-focus: #5728B2;
 
   --text-primary: #F8FAFC;
   --text-secondary: #94A3B8;
@@ -47,9 +47,9 @@
   --color-danger-bg: rgba(220, 38, 38, 0.15);
   --color-danger-border: rgba(220, 38, 38, 0.35);
 
-  --color-info: #1167EE;
-  --color-info-bg: rgba(17, 103, 238, 0.15);
-  --color-info-border: rgba(17, 103, 238, 0.35);
+  --color-info: #5728B2;
+  --color-info-bg: rgba(87, 40, 178, 0.15);
+  --color-info-border: rgba(87, 40, 178, 0.35);
 
   /* ── Radius Scale (§ 14) ── */
   --radius-xs: 4px;
@@ -75,7 +75,7 @@
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
   --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
   --shadow-elevated: 0 12px 20px -4px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
-  --shadow-glow-blue: 0 0 16px -2px rgba(17, 103, 238, 0.35);
+  --shadow-glow-blue: 0 0 16px -2px rgba(87, 40, 178, 0.35);
   --shadow-glow-sos: 0 0 24px 2px rgba(220, 38, 38, 0.45);
 }
 
@@ -114,9 +114,9 @@ body {
   font-size: 12px;
   font-weight: 600;
   padding: 2px 6px;
-  background: rgba(17, 103, 238, 0.12);
+  background: rgba(87, 40, 178, 0.12);
   color: var(--brand-blue-400);
-  border: 1px solid rgba(17, 103, 238, 0.25);
+  border: 1px solid rgba(87, 40, 178, 0.25);
   border-radius: var(--radius-xs);
   display: inline-block;
 }

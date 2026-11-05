@@ -76,7 +76,7 @@ export default function ShiftManagementPage() {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              backgroundColor: '#1167EE',
+              backgroundColor: '#5728B2',
               color: '#FFFFFF',
               border: 'none',
               borderRadius: 'var(--radius-md)',
@@ -84,7 +84,7 @@ export default function ShiftManagementPage() {
               fontSize: '13px',
               fontWeight: 700,
               cursor: 'pointer',
-              boxShadow: '0 2px 4px rgba(17,103,238,0.25)',
+              boxShadow: '0 2px 4px rgba(87, 40, 178,0.25)',
             }}
           >
             <Plus size={16} />
@@ -105,7 +105,7 @@ export default function ShiftManagementPage() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#EFF6FF', color: '#1167EE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#EFF6FF', color: '#5728B2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <CalendarClock size={18} />
           </div>
           <div>
@@ -174,7 +174,7 @@ export default function ShiftManagementPage() {
                   <td style={{ fontWeight: 600, color: '#0F172A' }}>{s.loginTime}</td>
                   <td style={{ fontWeight: 600, color: '#0F172A' }}>{s.logoutTime}</td>
                   <td style={{ fontSize: '12px', color: '#64748B' }}>{s.duration}</td>
-                  <td style={{ fontWeight: 700, color: '#1167EE' }}>{s.assignedEmployees.toLocaleString()}</td>
+                  <td style={{ fontWeight: 700, color: '#5728B2' }}>{s.assignedEmployees.toLocaleString()}</td>
                   <td>
                     <span
                       style={{

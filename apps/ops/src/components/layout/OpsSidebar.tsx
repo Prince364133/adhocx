@@ -109,7 +109,7 @@ export const OpsSidebar: React.FC = () => {
                   fontSize: '13px',
                   fontWeight: isActive ? 600 : 500,
                   color: isActive ? '#FFFFFF' : 'var(--text-secondary, #94A3B8)',
-                  backgroundColor: isActive ? 'var(--brand-blue-500, #1167EE)' : 'transparent',
+                  backgroundColor: isActive ? 'var(--brand-blue-500, #5728B2)' : 'transparent',
                   transition: 'all 0.15s ease-in-out',
                 }}
                 onMouseEnter={(e) => {

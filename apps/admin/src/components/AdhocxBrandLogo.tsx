@@ -18,20 +18,20 @@ export const AdhocxBrandIcon: React.FC<{ size?: number; className?: string }> = 
         width: `${size}px`,
         height: `${size}px`,
         borderRadius: '9px',
-        background: 'linear-gradient(135deg, #6347F9 0%, #4328E0 100%)',
+        background: 'linear-gradient(135deg, #5728B2 0%, #431E8E 100%)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         fontWeight: 900,
         fontSize: `${size * 0.44}px`,
         fontFamily: "'Inter', sans-serif",
-        boxShadow: '0 3px 10px rgba(99, 71, 249, 0.25)',
+        boxShadow: '0 3px 10px rgba(87, 40, 178, 0.25)',
         flexShrink: 0,
         color: '#FFFFFF',
       }}
     >
       <span>A</span>
-      <span style={{ color: '#FF6200' }}>X</span>
+      <span style={{ color: '#FF5F09' }}>X</span>
     </div>
   );
 };
@@ -66,7 +66,7 @@ export const AdhocxBrandLogo: React.FC<AdhocxBrandLogoProps> = ({
         }}
       >
         <span style={{ color: 'var(--text-primary)' }}>Adhoc</span>
-        <span style={{ color: '#FF6200', fontWeight: 900 }}>X</span>
+        <span style={{ color: '#FF5F09', fontWeight: 900 }}>X</span>
       </div>
       {subtitle && (
         <div

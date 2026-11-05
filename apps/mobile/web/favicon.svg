@@ -1,29 +1,34 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
   <defs>
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0A1832" />
-      <stop offset="100%" stop-color="#0F2C69" />
+    <!-- Brand Primary Theme #5728B2 for "Adhoc" -->
+    <linearGradient id="iconAdhocGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5728B2" />
+      <stop offset="100%" stop-color="#431E8E" />
     </linearGradient>
-    <linearGradient id="amberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FFA800" />
-      <stop offset="100%" stop-color="#FF5E00" />
+
+    <!-- Vibrant Brand Orange Gradient for "X" -->
+    <linearGradient id="iconOrangeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF5F09" />
+      <stop offset="100%" stop-color="#FF4500" />
     </linearGradient>
-    <filter id="subtleShadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#000000" flood-opacity="0.35" />
+
+    <!-- Clean Container Border/Shadow -->
+    <filter id="iconCardShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="6" stdDeviation="12" flood-color="#5728B2" flood-opacity="0.12" />
     </filter>
   </defs>
 
-  <!-- Squircle Base -->
-  <rect x="20" y="20" width="472" height="472" rx="112" fill="url(#bgGrad)" stroke="#1D4ED8" stroke-width="8" filter="url(#subtleShadow)" />
+  <!-- Clean White Squircle Container -->
+  <rect x="16" y="16" width="480" height="480" rx="108" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="4" filter="url(#iconCardShadow)" />
 
-  <!-- Clean geometric letters: A in crisp white, X in amber-gold gradient -->
-  <g id="letters">
-    <!-- Letter A -->
-    <path d="M 120 350 L 195 150 L 235 150 L 310 350 L 265 350 L 248 304 L 182 304 L 165 350 Z M 195 268 L 235 268 L 215 210 Z" fill="#FFFFFF" />
-    <!-- Letter X -->
-    <path d="M 285 150 L 335 150 L 375 220 L 415 150 L 465 150 L 405 248 L 470 350 L 420 350 L 375 276 L 330 350 L 280 350 L 345 248 Z" fill="url(#amberGrad)" />
-  </g>
-
-  <!-- Speed Dash Indicator underneath -->
-  <rect x="135" y="380" width="242" height="20" rx="10" fill="url(#amberGrad)" />
+  <!-- Natural Typography Wordmark Centered -->
+  <text
+    x="256"
+    y="292"
+    text-anchor="middle"
+    font-family="system-ui, -apple-system, 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+    font-size="112"
+    font-weight="900"
+    letter-spacing="-1.5"
+  ><tspan fill="url(#iconAdhocGrad)">Adhoc</tspan><tspan fill="url(#iconOrangeGrad)">X</tspan></text>
 </svg>

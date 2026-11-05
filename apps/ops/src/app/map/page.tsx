@@ -203,7 +203,7 @@ export default function FleetLiveMapPage() {
                       height: '36px',
                       borderRadius: '50%',
                       backgroundColor: isSelected
-                        ? 'var(--brand-blue-500, #1167EE)'
+                        ? 'var(--brand-blue-500, #5728B2)'
                         : isDelayed
                         ? 'var(--color-danger, #DC2626)'
                         : 'var(--bg-surface-elevated, #111D3D)',
@@ -345,8 +345,8 @@ export default function FleetLiveMapPage() {
                       gap: '8px',
                       padding: '8px 12px',
                       borderRadius: 'var(--radius-md, 8px)',
-                      backgroundColor: 'rgba(17, 103, 238, 0.15)',
-                      border: '1px solid rgba(17, 103, 238, 0.35)',
+                      backgroundColor: 'rgba(87, 40, 178, 0.15)',
+                      border: '1px solid rgba(87, 40, 178, 0.35)',
                       color: 'var(--brand-blue-400, #5290F9)',
                       textDecoration: 'none',
                       fontSize: '13px',

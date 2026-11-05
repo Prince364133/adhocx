@@ -18,7 +18,7 @@ import { DonutChart } from '../../components/charts/DonutChart';
 import { AreaTrendChart } from '../../components/charts/AreaTrendChart';
 
 const MOCK_COST_BREAKDOWN_DONUT = [
-  { label: 'Employee Trips (Roster)', count: 2094000, pct: 72.8, color: '#1167EE' },
+  { label: 'Employee Trips (Roster)', count: 2094000, pct: 72.8, color: '#5728B2' },
   { label: 'Ad-hoc Trips', count: 333600, pct: 11.6, color: '#8B5CF6' },
   { label: 'Re-routes', count: 184000, pct: 6.4, color: '#06B6D4' },
   { label: 'Cancellations (Chargeable)', count: 118000, pct: 4.1, color: '#D97706' },
@@ -61,7 +61,7 @@ export default function BillingOverviewPage() {
           label="Total Billed"
           value="₹ 28,76,500"
           icon={<IndianRupee size={18} />}
-          highlightColor="#1167EE"
+          highlightColor="#5728B2"
         />
         <MetricCard
           label="Paid Amount"
@@ -113,7 +113,7 @@ export default function BillingOverviewPage() {
               style={{
                 fontSize: '11px',
                 fontWeight: 700,
-                color: '#1167EE',
+                color: '#5728B2',
                 backgroundColor: '#EFF6FF',
                 padding: '4px 10px',
                 borderRadius: 'var(--radius-pill)',
@@ -168,7 +168,7 @@ export default function BillingOverviewPage() {
               alignItems: 'center',
               gap: '6px',
               backgroundColor: '#EFF6FF',
-              color: '#1167EE',
+              color: '#5728B2',
               border: '1px solid #BFDBFE',
               borderRadius: '6px',
               padding: '8px 14px',

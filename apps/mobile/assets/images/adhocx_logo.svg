@@ -1,15 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 200" width="100%" height="100%">
   <defs>
-    <!-- Brand Primary Theme Blue for "Adhoc" -->
-    <linearGradient id="brandBlueThemeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#5B42F3" />
-      <stop offset="100%" stop-color="#4B22B6" />
+    <!-- Brand Primary Theme #5728B2 for "Adhoc" -->
+    <linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5728B2" />
+      <stop offset="100%" stop-color="#431E8E" />
     </linearGradient>
 
     <!-- Vibrant Brand Theme Orange Gradient for "X" -->
     <linearGradient id="brandOrangeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FF6B00" />
-      <stop offset="100%" stop-color="#FF5500" />
+      <stop offset="0%" stop-color="#FF5F09" />
+      <stop offset="100%" stop-color="#FF4500" />
     </linearGradient>
   </defs>
 
@@ -21,9 +21,9 @@
     x="300"
     y="126"
     text-anchor="middle"
-    font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+    font-family="system-ui, -apple-system, 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
     font-size="114"
-    font-weight="800"
+    font-weight="900"
     letter-spacing="-1.5"
-  ><tspan fill="url(#brandBlueThemeGrad)">Adhoc</tspan><tspan fill="url(#brandOrangeGrad)">X</tspan></text>
+  ><tspan fill="url(#brandGrad)">Adhoc</tspan><tspan fill="url(#brandOrangeGrad)">X</tspan></text>
 </svg>
