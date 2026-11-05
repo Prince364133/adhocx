@@ -93,10 +93,10 @@ export default function SosEmergencyCockpitPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 className="h1-text" style={{ color: '#F8FAFC' }}>
+          <h1 className="h1-text" style={{ color: 'var(--text-primary)' }}>
             SOS Emergency Response Cockpit
           </h1>
-          <p style={{ color: 'var(--text-secondary, #94A3B8)', fontSize: '14px', marginTop: '4px' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '4px' }}>
             Zero-delay crisis response center. 5-stage FSM workflow with 120-second automated escalation countdown.
           </p>
         </div>
@@ -115,8 +115,8 @@ export default function SosEmergencyCockpitPage() {
       {/* P0 Active Crisis Alerts Section */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-          <ShieldAlert size={18} color="#EF4444" />
-          <h2 className="h3-text" style={{ color: '#F8FAFC' }}>
+          <ShieldAlert size={18} color="var(--color-danger, #DC2626)" />
+          <h2 className="h3-text" style={{ color: 'var(--text-primary)' }}>
             Active Emergencies ({activeAlerts.length})
           </h2>
         </div>
@@ -126,14 +126,15 @@ export default function SosEmergencyCockpitPage() {
             style={{
               padding: '40px',
               textAlign: 'center',
-              backgroundColor: 'var(--bg-surface-elevated, #111D3D)',
+              backgroundColor: 'var(--bg-surface)',
               borderRadius: 'var(--radius-lg, 10px)',
-              border: '1px solid var(--border-subtle, #1E3060)',
+              border: '1px solid var(--border-subtle)',
+              boxShadow: 'var(--shadow-card)',
             }}
           >
-            <CheckCircle size={36} color="#4ADE80" style={{ marginBottom: '10px' }} />
-            <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#F8FAFC' }}>No active safety emergencies</h3>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary, #94A3B8)', marginTop: '4px' }}>
+            <CheckCircle size={36} color="var(--color-success, #16A34A)" style={{ marginBottom: '10px' }} />
+            <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>No active safety emergencies</h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
               All running passenger trips are within normal parameters. Emergency transponders armed.
             </p>
           </div>
@@ -145,8 +146,8 @@ export default function SosEmergencyCockpitPage() {
                 <div
                   key={alert.id}
                   style={{
-                    backgroundColor: 'rgba(220, 38, 38, 0.1)',
-                    border: '1px solid rgba(220, 38, 38, 0.5)',
+                    backgroundColor: 'var(--color-danger-bg)',
+                    border: '1px solid var(--color-danger-border)',
                     borderRadius: 'var(--radius-lg, 10px)',
                     padding: '20px',
                     display: 'flex',
@@ -166,14 +167,14 @@ export default function SosEmergencyCockpitPage() {
                           backgroundColor: 'var(--color-danger, #DC2626)',
                           color: '#FFFFFF',
                           padding: '3px 10px',
-                          borderRadius: 'var(--radius-pill, 9999px)',
+                          borderRadius: 'var(--radius-pill)',
                           letterSpacing: '0.04em',
                         }}
                       >
                         {alert.severity || 'CRITICAL P0'}
                       </span>
                       <span className="code-tag">INC-{alert.id.slice(0, 8).toUpperCase()}</span>
-                      <span style={{ fontSize: '13px', color: '#F8FAFC', fontWeight: 600 }}>
+                      <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 600 }}>
                         {alert.triggerType || 'PANIC_BUTTON'}
                       </span>
                     </div>
@@ -187,38 +188,38 @@ export default function SosEmergencyCockpitPage() {
                       display: 'grid',
                       gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
                       gap: '12px',
-                      backgroundColor: 'var(--bg-canvas, #010D2D)',
+                      backgroundColor: 'var(--bg-surface)',
                       padding: '12px 16px',
                       borderRadius: 'var(--radius-md, 8px)',
-                      border: '1px solid var(--border-subtle, #1E3060)',
+                      border: '1px solid var(--border-subtle)',
                     }}
                   >
                     <div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted, #64748B)' }}>REPORTING PASSENGER</div>
-                      <div style={{ fontWeight: 700, color: '#F8FAFC', fontSize: '14px', marginTop: '2px' }}>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>REPORTING PASSENGER</div>
+                      <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '14px', marginTop: '2px' }}>
                         {alert.riderName || 'Employee Rider'}
                       </div>
-                      <div style={{ fontSize: '12px', color: 'var(--brand-blue-400, #5290F9)' }}>
+                      <div style={{ fontSize: '12px', color: 'var(--brand-blue-500, #5728B2)' }}>
                         {alert.riderPhone || 'No phone'}
                       </div>
                     </div>
 
                     <div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted, #64748B)' }}>ASSIGNED CAB & DRIVER</div>
-                      <div style={{ fontWeight: 700, color: '#F8FAFC', fontSize: '14px', marginTop: '2px' }}>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>ASSIGNED CAB & DRIVER</div>
+                      <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '14px', marginTop: '2px' }}>
                         {alert.driverName || 'Assigned Driver'}
                       </div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-secondary, #94A3B8)' }}>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                         {alert.driverPhone || 'No phone'} · <span className="code-tag">{alert.vehiclePlate || 'VEHICLE'}</span>
                       </div>
                     </div>
 
                     <div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted, #64748B)' }}>INCIDENT GPS LOCATION</div>
-                      <div style={{ fontWeight: 600, color: '#F8FAFC', fontSize: '13px', marginTop: '2px' }}>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>INCIDENT GPS LOCATION</div>
+                      <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '13px', marginTop: '2px' }}>
                         {alert.addressText || `${alert.locationLat?.toFixed(4)}, ${alert.locationLng?.toFixed(4)}`}
                       </div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted, #64748B)' }}>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                         Triggered: {new Date(alert.createdAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}
                       </div>
                     </div>
@@ -236,11 +237,11 @@ export default function SosEmergencyCockpitPage() {
                       style={{
                         width: '100%',
                         height: '36px',
-                        backgroundColor: 'var(--bg-canvas, #010D2D)',
-                        border: '1px solid var(--border-strong, #2D4685)',
+                        backgroundColor: 'var(--bg-input)',
+                        border: '1px solid var(--border-subtle)',
                         borderRadius: 'var(--radius-md, 8px)',
                         padding: '0 12px',
-                        color: '#F8FAFC',
+                        color: 'var(--text-primary)',
                         fontSize: '13px',
                         outline: 'none',
                       }}
@@ -255,7 +256,7 @@ export default function SosEmergencyCockpitPage() {
                       justifyContent: 'space-between',
                       flexWrap: 'wrap',
                       gap: '10px',
-                      borderTop: '1px solid rgba(220, 38, 38, 0.25)',
+                      borderTop: '1px solid var(--color-danger-border)',
                       paddingTop: '12px',
                     }}
                   >
@@ -269,9 +270,9 @@ export default function SosEmergencyCockpitPage() {
                             gap: '6px',
                             padding: '6px 12px',
                             borderRadius: 'var(--radius-md, 8px)',
-                            backgroundColor: 'rgba(87, 40, 178, 0.2)',
-                            border: '1px solid rgba(87, 40, 178, 0.4)',
-                            color: 'var(--brand-blue-400, #5290F9)',
+                            backgroundColor: 'var(--brand-primary-subtle)',
+                            border: '1px solid var(--border-subtle)',
+                            color: 'var(--brand-blue-500, #5728B2)',
                             textDecoration: 'none',
                             fontSize: '12px',
                             fontWeight: 600,
@@ -291,9 +292,9 @@ export default function SosEmergencyCockpitPage() {
                             gap: '6px',
                             padding: '6px 12px',
                             borderRadius: 'var(--radius-md, 8px)',
-                            backgroundColor: 'rgba(238, 152, 17, 0.2)',
-                            border: '1px solid rgba(238, 152, 17, 0.4)',
-                            color: 'var(--brand-amber-500, #EE9811)',
+                            backgroundColor: 'var(--color-warning-bg)',
+                            border: '1px solid var(--color-warning-border)',
+                            color: 'var(--brand-amber-600, #C17A0B)',
                             textDecoration: 'none',
                             fontSize: '12px',
                             fontWeight: 600,
@@ -357,7 +358,7 @@ export default function SosEmergencyCockpitPage() {
       {/* Historical Resolved Incidents */}
       {resolvedAlerts.length > 0 && (
         <div style={{ marginTop: '16px' }}>
-          <h3 className="h4-text" style={{ color: 'var(--text-secondary, #94A3B8)', marginBottom: '12px' }}>
+          <h3 className="h4-text" style={{ color: 'var(--text-secondary)', marginBottom: '12px' }}>
             Resolved Crisis Archive ({resolvedAlerts.length})
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -365,24 +366,25 @@ export default function SosEmergencyCockpitPage() {
               <div
                 key={alert.id}
                 style={{
-                  backgroundColor: 'var(--bg-surface-elevated, #111D3D)',
-                  border: '1px solid var(--border-subtle, #1E3060)',
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
                   borderRadius: 'var(--radius-md, 8px)',
                   padding: '12px 16px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   fontSize: '13px',
+                  boxShadow: 'var(--shadow-sm)',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span className="code-tag">INC-{alert.id.slice(0, 8).toUpperCase()}</span>
-                  <span style={{ color: '#F8FAFC', fontWeight: 600 }}>{alert.riderName || 'Rider'}</span>
-                  <span style={{ color: 'var(--text-muted, #64748B)' }}>· {alert.addressText || 'Corridor'}</span>
+                  <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{alert.riderName || 'Rider'}</span>
+                  <span style={{ color: 'var(--text-muted)' }}>· {alert.addressText || 'Corridor'}</span>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ fontSize: '12px', color: 'var(--text-secondary, #94A3B8)' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                     Notes: {alert.responderNotes || 'Resolved'}
                   </span>
                   <StatusBadge status={alert.status} size="sm" />
@@ -395,4 +397,3 @@ export default function SosEmergencyCockpitPage() {
     </div>
   );
 }
-

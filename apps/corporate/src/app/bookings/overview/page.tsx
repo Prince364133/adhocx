@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React from 'react';
 import {
@@ -36,10 +36,10 @@ export default function BookingOverviewPage() {
       {/* Title & Filter Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
             Booking Overview
           </h1>
-          <p style={{ fontSize: '13px', color: '#64748B', marginTop: '2px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
             Real-time view of employee transport requests and bookings
           </p>
         </div>
@@ -94,13 +94,13 @@ export default function BookingOverviewPage() {
       {/* 2 Visualizers Grid: Trend Line + Donut by Type */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '20px' }}>
         {/* Left: Booking Trend Area Chart */}
-        <div className="surface-card" style={{ padding: '20px 24px', backgroundColor: '#FFFFFF' }}>
+        <div className="surface-card" style={{ padding: '20px 24px', backgroundColor: 'var(--bg-surface)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
             <div>
-              <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
+              <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
                 Booking Trend (Last 7 Days)
               </h2>
-              <p style={{ fontSize: '12px', color: '#64748B' }}>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                 Daily transport request demand trajectory
               </p>
             </div>
@@ -115,13 +115,13 @@ export default function BookingOverviewPage() {
         </div>
 
         {/* Right: Requests by Type Donut */}
-        <div className="surface-card" style={{ padding: '20px 24px', backgroundColor: '#FFFFFF' }}>
+        <div className="surface-card" style={{ padding: '20px 24px', backgroundColor: 'var(--bg-surface)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
             <div>
-              <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
+              <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
                 Requests by Type
               </h2>
-              <p style={{ fontSize: '12px', color: '#64748B' }}>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                 Breakdown between scheduled roster and ad-hoc employee rides
               </p>
             </div>

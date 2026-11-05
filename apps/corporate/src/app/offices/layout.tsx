@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React from 'react';
 import Link from 'next/link';
@@ -41,8 +41,9 @@ export default function OfficesLayout({ children }: { children: React.ReactNode 
           <span
             style={{
               padding: '3px 8px',
-              backgroundColor: '#1E293B',
-              color: '#FFFFFF',
+              backgroundColor: 'var(--brand-primary-subtle, rgba(87, 40, 178, 0.1))',
+              color: 'var(--brand-primary, #5728B2)',
+              border: '1px solid var(--brand-blue-200, rgba(87, 40, 178, 0.25))',
               borderRadius: 4,
               fontSize: 11,
               fontWeight: 700,

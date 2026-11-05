@@ -48,10 +48,10 @@ export default function CorridorDeviationsPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 className="h1-text" style={{ color: '#F8FAFC' }}>
+          <h1 className="h1-text" style={{ color: 'var(--text-primary)' }}>
             Route Corridor Deviation Monitor
           </h1>
-          <p style={{ color: 'var(--text-secondary, #94A3B8)', fontSize: '14px', marginTop: '4px' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '4px' }}>
             Automatic detection of unauthorized detours. Flags any active cab that deviates &gt;500 meters from the planned corridor.
           </p>
         </div>
@@ -69,7 +69,7 @@ export default function CorridorDeviationsPage() {
 
       {/* Main List */}
       {loading ? (
-        <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted, #64748B)' }}>
+        <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
           Scanning corridor telemetry...
         </div>
       ) : routes.length === 0 ? (
@@ -77,14 +77,15 @@ export default function CorridorDeviationsPage() {
           style={{
             padding: '48px',
             textAlign: 'center',
-            backgroundColor: 'var(--bg-surface-elevated, #111D3D)',
+            backgroundColor: 'var(--bg-surface)',
             borderRadius: 'var(--radius-lg, 10px)',
-            border: '1px solid var(--border-subtle, #1E3060)',
+            border: '1px solid var(--border-subtle)',
+            boxShadow: 'var(--shadow-card)',
           }}
         >
-          <ShieldCheck size={36} color="#4ADE80" style={{ marginBottom: '10px' }} />
-          <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#F8FAFC' }}>100% Corridor Adherence</h3>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary, #94A3B8)', marginTop: '4px' }}>
+          <ShieldCheck size={36} color="var(--color-success, #16A34A)" style={{ marginBottom: '10px' }} />
+          <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>100% Corridor Adherence</h3>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
             Zero unauthorized route deviations detected across active transit corridors.
           </p>
         </div>
@@ -94,8 +95,8 @@ export default function CorridorDeviationsPage() {
             <div
               key={route.id}
               style={{
-                backgroundColor: 'rgba(238, 152, 17, 0.1)',
-                border: '1px solid rgba(238, 152, 17, 0.35)',
+                backgroundColor: 'var(--color-warning-bg)',
+                border: '1px solid var(--color-warning-border)',
                 borderRadius: 'var(--radius-lg, 10px)',
                 padding: '16px 20px',
                 display: 'flex',
@@ -103,6 +104,7 @@ export default function CorridorDeviationsPage() {
                 justifyContent: 'space-between',
                 flexWrap: 'wrap',
                 gap: '12px',
+                boxShadow: 'var(--shadow-sm)',
               }}
               className="pulse-warning"
             >
@@ -125,13 +127,13 @@ export default function CorridorDeviationsPage() {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span className="code-tag">RT-{route.id.slice(0, 8).toUpperCase()}</span>
-                    <span style={{ fontWeight: 700, color: '#F8FAFC', fontSize: '14px' }}>
+                    <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '14px' }}>
                       {route.driver?.fullName || 'Assigned Driver'}
                     </span>
                     <span className="code-tag">{route.vehicle?.registrationNumber || 'VEHICLE'}</span>
                   </div>
 
-                  <div style={{ fontSize: '12px', color: '#FBBF24', marginTop: '3px' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--brand-amber-600, #C17A0B)', marginTop: '3px', fontWeight: 500 }}>
                     Warning: Vehicle trajectory exceeds standard 500m geofence corridor. (Delay: {route.delayMinutes || 12} mins)
                   </div>
                 </div>
@@ -147,9 +149,9 @@ export default function CorridorDeviationsPage() {
                       gap: '6px',
                       padding: '6px 12px',
                       borderRadius: 'var(--radius-md, 8px)',
-                      backgroundColor: 'rgba(87, 40, 178, 0.2)',
-                      border: '1px solid rgba(87, 40, 178, 0.35)',
-                      color: 'var(--brand-blue-400, #5290F9)',
+                      backgroundColor: 'var(--brand-primary-subtle)',
+                      border: '1px solid var(--border-subtle)',
+                      color: 'var(--brand-blue-500, #5728B2)',
                       textDecoration: 'none',
                       fontSize: '12px',
                       fontWeight: 600,
@@ -169,4 +171,3 @@ export default function CorridorDeviationsPage() {
     </div>
   );
 }
-

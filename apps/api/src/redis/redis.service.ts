@@ -198,9 +198,36 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * Instantly revoke all active sessions for a user across the cluster
+   */
+  async revokeUserSessions(userId: string): Promise<void> {
+    await this.set(`user_revoked:${userId}`, '1', 86400);
+    await this.del(`user_session:${userId}`);
+  }
+
+  /**
+   * Remove revocation state when user is reinstated
+   */
+  async unrevokeUser(userId: string): Promise<void> {
+    await this.del(`user_revoked:${userId}`);
+  }
+
+  async isUserRevoked(userId: string): Promise<boolean> {
+    const res = await this.get(`user_revoked:${userId}`);
+    return res === '1';
+  }
+
+  /**
    * Distributed Lock Acquisition (Redlock style SET NX EX).
    * Safe for multi-instance API deployments with fallback support.
    */
+  /**
+   * Build tenant-scoped namespaced Redis key: tenant:{tenantId}:{resource}:{id}
+   */
+  buildTenantKey(tenantId: string, resource: string, id: string): string {
+    return `tenant:${tenantId}:${resource}:${id}`;
+  }
+
   async acquireLock(key: string, ttlSeconds: number = 10): Promise<boolean> {
     const lockKey = `lock:${key}`;
     if (this.isConnected && this.client) {
@@ -210,6 +237,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       } catch {
         // fallback
       }
+    }
+
+    if (process.env.NODE_ENV === 'production' && !this.isConnected) {
+      this.logger.error(`Critical: Attempted to acquire distributed lock '${lockKey}' without active Redis in production!`);
+      throw new Error(`Distributed lock service unavailable: Redis required in production for lock '${lockKey}'`);
     }
 
     const item = this.fallbackStore.get(lockKey);
@@ -244,6 +276,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       } catch {
         // fallback
       }
+    }
+
+    if (process.env.NODE_ENV === 'production' && !this.isConnected) {
+      this.logger.error(`Critical: Attempted to acquire distributed lock '${lockKey}' without active Redis in production!`);
+      throw new Error(`Distributed lock service unavailable: Redis required in production for lock '${lockKey}'`);
     }
 
     const item = this.fallbackStore.get(lockKey);

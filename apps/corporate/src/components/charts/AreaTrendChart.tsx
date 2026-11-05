@@ -73,7 +73,7 @@ export const AreaTrendChart: React.FC<AreaTrendChartProps> = ({
                 y1={y}
                 x2={chartWidth - paddingRight}
                 y2={y}
-                stroke="#E2E8F0"
+                stroke="var(--border-subtle, #E2E8F0)"
                 strokeDasharray="3 3"
               />
               <text
@@ -81,7 +81,7 @@ export const AreaTrendChart: React.FC<AreaTrendChartProps> = ({
                 y={y + 4}
                 textAnchor="end"
                 fontSize="11"
-                fill="#94A3B8"
+                fill="var(--text-muted, #94A3B8)"
                 fontWeight="500"
               >
                 {val}
@@ -106,7 +106,7 @@ export const AreaTrendChart: React.FC<AreaTrendChartProps> = ({
                 y={chartHeight - 8}
                 textAnchor="middle"
                 fontSize="11"
-                fill={isSelected ? '#0F172A' : '#94A3B8'}
+                fill={isSelected ? 'var(--text-primary, #0F172A)' : 'var(--text-muted, #94A3B8)'}
                 fontWeight={isSelected ? '600' : '400'}
               >
                 {p.day}
@@ -117,7 +117,7 @@ export const AreaTrendChart: React.FC<AreaTrendChartProps> = ({
                 cx={p.x}
                 cy={p.y}
                 r={isSelected ? 6 : 4}
-                fill={isSelected ? lineColor : '#FFFFFF'}
+                fill={isSelected ? lineColor : 'var(--bg-surface, #FFFFFF)'}
                 stroke={lineColor}
                 strokeWidth="2.5"
                 style={{ cursor: 'pointer', transition: 'r 0.15s ease' }}
@@ -134,7 +134,7 @@ export const AreaTrendChart: React.FC<AreaTrendChartProps> = ({
                     width="68"
                     height="24"
                     rx="4"
-                    fill="#1E293B"
+                    fill="var(--text-primary, #1E293B)"
                   />
                   <text
                     x={p.x}
@@ -142,7 +142,7 @@ export const AreaTrendChart: React.FC<AreaTrendChartProps> = ({
                     textAnchor="middle"
                     fontSize="11"
                     fontWeight="700"
-                    fill="#FFFFFF"
+                    fill="var(--text-inverse, #FFFFFF)"
                   >
                     {p.trips} {metricLabel}
                   </text>

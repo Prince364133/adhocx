@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { SessionProvider, useSession } from '../../lib/auth/SessionContext';
 import { CORPORATE_ROLE_LABELS, CorporatePermission } from '../../lib/auth/permissions';
+import { ThemeToggle } from '../common/ThemeToggle';
 
 interface NavItem {
   href: string;
@@ -74,13 +75,14 @@ function Sidebar() {
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
+        transition: 'background-color 0.2s ease, border-color 0.2s ease',
       }}
       className="hide-narrow"
     >
       <div>
         {/* Brand Label inside Sidebar */}
-        <div style={{ padding: '0 8px 16px 8px', borderBottom: '1px solid rgba(255,255,255,0.08)', marginBottom: 12 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        <div style={{ padding: '0 8px 16px 8px', borderBottom: '1px solid var(--border-subtle)', marginBottom: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--sidebar-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             Corporate Portal
           </div>
         </div>
@@ -103,13 +105,13 @@ function Sidebar() {
                   textDecoration: 'none',
                   fontSize: 13,
                   fontWeight: active ? 600 : 500,
-                  color: active ? '#FFFFFF' : '#94A3B8',
+                  color: active ? 'var(--sidebar-active-text)' : 'var(--text-secondary)',
                   backgroundColor: active ? 'var(--sidebar-active-bg)' : 'transparent',
                   transition: 'background-color 0.15s ease, color 0.15s ease',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ color: active ? '#FFFFFF' : '#64748B', display: 'flex' }}>
+                  <span style={{ color: active ? 'var(--sidebar-active-text)' : 'var(--text-muted)', display: 'flex' }}>
                     {item.icon}
                   </span>
                   <span>{item.label}</span>
@@ -122,7 +124,7 @@ function Sidebar() {
                       fontWeight: 700,
                       padding: '2px 6px',
                       borderRadius: 'var(--radius-pill)',
-                      backgroundColor: item.badge === 'Live' ? '#16A34A' : '#DC2626',
+                      backgroundColor: item.badge === 'Live' ? 'var(--color-success)' : 'var(--color-danger)',
                       color: '#FFFFFF',
                     }}
                   >
@@ -140,14 +142,14 @@ function Sidebar() {
         style={{
           padding: '12px',
           borderRadius: '8px',
-          backgroundColor: 'rgba(255,255,255,0.04)',
-          border: '1px solid rgba(255,255,255,0.06)',
+          backgroundColor: 'var(--bg-surface-muted)',
+          border: '1px solid var(--border-subtle)',
           fontSize: '12px',
-          color: '#94A3B8',
+          color: 'var(--text-secondary)',
         }}
       >
-        <div style={{ fontWeight: 600, color: '#FFFFFF', marginBottom: 2 }}>AdhocX ETS v2.0</div>
-        <div style={{ fontSize: 11 }}>Hyderabad Enterprise Operations</div>
+        <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>AdhocX ETS v2.0</div>
+        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Hyderabad Enterprise Operations</div>
       </div>
     </aside>
   );
@@ -161,7 +163,7 @@ function TopBar() {
     <header
       style={{
         height: 60,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: 'var(--bg-surface)',
         borderBottom: '1px solid var(--border-subtle)',
         display: 'flex',
         alignItems: 'center',
@@ -171,6 +173,7 @@ function TopBar() {
         top: 0,
         zIndex: 50,
         gap: 16,
+        transition: 'background-color 0.2s ease, border-color 0.2s ease',
       }}
     >
       {/* Left: Brand + Tenant Selector */}
@@ -186,12 +189,12 @@ function TopBar() {
               display: 'block',
             }}
           />
-          <span style={{ fontWeight: 900, fontSize: 17, letterSpacing: '-0.02em', color: '#0F172A' }}>
+          <span style={{ fontWeight: 900, fontSize: 17, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
             Adhoc<span style={{ color: '#FF5F09', fontWeight: 900 }}>X</span>
           </span>
         </Link>
 
-        <div style={{ height: 20, width: 1, backgroundColor: '#E2E8F0' }} />
+        <div style={{ height: 20, width: 1, backgroundColor: 'var(--border-subtle)' }} />
 
         {/* Tenant Selector Dropdown */}
         <div
@@ -199,19 +202,19 @@ function TopBar() {
             display: 'flex',
             alignItems: 'center',
             gap: 8,
-            backgroundColor: '#F8FAFC',
-            border: '1px solid #E2E8F0',
+            backgroundColor: 'var(--bg-surface-muted)',
+            border: '1px solid var(--border-subtle)',
             borderRadius: '6px',
             padding: '6px 12px',
             fontSize: '13px',
             fontWeight: 600,
-            color: '#0F172A',
+            color: 'var(--text-primary)',
             cursor: 'pointer',
           }}
         >
-          <Building size={14} color="#5728B2" />
+          <Building size={14} color="var(--brand-primary, #5728B2)" />
           <span>{tenant?.name || 'HiTEC Technologies'}</span>
-          <ChevronDown size={14} color="#64748B" />
+          <ChevronDown size={14} color="var(--text-muted)" />
         </div>
       </div>
 
@@ -219,7 +222,7 @@ function TopBar() {
       <div style={{ flex: 1, maxWidth: 440, position: 'relative' }} className="hide-narrow">
         <Search
           size={15}
-          color="#94A3B8"
+          color="var(--text-muted)"
           style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }}
         />
         <input
@@ -230,26 +233,28 @@ function TopBar() {
             height: 36,
             paddingLeft: 36,
             paddingRight: 12,
-            backgroundColor: '#F1F5F9',
-            border: '1px solid transparent',
+            backgroundColor: 'var(--bg-surface-muted)',
+            border: '1px solid var(--border-subtle)',
             borderRadius: '6px',
             fontSize: 13,
-            color: '#0F172A',
+            color: 'var(--text-primary)',
             outline: 'none',
             transition: 'all 0.15s ease',
           }}
           onFocus={(e) => {
-            e.target.style.backgroundColor = '#FFFFFF';
-            e.target.style.borderColor = '#5728B2';
+            e.currentTarget.style.backgroundColor = 'var(--bg-surface)';
+            e.currentTarget.style.borderColor = 'var(--brand-primary, #5728B2)';
+            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(87, 40, 178, 0.15)';
           }}
           onBlur={(e) => {
-            e.target.style.backgroundColor = '#F1F5F9';
-            e.target.style.borderColor = 'transparent';
+            e.currentTarget.style.backgroundColor = 'var(--bg-surface-muted)';
+            e.currentTarget.style.borderColor = 'var(--border-subtle)';
+            e.currentTarget.style.boxShadow = 'none';
           }}
         />
       </div>
 
-      {/* Right: Actions, Alerts, User Profile */}
+      {/* Right: Actions, Alerts, ThemeToggle, User Profile */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
         {/* Notification Bell with Badge */}
         <div style={{ position: 'relative', cursor: 'pointer' }}>
@@ -258,14 +263,14 @@ function TopBar() {
               width: 36,
               height: 36,
               borderRadius: '50%',
-              backgroundColor: '#F8FAFC',
-              border: '1px solid #E2E8F0',
+              backgroundColor: 'var(--bg-surface-muted)',
+              border: '1px solid var(--border-subtle)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Bell size={16} color="#475569" />
+            <Bell size={16} color="var(--text-secondary)" />
           </div>
           <span
             style={{
@@ -275,7 +280,7 @@ function TopBar() {
               width: 17,
               height: 17,
               borderRadius: '50%',
-              backgroundColor: '#DC2626',
+              backgroundColor: 'var(--color-danger, #DC2626)',
               color: '#FFFFFF',
               fontSize: 10,
               fontWeight: 800,
@@ -294,8 +299,8 @@ function TopBar() {
             width: 36,
             height: 36,
             borderRadius: '50%',
-            backgroundColor: '#F8FAFC',
-            border: '1px solid #E2E8F0',
+            backgroundColor: 'var(--bg-surface-muted)',
+            border: '1px solid var(--border-subtle)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -303,10 +308,13 @@ function TopBar() {
           }}
           title="Support & Guidelines"
         >
-          <HelpCircle size={16} color="#475569" />
+          <HelpCircle size={16} color="var(--text-secondary)" />
         </div>
 
-        <div style={{ height: 20, width: 1, backgroundColor: '#E2E8F0' }} />
+        {/* Theme Toggle (Light / Black & Gray Dark / System) */}
+        <ThemeToggle />
+
+        <div style={{ height: 20, width: 1, backgroundColor: 'var(--border-subtle)' }} />
 
         {/* User Initials Avatar & Dropdown */}
         <div style={{ position: 'relative' }}>
@@ -324,7 +332,7 @@ function TopBar() {
                 width: 36,
                 height: 36,
                 borderRadius: '50%',
-                backgroundColor: '#1E293B',
+                backgroundColor: 'var(--brand-primary, #5728B2)',
                 color: '#FFFFFF',
                 display: 'flex',
                 alignItems: 'center',
@@ -337,10 +345,10 @@ function TopBar() {
               RK
             </div>
             <div className="hide-narrow" style={{ lineHeight: 1.2 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#0F172A' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
                 {user?.fullName || 'Rakesh Kumar'}
               </div>
-              <div style={{ fontSize: 11, color: '#64748B' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                 {corporateRole ? CORPORATE_ROLE_LABELS[corporateRole] : 'Corporate Admin'}
               </div>
             </div>
@@ -354,17 +362,17 @@ function TopBar() {
                 right: 0,
                 top: 48,
                 width: 200,
-                backgroundColor: '#FFFFFF',
+                backgroundColor: 'var(--bg-surface)',
                 borderRadius: '8px',
-                boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-                border: '1px solid #E2E8F0',
+                boxShadow: 'var(--shadow-elevated)',
+                border: '1px solid var(--border-subtle)',
                 padding: '6px',
                 zIndex: 100,
               }}
             >
-              <div style={{ padding: '8px 12px', borderBottom: '1px solid #F1F5F9' }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#0F172A' }}>{user?.fullName}</div>
-                <div style={{ fontSize: 11, color: '#64748B' }}>{user?.email}</div>
+              <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border-subtle)' }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{user?.fullName}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{user?.email}</div>
               </div>
               <button
                 onClick={() => void logout()}
@@ -377,7 +385,7 @@ function TopBar() {
                   backgroundColor: 'transparent',
                   border: 'none',
                   borderRadius: '4px',
-                  color: '#DC2626',
+                  color: 'var(--color-danger, #DC2626)',
                   fontSize: 13,
                   fontWeight: 600,
                   cursor: 'pointer',
@@ -405,7 +413,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
 
   return (
     <SessionProvider>
-      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'var(--bg-canvas)' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'var(--bg-canvas)', transition: 'background-color 0.2s ease' }}>
         <TopBar />
         <div style={{ display: 'flex', flex: 1 }}>
           <Sidebar />

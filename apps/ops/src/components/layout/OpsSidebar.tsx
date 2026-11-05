@@ -65,8 +65,8 @@ export const OpsSidebar: React.FC = () => {
     <aside
       style={{
         width: '240px',
-        backgroundColor: 'var(--bg-surface, #0B132B)',
-        borderRight: '1px solid var(--border-subtle, #1E3060)',
+        backgroundColor: 'var(--bg-surface)',
+        borderRight: '1px solid var(--border-subtle)',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
@@ -74,6 +74,7 @@ export const OpsSidebar: React.FC = () => {
         height: 'calc(100vh - 56px)',
         position: 'sticky',
         top: '56px',
+        transition: 'background-color 0.2s, border-color 0.2s',
       }}
     >
       {/* Navigation Links */}
@@ -82,7 +83,7 @@ export const OpsSidebar: React.FC = () => {
           style={{
             fontSize: '11px',
             fontWeight: 700,
-            color: 'var(--text-muted, #64748B)',
+            color: 'var(--text-muted)',
             textTransform: 'uppercase',
             letterSpacing: '0.06em',
             padding: '0 8px',
@@ -108,19 +109,19 @@ export const OpsSidebar: React.FC = () => {
                   textDecoration: 'none',
                   fontSize: '13px',
                   fontWeight: isActive ? 600 : 500,
-                  color: isActive ? '#FFFFFF' : 'var(--text-secondary, #94A3B8)',
+                  color: isActive ? '#FFFFFF' : 'var(--text-secondary)',
                   backgroundColor: isActive ? 'var(--brand-blue-500, #5728B2)' : 'transparent',
                   transition: 'all 0.15s ease-in-out',
                 }}
                 onMouseEnter={(e) => {
-                  if (!isActive) e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover, #1C2D5E)';
+                  if (!isActive) e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)';
                 }}
                 onMouseLeave={(e) => {
                   if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ color: isActive ? '#FFFFFF' : 'var(--brand-blue-400, #5290F9)' }}>
+                  <span style={{ color: isActive ? '#FFFFFF' : 'var(--brand-blue-500, #5728B2)' }}>
                     {item.icon}
                   </span>
                   <span>{item.label}</span>
@@ -132,11 +133,13 @@ export const OpsSidebar: React.FC = () => {
                       fontSize: '10px',
                       fontWeight: 700,
                       padding: '2px 6px',
-                      borderRadius: 'var(--radius-pill, 9999px)',
+                      borderRadius: 'var(--radius-pill)',
                       backgroundColor: item.badgeColor
-                        ? `rgba(${item.badgeColor === '#DC2626' ? '220, 38, 38' : '22, 163, 74'}, 0.2)`
-                        : 'rgba(255, 255, 255, 0.2)',
-                      color: item.badgeColor || '#FFFFFF',
+                        ? `rgba(${item.badgeColor === '#DC2626' ? '220, 38, 38' : '22, 163, 74'}, 0.15)`
+                        : isActive
+                        ? 'rgba(255, 255, 255, 0.25)'
+                        : 'var(--bg-surface-muted)',
+                      color: item.badgeColor || (isActive ? '#FFFFFF' : 'var(--text-secondary)'),
                     }}
                   >
                     {item.badge}
@@ -152,11 +155,11 @@ export const OpsSidebar: React.FC = () => {
       <div
         style={{
           padding: 'var(--space-4, 16px) var(--space-3, 12px)',
-          borderTop: '1px solid var(--border-subtle, #1E3060)',
-          backgroundColor: 'var(--bg-canvas, #010D2D)',
+          borderTop: '1px solid var(--border-subtle)',
+          backgroundColor: 'var(--bg-surface-muted)',
         }}
       >
-        <div style={{ fontSize: '11px', color: 'var(--text-muted, #64748B)', marginBottom: '8px' }}>
+        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600 }}>
           GOVERNANCE & FINANCE
         </div>
         <a
@@ -169,12 +172,13 @@ export const OpsSidebar: React.FC = () => {
             justifyContent: 'space-between',
             padding: '8px 10px',
             borderRadius: 'var(--radius-md, 8px)',
-            backgroundColor: 'var(--bg-surface-elevated, #111D3D)',
-            border: '1px solid var(--border-subtle, #1E3060)',
-            color: 'var(--text-secondary, #94A3B8)',
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border-subtle)',
+            color: 'var(--text-secondary)',
             textDecoration: 'none',
             fontSize: '12px',
             fontWeight: 500,
+            transition: 'border-color 0.15s ease',
           }}
         >
           <span>Super Admin (:7002)</span>
@@ -184,4 +188,3 @@ export const OpsSidebar: React.FC = () => {
     </aside>
   );
 };
-

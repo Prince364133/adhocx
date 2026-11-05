@@ -1,12 +1,14 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import * as dotenv from 'dotenv';
+import { tenantIsolationExtension } from './tenant-prisma.extension';
 
 dotenv.config();
 
 @Injectable()
 export class DatabaseService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DatabaseService.name);
+  public readonly tenant: any;
 
   constructor() {
     super({
@@ -16,6 +18,7 @@ export class DatabaseService extends PrismaClient implements OnModuleInit, OnMod
         },
       },
     });
+    this.tenant = this.$extends(tenantIsolationExtension);
   }
 
   async onModuleInit() {

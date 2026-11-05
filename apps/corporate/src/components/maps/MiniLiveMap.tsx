@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import { Navigation, ZoomIn, ZoomOut, Maximize2, Car } from 'lucide-react';
@@ -129,7 +129,7 @@ export const MiniLiveMap: React.FC<MiniLiveMapProps> = ({
           top: '32%',
           left: '52%',
           transform: 'translate(-50%, -100%)',
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--bg-surface, #FFFFFF)',
           borderRadius: 'var(--radius-md)',
           padding: '8px 12px',
           boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
@@ -141,7 +141,7 @@ export const MiniLiveMap: React.FC<MiniLiveMapProps> = ({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '12px', fontWeight: 800, color: '#0F172A' }}>
+          <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-primary)' }}>
             {activeVehiclePlate}
           </span>
           <span
@@ -157,8 +157,8 @@ export const MiniLiveMap: React.FC<MiniLiveMapProps> = ({
             In Progress
           </span>
         </div>
-        <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 500 }}>
-          ETA: <strong style={{ color: '#5728B2' }}>{activeEta}</strong> · 5 stops
+        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 500 }}>
+          ETA: <strong style={{ color: '#5728B2' }}>{activeEta}</strong> Â· 5 stops
         </div>
       </div>
 
@@ -178,7 +178,7 @@ export const MiniLiveMap: React.FC<MiniLiveMapProps> = ({
           style={{
             width: 32,
             height: 32,
-            backgroundColor: '#FFFFFF',
+            backgroundColor: 'var(--bg-surface, #FFFFFF)',
             border: '1px solid var(--border-subtle)',
             borderRadius: '6px',
             display: 'flex',
@@ -189,14 +189,14 @@ export const MiniLiveMap: React.FC<MiniLiveMapProps> = ({
           }}
           title="Zoom In"
         >
-          <ZoomIn size={16} color="#475569" />
+          <ZoomIn size={16} color="var(--text-secondary)" />
         </button>
         <button
           onClick={() => setZoomLevel((z) => Math.max(z - 0.2, 0.8))}
           style={{
             width: 32,
             height: 32,
-            backgroundColor: '#FFFFFF',
+            backgroundColor: 'var(--bg-surface, #FFFFFF)',
             border: '1px solid var(--border-subtle)',
             borderRadius: '6px',
             display: 'flex',
@@ -207,7 +207,7 @@ export const MiniLiveMap: React.FC<MiniLiveMapProps> = ({
           }}
           title="Zoom Out"
         >
-          <ZoomOut size={16} color="#475569" />
+          <ZoomOut size={16} color="var(--text-secondary)" />
         </button>
       </div>
     </div>

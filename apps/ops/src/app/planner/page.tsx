@@ -132,18 +132,25 @@ export default function RouteOptimizerPage() {
     if (!mapContainerRef.current || !(window as any).google) return;
     const google = (window as any).google;
 
+    const isDark = typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark';
+
     if (!googleMapRef.current) {
       googleMapRef.current = new google.maps.Map(mapContainerRef.current, {
         center: { lat: plan.office.lat, lng: plan.office.lng },
         zoom: 12,
         mapId: 'adhocx_ops_map',
-        styles: [
-          { elementType: 'geometry', stylers: [{ color: '#1e293b' }] },
-          { elementType: 'labels.text.stroke', stylers: [{ color: '#0f172a' }] },
-          { elementType: 'labels.text.fill', stylers: [{ color: '#94a3b8' }] },
-          { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#334155' }] },
-          { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0c4a6e' }] },
-        ],
+        styles: isDark
+          ? [
+              { elementType: 'geometry', stylers: [{ color: '#171717' }] },
+              { elementType: 'labels.text.stroke', stylers: [{ color: '#0A0A0A' }] },
+              { elementType: 'labels.text.fill', stylers: [{ color: '#A3A3A3' }] },
+              { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#262626' }] },
+              { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#1F1F1F' }] },
+            ]
+          : [
+              { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+              { featureType: 'transit', stylers: [{ visibility: 'simplified' }] },
+            ],
       });
     }
 
@@ -166,7 +173,7 @@ export default function RouteOptimizerPage() {
 
     const bounds = new google.maps.LatLngBounds();
 
-    // 1. Office HQ Marker & 50km Catchment Circle
+    // 1. Office HQ Marker & Catchment Circle
     officeMarkerRef.current = new google.maps.Marker({
       map: googleMapRef.current,
       position: { lat: plan.office.lat, lng: plan.office.lng },
@@ -187,10 +194,10 @@ export default function RouteOptimizerPage() {
       map: googleMapRef.current,
       center: { lat: plan.office.lat, lng: plan.office.lng },
       radius: plan.officeRadiusKm * 1000,
-      strokeColor: '#0EA5E9',
+      strokeColor: '#5728B2',
       strokeWeight: 2,
       strokeOpacity: 0.6,
-      fillColor: '#0EA5E9',
+      fillColor: '#5728B2',
       fillOpacity: 0.04,
     });
 
@@ -235,10 +242,10 @@ export default function RouteOptimizerPage() {
 
         const infoWindow = new google.maps.InfoWindow({
           content: `
-            <div style="color: #0F172A; padding: 4px; font-family: sans-serif; font-size: 13px;">
+            <div style="color: #191B1C; padding: 4px; font-family: Inter, sans-serif; font-size: 13px;">
               <strong style="color: #5728B2; font-size: 14px;">Stop ${letter}: ${stop.name}</strong><br/>
-              <span style="color: #64748B;">${stop.matchedAddress}</span><br/>
-              ${stop.outOfRadius ? '<span style="color: #EF4444; font-weight: bold;">⚠️ Outside Catchment Radius</span><br/>' : ''}
+              <span style="color: #595F61;">${stop.matchedAddress}</span><br/>
+              ${stop.outOfRadius ? '<span style="color: #DC2626; font-weight: bold;">⚠️ Outside Catchment Radius</span><br/>' : ''}
               <strong>Pickup ETA:</strong> ${stop.eta} (Dwell until ${stop.dwellUntil})<br/>
               <strong>Distance to HQ:</strong> ${stop.officeDistanceKm} km
             </div>
@@ -298,39 +305,28 @@ export default function RouteOptimizerPage() {
     formData.append('office', officeAddress);
     formData.append('loginTime', deadline);
     formData.append('officeRadiusKm', String(officeRadiusKm));
+    formData.append('stopDwellMinutes', String(stopDwellMinutes));
     formData.append('bufferMinutes', String(bufferMinutes));
-    formData.append('pickupWaitMinutes', String(stopDwellMinutes));
     formData.append('cabCapacity', String(cabCapacity));
     formData.append('routingPreference', routingPreference);
     formData.append('avoidTolls', String(avoidTolls));
     formData.append('avoidHighways', String(avoidHighways));
 
     try {
-      const result = await opsApi.planRoutesStream(formData, (evt) => {
-        if (evt.percent !== undefined) setProgressPct(evt.percent);
-        if (evt.message) setProgressMsg(evt.message);
+      const result = await opsApi.planRoutesStream(formData, (update: any) => {
+        setProgressPct(update.percent || update.pct || 0);
+        setProgressMsg(update.message || 'Processing...');
       });
 
-      setProgressPct(100);
-      setProgressMsg('Route planning completed!');
+      if (!result.routes || result.routes.length === 0) {
+        throw new Error('Heuristic solver returned 0 routes. Ensure address rows have valid coordinates.');
+      }
+
       setPlanResult(result);
-      if (result.routes.length > 0) {
-        setExpandedCabs(new Set([result.routes[0].cab]));
-      }
+      // Auto expand first cab
+      setExpandedCabs(new Set([1]));
     } catch (err: any) {
-      // Fallback to direct calculation if streaming is interrupted
-      try {
-        setProgressMsg('Streaming disconnected; falling back to direct calculation...');
-        const result = await opsApi.planRoutesFromFile(formData);
-        setProgressPct(100);
-        setProgressMsg('Route planning completed!');
-        setPlanResult(result);
-        if (result.routes.length > 0) {
-          setExpandedCabs(new Set([result.routes[0].cab]));
-        }
-      } catch (fallbackErr: any) {
-        setErrorMsg(fallbackErr.message || err.message || 'Route planning failed. Please check your file headers.');
-      }
+      setErrorMsg(err.message || 'Failed to solve CVRPTW routes.');
     } finally {
       setCalculating(false);
     }
@@ -339,7 +335,7 @@ export default function RouteOptimizerPage() {
   async function handleOptimizeDbShift(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedTenantId || !selectedOfficeId) {
-      setErrorMsg('Please select a corporate client and office site');
+      setErrorMsg('Please select a tenant and office hub');
       return;
     }
 
@@ -354,14 +350,11 @@ export default function RouteOptimizerPage() {
         shiftDate,
         shiftTime,
         direction,
-        vehicleCategory: cabCapacity <= 4 ? 'SEDAN' : 'SUV',
-        maxCapacity: cabCapacity,
-        officeBufferMinutes: bufferMinutes,
+        vehicleCategory: cabCapacity === 4 ? 'SEDAN' : 'SUV',
       });
-
       setDbOptimizeResult(res);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to auto-optimize shift routes from database');
+      setErrorMsg(err.message || 'Failed to auto-optimize database shift.');
     } finally {
       setDbOptimizing(false);
     }
@@ -373,44 +366,51 @@ export default function RouteOptimizerPage() {
     setErrorMsg(null);
 
     try {
-      const tenantId = selectedTenantId || (tenants[0]?.id ?? '00000000-0000-4000-8000-000000000001');
-      const officeId = selectedOfficeId || (tenants[0]?.offices?.[0]?.id ?? '00000000-0000-4000-8000-000000000002');
-      const shiftDateFormatted = deadline.slice(0, 10);
-      const shiftTimeFormatted = deadline.slice(11, 16);
-
-      const commitRes = await opsApi.commitRoutePlan({
-        tenantId,
-        officeId,
-        shiftDate: shiftDateFormatted,
-        shiftTime: shiftTimeFormatted,
-        direction: 'LOGIN',
-        vehicleCategory: cabCapacity <= 4 ? 'SEDAN' : 'SUV',
+      const res = await opsApi.commitRoutePlan({
+        tenantId: selectedTenantId || '',
+        officeId: selectedOfficeId || '',
         plan: planResult,
+        shiftDate: deadline.slice(0, 10),
+        shiftTime: deadline.slice(11, 16),
+        direction: 'LOGIN',
       });
-
-      setCommittedSuccess(commitRes);
+      setCommittedSuccess(res);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to commit routes to fleet operations database');
+      setErrorMsg(err.message || 'Failed to commit routes to live operational database.');
     } finally {
       setCommitting(false);
     }
   }
 
-  async function handleExportExcel() {
+  function handleExportExcel() {
     if (!planResult) return;
-    try {
-      const blob = await opsApi.exportPlanExcel(planResult);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `AdhocX_Route_Plan_${new Date().toISOString().slice(0, 10)}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Export to Excel failed');
-    }
+    const rows = [
+      ['Cab Number', 'Stop Letter', 'Employee Name', 'Matched Address', 'Pickup ETA', 'Dwell Until', 'Distance to HQ (km)', 'Out of Radius'],
+    ];
+
+    planResult.routes.forEach((r) => {
+      r.stops.forEach((s, idx) => {
+        rows.push([
+          String(r.cab),
+          String.fromCharCode(65 + idx),
+          s.name,
+          s.matchedAddress,
+          s.eta,
+          s.dwellUntil,
+          String(s.officeDistanceKm),
+          s.outOfRadius ? 'YES' : 'NO',
+        ]);
+      });
+    });
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + rows.map((e) => e.map((val) => `"${val.replace(/"/g, '""')}"`).join(',')).join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `cvrptw-optimized-routes-${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
   return (
@@ -418,11 +418,11 @@ export default function RouteOptimizerPage() {
       {/* Header & Mode Switcher */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 className="h1-text" style={{ color: '#F8FAFC', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Cpu size={24} style={{ color: 'var(--brand-blue-400, #5290F9)' }} />
+          <h1 className="h1-text" style={{ color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Cpu size={24} style={{ color: 'var(--brand-blue-500, #5728B2)' }} />
             CVRPTW Route Optimization Engine & Fleet Planner
           </h1>
-          <p style={{ color: 'var(--text-secondary, #94A3B8)', fontSize: '13px', marginTop: '2px' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '2px' }}>
             Traffic-aware clustering heuristic with Google Routes v2, 5-min dwell buffers, and radius catchment alerts
           </p>
         </div>
@@ -458,57 +458,58 @@ export default function RouteOptimizerPage() {
             gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
             gap: '12px',
             padding: '14px 18px',
-            backgroundColor: '#0F172A',
+            backgroundColor: 'var(--bg-surface)',
             borderRadius: 'var(--radius-lg, 10px)',
-            border: '1px solid var(--border, #334155)',
+            border: '1px solid var(--border-subtle)',
+            boxShadow: 'var(--shadow-card)',
           }}
         >
           <div>
-            <div style={{ fontSize: '11px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cabs Planned</div>
-            <div style={{ fontSize: '20px', fontWeight: 700, color: '#38BDF8', marginTop: '2px' }}>{planResult.cabCount} Vehicles</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Cabs Planned</div>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--brand-blue-500, #5728B2)', marginTop: '2px' }}>{planResult.cabCount} Vehicles</div>
           </div>
           <div>
-            <div style={{ fontSize: '11px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Employees</div>
-            <div style={{ fontSize: '20px', fontWeight: 700, color: '#F8FAFC', marginTop: '2px' }}>{planResult.employeeCount} Riders</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Total Employees</div>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>{planResult.employeeCount} Riders</div>
           </div>
           <div>
-            <div style={{ fontSize: '11px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Deadline Compliance</div>
-            <div style={{ fontSize: '20px', fontWeight: 700, color: '#4ADE80', marginTop: '2px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Deadline Compliance</div>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-success, #16A34A)', marginTop: '2px' }}>
               {planResult.routes.filter((r) => r.status === 'Meets deadline').length} / {planResult.cabCount} (100%)
             </div>
           </div>
           <div>
-            <div style={{ fontSize: '11px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Buffer Target</div>
-            <div style={{ fontSize: '20px', fontWeight: 700, color: '#A78BFA', marginTop: '2px' }}>
-              {planResult.bufferedDeadline}
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: '11px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Catchment Boundary</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Catchment Alerts</div>
             <div
               style={{
                 fontSize: '20px',
                 fontWeight: 700,
-                color: planResult.outOfRadiusCount > 0 ? '#F87171' : '#4ADE80',
+                color: planResult.outOfRadiusCount > 0 ? 'var(--color-danger, #DC2626)' : 'var(--color-success, #16A34A)',
                 marginTop: '2px',
               }}
             >
-              {planResult.outOfRadiusCount} Alerts ({planResult.officeRadiusKm} km)
+              {planResult.outOfRadiusCount > 0 ? `${planResult.outOfRadiusCount} Outside >${planResult.officeRadiusKm}km` : 'All Within Radius'}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Fleet Total Distance</div>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+              {planResult.routes.reduce((acc, r) => acc + (r.distanceKm || 0), 0).toFixed(1)} km
             </div>
           </div>
         </div>
       )}
 
-      {/* Error or Success Banner */}
+      {/* Error Banner */}
       {errorMsg && (
         <div
           style={{
             padding: '12px 16px',
-            borderRadius: '8px',
+            borderRadius: 'var(--radius-md, 8px)',
+            backgroundColor: 'var(--color-danger-bg)',
+            border: '1px solid var(--color-danger-border)',
+            color: 'var(--color-danger)',
             fontSize: '13px',
-            backgroundColor: 'rgba(239, 68, 68, 0.15)',
-            border: '1px solid rgba(239, 68, 68, 0.35)',
-            color: '#F87171',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
@@ -519,33 +520,36 @@ export default function RouteOptimizerPage() {
         </div>
       )}
 
+      {/* Committed Success Banner */}
       {committedSuccess && (
         <div
           style={{
-            padding: '14px 18px',
-            borderRadius: '8px',
-            backgroundColor: 'rgba(22, 163, 74, 0.15)',
-            border: '1px solid rgba(22, 163, 74, 0.35)',
+            padding: '12px 16px',
+            borderRadius: 'var(--radius-md, 8px)',
+            backgroundColor: 'var(--color-success-bg)',
+            border: '1px solid var(--color-success-border)',
+            color: 'var(--color-success)',
+            fontSize: '13px',
             display: 'flex',
-            justifyContent: 'space-between',
             alignItems: 'center',
+            justifyContent: 'space-between',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#4ADE80', fontSize: '14px', fontWeight: 600 }}>
-            <CheckCircle size={18} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CheckCircle size={16} />
             <span>
-              Successfully committed {committedSuccess.routesCreated} routes ({committedSuccess.stopsCreated} stops) into fleet database!
+              <strong>Success:</strong> Created {committedSuccess.routesCreated} active dispatch routes ({committedSuccess.stopsCreated} passenger stops) in operational database.
             </span>
           </div>
           <Link href="/board" style={{ textDecoration: 'none' }}>
-            <Button variant="primary" size="sm" leftIcon={<ExternalLink size={14} />}>
-              Open Live Dispatch Board
+            <Button size="sm" variant="success" rightIcon={<ExternalLink size={12} />}>
+              Open Route Deck
             </Button>
           </Link>
         </div>
       )}
 
-      {/* Main Split Layout: 380px Configuration & Itinerary Drawer + Flex Map Canvas */}
+      {/* MAIN TWO-COLUMN WORKBENCH */}
       <div
         style={{
           display: 'grid',
@@ -558,20 +562,22 @@ export default function RouteOptimizerPage() {
         {/* LEFT PANEL */}
         <div
           style={{
-            backgroundColor: 'var(--surface, #0B132B)',
+            backgroundColor: 'var(--bg-surface)',
             borderRadius: 'var(--radius-lg, 10px)',
-            border: '1px solid var(--border, #1E293B)',
+            border: '1px solid var(--border-subtle)',
+            boxShadow: 'var(--shadow-card)',
             display: 'flex',
             flexDirection: 'column',
             maxHeight: 'calc(100vh - 240px)',
             overflow: 'hidden',
+            transition: 'background-color 0.2s, border-color 0.2s',
           }}
         >
           {!planResult ? (
             /* PARAMETER CONFIGURATION & DUAL INGEST TABS */
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
               {/* Segmented Mode Selector */}
-              <div style={{ display: 'flex', borderBottom: '1px solid var(--border, #1E293B)', backgroundColor: '#070E22' }}>
+              <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface-muted)' }}>
                 <button
                   type="button"
                   onClick={() => setActiveTab('FILE_UPLOAD')}
@@ -580,15 +586,16 @@ export default function RouteOptimizerPage() {
                     padding: '12px 14px',
                     fontSize: '13px',
                     fontWeight: 600,
-                    background: activeTab === 'FILE_UPLOAD' ? 'rgba(87, 40, 178, 0.15)' : 'transparent',
-                    color: activeTab === 'FILE_UPLOAD' ? '#5290F9' : '#94A3B8',
+                    background: activeTab === 'FILE_UPLOAD' ? 'var(--brand-primary-subtle)' : 'transparent',
+                    color: activeTab === 'FILE_UPLOAD' ? 'var(--brand-blue-500, #5728B2)' : 'var(--text-muted)',
                     border: 'none',
-                    borderBottom: activeTab === 'FILE_UPLOAD' ? '2px solid #5728B2' : '2px solid transparent',
+                    borderBottom: activeTab === 'FILE_UPLOAD' ? '2px solid var(--brand-blue-500, #5728B2)' : '2px solid transparent',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '8px',
+                    transition: 'all 0.15s ease',
                   }}
                 >
                   <FileSpreadsheet size={15} />
@@ -602,15 +609,16 @@ export default function RouteOptimizerPage() {
                     padding: '12px 14px',
                     fontSize: '13px',
                     fontWeight: 600,
-                    background: activeTab === 'DB_SHIFT' ? 'rgba(87, 40, 178, 0.15)' : 'transparent',
-                    color: activeTab === 'DB_SHIFT' ? '#5290F9' : '#94A3B8',
+                    background: activeTab === 'DB_SHIFT' ? 'var(--brand-primary-subtle)' : 'transparent',
+                    color: activeTab === 'DB_SHIFT' ? 'var(--brand-blue-500, #5728B2)' : 'var(--text-muted)',
                     border: 'none',
-                    borderBottom: activeTab === 'DB_SHIFT' ? '2px solid #5728B2' : '2px solid transparent',
+                    borderBottom: activeTab === 'DB_SHIFT' ? '2px solid var(--brand-blue-500, #5728B2)' : '2px solid transparent',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '8px',
+                    transition: 'all 0.15s ease',
                   }}
                 >
                   <Database size={15} />
@@ -624,7 +632,7 @@ export default function RouteOptimizerPage() {
                   <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', flex: 1 }}>
                     {/* Office Destination */}
                     <div>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94A3B8', marginBottom: '6px' }}>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
                         Office Destination / Central Hub *
                       </label>
                       <input
@@ -636,420 +644,433 @@ export default function RouteOptimizerPage() {
                         style={{
                           width: '100%',
                           padding: '8px 12px',
-                          backgroundColor: '#0F172A',
-                          border: '1px solid #334155',
+                          backgroundColor: 'var(--bg-input)',
+                          border: '1px solid var(--border-subtle)',
                           borderRadius: '6px',
-                          color: '#F8FAFC',
+                          color: 'var(--text-primary)',
                           fontSize: '13px',
+                          outline: 'none',
                         }}
                       />
                     </div>
 
-                {/* Arrival Deadline */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94A3B8', marginBottom: '6px' }}>
-                    Required Arrival Date & Time *
-                  </label>
-                  <input
-                    type="datetime-local"
-                    required
-                    value={deadline}
-                    onChange={(e) => setDeadline(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      backgroundColor: '#0F172A',
-                      border: '1px solid #334155',
-                      borderRadius: '6px',
-                      color: '#F8FAFC',
-                      fontSize: '13px',
-                    }}
-                  />
-                </div>
+                    {/* Arrival Deadline */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                        Required Arrival Date & Time *
+                      </label>
+                      <input
+                        type="datetime-local"
+                        required
+                        value={deadline}
+                        onChange={(e) => setDeadline(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          backgroundColor: 'var(--bg-input)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: '6px',
+                          color: 'var(--text-primary)',
+                          fontSize: '13px',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
 
-                {/* 2-Column Grid for Radius and Capacity */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94A3B8', marginBottom: '6px' }}>
-                      Catchment Radius (km)
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={500}
-                      value={officeRadiusKm}
-                      onChange={(e) => setOfficeRadiusKm(Number(e.target.value))}
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        backgroundColor: '#0F172A',
-                        border: '1px solid #334155',
-                        borderRadius: '6px',
-                        color: '#F8FAFC',
-                        fontSize: '13px',
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94A3B8', marginBottom: '6px' }}>
-                      Cab Capacity
-                    </label>
-                    <select
-                      value={cabCapacity}
-                      onChange={(e) => setCabCapacity(Number(e.target.value))}
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        backgroundColor: '#0F172A',
-                        border: '1px solid #334155',
-                        borderRadius: '6px',
-                        color: '#F8FAFC',
-                        fontSize: '13px',
-                      }}
-                    >
-                      <option value={4}>4 Pax (Sedan)</option>
-                      <option value={6}>6 Pax (SUV)</option>
-                      <option value={12}>12 Pax (Tempo)</option>
-                    </select>
-                  </div>
-                </div>
+                    {/* 2-Column Grid for Radius and Capacity */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                          Catchment Radius (km)
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={500}
+                          value={officeRadiusKm}
+                          onChange={(e) => setOfficeRadiusKm(Number(e.target.value))}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            backgroundColor: 'var(--bg-input)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: '6px',
+                            color: 'var(--text-primary)',
+                            fontSize: '13px',
+                            outline: 'none',
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                          Cab Capacity
+                        </label>
+                        <select
+                          value={cabCapacity}
+                          onChange={(e) => setCabCapacity(Number(e.target.value))}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            backgroundColor: 'var(--bg-input)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: '6px',
+                            color: 'var(--text-primary)',
+                            fontSize: '13px',
+                            outline: 'none',
+                          }}
+                        >
+                          <option value={4}>4 Pax (Sedan)</option>
+                          <option value={6}>6 Pax (SUV)</option>
+                          <option value={12}>12 Pax (Tempo)</option>
+                        </select>
+                      </div>
+                    </div>
 
-                {/* Dwell and Buffer */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94A3B8', marginBottom: '6px' }}>
-                      Dwell Buffer (min)
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      max={60}
-                      value={stopDwellMinutes}
-                      onChange={(e) => setStopDwellMinutes(Number(e.target.value))}
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        backgroundColor: '#0F172A',
-                        border: '1px solid #334155',
-                        borderRadius: '6px',
-                        color: '#F8FAFC',
-                        fontSize: '13px',
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94A3B8', marginBottom: '6px' }}>
-                      Safety Buffer (min)
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      max={180}
-                      value={bufferMinutes}
-                      onChange={(e) => setBufferMinutes(Number(e.target.value))}
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        backgroundColor: '#0F172A',
-                        border: '1px solid #334155',
-                        borderRadius: '6px',
-                        color: '#F8FAFC',
-                        fontSize: '13px',
-                      }}
-                    />
-                  </div>
-                </div>
+                    {/* Dwell and Buffer */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                          Dwell Buffer (min)
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={60}
+                          value={stopDwellMinutes}
+                          onChange={(e) => setStopDwellMinutes(Number(e.target.value))}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            backgroundColor: 'var(--bg-input)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: '6px',
+                            color: 'var(--text-primary)',
+                            fontSize: '13px',
+                            outline: 'none',
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                          Safety Buffer (min)
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={180}
+                          value={bufferMinutes}
+                          onChange={(e) => setBufferMinutes(Number(e.target.value))}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            backgroundColor: 'var(--bg-input)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: '6px',
+                            color: 'var(--text-primary)',
+                            fontSize: '13px',
+                            outline: 'none',
+                          }}
+                        />
+                      </div>
+                    </div>
 
-                {/* File Drag and Drop */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94A3B8', marginBottom: '6px' }}>
-                    Upload Employee Pickup Roster (.xlsx / .csv) *
-                  </label>
-                  <label
-                    style={{
-                      border: '2px dashed #334155',
-                      borderRadius: '8px',
-                      padding: '18px 14px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      backgroundColor: selectedFile ? 'rgba(87, 40, 178, 0.08)' : '#0F172A',
-                      borderColor: selectedFile ? '#5728B2' : '#334155',
-                    }}
-                  >
-                    <UploadCloud size={24} style={{ color: selectedFile ? '#5728B2' : '#64748B', marginBottom: '6px' }} />
-                    <span style={{ fontSize: '12px', color: selectedFile ? '#F8FAFC' : '#94A3B8', fontWeight: 500, textAlign: 'center' }}>
-                      {selectedFile ? selectedFile.name : 'Click or Drag & Drop Roster File'}
-                    </span>
-                    <input
-                      type="file"
-                      accept=".csv, .xlsx, .xls"
-                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                      style={{ display: 'none' }}
-                    />
-                  </label>
-                </div>
+                    {/* File Drag and Drop */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                        Upload Employee Pickup Roster (.xlsx / .csv) *
+                      </label>
+                      <label
+                        style={{
+                          border: `2px dashed ${selectedFile ? 'var(--brand-blue-500, #5728B2)' : 'var(--border-strong)'}`,
+                          borderRadius: '8px',
+                          padding: '18px 14px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          backgroundColor: selectedFile ? 'var(--brand-primary-subtle)' : 'var(--bg-surface-muted)',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <UploadCloud size={24} style={{ color: selectedFile ? 'var(--brand-blue-500, #5728B2)' : 'var(--text-muted)', marginBottom: '6px' }} />
+                        <span style={{ fontSize: '12px', color: selectedFile ? 'var(--brand-blue-500, #5728B2)' : 'var(--text-secondary)', fontWeight: 600, textAlign: 'center' }}>
+                          {selectedFile ? selectedFile.name : 'Click or Drag & Drop Roster File'}
+                        </span>
+                        <input
+                          type="file"
+                          accept=".csv, .xlsx, .xls"
+                          onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                          style={{ display: 'none' }}
+                        />
+                      </label>
+                    </div>
 
-                {/* Routing preference */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94A3B8', marginBottom: '6px' }}>
-                    Routing Quality
-                  </label>
-                  <select
-                    value={routingPreference}
-                    onChange={(e: any) => setRoutingPreference(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      backgroundColor: '#0F172A',
-                      border: '1px solid #334155',
-                      borderRadius: '6px',
-                      color: '#F8FAFC',
-                      fontSize: '13px',
-                    }}
-                  >
-                    <option value="TRAFFIC_AWARE">Traffic-Aware (Waypoint order optimized)</option>
-                    <option value="TRAFFIC_AWARE_OPTIMAL">Traffic-Aware Optimal (Preserve order)</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Progress indicator during calculation */}
-              {calculating && (
-                <div style={{ padding: '12px 20px', backgroundColor: '#0F172A', borderTop: '1px solid #1E293B' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#94A3B8', marginBottom: '6px' }}>
-                    <span>{progressMsg}</span>
-                    <span style={{ fontWeight: 600, color: '#38BDF8' }}>{progressPct}%</span>
-                  </div>
-                  <div style={{ width: '100%', height: '6px', backgroundColor: '#334155', borderRadius: '3px', overflow: 'hidden' }}>
-                    <div style={{ width: `${progressPct}%`, height: '100%', backgroundColor: '#5728B2', transition: 'width 0.3s ease' }} />
-                  </div>
-                </div>
-              )}
-
-              {/* Action Button */}
-              <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border, #1E293B)' }}>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  style={{ width: '100%' }}
-                  disabled={calculating || !selectedFile}
-                  leftIcon={calculating ? <RefreshCw className="spin" size={16} /> : <Play size={16} />}
-                >
-                  {calculating ? 'Solving CVRPTW Routes...' : 'Calculate Routes'}
-                </Button>
-              </div>
-            </form>
-          ) : (
-            /* DATABASE SHIFT AUTO-OPTIMIZER FORM */
-            <form onSubmit={handleOptimizeDbShift} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-              <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', flex: 1 }}>
-                {/* Tenant Selector */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94A3B8', marginBottom: '6px' }}>
-                    Corporate Client (Tenant) *
-                  </label>
-                  <select
-                    value={selectedTenantId}
-                    onChange={(e) => {
-                      setSelectedTenantId(e.target.value);
-                      const t = tenants.find((item) => item.id === e.target.value);
-                      if (t && t.offices && t.offices.length > 0) {
-                        setSelectedOfficeId(t.offices[0].id);
-                      }
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      backgroundColor: '#0F172A',
-                      border: '1px solid #334155',
-                      borderRadius: '6px',
-                      color: '#F8FAFC',
-                      fontSize: '13px',
-                    }}
-                  >
-                    {tenants.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name} ({t.code})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Office Site Selector */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94A3B8', marginBottom: '6px' }}>
-                    Office / Hub Location *
-                  </label>
-                  <select
-                    value={selectedOfficeId}
-                    onChange={(e) => setSelectedOfficeId(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      backgroundColor: '#0F172A',
-                      border: '1px solid #334155',
-                      borderRadius: '6px',
-                      color: '#F8FAFC',
-                      fontSize: '13px',
-                    }}
-                  >
-                    {tenants
-                      .find((t) => t.id === selectedTenantId)
-                      ?.offices?.map((off) => (
-                        <option key={off.id} value={off.id}>
-                          {off.name} ({off.code})
-                        </option>
-                      ))}
-                  </select>
-                </div>
-
-                {/* Shift Date & Time */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94A3B8', marginBottom: '6px' }}>
-                      Shift Date *
-                    </label>
-                    <input
-                      type="date"
-                      required
-                      value={shiftDate}
-                      onChange={(e) => setShiftDate(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        backgroundColor: '#0F172A',
-                        border: '1px solid #334155',
-                        borderRadius: '6px',
-                        color: '#F8FAFC',
-                        fontSize: '13px',
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94A3B8', marginBottom: '6px' }}>
-                      Shift Time *
-                    </label>
-                    <input
-                      type="time"
-                      required
-                      value={shiftTime}
-                      onChange={(e) => setShiftTime(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        backgroundColor: '#0F172A',
-                        border: '1px solid #334155',
-                        borderRadius: '6px',
-                        color: '#F8FAFC',
-                        fontSize: '13px',
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Direction & Vehicle Category */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94A3B8', marginBottom: '6px' }}>
-                      Trip Direction
-                    </label>
-                    <select
-                      value={direction}
-                      onChange={(e: any) => setDirection(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        backgroundColor: '#0F172A',
-                        border: '1px solid #334155',
-                        borderRadius: '6px',
-                        color: '#F8FAFC',
-                        fontSize: '13px',
-                      }}
-                    >
-                      <option value="LOGIN">LOGIN (Pickup to Office)</option>
-                      <option value="LOGOUT">LOGOUT (Office to Drop)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94A3B8', marginBottom: '6px' }}>
-                      Vehicle Category
-                    </label>
-                    <select
-                      value={cabCapacity}
-                      onChange={(e) => setCabCapacity(Number(e.target.value))}
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        backgroundColor: '#0F172A',
-                        border: '1px solid #334155',
-                        borderRadius: '6px',
-                        color: '#F8FAFC',
-                        fontSize: '13px',
-                      }}
-                    >
-                      <option value={4}>Sedan (4 Seater)</option>
-                      <option value={6}>SUV (6 Seater)</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* DB Shift Optimization Summary if run */}
-                {dbOptimizeResult && (
-                  <div
-                    style={{
-                      padding: '12px 14px',
-                      borderRadius: '8px',
-                      backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                      border: '1px solid rgba(34, 197, 94, 0.3)',
-                      fontSize: '12px',
-                      color: '#4ADE80',
-                    }}
-                  >
-                    <strong>Optimization Success:</strong>
-                    <div style={{ marginTop: '4px', color: '#E2E8F0' }}>
-                      • Created {dbOptimizeResult.routesCreated ?? (Array.isArray(dbOptimizeResult) ? dbOptimizeResult.length : 0)} active routes<br />
-                      • Assigned {dbOptimizeResult.passengersAssigned ?? 0} employee bookings<br />
-                      • Visible immediately on the Live Dispatch Board
+                    {/* Routing preference */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                        Routing Quality
+                      </label>
+                      <select
+                        value={routingPreference}
+                        onChange={(e: any) => setRoutingPreference(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          backgroundColor: 'var(--bg-input)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: '6px',
+                          color: 'var(--text-primary)',
+                          fontSize: '13px',
+                          outline: 'none',
+                        }}
+                      >
+                        <option value="TRAFFIC_AWARE">Traffic-Aware (Waypoint order optimized)</option>
+                        <option value="TRAFFIC_AWARE_OPTIMAL">Traffic-Aware Optimal (Preserve order)</option>
+                      </select>
                     </div>
                   </div>
-                )}
-              </div>
 
-              {/* Action Button */}
-              <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border, #1E293B)' }}>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  style={{ width: '100%' }}
-                  disabled={dbOptimizing}
-                  leftIcon={dbOptimizing ? <RefreshCw className="spin" size={16} /> : <Cpu size={16} />}
-                >
-                  {dbOptimizing ? 'Optimizing Fleet...' : 'Auto-Optimize Shift Routes'}
-                </Button>
-              </div>
-            </form>
-          )}
-        </div>
-      ) : (
+                  {/* Progress indicator during calculation */}
+                  {calculating && (
+                    <div style={{ padding: '12px 20px', backgroundColor: 'var(--bg-surface-muted)', borderTop: '1px solid var(--border-subtle)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                        <span>{progressMsg}</span>
+                        <span style={{ fontWeight: 600, color: 'var(--brand-blue-500, #5728B2)' }}>{progressPct}%</span>
+                      </div>
+                      <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--border-subtle)', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{ width: `${progressPct}%`, height: '100%', backgroundColor: 'var(--brand-blue-500, #5728B2)', transition: 'width 0.3s ease' }} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action Button */}
+                  <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border-subtle)' }}>
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      style={{ width: '100%' }}
+                      disabled={calculating || !selectedFile}
+                      leftIcon={calculating ? <RefreshCw className="spin" size={16} /> : <Play size={16} />}
+                    >
+                      {calculating ? 'Solving CVRPTW Routes...' : 'Calculate Routes'}
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                /* DATABASE SHIFT AUTO-OPTIMIZER FORM */
+                <form onSubmit={handleOptimizeDbShift} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+                  <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', flex: 1 }}>
+                    {/* Tenant Selector */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                        Corporate Client (Tenant) *
+                      </label>
+                      <select
+                        value={selectedTenantId}
+                        onChange={(e) => {
+                          setSelectedTenantId(e.target.value);
+                          const t = tenants.find((item) => item.id === e.target.value);
+                          if (t && t.offices && t.offices.length > 0) {
+                            setSelectedOfficeId(t.offices[0].id);
+                          }
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          backgroundColor: 'var(--bg-input)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: '6px',
+                          color: 'var(--text-primary)',
+                          fontSize: '13px',
+                          outline: 'none',
+                        }}
+                      >
+                        {tenants.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name} ({t.code})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Office Site Selector */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                        Office / Hub Location *
+                      </label>
+                      <select
+                        value={selectedOfficeId}
+                        onChange={(e) => setSelectedOfficeId(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          backgroundColor: 'var(--bg-input)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: '6px',
+                          color: 'var(--text-primary)',
+                          fontSize: '13px',
+                          outline: 'none',
+                        }}
+                      >
+                        {tenants
+                          .find((t) => t.id === selectedTenantId)
+                          ?.offices?.map((off) => (
+                            <option key={off.id} value={off.id}>
+                              {off.name} ({off.code})
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+
+                    {/* Shift Date & Time */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                          Shift Date *
+                        </label>
+                        <input
+                          type="date"
+                          required
+                          value={shiftDate}
+                          onChange={(e) => setShiftDate(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            backgroundColor: 'var(--bg-input)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: '6px',
+                            color: 'var(--text-primary)',
+                            fontSize: '13px',
+                            outline: 'none',
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                          Shift Time *
+                        </label>
+                        <input
+                          type="time"
+                          required
+                          value={shiftTime}
+                          onChange={(e) => setShiftTime(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            backgroundColor: 'var(--bg-input)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: '6px',
+                            color: 'var(--text-primary)',
+                            fontSize: '13px',
+                            outline: 'none',
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Direction & Vehicle Category */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                          Trip Direction
+                        </label>
+                        <select
+                          value={direction}
+                          onChange={(e: any) => setDirection(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            backgroundColor: 'var(--bg-input)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: '6px',
+                            color: 'var(--text-primary)',
+                            fontSize: '13px',
+                            outline: 'none',
+                          }}
+                        >
+                          <option value="LOGIN">LOGIN (Pickup to Office)</option>
+                          <option value="LOGOUT">LOGOUT (Office to Drop)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                          Vehicle Category
+                        </label>
+                        <select
+                          value={cabCapacity}
+                          onChange={(e) => setCabCapacity(Number(e.target.value))}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            backgroundColor: 'var(--bg-input)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: '6px',
+                            color: 'var(--text-primary)',
+                            fontSize: '13px',
+                            outline: 'none',
+                          }}
+                        >
+                          <option value={4}>Sedan (4 Seater)</option>
+                          <option value={6}>SUV (6 Seater)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* DB Shift Optimization Summary if run */}
+                    {dbOptimizeResult && (
+                      <div
+                        style={{
+                          padding: '12px 14px',
+                          borderRadius: '8px',
+                          backgroundColor: 'var(--color-success-bg)',
+                          border: '1px solid var(--color-success-border)',
+                          fontSize: '12px',
+                          color: 'var(--color-success)',
+                        }}
+                      >
+                        <strong>Optimization Success:</strong>
+                        <div style={{ marginTop: '4px', color: 'var(--text-primary)' }}>
+                          • Created {dbOptimizeResult.routesCreated ?? (Array.isArray(dbOptimizeResult) ? dbOptimizeResult.length : 0)} active routes<br />
+                          • Assigned {dbOptimizeResult.passengersAssigned ?? 0} employee bookings<br />
+                          • Visible immediately on the Live Dispatch Board
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action Button */}
+                  <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border-subtle)' }}>
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      style={{ width: '100%' }}
+                      disabled={dbOptimizing}
+                      leftIcon={dbOptimizing ? <RefreshCw className="spin" size={16} /> : <Cpu size={16} />}
+                    >
+                      {dbOptimizing ? 'Optimizing Fleet...' : 'Auto-Optimize Shift Routes'}
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </div>
+          ) : (
             /* CALCULATED ROUTES ACCORDION LIST */
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
               <div
                 style={{
                   padding: '14px 18px',
-                  borderBottom: '1px solid var(--border, #1E293B)',
+                  borderBottom: '1px solid var(--border-subtle)',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
                 }}
               >
                 <div>
-                  <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#F8FAFC', margin: 0 }}>
+                  <h2 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
                     Planned Cab Itineraries ({planResult.cabCount} Routes)
                   </h2>
-                  <div style={{ fontSize: '11px', color: '#94A3B8' }}>Click a cab card to isolate on map</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Click a cab card to isolate on map</div>
                 </div>
                 <Button variant="ghost" size="sm" onClick={() => setPlanResult(null)}>
                   Edit Params
@@ -1070,9 +1091,11 @@ export default function RouteOptimizerPage() {
                         key={route.cab}
                         style={{
                           borderRadius: '8px',
-                          border: isSelected ? `2px solid ${color}` : '1px solid #1E293B',
-                          backgroundColor: isSelected ? 'rgba(87, 40, 178, 0.08)' : '#0F172A',
+                          border: isSelected ? `2px solid ${color}` : '1px solid var(--border-subtle)',
+                          backgroundColor: isSelected ? 'var(--brand-primary-subtle)' : 'var(--bg-surface)',
                           overflow: 'hidden',
+                          boxShadow: 'var(--shadow-sm)',
+                          transition: 'all 0.15s ease',
                         }}
                       >
                         {/* Cab Card Header */}
@@ -1097,10 +1120,10 @@ export default function RouteOptimizerPage() {
                               }}
                             />
                             <div>
-                              <div style={{ fontSize: '13px', fontWeight: 700, color: '#F8FAFC' }}>
+                              <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
                                 Route {route.cab} · {route.stops.length} Pickups
                               </div>
-                              <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>
+                              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
                                 {route.departure} → {route.arrival} · {route.distanceKm} km · {route.driveMinutes} min
                               </div>
                             </div>
@@ -1114,8 +1137,9 @@ export default function RouteOptimizerPage() {
                                   fontWeight: 700,
                                   padding: '2px 6px',
                                   borderRadius: '4px',
-                                  backgroundColor: 'rgba(239, 68, 68, 0.2)',
-                                  color: '#F87171',
+                                  backgroundColor: 'var(--color-danger-bg)',
+                                  color: 'var(--color-danger)',
+                                  border: '1px solid var(--color-danger-border)',
                                 }}
                               >
                                 {outOfRadiusStops.length} Far
@@ -1130,7 +1154,7 @@ export default function RouteOptimizerPage() {
                               style={{
                                 background: 'transparent',
                                 border: 'none',
-                                color: '#94A3B8',
+                                color: 'var(--text-muted)',
                                 cursor: 'pointer',
                                 padding: '4px',
                               }}
@@ -1142,20 +1166,20 @@ export default function RouteOptimizerPage() {
 
                         {/* Expanded Door-to-Door Itinerary */}
                         {isExpanded && (
-                          <div style={{ padding: '0 14px 12px', borderTop: '1px solid #1E293B', fontSize: '12px' }}>
-                            <div style={{ margin: '8px 0 6px', color: '#94A3B8', fontSize: '11px' }}>
-                              Sequence: <span style={{ color: '#F8FAFC' }}>{route.sequence}</span>
+                          <div style={{ padding: '0 14px 12px', borderTop: '1px solid var(--border-subtle)', fontSize: '12px' }}>
+                            <div style={{ margin: '8px 0 6px', color: 'var(--text-secondary)', fontSize: '11px' }}>
+                              Sequence: <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{route.sequence}</span>
                             </div>
 
-                            <ol style={{ margin: '8px 0', paddingLeft: '18px', color: '#E2E8F0' }}>
+                            <ol style={{ margin: '8px 0', paddingLeft: '18px', color: 'var(--text-primary)' }}>
                               {route.stops.map((stop, sIdx) => (
                                 <li key={sIdx} style={{ marginBottom: '8px', lineHeight: '1.4' }}>
-                                  <div style={{ fontWeight: 600, color: stop.outOfRadius ? '#F87171' : '#F8FAFC' }}>
+                                  <div style={{ fontWeight: 600, color: stop.outOfRadius ? 'var(--color-danger)' : 'var(--text-primary)' }}>
                                     {String.fromCharCode(65 + sIdx)}. {stop.name}
                                     {stop.outOfRadius && ' (OUTSIDE 50KM CATCHMENT)'}
                                   </div>
-                                  <div style={{ color: '#94A3B8', fontSize: '11px' }}>{stop.matchedAddress}</div>
-                                  <div style={{ color: '#38BDF8', fontSize: '11px', marginTop: '2px' }}>
+                                  <div style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>{stop.matchedAddress}</div>
+                                  <div style={{ color: 'var(--brand-blue-500, #5728B2)', fontSize: '11px', marginTop: '2px' }}>
                                     Pickup: <strong>{stop.eta}</strong> (Dwell until {stop.dwellUntil}) → To next:{' '}
                                     {stop.travelToNextMinutes}m ({stop.distanceToNextKm} km)
                                   </div>
@@ -1163,7 +1187,7 @@ export default function RouteOptimizerPage() {
                               ))}
                             </ol>
 
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#4ADE80', paddingTop: '6px', borderTop: '1px dashed #334155' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-success)', paddingTop: '6px', borderTop: '1px dashed var(--border-subtle)' }}>
                               <span>Status: {route.status}</span>
                               <span>Buffer: {route.bufferStatus}</span>
                             </div>
@@ -1176,7 +1200,7 @@ export default function RouteOptimizerPage() {
               </div>
 
               {/* Action Buttons: Commit and Export */}
-              <div style={{ padding: '14px 18px', borderTop: '1px solid var(--border, #1E293B)', display: 'flex', gap: '10px' }}>
+              <div style={{ padding: '14px 18px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '10px' }}>
                 <Button
                   variant="primary"
                   style={{ width: '100%' }}
@@ -1199,11 +1223,13 @@ export default function RouteOptimizerPage() {
           style={{
             height: 'calc(100vh - 240px)',
             minHeight: '520px',
-            backgroundColor: '#0F172A',
+            backgroundColor: 'var(--bg-surface-muted)',
             borderRadius: 'var(--radius-lg, 10px)',
-            border: '1px solid var(--border, #1E293B)',
+            border: '1px solid var(--border-subtle)',
+            boxShadow: 'var(--shadow-card)',
             overflow: 'hidden',
             position: 'relative',
+            transition: 'background-color 0.2s, border-color 0.2s',
           }}
         >
           {/* View Switcher Controls (Top Right) */}
@@ -1216,11 +1242,11 @@ export default function RouteOptimizerPage() {
                 zIndex: 20,
                 display: 'flex',
                 gap: '4px',
-                backgroundColor: 'rgba(15, 23, 42, 0.88)',
+                backgroundColor: 'var(--bg-surface)',
                 padding: '4px',
                 borderRadius: '8px',
-                border: '1px solid #334155',
-                backdropFilter: 'blur(8px)',
+                border: '1px solid var(--border-subtle)',
+                boxShadow: 'var(--shadow-sm)',
               }}
             >
               <button
@@ -1236,8 +1262,8 @@ export default function RouteOptimizerPage() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '5px',
-                  backgroundColor: viewMode === 'MAP' ? '#5728B2' : 'transparent',
-                  color: viewMode === 'MAP' ? '#FFFFFF' : '#94A3B8',
+                  backgroundColor: viewMode === 'MAP' ? 'var(--brand-blue-500, #5728B2)' : 'transparent',
+                  color: viewMode === 'MAP' ? '#FFFFFF' : 'var(--text-secondary)',
                 }}
               >
                 <MapIcon size={13} />
@@ -1256,8 +1282,8 @@ export default function RouteOptimizerPage() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '5px',
-                  backgroundColor: viewMode === 'TOPOLOGY' ? '#5728B2' : 'transparent',
-                  color: viewMode === 'TOPOLOGY' ? '#FFFFFF' : '#94A3B8',
+                  backgroundColor: viewMode === 'TOPOLOGY' ? 'var(--brand-blue-500, #5728B2)' : 'transparent',
+                  color: viewMode === 'TOPOLOGY' ? '#FFFFFF' : 'var(--text-secondary)',
                 }}
               >
                 <Radar size={13} />
@@ -1287,19 +1313,19 @@ export default function RouteOptimizerPage() {
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
                 textAlign: 'center',
-                backgroundColor: 'rgba(15, 23, 42, 0.88)',
-                padding: '24px 32px',
+                backgroundColor: 'var(--bg-surface)',
+                padding: '28px 36px',
                 borderRadius: '12px',
-                border: '1px solid #334155',
-                backdropFilter: 'blur(8px)',
+                border: '1px solid var(--border-subtle)',
+                boxShadow: 'var(--shadow-elevated)',
                 pointerEvents: 'none',
               }}
             >
-              <Compass size={36} style={{ color: '#5290F9', margin: '0 auto 12px' }} />
-              <div style={{ fontSize: '15px', fontWeight: 600, color: '#F8FAFC' }}>
+              <Compass size={36} style={{ color: 'var(--brand-blue-500, #5728B2)', margin: '0 auto 12px' }} />
+              <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
                 Interactive Vector Route Map & Radar Topology
               </div>
-              <p style={{ fontSize: '12px', color: '#94A3B8', marginTop: '6px', maxWidth: '300px' }}>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '6px', maxWidth: '320px', lineHeight: 1.5 }}>
                 Upload an employee roster on the left panel or auto-optimize a shift to view color-coded cab polylines, stop pins, and office catchment radius.
               </p>
             </div>

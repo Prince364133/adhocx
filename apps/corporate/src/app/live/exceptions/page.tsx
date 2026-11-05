@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import {
@@ -51,7 +51,7 @@ export default function TrackingExceptionsPage() {
       case 'Safety Alert':
         return { bg: '#FEE2E2', color: '#DC2626', border: '#FCA5A5' };
       default:
-        return { bg: '#F1F5F9', color: '#475569', border: '#CBD5E1' };
+        return { bg: '#F1F5F9', color: 'var(--text-secondary)', border: '#CBD5E1' };
     }
   };
 
@@ -60,10 +60,10 @@ export default function TrackingExceptionsPage() {
       {/* Title & Filter Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
             Tracking Exceptions
           </h1>
-          <p style={{ fontSize: '13px', color: '#64748B', marginTop: '2px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
             Trips and vehicles that need immediate attention
           </p>
         </div>
@@ -175,10 +175,10 @@ export default function TrackingExceptionsPage() {
                 paddingLeft: 32,
                 paddingRight: 10,
                 fontSize: 12,
-                border: '1px solid #CBD5E1',
+                border: '1px solid var(--border-strong)',
                 borderRadius: '6px',
                 outline: 'none',
-                backgroundColor: '#F8FAFC',
+                backgroundColor: 'var(--bg-surface-muted)',
               }}
             />
           </div>
@@ -204,7 +204,7 @@ export default function TrackingExceptionsPage() {
                   const badge = getBadgeStyle(item.type);
                   return (
                     <tr key={item.id}>
-                      <td style={{ fontWeight: 800, color: '#0F172A', whiteSpace: 'nowrap' }}>
+                      <td style={{ fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
                         {item.target}
                       </td>
                       <td>
@@ -223,13 +223,13 @@ export default function TrackingExceptionsPage() {
                           {item.type}
                         </span>
                       </td>
-                      <td style={{ color: '#334155', fontSize: '12px' }}>
+                      <td style={{ color: 'var(--text-primary)', fontSize: '12px' }}>
                         {item.details}
                       </td>
-                      <td style={{ fontSize: '12px', color: '#64748B' }}>
+                      <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                         {item.office}
                       </td>
-                      <td style={{ fontSize: '12px', color: '#64748B', whiteSpace: 'nowrap' }}>
+                      <td style={{ fontSize: '12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                         {item.duration}
                       </td>
                       <td>

@@ -55,7 +55,7 @@ function AdminLoginForm() {
       }
 
       // Establish secure local session & sync cookie for server-side middleware
-      setAdminSession(response.accessToken, response.user);
+      setAdminSession(response.accessToken, response.user, response.refreshToken);
 
       // Navigate to destination
       router.replace(redirectUrl);

@@ -23,8 +23,8 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   return (
     <div
       style={{
-        backgroundColor: 'var(--bg-surface-elevated, #111D3D)',
-        border: '1px solid var(--border-subtle, #1E3060)',
+        backgroundColor: 'var(--bg-surface)',
+        border: '1px solid var(--border-subtle)',
         borderRadius: 'var(--radius-lg, 10px)',
         padding: 'var(--space-4, 16px) var(--space-5, 20px)',
         display: 'flex',
@@ -33,6 +33,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
         position: 'relative',
         overflow: 'hidden',
         boxShadow: 'var(--shadow-card)',
+        transition: 'background-color 0.2s, border-color 0.2s',
       }}
     >
       {highlightColor && (
@@ -53,7 +54,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
           style={{
             fontSize: '12px',
             fontWeight: 600,
-            color: 'var(--text-secondary, #94A3B8)',
+            color: 'var(--text-secondary)',
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
           }}
@@ -63,7 +64,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
         {icon && (
           <div
             style={{
-              color: highlightColor || 'var(--brand-blue-400, #5290F9)',
+              color: highlightColor || 'var(--brand-blue-500, #5728B2)',
               opacity: 0.85,
             }}
           >
@@ -77,7 +78,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
           style={{
             fontSize: '28px',
             fontWeight: 700,
-            color: 'var(--text-primary, #F8FAFC)',
+            color: 'var(--text-primary)',
             letterSpacing: '-0.02em',
           }}
         >
@@ -100,8 +101,8 @@ export const MetricCard: React.FC<MetricCardProps> = ({
         <div
           style={{
             fontSize: '12px',
-            color: 'var(--text-muted, #64748B)',
-            marginTop: '4px',
+            color: 'var(--text-muted)',
+            marginTop: '6px',
           }}
         >
           {subtext}
@@ -110,4 +111,3 @@ export const MetricCard: React.FC<MetricCardProps> = ({
     </div>
   );
 };
-

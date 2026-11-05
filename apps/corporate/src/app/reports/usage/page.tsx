@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import {
@@ -44,7 +44,7 @@ export default function EmployeeUsageReportPage() {
               alignItems: 'center',
               gap: 6,
               padding: '8px 14px',
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
               border: '1px solid var(--border-color)',
               color: 'var(--text-secondary)',
               borderRadius: 6,
@@ -105,7 +105,7 @@ export default function EmployeeUsageReportPage() {
         {/* Shift Distribution Donut */}
         <div
           style={{
-            backgroundColor: '#FFFFFF',
+            backgroundColor: 'var(--bg-surface)',
             borderRadius: 8,
             border: '1px solid var(--border-color)',
             padding: 20,
@@ -133,7 +133,7 @@ export default function EmployeeUsageReportPage() {
         {/* Department Usage Table */}
         <div
           style={{
-            backgroundColor: '#FFFFFF',
+            backgroundColor: 'var(--bg-surface)',
             borderRadius: 8,
             border: '1px solid var(--border-color)',
             overflow: 'hidden',
@@ -153,7 +153,7 @@ export default function EmployeeUsageReportPage() {
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
               <thead>
-                <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
+                <tr style={{ backgroundColor: 'var(--bg-surface-muted)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
                   <th style={{ padding: '12px 16px' }}>Department</th>
                   <th style={{ padding: '12px 16px' }}>Active Users</th>
                   <th style={{ padding: '12px 16px' }}>Monthly Trips</th>

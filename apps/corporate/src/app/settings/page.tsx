@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import {
@@ -112,7 +112,7 @@ export default function HrmsIntegrationPage() {
           <div
             key={integ.id}
             style={{
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
               borderRadius: 8,
               border: '1px solid var(--border-color)',
               padding: 20,

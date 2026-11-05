@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
@@ -42,7 +42,7 @@ export default function IncidentDetailsDossierPage() {
               gap: 4,
               fontSize: 12,
               fontWeight: 600,
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
             }}
           >
             <ArrowLeft size={14} /> Back to Safety Overview
@@ -50,7 +50,7 @@ export default function IncidentDetailsDossierPage() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                Incident Dossier — {incident.incidentNumber}
+                Incident Dossier â€” {incident.incidentNumber}
               </h1>
               <span
                 style={{
@@ -78,7 +78,7 @@ export default function IncidentDetailsDossierPage() {
               </span>
             </div>
             <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
-              {incident.title} • Reported {incident.reportedAt}
+              {incident.title} â€¢ Reported {incident.reportedAt}
             </p>
           </div>
         </div>
@@ -154,7 +154,7 @@ export default function IncidentDetailsDossierPage() {
               type="button"
               style={{
                 padding: '6px 12px',
-                backgroundColor: '#FFFFFF',
+                backgroundColor: 'var(--bg-surface)',
                 border: '1px solid #DC2626',
                 color: '#DC2626',
                 borderRadius: 6,
@@ -179,7 +179,7 @@ export default function IncidentDetailsDossierPage() {
           {/* Metadata Card */}
           <div
             style={{
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
               borderRadius: 8,
               border: '1px solid var(--border-color)',
               padding: 20,
@@ -190,31 +190,31 @@ export default function IncidentDetailsDossierPage() {
             </h2>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 13 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', paddingBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
                 <span style={{ color: 'var(--text-muted)' }}>Incident Type:</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{incident.incidentType}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', paddingBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
                 <span style={{ color: 'var(--text-muted)' }}>Triggered Via:</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{incident.sosTriggeredBy}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', paddingBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
                 <span style={{ color: 'var(--text-muted)' }}>Commuter:</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                   {incident.employeeName} ({incident.employeeId})
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', paddingBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
                 <span style={{ color: 'var(--text-muted)' }}>Driver & Vehicle:</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {incident.driverName} • {incident.vehicleNumber}
+                  {incident.driverName} â€¢ {incident.vehicleNumber}
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', paddingBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
                 <span style={{ color: 'var(--text-muted)' }}>Corridor / Trip:</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{incident.tripId}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', paddingBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
                 <span style={{ color: 'var(--text-muted)' }}>Location:</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)', textAlign: 'right' }}>
                   {incident.location}
@@ -223,7 +223,7 @@ export default function IncidentDetailsDossierPage() {
             </div>
 
             {/* Description Box */}
-            <div style={{ marginTop: 16, padding: '12px 14px', backgroundColor: '#F8FAFC', borderRadius: 6, border: '1px solid var(--border-color)' }}>
+            <div style={{ marginTop: 16, padding: '12px 14px', backgroundColor: 'var(--bg-surface-muted)', borderRadius: 6, border: '1px solid var(--border-color)' }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>
                 Description & Telemetry Notes
               </div>
@@ -278,7 +278,7 @@ export default function IncidentDetailsDossierPage() {
         {/* Right Column: Incident Telemetry Map */}
         <div
           style={{
-            backgroundColor: '#FFFFFF',
+            backgroundColor: 'var(--bg-surface)',
             borderRadius: 8,
             border: '1px solid var(--border-color)',
             padding: 16,
@@ -292,7 +292,7 @@ export default function IncidentDetailsDossierPage() {
               Incident Location & Corridor Deviation Map
             </span>
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              Coordinates: 17.4582° N, 78.3690° E
+              Coordinates: 17.4582Â° N, 78.3690Â° E
             </span>
           </div>
 
@@ -301,7 +301,7 @@ export default function IncidentDetailsDossierPage() {
           <div
             style={{
               padding: '10px 14px',
-              backgroundColor: '#F8FAFC',
+              backgroundColor: 'var(--bg-surface-muted)',
               borderRadius: 6,
               border: '1px solid var(--border-color)',
               fontSize: 12,
@@ -312,7 +312,7 @@ export default function IncidentDetailsDossierPage() {
             }}
           >
             <div>
-              <strong>Planned Route:</strong> Kondapur → HiTEC Cyber Gateway
+              <strong>Planned Route:</strong> Kondapur â†’ HiTEC Cyber Gateway
             </div>
             <div style={{ color: '#DC2626', fontWeight: 600 }}>
               Corridor Deviation: 1.2 km off buffer

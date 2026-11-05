@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import {
@@ -33,10 +33,10 @@ export default function EmployeeLiveTrackingPage() {
       {/* Title & Filter Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
             Employee Tracking
           </h1>
-          <p style={{ fontSize: '13px', color: '#64748B', marginTop: '2px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
             Search an employee and monitor their current trip, location and status
           </p>
         </div>
@@ -50,7 +50,7 @@ export default function EmployeeLiveTrackingPage() {
       </div>
 
       {/* Omnisearch Bar with Quick Result Pill */}
-      <div className="surface-card" style={{ padding: '16px 20px', backgroundColor: '#FFFFFF' }}>
+      <div className="surface-card" style={{ padding: '16px 20px', backgroundColor: 'var(--bg-surface)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 260, position: 'relative' }}>
             <Search size={16} color="#94A3B8" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
@@ -64,18 +64,18 @@ export default function EmployeeLiveTrackingPage() {
                 height: 40,
                 paddingLeft: 38,
                 paddingRight: 14,
-                backgroundColor: '#F8FAFC',
-                border: '1px solid #CBD5E1',
+                backgroundColor: 'var(--bg-surface-muted)',
+                border: '1px solid var(--border-strong)',
                 borderRadius: '8px',
                 fontSize: '13px',
-                color: '#0F172A',
+                color: 'var(--text-primary)',
                 outline: 'none',
               }}
             />
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>
               Search Results ({searchResults.length}):
             </span>
             {searchResults.map((emp) => (
@@ -97,7 +97,7 @@ export default function EmployeeLiveTrackingPage() {
                 <div style={{ width: 22, height: 22, borderRadius: '50%', backgroundColor: '#5728B2', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700 }}>
                   {emp.fullName.slice(0, 2).toUpperCase()}
                 </div>
-                <span style={{ fontSize: '12px', fontWeight: 700, color: '#0F172A' }}>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>
                   {emp.fullName} ({emp.employeeCode})
                 </span>
                 <span style={{ fontSize: '10px', fontWeight: 800, color: '#16A34A', backgroundColor: '#DCFCE7', padding: '1px 6px', borderRadius: '4px' }}>
@@ -119,7 +119,7 @@ export default function EmployeeLiveTrackingPage() {
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: '20px',
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--bg-surface)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
@@ -141,10 +141,10 @@ export default function EmployeeLiveTrackingPage() {
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>
                 {selectedEmployee.fullName}
               </h2>
-              <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>
                 {selectedEmployee.employeeCode}
               </span>
               <span
@@ -161,8 +161,8 @@ export default function EmployeeLiveTrackingPage() {
                 {selectedEmployee.status}
               </span>
             </div>
-            <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>
-              {selectedEmployee.department} · {selectedEmployee.office}
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+              {selectedEmployee.department} Â· {selectedEmployee.office}
             </div>
           </div>
         </div>
@@ -170,37 +170,37 @@ export default function EmployeeLiveTrackingPage() {
         {/* Pickup & Shift Metadata Chips */}
         <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
           <div>
-            <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600, textTransform: 'uppercase' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
               Office Hub
             </div>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
               {selectedEmployee.office}
             </div>
           </div>
 
           <div>
-            <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600, textTransform: 'uppercase' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
               Shift
             </div>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
               {selectedEmployee.shift}
             </div>
           </div>
 
           <div>
-            <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600, textTransform: 'uppercase' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
               Pickup Point
             </div>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
               {selectedEmployee.pickupLocation}
             </div>
           </div>
 
           <div>
-            <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600, textTransform: 'uppercase' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
               Drop Destination
             </div>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
               {selectedEmployee.dropLocation}
             </div>
           </div>
@@ -211,7 +211,7 @@ export default function EmployeeLiveTrackingPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
         {/* Left: Trip Progress Timeline */}
         <div className="surface-card" style={{ padding: '20px', flex: '1 1 25%' }}>
-          <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', marginBottom: '16px' }}>
+          <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '16px' }}>
             Trip Progress
           </h3>
 
@@ -246,12 +246,12 @@ export default function EmployeeLiveTrackingPage() {
                       <span style={{ fontSize: '13px', fontWeight: isCurrent ? 800 : 600, color: isCurrent ? '#5728B2' : '#0F172A' }}>
                         {step.title}
                       </span>
-                      <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748B' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}>
                         {step.time}
                       </span>
                     </div>
                     {step.note && (
-                      <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
                         {step.note}
                       </div>
                     )}
@@ -265,7 +265,7 @@ export default function EmployeeLiveTrackingPage() {
         {/* Center: Live GPS Map */}
         <div className="surface-card" style={{ padding: '20px', flex: '1 1 45%' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-            <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>
               Live Commute Radar
             </h3>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -285,7 +285,7 @@ export default function EmployeeLiveTrackingPage() {
 
         {/* Right: Assigned Driver & Cab Panel */}
         <div className="surface-card" style={{ padding: '20px', flex: '1 1 30%' }}>
-          <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', marginBottom: '16px' }}>
+          <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '16px' }}>
             Trip & Vehicle Info
           </h3>
 
@@ -295,8 +295,8 @@ export default function EmployeeLiveTrackingPage() {
                 <User size={18} />
               </div>
               <div>
-                <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Assigned Driver</div>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>{selectedEmployee.driverName}</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Assigned Driver</div>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{selectedEmployee.driverName}</div>
               </div>
             </div>
 
@@ -305,8 +305,8 @@ export default function EmployeeLiveTrackingPage() {
                 <Car size={18} />
               </div>
               <div>
-                <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Vehicle Model</div>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Vehicle Model</div>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
                   {selectedEmployee.vehicleModel} ({selectedEmployee.cabNumber})
                 </div>
               </div>
@@ -317,8 +317,8 @@ export default function EmployeeLiveTrackingPage() {
                 <ShieldCheck size={18} />
               </div>
               <div>
-                <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Seat Assignment</div>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>{selectedEmployee.seatNumber}</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Seat Assignment</div>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{selectedEmployee.seatNumber}</div>
               </div>
             </div>
 
@@ -327,14 +327,14 @@ export default function EmployeeLiveTrackingPage() {
                 <Radio size={18} />
               </div>
               <div>
-                <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>GPS Telemetry</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>GPS Telemetry</div>
                 <div style={{ fontSize: '13px', fontWeight: 700, color: '#16A34A' }}>
                   Updated {selectedEmployee.lastGpsUpdate}
                 </div>
               </div>
             </div>
 
-            <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '14px', marginTop: '6px' }}>
+            <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '14px', marginTop: '6px' }}>
               <button
                 onClick={() => alert(`Calling emergency support for ${selectedEmployee.fullName}`)}
                 style={{

@@ -100,9 +100,22 @@ export function getStoredAdminUser(): any | null {
   }
 }
 
-export function setAdminSession(token: string, user: any): void {
+export function getStoredAdminRefreshToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('adhocx_admin_refresh_token');
+}
+
+export function updateAdminTokens(token: string, refreshToken?: string): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem('adhocx_admin_token', token);
+  if (refreshToken) localStorage.setItem('adhocx_admin_refresh_token', refreshToken);
+  document.cookie = `adhocx_admin_token=${encodeURIComponent(token)}; path=/; max-age=${7 * 24 * 3600}; SameSite=Lax`;
+}
+
+export function setAdminSession(token: string, user: any, refreshToken?: string): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem('adhocx_admin_token', token);
+  if (refreshToken) localStorage.setItem('adhocx_admin_refresh_token', refreshToken);
   localStorage.setItem('adhocx_admin_user', JSON.stringify(user));
   // Synchronize cookie for Next.js server-side middleware (7 days)
   document.cookie = `adhocx_admin_token=${encodeURIComponent(token)}; path=/; max-age=${7 * 24 * 3600}; SameSite=Lax`;
@@ -111,8 +124,45 @@ export function setAdminSession(token: string, user: any): void {
 export function clearAdminSession(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem('adhocx_admin_token');
+  localStorage.removeItem('adhocx_admin_refresh_token');
   localStorage.removeItem('adhocx_admin_user');
   document.cookie = 'adhocx_admin_token=; path=/; max-age=0; SameSite=Lax';
+}
+
+let isAdminRefreshing = false;
+let adminRefreshSubscribers: ((token: string | null) => void)[] = [];
+
+function subscribeAdminRefresh(cb: (token: string | null) => void) {
+  adminRefreshSubscribers.push(cb);
+}
+
+function onAdminRefreshed(token: string | null) {
+  adminRefreshSubscribers.forEach((cb) => cb(token));
+  adminRefreshSubscribers = [];
+}
+
+async function refreshAdminAccessToken(): Promise<string | null> {
+  const refreshToken = getStoredAdminRefreshToken();
+  if (!refreshToken) return null;
+
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!res.ok) return null;
+    const json = await res.json();
+    const data = json.data || json;
+    if (data?.accessToken) {
+      updateAdminTokens(data.accessToken, data.refreshToken || refreshToken);
+      return data.accessToken;
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 type RequestOptions = {
@@ -125,6 +175,7 @@ type RequestOptions = {
    * maker-checker refusal) instead of clearing the session. A 401 still signs the admin out.
    */
   allowForbidden?: boolean;
+  _retry?: boolean;
 };
 
 /**
@@ -159,6 +210,27 @@ export async function apiClient<T = unknown>(
   });
 
   if (!response.ok) {
+    // Attempt silent refresh token rotation on 401 before signing out
+    if (response.status === 401 && !endpoint.includes('/auth/') && !options._retry) {
+      if (!isAdminRefreshing) {
+        isAdminRefreshing = true;
+        const newToken = await refreshAdminAccessToken();
+        isAdminRefreshing = false;
+
+        if (newToken) {
+          onAdminRefreshed(newToken);
+          return apiClient<T>(endpoint, { ...options, token: newToken, _retry: true });
+        } else {
+          onAdminRefreshed(null);
+        }
+      } else {
+        const queuedToken = await new Promise<string | null>((resolve) => subscribeAdminRefresh(resolve));
+        if (queuedToken) {
+          return apiClient<T>(endpoint, { ...options, token: queuedToken, _retry: true });
+        }
+      }
+    }
+
     if (typeof window !== 'undefined' && (response.status === 401 || (response.status === 403 && !allowForbidden))) {
       // Do not trigger global redirect if user is attempting login
       if (!endpoint.includes('/auth/admin/login')) {

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
@@ -69,10 +69,10 @@ export default function InvoiceListPage() {
       {/* Title & Generate Action Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
             Invoice List
           </h1>
-          <p style={{ fontSize: '13px', color: '#64748B', marginTop: '2px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
             View and manage all invoices, their status and payment details
           </p>
         </div>
@@ -100,18 +100,18 @@ export default function InvoiceListPage() {
       </div>
 
       {/* Main Table Card */}
-      <div className="surface-card" style={{ padding: '20px', backgroundColor: '#FFFFFF' }}>
+      <div className="surface-card" style={{ padding: '20px', backgroundColor: 'var(--bg-surface)' }}>
         {/* Filter Controls Bar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <div style={{ fontSize: '12px', fontWeight: 600, color: '#475569', backgroundColor: '#F8FAFC', padding: '6px 12px', borderRadius: 6, border: '1px solid #CBD5E1' }}>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', backgroundColor: 'var(--bg-surface-muted)', padding: '6px 12px', borderRadius: 6, border: '1px solid var(--border-strong)' }}>
               01 Dec 2026 - 31 Dec 2026
             </div>
 
             <select
               value={selectedOffice}
               onChange={(e) => setSelectedOffice(e.target.value)}
-              style={{ height: 34, padding: '0 10px', borderRadius: 6, border: '1px solid #CBD5E1', fontSize: 12, color: '#475569' }}
+              style={{ height: 34, padding: '0 10px', borderRadius: 6, border: '1px solid var(--border-strong)', fontSize: 12, color: 'var(--text-secondary)' }}
             >
               <option value="All Offices">All Offices</option>
               <option value="HiTEC City">HiTEC City</option>
@@ -123,7 +123,7 @@ export default function InvoiceListPage() {
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              style={{ height: 34, padding: '0 10px', borderRadius: 6, border: '1px solid #CBD5E1', fontSize: 12, color: '#475569' }}
+              style={{ height: 34, padding: '0 10px', borderRadius: 6, border: '1px solid var(--border-strong)', fontSize: 12, color: 'var(--text-secondary)' }}
             >
               <option value="All Status">All Status</option>
               <option value="Paid">Paid</option>
@@ -145,10 +145,10 @@ export default function InvoiceListPage() {
                 paddingLeft: 30,
                 paddingRight: 10,
                 fontSize: 12,
-                border: '1px solid #CBD5E1',
+                border: '1px solid var(--border-strong)',
                 borderRadius: 6,
                 outline: 'none',
-                backgroundColor: '#F8FAFC',
+                backgroundColor: 'var(--bg-surface-muted)',
               }}
             />
           </div>
@@ -164,7 +164,7 @@ export default function InvoiceListPage() {
                 <th>Billing Period</th>
                 <th>Office / City</th>
                 <th>Trip Count</th>
-                <th>Amount (₹)</th>
+                <th>Amount (â‚¹)</th>
                 <th>Status</th>
                 <th>Due Date</th>
                 <th style={{ textAlign: 'right' }}>Actions</th>
@@ -176,11 +176,11 @@ export default function InvoiceListPage() {
                 return (
                   <tr key={inv.id}>
                     <td><input type="checkbox" /></td>
-                    <td style={{ fontWeight: 800, color: '#0F172A' }}>{inv.invoiceNo}</td>
-                    <td style={{ fontSize: '12px', color: '#475569' }}>{inv.billingPeriod}</td>
-                    <td style={{ fontSize: '12px', color: '#475569' }}>{inv.office}</td>
-                    <td style={{ fontWeight: 600, color: '#0F172A' }}>{inv.tripCount.toLocaleString()}</td>
-                    <td style={{ fontWeight: 800, color: '#0F172A' }}>₹ {inv.amount.toLocaleString()}</td>
+                    <td style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{inv.invoiceNo}</td>
+                    <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{inv.billingPeriod}</td>
+                    <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{inv.office}</td>
+                    <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{inv.tripCount.toLocaleString()}</td>
+                    <td style={{ fontWeight: 800, color: 'var(--text-primary)' }}>â‚¹ {inv.amount.toLocaleString()}</td>
                     <td>
                       <span
                         style={{
@@ -196,7 +196,7 @@ export default function InvoiceListPage() {
                         {inv.status}
                       </span>
                     </td>
-                    <td style={{ fontSize: '12px', color: '#64748B' }}>{inv.dueDate}</td>
+                    <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{inv.dueDate}</td>
                     <td style={{ textAlign: 'right' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
                         <Link
@@ -222,9 +222,9 @@ export default function InvoiceListPage() {
                             width: 28,
                             height: 28,
                             borderRadius: 4,
-                            border: '1px solid #CBD5E1',
-                            backgroundColor: '#FFFFFF',
-                            color: '#475569',
+                            border: '1px solid var(--border-strong)',
+                            backgroundColor: 'var(--bg-surface)',
+                            color: 'var(--text-secondary)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -239,8 +239,8 @@ export default function InvoiceListPage() {
                             width: 28,
                             height: 28,
                             borderRadius: 4,
-                            border: '1px solid #CBD5E1',
-                            backgroundColor: '#FFFFFF',
+                            border: '1px solid var(--border-strong)',
+                            backgroundColor: 'var(--bg-surface)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -260,24 +260,24 @@ export default function InvoiceListPage() {
 
         {/* Pagination Footer */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '16px', flexWrap: 'wrap', gap: '12px' }}>
-          <div style={{ fontSize: '12px', color: '#64748B' }}>
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
             Showing 1 - 5 of 12 invoices
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <button style={{ width: 28, height: 28, borderRadius: 4, border: '1px solid #CBD5E1', backgroundColor: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <button style={{ width: 28, height: 28, borderRadius: 4, border: '1px solid var(--border-strong)', backgroundColor: 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <ChevronLeft size={14} color="#64748B" />
             </button>
             <button style={{ width: 28, height: 28, borderRadius: 4, border: '1px solid #5728B2', backgroundColor: '#5728B2', color: '#FFFFFF', fontSize: 12, fontWeight: 700 }}>
               1
             </button>
-            <button style={{ width: 28, height: 28, borderRadius: 4, border: '1px solid #CBD5E1', backgroundColor: '#FFFFFF', color: '#475569', fontSize: 12, fontWeight: 600 }}>
+            <button style={{ width: 28, height: 28, borderRadius: 4, border: '1px solid var(--border-strong)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
               2
             </button>
-            <button style={{ width: 28, height: 28, borderRadius: 4, border: '1px solid #CBD5E1', backgroundColor: '#FFFFFF', color: '#475569', fontSize: 12, fontWeight: 600 }}>
+            <button style={{ width: 28, height: 28, borderRadius: 4, border: '1px solid var(--border-strong)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
               3
             </button>
-            <button style={{ width: 28, height: 28, borderRadius: 4, border: '1px solid #CBD5E1', backgroundColor: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <button style={{ width: 28, height: 28, borderRadius: 4, border: '1px solid var(--border-strong)', backgroundColor: 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <ChevronRight size={14} color="#64748B" />
             </button>
           </div>

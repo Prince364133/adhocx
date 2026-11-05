@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
@@ -32,10 +32,10 @@ export default function LiveOperationsMapPage() {
       {/* Title & Controls */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
-            Live Operations — Map View
+          <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+            Live Operations â€” Map View
           </h1>
-          <p style={{ fontSize: '13px', color: '#64748B', marginTop: '2px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
             Track all active trips, vehicles and employee pickups in real time
           </p>
         </div>
@@ -56,7 +56,7 @@ export default function LiveOperationsMapPage() {
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
           gap: '14px',
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--bg-surface)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -64,8 +64,8 @@ export default function LiveOperationsMapPage() {
             <Car size={16} />
           </div>
           <div>
-            <div style={{ fontSize: '16px', fontWeight: 800, color: '#0F172A' }}>96</div>
-            <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Active Trips</div>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>96</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Active Trips</div>
           </div>
         </div>
 
@@ -74,8 +74,8 @@ export default function LiveOperationsMapPage() {
             <Users size={16} />
           </div>
           <div>
-            <div style={{ fontSize: '16px', fontWeight: 800, color: '#0F172A' }}>2,846</div>
-            <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Employees</div>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>2,846</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Employees</div>
           </div>
         </div>
 
@@ -84,8 +84,8 @@ export default function LiveOperationsMapPage() {
             <Car size={16} />
           </div>
           <div>
-            <div style={{ fontSize: '16px', fontWeight: 800, color: '#0F172A' }}>126</div>
-            <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Vehicles (Cabs)</div>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>126</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Vehicles (Cabs)</div>
           </div>
         </div>
 
@@ -94,8 +94,8 @@ export default function LiveOperationsMapPage() {
             <Navigation size={16} />
           </div>
           <div>
-            <div style={{ fontSize: '16px', fontWeight: 800, color: '#0F172A' }}>84</div>
-            <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Routes</div>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>84</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Routes</div>
           </div>
         </div>
 
@@ -105,7 +105,7 @@ export default function LiveOperationsMapPage() {
           </div>
           <div>
             <div style={{ fontSize: '16px', fontWeight: 800, color: '#DC2626' }}>12</div>
-            <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Delayed</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Delayed</div>
           </div>
         </div>
 
@@ -114,8 +114,8 @@ export default function LiveOperationsMapPage() {
             <CheckCircle2 size={16} />
           </div>
           <div>
-            <div style={{ fontSize: '16px', fontWeight: 800, color: '#0F172A' }}>372</div>
-            <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Completed Today</div>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>372</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Completed Today</div>
           </div>
         </div>
       </div>
@@ -126,11 +126,11 @@ export default function LiveOperationsMapPage() {
         <div className="surface-card" style={{ padding: '20px', flex: '1 1 65%' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
             <div>
-              <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
+              <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
                 Corridor: {selectedTrip.route}
               </h2>
-              <p style={{ fontSize: '12px', color: '#64748B' }}>
-                Driver: <strong>{selectedTrip.driverName}</strong> ({selectedTrip.driverPhone}) · Vehicle: <strong>{selectedTrip.cabNumber}</strong>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                Driver: <strong>{selectedTrip.driverName}</strong> ({selectedTrip.driverPhone}) Â· Vehicle: <strong>{selectedTrip.cabNumber}</strong>
               </p>
             </div>
 
@@ -160,7 +160,7 @@ export default function LiveOperationsMapPage() {
         {/* Right: Active Trips (96) Feed */}
         <div className="surface-card" style={{ padding: '20px', flex: '1 1 35%' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-            <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
+            <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
               Active Trips (96)
             </h2>
             <div style={{ display: 'flex', gap: '4px' }}>
@@ -231,7 +231,7 @@ export default function LiveOperationsMapPage() {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Car size={15} color={isSelected ? '#5728B2' : '#64748B'} />
-                      <span style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>
                         {trip.cabNumber}
                       </span>
                     </div>
@@ -251,11 +251,11 @@ export default function LiveOperationsMapPage() {
                     </span>
                   </div>
 
-                  <div style={{ fontSize: '12px', color: '#475569', marginBottom: '4px' }}>
-                    {trip.type} · {trip.stopsCount} stops · <strong>{trip.occupiedSeats}/{trip.totalSeats} seats</strong>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                    {trip.type} Â· {trip.stopsCount} stops Â· <strong>{trip.occupiedSeats}/{trip.totalSeats} seats</strong>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: '#94A3B8' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)' }}>
                     <span>{trip.route}</span>
                     <span>GPS: {trip.lastGpsUpdateSecondsAgo}s ago</span>
                   </div>

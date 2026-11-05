@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   CalendarClock,
   Clock,
@@ -11,7 +11,11 @@ import {
   Edit2,
   MoreVertical,
   CheckCircle2,
+  Loader2,
+  RefreshCw,
 } from 'lucide-react';
+import { schedulingApi } from '../../../lib/api/corporate';
+import { getStoredToken, decodeToken } from '../../../lib/auth/session';
 
 interface ShiftTemplateItem {
   id: string;
@@ -25,7 +29,7 @@ interface ShiftTemplateItem {
   status: 'Active' | 'Inactive';
 }
 
-const MOCK_SHIFTS: ShiftTemplateItem[] = [
+const FALLBACK_SHIFTS: ShiftTemplateItem[] = [
   { id: 'S1', name: 'General (Day)', iconColor: '#3B82F6', type: 'Fixed', loginTime: '09:00 AM', logoutTime: '06:00 PM', duration: '9 hr', assignedEmployees: 1246, status: 'Active' },
   { id: 'S2', name: 'Shift A', iconColor: '#F59E0B', type: 'Fixed', loginTime: '02:00 PM', logoutTime: '11:00 PM', duration: '9 hr', assignedEmployees: 684, status: 'Active' },
   { id: 'S3', name: 'Night', iconColor: '#8B5CF6', type: 'Fixed', loginTime: '10:00 PM', logoutTime: '07:00 AM', duration: '9 hr', assignedEmployees: 398, status: 'Active' },
@@ -34,17 +38,58 @@ const MOCK_SHIFTS: ShiftTemplateItem[] = [
 ];
 
 export default function ShiftManagementPage() {
-  const [shifts, setShifts] = useState(MOCK_SHIFTS);
+  const [shifts, setShifts] = useState<ShiftTemplateItem[]>(FALLBACK_SHIFTS);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLive, setIsLive] = useState(false);
+
+  const loadShifts = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const token = getStoredToken();
+      const claims = decodeToken(token);
+      const tenantId = claims?.corporateTenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+
+      const res = await schedulingApi.shiftTemplates(tenantId);
+      if (Array.isArray(res) && res.length > 0) {
+        setShifts(
+          res.map((s, idx) => ({
+            id: s.id,
+            name: s.name,
+            iconColor: ['#3B82F6', '#F59E0B', '#8B5CF6', '#10B981', '#06B6D4'][idx % 5],
+            type: ((s as any).type === 'Rotating' ? 'Rotating' : 'Fixed') as 'Fixed' | 'Rotating',
+            loginTime: s.loginTime || '09:00 AM',
+            logoutTime: s.logoutTime || '06:00 PM',
+            duration: (s as any).duration || '9 hr',
+            assignedEmployees: (s as any).assignedEmployees || 0,
+            status: s.isActive !== false ? 'Active' : 'Inactive',
+          })),
+        );
+        setIsLive(true);
+      } else {
+        setShifts(FALLBACK_SHIFTS);
+        setIsLive(false);
+      }
+    } catch {
+      setShifts(FALLBACK_SHIFTS);
+      setIsLive(false);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadShifts();
+  }, [loadShifts]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Title & Action Buttons Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
             Shift Management
           </h1>
-          <p style={{ fontSize: '13px', color: '#64748B', marginTop: '2px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
             Create and manage shift templates, timings and policies
           </p>
         </div>
@@ -56,9 +101,9 @@ export default function ShiftManagementPage() {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              backgroundColor: '#FFFFFF',
-              color: '#475569',
-              border: '1px solid #CBD5E1',
+              backgroundColor: 'var(--bg-surface)',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--border-strong)',
               borderRadius: 'var(--radius-md)',
               padding: '8px 14px',
               fontSize: '13px',
@@ -101,7 +146,7 @@ export default function ShiftManagementPage() {
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
           gap: '14px',
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--bg-surface)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -109,8 +154,8 @@ export default function ShiftManagementPage() {
             <CalendarClock size={18} />
           </div>
           <div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>12</div>
-            <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Shift Templates</div>
+            <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>12</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Shift Templates</div>
           </div>
         </div>
 
@@ -120,7 +165,7 @@ export default function ShiftManagementPage() {
           </div>
           <div>
             <div style={{ fontSize: '18px', fontWeight: 800, color: '#16A34A' }}>8</div>
-            <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Active Shifts</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Active Shifts</div>
           </div>
         </div>
 
@@ -129,8 +174,8 @@ export default function ShiftManagementPage() {
             <Users size={18} />
           </div>
           <div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>2,846</div>
-            <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Assigned Employees</div>
+            <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>2,846</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Assigned Employees</div>
           </div>
         </div>
 
@@ -139,14 +184,14 @@ export default function ShiftManagementPage() {
             <Repeat size={18} />
           </div>
           <div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>3</div>
-            <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Shift Patterns (Fixed/Rotating)</div>
+            <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>3</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Shift Patterns (Fixed/Rotating)</div>
           </div>
         </div>
       </div>
 
       {/* Shifts Data Table */}
-      <div className="surface-card" style={{ padding: '20px', backgroundColor: '#FFFFFF' }}>
+      <div className="surface-card" style={{ padding: '20px', backgroundColor: 'var(--bg-surface)' }}>
         <div className="table-scroll">
           <table className="data-table">
             <thead>
@@ -167,13 +212,13 @@ export default function ShiftManagementPage() {
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: s.iconColor }} />
-                      <span style={{ fontWeight: 700, color: '#0F172A' }}>{s.name}</span>
+                      <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{s.name}</span>
                     </div>
                   </td>
-                  <td style={{ fontSize: '12px', color: '#475569' }}>{s.type}</td>
-                  <td style={{ fontWeight: 600, color: '#0F172A' }}>{s.loginTime}</td>
-                  <td style={{ fontWeight: 600, color: '#0F172A' }}>{s.logoutTime}</td>
-                  <td style={{ fontSize: '12px', color: '#64748B' }}>{s.duration}</td>
+                  <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{s.type}</td>
+                  <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{s.loginTime}</td>
+                  <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{s.logoutTime}</td>
+                  <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{s.duration}</td>
                   <td style={{ fontWeight: 700, color: '#5728B2' }}>{s.assignedEmployees.toLocaleString()}</td>
                   <td>
                     <span
@@ -198,8 +243,8 @@ export default function ShiftManagementPage() {
                           width: 28,
                           height: 28,
                           borderRadius: 4,
-                          border: '1px solid #CBD5E1',
-                          backgroundColor: '#F8FAFC',
+                          border: '1px solid var(--border-strong)',
+                          backgroundColor: 'var(--bg-surface-muted)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -213,8 +258,8 @@ export default function ShiftManagementPage() {
                           width: 28,
                           height: 28,
                           borderRadius: 4,
-                          border: '1px solid #CBD5E1',
-                          backgroundColor: '#F8FAFC',
+                          border: '1px solid var(--border-strong)',
+                          backgroundColor: 'var(--bg-surface-muted)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',

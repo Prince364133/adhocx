@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import {
@@ -65,10 +65,10 @@ export default function BillingDisputesPage() {
       {/* Title & Raise Dispute Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
             Billing Disputes
           </h1>
-          <p style={{ fontSize: '13px', color: '#64748B', marginTop: '2px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
             Track, review and resolve invoice or charge disputes raised by your team
           </p>
         </div>
@@ -103,7 +103,7 @@ export default function BillingDisputesPage() {
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
           gap: '14px',
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--bg-surface)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -112,7 +112,7 @@ export default function BillingDisputesPage() {
           </div>
           <div>
             <div style={{ fontSize: '18px', fontWeight: 800, color: '#D97706' }}>2</div>
-            <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Open Disputes</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Open Disputes</div>
           </div>
         </div>
 
@@ -122,7 +122,7 @@ export default function BillingDisputesPage() {
           </div>
           <div>
             <div style={{ fontSize: '18px', fontWeight: 800, color: '#EA580C' }}>3</div>
-            <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Under Review</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Under Review</div>
           </div>
         </div>
 
@@ -132,7 +132,7 @@ export default function BillingDisputesPage() {
           </div>
           <div>
             <div style={{ fontSize: '18px', fontWeight: 800, color: '#16A34A' }}>7</div>
-            <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Resolved</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Resolved</div>
           </div>
         </div>
 
@@ -141,8 +141,8 @@ export default function BillingDisputesPage() {
             <IndianRupee size={18} />
           </div>
           <div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>₹ 1,24,500</div>
-            <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Disputed Amount</div>
+            <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>â‚¹ 1,24,500</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Disputed Amount</div>
           </div>
         </div>
 
@@ -151,16 +151,16 @@ export default function BillingDisputesPage() {
             <CheckCircle2 size={18} />
           </div>
           <div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: '#16A34A' }}>₹ 96,000</div>
-            <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Adjusted (Resolved)</div>
+            <div style={{ fontSize: '18px', fontWeight: 800, color: '#16A34A' }}>â‚¹ 96,000</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Adjusted (Resolved)</div>
           </div>
         </div>
       </div>
 
       {/* Main Table Card */}
-      <div className="surface-card" style={{ padding: '20px', backgroundColor: '#FFFFFF' }}>
+      <div className="surface-card" style={{ padding: '20px', backgroundColor: 'var(--bg-surface)' }}>
         {/* Tabs Bar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #E2E8F0', paddingBottom: '12px', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '12px', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ display: 'flex', gap: '6px' }}>
             <button
               onClick={() => setActiveTab('all')}
@@ -237,10 +237,10 @@ export default function BillingDisputesPage() {
                 paddingLeft: 30,
                 paddingRight: 10,
                 borderRadius: 6,
-                border: '1px solid #CBD5E1',
+                border: '1px solid var(--border-strong)',
                 fontSize: 12,
                 outline: 'none',
-                backgroundColor: '#F8FAFC',
+                backgroundColor: 'var(--bg-surface-muted)',
               }}
             />
           </div>
@@ -256,7 +256,7 @@ export default function BillingDisputesPage() {
                 <th>Invoice No.</th>
                 <th>Office</th>
                 <th>Issue / Reason</th>
-                <th>Amount (₹)</th>
+                <th>Amount (â‚¹)</th>
                 <th>Status</th>
                 <th>Raised On</th>
                 <th style={{ textAlign: 'right' }}>Actions</th>
@@ -268,11 +268,11 @@ export default function BillingDisputesPage() {
                 return (
                   <tr key={item.id}>
                     <td><input type="checkbox" /></td>
-                    <td style={{ fontWeight: 800, color: '#0F172A' }}>{item.disputeId}</td>
+                    <td style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{item.disputeId}</td>
                     <td style={{ fontWeight: 600, color: '#5728B2' }}>{item.invoiceNo}</td>
-                    <td style={{ fontSize: '12px', color: '#475569' }}>{item.office}</td>
-                    <td style={{ fontSize: '12px', color: '#0F172A' }}>{item.reason}</td>
-                    <td style={{ fontWeight: 800, color: '#0F172A' }}>₹ {item.amount.toLocaleString()}</td>
+                    <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{item.office}</td>
+                    <td style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{item.reason}</td>
+                    <td style={{ fontWeight: 800, color: 'var(--text-primary)' }}>â‚¹ {item.amount.toLocaleString()}</td>
                     <td>
                       <span
                         style={{
@@ -288,7 +288,7 @@ export default function BillingDisputesPage() {
                         {item.status}
                       </span>
                     </td>
-                    <td style={{ fontSize: '12px', color: '#64748B' }}>{item.raisedOn}</td>
+                    <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{item.raisedOn}</td>
                     <td style={{ textAlign: 'right' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
                         <button

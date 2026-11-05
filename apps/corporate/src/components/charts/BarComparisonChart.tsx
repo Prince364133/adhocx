@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 
@@ -58,7 +58,7 @@ export const BarComparisonChart: React.FC<BarComparisonChartProps> = ({
                 y1={y}
                 x2={chartWidth - paddingRight}
                 y2={y}
-                stroke="#E2E8F0"
+                stroke="var(--border-subtle, #E2E8F0)"
                 strokeDasharray="3 3"
               />
               <text
@@ -66,7 +66,7 @@ export const BarComparisonChart: React.FC<BarComparisonChartProps> = ({
                 y={y + 4}
                 textAnchor="end"
                 fontSize="11"
-                fill="#94A3B8"
+                fill="var(--text-muted, #94A3B8)"
                 fontWeight="500"
               >
                 {val}
@@ -117,7 +117,7 @@ export const BarComparisonChart: React.FC<BarComparisonChartProps> = ({
                 y={chartHeight - 8}
                 textAnchor="middle"
                 fontSize="11"
-                fill={isHovered ? '#0F172A' : '#94A3B8'}
+                fill={isHovered ? 'var(--text-primary, #0F172A)' : 'var(--text-muted, #94A3B8)'}
                 fontWeight={isHovered ? '600' : '400'}
               >
                 {d.day}
@@ -132,7 +132,7 @@ export const BarComparisonChart: React.FC<BarComparisonChartProps> = ({
                     width="100"
                     height="32"
                     rx="4"
-                    fill="#1E293B"
+                    fill="var(--text-primary, #1E293B)"
                   />
                   <text
                     x={groupCenter}
@@ -140,7 +140,7 @@ export const BarComparisonChart: React.FC<BarComparisonChartProps> = ({
                     textAnchor="middle"
                     fontSize="10"
                     fontWeight="600"
-                    fill="#FFFFFF"
+                    fill="var(--text-inverse, #FFFFFF)"
                   >
                     S: {d.scheduled} | C: {d.completed}
                   </text>

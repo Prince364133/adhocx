@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import {
@@ -46,7 +46,7 @@ export default function CostCentersOrgPage() {
               alignItems: 'center',
               gap: 6,
               padding: '8px 12px',
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
               border: '1px solid var(--border-color)',
               color: 'var(--text-secondary)',
               borderRadius: 6,
@@ -88,7 +88,7 @@ export default function CostCentersOrgPage() {
       >
         <MetricCard
           label="Total Monthly Transport Budget"
-          value={`₹${totalBudget.toFixed(1)} Lakhs`}
+          value={`â‚¹${totalBudget.toFixed(1)} Lakhs`}
           delta="Approved Q4 Budget"
           deltaType="neutral"
           icon={<DollarSign size={20} />}
@@ -96,7 +96,7 @@ export default function CostCentersOrgPage() {
         />
         <MetricCard
           label="Total Spent (Month-to-Date)"
-          value={`₹${totalSpent.toFixed(1)} Lakhs`}
+          value={`â‚¹${totalSpent.toFixed(1)} Lakhs`}
           delta={`${((totalSpent / totalBudget) * 100).toFixed(1)}% utilized`}
           deltaType="positive"
           icon={<TrendingUp size={20} />}
@@ -112,8 +112,8 @@ export default function CostCentersOrgPage() {
         />
         <MetricCard
           label="Avg Cost per Employee Commute"
-          value="₹63.40"
-          delta="-₹2.80 vs last month"
+          value="â‚¹63.40"
+          delta="-â‚¹2.80 vs last month"
           deltaType="positive"
           icon={<PieChart size={20} />}
           category="info"
@@ -123,7 +123,7 @@ export default function CostCentersOrgPage() {
       {/* Cost Center Table */}
       <div
         style={{
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--bg-surface)',
           borderRadius: 8,
           border: '1px solid var(--border-color)',
           overflow: 'hidden',
@@ -158,7 +158,7 @@ export default function CostCentersOrgPage() {
               border: '1px solid var(--border-color)',
               fontSize: 12,
               fontWeight: 600,
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
             }}
           >
             <option value="All">All Departments</option>
@@ -173,7 +173,7 @@ export default function CostCentersOrgPage() {
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
             <thead>
-              <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
+              <tr style={{ backgroundColor: 'var(--bg-surface-muted)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
                 <th style={{ padding: '12px 16px' }}>Code</th>
                 <th style={{ padding: '12px 16px' }}>Cost Center & Department</th>
                 <th style={{ padding: '12px 16px' }}>Cost Center Manager</th>
@@ -192,7 +192,7 @@ export default function CostCentersOrgPage() {
                       <span
                         style={{
                           padding: '2px 8px',
-                          backgroundColor: '#F1F5F9',
+                          backgroundColor: 'var(--bg-surface-hover)',
                           borderRadius: 4,
                           fontSize: 12,
                           fontFamily: 'monospace',
@@ -213,7 +213,7 @@ export default function CostCentersOrgPage() {
                     </td>
                     <td style={{ padding: '14px 16px', minWidth: 160 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
-                        <span style={{ fontWeight: 600 }}>₹{cc.budgetSpentLakhs}L / ₹{cc.budgetAllocatedLakhs}L</span>
+                        <span style={{ fontWeight: 600 }}>â‚¹{cc.budgetSpentLakhs}L / â‚¹{cc.budgetAllocatedLakhs}L</span>
                         <span style={{ color: utilPct > 90 ? '#DC2626' : 'var(--text-muted)' }}>{utilPct}%</span>
                       </div>
                       <div style={{ height: 6, backgroundColor: '#E2E8F0', borderRadius: 3, overflow: 'hidden' }}>
@@ -228,7 +228,7 @@ export default function CostCentersOrgPage() {
                       </div>
                     </td>
                     <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      ₹{cc.costPerCommuteInr.toFixed(2)}
+                      â‚¹{cc.costPerCommuteInr.toFixed(2)}
                     </td>
                     <td style={{ padding: '14px 16px' }}>
                       <span

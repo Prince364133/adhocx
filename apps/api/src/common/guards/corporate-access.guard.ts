@@ -120,7 +120,7 @@ export class CorporateAccessGuard implements CanActivate {
     const tenantScoped = this.reflector.get<boolean | undefined>(CORPORATE_TENANT_SCOPED_KEY, handler);
     const driverSelf = this.reflector.get<boolean | undefined>(CORPORATE_DRIVER_SELF_KEY, handler);
 
-    if (driverSelf && role !== UserRole.ADMIN) {
+    if (driverSelf && role !== UserRole.ADMIN && role !== UserRole.OPS) {
       if (role !== UserRole.DRIVER) {
         throw new ForbiddenException('Driver-only endpoint');
       }
@@ -187,7 +187,7 @@ export class CorporateAccessGuard implements CanActivate {
   // ---------------------------------------------------------------------------
 
   private async applyTenantScope(request: any, role: string, user: any): Promise<void> {
-    if (role === UserRole.ADMIN) {
+    if (role === UserRole.ADMIN || role === UserRole.OPS) {
       return;
     }
     // Employee self-service handlers (/corporate/trips/me/*): bound to the employee's own tenant.
@@ -367,7 +367,7 @@ export class CorporateAccessGuard implements CanActivate {
     role: string,
     user: any,
   ): Promise<void> {
-    if (role === UserRole.ADMIN) {
+    if (role === UserRole.ADMIN || role === UserRole.OPS) {
       return;
     }
 

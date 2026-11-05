@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
@@ -102,7 +102,7 @@ export default function SupportOverviewPage() {
       {/* Ticket List Section */}
       <div
         style={{
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--bg-surface)',
           borderRadius: 8,
           border: '1px solid var(--border-color)',
           overflow: 'hidden',
@@ -137,7 +137,7 @@ export default function SupportOverviewPage() {
               border: '1px solid var(--border-color)',
               fontSize: 12,
               fontWeight: 600,
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
             }}
           >
             <option value="All">All Categories</option>
@@ -151,7 +151,7 @@ export default function SupportOverviewPage() {
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
             <thead>
-              <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
+              <tr style={{ backgroundColor: 'var(--bg-surface-muted)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
                 <th style={{ padding: '12px 16px' }}>Ticket ID</th>
                 <th style={{ padding: '12px 16px' }}>Priority</th>
                 <th style={{ padding: '12px 16px' }}>Subject & Category</th>
@@ -169,7 +169,7 @@ export default function SupportOverviewPage() {
                     <span
                       style={{
                         padding: '2px 8px',
-                        backgroundColor: '#F1F5F9',
+                        backgroundColor: 'var(--bg-surface-hover)',
                         borderRadius: 4,
                         fontSize: 12,
                         fontFamily: 'monospace',
@@ -205,7 +205,7 @@ export default function SupportOverviewPage() {
                   <td style={{ padding: '14px 16px' }}>
                     <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{tkt.subject}</div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                      Category: {tkt.category} • Ref: {tkt.tripReference || 'General'}
+                      Category: {tkt.category} â€¢ Ref: {tkt.tripReference || 'General'}
                     </div>
                   </td>
                   <td style={{ padding: '14px 16px' }}>

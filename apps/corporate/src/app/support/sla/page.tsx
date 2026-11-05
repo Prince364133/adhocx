@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import {
@@ -44,7 +44,7 @@ export default function SlaPerformanceReportPage() {
               alignItems: 'center',
               gap: 6,
               padding: '8px 14px',
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
               border: '1px solid var(--border-color)',
               color: 'var(--text-secondary)',
               borderRadius: 6,
@@ -92,7 +92,7 @@ export default function SlaPerformanceReportPage() {
         />
         <MetricCard
           label="SLA Penalty Risk"
-          value="₹0.00"
+          value="â‚¹0.00"
           delta="0 Eligible Contract Penalties"
           deltaType="positive"
           icon={<CheckCircle2 size={20} />}
@@ -103,7 +103,7 @@ export default function SlaPerformanceReportPage() {
       {/* SLA by Category Table */}
       <div
         style={{
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--bg-surface)',
           borderRadius: 8,
           border: '1px solid var(--border-color)',
           overflow: 'hidden',
@@ -123,7 +123,7 @@ export default function SlaPerformanceReportPage() {
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
             <thead>
-              <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
+              <tr style={{ backgroundColor: 'var(--bg-surface-muted)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
                 <th style={{ padding: '12px 16px' }}>Category</th>
                 <th style={{ padding: '12px 16px' }}>Total Tickets</th>
                 <th style={{ padding: '12px 16px' }}>Resolved Within SLA</th>

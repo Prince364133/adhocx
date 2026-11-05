@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../models/auth_state.dart';
 import '../models/employee_user.dart';
 import '../repositories/employee_auth_repository.dart';
+import '../repositories/http_employee_auth_repository.dart';
 
 class EmployeeAuthProvider extends ChangeNotifier {
   final EmployeeAuthRepository _repository;
@@ -10,7 +11,9 @@ class EmployeeAuthProvider extends ChangeNotifier {
   Timer? _countdownTimer;
 
   EmployeeAuthProvider({required EmployeeAuthRepository repository})
-      : _repository = repository;
+      : _repository = repository {
+    checkExistingSession();
+  }
 
   AuthState get state => _state;
   EmployeeUser? get currentUser => _state.user;
@@ -19,6 +22,19 @@ class EmployeeAuthProvider extends ChangeNotifier {
   String? get errorMessage => _state.errorMessage;
   int get resendCountdown => _state.resendCountdown;
   String? get currentPhone => _state.phoneNumber;
+
+  Future<void> checkExistingSession() async {
+    try {
+      final cached = await _repository.getCurrentUser();
+      if (cached != null) {
+        _state = _state.copyWith(
+          status: AuthStatus.authenticated,
+          user: cached,
+        );
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
 
   void setPhoneNumber(String phone) {
     _state = _state.copyWith(phoneNumber: phone);
@@ -37,6 +53,47 @@ class EmployeeAuthProvider extends ChangeNotifier {
         status: _state.user != null ? AuthStatus.authenticated : AuthStatus.otpSent,
       );
       notifyListeners();
+    }
+  }
+
+  Future<AuthStatus> loginWithPassword({
+    required String identifier,
+    required String password,
+  }) async {
+    _state = _state.copyWith(
+      status: AuthStatus.authenticating,
+      errorMessage: null,
+      phoneNumber: identifier,
+    );
+    notifyListeners();
+
+    try {
+      EmployeeUser user;
+      final repo = _repository;
+      if (repo is HttpEmployeeAuthRepository) {
+        user = await repo.loginWithPassword(
+          identifier: identifier,
+          password: password,
+        );
+      } else {
+        user = await _repository.authenticateWithSso(identifier);
+      }
+
+      _countdownTimer?.cancel();
+      _state = _state.copyWith(
+        status: AuthStatus.authenticated,
+        user: user,
+        errorMessage: null,
+      );
+      notifyListeners();
+      return AuthStatus.authenticated;
+    } catch (e) {
+      _state = _state.copyWith(
+        status: AuthStatus.error,
+        errorMessage: e.toString().replaceFirst('Exception: ', ''),
+      );
+      notifyListeners();
+      return AuthStatus.error;
     }
   }
 
@@ -188,4 +245,3 @@ class EmployeeAuthProvider extends ChangeNotifier {
     super.dispose();
   }
 }
-

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import {
@@ -83,7 +83,7 @@ export default function FleetDriverAllocationPage() {
         <MetricCard
           label="Verified Drivers On-Duty"
           value="126 Drivers"
-          delta="Avg Rating: 4.82 ★"
+          delta="Avg Rating: 4.82 â˜…"
           deltaType="positive"
           icon={<UserCheck size={20} />}
           category="success"
@@ -114,7 +114,7 @@ export default function FleetDriverAllocationPage() {
           justifyContent: 'space-between',
           gap: 12,
           padding: '12px 16px',
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--bg-surface)',
           borderRadius: 8,
           border: '1px solid var(--border-color)',
           flexWrap: 'wrap',
@@ -133,7 +133,7 @@ export default function FleetDriverAllocationPage() {
               borderRadius: 6,
               border: '1px solid var(--border-color)',
               fontSize: 13,
-              backgroundColor: '#F8FAFC',
+              backgroundColor: 'var(--bg-surface-muted)',
             }}
           />
         </div>
@@ -147,7 +147,7 @@ export default function FleetDriverAllocationPage() {
               borderRadius: 6,
               border: '1px solid var(--border-color)',
               fontSize: 13,
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
               color: 'var(--text-primary)',
             }}
           >
@@ -161,7 +161,7 @@ export default function FleetDriverAllocationPage() {
       {/* Fleet Allocation Table */}
       <div
         style={{
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--bg-surface)',
           borderRadius: 8,
           border: '1px solid var(--border-color)',
           overflow: 'hidden',
@@ -170,7 +170,7 @@ export default function FleetDriverAllocationPage() {
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
             <thead>
-              <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
+              <tr style={{ backgroundColor: 'var(--bg-surface-muted)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
                 <th style={{ padding: '12px 16px' }}>Vehicle Plate</th>
                 <th style={{ padding: '12px 16px' }}>Vehicle Model</th>
                 <th style={{ padding: '12px 16px' }}>Assigned Driver</th>
@@ -254,7 +254,7 @@ export default function FleetDriverAllocationPage() {
                       type="button"
                       style={{
                         padding: '4px 10px',
-                        backgroundColor: '#FFFFFF',
+                        backgroundColor: 'var(--bg-surface)',
                         border: '1px solid var(--border-color)',
                         borderRadius: 4,
                         fontSize: 12,

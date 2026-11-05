@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React from 'react';
 import Link from 'next/link';
@@ -23,7 +23,7 @@ export default function RostersLayout({ children }: { children: React.ReactNode 
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--bg-surface, #FFFFFF)',
           padding: '12px 20px',
           borderRadius: 'var(--radius-xl)',
           border: '1px solid var(--border-subtle)',
@@ -37,8 +37,9 @@ export default function RostersLayout({ children }: { children: React.ReactNode 
             style={{
               padding: '4px 10px',
               borderRadius: 'var(--radius-pill)',
-              backgroundColor: '#4C1D95',
-              color: '#EDE9FE',
+              backgroundColor: 'var(--brand-primary-subtle, rgba(87, 40, 178, 0.1))',
+              color: 'var(--brand-primary, #5728B2)',
+              border: '1px solid var(--brand-blue-200, rgba(87, 40, 178, 0.25))',
               fontSize: '11px',
               fontWeight: 800,
               letterSpacing: '0.04em',
@@ -46,7 +47,7 @@ export default function RostersLayout({ children }: { children: React.ReactNode 
           >
             Batch 05
           </span>
-          <span style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>
+          <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>
             Shifts & Employee Rosters
           </span>
         </div>
@@ -68,9 +69,9 @@ export default function RostersLayout({ children }: { children: React.ReactNode 
                   fontSize: '12px',
                   fontWeight: isActive ? 700 : 500,
                   textDecoration: 'none',
-                  backgroundColor: isActive ? '#5728B2' : '#F8FAFC',
-                  color: isActive ? '#FFFFFF' : '#475569',
-                  border: `1px solid ${isActive ? '#5728B2' : '#E2E8F0'}`,
+                  backgroundColor: isActive ? 'var(--brand-primary, #5728B2)' : 'var(--bg-surface-muted, #F8FAFC)',
+                  color: isActive ? '#FFFFFF' : 'var(--text-secondary, #475569)',
+                  border: `1px solid ${isActive ? 'var(--brand-primary, #5728B2)' : 'var(--border-subtle, #E2E8F0)'}`,
                   transition: 'all 0.15s ease',
                 }}
               >

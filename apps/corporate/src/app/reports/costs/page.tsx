@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import {
@@ -45,7 +45,7 @@ export default function CostDepartmentReportsPage() {
               alignItems: 'center',
               gap: 6,
               padding: '8px 14px',
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
               border: '1px solid var(--border-color)',
               color: 'var(--text-secondary)',
               borderRadius: 6,
@@ -77,15 +77,15 @@ export default function CostDepartmentReportsPage() {
         />
         <MetricCard
           label="Avg Cost / Commute Trip"
-          value={`₹${mockCostDepartmentReport.avgCostPerTripInr.toFixed(2)}`}
-          delta="-₹3.40 vs last month"
+          value={`â‚¹${mockCostDepartmentReport.avgCostPerTripInr.toFixed(2)}`}
+          delta="-â‚¹3.40 vs last month"
           deltaType="positive"
           icon={<TrendingDown size={20} />}
           category="success"
         />
         <MetricCard
           label="Monthly Spend / Employee"
-          value={`₹${mockCostDepartmentReport.avgCostPerEmployeeMonthlyInr.toLocaleString()}`}
+          value={`â‚¹${mockCostDepartmentReport.avgCostPerEmployeeMonthlyInr.toLocaleString()}`}
           delta="Optimized per seat"
           deltaType="positive"
           icon={<PieChart size={20} />}
@@ -94,7 +94,7 @@ export default function CostDepartmentReportsPage() {
         <MetricCard
           label="Budget Variance"
           value="-11.5% Under"
-          delta="Savings: ₹3.7 Lakhs"
+          delta="Savings: â‚¹3.7 Lakhs"
           deltaType="positive"
           icon={<CheckCircle2 size={20} />}
           category="success"
@@ -106,7 +106,7 @@ export default function CostDepartmentReportsPage() {
         {/* Cost Distribution Donut */}
         <div
           style={{
-            backgroundColor: '#FFFFFF',
+            backgroundColor: 'var(--bg-surface)',
             borderRadius: 8,
             border: '1px solid var(--border-color)',
             padding: 20,
@@ -125,7 +125,7 @@ export default function CostDepartmentReportsPage() {
           </div>
           <DonutChart
             data={deptCostDonutData}
-            centerValue="₹28.76L"
+            centerValue="â‚¹28.76L"
             centerLabel="Total MTD Spend"
             size={180}
           />
@@ -134,7 +134,7 @@ export default function CostDepartmentReportsPage() {
         {/* Department Cost Details Table */}
         <div
           style={{
-            backgroundColor: '#FFFFFF',
+            backgroundColor: 'var(--bg-surface)',
             borderRadius: 8,
             border: '1px solid var(--border-color)',
             overflow: 'hidden',
@@ -154,7 +154,7 @@ export default function CostDepartmentReportsPage() {
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
               <thead>
-                <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
+                <tr style={{ backgroundColor: 'var(--bg-surface-muted)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
                   <th style={{ padding: '12px 16px' }}>Department</th>
                   <th style={{ padding: '12px 16px' }}>Actual Spend</th>
                   <th style={{ padding: '12px 16px' }}>Allocated Budget</th>
@@ -175,7 +175,7 @@ export default function CostDepartmentReportsPage() {
                       {row.budgetInr}
                     </td>
                     <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      ₹{row.perTripInr.toFixed(2)}
+                      â‚¹{row.perTripInr.toFixed(2)}
                     </td>
                     <td style={{ padding: '14px 16px' }}>
                       <span

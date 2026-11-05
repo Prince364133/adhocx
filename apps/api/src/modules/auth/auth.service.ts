@@ -206,6 +206,18 @@ export class AuthService implements OnModuleInit {
     if (upper === 'ADMIN' || upper === 'SUPER_ADMIN') {
       return UserRole.ADMIN;
     }
+    if (upper === 'OPS' || upper === 'OPERATIONS' || upper === 'DISPATCHER') {
+      return UserRole.OPS;
+    }
+    if (upper === 'CORPORATE_ADMIN' || upper === 'CORP_ADMIN') {
+      return UserRole.CORPORATE_ADMIN;
+    }
+    if (upper === 'CORPORATE_MANAGER' || upper === 'CORP_MANAGER') {
+      return UserRole.CORPORATE_MANAGER;
+    }
+    if (upper === 'EMPLOYEE' || upper === 'COMMUTER') {
+      return UserRole.EMPLOYEE;
+    }
     return UserRole.DRIVER;
   }
 

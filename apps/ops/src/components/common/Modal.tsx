@@ -54,7 +54,7 @@ export const Modal: React.FC<ModalProps> = ({
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(1, 13, 45, 0.8)',
+          backgroundColor: 'rgba(0, 0, 0, 0.55)',
           backdropFilter: 'blur(3px)',
         }}
       />
@@ -65,25 +65,26 @@ export const Modal: React.FC<ModalProps> = ({
           position: 'relative',
           width: '100%',
           maxWidth: width,
-          backgroundColor: 'var(--bg-surface, #0B132B)',
-          border: '1px solid var(--border-strong, #2D4685)',
+          backgroundColor: 'var(--bg-surface)',
+          border: '1px solid var(--border-subtle)',
           borderRadius: 'var(--radius-xl, 12px)',
           boxShadow: 'var(--shadow-elevated)',
           display: 'flex',
           flexDirection: 'column',
           zIndex: 1101,
           overflow: 'hidden',
+          transition: 'background-color 0.2s, border-color 0.2s',
         }}
       >
         {/* Header */}
         <div
           style={{
             padding: 'var(--space-4, 16px) var(--space-5, 20px)',
-            borderBottom: '1px solid var(--border-subtle, #1E3060)',
+            borderBottom: '1px solid var(--border-subtle)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            backgroundColor: 'var(--bg-surface-elevated, #111D3D)',
+            backgroundColor: 'var(--bg-surface-muted)',
           }}
         >
           <div>
@@ -91,7 +92,7 @@ export const Modal: React.FC<ModalProps> = ({
               style={{
                 fontSize: '18px',
                 fontWeight: 700,
-                color: 'var(--text-primary, #F8FAFC)',
+                color: 'var(--text-primary)',
                 margin: 0,
               }}
             >
@@ -101,8 +102,9 @@ export const Modal: React.FC<ModalProps> = ({
               <p
                 style={{
                   fontSize: '12px',
-                  color: 'var(--text-secondary, #94A3B8)',
-                  margin: '2px 0 0 0',
+                  color: 'var(--text-secondary)',
+                  marginTop: '2px',
+                  marginBottom: 0,
                 }}
               >
                 {subtitle}
@@ -112,27 +114,28 @@ export const Modal: React.FC<ModalProps> = ({
 
           <button
             onClick={onClose}
-            aria-label="Close Modal"
             style={{
-              background: 'none',
+              background: 'transparent',
               border: 'none',
-              color: 'var(--text-secondary, #94A3B8)',
               cursor: 'pointer',
-              padding: '6px',
-              borderRadius: 'var(--radius-sm, 6px)',
+              color: 'var(--text-muted)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              padding: '4px',
+              borderRadius: 'var(--radius-sm, 6px)',
             }}
+            aria-label="Close modal"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
-        {/* Body */}
-        <div style={{ padding: 'var(--space-5, 20px)' }}>{children}</div>
+        {/* Content Body */}
+        <div style={{ padding: 'var(--space-5, 20px)', overflowY: 'auto', maxHeight: '75vh' }}>
+          {children}
+        </div>
       </div>
     </div>
   );
 };
-

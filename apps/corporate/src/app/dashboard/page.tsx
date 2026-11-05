@@ -1,11 +1,14 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, Calendar, Radio, CheckCircle2, AlertOctagon, Car, Navigation, Building2, Eye, Clock } from 'lucide-react';
 import { MetricCard } from '../../components/common/MetricCard';
 import { FilterBar } from '../../components/common/FilterBar';
 import { DonutChart } from '../../components/charts/DonutChart';
 import { AreaTrendChart } from '../../components/charts/AreaTrendChart';
+import { analyticsApi } from '../../lib/api/corporate';
+import type { Dashboard } from '../../lib/api/types';
+import { getStoredToken, decodeToken } from '../../lib/auth/session';
 import {
   mockExecutiveMetrics,
   mockTripStatusBreakdown,
@@ -13,15 +16,60 @@ import {
 } from '../../lib/mock/corporateMockData';
 
 export default function CompanyOverviewPage() {
+  const [liveDashboard, setLiveDashboard] = useState<Dashboard | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const today = new Date().toISOString().slice(0, 10);
+    const lastWeek = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+
+    const token = getStoredToken();
+    const tenantId = decodeToken(token)?.corporateTenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+
+    analyticsApi
+      .dashboard({ tenantId, from: lastWeek, to: today })
+      .then((data) => {
+        if (isMounted && data) {
+          setLiveDashboard(data);
+        }
+      })
+      .catch((err) => {
+        console.warn('Dashboard live metrics fallback:', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const totalEmployeesVal = liveDashboard?.employeesServed
+    ? liveDashboard.employeesServed.toLocaleString()
+    : mockExecutiveMetrics.totalEmployees.toLocaleString();
+
+  const scheduledTripsVal = liveDashboard?.trips?.total
+    ? liveDashboard.trips.total.toLocaleString()
+    : mockExecutiveMetrics.scheduledTrips.toLocaleString();
+
+  const activeTripsVal = liveDashboard?.trips?.byStatus?.['IN_PROGRESS'] !== undefined
+    ? liveDashboard.trips.byStatus['IN_PROGRESS'].toLocaleString()
+    : mockExecutiveMetrics.activeTrips.toLocaleString();
+
+  const completedTripsVal = liveDashboard?.trips?.byStatus?.['COMPLETED'] !== undefined
+    ? liveDashboard.trips.byStatus['COMPLETED'].toLocaleString()
+    : mockExecutiveMetrics.completedTrips.toLocaleString();
+
+  const unservedTripsVal = liveDashboard?.requests?.unserved !== undefined
+    ? liveDashboard.requests.unserved.toLocaleString()
+    : mockExecutiveMetrics.unservedTrips.toLocaleString();
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Page Title & Filter Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
             Company Overview
           </h1>
-          <p style={{ fontSize: '13px', color: '#64748B', marginTop: '2px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
             Real-time view of your employee transportation operations
           </p>
         </div>
@@ -37,35 +85,35 @@ export default function CompanyOverviewPage() {
       <div className="metric-grid">
         <MetricCard
           label="Total Employees"
-          value={mockExecutiveMetrics.totalEmployees.toLocaleString()}
+          value={totalEmployeesVal}
           icon={<Users size={18} />}
           trend={{ value: mockExecutiveMetrics.employeesDelta, isPositive: true }}
           highlightColor="#5728B2"
         />
         <MetricCard
           label="Scheduled Trips"
-          value={mockExecutiveMetrics.scheduledTrips.toLocaleString()}
+          value={scheduledTripsVal}
           icon={<Calendar size={18} />}
           trend={{ value: mockExecutiveMetrics.scheduledTripsDelta, isPositive: true }}
           highlightColor="#8B5CF6"
         />
         <MetricCard
           label="Active Trips"
-          value={mockExecutiveMetrics.activeTrips.toLocaleString()}
+          value={activeTripsVal}
           icon={<Car size={18} />}
           trend={{ value: 'Live', isLive: true }}
           highlightColor="#16A34A"
         />
         <MetricCard
           label="Completed Trips"
-          value={mockExecutiveMetrics.completedTrips.toLocaleString()}
+          value={completedTripsVal}
           icon={<CheckCircle2 size={18} />}
           trend={{ value: mockExecutiveMetrics.completedTripsDelta, isPositive: true }}
           highlightColor="#059669"
         />
         <MetricCard
           label="Unserved Trips"
-          value={mockExecutiveMetrics.unservedTrips.toLocaleString()}
+          value={unservedTripsVal}
           icon={<AlertOctagon size={18} />}
           trend={{ value: mockExecutiveMetrics.unservedTripsDelta, isAlert: true }}
           highlightColor="#DC2626"
@@ -78,10 +126,10 @@ export default function CompanyOverviewPage() {
         <div className="surface-card" style={{ padding: '20px 24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
             <div>
-              <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
+              <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
                 Trip Status (Today)
               </h2>
-              <p style={{ fontSize: '12px', color: '#64748B' }}>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                 Breakdown across completed, live, unserved and cancelled commutes
               </p>
             </div>
@@ -100,10 +148,10 @@ export default function CompanyOverviewPage() {
         <div className="surface-card" style={{ padding: '20px 24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
             <div>
-              <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
+              <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
                 Trips Trend (Last 7 Days)
               </h2>
-              <p style={{ fontSize: '12px', color: '#64748B' }}>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                 Daily trip volume trajectory across all shifts
               </p>
             </div>
@@ -140,7 +188,7 @@ export default function CompanyOverviewPage() {
           gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
           gap: '16px',
           alignItems: 'center',
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--bg-surface)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -159,10 +207,10 @@ export default function CompanyOverviewPage() {
             <Car size={18} />
           </div>
           <div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>
+            <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>
               {mockExecutiveMetrics.vehiclesCount}
             </div>
-            <div style={{ fontSize: '12px', color: '#64748B', fontWeight: 500 }}>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>
               Vehicles (Cabs)
             </div>
           </div>
@@ -184,10 +232,10 @@ export default function CompanyOverviewPage() {
             <Navigation size={18} />
           </div>
           <div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>
+            <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>
               {mockExecutiveMetrics.routesCount}
             </div>
-            <div style={{ fontSize: '12px', color: '#64748B', fontWeight: 500 }}>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>
               Routes
             </div>
           </div>
@@ -209,10 +257,10 @@ export default function CompanyOverviewPage() {
             <Building2 size={18} />
           </div>
           <div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>
+            <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>
               {mockExecutiveMetrics.officesCount}
             </div>
-            <div style={{ fontSize: '12px', color: '#64748B', fontWeight: 500 }}>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>
               Offices
             </div>
           </div>
@@ -234,10 +282,10 @@ export default function CompanyOverviewPage() {
             <Eye size={18} />
           </div>
           <div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>
+            <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>
               {mockExecutiveMetrics.seatUtilizationPct}%
             </div>
-            <div style={{ fontSize: '12px', color: '#64748B', fontWeight: 500 }}>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>
               Seat Utilization
             </div>
           </div>
@@ -259,10 +307,10 @@ export default function CompanyOverviewPage() {
             <Clock size={18} />
           </div>
           <div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>
+            <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>
               {mockExecutiveMetrics.onTimePickupPct}%
             </div>
-            <div style={{ fontSize: '12px', color: '#64748B', fontWeight: 500 }}>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>
               On-time Pickup
             </div>
           </div>

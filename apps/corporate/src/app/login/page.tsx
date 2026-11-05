@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Building2,
@@ -10,14 +10,15 @@ import {
   Mail,
   Eye,
   EyeOff,
-  KeyRound,
   CheckCircle2,
   Loader2,
   AlertCircle,
   Briefcase,
+  Sparkles,
 } from 'lucide-react';
 import { setSession } from '../../lib/auth/session';
 import { authApi } from '../../lib/api/corporate';
+import { ThemeToggle } from '../../components/common/ThemeToggle';
 
 interface DemoPersona {
   id: string;
@@ -31,26 +32,26 @@ interface DemoPersona {
 
 const DEMO_PERSONAS: DemoPersona[] = [
   {
-    id: 'USR-RAKESH-001',
+    id: 'a9e38ad2-f149-4460-b030-dd2e6e585e06',
     role: 'CORPORATE_ADMIN',
-    corporateRole: 'TRANSPORT',
+    corporateRole: 'CORP_SUPER_ADMIN',
     name: 'Rakesh Kumar',
     email: 'rakesh.kumar@hitec.com',
-    phone: '+91 98480 12345',
-    title: 'Transport Operations Manager',
+    phone: '+919876543201',
+    title: 'Transport Lead (Super Admin)',
   },
   {
-    id: 'USR-PRIYA-002',
-    role: 'CORPORATE_ADMIN',
+    id: '6de7a977-cd4c-418d-8478-aac0f471e528',
+    role: 'CORPORATE_MANAGER',
     corporateRole: 'HR',
     name: 'Priya Sharma',
     email: 'priya.sharma@hitec.com',
-    phone: '+91 98480 54321',
-    title: 'HR Commute & Employee Lead',
+    phone: '+919876543202',
+    title: 'HR Commute Lead (Manager)',
   },
 ];
 
-export default function CorporateLoginPage() {
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get('redirect') || '/dashboard';
@@ -64,22 +65,49 @@ export default function CorporateLoginPage() {
   const applySessionAndRedirect = (
     token: string,
     user: { id: string; role: string; fullName: string; email: string; phone: string },
+    refreshToken?: string,
   ) => {
-    setSession(token, undefined, user);
+    setSession(token, refreshToken, user);
     router.replace(redirectUrl);
   };
 
-  const handleDemoSignIn = (persona: DemoPersona = DEMO_PERSONAS[0]) => {
+  /**
+   * One-click demo sign-in: Authenticates directly with live backend API.
+   * If offline or API unavailable, seamlessly falls back to signed corporate session.
+   */
+  const handleDemoSignIn = async (persona: DemoPersona = DEMO_PERSONAS[0]) => {
     setIsLoading(true);
     setErrorMessage(null);
+    setIdentifier(persona.email);
+    setPassword('Admin@AdhocX2026!');
 
-    // Build JWT with corporate claims for tenancy and roles
+    try {
+      const res = await authApi.login(persona.email, 'Admin@AdhocX2026!');
+      if (res && res.accessToken) {
+        applySessionAndRedirect(
+          res.accessToken,
+          {
+            id: res.user?.id || persona.id,
+            role: res.user?.role || persona.role,
+            fullName: res.user?.fullName || persona.name,
+            email: res.user?.email || persona.email,
+            phone: res.user?.phone || persona.phone,
+          },
+          res.refreshToken,
+        );
+        return;
+      }
+    } catch (err: any) {
+      console.warn('Backend authentication error, falling back to local corporate session:', err);
+    }
+
+    // Fallback: Local demo session if live backend unreachable
     const demoPayload = {
       id: persona.id,
       role: persona.role,
-      corporateTenantId: 'TEN-HITEC-001',
+      corporateTenantId: '9d66820f-280c-400c-98dc-e021d0045b58',
       corporateRole: persona.corporateRole,
-      corporateOfficeIds: ['OFF-HITEC-HYD-01'],
+      corporateOfficeIds: ['c950747c-5193-4fdc-a876-9930c4473b14'],
       fullName: persona.name,
       email: persona.email,
       phone: persona.phone,
@@ -100,7 +128,7 @@ export default function CorporateLoginPage() {
         email: persona.email,
         phone: persona.phone,
       });
-    }, 350);
+    }, 250);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -115,29 +143,30 @@ export default function CorporateLoginPage() {
     setErrorMessage(null);
 
     try {
-      // Attempt authentication with backend API
       const res = await authApi.login(identifier.trim(), password);
       if (res && res.accessToken) {
-        applySessionAndRedirect(res.accessToken, {
-          id: res.user?.id || 'USR-CORP-ADMIN',
-          role: res.user?.role || 'CORPORATE_ADMIN',
-          fullName: res.user?.fullName || 'Corporate Administrator',
-          email: res.user?.email || identifier.trim(),
-          phone: res.user?.phone || '+91 98480 12345',
-        });
+        applySessionAndRedirect(
+          res.accessToken,
+          {
+            id: res.user?.id || 'USR-CORP-ADMIN',
+            role: res.user?.role || 'CORPORATE_ADMIN',
+            fullName: res.user?.fullName || 'Corporate Administrator',
+            email: res.user?.email || identifier.trim(),
+            phone: res.user?.phone || '+91 98480 12345',
+          },
+          res.refreshToken,
+        );
         return;
       }
       throw new Error('Authentication did not return a valid session.');
     } catch (err: any) {
-      // In dev or offline mode, fall back to seamless demo login if preferred
       const msg = err?.message || '';
-      if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || err?.status === 404 || err?.status === 500) {
-        console.warn('API authentication unavailable, establishing local corporate session...');
-        handleDemoSignIn(DEMO_PERSONAS[0]);
-      } else if (err?.status === 401) {
-        setErrorMessage('Invalid credentials. Please verify your email and password, or use Quick Demo Sign In.');
+      if (err?.status === 401) {
+        setErrorMessage(
+          'Invalid credentials. If using the demo accounts, the password is Admin@AdhocX2026!. You can also click Quick Demo Access below.',
+        );
       } else {
-        setErrorMessage(msg || 'Authentication failed. Please check your network connectivity.');
+        setErrorMessage(msg || 'Authentication failed. Please check your network connection.');
       }
     } finally {
       setIsLoading(false);
@@ -151,84 +180,90 @@ export default function CorporateLoginPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '1.5rem',
+        padding: '1rem',
+        backgroundColor: 'var(--bg-canvas, #F8FAFC)',
         background:
-          'radial-gradient(ellipse 80% 80% at 50% -20%, rgba(87, 40, 178, 0.28), rgba(7, 19, 43, 0.98)), #07132B',
+          'radial-gradient(ellipse 90% 70% at 50% 0%, var(--brand-primary-subtle, rgba(87, 40, 178, 0.22)), var(--bg-canvas, #F8FAFC))',
         fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
         position: 'relative',
         overflow: 'hidden',
         boxSizing: 'border-box',
       }}
     >
+      {/* Top Floating Theme Toggle */}
+      <div style={{ position: 'absolute', top: 16, right: 20, zIndex: 50 }}>
+        <ThemeToggle />
+      </div>
+
       {/* Decorative ambient background accents */}
       <div
         aria-hidden="true"
         style={{
           position: 'absolute',
-          top: '-140px',
-          right: '-100px',
-          width: '450px',
-          height: '450px',
+          top: '-100px',
+          right: '-80px',
+          width: '380px',
+          height: '380px',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(87, 40, 178, 0.25) 0%, rgba(0,0,0,0) 70%)',
+          background: 'radial-gradient(circle, rgba(87, 40, 178, 0.18) 0%, rgba(0,0,0,0) 70%)',
           pointerEvents: 'none',
-          filter: 'blur(50px)',
+          filter: 'blur(45px)',
         }}
       />
       <div
         aria-hidden="true"
         style={{
           position: 'absolute',
-          bottom: '-120px',
-          left: '-80px',
-          width: '400px',
-          height: '400px',
+          bottom: '-100px',
+          left: '-60px',
+          width: '360px',
+          height: '360px',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(37, 99, 235, 0.18) 0%, rgba(0,0,0,0) 70%)',
+          background: 'radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, rgba(0,0,0,0) 70%)',
           pointerEvents: 'none',
-          filter: 'blur(50px)',
+          filter: 'blur(45px)',
         }}
       />
 
       <div
         style={{
           width: '100%',
-          maxWidth: '450px',
-          backgroundColor: '#FFFFFF',
-          borderRadius: '18px',
-          border: '1px solid #E2E8F0',
-          boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-          padding: '2.5rem 2.25rem',
+          maxWidth: '430px',
+          backgroundColor: 'var(--bg-surface, #FFFFFF)',
+          borderRadius: '16px',
+          border: '1px solid var(--border-subtle, #E2E8F0)',
+          boxShadow: 'var(--shadow-elevated, 0 20px 40px -15px rgba(0, 0, 0, 0.25))',
+          padding: '1.75rem 2rem',
           position: 'relative',
           zIndex: 10,
           boxSizing: 'border-box',
         }}
       >
         {/* Header & Brand Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
           <div
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: 52,
-              height: 52,
-              borderRadius: '14px',
+              width: 44,
+              height: 44,
+              borderRadius: '12px',
               background: 'linear-gradient(135deg, #5728B2 0%, #3B82F6 100%)',
               color: '#FFFFFF',
-              boxShadow: '0 6px 16px rgba(87, 40, 178, 0.35)',
-              marginBottom: '1rem',
+              boxShadow: '0 4px 14px rgba(87, 40, 178, 0.35)',
+              marginBottom: '0.65rem',
             }}
           >
-            <Building2 size={26} strokeWidth={2.2} />
+            <Building2 size={22} strokeWidth={2.2} />
           </div>
 
           <div
             style={{
-              fontSize: '1.5rem',
+              fontSize: '1.38rem',
               fontWeight: 800,
-              letterSpacing: '-0.03em',
-              color: '#0F172A',
+              letterSpacing: '-0.025em',
+              color: 'var(--text-primary, #0F172A)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -238,16 +273,16 @@ export default function CorporateLoginPage() {
           >
             <span>Adhoc</span>
             <span style={{ color: '#FF5F09', fontWeight: 900 }}>X</span>
-            <span style={{ marginLeft: '6px', color: '#0F172A', fontWeight: 800 }}>Corporate</span>
+            <span style={{ marginLeft: '6px', color: 'var(--text-primary, #0F172A)', fontWeight: 800 }}>Corporate</span>
           </div>
 
           <p
             style={{
-              fontSize: '0.82rem',
-              color: '#64748B',
-              marginTop: '0.35rem',
+              fontSize: '0.78rem',
+              color: 'var(--text-muted, #64748B)',
+              marginTop: '0.25rem',
               fontWeight: 500,
-              lineHeight: 1.4,
+              lineHeight: 1.35,
             }}
           >
             Enterprise Commute Management & Fleet Governance
@@ -260,20 +295,20 @@ export default function CorporateLoginPage() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '0.75rem 0.95rem',
-            backgroundColor: '#F8FAFC',
-            borderRadius: '10px',
-            border: '1px solid #E2E8F0',
-            marginBottom: '1.5rem',
+            padding: '0.55rem 0.8rem',
+            backgroundColor: 'var(--bg-surface-muted, #F8FAFC)',
+            borderRadius: '9px',
+            border: '1px solid var(--border-subtle, #E2E8F0)',
+            marginBottom: '1.15rem',
             boxSizing: 'border-box',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
             <div
               style={{
-                width: 32,
-                height: 32,
-                borderRadius: '8px',
+                width: 28,
+                height: 28,
+                borderRadius: '7px',
                 backgroundColor: 'rgba(87, 40, 178, 0.1)',
                 display: 'flex',
                 alignItems: 'center',
@@ -282,14 +317,14 @@ export default function CorporateLoginPage() {
                 flexShrink: 0,
               }}
             >
-              <Briefcase size={16} />
+              <Briefcase size={14} />
             </div>
             <div>
-              <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#0F172A', lineHeight: 1.2 }}>
+              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary, #0F172A)', lineHeight: 1.2 }}>
                 HiTEC Technologies Ltd.
               </div>
-              <div style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '2px' }}>
-                TEN-HITEC-001 • HiTEC City, Hyderabad
+              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted, #64748B)', marginTop: '1px' }}>
+                TEN-HITEC-001 | HiTEC City, Hyderabad
               </div>
             </div>
           </div>
@@ -298,17 +333,17 @@ export default function CorporateLoginPage() {
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '4px',
-              fontSize: '0.7rem',
+              gap: '3px',
+              fontSize: '0.67rem',
               fontWeight: 700,
               color: '#16A34A',
               backgroundColor: '#DCFCE7',
-              padding: '3px 8px',
+              padding: '2px 7px',
               borderRadius: '9999px',
               flexShrink: 0,
             }}
           >
-            <CheckCircle2 size={11} />
+            <CheckCircle2 size={10} />
             <span>Verified</span>
           </span>
         </div>
@@ -319,37 +354,63 @@ export default function CorporateLoginPage() {
             role="alert"
             style={{
               display: 'flex',
-              alignItems: 'flex-start',
-              gap: '0.65rem',
-              padding: '0.85rem 1rem',
+              flexDirection: 'column',
+              gap: '0.45rem',
+              padding: '0.65rem 0.8rem',
               borderRadius: '8px',
-              backgroundColor: 'rgba(220, 38, 38, 0.08)',
-              border: '1px solid rgba(220, 38, 38, 0.25)',
-              color: '#DC2626',
-              fontSize: '0.84rem',
-              lineHeight: 1.45,
-              marginBottom: '1.25rem',
+              backgroundColor: 'var(--color-danger-bg, #FEE2E2)',
+              border: '1px solid var(--color-danger-border, #FCA5A5)',
+              color: 'var(--color-danger, #DC2626)',
+              fontSize: '0.78rem',
+              lineHeight: 1.4,
+              marginBottom: '1rem',
               boxSizing: 'border-box',
             }}
           >
-            <AlertCircle size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
-            <span style={{ fontWeight: 500 }}>{errorMessage}</span>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.55rem' }}>
+              <AlertCircle size={15} style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div style={{ fontWeight: 500, flex: 1 }}>{errorMessage}</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setPassword('Admin@AdhocX2026!');
+                setErrorMessage(null);
+                handleDemoSignIn(identifier.includes('priya') ? DEMO_PERSONAS[1] : DEMO_PERSONAS[0]);
+              }}
+              style={{
+                alignSelf: 'flex-start',
+                marginTop: '2px',
+                padding: '4px 10px',
+                backgroundColor: '#DC2626',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <span>🔑 Fill Verified Demo Password & Sign In</span>
+            </button>
           </div>
         )}
 
         {/* Credentials Form */}
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.15rem' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
           {/* Work Email / Phone */}
           <div style={{ width: '100%', boxSizing: 'border-box' }}>
             <label
               htmlFor="corporate-identifier"
               style={{
                 display: 'block',
-                fontSize: '0.8rem',
+                fontSize: '0.77rem',
                 fontWeight: 700,
-                color: '#334155',
-                marginBottom: '0.45rem',
-                letterSpacing: '0.01em',
+                color: 'var(--text-secondary, #334155)',
+                marginBottom: '0.35rem',
               }}
             >
               Work Email / Phone
@@ -358,16 +419,16 @@ export default function CorporateLoginPage() {
               <div
                 style={{
                   position: 'absolute',
-                  left: '0.9rem',
+                  left: '0.85rem',
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  color: '#94A3B8',
+                  color: 'var(--text-muted, #94A3B8)',
                   display: 'flex',
                   alignItems: 'center',
                   pointerEvents: 'none',
                 }}
               >
-                <Mail size={16} />
+                <Mail size={15} />
               </div>
               <input
                 id="corporate-identifier"
@@ -380,26 +441,15 @@ export default function CorporateLoginPage() {
                 disabled={isLoading}
                 style={{
                   width: '100%',
-                  height: 42,
-                  padding: '0 0.9rem 0 2.5rem',
-                  borderRadius: '9px',
-                  border: '1.5px solid #CBD5E1',
-                  backgroundColor: '#F8FAFC',
-                  color: '#0F172A',
-                  fontSize: '0.88rem',
+                  height: 38,
+                  padding: '0 0.85rem 0 2.4rem',
+                  borderRadius: '8px',
+                  border: '1.5px solid var(--border-strong, #CBD5E1)',
+                  backgroundColor: 'var(--bg-input, #FFFFFF)',
+                  color: 'var(--text-primary, #0F172A)',
+                  fontSize: '0.84rem',
                   outline: 'none',
-                  transition: 'border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease',
                   boxSizing: 'border-box',
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = '#5728B2';
-                  e.currentTarget.style.backgroundColor = '#FFFFFF';
-                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(87, 40, 178, 0.12)';
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = '#CBD5E1';
-                  e.currentTarget.style.backgroundColor = '#F8FAFC';
-                  e.currentTarget.style.boxShadow = 'none';
                 }}
               />
             </div>
@@ -407,33 +457,48 @@ export default function CorporateLoginPage() {
 
           {/* Password with Eye Visibility Toggle */}
           <div style={{ width: '100%', boxSizing: 'border-box' }}>
-            <label
-              htmlFor="corporate-password"
-              style={{
-                display: 'block',
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                color: '#334155',
-                marginBottom: '0.45rem',
-                letterSpacing: '0.01em',
-              }}
-            >
-              Password
-            </label>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+              <label
+                htmlFor="corporate-password"
+                style={{
+                  fontSize: '0.77rem',
+                  fontWeight: 700,
+                  color: 'var(--text-secondary, #334155)',
+                }}
+              >
+                Password
+              </label>
+              <button
+                type="button"
+                onClick={() => setPassword('Admin@AdhocX2026!')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '0.7rem',
+                  fontWeight: 600,
+                  color: '#5728B2',
+                  cursor: 'pointer',
+                  padding: 0,
+                  textDecoration: 'underline',
+                }}
+              >
+                Use Demo Password
+              </button>
+            </div>
             <div style={{ position: 'relative', width: '100%', boxSizing: 'border-box' }}>
               <div
                 style={{
                   position: 'absolute',
-                  left: '0.9rem',
+                  left: '0.85rem',
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  color: '#94A3B8',
+                  color: 'var(--text-muted, #94A3B8)',
                   display: 'flex',
                   alignItems: 'center',
                   pointerEvents: 'none',
                 }}
               >
-                <Lock size={16} />
+                <Lock size={15} />
               </div>
               <input
                 id="corporate-password"
@@ -446,26 +511,15 @@ export default function CorporateLoginPage() {
                 disabled={isLoading}
                 style={{
                   width: '100%',
-                  height: 42,
-                  padding: '0 2.5rem 0 2.5rem',
-                  borderRadius: '9px',
-                  border: '1.5px solid #CBD5E1',
-                  backgroundColor: '#F8FAFC',
-                  color: '#0F172A',
-                  fontSize: '0.88rem',
+                  height: 38,
+                  padding: '0 2.3rem 0 2.4rem',
+                  borderRadius: '8px',
+                  border: '1.5px solid var(--border-strong, #CBD5E1)',
+                  backgroundColor: 'var(--bg-input, #FFFFFF)',
+                  color: 'var(--text-primary, #0F172A)',
+                  fontSize: '0.84rem',
                   outline: 'none',
-                  transition: 'border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease',
                   boxSizing: 'border-box',
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = '#5728B2';
-                  e.currentTarget.style.backgroundColor = '#FFFFFF';
-                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(87, 40, 178, 0.12)';
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = '#CBD5E1';
-                  e.currentTarget.style.backgroundColor = '#F8FAFC';
-                  e.currentTarget.style.boxShadow = 'none';
                 }}
               />
               <button
@@ -476,20 +530,20 @@ export default function CorporateLoginPage() {
                 title={showPassword ? 'Hide password' : 'Show password'}
                 style={{
                   position: 'absolute',
-                  right: '0.75rem',
+                  right: '0.65rem',
                   top: '50%',
                   transform: 'translateY(-50%)',
                   background: 'transparent',
                   border: 'none',
-                  color: '#94A3B8',
+                  color: 'var(--text-muted, #94A3B8)',
                   cursor: 'pointer',
-                  padding: '0.25rem',
+                  padding: '0.2rem',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
           </div>
@@ -500,68 +554,61 @@ export default function CorporateLoginPage() {
             id="corporate-login-submit-btn"
             disabled={isLoading}
             style={{
-              marginTop: '0.35rem',
+              marginTop: '0.25rem',
               width: '100%',
-              height: 44,
+              height: 40,
               backgroundColor: '#5728B2',
               backgroundImage: 'linear-gradient(135deg, #5728B2 0%, #431E8E 100%)',
               color: '#FFFFFF',
               border: 'none',
-              borderRadius: '9px',
-              fontSize: '0.92rem',
+              borderRadius: '8px',
+              fontSize: '0.88rem',
               fontWeight: 700,
               cursor: isLoading ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '0.5rem',
-              boxShadow: '0 4px 14px rgba(87, 40, 178, 0.35)',
-              transition: 'transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease',
+              gap: '0.45rem',
+              boxShadow: '0 4px 12px rgba(87, 40, 178, 0.3)',
               opacity: isLoading ? 0.8 : 1,
               boxSizing: 'border-box',
-            }}
-            onMouseEnter={(e) => {
-              if (!isLoading) {
-                e.currentTarget.style.transform = 'translateY(-1px)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(87, 40, 178, 0.45)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 14px rgba(87, 40, 178, 0.35)';
             }}
           >
             {isLoading ? (
               <>
-                <Loader2 size={17} className="spin-animation" />
-                <span>Signing In to Corporate Portal...</span>
+                <Loader2 size={16} className="spin" />
+                <span>Signing In...</span>
               </>
             ) : (
               <>
                 <span>Sign In as Corporate Admin</span>
-                <ArrowRight size={17} />
+                <ArrowRight size={16} />
               </>
             )}
           </button>
         </form>
 
         {/* Quick Demo Personas Selector */}
-        <div style={{ marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px solid #E2E8F0' }}>
+        <div style={{ marginTop: '1.15rem', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle, #E2E8F0)' }}>
           <div
             style={{
-              fontSize: '0.74rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.35rem',
+              fontSize: '0.7rem',
               fontWeight: 700,
-              color: '#64748B',
+              color: 'var(--text-muted, #64748B)',
               textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-              textAlign: 'center',
-              marginBottom: '0.75rem',
+              letterSpacing: '0.05em',
+              marginBottom: '0.65rem',
             }}
           >
-            One-Click Verified Demo Access
+            <Sparkles size={12} color="#5728B2" />
+            <span>Instant Demo Access (Live Backend)</span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.55rem' }}>
             <button
               type="button"
               onClick={() => handleDemoSignIn(DEMO_PERSONAS[0])}
@@ -570,28 +617,20 @@ export default function CorporateLoginPage() {
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'flex-start',
-                padding: '0.65rem 0.8rem',
+                padding: '0.5rem 0.65rem',
                 borderRadius: '8px',
-                backgroundColor: '#F8FAFC',
-                border: '1px solid #CBD5E1',
+                backgroundColor: 'var(--bg-surface-muted, #F8FAFC)',
+                border: '1.5px solid var(--border-subtle, #CBD5E1)',
                 cursor: 'pointer',
                 textAlign: 'left',
                 transition: 'all 0.15s ease',
                 boxSizing: 'border-box',
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#EFF6FF';
-                e.currentTarget.style.borderColor = '#93C5FD';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#F8FAFC';
-                e.currentTarget.style.borderColor = '#CBD5E1';
-              }}
             >
-              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0F172A' }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary, #0F172A)' }}>
                 Rakesh Kumar
               </div>
-              <div style={{ fontSize: '0.68rem', color: '#5728B2', fontWeight: 600, marginTop: '1px' }}>
+              <div style={{ fontSize: '0.66rem', color: '#5728B2', fontWeight: 600, marginTop: '1px' }}>
                 Transport Lead
               </div>
             </button>
@@ -604,28 +643,20 @@ export default function CorporateLoginPage() {
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'flex-start',
-                padding: '0.65rem 0.8rem',
+                padding: '0.5rem 0.65rem',
                 borderRadius: '8px',
-                backgroundColor: '#F8FAFC',
-                border: '1px solid #CBD5E1',
+                backgroundColor: 'var(--bg-surface-muted, #F8FAFC)',
+                border: '1.5px solid var(--border-subtle, #CBD5E1)',
                 cursor: 'pointer',
                 textAlign: 'left',
                 transition: 'all 0.15s ease',
                 boxSizing: 'border-box',
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#EFF6FF';
-                e.currentTarget.style.borderColor = '#93C5FD';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#F8FAFC';
-                e.currentTarget.style.borderColor = '#CBD5E1';
-              }}
             >
-              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0F172A' }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary, #0F172A)' }}>
                 Priya Sharma
               </div>
-              <div style={{ fontSize: '0.68rem', color: '#2563EB', fontWeight: 600, marginTop: '1px' }}>
+              <div style={{ fontSize: '0.66rem', color: '#0284C7', fontWeight: 600, marginTop: '1px' }}>
                 HR Commute Lead
               </div>
             </button>
@@ -635,20 +666,28 @@ export default function CorporateLoginPage() {
         {/* Security & Compliance Notice */}
         <div
           style={{
-            marginTop: '1.5rem',
+            marginTop: '1.15rem',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '0.45rem',
-            fontSize: '0.73rem',
-            color: '#64748B',
+            gap: '0.4rem',
+            fontSize: '0.7rem',
+            color: 'var(--text-muted, #64748B)',
             fontWeight: 600,
           }}
         >
-          <ShieldCheck size={15} color="#16A34A" />
+          <ShieldCheck size={14} color="#16A34A" />
           <span>Encrypted with Corporate Multi-Tenant Isolation</span>
         </div>
       </div>
     </main>
+  );
+}
+
+export default function CorporateLoginPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-canvas)' }} />}>
+      <LoginContent />
+    </Suspense>
   );
 }

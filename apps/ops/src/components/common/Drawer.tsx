@@ -52,7 +52,7 @@ export const Drawer: React.FC<DrawerProps> = ({
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(1, 13, 45, 0.75)',
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
           backdropFilter: 'blur(2px)',
         }}
       />
@@ -64,24 +64,25 @@ export const Drawer: React.FC<DrawerProps> = ({
           width: '100%',
           maxWidth: width,
           height: '100%',
-          backgroundColor: 'var(--bg-surface, #0B132B)',
-          borderLeft: '1px solid var(--border-strong, #2D4685)',
+          backgroundColor: 'var(--bg-surface)',
+          borderLeft: '1px solid var(--border-subtle)',
           boxShadow: 'var(--shadow-elevated)',
           display: 'flex',
           flexDirection: 'column',
           zIndex: 1001,
           animation: 'slideInRight 0.25s ease-out',
+          transition: 'background-color 0.2s, border-color 0.2s',
         }}
       >
         {/* Header */}
         <div
           style={{
             padding: 'var(--space-4, 16px) var(--space-5, 20px)',
-            borderBottom: '1px solid var(--border-subtle, #1E3060)',
+            borderBottom: '1px solid var(--border-subtle)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            backgroundColor: 'var(--bg-surface-elevated, #111D3D)',
+            backgroundColor: 'var(--bg-surface-muted)',
           }}
         >
           <div>
@@ -89,7 +90,7 @@ export const Drawer: React.FC<DrawerProps> = ({
               style={{
                 fontSize: '18px',
                 fontWeight: 700,
-                color: 'var(--text-primary, #F8FAFC)',
+                color: 'var(--text-primary)',
                 margin: 0,
               }}
             >
@@ -99,8 +100,9 @@ export const Drawer: React.FC<DrawerProps> = ({
               <p
                 style={{
                   fontSize: '12px',
-                  color: 'var(--text-secondary, #94A3B8)',
-                  margin: '2px 0 0 0',
+                  color: 'var(--text-secondary)',
+                  marginTop: '2px',
+                  marginBottom: 0,
                 }}
               >
                 {subtitle}
@@ -110,38 +112,28 @@ export const Drawer: React.FC<DrawerProps> = ({
 
           <button
             onClick={onClose}
-            aria-label="Close Drawer"
             style={{
-              background: 'none',
+              background: 'transparent',
               border: 'none',
-              color: 'var(--text-secondary, #94A3B8)',
               cursor: 'pointer',
-              padding: '6px',
-              borderRadius: 'var(--radius-sm, 6px)',
+              color: 'var(--text-muted)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              transition: 'background 0.15s',
+              padding: '4px',
+              borderRadius: 'var(--radius-sm, 6px)',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover, #1C2D5E)')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            aria-label="Close drawer"
           >
             <X size={20} />
           </button>
         </div>
 
-        {/* Content */}
-        <div
-          style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: 'var(--space-5, 20px)',
-          }}
-        >
+        {/* Content Body */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: 'var(--space-5, 20px)' }}>
           {children}
         </div>
       </div>
     </div>
   );
 };
-

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Calendar, ChevronDown, RefreshCw, Filter } from 'lucide-react';
+import { Calendar, ChevronDown, RefreshCw } from 'lucide-react';
 import { mockOfficesList } from '../../lib/mock/corporateMockData';
 
 export interface FilterBarProps {
@@ -34,6 +34,21 @@ export const FilterBar: React.FC<FilterBarProps> = ({
     setTimeout(() => setIsRefreshing(false), 800);
   };
 
+  const selectStyle: React.CSSProperties = {
+    appearance: 'none',
+    backgroundColor: 'var(--bg-surface, #FFFFFF)',
+    border: '1px solid var(--border-subtle, #E2E8F0)',
+    borderRadius: 'var(--radius-md, 6px)',
+    padding: '7px 32px 7px 12px',
+    fontSize: '12px',
+    fontWeight: 600,
+    color: 'var(--text-secondary, #475569)',
+    cursor: 'pointer',
+    boxShadow: 'var(--shadow-xs)',
+    outline: 'none',
+    transition: 'background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease',
+  };
+
   return (
     <div
       style={{
@@ -51,9 +66,9 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            backgroundColor: '#DCFCE7',
-            color: '#16A34A',
-            border: '1px solid #86EFAC',
+            backgroundColor: 'var(--color-success-bg, #DCFCE7)',
+            color: 'var(--color-success, #16A34A)',
+            border: '1px solid var(--color-success-border, #86EFAC)',
             borderRadius: 'var(--radius-pill)',
             padding: '5px 12px',
             fontSize: '12px',
@@ -71,19 +86,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           <select
             value={selectedOffice}
             onChange={(e) => setSelectedOffice(e.target.value)}
-            style={{
-              appearance: 'none',
-              backgroundColor: '#FFFFFF',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-md)',
-              padding: '7px 32px 7px 12px',
-              fontSize: '12px',
-              fontWeight: 600,
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              boxShadow: 'var(--shadow-xs)',
-              outline: 'none',
-            }}
+            style={selectStyle}
           >
             <option value="All Offices">All Offices</option>
             {mockOfficesList.map((o) => (
@@ -94,7 +97,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           </select>
           <ChevronDown
             size={14}
-            color="#64748B"
+            color="var(--text-muted, #64748B)"
             style={{
               position: 'absolute',
               right: '10px',
@@ -113,20 +116,21 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            backgroundColor: '#FFFFFF',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-md)',
+            backgroundColor: 'var(--bg-surface, #FFFFFF)',
+            border: '1px solid var(--border-subtle, #E2E8F0)',
+            borderRadius: 'var(--radius-md, 6px)',
             padding: '7px 12px',
             fontSize: '12px',
             fontWeight: 600,
-            color: 'var(--text-secondary)',
+            color: 'var(--text-secondary, #475569)',
             cursor: 'pointer',
             boxShadow: 'var(--shadow-xs)',
+            transition: 'background-color 0.15s ease, border-color 0.15s ease',
           }}
         >
-          <Calendar size={13} color="#64748B" />
+          <Calendar size={13} color="var(--text-muted, #64748B)" />
           <span>{dateRangeLabel}</span>
-          <ChevronDown size={14} color="#64748B" />
+          <ChevronDown size={14} color="var(--text-muted, #64748B)" />
         </div>
       )}
 
@@ -135,19 +139,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         <div style={{ position: 'relative' }}>
           <select
             defaultValue="All Shifts"
-            style={{
-              appearance: 'none',
-              backgroundColor: '#FFFFFF',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-md)',
-              padding: '7px 32px 7px 12px',
-              fontSize: '12px',
-              fontWeight: 600,
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              boxShadow: 'var(--shadow-xs)',
-              outline: 'none',
-            }}
+            style={selectStyle}
           >
             <option value="All Shifts">All Shifts</option>
             <option value="General (08:00 AM - 05:00 PM)">General (08:00 AM - 05:00 PM)</option>
@@ -156,7 +148,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           </select>
           <ChevronDown
             size={14}
-            color="#64748B"
+            color="var(--text-muted, #64748B)"
             style={{
               position: 'absolute',
               right: '10px',
@@ -173,19 +165,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         <div style={{ position: 'relative' }}>
           <select
             defaultValue="All Trip Types"
-            style={{
-              appearance: 'none',
-              backgroundColor: '#FFFFFF',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-md)',
-              padding: '7px 32px 7px 12px',
-              fontSize: '12px',
-              fontWeight: 600,
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              boxShadow: 'var(--shadow-xs)',
-              outline: 'none',
-            }}
+            style={selectStyle}
           >
             <option value="All Trip Types">All Trip Types</option>
             <option value="Login (Pickup)">Login (Pickup)</option>
@@ -194,7 +174,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           </select>
           <ChevronDown
             size={14}
-            color="#64748B"
+            color="var(--text-muted, #64748B)"
             style={{
               position: 'absolute',
               right: '10px',
@@ -211,19 +191,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         <div style={{ position: 'relative' }}>
           <select
             defaultValue="All Exception Types"
-            style={{
-              appearance: 'none',
-              backgroundColor: '#FFFFFF',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-md)',
-              padding: '7px 32px 7px 12px',
-              fontSize: '12px',
-              fontWeight: 600,
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              boxShadow: 'var(--shadow-xs)',
-              outline: 'none',
-            }}
+            style={selectStyle}
           >
             <option value="All Exception Types">All Exception Types</option>
             <option value="Delayed Pickups">Delayed Pickups</option>
@@ -234,7 +202,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           </select>
           <ChevronDown
             size={14}
-            color="#64748B"
+            color="var(--text-muted, #64748B)"
             style={{
               position: 'absolute',
               right: '10px',
@@ -253,10 +221,10 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           display: 'flex',
           alignItems: 'center',
           gap: '6px',
-          backgroundColor: '#5728B2',
+          backgroundColor: 'var(--brand-primary, #5728B2)',
           color: '#FFFFFF',
           border: 'none',
-          borderRadius: 'var(--radius-md)',
+          borderRadius: 'var(--radius-md, 6px)',
           padding: '7px 14px',
           fontSize: '12px',
           fontWeight: 600,
@@ -271,4 +239,3 @@ export const FilterBar: React.FC<FilterBarProps> = ({
     </div>
   );
 };
-

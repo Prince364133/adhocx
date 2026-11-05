@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
@@ -40,7 +40,7 @@ export default function RouteDetailsStopsPage() {
               gap: 4,
               fontSize: 12,
               fontWeight: 600,
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
             }}
           >
             <ArrowLeft size={14} /> Back to Routes
@@ -48,7 +48,7 @@ export default function RouteDetailsStopsPage() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                Route Details — {route.routeCode}
+                Route Details â€” {route.routeCode}
               </h1>
               <span
                 style={{
@@ -64,7 +64,7 @@ export default function RouteDetailsStopsPage() {
               </span>
             </div>
             <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
-              {route.name} • Destination: {route.destinationOffice}
+              {route.name} â€¢ Destination: {route.destinationOffice}
             </p>
           </div>
         </div>
@@ -80,7 +80,7 @@ export default function RouteDetailsStopsPage() {
               border: '1px solid var(--border-color)',
               fontSize: 13,
               fontWeight: 600,
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
               color: 'var(--text-primary)',
             }}
           >
@@ -98,7 +98,7 @@ export default function RouteDetailsStopsPage() {
               alignItems: 'center',
               gap: 6,
               padding: '8px 12px',
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
               border: '1px solid var(--border-color)',
               color: 'var(--text-secondary)',
               borderRadius: 6,
@@ -115,7 +115,7 @@ export default function RouteDetailsStopsPage() {
       {/* Corridor Summary Banner */}
       <div
         style={{
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--bg-surface)',
           borderRadius: 8,
           border: '1px solid var(--border-color)',
           padding: 20,
@@ -174,7 +174,7 @@ export default function RouteDetailsStopsPage() {
         {/* Route Corridor Map */}
         <div
           style={{
-            backgroundColor: '#FFFFFF',
+            backgroundColor: 'var(--bg-surface)',
             borderRadius: 8,
             border: '1px solid var(--border-color)',
             padding: 16,
@@ -195,7 +195,7 @@ export default function RouteDetailsStopsPage() {
         {/* Sequential Stops Breakdown */}
         <div
           style={{
-            backgroundColor: '#FFFFFF',
+            backgroundColor: 'var(--bg-surface)',
             borderRadius: 8,
             border: '1px solid var(--border-color)',
             overflow: 'hidden',
@@ -223,7 +223,7 @@ export default function RouteDetailsStopsPage() {
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
               <thead>
-                <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
+                <tr style={{ backgroundColor: 'var(--bg-surface-muted)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
                   <th style={{ padding: '12px 16px' }}>Seq</th>
                   <th style={{ padding: '12px 16px' }}>Stop Name</th>
                   <th style={{ padding: '12px 16px' }}>Scheduled Time</th>

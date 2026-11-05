@@ -70,9 +70,9 @@ export const CancelRouteModal: React.FC<CancelRouteModalProps> = ({
               padding: '10px 14px',
               borderRadius: 'var(--radius-md, 8px)',
               fontSize: '13px',
-              backgroundColor: 'rgba(220, 38, 38, 0.15)',
-              border: '1px solid rgba(220, 38, 38, 0.35)',
-              color: '#F87171',
+              backgroundColor: 'var(--color-danger-bg)',
+              border: '1px solid var(--color-danger-border)',
+              color: 'var(--color-danger)',
             }}
           >
             {errorMsg}
@@ -81,21 +81,21 @@ export const CancelRouteModal: React.FC<CancelRouteModalProps> = ({
 
         <div
           style={{
-            backgroundColor: 'rgba(220, 38, 38, 0.1)',
-            border: '1px solid rgba(220, 38, 38, 0.25)',
+            backgroundColor: 'var(--color-danger-bg)',
+            border: '1px solid var(--color-danger-border)',
             borderRadius: 'var(--radius-md, 8px)',
             padding: '12px 14px',
             display: 'flex',
             alignItems: 'flex-start',
             gap: '10px',
-            color: '#F87171',
+            color: 'var(--color-danger)',
             fontSize: '13px',
           }}
         >
           <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
           <div>
             <div style={{ fontWeight: 700 }}>Destructive Action (§ 20.3)</div>
-            <div style={{ fontSize: '12px', marginTop: '2px', color: 'rgba(248, 113, 113, 0.9)' }}>
+            <div style={{ fontSize: '12px', marginTop: '2px', color: 'var(--text-secondary)' }}>
               Cancelling this route immediately revokes any active driver duties, releases pending reservations, and notifies all {route.assignedPassengerCount} scheduled passengers via push alert.
             </div>
           </div>
@@ -103,7 +103,7 @@ export const CancelRouteModal: React.FC<CancelRouteModalProps> = ({
 
         {/* Reason Select */}
         <div>
-          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary, #94A3B8)', marginBottom: '6px' }}>
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
             MANDATORY CANCELLATION REASON (§ 55)
           </label>
           <select
@@ -112,11 +112,11 @@ export const CancelRouteModal: React.FC<CancelRouteModalProps> = ({
             style={{
               width: '100%',
               height: '38px',
-              backgroundColor: 'var(--bg-canvas, #010D2D)',
-              border: '1px solid var(--border-strong, #2D4685)',
+              backgroundColor: 'var(--bg-input)',
+              border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-md, 8px)',
               padding: '0 12px',
-              color: '#F8FAFC',
+              color: 'var(--text-primary)',
               fontSize: '13px',
               outline: 'none',
             }}
@@ -132,7 +132,7 @@ export const CancelRouteModal: React.FC<CancelRouteModalProps> = ({
 
         {selectedReason === 'Other' && (
           <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary, #94A3B8)', marginBottom: '6px' }}>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
               CUSTOM AUDIT EXPLANATION
             </label>
             <textarea
@@ -142,11 +142,11 @@ export const CancelRouteModal: React.FC<CancelRouteModalProps> = ({
               onChange={(e) => setCustomReason(e.target.value)}
               style={{
                 width: '100%',
-                backgroundColor: 'var(--bg-canvas, #010D2D)',
-                border: '1px solid var(--border-strong, #2D4685)',
+                backgroundColor: 'var(--bg-input)',
+                border: '1px solid var(--border-subtle)',
                 borderRadius: 'var(--radius-md, 8px)',
                 padding: '8px 12px',
-                color: '#F8FAFC',
+                color: 'var(--text-primary)',
                 fontSize: '13px',
                 outline: 'none',
                 fontFamily: 'inherit',
@@ -174,4 +174,3 @@ export const CancelRouteModal: React.FC<CancelRouteModalProps> = ({
     </Modal>
   );
 };
-

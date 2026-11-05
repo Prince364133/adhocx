@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
@@ -39,7 +39,7 @@ export default function OfficeDetailsGatesPage() {
               gap: 4,
               fontSize: 12,
               fontWeight: 600,
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
             }}
           >
             <ArrowLeft size={14} /> Back to Campuses
@@ -65,7 +65,7 @@ export default function OfficeDetailsGatesPage() {
               border: '1px solid var(--border-color)',
               fontSize: 13,
               fontWeight: 600,
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
               color: 'var(--text-primary)',
             }}
           >
@@ -100,7 +100,7 @@ export default function OfficeDetailsGatesPage() {
       {/* Campus Summary Box */}
       <div
         style={{
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--bg-surface)',
           borderRadius: 8,
           border: '1px solid var(--border-color)',
           padding: 20,
@@ -157,7 +157,7 @@ export default function OfficeDetailsGatesPage() {
       {/* Security Gates Table */}
       <div
         style={{
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--bg-surface)',
           borderRadius: 8,
           border: '1px solid var(--border-color)',
           overflow: 'hidden',
@@ -187,7 +187,7 @@ export default function OfficeDetailsGatesPage() {
               alignItems: 'center',
               gap: 6,
               padding: '6px 12px',
-              backgroundColor: '#F8FAFC',
+              backgroundColor: 'var(--bg-surface-muted)',
               border: '1px solid var(--border-color)',
               borderRadius: 6,
               fontSize: 12,
@@ -202,7 +202,7 @@ export default function OfficeDetailsGatesPage() {
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
             <thead>
-              <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
+              <tr style={{ backgroundColor: 'var(--bg-surface-muted)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
                 <th style={{ padding: '12px 16px' }}>Gate ID</th>
                 <th style={{ padding: '12px 16px' }}>Gate Name</th>
                 <th style={{ padding: '12px 16px' }}>Traffic Direction</th>
@@ -225,7 +225,7 @@ export default function OfficeDetailsGatesPage() {
                     <span
                       style={{
                         padding: '3px 8px',
-                        backgroundColor: '#F1F5F9',
+                        backgroundColor: 'var(--bg-surface-hover)',
                         color: 'var(--text-secondary)',
                         borderRadius: 4,
                         fontSize: 12,
@@ -271,7 +271,7 @@ export default function OfficeDetailsGatesPage() {
                       type="button"
                       style={{
                         padding: '4px 10px',
-                        backgroundColor: '#FFFFFF',
+                        backgroundColor: 'var(--bg-surface)',
                         border: '1px solid var(--border-color)',
                         borderRadius: 4,
                         fontSize: 12,

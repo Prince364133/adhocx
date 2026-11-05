@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
@@ -35,16 +35,16 @@ export default function EmployeeImportWizardPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Title Header */}
       <div>
-        <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
+        <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
           Import Employees
         </h1>
-        <p style={{ fontSize: '13px', color: '#64748B', marginTop: '2px' }}>
+        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
           Bulk add or update employee records using an Excel (XLSX) or CSV file
         </p>
       </div>
 
       {/* 4-Step Stepper Header */}
-      <div className="surface-card" style={{ padding: '16px 24px', backgroundColor: '#FFFFFF' }}>
+      <div className="surface-card" style={{ padding: '16px 24px', backgroundColor: 'var(--bg-surface)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 720, margin: '0 auto', position: 'relative' }}>
           {/* Step 1 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 2 }}>
@@ -53,7 +53,7 @@ export default function EmployeeImportWizardPage() {
             </div>
             <div>
               <div style={{ fontSize: '13px', fontWeight: 700, color: '#5728B2' }}>Upload File</div>
-              <div style={{ fontSize: '11px', color: '#64748B' }}>Add your data file</div>
+              <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Add your data file</div>
             </div>
           </div>
 
@@ -61,12 +61,12 @@ export default function EmployeeImportWizardPage() {
 
           {/* Step 2 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 2 }}>
-            <div style={{ width: 30, height: 30, borderRadius: '50%', backgroundColor: '#F1F5F9', color: '#64748B', border: '1px solid #CBD5E1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700 }}>
+            <div style={{ width: 30, height: 30, borderRadius: '50%', backgroundColor: 'var(--bg-surface-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-strong)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700 }}>
               2
             </div>
             <div>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748B' }}>Map Fields</div>
-              <div style={{ fontSize: '11px', color: '#94A3B8' }}>Match file columns</div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>Map Fields</div>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Match file columns</div>
             </div>
           </div>
 
@@ -74,12 +74,12 @@ export default function EmployeeImportWizardPage() {
 
           {/* Step 3 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 2 }}>
-            <div style={{ width: 30, height: 30, borderRadius: '50%', backgroundColor: '#F1F5F9', color: '#64748B', border: '1px solid #CBD5E1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700 }}>
+            <div style={{ width: 30, height: 30, borderRadius: '50%', backgroundColor: 'var(--bg-surface-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-strong)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700 }}>
               3
             </div>
             <div>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748B' }}>Preview Data</div>
-              <div style={{ fontSize: '11px', color: '#94A3B8' }}>Review records</div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>Preview Data</div>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Review records</div>
             </div>
           </div>
 
@@ -87,12 +87,12 @@ export default function EmployeeImportWizardPage() {
 
           {/* Step 4 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 2 }}>
-            <div style={{ width: 30, height: 30, borderRadius: '50%', backgroundColor: '#F1F5F9', color: '#64748B', border: '1px solid #CBD5E1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700 }}>
+            <div style={{ width: 30, height: 30, borderRadius: '50%', backgroundColor: 'var(--bg-surface-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-strong)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700 }}>
               4
             </div>
             <div>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: '#64748B' }}>Import</div>
-              <div style={{ fontSize: '11px', color: '#94A3B8' }}>Add to system</div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>Import</div>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Add to system</div>
             </div>
           </div>
         </div>
@@ -101,12 +101,12 @@ export default function EmployeeImportWizardPage() {
       {/* Main Grid: Upload Dropzone + Guidelines Card */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '20px' }}>
         {/* Left: Drag and Drop Upload Area */}
-        <div className="surface-card" style={{ padding: '24px', backgroundColor: '#FFFFFF', flex: '1 1 65%' }}>
+        <div className="surface-card" style={{ padding: '24px', backgroundColor: 'var(--bg-surface)', flex: '1 1 65%' }}>
           <div
             style={{
               border: '2px dashed #93C5FD',
               borderRadius: '12px',
-              backgroundColor: '#F8FAFC',
+              backgroundColor: 'var(--bg-surface-muted)',
               padding: '40px 20px',
               textAlign: 'center',
               display: 'flex',
@@ -126,15 +126,15 @@ export default function EmployeeImportWizardPage() {
               </div>
             </div>
 
-            <div style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
+            <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
               Drag and drop your file here
             </div>
             <div style={{ fontSize: '13px', color: '#5728B2', fontWeight: 600, marginTop: '2px' }}>
               or click to browse
             </div>
 
-            <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '12px' }}>
-              Supported formats: .xlsx, .csv · Max file size: 10 MB
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '12px' }}>
+              Supported formats: .xlsx, .csv Â· Max file size: 10 MB
             </div>
           </div>
 
@@ -155,11 +155,11 @@ export default function EmployeeImportWizardPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <FileSpreadsheet size={20} color="#16A34A" />
                 <div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
                     {selectedFile.name}
                   </div>
-                  <div style={{ fontSize: '11px', color: '#64748B' }}>
-                    {selectedFile.size} · <strong>{selectedFile.records.toLocaleString()} records detected</strong>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                    {selectedFile.size} Â· <strong>{selectedFile.records.toLocaleString()} records detected</strong>
                   </div>
                 </div>
               </div>
@@ -170,8 +170,8 @@ export default function EmployeeImportWizardPage() {
                   width: 30,
                   height: 30,
                   borderRadius: 6,
-                  border: '1px solid #CBD5E1',
-                  backgroundColor: '#FFFFFF',
+                  border: '1px solid var(--border-strong)',
+                  backgroundColor: 'var(--bg-surface)',
                   color: '#DC2626',
                   display: 'flex',
                   alignItems: 'center',
@@ -211,15 +211,15 @@ export default function EmployeeImportWizardPage() {
         </div>
 
         {/* Right: Import Guidelines Card */}
-        <div className="surface-card" style={{ padding: '24px', backgroundColor: '#FFFFFF', flex: '1 1 35%' }}>
+        <div className="surface-card" style={{ padding: '24px', backgroundColor: 'var(--bg-surface)', flex: '1 1 35%' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
             <Info size={18} color="#5728B2" />
-            <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
               Import Guidelines
             </h3>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px', color: '#475569', lineHeight: 1.5 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
               <Check size={14} color="#16A34A" style={{ marginTop: 3, flexShrink: 0 }} />
               <span>Use the provided template for best results and column recognition.</span>
@@ -238,13 +238,13 @@ export default function EmployeeImportWizardPage() {
             </div>
           </div>
 
-          <div style={{ borderTop: '1px solid #E2E8F0', marginTop: '20px', paddingTop: '16px' }}>
+          <div style={{ borderTop: '1px solid var(--border-subtle)', marginTop: '20px', paddingTop: '16px' }}>
             <button
               onClick={() => alert('Downloading Excel Template: AdhocX_Employee_Import_Template.xlsx')}
               style={{
                 width: '100%',
                 height: 38,
-                backgroundColor: '#F8FAFC',
+                backgroundColor: 'var(--bg-surface-muted)',
                 color: '#5728B2',
                 border: '1px solid #BFDBFE',
                 borderRadius: '6px',

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React from 'react';
 import {
@@ -36,7 +36,7 @@ export default function VehicleRouteAnalyticsPage() {
               alignItems: 'center',
               gap: 6,
               padding: '8px 14px',
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
               border: '1px solid var(--border-color)',
               color: 'var(--text-secondary)',
               borderRadius: 6,
@@ -97,7 +97,7 @@ export default function VehicleRouteAnalyticsPage() {
         {/* Fastest High-Efficiency Corridors */}
         <div
           style={{
-            backgroundColor: '#FFFFFF',
+            backgroundColor: 'var(--bg-surface)',
             borderRadius: 8,
             border: '1px solid var(--border-color)',
             overflow: 'hidden',
@@ -123,9 +123,9 @@ export default function VehicleRouteAnalyticsPage() {
                 key={idx}
                 style={{
                   padding: '12px 14px',
-                  backgroundColor: '#F8FAFC',
+                  backgroundColor: 'var(--bg-surface-muted)',
                   borderRadius: 6,
-                  border: '1px solid #E2E8F0',
+                  border: '1px solid var(--border-subtle)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -153,7 +153,7 @@ export default function VehicleRouteAnalyticsPage() {
         {/* Congested Bottlenecks Requiring Buffer */}
         <div
           style={{
-            backgroundColor: '#FFFFFF',
+            backgroundColor: 'var(--bg-surface)',
             borderRadius: 8,
             border: '1px solid var(--border-color)',
             overflow: 'hidden',

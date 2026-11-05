@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
@@ -111,7 +111,7 @@ export default function SafetyOverviewPage() {
           justifyContent: 'space-between',
           gap: 12,
           padding: '12px 16px',
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--bg-surface)',
           borderRadius: 8,
           border: '1px solid var(--border-color)',
           flexWrap: 'wrap',
@@ -130,7 +130,7 @@ export default function SafetyOverviewPage() {
               borderRadius: 6,
               border: '1px solid var(--border-color)',
               fontSize: 13,
-              backgroundColor: '#F8FAFC',
+              backgroundColor: 'var(--bg-surface-muted)',
             }}
           />
         </div>
@@ -144,7 +144,7 @@ export default function SafetyOverviewPage() {
               borderRadius: 6,
               border: '1px solid var(--border-color)',
               fontSize: 13,
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
               color: 'var(--text-primary)',
             }}
           >
@@ -160,7 +160,7 @@ export default function SafetyOverviewPage() {
       {/* Incidents Table */}
       <div
         style={{
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--bg-surface)',
           borderRadius: 8,
           border: '1px solid var(--border-color)',
           overflow: 'hidden',
@@ -169,7 +169,7 @@ export default function SafetyOverviewPage() {
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
             <thead>
-              <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
+              <tr style={{ backgroundColor: 'var(--bg-surface-muted)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
                 <th style={{ padding: '12px 16px' }}>Incident No</th>
                 <th style={{ padding: '12px 16px' }}>Severity</th>
                 <th style={{ padding: '12px 16px' }}>Issue & Category</th>
@@ -189,7 +189,7 @@ export default function SafetyOverviewPage() {
                       <span
                         style={{
                           padding: '2px 8px',
-                          backgroundColor: '#F1F5F9',
+                          backgroundColor: 'var(--bg-surface-hover)',
                           borderRadius: 4,
                           fontSize: 12,
                           fontFamily: 'monospace',
@@ -236,7 +236,7 @@ export default function SafetyOverviewPage() {
                         )}
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                        Type: {inc.incidentType} • {inc.office}
+                        Type: {inc.incidentType} â€¢ {inc.office}
                       </div>
                     </td>
                     <td style={{ padding: '14px 16px' }}>

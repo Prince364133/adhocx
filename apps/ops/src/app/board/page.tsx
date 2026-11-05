@@ -180,10 +180,10 @@ function LiveRouteDeckContent() {
       {/* Page Title & Bulk Actions */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 className="h1-text" style={{ color: '#F8FAFC' }}>
+          <h1 className="h1-text" style={{ color: 'var(--text-primary)' }}>
             Live Shift Route Deck
           </h1>
-          <p style={{ color: 'var(--text-secondary, #94A3B8)', fontSize: '14px', marginTop: '4px' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '4px' }}>
             Real-time route command & telemetry. Intervene directly with manual dispatch, driver reassignment, and boarding verification.
           </p>
         </div>
@@ -220,9 +220,9 @@ function LiveRouteDeckContent() {
             borderRadius: 'var(--radius-md, 8px)',
             fontSize: '13px',
             fontWeight: 500,
-            backgroundColor: alertMsg.type === 'success' ? 'rgba(22, 163, 74, 0.15)' : 'rgba(220, 38, 38, 0.15)',
-            border: `1px solid ${alertMsg.type === 'success' ? 'rgba(22, 163, 74, 0.35)' : 'rgba(220, 38, 38, 0.35)'}`,
-            color: alertMsg.type === 'success' ? '#4ADE80' : '#F87171',
+            backgroundColor: alertMsg.type === 'success' ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
+            border: `1px solid ${alertMsg.type === 'success' ? 'var(--color-success-border)' : 'var(--color-danger-border)'}`,
+            color: alertMsg.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
@@ -239,15 +239,16 @@ function LiveRouteDeckContent() {
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
           gap: '12px',
-          backgroundColor: 'var(--bg-surface-elevated, #111D3D)',
+          backgroundColor: 'var(--bg-surface)',
           padding: '14px 18px',
           borderRadius: 'var(--radius-lg, 10px)',
-          border: '1px solid var(--border-subtle, #1E3060)',
+          border: '1px solid var(--border-subtle)',
+          boxShadow: 'var(--shadow-card)',
         }}
       >
         {/* Company Dropdown */}
         <div>
-          <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--text-muted, #64748B)', marginBottom: '5px' }}>
+          <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '5px' }}>
             ENTERPRISE CLIENT
           </label>
           <div style={{ position: 'relative' }}>
@@ -260,11 +261,11 @@ function LiveRouteDeckContent() {
               style={{
                 width: '100%',
                 height: '38px',
-                backgroundColor: 'var(--bg-canvas, #010D2D)',
-                border: '1px solid var(--border-strong, #2D4685)',
+                backgroundColor: 'var(--bg-input)',
+                border: '1px solid var(--border-subtle)',
                 borderRadius: 'var(--radius-md, 8px)',
                 padding: '0 12px',
-                color: '#F8FAFC',
+                color: 'var(--text-primary)',
                 fontSize: '13px',
                 fontWeight: 600,
                 outline: 'none',
@@ -281,7 +282,7 @@ function LiveRouteDeckContent() {
 
         {/* Date Selector */}
         <div>
-          <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--text-muted, #64748B)', marginBottom: '5px' }}>
+          <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '5px' }}>
             SHIFT DATE (IST)
           </label>
           <input
@@ -291,11 +292,11 @@ function LiveRouteDeckContent() {
             style={{
               width: '100%',
               height: '38px',
-              backgroundColor: 'var(--bg-canvas, #010D2D)',
-              border: '1px solid var(--border-strong, #2D4685)',
+              backgroundColor: 'var(--bg-input)',
+              border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-md, 8px)',
               padding: '0 12px',
-              color: '#F8FAFC',
+              color: 'var(--text-primary)',
               fontSize: '13px',
               outline: 'none',
             }}
@@ -304,7 +305,7 @@ function LiveRouteDeckContent() {
 
         {/* Shift Time */}
         <div>
-          <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--text-muted, #64748B)', marginBottom: '5px' }}>
+          <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '5px' }}>
             SHIFT TIME
           </label>
           <select
@@ -313,11 +314,11 @@ function LiveRouteDeckContent() {
             style={{
               width: '100%',
               height: '38px',
-              backgroundColor: 'var(--bg-canvas, #010D2D)',
-              border: '1px solid var(--border-strong, #2D4685)',
+              backgroundColor: 'var(--bg-input)',
+              border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-md, 8px)',
               padding: '0 12px',
-              color: '#F8FAFC',
+              color: 'var(--text-primary)',
               fontSize: '13px',
               outline: 'none',
             }}
@@ -333,7 +334,7 @@ function LiveRouteDeckContent() {
 
         {/* Direction Toggle */}
         <div>
-          <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--text-muted, #64748B)', marginBottom: '5px' }}>
+          <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '5px' }}>
             COMMUTE DIRECTION
           </label>
           <div style={{ display: 'flex', gap: '6px' }}>
@@ -344,12 +345,13 @@ function LiveRouteDeckContent() {
                 height: '38px',
                 borderRadius: 'var(--radius-md, 8px)',
                 border: '1px solid',
-                borderColor: selectedDirection === 'LOGIN' ? 'var(--brand-blue-500, #5728B2)' : 'var(--border-strong, #2D4685)',
-                backgroundColor: selectedDirection === 'LOGIN' ? 'rgba(87, 40, 178, 0.2)' : 'var(--bg-canvas, #010D2D)',
-                color: selectedDirection === 'LOGIN' ? 'var(--brand-blue-400, #5290F9)' : 'var(--text-secondary, #94A3B8)',
+                borderColor: selectedDirection === 'LOGIN' ? 'var(--brand-blue-500, #5728B2)' : 'var(--border-subtle)',
+                backgroundColor: selectedDirection === 'LOGIN' ? 'var(--brand-primary-subtle)' : 'var(--bg-input)',
+                color: selectedDirection === 'LOGIN' ? 'var(--brand-blue-500, #5728B2)' : 'var(--text-secondary)',
                 fontWeight: 600,
-                fontSize: '13px',
+                fontSize: '12px',
                 cursor: 'pointer',
+                transition: 'all 0.15s ease',
               }}
             >
               LOGIN (To Office)
@@ -361,12 +363,13 @@ function LiveRouteDeckContent() {
                 height: '38px',
                 borderRadius: 'var(--radius-md, 8px)',
                 border: '1px solid',
-                borderColor: selectedDirection === 'LOGOUT' ? 'var(--brand-amber-500, #EE9811)' : 'var(--border-strong, #2D4685)',
-                backgroundColor: selectedDirection === 'LOGOUT' ? 'rgba(238, 152, 17, 0.2)' : 'var(--bg-canvas, #010D2D)',
-                color: selectedDirection === 'LOGOUT' ? 'var(--brand-amber-500, #EE9811)' : 'var(--text-secondary, #94A3B8)',
+                borderColor: selectedDirection === 'LOGOUT' ? 'var(--brand-amber-500, #EE9811)' : 'var(--border-subtle)',
+                backgroundColor: selectedDirection === 'LOGOUT' ? 'var(--brand-amber-50, #FFFBF7)' : 'var(--bg-input)',
+                color: selectedDirection === 'LOGOUT' ? 'var(--brand-amber-600, #C17A0B)' : 'var(--text-secondary)',
                 fontWeight: 600,
-                fontSize: '13px',
+                fontSize: '12px',
                 cursor: 'pointer',
+                transition: 'all 0.15s ease',
               }}
             >
               LOGOUT (To Home)
@@ -395,15 +398,16 @@ function LiveRouteDeckContent() {
                 onClick={() => setActiveTab(tab.id)}
                 style={{
                   padding: '6px 14px',
-                  borderRadius: 'var(--radius-pill, 9999px)',
+                  borderRadius: 'var(--radius-pill)',
                   border: '1px solid',
-                  borderColor: isActive ? 'var(--brand-blue-500, #5728B2)' : 'var(--border-subtle, #1E3060)',
-                  backgroundColor: isActive ? 'var(--brand-blue-500, #5728B2)' : 'var(--bg-surface-elevated, #111D3D)',
-                  color: isActive ? '#FFFFFF' : 'var(--text-secondary, #94A3B8)',
+                  borderColor: isActive ? 'var(--brand-blue-500, #5728B2)' : 'var(--border-subtle)',
+                  backgroundColor: isActive ? 'var(--brand-blue-500, #5728B2)' : 'var(--bg-surface)',
+                  color: isActive ? '#FFFFFF' : 'var(--text-secondary)',
                   fontSize: '12px',
                   fontWeight: 600,
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
+                  boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
                   transition: 'all 0.15s ease',
                 }}
               >
@@ -419,14 +423,15 @@ function LiveRouteDeckContent() {
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            backgroundColor: 'var(--bg-surface-elevated, #111D3D)',
-            border: '1px solid var(--border-subtle, #1E3060)',
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-md, 8px)',
             padding: '6px 12px',
             width: '260px',
+            boxShadow: 'var(--shadow-sm)',
           }}
         >
-          <Search size={14} color="var(--text-muted, #64748B)" />
+          <Search size={14} color="var(--text-muted)" />
           <input
             type="text"
             placeholder="Search driver, cab, office..."
@@ -437,7 +442,7 @@ function LiveRouteDeckContent() {
               backgroundColor: 'transparent',
               border: 'none',
               outline: 'none',
-              color: '#F8FAFC',
+              color: 'var(--text-primary)',
               fontSize: '12px',
             }}
           />
@@ -446,7 +451,7 @@ function LiveRouteDeckContent() {
 
       {/* Routes List */}
       {loading ? (
-        <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted, #64748B)' }}>
+        <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)' }}>
           Loading shift routes...
         </div>
       ) : filteredRoutes.length === 0 ? (
@@ -454,14 +459,15 @@ function LiveRouteDeckContent() {
           style={{
             padding: '60px',
             textAlign: 'center',
-            backgroundColor: 'var(--bg-surface-elevated, #111D3D)',
+            backgroundColor: 'var(--bg-surface)',
             borderRadius: 'var(--radius-lg, 10px)',
-            border: '1px solid var(--border-subtle, #1E3060)',
+            border: '1px solid var(--border-subtle)',
+            boxShadow: 'var(--shadow-card)',
           }}
         >
-          <AlertTriangle size={36} color="var(--text-muted, #64748B)" style={{ marginBottom: '12px' }} />
-          <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#F8FAFC' }}>No routes for this shift</h3>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary, #94A3B8)', marginTop: '4px' }}>
+          <AlertTriangle size={36} color="var(--text-muted)" style={{ marginBottom: '12px' }} />
+          <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>No routes for this shift</h3>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
             No routes match the selected filters. Use the Route Optimizer to plan and cluster employee rosters.
           </p>
         </div>
@@ -487,7 +493,7 @@ function LiveRouteDeckContent() {
         </div>
       )}
 
-      {/* Context-Preserving Drawers & Modals (§ 72) */}
+      {/* Context-Preserving Drawers & Modals */}
       <StopItineraryDrawer
         route={itineraryRoute}
         isOpen={Boolean(itineraryRoute)}
@@ -516,7 +522,7 @@ export default function LiveRouteDeckPage() {
   return (
     <Suspense
       fallback={
-        <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted, #64748B)' }}>
+        <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)' }}>
           Loading Flight Route Deck...
         </div>
       }

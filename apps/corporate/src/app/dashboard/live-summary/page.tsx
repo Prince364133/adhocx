@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
@@ -16,10 +16,10 @@ export default function LiveOperationsSummaryPage() {
       {/* Title & Live Filter Bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
             Live Operations
           </h1>
-          <p style={{ fontSize: '13px', color: '#64748B', marginTop: '2px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
             Real-time status of all trips, vehicles and employees
           </p>
         </div>
@@ -77,10 +77,10 @@ export default function LiveOperationsSummaryPage() {
         <div className="surface-card" style={{ padding: '20px 24px', flex: '1 1 60%' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
             <div>
-              <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
+              <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
                 Active Fleet Live Telemetry
               </h2>
-              <p style={{ fontSize: '12px', color: '#64748B' }}>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                 Real-time tracking of route corridors across Hyderabad
               </p>
             </div>
@@ -102,7 +102,7 @@ export default function LiveOperationsSummaryPage() {
         {/* Right: Active Trips (Live) List */}
         <div className="surface-card" style={{ padding: '20px 24px', flex: '1 1 35%' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
+            <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
               Active Trips (Live)
             </h2>
             <Link
@@ -140,7 +140,7 @@ export default function LiveOperationsSummaryPage() {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Car size={16} color={isSelected ? '#5728B2' : '#64748B'} />
-                      <span style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
                         {trip.cabNumber}
                       </span>
                     </div>
@@ -160,11 +160,11 @@ export default function LiveOperationsSummaryPage() {
                     </span>
                   </div>
 
-                  <div style={{ fontSize: '12px', color: '#64748B', marginBottom: '6px' }}>
-                    {trip.type} · <strong>{trip.driverName}</strong> · {trip.stopsCount} stops
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    {trip.type} Â· <strong>{trip.driverName}</strong> Â· {trip.stopsCount} stops
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: '#94A3B8' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)' }}>
                     <span>Occupancy: {trip.occupiedSeats}/{trip.totalSeats} seats</span>
                     <span>GPS: {trip.lastGpsUpdateSecondsAgo}s ago</span>
                   </div>

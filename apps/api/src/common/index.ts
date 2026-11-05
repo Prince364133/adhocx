@@ -10,3 +10,5 @@ export * from './decorators/corporate-resource.decorator';
 export * from './errors/domain-errors';
 export * from './utils/uniqueness.util';
 export * from './utils/name.util';
+export * from './interceptors/tenant-context.interceptor';
+export * from './context/tenant.context';

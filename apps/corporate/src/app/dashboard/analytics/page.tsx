@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React from 'react';
 import { Clock, Hourglass, Percent, Route, IndianRupee } from 'lucide-react';
@@ -17,10 +17,10 @@ export default function TransportAnalyticsPage() {
       {/* Page Title & Filter Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
             Transport Analytics
           </h1>
-          <p style={{ fontSize: '13px', color: '#64748B', marginTop: '2px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
             Operational performance, utilization and cost insights
           </p>
         </div>
@@ -65,7 +65,7 @@ export default function TransportAnalyticsPage() {
         />
         <MetricCard
           label="Total Transport Cost"
-          value={`₹ ${mockTransportAnalytics.totalTransportCostLakhs} L`}
+          value={`â‚¹ ${mockTransportAnalytics.totalTransportCostLakhs} L`}
           icon={<IndianRupee size={18} />}
           trend={{ value: mockTransportAnalytics.costDelta, isPositive: true }}
           highlightColor="#EE9811"
@@ -78,10 +78,10 @@ export default function TransportAnalyticsPage() {
         <div className="surface-card" style={{ padding: '20px 24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
             <div>
-              <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
+              <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
                 Trip Volume & Completion
               </h2>
-              <p style={{ fontSize: '12px', color: '#64748B' }}>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                 Scheduled demand vs successfully completed fleet commutes
               </p>
             </div>
@@ -97,10 +97,10 @@ export default function TransportAnalyticsPage() {
         <div className="surface-card" style={{ padding: '20px 24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
             <div>
-              <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
+              <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
                 Trip Distribution by Type
               </h2>
-              <p style={{ fontSize: '12px', color: '#64748B' }}>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                 Ratio of regular roster logins, logout drops and on-demand ad-hoc rides
               </p>
             </div>

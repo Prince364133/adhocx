@@ -32,9 +32,18 @@ export class JwtAuthGuard implements CanActivate {
 
       const secret = this.configService.get<string>('auth.jwtAccessSecret') || process.env.JWT_ACCESS_SECRET;
       const payload = await this.jwtService.verifyAsync(token, { secret });
+      const userId = payload.id || payload.sub;
+
+      if (this.redisService && userId) {
+        const isRevoked = await this.redisService.isUserRevoked(userId);
+        if (isRevoked) {
+          throw new UnauthorizedException('User account has been suspended or session revoked');
+        }
+      }
+
       request.user = {
         ...payload,
-        id: payload.id || payload.sub,
+        id: userId,
       };
       return true;
     } catch (err) {

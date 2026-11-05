@@ -31,13 +31,17 @@ export async function resolveCancelCutoffHours(
 ): Promise<number> {
   const delegate = db?.corporateTenantPolicy;
   if (!tenantId || typeof delegate?.findFirst !== 'function') return RESCHEDULE_CUTOFF_HOURS;
-  const policy = await delegate.findFirst({
-    where: { tenantId, effectiveFrom: { lte: at } },
-    orderBy: [{ effectiveFrom: 'desc' }, { version: 'desc' }],
-    select: { cancelCutoffHours: true },
-  });
-  const hours = Number(policy?.cancelCutoffHours);
-  return Number.isFinite(hours) && hours >= 0 ? hours : RESCHEDULE_CUTOFF_HOURS;
+  try {
+    const policy = await delegate.findFirst({
+      where: { tenantId, effectiveFrom: { lte: at } },
+      orderBy: [{ effectiveFrom: 'desc' }, { version: 'desc' }],
+      select: { cancelCutoffHours: true },
+    });
+    const hours = Number(policy?.cancelCutoffHours);
+    return Number.isFinite(hours) && hours >= 0 ? hours : RESCHEDULE_CUTOFF_HOURS;
+  } catch (_) {
+    return RESCHEDULE_CUTOFF_HOURS;
+  }
 }
 
 export type PickupTimeSource = 'STOP_PLANNED_ETA' | 'ROUTE_DEPARTURE' | 'SHIFT_TIME';

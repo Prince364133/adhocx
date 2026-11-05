@@ -122,7 +122,7 @@ export class AuthController {
     return this.authService.resetPassword(dto);
   }
 
-  @Post('refresh')
+  @Post(['refresh', 'refresh-token'])
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh access token using refresh token' })
   @SwaggerResponse({ status: 200, description: 'Tokens refreshed successfully' })

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import {
@@ -47,7 +47,7 @@ export default function OrganizationSettingsAuditPage() {
               alignItems: 'center',
               gap: 6,
               padding: '8px 14px',
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
               border: '1px solid var(--border-color)',
               color: 'var(--text-secondary)',
               borderRadius: 6,
@@ -119,7 +119,7 @@ export default function OrganizationSettingsAuditPage() {
           {/* Profile Card */}
           <div
             style={{
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
               borderRadius: 8,
               border: '1px solid var(--border-color)',
               padding: 20,
@@ -129,31 +129,31 @@ export default function OrganizationSettingsAuditPage() {
               Corporate Organization Profile
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 13 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', paddingBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
                 <span style={{ color: 'var(--text-muted)' }}>Company Name:</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                   {mockOrganizationSettings.companyName}
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', paddingBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
                 <span style={{ color: 'var(--text-muted)' }}>Corporate Client ID:</span>
                 <span style={{ fontWeight: 600, color: 'var(--corporate-blue)' }}>
                   {mockOrganizationSettings.corporateCode}
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', paddingBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
                 <span style={{ color: 'var(--text-muted)' }}>Emergency Hotline:</span>
                 <span style={{ fontWeight: 600, color: '#DC2626' }}>
                   {mockOrganizationSettings.emergencyDeskPhone}
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', paddingBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
                 <span style={{ color: 'var(--text-muted)' }}>Contact Email:</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                   {mockOrganizationSettings.contactEmail}
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', paddingBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
                 <span style={{ color: 'var(--text-muted)' }}>Headquarters Address:</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)', textAlign: 'right' }}>
                   {mockOrganizationSettings.headquartersAddress}
@@ -165,7 +165,7 @@ export default function OrganizationSettingsAuditPage() {
           {/* Transport Policies Card */}
           <div
             style={{
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
               borderRadius: 8,
               border: '1px solid var(--border-color)',
               padding: 20,
@@ -175,31 +175,31 @@ export default function OrganizationSettingsAuditPage() {
               Enforced Commute Policies
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 13 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', paddingBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
                 <span style={{ color: 'var(--text-muted)' }}>Female Commuter Night Escort:</span>
                 <span style={{ fontWeight: 600, color: '#15803D' }}>
                   Enforced ({mockOrganizationSettings.femaleEscortNightHours})
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', paddingBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
                 <span style={{ color: 'var(--text-muted)' }}>Boarding OTP Verification:</span>
                 <span style={{ fontWeight: 600, color: '#15803D' }}>
                   Mandatory at Driver Door
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', paddingBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
                 <span style={{ color: 'var(--text-muted)' }}>Auto-Approval Cap / Month:</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                   {mockOrganizationSettings.maxAutoApprovalPerMonth} Ad-hoc Requests
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', paddingBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
                 <span style={{ color: 'var(--text-muted)' }}>Campus Geofence Radius:</span>
                 <span style={{ fontWeight: 600, color: 'var(--corporate-blue)' }}>
                   {mockOrganizationSettings.defaultGeofenceRadiusMeters} Meters
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', paddingBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
                 <span style={{ color: 'var(--text-muted)' }}>Operational Timezone:</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                   {mockOrganizationSettings.timezone}
@@ -214,7 +214,7 @@ export default function OrganizationSettingsAuditPage() {
       {activeTab === 'rbac' && (
         <div
           style={{
-            backgroundColor: '#FFFFFF',
+            backgroundColor: 'var(--bg-surface)',
             borderRadius: 8,
             border: '1px solid var(--border-color)',
             overflow: 'hidden',
@@ -234,7 +234,7 @@ export default function OrganizationSettingsAuditPage() {
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
               <thead>
-                <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
+                <tr style={{ backgroundColor: 'var(--bg-surface-muted)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
                   <th style={{ padding: '12px 16px' }}>Role Name</th>
                   <th style={{ padding: '12px 16px' }}>Assigned Users</th>
                   <th style={{ padding: '12px 16px' }}>Permissions Scope</th>
@@ -258,7 +258,7 @@ export default function OrganizationSettingsAuditPage() {
                         type="button"
                         style={{
                           padding: '4px 10px',
-                          backgroundColor: '#FFFFFF',
+                          backgroundColor: 'var(--bg-surface)',
                           border: '1px solid var(--border-color)',
                           borderRadius: 4,
                           fontSize: 12,
@@ -284,7 +284,7 @@ export default function OrganizationSettingsAuditPage() {
           <div
             style={{
               padding: '12px 16px',
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
               borderRadius: 8,
               border: '1px solid var(--border-color)',
               display: 'flex',
@@ -310,7 +310,7 @@ export default function OrganizationSettingsAuditPage() {
 
           <div
             style={{
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
               borderRadius: 8,
               border: '1px solid var(--border-color)',
               overflow: 'hidden',
@@ -319,7 +319,7 @@ export default function OrganizationSettingsAuditPage() {
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
                 <thead>
-                  <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
+                  <tr style={{ backgroundColor: 'var(--bg-surface-muted)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
                     <th style={{ padding: '12px 16px' }}>Log ID</th>
                     <th style={{ padding: '12px 16px' }}>Timestamp</th>
                     <th style={{ padding: '12px 16px' }}>Actor & Role</th>
@@ -335,7 +335,7 @@ export default function OrganizationSettingsAuditPage() {
                         <span
                           style={{
                             padding: '2px 8px',
-                            backgroundColor: '#F1F5F9',
+                            backgroundColor: 'var(--bg-surface-hover)',
                             borderRadius: 4,
                             fontSize: 12,
                             fontFamily: 'monospace',

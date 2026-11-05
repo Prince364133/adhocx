@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import {
@@ -100,7 +100,7 @@ export default function IntegrationHealthWebhooksPage() {
       {/* Webhook Configuration Banner */}
       <div
         style={{
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--bg-surface)',
           borderRadius: 8,
           border: '1px solid var(--border-color)',
           padding: 20,
@@ -127,7 +127,7 @@ export default function IntegrationHealthWebhooksPage() {
               borderRadius: 6,
               border: '1px solid var(--border-color)',
               fontSize: 13,
-              backgroundColor: '#F8FAFC',
+              backgroundColor: 'var(--bg-surface-muted)',
               fontFamily: 'monospace',
             }}
           />
@@ -136,7 +136,7 @@ export default function IntegrationHealthWebhooksPage() {
             onClick={handleCopyEndpoint}
             style={{
               padding: '8px 14px',
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
               border: '1px solid var(--border-color)',
               borderRadius: 6,
               fontSize: 12,
@@ -157,7 +157,7 @@ export default function IntegrationHealthWebhooksPage() {
         {/* Live Events Stream */}
         <div
           style={{
-            backgroundColor: '#FFFFFF',
+            backgroundColor: 'var(--bg-surface)',
             borderRadius: 8,
             border: '1px solid var(--border-color)',
             overflow: 'hidden',
@@ -180,9 +180,9 @@ export default function IntegrationHealthWebhooksPage() {
                 key={idx}
                 style={{
                   padding: '12px 14px',
-                  backgroundColor: '#F8FAFC',
+                  backgroundColor: 'var(--bg-surface-muted)',
                   borderRadius: 6,
-                  border: '1px solid #E2E8F0',
+                  border: '1px solid var(--border-subtle)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -193,7 +193,7 @@ export default function IntegrationHealthWebhooksPage() {
                     {evt.event}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                    {evt.records} records processed • {evt.time}
+                    {evt.records} records processed â€¢ {evt.time}
                   </div>
                 </div>
                 <span
@@ -216,7 +216,7 @@ export default function IntegrationHealthWebhooksPage() {
         {/* Failure & Incident Retries */}
         <div
           style={{
-            backgroundColor: '#FFFFFF',
+            backgroundColor: 'var(--bg-surface)',
             borderRadius: 8,
             border: '1px solid var(--border-color)',
             overflow: 'hidden',

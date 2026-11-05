@@ -48,9 +48,9 @@ export const RouteCard: React.FC<RouteCardProps> = ({
   return (
     <div
       style={{
-        backgroundColor: 'var(--bg-surface-elevated, #111D3D)',
+        backgroundColor: 'var(--bg-surface)',
         border: `1px solid ${
-          isAtRisk || isDelayed ? 'rgba(238, 152, 17, 0.5)' : 'var(--border-subtle, #1E3060)'
+          isAtRisk || isDelayed ? 'rgba(238, 152, 17, 0.5)' : 'var(--border-subtle)'
         }`,
         borderRadius: 'var(--radius-lg, 10px)',
         padding: 'var(--space-4, 16px) var(--space-5, 20px)',
@@ -60,7 +60,7 @@ export const RouteCard: React.FC<RouteCardProps> = ({
         gap: '12px',
         boxShadow: 'var(--shadow-card)',
         position: 'relative',
-        transition: 'border-color 0.2s',
+        transition: 'background-color 0.2s, border-color 0.2s',
       }}
       className={isAtRisk || isDelayed ? 'pulse-warning' : ''}
     >
@@ -74,14 +74,14 @@ export const RouteCard: React.FC<RouteCardProps> = ({
               fontWeight: 700,
               padding: '2px 8px',
               borderRadius: 'var(--radius-xs, 4px)',
-              backgroundColor: route.direction === 'LOGIN' ? 'rgba(87, 40, 178, 0.15)' : 'rgba(238, 152, 17, 0.15)',
-              color: route.direction === 'LOGIN' ? 'var(--brand-blue-400, #5290F9)' : 'var(--brand-amber-500, #EE9811)',
-              border: `1px solid ${route.direction === 'LOGIN' ? 'rgba(87, 40, 178, 0.3)' : 'rgba(238, 152, 17, 0.3)'}`,
+              backgroundColor: route.direction === 'LOGIN' ? 'var(--brand-primary-subtle)' : 'var(--color-warning-bg)',
+              color: route.direction === 'LOGIN' ? 'var(--brand-blue-500, #5728B2)' : 'var(--brand-amber-500, #EE9811)',
+              border: `1px solid ${route.direction === 'LOGIN' ? 'var(--border-subtle)' : 'var(--color-warning-border)'}`,
             }}
           >
             {route.direction} · {route.shiftTime}
           </span>
-          <span style={{ fontSize: '12px', color: 'var(--text-secondary, #94A3B8)', fontWeight: 500 }}>
+          <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>
             {route.vehicleCategory} ({route.assignedPassengerCount}/{route.maxCapacity} seats)
           </span>
         </div>
@@ -95,10 +95,11 @@ export const RouteCard: React.FC<RouteCardProps> = ({
                 gap: '4px',
                 fontSize: '11px',
                 fontWeight: 600,
-                color: '#4ADE80',
-                backgroundColor: 'rgba(22, 163, 74, 0.1)',
+                color: 'var(--color-success)',
+                backgroundColor: 'var(--color-success-bg)',
                 padding: '2px 6px',
-                borderRadius: 'var(--radius-pill, 9999px)',
+                borderRadius: 'var(--radius-pill)',
+                border: '1px solid var(--color-success-border)',
               }}
             >
               <Radio size={11} className="pulse-warning" />
@@ -116,29 +117,29 @@ export const RouteCard: React.FC<RouteCardProps> = ({
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
           gap: '12px',
-          backgroundColor: 'var(--bg-canvas, #010D2D)',
+          backgroundColor: 'var(--bg-surface-muted)',
           padding: '12px 14px',
           borderRadius: 'var(--radius-md, 8px)',
-          border: '1px solid var(--border-subtle, #1E3060)',
+          border: '1px solid var(--border-subtle)',
         }}
       >
         {/* Driver Details */}
         <div>
-          <div style={{ fontSize: '11px', color: 'var(--text-muted, #64748B)', marginBottom: '3px' }}>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '3px' }}>
             ASSIGNED CAB & DRIVER
           </div>
           {route.driver ? (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <User size={14} color="var(--brand-blue-400, #5290F9)" />
-                <span style={{ fontWeight: 700, color: '#F8FAFC' }}>{route.driver.fullName}</span>
+                <User size={14} color="var(--brand-blue-500, #5728B2)" />
+                <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{route.driver.fullName}</span>
               </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary, #94A3B8)', marginTop: '2px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
                 {route.driver.phone || 'No phone'} · <span className="code-tag">{route.vehicle?.registrationNumber || 'VEHICLE'}</span>
               </div>
             </div>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#FBBF24', fontSize: '13px', fontWeight: 600 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-warning)', fontSize: '13px', fontWeight: 600 }}>
               <AlertTriangle size={15} />
               <span>Unassigned Driver</span>
             </div>
@@ -147,22 +148,22 @@ export const RouteCard: React.FC<RouteCardProps> = ({
 
         {/* Schedule Timing */}
         <div>
-          <div style={{ fontSize: '11px', color: 'var(--text-muted, #64748B)', marginBottom: '3px' }}>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '3px' }}>
             SCHEDULE & DESTINATION
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Clock size={14} color="var(--brand-blue-400, #5290F9)" />
-            <span style={{ fontSize: '13px', fontWeight: 600, color: '#F8FAFC' }}>
+            <Clock size={14} color="var(--brand-blue-500, #5728B2)" />
+            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
               Pickup 1: {formatTime(route.targetPickup1Time)} &rarr; Office: {formatTime(route.targetOfficeArrivalTime)}
             </span>
           </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-secondary, #94A3B8)', marginTop: '2px' }}>
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
             {route.office?.name || 'Office Campus'} · {stopsCount} stops ({route.assignedPassengerCount} riders)
           </div>
         </div>
       </div>
 
-      {/* Action Bar: Immediate Operational Interventions (§ 3.2, § 55) */}
+      {/* Action Bar */}
       <div
         style={{
           display: 'flex',
@@ -170,7 +171,7 @@ export const RouteCard: React.FC<RouteCardProps> = ({
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: '8px',
-          borderTop: '1px solid var(--border-subtle, #1E3060)',
+          borderTop: '1px solid var(--border-subtle)',
           paddingTop: '10px',
         }}
       >
@@ -218,4 +219,3 @@ export const RouteCard: React.FC<RouteCardProps> = ({
     </div>
   );
 };
-

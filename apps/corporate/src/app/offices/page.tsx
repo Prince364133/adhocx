@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
@@ -114,7 +114,7 @@ export default function OfficesDirectoryPage() {
           justifyContent: 'space-between',
           gap: 12,
           padding: '12px 16px',
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--bg-surface)',
           borderRadius: 8,
           border: '1px solid var(--border-color)',
           flexWrap: 'wrap',
@@ -133,7 +133,7 @@ export default function OfficesDirectoryPage() {
               borderRadius: 6,
               border: '1px solid var(--border-color)',
               fontSize: 13,
-              backgroundColor: '#F8FAFC',
+              backgroundColor: 'var(--bg-surface-muted)',
             }}
           />
         </div>
@@ -147,7 +147,7 @@ export default function OfficesDirectoryPage() {
               borderRadius: 6,
               border: '1px solid var(--border-color)',
               fontSize: 13,
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
               color: 'var(--text-primary)',
             }}
           >
@@ -164,7 +164,7 @@ export default function OfficesDirectoryPage() {
           <div
             key={office.id}
             style={{
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
               borderRadius: 8,
               border: '1px solid var(--border-color)',
               padding: 20,

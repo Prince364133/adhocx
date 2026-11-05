@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
@@ -77,7 +77,7 @@ export default function BookingQueuePage() {
       case 'Needs Approval':
         return { bg: '#EFF6FF', color: '#5728B2', border: '#BFDBFE' };
       case 'Cancelled':
-        return { bg: '#F1F5F9', color: '#94A3B8', border: '#CBD5E1' };
+        return { bg: '#F1F5F9', color: 'var(--text-muted)', border: '#CBD5E1' };
     }
   };
 
@@ -86,10 +86,10 @@ export default function BookingQueuePage() {
       {/* Title & Action Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
             Booking Queue
           </h1>
-          <p style={{ fontSize: '13px', color: '#64748B', marginTop: '2px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
             View and manage all transport requests (auto and ad-hoc)
           </p>
         </div>
@@ -117,9 +117,9 @@ export default function BookingQueuePage() {
       </div>
 
       {/* Main Table Card */}
-      <div className="surface-card" style={{ padding: '20px', backgroundColor: '#FFFFFF' }}>
+      <div className="surface-card" style={{ padding: '20px', backgroundColor: 'var(--bg-surface)' }}>
         {/* Filter Tabs */}
-        <div style={{ display: 'flex', borderBottom: '1px solid #E2E8F0', marginBottom: '16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', marginBottom: '16px', flexWrap: 'wrap' }}>
           <button
             onClick={() => setActiveTab('all')}
             style={{
@@ -188,7 +188,7 @@ export default function BookingQueuePage() {
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              style={{ height: 32, padding: '0 8px', borderRadius: 6, border: '1px solid #CBD5E1', fontSize: 12, color: '#475569' }}
+              style={{ height: 32, padding: '0 8px', borderRadius: 6, border: '1px solid var(--border-strong)', fontSize: 12, color: 'var(--text-secondary)' }}
             >
               <option value="All Status">All Status</option>
               <option value="Confirmed">Confirmed</option>
@@ -200,7 +200,7 @@ export default function BookingQueuePage() {
             <select
               value={selectedOffice}
               onChange={(e) => setSelectedOffice(e.target.value)}
-              style={{ height: 32, padding: '0 8px', borderRadius: 6, border: '1px solid #CBD5E1', fontSize: 12, color: '#475569' }}
+              style={{ height: 32, padding: '0 8px', borderRadius: 6, border: '1px solid var(--border-strong)', fontSize: 12, color: 'var(--text-secondary)' }}
             >
               <option value="All Offices">All Offices</option>
               <option value="HiTEC City">HiTEC City</option>
@@ -222,7 +222,7 @@ export default function BookingQueuePage() {
                 paddingLeft: 30,
                 paddingRight: 10,
                 fontSize: 12,
-                border: '1px solid #CBD5E1',
+                border: '1px solid var(--border-strong)',
                 borderRadius: 6,
                 outline: 'none',
               }}
@@ -253,10 +253,10 @@ export default function BookingQueuePage() {
                 return (
                   <tr key={item.id}>
                     <td><input type="checkbox" /></td>
-                    <td style={{ fontWeight: 800, color: '#0F172A' }}>{item.requestId}</td>
+                    <td style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{item.requestId}</td>
                     <td>
-                      <div style={{ fontWeight: 700, color: '#0F172A' }}>{item.employeeName}</div>
-                      <div style={{ fontSize: '11px', color: '#64748B' }}>{item.empId}</div>
+                      <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{item.employeeName}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{item.empId}</div>
                     </td>
                     <td>
                       <span
@@ -273,9 +273,9 @@ export default function BookingQueuePage() {
                         {item.type}
                       </span>
                     </td>
-                    <td style={{ fontSize: '12px', color: '#475569', fontWeight: 600 }}>{item.shift}</td>
-                    <td style={{ fontSize: '12px', color: '#475569' }}>{item.pickupLocation}</td>
-                    <td style={{ fontSize: '12px', color: '#64748B' }}>{item.office}</td>
+                    <td style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>{item.shift}</td>
+                    <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{item.pickupLocation}</td>
+                    <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{item.office}</td>
                     <td>
                       <span
                         style={{

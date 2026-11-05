@@ -5,6 +5,25 @@ import {
   SosAlertItem,
   RoutePlanningResult,
 } from './opsTypes';
+import {
+  getStoredOpsToken,
+  getStoredOpsRefreshToken,
+  updateOpsTokens,
+  clearOpsSession,
+  setOpsSession,
+  getStoredOpsUser,
+  OpsUser,
+} from '../auth/session';
+
+export {
+  getStoredOpsToken,
+  getStoredOpsRefreshToken,
+  updateOpsTokens,
+  clearOpsSession,
+  setOpsSession,
+  getStoredOpsUser,
+};
+export type { OpsUser };
 
 export function getApiBaseUrl(): string {
   if (process.env.NEXT_PUBLIC_API_URL) {
@@ -30,34 +49,56 @@ export function getApiBaseUrl(): string {
   return 'https://api.adhocx.com/api/v1';
 }
 
-export function getStoredOpsToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('adhocx_ops_token') || localStorage.getItem('adhocx_admin_token');
+let isRefreshing = false;
+let refreshSubscribers: ((token: string | null) => void)[] = [];
+
+function subscribeTokenRefresh(cb: (token: string | null) => void) {
+  refreshSubscribers.push(cb);
 }
 
-export function setStoredOpsToken(token: string): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem('adhocx_ops_token', token);
+function onRefreshed(token: string | null) {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
 }
 
-export function getStoredOpsUser(): any | null {
-  if (typeof window === 'undefined') return null;
-  const raw = localStorage.getItem('adhocx_ops_user') || localStorage.getItem('adhocx_admin_user');
-  if (!raw) return null;
+async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = getStoredOpsRefreshToken();
+  if (!refreshToken) return null;
+
   try {
-    return JSON.parse(raw);
+    const res = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!res.ok) return null;
+    const json = await res.json();
+    const data = json.data || json;
+    if (data?.accessToken) {
+      updateOpsTokens(data.accessToken, data.refreshToken || refreshToken);
+      return data.accessToken;
+    }
+    return null;
   } catch {
     return null;
   }
 }
 
-export function clearOpsSession(): void {
-  if (typeof window === 'undefined') return;
-  localStorage.removeItem('adhocx_ops_token');
-  localStorage.removeItem('adhocx_ops_user');
+function handleAuthFailure(status: number, anonymous?: boolean) {
+  if (status !== 401 || anonymous || typeof window === 'undefined') return;
+  clearOpsSession();
+  if (!window.location.pathname.startsWith('/login')) {
+    window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+  }
 }
 
-async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+type RequestOptions = RequestInit & {
+  anonymous?: boolean;
+  _retry?: boolean;
+};
+
+async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
   const baseUrl = getApiBaseUrl();
   const token = getStoredOpsToken();
 
@@ -66,20 +107,48 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     ...(options.headers as Record<string, string>),
   };
 
-  if (token) {
+  if (token && !options.anonymous) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${baseUrl}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}${endpoint}`, {
+      ...options,
+      headers,
+    });
+  } catch (err: any) {
+    throw new Error(`Network failure: ${err?.message || 'Unable to reach backend'}`);
+  }
+
+  // Silent refresh token rotation on 401
+  if (response.status === 401 && !options.anonymous && !options._retry) {
+    if (!isRefreshing) {
+      isRefreshing = true;
+      const newToken = await refreshAccessToken();
+      isRefreshing = false;
+
+      if (newToken) {
+        onRefreshed(newToken);
+        return request<T>(endpoint, { ...options, _retry: true });
+      } else {
+        onRefreshed(null);
+        handleAuthFailure(401, options.anonymous);
+      }
+    } else {
+      const queuedToken = await new Promise<string | null>((resolve) => subscribeTokenRefresh(resolve));
+      if (queuedToken) {
+        return request<T>(endpoint, { ...options, _retry: true });
+      }
+    }
+  }
 
   if (!response.ok) {
+    handleAuthFailure(response.status, options.anonymous);
     let errorDetail = response.statusText;
     try {
       const errJson = await response.json();
-      errorDetail = errJson.message || errJson.error || JSON.stringify(errJson);
+      errorDetail = errJson.message || errJson.error?.message || errJson.error || JSON.stringify(errJson);
     } catch {
       // ignore
     }
@@ -90,6 +159,22 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 }
 
 export const opsApi = {
+  // ── Authentication ──
+  login: async (identifier: string, password: string): Promise<any> => {
+    return request<any>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ identifier, password, role: 'OPS' }),
+      anonymous: true,
+    });
+  },
+
+  logout: async (): Promise<void> => {
+    try {
+      await request('/auth/logout', { method: 'POST', body: JSON.stringify({}) });
+    } catch {}
+    clearOpsSession();
+  },
+
   // ── Operations Board & Command Cockpit ──
   getOpsBoard: async (params: {
     date?: string;

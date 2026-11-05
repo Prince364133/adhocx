@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import {
@@ -45,7 +45,7 @@ export default function TransportPerformanceReportPage() {
               alignItems: 'center',
               gap: 6,
               padding: '8px 14px',
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
               border: '1px solid var(--border-color)',
               color: 'var(--text-secondary)',
               borderRadius: 6,
@@ -93,7 +93,7 @@ export default function TransportPerformanceReportPage() {
         />
         <MetricCard
           label="Carbon Offset Saved"
-          value={`${(mockTransportPerformanceReport.carbonSavedKg / 1000).toFixed(1)} Tons CO₂`}
+          value={`${(mockTransportPerformanceReport.carbonSavedKg / 1000).toFixed(1)} Tons COâ‚‚`}
           delta="Electric & pooled trips"
           deltaType="positive"
           icon={<Leaf size={20} />}
@@ -104,7 +104,7 @@ export default function TransportPerformanceReportPage() {
       {/* Bar Comparison Chart */}
       <div
         style={{
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--bg-surface)',
           borderRadius: 8,
           border: '1px solid var(--border-color)',
           padding: 20,
@@ -130,7 +130,7 @@ export default function TransportPerformanceReportPage() {
       {/* Daily Performance Breakdown Table */}
       <div
         style={{
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--bg-surface)',
           borderRadius: 8,
           border: '1px solid var(--border-color)',
           overflow: 'hidden',
@@ -150,7 +150,7 @@ export default function TransportPerformanceReportPage() {
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
             <thead>
-              <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
+              <tr style={{ backgroundColor: 'var(--bg-surface-muted)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
                 <th style={{ padding: '12px 16px' }}>Date</th>
                 <th style={{ padding: '12px 16px' }}>Scheduled Trips</th>
                 <th style={{ padding: '12px 16px' }}>Completed Trips</th>

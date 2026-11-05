@@ -18,7 +18,7 @@ export class CorporateOperationsController {
   constructor(private readonly ops: CorporateOperationsService) {}
 
   @Get('board')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @ApiOperation({
     summary:
       'Live board: route counts + paged lists by status for an IST day, at-risk (unassigned, pickup-1 within CORPORATE_ESCALATION_LEAD_MIN) queue, stale-GPS list and live offer state',
@@ -41,7 +41,7 @@ export class CorporateOperationsController {
   }
 
   @Get('routes/:id/detail')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateResource('route', 'id')
   @ApiOperation({ summary: 'Full route with stops, live GPS position (with freshness) and offer state' })
   public async detail(@Param('id') routeId: string) {
@@ -50,7 +50,7 @@ export class CorporateOperationsController {
 
   @Post('routes/:id/reassign')
   @HttpCode(200)
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateResource('route', 'id')
   @ApiOperation({
     summary:
@@ -76,7 +76,7 @@ export class CorporateRouteCancellationController {
 
   @Post('routes/:id/cancel')
   @HttpCode(200)
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateResource('route', 'id')
   @ApiOperation({
     summary:

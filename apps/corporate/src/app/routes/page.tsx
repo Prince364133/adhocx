@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
@@ -133,7 +133,7 @@ export default function RoutePlanningMasterPage() {
           justifyContent: 'space-between',
           gap: 12,
           padding: '12px 16px',
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--bg-surface)',
           borderRadius: 8,
           border: '1px solid var(--border-color)',
           flexWrap: 'wrap',
@@ -152,7 +152,7 @@ export default function RoutePlanningMasterPage() {
               borderRadius: 6,
               border: '1px solid var(--border-color)',
               fontSize: 13,
-              backgroundColor: '#F8FAFC',
+              backgroundColor: 'var(--bg-surface-muted)',
             }}
           />
         </div>
@@ -166,7 +166,7 @@ export default function RoutePlanningMasterPage() {
               borderRadius: 6,
               border: '1px solid var(--border-color)',
               fontSize: 13,
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
               color: 'var(--text-primary)',
             }}
           >
@@ -181,7 +181,7 @@ export default function RoutePlanningMasterPage() {
       {/* Routes Master Table */}
       <div
         style={{
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--bg-surface)',
           borderRadius: 8,
           border: '1px solid var(--border-color)',
           overflow: 'hidden',
@@ -190,7 +190,7 @@ export default function RoutePlanningMasterPage() {
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
             <thead>
-              <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
+              <tr style={{ backgroundColor: 'var(--bg-surface-muted)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
                 <th style={{ padding: '12px 16px' }}>Route Code</th>
                 <th style={{ padding: '12px 16px' }}>Corridor & Destination</th>
                 <th style={{ padding: '12px 16px' }}>Shift</th>

@@ -1,3 +1,5 @@
+process.env.UV_THREADPOOL_SIZE = process.env.UV_THREADPOOL_SIZE || '64';
+import { TenantContextInterceptor } from './common';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -40,8 +42,8 @@ async function bootstrap() {
   // Global exception filter
   app.useGlobalFilters(new HttpExceptionFilter());
 
-  // Global response transform
-  app.useGlobalInterceptors(new TransformInterceptor());
+  // Global response transform & Tenant Context isolation
+  app.useGlobalInterceptors(new TransformInterceptor(), new TenantContextInterceptor());
 
   // CORS (with origin reflection and 24h preflight caching to prevent browser OPTIONS request flooding)
   const allowedOrigins = [
@@ -66,7 +68,8 @@ async function bootstrap() {
         origin.endsWith('.adhocx.com') ||
         origin === 'https://adhocx.com' ||
         origin.startsWith('http://localhost:') ||
-        origin.startsWith('http://127.0.0.1:')
+        origin.startsWith('http://127.0.0.1:') ||
+        /^http:\/\/(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(origin)
       ) {
         return callback(null, true);
       }

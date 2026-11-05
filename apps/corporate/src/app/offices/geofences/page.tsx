@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import {
@@ -61,7 +61,7 @@ export default function GeofencesPickupPointsPage() {
         {/* Interactive Map Visualizer */}
         <div
           style={{
-            backgroundColor: '#FFFFFF',
+            backgroundColor: 'var(--bg-surface)',
             borderRadius: 8,
             border: '1px solid var(--border-color)',
             padding: 16,
@@ -101,7 +101,7 @@ export default function GeofencesPickupPointsPage() {
           <div
             style={{
               padding: '10px 14px',
-              backgroundColor: '#F8FAFC',
+              backgroundColor: 'var(--bg-surface-muted)',
               borderRadius: 6,
               border: '1px solid var(--border-color)',
               display: 'flex',
@@ -124,7 +124,7 @@ export default function GeofencesPickupPointsPage() {
           {/* Selected Zone Inspector Card */}
           <div
             style={{
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
               borderRadius: 8,
               border: '1px solid var(--border-color)',
               padding: 20,
@@ -153,14 +153,14 @@ export default function GeofencesPickupPointsPage() {
 
             {/* Coordinates and Settings */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 13, marginTop: 14 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', paddingBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
                 <span style={{ color: 'var(--text-muted)' }}>GPS Coordinates:</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {selectedZone.latitude}° N, {selectedZone.longitude}° E
+                  {selectedZone.latitude}Â° N, {selectedZone.longitude}Â° E
                 </span>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', paddingBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
                 <span style={{ color: 'var(--text-muted)' }}>Auto Boarding / Checkout:</span>
                 <span style={{ fontWeight: 600, color: '#15803D' }}>
                   {selectedZone.autoCheckout ? 'Enabled (FastTag/GPS)' : 'Manual Only'}
@@ -213,7 +213,7 @@ export default function GeofencesPickupPointsPage() {
           {/* All Registered Geofences List */}
           <div
             style={{
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
               borderRadius: 8,
               border: '1px solid var(--border-color)',
               overflow: 'hidden',
@@ -231,7 +231,7 @@ export default function GeofencesPickupPointsPage() {
                     onClick={() => handleSelectZone(zone)}
                     style={{
                       padding: '12px 16px',
-                      borderBottom: '1px solid #F1F5F9',
+                      borderBottom: '1px solid var(--border-subtle)',
                       backgroundColor: isSelected ? '#EFF6FF' : '#FFFFFF',
                       cursor: 'pointer',
                       display: 'flex',
@@ -245,7 +245,7 @@ export default function GeofencesPickupPointsPage() {
                         {zone.name}
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                        {zone.zoneType} • {zone.radiusMeters}m radius
+                        {zone.zoneType} â€¢ {zone.radiusMeters}m radius
                       </div>
                     </div>
                     <span

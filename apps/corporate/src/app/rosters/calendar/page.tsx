@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import {
@@ -119,7 +119,7 @@ export default function RosterCalendarPage() {
         return { bg: '#CCFBF1', color: '#0F766E', border: '#99F6E4' };
       case 'Off':
       default:
-        return { bg: '#F1F5F9', color: '#94A3B8', border: '#E2E8F0' };
+        return { bg: '#F1F5F9', color: 'var(--text-muted)', border: '#E2E8F0' };
     }
   };
 
@@ -128,16 +128,16 @@ export default function RosterCalendarPage() {
       {/* Title & View Switcher Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
             Roster Calendar
           </h1>
-          <p style={{ fontSize: '13px', color: '#64748B', marginTop: '2px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
             Create and manage employee rosters by shift, office and department
           </p>
         </div>
 
         {/* View Mode Switcher */}
-        <div style={{ display: 'flex', backgroundColor: '#FFFFFF', padding: '3px', borderRadius: 8, border: '1px solid #CBD5E1' }}>
+        <div style={{ display: 'flex', backgroundColor: 'var(--bg-surface)', padding: '3px', borderRadius: 8, border: '1px solid var(--border-strong)' }}>
           <button
             onClick={() => setViewMode('day')}
             style={{
@@ -187,14 +187,14 @@ export default function RosterCalendarPage() {
       </div>
 
       {/* Filter Ribbon & Month Navigation */}
-      <div className="surface-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', backgroundColor: '#FFFFFF' }}>
+      <div className="surface-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', backgroundColor: 'var(--bg-surface)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           {/* Month selector */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: 6, padding: '4px 10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'var(--bg-surface-muted)', border: '1px solid var(--border-strong)', borderRadius: 6, padding: '4px 10px' }}>
             <button style={{ border: 'none', background: 'none', cursor: 'pointer' }}>
               <ChevronLeft size={14} color="#64748B" />
             </button>
-            <span style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>Dec 2026</span>
+            <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Dec 2026</span>
             <button style={{ border: 'none', background: 'none', cursor: 'pointer' }}>
               <ChevronRight size={14} color="#64748B" />
             </button>
@@ -203,7 +203,7 @@ export default function RosterCalendarPage() {
           <select
             value={selectedOffice}
             onChange={(e) => setSelectedOffice(e.target.value)}
-            style={{ height: 34, padding: '0 10px', borderRadius: 6, border: '1px solid #CBD5E1', fontSize: 12, fontWeight: 600, color: '#475569', outline: 'none' }}
+            style={{ height: 34, padding: '0 10px', borderRadius: 6, border: '1px solid var(--border-strong)', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', outline: 'none' }}
           >
             <option value="All Offices">All Offices</option>
             <option value="HiTEC City">HiTEC City</option>
@@ -214,7 +214,7 @@ export default function RosterCalendarPage() {
           <select
             value={selectedDept}
             onChange={(e) => setSelectedDept(e.target.value)}
-            style={{ height: 34, padding: '0 10px', borderRadius: 6, border: '1px solid #CBD5E1', fontSize: 12, fontWeight: 600, color: '#475569', outline: 'none' }}
+            style={{ height: 34, padding: '0 10px', borderRadius: 6, border: '1px solid var(--border-strong)', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', outline: 'none' }}
           >
             <option value="All Departments">All Departments</option>
             <option value="Product">Product</option>
@@ -238,17 +238,17 @@ export default function RosterCalendarPage() {
               paddingLeft: 30,
               paddingRight: 10,
               borderRadius: 6,
-              border: '1px solid #CBD5E1',
+              border: '1px solid var(--border-strong)',
               fontSize: 12,
               outline: 'none',
-              backgroundColor: '#F8FAFC',
+              backgroundColor: 'var(--bg-surface-muted)',
             }}
           />
         </div>
       </div>
 
       {/* Roster Calendar Matrix */}
-      <div className="surface-card" style={{ padding: '20px', backgroundColor: '#FFFFFF' }}>
+      <div className="surface-card" style={{ padding: '20px', backgroundColor: 'var(--bg-surface)' }}>
         <div className="table-scroll">
           <table className="data-table">
             <thead>
@@ -285,9 +285,9 @@ export default function RosterCalendarPage() {
                         {row.avatar}
                       </div>
                       <div>
-                        <div style={{ fontWeight: 700, color: '#0F172A' }}>{row.name}</div>
-                        <div style={{ fontSize: '11px', color: '#64748B' }}>
-                          {row.empId} · {row.department}
+                        <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{row.name}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                          {row.empId} Â· {row.department}
                         </div>
                       </div>
                     </div>

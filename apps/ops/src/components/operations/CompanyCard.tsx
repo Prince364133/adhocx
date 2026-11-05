@@ -27,13 +27,13 @@ export const CompanyCard: React.FC<CompanyCardProps> = ({
     <div
       onClick={() => onSelect(tenant.id)}
       style={{
-        backgroundColor: 'var(--bg-surface-elevated, #111D3D)',
+        backgroundColor: 'var(--bg-surface)',
         border: `1px solid ${
           isSelected
             ? 'var(--brand-blue-500, #5728B2)'
             : hasExceptions
-            ? 'rgba(238, 152, 17, 0.4)'
-            : 'var(--border-subtle, #1E3060)'
+            ? 'rgba(238, 152, 17, 0.5)'
+            : 'var(--border-subtle)'
         }`,
         borderRadius: 'var(--radius-lg, 10px)',
         padding: 'var(--space-5, 20px)',
@@ -74,12 +74,12 @@ export const CompanyCard: React.FC<CompanyCardProps> = ({
                 width: '36px',
                 height: '36px',
                 borderRadius: 'var(--radius-md, 8px)',
-                backgroundColor: 'rgba(87, 40, 178, 0.15)',
-                border: '1px solid rgba(87, 40, 178, 0.3)',
+                backgroundColor: 'var(--brand-primary-subtle)',
+                border: '1px solid var(--border-subtle)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: 'var(--brand-blue-400, #5290F9)',
+                color: 'var(--brand-blue-500, #5728B2)',
               }}
             >
               <Building2 size={20} />
@@ -89,7 +89,7 @@ export const CompanyCard: React.FC<CompanyCardProps> = ({
                 style={{
                   fontSize: '16px',
                   fontWeight: 700,
-                  color: 'var(--text-primary, #F8FAFC)',
+                  color: 'var(--text-primary)',
                   margin: 0,
                 }}
               >
@@ -106,10 +106,10 @@ export const CompanyCard: React.FC<CompanyCardProps> = ({
               fontSize: '11px',
               fontWeight: 700,
               padding: '3px 8px',
-              borderRadius: 'var(--radius-pill, 9999px)',
-              backgroundColor: tenant.status === 'ACTIVE' ? 'rgba(22, 163, 74, 0.15)' : 'rgba(148, 163, 184, 0.15)',
-              color: tenant.status === 'ACTIVE' ? '#4ADE80' : '#94A3B8',
-              border: `1px solid ${tenant.status === 'ACTIVE' ? 'rgba(22, 163, 74, 0.35)' : 'rgba(148, 163, 184, 0.25)'}`,
+              borderRadius: 'var(--radius-pill)',
+              backgroundColor: tenant.status === 'ACTIVE' ? 'var(--color-success-bg)' : 'var(--bg-surface-muted)',
+              color: tenant.status === 'ACTIVE' ? 'var(--color-success)' : 'var(--text-muted)',
+              border: `1px solid ${tenant.status === 'ACTIVE' ? 'var(--color-success-border)' : 'var(--border-subtle)'}`,
             }}
           >
             {tenant.status}
@@ -123,52 +123,52 @@ export const CompanyCard: React.FC<CompanyCardProps> = ({
             gridTemplateColumns: 'repeat(2, 1fr)',
             gap: '10px',
             marginTop: '16px',
-            backgroundColor: 'var(--bg-canvas, #010D2D)',
+            backgroundColor: 'var(--bg-surface-muted)',
             padding: '12px',
             borderRadius: 'var(--radius-md, 8px)',
-            border: '1px solid var(--border-subtle, #1E3060)',
+            border: '1px solid var(--border-subtle)',
           }}
         >
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--text-muted, #64748B)' }}>
-              <Car size={13} color="var(--brand-blue-400, #5290F9)" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--text-muted)' }}>
+              <Car size={13} color="var(--brand-blue-500, #5728B2)" />
               <span>ACTIVE CABS</span>
             </div>
-            <div style={{ fontSize: '16px', fontWeight: 700, color: '#F8FAFC', marginTop: '2px' }}>
+            <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
               {activeCabs} Cabs
             </div>
           </div>
 
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--text-muted, #64748B)' }}>
-              <Users size={13} color="var(--brand-blue-400, #5290F9)" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--text-muted)' }}>
+              <Users size={13} color="var(--brand-blue-500, #5728B2)" />
               <span>PASSENGERS</span>
             </div>
-            <div style={{ fontSize: '16px', fontWeight: 700, color: '#F8FAFC', marginTop: '2px' }}>
+            <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
               {inTransit} Riders
             </div>
           </div>
 
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--text-muted, #64748B)' }}>
-              <CheckCircle size={13} color="#4ADE80" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--text-muted)' }}>
+              <CheckCircle size={13} color="var(--color-success, #16A34A)" />
               <span>ON-TIME OTP</span>
             </div>
-            <div style={{ fontSize: '16px', fontWeight: 700, color: '#4ADE80', marginTop: '2px' }}>
+            <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--color-success, #16A34A)', marginTop: '2px' }}>
               {onTimePct}%
             </div>
           </div>
 
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--text-muted, #64748B)' }}>
-              <AlertTriangle size={13} color={delayedCount > 0 ? '#F87171' : 'var(--text-muted, #64748B)'} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--text-muted)' }}>
+              <AlertTriangle size={13} color={delayedCount > 0 ? 'var(--color-danger, #DC2626)' : 'var(--text-muted)'} />
               <span>EXCEPTIONS</span>
             </div>
             <div
               style={{
                 fontSize: '16px',
                 fontWeight: 700,
-                color: delayedCount > 0 ? '#F87171' : '#F8FAFC',
+                color: delayedCount > 0 ? 'var(--color-danger, #DC2626)' : 'var(--text-primary)',
                 marginTop: '2px',
               }}
             >
@@ -185,11 +185,11 @@ export const CompanyCard: React.FC<CompanyCardProps> = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          borderTop: '1px solid var(--border-subtle, #1E3060)',
+          borderTop: '1px solid var(--border-subtle)',
           paddingTop: '12px',
         }}
       >
-        <span style={{ fontSize: '12px', color: 'var(--text-secondary, #94A3B8)' }}>
+        <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
           {isSelected ? '✓ Active in Operations' : 'Click to Focus Fleet'}
         </span>
 
@@ -208,4 +208,3 @@ export const CompanyCard: React.FC<CompanyCardProps> = ({
     </div>
   );
 };
-

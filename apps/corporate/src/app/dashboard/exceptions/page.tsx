@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import {
@@ -53,7 +53,7 @@ export default function ExceptionsDashboardPage() {
       case 'Safety Alert':
         return { bg: '#FEE2E2', color: '#DC2626', border: '#FCA5A5' };
       default:
-        return { bg: '#F1F5F9', color: '#475569', border: '#CBD5E1' };
+        return { bg: '#F1F5F9', color: 'var(--text-secondary)', border: '#CBD5E1' };
     }
   };
 
@@ -62,10 +62,10 @@ export default function ExceptionsDashboardPage() {
       {/* Title & Filter Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
             Exceptions Dashboard
           </h1>
-          <p style={{ fontSize: '13px', color: '#64748B', marginTop: '2px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
             Trips, vehicles and operations that need attention
           </p>
         </div>
@@ -128,10 +128,10 @@ export default function ExceptionsDashboardPage() {
         <div className="surface-card" style={{ padding: '20px 24px', flex: '1 1 60%' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
             <div>
-              <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
+              <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
                 Exception List ({filteredExceptions.length})
               </h2>
-              <p style={{ fontSize: '12px', color: '#64748B' }}>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                 Operational triage queue requiring dispatcher intervention
               </p>
             </div>
@@ -154,10 +154,10 @@ export default function ExceptionsDashboardPage() {
                   paddingLeft: 30,
                   paddingRight: 10,
                   fontSize: 12,
-                  border: '1px solid #E2E8F0',
+                  border: '1px solid var(--border-subtle)',
                   borderRadius: '6px',
                   outline: 'none',
-                  backgroundColor: '#F8FAFC',
+                  backgroundColor: 'var(--bg-surface-muted)',
                 }}
               />
             </div>
@@ -195,10 +195,10 @@ export default function ExceptionsDashboardPage() {
                           {item.type}
                         </span>
                       </td>
-                      <td style={{ fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap' }}>
+                      <td style={{ fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
                         {item.target}
                       </td>
-                      <td style={{ color: '#475569', fontSize: '12px' }}>
+                      <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>
                         {item.details}
                       </td>
                       <td>
@@ -241,10 +241,10 @@ export default function ExceptionsDashboardPage() {
         <div className="surface-card" style={{ padding: '20px 24px', flex: '1 1 38%' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
             <div>
-              <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
+              <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
                 Exceptions Trend (Last 7 Days)
               </h2>
-              <p style={{ fontSize: '12px', color: '#64748B' }}>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                 Incident recurrence by category over time
               </p>
             </div>
@@ -254,23 +254,23 @@ export default function ExceptionsDashboardPage() {
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '14px', fontSize: '11px', fontWeight: 600 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#D97706' }} />
-              <span style={{ color: '#64748B' }}>Delayed</span>
+              <span style={{ color: 'var(--text-secondary)' }}>Delayed</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#EA580C' }} />
-              <span style={{ color: '#64748B' }}>Unassigned</span>
+              <span style={{ color: 'var(--text-secondary)' }}>Unassigned</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#CA8A04' }} />
-              <span style={{ color: '#64748B' }}>GPS Stale</span>
+              <span style={{ color: 'var(--text-secondary)' }}>GPS Stale</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#7C3AED' }} />
-              <span style={{ color: '#64748B' }}>Deviation</span>
+              <span style={{ color: 'var(--text-secondary)' }}>Deviation</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#DC2626' }} />
-              <span style={{ color: '#64748B' }}>Safety</span>
+              <span style={{ color: 'var(--text-secondary)' }}>Safety</span>
             </div>
           </div>
 

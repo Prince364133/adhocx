@@ -22,7 +22,7 @@ const MOCK_COST_BREAKDOWN_DONUT = [
   { label: 'Ad-hoc Trips', count: 333600, pct: 11.6, color: '#8B5CF6' },
   { label: 'Re-routes', count: 184000, pct: 6.4, color: '#06B6D4' },
   { label: 'Cancellations (Chargeable)', count: 118000, pct: 4.1, color: '#D97706' },
-  { label: 'Other Charges', count: 146900, pct: 5.1, color: '#64748B' },
+  { label: 'Other Charges', count: 146900, pct: 5.1, color: 'var(--text-secondary)' },
 ];
 
 const MOCK_6_MONTHS_BILLING_TREND = [
@@ -40,10 +40,10 @@ export default function BillingOverviewPage() {
       {/* Title & Filter Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
             Billing Overview
           </h1>
-          <p style={{ fontSize: '13px', color: '#64748B', marginTop: '2px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
             Complete view of transport billing, invoices, payments and outstanding amounts
           </p>
         </div>
@@ -99,13 +99,13 @@ export default function BillingOverviewPage() {
       {/* Middle Grid: 6-Month Trend Line + Cost Breakdown Donut */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '20px' }}>
         {/* Left: Billing Trend (Last 6 Months) */}
-        <div className="surface-card" style={{ padding: '20px 24px', backgroundColor: '#FFFFFF' }}>
+        <div className="surface-card" style={{ padding: '20px 24px', backgroundColor: 'var(--bg-surface)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
             <div>
-              <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
+              <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
                 Billing Trend (Last 6 Months)
               </h2>
-              <p style={{ fontSize: '12px', color: '#64748B' }}>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                 Monthly gross transportation spend trajectory
               </p>
             </div>
@@ -133,13 +133,13 @@ export default function BillingOverviewPage() {
         </div>
 
         {/* Right: Cost Breakdown Donut */}
-        <div className="surface-card" style={{ padding: '20px 24px', backgroundColor: '#FFFFFF' }}>
+        <div className="surface-card" style={{ padding: '20px 24px', backgroundColor: 'var(--bg-surface)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
             <div>
-              <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
+              <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
                 Cost Breakdown
               </h2>
-              <p style={{ fontSize: '12px', color: '#64748B' }}>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                 Expenditure classified across roster and ad-hoc operations
               </p>
             </div>
@@ -156,8 +156,8 @@ export default function BillingOverviewPage() {
       </div>
 
       {/* Quick Actions Bar */}
-      <div className="surface-card" style={{ padding: '16px 20px', backgroundColor: '#FFFFFF' }}>
-        <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A', marginBottom: '12px' }}>
+      <div className="surface-card" style={{ padding: '16px 20px', backgroundColor: 'var(--bg-surface)' }}>
+        <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '12px' }}>
           Quick Actions
         </div>
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
@@ -187,9 +187,9 @@ export default function BillingOverviewPage() {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              backgroundColor: '#F8FAFC',
-              color: '#475569',
-              border: '1px solid #CBD5E1',
+              backgroundColor: 'var(--bg-surface-muted)',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--border-strong)',
               borderRadius: '6px',
               padding: '8px 14px',
               fontSize: '12px',
@@ -207,9 +207,9 @@ export default function BillingOverviewPage() {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              backgroundColor: '#F8FAFC',
-              color: '#475569',
-              border: '1px solid #CBD5E1',
+              backgroundColor: 'var(--bg-surface-muted)',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--border-strong)',
               borderRadius: '6px',
               padding: '8px 14px',
               fontSize: '12px',
@@ -227,9 +227,9 @@ export default function BillingOverviewPage() {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              backgroundColor: '#F8FAFC',
-              color: '#475569',
-              border: '1px solid #CBD5E1',
+              backgroundColor: 'var(--bg-surface-muted)',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--border-strong)',
               borderRadius: '6px',
               padding: '8px 14px',
               fontSize: '12px',

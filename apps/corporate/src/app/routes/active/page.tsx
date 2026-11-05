@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
@@ -58,7 +58,7 @@ export default function ActiveRoutesListPage() {
               alignItems: 'center',
               gap: 6,
               padding: '6px 12px',
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
               border: '1px solid var(--border-color)',
               color: 'var(--text-secondary)',
               borderRadius: 6,
@@ -100,7 +100,7 @@ export default function ActiveRoutesListPage() {
             <div
               key={route.id}
               style={{
-                backgroundColor: '#FFFFFF',
+                backgroundColor: 'var(--bg-surface)',
                 borderRadius: 8,
                 border: `1px solid ${isDelayed ? '#FCD34D' : 'var(--border-color)'}`,
                 padding: 20,
@@ -144,7 +144,7 @@ export default function ActiveRoutesListPage() {
                     {route.name}
                   </h3>
                   <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                    Destination: <strong>{route.destinationOffice}</strong> • Total {route.totalDistanceKm} km
+                    Destination: <strong>{route.destinationOffice}</strong> â€¢ Total {route.totalDistanceKm} km
                   </div>
                 </div>
 
@@ -155,7 +155,7 @@ export default function ActiveRoutesListPage() {
                     alignItems: 'center',
                     gap: 12,
                     padding: '8px 14px',
-                    backgroundColor: '#F8FAFC',
+                    backgroundColor: 'var(--bg-surface-muted)',
                     borderRadius: 6,
                     border: '1px solid var(--border-color)',
                   }}
@@ -190,9 +190,9 @@ export default function ActiveRoutesListPage() {
                     gridTemplateColumns: `repeat(${route.stops.length}, 1fr)`,
                     gap: 8,
                     padding: '12px 14px',
-                    backgroundColor: '#F8FAFC',
+                    backgroundColor: 'var(--bg-surface-muted)',
                     borderRadius: 6,
-                    border: '1px solid #E2E8F0',
+                    border: '1px solid var(--border-subtle)',
                   }}
                 >
                   {route.stops.map((stop) => (
@@ -266,7 +266,7 @@ export default function ActiveRoutesListPage() {
                 }}
               >
                 <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                  Capacity Fill: <strong>{route.capacityUtilizationPct}%</strong> • GPS Signal: Excellent
+                  Capacity Fill: <strong>{route.capacityUtilizationPct}%</strong> â€¢ GPS Signal: Excellent
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

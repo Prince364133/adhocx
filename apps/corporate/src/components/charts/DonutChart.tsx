@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 
@@ -68,7 +68,7 @@ export const DonutChart: React.FC<DonutChartProps> = ({
             cy={center}
             r={radius}
             fill="none"
-            stroke="#F1F5F9"
+            stroke="var(--bg-surface-muted, #F1F5F9)"
             strokeWidth={thickness}
           />
 
@@ -154,7 +154,7 @@ export const DonutChart: React.FC<DonutChartProps> = ({
                 justifyContent: 'space-between',
                 padding: '6px 8px',
                 borderRadius: 'var(--radius-sm)',
-                backgroundColor: isHovered ? '#F8FAFC' : 'transparent',
+                backgroundColor: isHovered ? 'var(--bg-surface-hover, #F8FAFC)' : 'transparent',
                 cursor: 'pointer',
                 transition: 'background-color 0.15s ease',
               }}

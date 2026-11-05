@@ -47,12 +47,12 @@ export const Button: React.FC<ButtonProps> = ({
     primary: {
       backgroundColor: 'var(--brand-blue-500, #5728B2)',
       color: '#FFFFFF',
-      borderColor: 'var(--brand-blue-600, #0948AC)',
+      borderColor: 'var(--brand-blue-700, #431E8E)',
     },
     secondary: {
-      backgroundColor: 'var(--bg-surface-elevated, #111D3D)',
-      color: 'var(--text-primary, #F8FAFC)',
-      borderColor: 'var(--border-subtle, #1E3060)',
+      backgroundColor: 'var(--bg-surface-muted)',
+      color: 'var(--text-primary)',
+      borderColor: 'var(--border-subtle)',
     },
     danger: {
       backgroundColor: 'var(--color-danger, #DC2626)',
@@ -66,12 +66,12 @@ export const Button: React.FC<ButtonProps> = ({
     },
     outline: {
       backgroundColor: 'transparent',
-      color: 'var(--text-primary, #F8FAFC)',
-      borderColor: 'var(--border-strong, #2D4685)',
+      color: 'var(--text-primary)',
+      borderColor: 'var(--border-strong)',
     },
     ghost: {
       backgroundColor: 'transparent',
-      color: 'var(--text-secondary, #94A3B8)',
+      color: 'var(--text-secondary)',
       borderColor: 'transparent',
     },
   };
@@ -101,9 +101,8 @@ export const Button: React.FC<ButtonProps> = ({
       ) : (
         leftIcon
       )}
-      <span>{children}</span>
+      {children}
       {!isLoading && rightIcon}
     </button>
   );
 };
-

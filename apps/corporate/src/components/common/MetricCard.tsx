@@ -49,7 +49,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
     <div
       onClick={onClick}
       style={{
-        backgroundColor: '#FFFFFF',
+        backgroundColor: 'var(--bg-surface, #FFFFFF)',
         border: '1px solid var(--border-subtle)',
         borderRadius: 'var(--radius-xl)',
         padding: '16px 20px',

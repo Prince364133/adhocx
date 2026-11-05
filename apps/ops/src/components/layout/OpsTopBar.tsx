@@ -2,13 +2,29 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Clock, Radio, ShieldAlert } from 'lucide-react';
-import { opsApi } from '../../lib/api/opsClient';
+import { useRouter } from 'next/navigation';
+import { Clock, Radio, ShieldAlert, LogOut, UserCheck } from 'lucide-react';
+import { opsApi, getStoredOpsUser, clearOpsSession } from '../../lib/api/opsClient';
 import { SosAlertItem } from '../../lib/api/opsTypes';
+import { ThemeToggle } from '../common/ThemeToggle';
 
 export const OpsTopBar: React.FC = () => {
+  const router = useRouter();
   const [istTime, setIstTime] = useState<string>('');
   const [activeSosAlerts, setActiveSosAlerts] = useState<SosAlertItem[]>([]);
+  const [opsUser, setOpsUser] = useState<any>(null);
+
+  useEffect(() => {
+    setOpsUser(getStoredOpsUser());
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await opsApi.logout();
+    } catch {}
+    clearOpsSession();
+    router.replace('/login');
+  };
 
   useEffect(() => {
     function updateClock() {
@@ -56,8 +72,8 @@ export const OpsTopBar: React.FC = () => {
     <header
       style={{
         height: '56px',
-        backgroundColor: hasCriticalSos ? 'rgba(220, 38, 38, 0.2)' : 'var(--bg-surface-elevated, #111D3D)',
-        borderBottom: `1px solid ${hasCriticalSos ? 'var(--color-danger, #DC2626)' : 'var(--border-subtle, #1E3060)'}`,
+        backgroundColor: hasCriticalSos ? 'rgba(220, 38, 38, 0.12)' : 'var(--bg-surface)',
+        borderBottom: `1px solid ${hasCriticalSos ? 'var(--color-danger)' : 'var(--border-subtle)'}`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -65,12 +81,12 @@ export const OpsTopBar: React.FC = () => {
         position: 'sticky',
         top: 0,
         zIndex: 50,
-        transition: 'background-color 0.3s',
+        transition: 'background-color 0.2s, border-color 0.2s',
       }}
     >
       {/* Left: Brand & Flight Control Status */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
           <img
             src="/adhocx_icon.svg"
             alt="AdhocX"
@@ -81,21 +97,22 @@ export const OpsTopBar: React.FC = () => {
               display: 'block',
             }}
           />
-          <span style={{ fontWeight: 900, fontSize: '16px', letterSpacing: '-0.02em', color: '#F8FAFC' }}>
-            Adhoc<span style={{ color: '#FF5F09', fontWeight: 900 }}>X</span> <span style={{ color: 'var(--brand-amber-500, #EE9811)', fontSize: '11px', fontWeight: 800, marginLeft: '4px', letterSpacing: '0.06em' }}>OPS</span>
+          <span style={{ fontWeight: 900, fontSize: '16px', letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
+            Adhoc<span style={{ color: 'var(--brand-orange, #FF5F09)', fontWeight: 900 }}>X</span>{' '}
+            <span style={{ color: 'var(--brand-amber-500, #EE9811)', fontSize: '11px', fontWeight: 800, marginLeft: '4px', letterSpacing: '0.06em' }}>OPS</span>
           </span>
-        </div>
+        </Link>
 
         <div
           style={{
             height: '20px',
             width: '1px',
-            backgroundColor: 'var(--border-strong, #2D4685)',
+            backgroundColor: 'var(--border-strong)',
           }}
         />
 
         {/* Live Telemetry Radio Status */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#4ADE80' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--color-success)' }}>
           <Radio size={14} className="pulse-warning" />
           <span style={{ fontWeight: 600 }}>FLIGHT CONTROL LIVE</span>
         </div>
@@ -110,8 +127,8 @@ export const OpsTopBar: React.FC = () => {
             alignItems: 'center',
             gap: '8px',
             padding: '4px 12px',
-            borderRadius: 'var(--radius-pill, 9999px)',
-            backgroundColor: 'var(--color-danger, #DC2626)',
+            borderRadius: 'var(--radius-pill)',
+            backgroundColor: 'var(--color-danger)',
             color: '#FFFFFF',
             textDecoration: 'none',
             fontWeight: 700,
@@ -126,38 +143,74 @@ export const OpsTopBar: React.FC = () => {
         </Link>
       )}
 
-      {/* Right: IST Clock & Shift Status */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+      {/* Right: Theme Toggle, IST Clock & Port Indicator */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        <ThemeToggle />
+
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            backgroundColor: 'var(--bg-canvas, #010D2D)',
+            backgroundColor: 'var(--bg-surface-muted)',
             padding: '4px 10px',
             borderRadius: 'var(--radius-sm, 6px)',
-            border: '1px solid var(--border-subtle, #1E3060)',
+            border: '1px solid var(--border-subtle)',
             fontSize: '12px',
-            color: 'var(--text-secondary, #94A3B8)',
+            color: 'var(--text-secondary)',
             fontFamily: 'ui-monospace, monospace',
           }}
         >
-          <Clock size={13} color="var(--brand-blue-400, #5290F9)" />
+          <Clock size={13} color="var(--brand-blue-500, #5728B2)" />
           <span>{istTime || 'IST LIVE'}</span>
         </div>
 
         <div
           style={{
             fontSize: '12px',
-            color: 'var(--text-muted, #64748B)',
-            borderLeft: '1px solid var(--border-subtle, #1E3060)',
+            color: 'var(--text-muted)',
+            borderLeft: '1px solid var(--border-subtle)',
             paddingLeft: '12px',
           }}
         >
-          Port <span style={{ color: '#F8FAFC', fontWeight: 600 }}>7004</span> · Staging
+          Port <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>7004</span> · Staging
+        </div>
+
+        {/* Dispatcher Identity Pill & Logout */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderLeft: '1px solid var(--border-subtle)', paddingLeft: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
+            <div style={{ width: 24, height: 24, borderRadius: '6px', backgroundColor: 'rgba(245, 158, 11, 0.2)', color: '#F59E0B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <UserCheck size={13} />
+            </div>
+            <div>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.1 }}>
+                {opsUser?.fullName || 'OPS Dispatcher'}
+              </div>
+              <div style={{ fontSize: '9px', fontWeight: 600, color: '#F59E0B' }}>
+                {opsUser?.role || 'OPS'} Controller
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={handleLogout}
+            title="Sign out of Operations"
+            style={{
+              background: 'transparent',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: '6px',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              padding: '4px 6px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <LogOut size={13} />
+          </button>
         </div>
       </div>
     </header>
   );
 };
-

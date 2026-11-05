@@ -50,7 +50,6 @@ export default function FleetLiveMapPage() {
     setRefreshing(false);
   }
 
-  // Sample Hyderabad Tech Corridor coordinates (HITEC City / Gachibowli) for default positioning
   const centerLat = 17.4435;
   const centerLng = 78.3772;
 
@@ -64,10 +63,11 @@ export default function FleetLiveMapPage() {
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: '12px',
-          backgroundColor: 'var(--bg-surface-elevated, #111D3D)',
+          backgroundColor: 'var(--bg-surface)',
           padding: '12px 18px',
           borderRadius: 'var(--radius-lg, 10px)',
-          border: '1px solid var(--border-subtle, #1E3060)',
+          border: '1px solid var(--border-subtle)',
+          boxShadow: 'var(--shadow-card)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -77,10 +77,10 @@ export default function FleetLiveMapPage() {
               alignItems: 'center',
               gap: '6px',
               padding: '4px 10px',
-              borderRadius: 'var(--radius-pill, 9999px)',
-              backgroundColor: 'rgba(22, 163, 74, 0.15)',
-              border: '1px solid rgba(22, 163, 74, 0.35)',
-              color: '#4ADE80',
+              borderRadius: 'var(--radius-pill)',
+              backgroundColor: 'var(--color-success-bg)',
+              border: '1px solid var(--color-success-border)',
+              color: 'var(--color-success)',
               fontSize: '12px',
               fontWeight: 600,
             }}
@@ -89,7 +89,7 @@ export default function FleetLiveMapPage() {
             <span>{routes.length} Active GPS Transponders</span>
           </div>
 
-          <span style={{ fontSize: '12px', color: 'var(--text-muted, #64748B)' }}>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
             Corridor: Hyderabad Tech Hub (HITEC City · Financial District · Gachibowli)
           </span>
         </div>
@@ -101,11 +101,11 @@ export default function FleetLiveMapPage() {
             onChange={(e) => setSelectedDate(e.target.value)}
             style={{
               height: '32px',
-              backgroundColor: 'var(--bg-canvas, #010D2D)',
-              border: '1px solid var(--border-strong, #2D4685)',
+              backgroundColor: 'var(--bg-input)',
+              border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-md, 8px)',
               padding: '0 8px',
-              color: '#F8FAFC',
+              color: 'var(--text-primary)',
               fontSize: '12px',
               outline: 'none',
             }}
@@ -125,18 +125,19 @@ export default function FleetLiveMapPage() {
 
       {/* Main Map Canvas & Side Telemetry Pane */}
       <div style={{ display: 'flex', flex: 1, gap: '16px', overflow: 'hidden' }}>
-        {/* Map Canvas (Dark Logistics View) */}
+        {/* Map Canvas */}
         <div
           style={{
             flex: 1,
-            backgroundColor: '#050B1A',
+            backgroundColor: 'var(--bg-surface-muted)',
             borderRadius: 'var(--radius-lg, 10px)',
-            border: '1px solid var(--border-subtle, #1E3060)',
+            border: '1px solid var(--border-subtle)',
             position: 'relative',
             overflow: 'hidden',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            boxShadow: 'var(--shadow-card)',
           }}
         >
           {/* Subtle Grid pattern representing GIS road corridors */}
@@ -148,10 +149,11 @@ export default function FleetLiveMapPage() {
               right: 0,
               bottom: 0,
               backgroundImage: `
-                linear-gradient(to right, rgba(30, 48, 96, 0.25) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(30, 48, 96, 0.25) 1px, transparent 1px)
+                linear-gradient(to right, var(--border-subtle) 1px, transparent 1px),
+                linear-gradient(to bottom, var(--border-subtle) 1px, transparent 1px)
               `,
               backgroundSize: '40px 40px',
+              opacity: 0.7,
             }}
           />
 
@@ -161,23 +163,22 @@ export default function FleetLiveMapPage() {
               position: 'absolute',
               bottom: '16px',
               left: '16px',
-              backgroundColor: 'rgba(11, 19, 43, 0.85)',
-              backdropFilter: 'blur(4px)',
-              border: '1px solid var(--border-subtle, #1E3060)',
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-md, 8px)',
               padding: '8px 12px',
               fontSize: '11px',
-              color: 'var(--text-secondary, #94A3B8)',
+              color: 'var(--text-secondary)',
               fontFamily: 'ui-monospace, monospace',
+              boxShadow: 'var(--shadow-sm)',
             }}
           >
             LAT: {centerLat.toFixed(4)}° N · LNG: {centerLng.toFixed(4)}° E · ZOOM: 13.5
           </div>
 
-          {/* Simulated Fleet Markers positioned across the grid */}
+          {/* Fleet Markers positioned across the grid */}
           <div style={{ position: 'relative', width: '100%', height: '100%' }}>
             {routes.map((route, i) => {
-              // Distribute markers across canvas
               const offsetX = 15 + ((i * 27) % 70);
               const offsetY = 15 + ((i * 33) % 70);
               const isSelected = selectedRoute?.id === route.id;
@@ -206,19 +207,19 @@ export default function FleetLiveMapPage() {
                         ? 'var(--brand-blue-500, #5728B2)'
                         : isDelayed
                         ? 'var(--color-danger, #DC2626)'
-                        : 'var(--bg-surface-elevated, #111D3D)',
+                        : 'var(--bg-surface)',
                       border: `2px solid ${
                         isSelected
                           ? '#FFFFFF'
                           : isDelayed
-                          ? '#F87171'
-                          : '#4ADE80'
+                          ? '#EF4444'
+                          : '#16A34A'
                       }`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: '#FFFFFF',
-                      boxShadow: isSelected ? 'var(--shadow-glow-blue)' : '0 2px 6px rgba(0,0,0,0.5)',
+                      color: isSelected || isDelayed ? '#FFFFFF' : '#16A34A',
+                      boxShadow: isSelected ? 'var(--shadow-glow-blue)' : '0 2px 6px rgba(0,0,0,0.15)',
                     }}
                     className={isDelayed ? 'pulse-critical' : ''}
                   >
@@ -232,15 +233,16 @@ export default function FleetLiveMapPage() {
                       top: '40px',
                       left: '50%',
                       transform: 'translateX(-50%)',
-                      backgroundColor: 'rgba(1, 13, 45, 0.9)',
-                      border: '1px solid var(--border-subtle, #1E3060)',
+                      backgroundColor: 'var(--bg-surface)',
+                      border: '1px solid var(--border-subtle)',
                       borderRadius: 'var(--radius-xs, 4px)',
                       padding: '2px 6px',
                       fontSize: '10px',
                       fontWeight: 700,
-                      color: '#F8FAFC',
+                      color: 'var(--text-primary)',
                       whiteSpace: 'nowrap',
                       pointerEvents: 'none',
+                      boxShadow: 'var(--shadow-sm)',
                     }}
                   >
                     {route.driver?.fullName?.split(' ')[0] || `RT-${route.id.slice(0, 4)}`}
@@ -256,15 +258,16 @@ export default function FleetLiveMapPage() {
                 position: 'relative',
                 zIndex: 5,
                 textAlign: 'center',
-                backgroundColor: 'rgba(11, 19, 43, 0.9)',
+                backgroundColor: 'var(--bg-surface)',
                 padding: '24px 32px',
                 borderRadius: 'var(--radius-lg, 10px)',
-                border: '1px solid var(--border-subtle, #1E3060)',
+                border: '1px solid var(--border-subtle)',
+                boxShadow: 'var(--shadow-card)',
               }}
             >
-              <Car size={32} color="var(--brand-blue-400, #5290F9)" style={{ marginBottom: '8px' }} />
-              <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#F8FAFC' }}>No active cabs on road</h3>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary, #94A3B8)', marginTop: '2px' }}>
+              <Car size={32} color="var(--brand-blue-500, #5728B2)" style={{ marginBottom: '8px' }} />
+              <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>No active cabs on road</h3>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
                 All scheduled routes for this date are in PLANNED or COMPLETED state.
               </p>
             </div>
@@ -276,9 +279,9 @@ export default function FleetLiveMapPage() {
           <div
             style={{
               width: '320px',
-              backgroundColor: 'var(--bg-surface-elevated, #111D3D)',
+              backgroundColor: 'var(--bg-surface)',
               borderRadius: 'var(--radius-lg, 10px)',
-              border: '1px solid var(--border-strong, #2D4685)',
+              border: '1px solid var(--border-subtle)',
               padding: '16px',
               display: 'flex',
               flexDirection: 'column',
@@ -292,19 +295,19 @@ export default function FleetLiveMapPage() {
                 <StatusBadge status={selectedRoute.status} size="sm" />
               </div>
 
-              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#F8FAFC' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
                 {selectedRoute.driver?.fullName || 'Unassigned Driver'}
               </h3>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary, #94A3B8)', marginTop: '2px' }}>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
                 {selectedRoute.vehicle?.model} · <span className="code-tag">{selectedRoute.vehicle?.registrationNumber || 'VEHICLE'}</span>
               </p>
 
               <div
                 style={{
-                  backgroundColor: 'var(--bg-canvas, #010D2D)',
+                  backgroundColor: 'var(--bg-surface-muted)',
                   padding: '10px 12px',
                   borderRadius: 'var(--radius-md, 8px)',
-                  border: '1px solid var(--border-subtle, #1E3060)',
+                  border: '1px solid var(--border-subtle)',
                   marginTop: '14px',
                   display: 'flex',
                   flexDirection: 'column',
@@ -313,22 +316,22 @@ export default function FleetLiveMapPage() {
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted, #64748B)' }}>Shift:</span>
-                  <span style={{ fontWeight: 600, color: '#F8FAFC' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Shift:</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                     {selectedRoute.shiftTime} ({selectedRoute.direction})
                   </span>
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted, #64748B)' }}>Occupancy:</span>
-                  <span style={{ fontWeight: 600, color: '#4ADE80' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Occupancy:</span>
+                  <span style={{ fontWeight: 600, color: 'var(--color-success, #16A34A)' }}>
                     {selectedRoute.assignedPassengerCount} / {selectedRoute.maxCapacity} seats filled
                   </span>
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted, #64748B)' }}>Destination:</span>
-                  <span style={{ fontWeight: 600, color: '#F8FAFC' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Destination:</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                     {selectedRoute.office?.name || 'Office Campus'}
                   </span>
                 </div>
@@ -345,9 +348,9 @@ export default function FleetLiveMapPage() {
                       gap: '8px',
                       padding: '8px 12px',
                       borderRadius: 'var(--radius-md, 8px)',
-                      backgroundColor: 'rgba(87, 40, 178, 0.15)',
-                      border: '1px solid rgba(87, 40, 178, 0.35)',
-                      color: 'var(--brand-blue-400, #5290F9)',
+                      backgroundColor: 'var(--brand-primary-subtle)',
+                      border: '1px solid var(--border-subtle)',
+                      color: 'var(--brand-blue-500, #5728B2)',
                       textDecoration: 'none',
                       fontSize: '13px',
                       fontWeight: 600,
@@ -364,7 +367,7 @@ export default function FleetLiveMapPage() {
               size="sm"
               variant="outline"
               onClick={() => setSelectedRoute(null)}
-              style={{ width: '100%' }}
+              style={{ width: '100%', marginTop: '16px' }}
             >
               Close Telemetry
             </Button>
@@ -373,23 +376,24 @@ export default function FleetLiveMapPage() {
           <div
             style={{
               width: '280px',
-              backgroundColor: 'var(--bg-surface-elevated, #111D3D)',
+              backgroundColor: 'var(--bg-surface)',
               borderRadius: 'var(--radius-lg, 10px)',
-              border: '1px solid var(--border-subtle, #1E3060)',
+              border: '1px solid var(--border-subtle)',
               padding: '16px',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
               textAlign: 'center',
-              color: 'var(--text-muted, #64748B)',
+              color: 'var(--text-muted)',
+              boxShadow: 'var(--shadow-card)',
             }}
           >
-            <Compass size={32} style={{ marginBottom: '8px', opacity: 0.6 }} />
-            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary, #94A3B8)' }}>
+            <Compass size={32} style={{ marginBottom: '8px', opacity: 0.6, color: 'var(--brand-blue-500, #5728B2)' }} />
+            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
               Select Vehicle
             </div>
-            <div style={{ fontSize: '11px', marginTop: '4px' }}>
+            <div style={{ fontSize: '11px', marginTop: '4px', color: 'var(--text-secondary)' }}>
               Click any vehicle transponder on the map to inspect live driver telemetry and route progress.
             </div>
           </div>
@@ -398,4 +402,3 @@ export default function FleetLiveMapPage() {
     </div>
   );
 }
-

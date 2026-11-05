@@ -89,10 +89,10 @@ export default function CompanyHubPage() {
       {/* Page Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 className="h1-text" style={{ color: '#F8FAFC' }}>
+          <h1 className="h1-text" style={{ color: 'var(--text-primary)' }}>
             Corporate Operations Hub
           </h1>
-          <p style={{ color: 'var(--text-secondary, #94A3B8)', fontSize: '14px', marginTop: '4px' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '4px' }}>
             Multi-Tenant fleet command center. Select a client to monitor and command ongoing commute shifts.
           </p>
         </div>
@@ -141,21 +141,21 @@ export default function CompanyHubPage() {
           value={`${totalCabs} Cabs`}
           subtext="Yellow-plate verified"
           icon={<Car size={20} />}
-          highlightColor="#4ADE80"
+          highlightColor="var(--color-success, #16A34A)"
         />
         <MetricCard
           label="Employees In Transit"
           value={`${totalRiders} Riders`}
           subtext="Scheduled shift pickups"
           icon={<Users size={20} />}
-          highlightColor="var(--brand-blue-400, #5290F9)"
+          highlightColor="var(--brand-blue-400, #733DD9)"
         />
         <MetricCard
           label="Active Exceptions"
           value={totalExceptions}
           subtext={totalExceptions > 0 ? 'Requires dispatcher attention' : 'All fleets on schedule'}
           icon={<AlertTriangle size={20} />}
-          highlightColor={totalExceptions > 0 ? '#F87171' : '#4ADE80'}
+          highlightColor={totalExceptions > 0 ? 'var(--color-danger, #DC2626)' : 'var(--color-success, #16A34A)'}
         />
       </div>
 
@@ -167,14 +167,15 @@ export default function CompanyHubPage() {
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: '12px',
-          backgroundColor: 'var(--bg-surface-elevated, #111D3D)',
+          backgroundColor: 'var(--bg-surface)',
           padding: '12px 16px',
           borderRadius: 'var(--radius-lg, 10px)',
-          border: '1px solid var(--border-subtle, #1E3060)',
+          border: '1px solid var(--border-subtle)',
+          boxShadow: 'var(--shadow-card)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, maxWidth: '400px' }}>
-          <Search size={16} color="var(--text-muted, #64748B)" />
+          <Search size={16} color="var(--text-muted)" />
           <input
             type="text"
             placeholder="Search company by name or code (e.g. INFOSYS, TCS)..."
@@ -185,14 +186,14 @@ export default function CompanyHubPage() {
               backgroundColor: 'transparent',
               border: 'none',
               outline: 'none',
-              color: '#F8FAFC',
+              color: 'var(--text-primary)',
               fontSize: '13px',
             }}
           />
         </div>
 
-        <div style={{ fontSize: '12px', color: 'var(--text-secondary, #94A3B8)' }}>
-          Showing <span style={{ color: '#F8FAFC', fontWeight: 700 }}>{filteredTenants.length}</span> companies
+        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+          Showing <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{filteredTenants.length}</span> companies
         </div>
       </div>
 
@@ -202,7 +203,7 @@ export default function CompanyHubPage() {
           style={{
             padding: '48px',
             textAlign: 'center',
-            color: 'var(--text-muted, #64748B)',
+            color: 'var(--text-muted)',
             fontSize: '14px',
           }}
         >
@@ -213,14 +214,15 @@ export default function CompanyHubPage() {
           style={{
             padding: '48px',
             textAlign: 'center',
-            backgroundColor: 'var(--bg-surface-elevated, #111D3D)',
+            backgroundColor: 'var(--bg-surface)',
             borderRadius: 'var(--radius-lg, 10px)',
-            border: '1px solid var(--border-subtle, #1E3060)',
+            border: '1px solid var(--border-subtle)',
+            boxShadow: 'var(--shadow-card)',
           }}
         >
-          <Building2 size={36} color="var(--text-muted, #64748B)" style={{ marginBottom: '12px' }} />
-          <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#F8FAFC' }}>No companies found</h3>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary, #94A3B8)', marginTop: '4px' }}>
+          <Building2 size={36} color="var(--text-muted)" style={{ marginBottom: '12px' }} />
+          <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>No companies found</h3>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
             No corporate client matched your search criteria.
           </p>
         </div>
@@ -246,4 +248,3 @@ export default function CompanyHubPage() {
     </div>
   );
 }
-

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -27,9 +27,9 @@ const MOCK_VALIDATION_ROWS: ValidationRow[] = [
   { row: 12, empId: 'EMP03124', name: 'Neha Verma', issue: 'Duplicate', details: 'Employee ID already exists in system', status: 'Duplicate' },
   { row: 27, empId: 'EMP04011', name: 'Vikram Reddy', issue: 'Invalid Office', details: 'Office "HiTEC2" not found in tenant master', status: 'Error' },
   { row: 45, empId: 'EMP04109', name: 'Sanya Mehta', issue: 'Missing Field', details: 'Department is required for roster billing', status: 'Error' },
-  { row: 78, empId: 'EMP02467', name: 'Priya Sharma', issue: '—', details: 'Valid record', status: 'Valid' },
+  { row: 78, empId: 'EMP02467', name: 'Priya Sharma', issue: 'â€”', details: 'Valid record', status: 'Valid' },
   { row: 102, empId: 'EMP03376', name: 'Anjali Rao', issue: 'Format Warning', details: 'Phone number format is not standard (missing +91)', status: 'Warning' },
-  { row: 115, empId: 'EMP05102', name: 'Kiran Deep', issue: '—', details: 'Valid record', status: 'Valid' },
+  { row: 115, empId: 'EMP05102', name: 'Kiran Deep', issue: 'â€”', details: 'Valid record', status: 'Valid' },
   { row: 142, empId: 'EMP05230', name: 'Rahul Joshi', issue: 'Invalid Geocode', details: 'Pickup address geocode outside Hyderabad city boundary', status: 'Error' },
 ];
 
@@ -72,10 +72,10 @@ export default function ImportValidationResultsPage() {
       {/* Title & Action Buttons Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
             Import Validation Results
           </h1>
-          <p style={{ fontSize: '13px', color: '#64748B', marginTop: '2px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
             Review the import summary, fix issues and proceed with a clean import
           </p>
         </div>
@@ -87,9 +87,9 @@ export default function ImportValidationResultsPage() {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              backgroundColor: '#FFFFFF',
-              color: '#475569',
-              border: '1px solid #CBD5E1',
+              backgroundColor: 'var(--bg-surface)',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--border-strong)',
               borderRadius: 'var(--radius-md)',
               padding: '8px 14px',
               fontSize: '13px',
@@ -132,16 +132,16 @@ export default function ImportValidationResultsPage() {
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
           gap: '14px',
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--bg-surface)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#F1F5F9', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: 'var(--bg-surface-hover)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <FileSpreadsheet size={18} />
           </div>
           <div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>2,846</div>
-            <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Total Records</div>
+            <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>2,846</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Total Records</div>
           </div>
         </div>
 
@@ -151,7 +151,7 @@ export default function ImportValidationResultsPage() {
           </div>
           <div>
             <div style={{ fontSize: '18px', fontWeight: 800, color: '#16A34A' }}>2,720</div>
-            <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Valid Records</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Valid Records</div>
           </div>
         </div>
 
@@ -161,7 +161,7 @@ export default function ImportValidationResultsPage() {
           </div>
           <div>
             <div style={{ fontSize: '18px', fontWeight: 800, color: '#DC2626' }}>86</div>
-            <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Errors</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Errors</div>
           </div>
         </div>
 
@@ -171,7 +171,7 @@ export default function ImportValidationResultsPage() {
           </div>
           <div>
             <div style={{ fontSize: '18px', fontWeight: 800, color: '#D97706' }}>24</div>
-            <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Duplicates</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Duplicates</div>
           </div>
         </div>
 
@@ -181,13 +181,13 @@ export default function ImportValidationResultsPage() {
           </div>
           <div>
             <div style={{ fontSize: '18px', fontWeight: 800, color: '#5728B2' }}>16</div>
-            <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Warnings</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Warnings</div>
           </div>
         </div>
       </div>
 
       {/* Table Section with Filter Tabs & Search */}
-      <div className="surface-card" style={{ padding: '20px', backgroundColor: '#FFFFFF' }}>
+      <div className="surface-card" style={{ padding: '20px', backgroundColor: 'var(--bg-surface)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
           {/* Segmented Filter Tabs */}
           <div style={{ display: 'flex', gap: '6px' }}>
@@ -267,10 +267,10 @@ export default function ImportValidationResultsPage() {
                 paddingLeft: 32,
                 paddingRight: 10,
                 fontSize: 12,
-                border: '1px solid #CBD5E1',
+                border: '1px solid var(--border-strong)',
                 borderRadius: '6px',
                 outline: 'none',
-                backgroundColor: '#F8FAFC',
+                backgroundColor: 'var(--bg-surface-muted)',
               }}
             />
           </div>
@@ -294,9 +294,9 @@ export default function ImportValidationResultsPage() {
                 const badge = getStatusBadge(r.status);
                 return (
                   <tr key={r.row}>
-                    <td style={{ fontWeight: 600, color: '#64748B' }}>{r.row}</td>
-                    <td style={{ fontWeight: 700, color: '#0F172A' }}>{r.empId}</td>
-                    <td style={{ fontWeight: 700, color: '#0F172A' }}>{r.name}</td>
+                    <td style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>{r.row}</td>
+                    <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.empId}</td>
+                    <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.name}</td>
                     <td>
                       <span
                         style={{
@@ -312,7 +312,7 @@ export default function ImportValidationResultsPage() {
                         {r.issue}
                       </span>
                     </td>
-                    <td style={{ fontSize: '12px', color: '#475569' }}>{r.details}</td>
+                    <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{r.details}</td>
                     <td style={{ textAlign: 'right' }}>
                       <span
                         style={{

@@ -15,47 +15,50 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
 }) => {
   const normalized = (status || '').toUpperCase();
 
-  const colorMap: Record<string, { bg: string; text: string; border: string }> = {
+  const colorMap: Record<string, { bgLight: string; textLight: string; borderLight: string; bgDark: string; textDark: string; borderDark: string }> = {
     // Green (Success / On Time)
-    COMPLETED: { bg: 'rgba(22, 163, 74, 0.15)', text: '#4ADE80', border: 'rgba(22, 163, 74, 0.35)' },
-    BOARDED: { bg: 'rgba(22, 163, 74, 0.15)', text: '#4ADE80', border: 'rgba(22, 163, 74, 0.35)' },
-    ACCEPTED: { bg: 'rgba(22, 163, 74, 0.15)', text: '#4ADE80', border: 'rgba(22, 163, 74, 0.35)' },
-    ON_TIME: { bg: 'rgba(22, 163, 74, 0.15)', text: '#4ADE80', border: 'rgba(22, 163, 74, 0.35)' },
-    RESOLVED: { bg: 'rgba(22, 163, 74, 0.15)', text: '#4ADE80', border: 'rgba(22, 163, 74, 0.35)' },
+    COMPLETED: { bgLight: '#DCFCE7', textLight: '#15803D', borderLight: '#86EFAC', bgDark: 'rgba(34, 197, 94, 0.16)', textDark: '#4ADE80', borderDark: 'rgba(34, 197, 94, 0.35)' },
+    BOARDED: { bgLight: '#DCFCE7', textLight: '#15803D', borderLight: '#86EFAC', bgDark: 'rgba(34, 197, 94, 0.16)', textDark: '#4ADE80', borderDark: 'rgba(34, 197, 94, 0.35)' },
+    ACCEPTED: { bgLight: '#DCFCE7', textLight: '#15803D', borderLight: '#86EFAC', bgDark: 'rgba(34, 197, 94, 0.16)', textDark: '#4ADE80', borderDark: 'rgba(34, 197, 94, 0.35)' },
+    ON_TIME: { bgLight: '#DCFCE7', textLight: '#15803D', borderLight: '#86EFAC', bgDark: 'rgba(34, 197, 94, 0.16)', textDark: '#4ADE80', borderDark: 'rgba(34, 197, 94, 0.35)' },
+    RESOLVED: { bgLight: '#DCFCE7', textLight: '#15803D', borderLight: '#86EFAC', bgDark: 'rgba(34, 197, 94, 0.16)', textDark: '#4ADE80', borderDark: 'rgba(34, 197, 94, 0.35)' },
 
     // Amber / Warning (In progress, Dwell, At Risk)
-    DISPATCHING: { bg: 'rgba(238, 152, 17, 0.15)', text: '#FBBF24', border: 'rgba(238, 152, 17, 0.35)' },
-    ARRIVED: { bg: 'rgba(238, 152, 17, 0.15)', text: '#FBBF24', border: 'rgba(238, 152, 17, 0.35)' },
-    AT_RISK: { bg: 'rgba(238, 152, 17, 0.2)', text: '#F59E0B', border: 'rgba(238, 152, 17, 0.5)' },
-    PENDING: { bg: 'rgba(238, 152, 17, 0.15)', text: '#FBBF24', border: 'rgba(238, 152, 17, 0.35)' },
-    INVESTIGATING: { bg: 'rgba(238, 152, 17, 0.18)', text: '#FBBF24', border: 'rgba(238, 152, 17, 0.4)' },
+    DISPATCHING: { bgLight: '#FEF3C7', textLight: '#B45309', borderLight: '#FCD34D', bgDark: 'rgba(245, 158, 11, 0.16)', textDark: '#FBBF24', borderDark: 'rgba(245, 158, 11, 0.35)' },
+    ARRIVED: { bgLight: '#FEF3C7', textLight: '#B45309', borderLight: '#FCD34D', bgDark: 'rgba(245, 158, 11, 0.16)', textDark: '#FBBF24', borderDark: 'rgba(245, 158, 11, 0.35)' },
+    AT_RISK: { bgLight: '#FEE2E2', textLight: '#B91C1C', borderLight: '#FCA5A5', bgDark: 'rgba(245, 158, 11, 0.22)', textDark: '#F59E0B', borderDark: 'rgba(245, 158, 11, 0.5)' },
+    PENDING: { bgLight: '#FEF3C7', textLight: '#B45309', borderLight: '#FCD34D', bgDark: 'rgba(245, 158, 11, 0.16)', textDark: '#FBBF24', borderDark: 'rgba(245, 158, 11, 0.35)' },
+    INVESTIGATING: { bgLight: '#FEF3C7', textLight: '#B45309', borderLight: '#FCD34D', bgDark: 'rgba(245, 158, 11, 0.18)', textDark: '#FBBF24', borderDark: 'rgba(245, 158, 11, 0.4)' },
 
-    // Blue (In Transit, Assigned)
-    IN_TRANSIT: { bg: 'rgba(87, 40, 178, 0.15)', text: '#60A5FA', border: 'rgba(87, 40, 178, 0.35)' },
-    ASSIGNED: { bg: 'rgba(87, 40, 178, 0.15)', text: '#60A5FA', border: 'rgba(87, 40, 178, 0.35)' },
-    PLANNED: { bg: 'rgba(87, 40, 178, 0.12)', text: '#93C5FD', border: 'rgba(87, 40, 178, 0.25)' },
-    ACKNOWLEDGED: { bg: 'rgba(87, 40, 178, 0.15)', text: '#60A5FA', border: 'rgba(87, 40, 178, 0.35)' },
+    // Blue / Purple (In Transit, Assigned)
+    IN_TRANSIT: { bgLight: '#F3E8FF', textLight: '#5728B2', borderLight: '#D8B4FE', bgDark: 'rgba(115, 61, 217, 0.18)', textDark: '#B794F4', borderDark: 'rgba(115, 61, 217, 0.35)' },
+    ASSIGNED: { bgLight: '#F3E8FF', textLight: '#5728B2', borderLight: '#D8B4FE', bgDark: 'rgba(115, 61, 217, 0.18)', textDark: '#B794F4', borderDark: 'rgba(115, 61, 217, 0.35)' },
+    PLANNED: { bgLight: '#EFF6FF', textLight: '#2563EB', borderLight: '#BFDBFE', bgDark: 'rgba(59, 130, 246, 0.16)', textDark: '#93C5FD', borderDark: 'rgba(59, 130, 246, 0.3)' },
+    ACKNOWLEDGED: { bgLight: '#EFF6FF', textLight: '#2563EB', borderLight: '#BFDBFE', bgDark: 'rgba(59, 130, 246, 0.16)', textDark: '#93C5FD', borderDark: 'rgba(59, 130, 246, 0.3)' },
 
     // Red (Critical, Delayed, Cancelled, SOS)
-    DELAYED: { bg: 'rgba(220, 38, 38, 0.18)', text: '#F87171', border: 'rgba(220, 38, 38, 0.4)' },
-    CANCELLED: { bg: 'rgba(220, 38, 38, 0.15)', text: '#F87171', border: 'rgba(220, 38, 38, 0.35)' },
-    NO_SHOW: { bg: 'rgba(220, 38, 38, 0.15)', text: '#F87171', border: 'rgba(220, 38, 38, 0.35)' },
-    NEW: { bg: 'rgba(220, 38, 38, 0.25)', text: '#EF4444', border: 'rgba(220, 38, 38, 0.6)' },
-    ESCALATED: { bg: 'rgba(220, 38, 38, 0.25)', text: '#EF4444', border: 'rgba(220, 38, 38, 0.6)' },
-    CRITICAL_P0: { bg: 'rgba(220, 38, 38, 0.3)', text: '#FF4D4D', border: 'rgba(220, 38, 38, 0.7)' },
+    DELAYED: { bgLight: '#FEE2E2', textLight: '#B91C1C', borderLight: '#FCA5A5', bgDark: 'rgba(239, 68, 68, 0.18)', textDark: '#F87171', borderDark: 'rgba(239, 68, 68, 0.4)' },
+    CANCELLED: { bgLight: '#FEE2E2', textLight: '#B91C1C', borderLight: '#FCA5A5', bgDark: 'rgba(239, 68, 68, 0.16)', textDark: '#F87171', borderDark: 'rgba(239, 68, 68, 0.35)' },
+    NO_SHOW: { bgLight: '#FEE2E2', textLight: '#B91C1C', borderLight: '#FCA5A5', bgDark: 'rgba(239, 68, 68, 0.16)', textDark: '#F87171', borderDark: 'rgba(239, 68, 68, 0.35)' },
+    NEW: { bgLight: '#FEE2E2', textLight: '#DC2626', borderLight: '#F87171', bgDark: 'rgba(220, 38, 38, 0.25)', textDark: '#EF4444', borderDark: 'rgba(220, 38, 38, 0.6)' },
+    ESCALATED: { bgLight: '#FEE2E2', textLight: '#DC2626', borderLight: '#F87171', bgDark: 'rgba(220, 38, 38, 0.25)', textDark: '#EF4444', borderDark: 'rgba(220, 38, 38, 0.6)' },
+    CRITICAL_P0: { bgLight: '#FEE2E2', textLight: '#DC2626', borderLight: '#EF4444', bgDark: 'rgba(220, 38, 38, 0.3)', textDark: '#FF4D4D', borderDark: 'rgba(220, 38, 38, 0.7)' },
   };
 
-  const style = colorMap[normalized] || {
-    bg: 'rgba(148, 163, 184, 0.15)',
-    text: '#94A3B8',
-    border: 'rgba(148, 163, 184, 0.25)',
+  const scheme = colorMap[normalized] || {
+    bgLight: 'var(--bg-surface-muted)',
+    textLight: 'var(--text-secondary)',
+    borderLight: 'var(--border-subtle)',
+    bgDark: '#1F1F1F',
+    textDark: '#A3A3A3',
+    borderDark: '#333333',
   };
 
   const isPulsing = pulse || normalized === 'DELAYED' || normalized === 'AT_RISK' || normalized === 'NEW';
 
   return (
     <span
-      className={isPulsing ? (normalized === 'NEW' || normalized === 'CRITICAL_P0' ? 'pulse-critical' : 'pulse-warning') : ''}
+      className={`ops-status-badge ${isPulsing ? (normalized === 'NEW' || normalized === 'CRITICAL_P0' ? 'pulse-critical' : 'pulse-warning') : ''}`}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -64,11 +67,14 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
         fontSize: size === 'sm' ? '11px' : '12px',
         fontWeight: 600,
         borderRadius: 'var(--radius-pill, 9999px)',
-        backgroundColor: style.bg,
-        color: style.text,
-        border: `1px solid ${style.border}`,
+        backgroundColor: 'var(--badge-bg, ' + scheme.bgLight + ')',
+        color: 'var(--badge-text, ' + scheme.textLight + ')',
+        border: '1px solid var(--badge-border, ' + scheme.borderLight + ')',
         whiteSpace: 'nowrap',
         letterSpacing: '0.02em',
+        ['--badge-bg' as any]: scheme.bgLight,
+        ['--badge-text' as any]: scheme.textLight,
+        ['--badge-border' as any]: scheme.borderLight,
       }}
     >
       <span
@@ -76,11 +82,10 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
           width: '6px',
           height: '6px',
           borderRadius: '50%',
-          backgroundColor: style.text,
+          backgroundColor: 'currentColor',
         }}
       />
       {label || status}
     </span>
   );
 };
-

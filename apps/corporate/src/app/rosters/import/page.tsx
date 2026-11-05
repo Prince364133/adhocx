@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
@@ -38,16 +38,16 @@ export default function RosterImportPreviewPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Title Header */}
       <div>
-        <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
+        <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
           Roster Import & Preview
         </h1>
-        <p style={{ fontSize: '13px', color: '#64748B', marginTop: '2px' }}>
+        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
           Bulk import employee rosters from Excel (XLSX) or CSV and validate before publishing
         </p>
       </div>
 
       {/* 4-Step Stepper Header */}
-      <div className="surface-card" style={{ padding: '16px 24px', backgroundColor: '#FFFFFF' }}>
+      <div className="surface-card" style={{ padding: '16px 24px', backgroundColor: 'var(--bg-surface)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 720, margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: '#5728B2', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
@@ -77,10 +77,10 @@ export default function RosterImportPreviewPage() {
           <div style={{ height: 2, flex: 1, backgroundColor: '#CBD5E1', margin: '0 12px' }} />
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: '#F1F5F9', color: '#64748B', border: '1px solid #CBD5E1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: 'var(--bg-surface-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-strong)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
               4
             </div>
-            <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748B' }}>Import</span>
+            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>Import</span>
           </div>
         </div>
       </div>
@@ -88,12 +88,12 @@ export default function RosterImportPreviewPage() {
       {/* Main Grid: Upload Area + First 5 Rows Preview */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '20px' }}>
         {/* Left: Upload Box */}
-        <div className="surface-card" style={{ padding: '24px', backgroundColor: '#FFFFFF', flex: '1 1 45%' }}>
+        <div className="surface-card" style={{ padding: '24px', backgroundColor: 'var(--bg-surface)', flex: '1 1 45%' }}>
           <div
             style={{
               border: '2px dashed #93C5FD',
               borderRadius: '12px',
-              backgroundColor: '#F8FAFC',
+              backgroundColor: 'var(--bg-surface-muted)',
               padding: '36px 20px',
               textAlign: 'center',
               display: 'flex',
@@ -107,15 +107,15 @@ export default function RosterImportPreviewPage() {
               <FileSpreadsheet size={24} />
             </div>
 
-            <div style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
+            <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
               Drag & drop your roster file here
             </div>
             <div style={{ fontSize: '13px', color: '#5728B2', fontWeight: 600, marginTop: '2px' }}>
               or click to browse
             </div>
 
-            <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '10px' }}>
-              Supported formats: .xlsx, .csv · Max size: 20 MB
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '10px' }}>
+              Supported formats: .xlsx, .csv Â· Max size: 20 MB
             </div>
           </div>
 
@@ -135,11 +135,11 @@ export default function RosterImportPreviewPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <FileSpreadsheet size={18} color="#16A34A" />
                 <div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
                     {selectedFile.name}
                   </div>
-                  <div style={{ fontSize: '11px', color: '#64748B' }}>
-                    {selectedFile.size} · <strong>{selectedFile.records.toLocaleString()} rows detected</strong>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                    {selectedFile.size} Â· <strong>{selectedFile.records.toLocaleString()} rows detected</strong>
                   </div>
                 </div>
               </div>
@@ -155,9 +155,9 @@ export default function RosterImportPreviewPage() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                backgroundColor: '#F8FAFC',
-                color: '#475569',
-                border: '1px solid #CBD5E1',
+                backgroundColor: 'var(--bg-surface-muted)',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border-strong)',
                 borderRadius: '6px',
                 padding: '8px 12px',
                 fontSize: '12px',
@@ -193,18 +193,18 @@ export default function RosterImportPreviewPage() {
         </div>
 
         {/* Right: First 5 Rows Preview Table */}
-        <div className="surface-card" style={{ padding: '20px', backgroundColor: '#FFFFFF', flex: '1 1 55%' }}>
+        <div className="surface-card" style={{ padding: '20px', backgroundColor: 'var(--bg-surface)', flex: '1 1 55%' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
             <div>
-              <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>
+              <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>
                 Import Preview (First 5 Rows)
               </h3>
-              <p style={{ fontSize: '11px', color: '#64748B' }}>
+              <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
                 Column mapping verified against tenant shifts
               </p>
             </div>
             <span style={{ fontSize: '11px', fontWeight: 700, color: '#16A34A', backgroundColor: '#DCFCE7', padding: '2px 8px', borderRadius: '4px' }}>
-              ✓ All Columns Matched
+              âœ“ All Columns Matched
             </span>
           </div>
 
@@ -222,8 +222,8 @@ export default function RosterImportPreviewPage() {
               <tbody>
                 {MOCK_PREVIEW_ROWS.map((row) => (
                   <tr key={row.empId}>
-                    <td style={{ fontWeight: 700, color: '#0F172A' }}>{row.empId}</td>
-                    <td style={{ fontWeight: 600, color: '#0F172A' }}>{row.name}</td>
+                    <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{row.empId}</td>
+                    <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{row.name}</td>
                     <td>
                       <span
                         style={{
@@ -238,8 +238,8 @@ export default function RosterImportPreviewPage() {
                         {row.shift}
                       </span>
                     </td>
-                    <td style={{ fontSize: '12px', color: '#475569' }}>{row.office}</td>
-                    <td style={{ fontSize: '12px', color: '#64748B' }}>{row.date}</td>
+                    <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{row.office}</td>
+                    <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{row.date}</td>
                   </tr>
                 ))}
               </tbody>

@@ -1,0 +1,4 @@
+DEPRECATED: This directory was an early incomplete scaffold.
+The official AdhocX Employee Commuter Flutter app is located at:
+apps/employee_app (package: @adhocx/employee-app)
+

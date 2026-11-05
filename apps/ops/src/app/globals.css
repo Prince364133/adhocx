@@ -1,7 +1,11 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 :root {
-  /* ── 04_DESIGN_SYSTEM.md Brand Action Tokens (Primary Blue & Warm Amber Gold) ── */
+  /* ── Brand Action Tokens (04_DESIGN_SYSTEM.md § 6) ── */
+  --brand-primary: #5728B2;
+  --brand-primary-hover: #431E8E;
+  --brand-primary-subtle: rgba(87, 40, 178, 0.08);
+
   --brand-blue-900: #1B0E38;
   --brand-blue-800: #2D145E;
   --brand-blue-700: #431E8E;
@@ -10,6 +14,7 @@
   --brand-blue-200: #B794F4;
   --brand-blue-50: #F3E8FF;
 
+  --brand-orange: #FF5F09;
   --brand-amber-900: #351E01;
   --brand-amber-800: #613B03;
   --brand-amber-700: #915B06;
@@ -18,38 +23,40 @@
   --brand-amber-200: #FEC98E;
   --brand-amber-50: #FFFBF7;
 
-  /* ── Ops Cockpit Dedicated Dark Theme Palette ── */
-  --bg-canvas: #010D2D;
-  --bg-surface: #0B132B;
-  --bg-surface-elevated: #111D3D;
-  --bg-surface-card: #15224A;
-  --bg-surface-hover: #1C2D5E;
-  --bg-surface-active: #243975;
+  /* ── Default Clean Light Theme Neutral Tokens (04_DESIGN_SYSTEM.md § 7 & § 59) ── */
+  --bg-canvas: #F8FAFC;
+  --bg-surface: #FFFFFF;
+  --bg-surface-elevated: #FFFFFF;
+  --bg-surface-card: #FFFFFF;
+  --bg-surface-muted: #F1F5F9;
+  --bg-surface-hover: #F1F5F9;
+  --bg-surface-active: #E2E8F0;
+  --bg-input: #FFFFFF;
 
-  --border-subtle: #1E3060;
-  --border-strong: #2D4685;
+  --border-subtle: #E2E8F0;
+  --border-strong: #CBD5E1;
   --border-focus: #5728B2;
 
-  --text-primary: #F8FAFC;
-  --text-secondary: #94A3B8;
-  --text-muted: #64748B;
-  --text-inverse: #010D2D;
+  --text-primary: #191B1C;
+  --text-secondary: #595F61;
+  --text-muted: #94A3B8;
+  --text-inverse: #FFFFFF;
 
   --color-success: #16A34A;
-  --color-success-bg: rgba(22, 163, 74, 0.15);
-  --color-success-border: rgba(22, 163, 74, 0.35);
+  --color-success-bg: #DCFCE7;
+  --color-success-border: #86EFAC;
 
   --color-warning: #EE9811;
-  --color-warning-bg: rgba(238, 152, 17, 0.15);
-  --color-warning-border: rgba(238, 152, 17, 0.35);
+  --color-warning-bg: #FFFBF7;
+  --color-warning-border: #FEC98E;
 
   --color-danger: #DC2626;
-  --color-danger-bg: rgba(220, 38, 38, 0.15);
-  --color-danger-border: rgba(220, 38, 38, 0.35);
+  --color-danger-bg: #FEE2E2;
+  --color-danger-border: #FCA5A5;
 
   --color-info: #5728B2;
-  --color-info-bg: rgba(87, 40, 178, 0.15);
-  --color-info-border: rgba(87, 40, 178, 0.35);
+  --color-info-bg: #F3E8FF;
+  --color-info-border: #B794F4;
 
   /* ── Radius Scale (§ 14) ── */
   --radius-xs: 4px;
@@ -71,11 +78,56 @@
   --space-10: 40px;
   --space-12: 48px;
 
-  /* ── Restrained Elevation (§ 15) ── */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
-  --shadow-elevated: 0 12px 20px -4px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
-  --shadow-glow-blue: 0 0 16px -2px rgba(87, 40, 178, 0.35);
+  /* ── Elevation Shadows (§ 15) ── */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+  --shadow-elevated: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+  --shadow-glow-blue: 0 0 12px -2px rgba(87, 40, 178, 0.2);
+  --shadow-glow-sos: 0 0 16px 2px rgba(220, 38, 38, 0.25);
+}
+
+/* ── Dark Mode: Strict Neutral Black & Gray Palette (04_DESIGN_SYSTEM.md § 59) ── */
+[data-theme="dark"],
+html.dark,
+.dark {
+  --bg-canvas: #0A0A0A;
+  --bg-surface: #141414;
+  --bg-surface-elevated: #1A1A1A;
+  --bg-surface-card: #141414;
+  --bg-surface-muted: #1F1F1F;
+  --bg-surface-hover: #262626;
+  --bg-surface-active: #333333;
+  --bg-input: #171717;
+
+  --border-subtle: #262626;
+  --border-strong: #404040;
+  --border-focus: #5728B2;
+
+  --text-primary: #EDEDED;
+  --text-secondary: #A3A3A3;
+  --text-muted: #737373;
+  --text-inverse: #0A0A0A;
+
+  --color-success: #22C55E;
+  --color-success-bg: rgba(34, 197, 94, 0.15);
+  --color-success-border: rgba(34, 197, 94, 0.35);
+
+  --color-warning: #F59E0B;
+  --color-warning-bg: rgba(245, 158, 11, 0.15);
+  --color-warning-border: rgba(245, 158, 11, 0.35);
+
+  --color-danger: #EF4444;
+  --color-danger-bg: rgba(239, 68, 68, 0.15);
+  --color-danger-border: rgba(239, 68, 68, 0.35);
+
+  --color-info: #733DD9;
+  --color-info-bg: rgba(115, 61, 217, 0.18);
+  --color-info-border: rgba(115, 61, 217, 0.35);
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.6);
+  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.5);
+  --shadow-elevated: 0 12px 20px -4px rgba(0, 0, 0, 0.7), 0 4px 6px -2px rgba(0, 0, 0, 0.6);
+  --shadow-glow-blue: 0 0 16px -2px rgba(87, 40, 178, 0.4);
   --shadow-glow-sos: 0 0 24px 2px rgba(220, 38, 38, 0.45);
 }
 
@@ -114,22 +166,30 @@ body {
   font-size: 12px;
   font-weight: 600;
   padding: 2px 6px;
-  background: rgba(87, 40, 178, 0.12);
-  color: var(--brand-blue-400);
-  border: 1px solid rgba(87, 40, 178, 0.25);
+  background: var(--brand-primary-subtle);
+  color: var(--brand-blue-500);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xs);
   display: inline-block;
+}
+
+[data-theme="dark"] .code-tag,
+html.dark .code-tag,
+.dark .code-tag {
+  background: rgba(115, 61, 217, 0.15);
+  color: #B794F4;
+  border-color: rgba(115, 61, 217, 0.3);
 }
 
 /* ── Pulsing Animations for Exceptions (§ 74) ── */
 @keyframes pulse-amber {
   0%, 100% { border-color: rgba(238, 152, 17, 0.4); box-shadow: 0 0 0 0 rgba(238, 152, 17, 0.4); }
-  50% { border-color: rgba(238, 152, 17, 0.9); box-shadow: 0 0 10px 1px rgba(238, 152, 17, 0.35); }
+  50% { border-color: rgba(238, 152, 17, 0.9); box-shadow: 0 0 8px 1px rgba(238, 152, 17, 0.25); }
 }
 
 @keyframes pulse-red {
   0%, 100% { border-color: rgba(220, 38, 38, 0.4); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
-  50% { border-color: rgba(220, 38, 38, 1); box-shadow: 0 0 14px 2px rgba(220, 38, 38, 0.45); }
+  50% { border-color: rgba(220, 38, 38, 1); box-shadow: 0 0 12px 2px rgba(220, 38, 38, 0.35); }
 }
 
 .pulse-warning {
@@ -149,10 +209,9 @@ body {
   background: var(--bg-canvas);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border-subtle);
+  background: var(--border-strong);
   border-radius: var(--radius-pill);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--brand-blue-500);
+  background: var(--text-muted);
 }
-

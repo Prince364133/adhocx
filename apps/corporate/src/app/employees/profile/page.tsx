@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import {
@@ -29,10 +29,10 @@ export default function EmployeeProfilePage() {
       {/* Title & Action Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
             Employee Profile
           </h1>
-          <p style={{ fontSize: '13px', color: '#64748B', marginTop: '2px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
             Complete employee information, transport details and trip history
           </p>
         </div>
@@ -63,8 +63,8 @@ export default function EmployeeProfilePage() {
               width: 36,
               height: 36,
               borderRadius: 6,
-              border: '1px solid #CBD5E1',
-              backgroundColor: '#FFFFFF',
+              border: '1px solid var(--border-strong)',
+              backgroundColor: 'var(--bg-surface)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -81,7 +81,7 @@ export default function EmployeeProfilePage() {
         {/* Left Column: User Card & Sub-navigation Tabs */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: '1 1 28%' }}>
           {/* User ID Card */}
-          <div className="surface-card" style={{ padding: '24px', textAlign: 'center', backgroundColor: '#FFFFFF' }}>
+          <div className="surface-card" style={{ padding: '24px', textAlign: 'center', backgroundColor: 'var(--bg-surface)' }}>
             <div
               style={{
                 width: 72,
@@ -99,7 +99,7 @@ export default function EmployeeProfilePage() {
             >
               PS
             </div>
-            <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>
               Priya Sharma
             </h2>
             <div style={{ marginTop: '4px', marginBottom: '8px' }}>
@@ -117,12 +117,12 @@ export default function EmployeeProfilePage() {
                 Transport Eligible
               </span>
             </div>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>EMP02467</div>
-            <div style={{ fontSize: '12px', color: '#64748B' }}>Product Team · HiTEC City</div>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>EMP02467</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Product Team Â· HiTEC City</div>
           </div>
 
           {/* Subnav Tabs Menu */}
-          <div className="surface-card" style={{ padding: '8px', backgroundColor: '#FFFFFF' }}>
+          <div className="surface-card" style={{ padding: '8px', backgroundColor: 'var(--bg-surface)' }}>
             <button
               onClick={() => setActiveTab('overview')}
               style={{
@@ -260,8 +260,8 @@ export default function EmployeeProfilePage() {
         {/* Right Main Content: Information Cards */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: '1 1 70%' }}>
           {/* Card 1: Basic Information */}
-          <div className="surface-card" style={{ padding: '20px', backgroundColor: '#FFFFFF' }}>
-            <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', marginBottom: '16px' }}>
+          <div className="surface-card" style={{ padding: '20px', backgroundColor: 'var(--bg-surface)' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '16px' }}>
               Basic Information
             </h3>
 
@@ -271,8 +271,8 @@ export default function EmployeeProfilePage() {
                   <Briefcase size={16} />
                 </div>
                 <div>
-                  <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Employee ID</div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>EMP02467</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Employee ID</div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>EMP02467</div>
                 </div>
               </div>
 
@@ -281,8 +281,8 @@ export default function EmployeeProfilePage() {
                   <Mail size={16} />
                 </div>
                 <div>
-                  <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Work Email</div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>priya.sharma@hitec.com</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Work Email</div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>priya.sharma@hitec.com</div>
                 </div>
               </div>
 
@@ -291,8 +291,8 @@ export default function EmployeeProfilePage() {
                   <Phone size={16} />
                 </div>
                 <div>
-                  <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Phone</div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>+91 98765 43210</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Phone</div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>+91 98765 43210</div>
                 </div>
               </div>
 
@@ -301,8 +301,8 @@ export default function EmployeeProfilePage() {
                   <Briefcase size={16} />
                 </div>
                 <div>
-                  <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Department</div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>Product</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Department</div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Product</div>
                 </div>
               </div>
 
@@ -311,8 +311,8 @@ export default function EmployeeProfilePage() {
                   <Building2 size={16} />
                 </div>
                 <div>
-                  <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Office / Building</div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>HiTEC City</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Office / Building</div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>HiTEC City</div>
                 </div>
               </div>
 
@@ -321,42 +321,42 @@ export default function EmployeeProfilePage() {
                   <ShieldCheck size={16} />
                 </div>
                 <div>
-                  <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Employment Type</div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>Full-Time</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Employment Type</div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Full-Time</div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Card 2: Transport Information & Geo Mini Map */}
-          <div className="surface-card" style={{ padding: '20px', backgroundColor: '#FFFFFF' }}>
-            <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', marginBottom: '16px' }}>
+          <div className="surface-card" style={{ padding: '20px', backgroundColor: 'var(--bg-surface)' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '16px' }}>
               Transport Information
             </h3>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '18px', alignItems: 'center' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div>
-                  <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Eligibility Status</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Eligibility Status</div>
                   <div style={{ fontSize: '13px', fontWeight: 700, color: '#16A34A', marginTop: '2px' }}>
                     Eligible (Compliant with Corporate Cab Policy)
                   </div>
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Geocoded Pickup Location</div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A', marginTop: '2px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Geocoded Pickup Location</div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
                     Kondapur, Bus Stop Near Metro
                   </div>
-                  <div style={{ fontSize: '11px', color: '#64748B' }}>Lat: 17.4699, Lng: 78.3578</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Lat: 17.4699, Lng: 78.3578</div>
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Geocoded Drop Location</div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A', marginTop: '2px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Geocoded Drop Location</div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
                     HiTEC Office, Main Gate
                   </div>
-                  <div style={{ fontSize: '11px', color: '#64748B' }}>Lat: 17.4474, Lng: 78.3762</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Lat: 17.4474, Lng: 78.3762</div>
                 </div>
               </div>
 
@@ -372,28 +372,28 @@ export default function EmployeeProfilePage() {
           </div>
 
           {/* Card 3: Current Assignment */}
-          <div className="surface-card" style={{ padding: '20px', backgroundColor: '#FFFFFF' }}>
-            <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', marginBottom: '16px' }}>
+          <div className="surface-card" style={{ padding: '20px', backgroundColor: 'var(--bg-surface)' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '16px' }}>
               Current Assignment
             </h3>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px' }}>
               <div>
-                <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Active Shift</div>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', marginTop: '2px' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Active Shift</div>
+                <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
                   Login (8:00 AM)
                 </div>
               </div>
 
               <div>
-                <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Active Roster</div>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', marginTop: '2px' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Active Roster</div>
+                <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
                   Week 50 (Dec 08 - Dec 14)
                 </div>
               </div>
 
               <div>
-                <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Today&apos;s Trip</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Today&apos;s Trip</div>
                 <div style={{ fontSize: '14px', fontWeight: 700, color: '#5728B2', marginTop: '2px' }}>
                   TS09UB7845 (Pickup 7:42 AM)
                 </div>

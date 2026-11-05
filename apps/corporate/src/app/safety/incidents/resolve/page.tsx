@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
@@ -39,7 +39,7 @@ export default function IncidentResolutionTimelinePage() {
               gap: 4,
               fontSize: 12,
               fontWeight: 600,
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
             }}
           >
             <ArrowLeft size={14} /> Back to Dossier
@@ -78,7 +78,7 @@ export default function IncidentResolutionTimelinePage() {
         {/* Left Column: Chronological Action Timeline */}
         <div
           style={{
-            backgroundColor: '#FFFFFF',
+            backgroundColor: 'var(--bg-surface)',
             borderRadius: 8,
             border: '1px solid var(--border-color)',
             padding: 20,
@@ -115,7 +115,7 @@ export default function IncidentResolutionTimelinePage() {
                 </div>
 
                 {/* Content */}
-                <div style={{ flex: 1, backgroundColor: '#F8FAFC', padding: '12px 14px', borderRadius: 6, border: '1px solid var(--border-color)' }}>
+                <div style={{ flex: 1, backgroundColor: 'var(--bg-surface-muted)', padding: '12px 14px', borderRadius: 6, border: '1px solid var(--border-color)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
                       {item.action}
@@ -139,7 +139,7 @@ export default function IncidentResolutionTimelinePage() {
         {/* Right Column: Resolution & Sign-Off Form */}
         <div
           style={{
-            backgroundColor: '#FFFFFF',
+            backgroundColor: 'var(--bg-surface)',
             borderRadius: 8,
             border: '1px solid var(--border-color)',
             padding: 20,
@@ -173,7 +173,7 @@ export default function IncidentResolutionTimelinePage() {
                   borderRadius: 6,
                   border: '1px solid var(--border-color)',
                   fontSize: 13,
-                  backgroundColor: '#FFFFFF',
+                  backgroundColor: 'var(--bg-surface)',
                 }}
               >
                 <option value="Traffic Diversion">Traffic Diversion (Verified Non-Threat)</option>
@@ -200,20 +200,20 @@ export default function IncidentResolutionTimelinePage() {
                   border: '1px solid var(--border-color)',
                   fontSize: 13,
                   fontFamily: 'inherit',
-                  backgroundColor: '#FFFFFF',
+                  backgroundColor: 'var(--bg-surface)',
                   resize: 'none',
                 }}
               />
             </div>
 
-            <div style={{ padding: '10px 12px', backgroundColor: '#F8FAFC', borderRadius: 6, border: '1px solid var(--border-color)' }}>
+            <div style={{ padding: '10px 12px', backgroundColor: 'var(--bg-surface-muted)', borderRadius: 6, border: '1px solid var(--border-color)' }}>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
                 Officer Sign-Off Identity
               </div>
               <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginTop: 2 }}>
                 Rohan Deshmukh (Certified Lead Safety Officer)
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>AdhocX Central Command Desk • ID: SF-HYD-04</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>AdhocX Central Command Desk â€¢ ID: SF-HYD-04</div>
             </div>
           </div>
 

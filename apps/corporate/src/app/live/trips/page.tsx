@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import {
@@ -28,8 +28,8 @@ export default function LiveTripDetailsPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
-              Trip Details — {trip.cabNumber}
+            <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+              Trip Details â€” {trip.cabNumber}
             </h1>
             <span
               style={{
@@ -45,7 +45,7 @@ export default function LiveTripDetailsPage() {
               {trip.status}
             </span>
           </div>
-          <p style={{ fontSize: '13px', color: '#64748B', marginTop: '2px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
             Complete trip information, route, employees and real-time status
           </p>
         </div>
@@ -82,11 +82,11 @@ export default function LiveTripDetailsPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Navigation size={15} color="#5728B2" />
-                <span style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
                   Sequential Waypoint Route
                 </span>
               </div>
-              <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>
                 {trip.stops.length} Stops Active
               </span>
             </div>
@@ -106,43 +106,43 @@ export default function LiveTripDetailsPage() {
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
               gap: '14px',
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-surface)',
             }}
           >
             <div>
-              <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Driver</div>
-              <div style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Driver</div>
+              <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <span>{trip.driver.name}</span>
                 <span style={{ fontSize: '11px', color: '#D97706', display: 'flex', alignItems: 'center' }}>
-                  ★ {trip.driver.rating}
+                  â˜… {trip.driver.rating}
                 </span>
               </div>
             </div>
 
             <div>
-              <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Vehicle</div>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Vehicle</div>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
                 {trip.vehicle.model}
               </div>
             </div>
 
             <div>
-              <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Capacity</div>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Capacity</div>
               <div style={{ fontSize: '13px', fontWeight: 700, color: '#5728B2' }}>
                 {trip.vehicle.seatsOccupied} / {trip.vehicle.totalSeats} Seats
               </div>
             </div>
 
             <div>
-              <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Total Stops</div>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Total Stops</div>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
                 {trip.stops.length} Stops
               </div>
             </div>
 
             <div>
-              <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Distance</div>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Distance</div>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
                 {trip.tripDistanceKm} km
               </div>
             </div>
@@ -152,7 +152,7 @@ export default function LiveTripDetailsPage() {
         {/* Right Side: Tabbed Details (Trip Info / Employees / Timeline) */}
         <div className="surface-card" style={{ padding: '20px', flex: '1 1 45%' }}>
           {/* Tabs */}
-          <div style={{ display: 'flex', borderBottom: '1px solid #E2E8F0', marginBottom: '18px' }}>
+          <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', marginBottom: '18px' }}>
             <button
               onClick={() => setActiveTab('info')}
               style={{
@@ -203,36 +203,36 @@ export default function LiveTripDetailsPage() {
           {/* Tab 1: Trip Info */}
           {activeTab === 'info' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid #F1F5F9' }}>
-                <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>Trip Type</span>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>{trip.tripType}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid var(--border-subtle)' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Trip Type</span>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{trip.tripType}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid #F1F5F9' }}>
-                <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>Date</span>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>{trip.date}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid var(--border-subtle)' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Date</span>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{trip.date}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid #F1F5F9' }}>
-                <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>Corridor</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid var(--border-subtle)' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Corridor</span>
                 <span style={{ fontSize: '13px', fontWeight: 700, color: '#5728B2' }}>{trip.route}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid #F1F5F9' }}>
-                <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>Planned Pickup</span>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>{trip.plannedPickup}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid var(--border-subtle)' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Planned Pickup</span>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{trip.plannedPickup}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid #F1F5F9' }}>
-                <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>Actual Pickup</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid var(--border-subtle)' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Actual Pickup</span>
                 <span style={{ fontSize: '13px', fontWeight: 700, color: '#D97706' }}>{trip.actualPickup}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid #F1F5F9' }}>
-                <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>ETA (Drop)</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid var(--border-subtle)' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>ETA (Drop)</span>
                 <span style={{ fontSize: '13px', fontWeight: 700, color: '#16A34A' }}>{trip.etaDrop}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid #F1F5F9' }}>
-                <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>Trip Distance</span>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>{trip.tripDistanceKm} km</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid var(--border-subtle)' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Trip Distance</span>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{trip.tripDistanceKm} km</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px' }}>
-                <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>Status</span>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Status</span>
                 <span style={{ fontSize: '12px', fontWeight: 800, color: '#16A34A', backgroundColor: '#DCFCE7', padding: '2px 8px', borderRadius: '4px' }}>
                   {trip.status}
                 </span>
@@ -257,15 +257,15 @@ export default function LiveTripDetailsPage() {
                     {trip.employees.map((emp) => (
                       <tr key={emp.empId}>
                         <td>
-                          <div style={{ fontWeight: 700, color: '#0F172A' }}>{emp.name}</div>
-                          <div style={{ fontSize: '11px', color: '#64748B' }}>{emp.empId} · {emp.department}</div>
+                          <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{emp.name}</div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{emp.empId} Â· {emp.department}</div>
                         </td>
                         <td style={{ fontWeight: 600 }}>Stop {emp.stopNumber}</td>
-                        <td style={{ fontSize: '12px', color: '#475569' }}>{emp.pickupTime}</td>
+                        <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{emp.pickupTime}</td>
                         <td>
                           {emp.boarded ? (
                             <span style={{ fontSize: '11px', fontWeight: 700, color: '#16A34A', backgroundColor: '#DCFCE7', padding: '2px 6px', borderRadius: '4px' }}>
-                              ✓ Boarded
+                              âœ“ Boarded
                             </span>
                           ) : (
                             <span style={{ fontSize: '11px', fontWeight: 700, color: '#D97706', backgroundColor: '#FEF3C7', padding: '2px 6px', borderRadius: '4px' }}>
@@ -306,15 +306,15 @@ export default function LiveTripDetailsPage() {
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
                         {stop.locationName}
                       </span>
-                      <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748B' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}>
                         {stop.actualTime}
                       </span>
                     </div>
                     {stop.passengers.length > 0 && (
-                      <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
                         Boarding: {stop.passengers.join(', ')}
                       </div>
                     )}

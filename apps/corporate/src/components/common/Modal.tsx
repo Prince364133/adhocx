@@ -54,7 +54,7 @@ export const Modal: React.FC<ModalProps> = ({
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(1, 13, 45, 0.8)',
+          backgroundColor: 'rgba(0, 0, 0, 0.55)',
           backdropFilter: 'blur(3px)',
         }}
       />
@@ -65,25 +65,26 @@ export const Modal: React.FC<ModalProps> = ({
           position: 'relative',
           width: '100%',
           maxWidth: width,
-          backgroundColor: 'var(--bg-surface, #0B132B)',
-          border: '1px solid var(--border-strong, #2D4685)',
+          backgroundColor: 'var(--bg-surface, #FFFFFF)',
+          border: '1px solid var(--border-subtle, #E2E8F0)',
           borderRadius: 'var(--radius-xl, 12px)',
           boxShadow: 'var(--shadow-elevated)',
           display: 'flex',
           flexDirection: 'column',
           zIndex: 1101,
           overflow: 'hidden',
+          transition: 'background-color 0.2s ease, border-color 0.2s ease',
         }}
       >
         {/* Header */}
         <div
           style={{
             padding: 'var(--space-4, 16px) var(--space-5, 20px)',
-            borderBottom: '1px solid var(--border-subtle, #1E3060)',
+            borderBottom: '1px solid var(--border-subtle, #E2E8F0)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            backgroundColor: 'var(--bg-surface-elevated, #111D3D)',
+            backgroundColor: 'var(--bg-surface-muted, #F8FAFC)',
           }}
         >
           <div>
@@ -91,7 +92,7 @@ export const Modal: React.FC<ModalProps> = ({
               style={{
                 fontSize: '18px',
                 fontWeight: 700,
-                color: 'var(--text-primary, #F8FAFC)',
+                color: 'var(--text-primary, #191B1C)',
                 margin: 0,
               }}
             >
@@ -101,7 +102,7 @@ export const Modal: React.FC<ModalProps> = ({
               <p
                 style={{
                   fontSize: '12px',
-                  color: 'var(--text-secondary, #94A3B8)',
+                  color: 'var(--text-secondary, #475569)',
                   margin: '2px 0 0 0',
                 }}
               >
@@ -116,7 +117,7 @@ export const Modal: React.FC<ModalProps> = ({
             style={{
               background: 'none',
               border: 'none',
-              color: 'var(--text-secondary, #94A3B8)',
+              color: 'var(--text-muted, #64748B)',
               cursor: 'pointer',
               padding: '6px',
               borderRadius: 'var(--radius-sm, 6px)',
@@ -130,9 +131,8 @@ export const Modal: React.FC<ModalProps> = ({
         </div>
 
         {/* Body */}
-        <div style={{ padding: 'var(--space-5, 20px)' }}>{children}</div>
+        <div style={{ padding: 'var(--space-5, 20px)', color: 'var(--text-primary, #191B1C)' }}>{children}</div>
       </div>
     </div>
   );
 };
-

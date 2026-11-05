@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import {
@@ -48,10 +48,10 @@ export default function RosterApprovalPublishingPage() {
       {/* Title & Publish Action Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
             Roster Approval & Publishing
           </h1>
-          <p style={{ fontSize: '13px', color: '#64748B', marginTop: '2px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
             Review roster changes, approve and publish to make them live for transport operations
           </p>
         </div>
@@ -80,8 +80,8 @@ export default function RosterApprovalPublishingPage() {
       </div>
 
       {/* Tabs Header */}
-      <div className="surface-card" style={{ padding: '20px', backgroundColor: '#FFFFFF' }}>
-        <div style={{ display: 'flex', borderBottom: '1px solid #E2E8F0', marginBottom: '18px' }}>
+      <div className="surface-card" style={{ padding: '20px', backgroundColor: 'var(--bg-surface)' }}>
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', marginBottom: '18px' }}>
           <button
             onClick={() => setActiveTab('pending')}
             style={{
@@ -163,10 +163,10 @@ export default function RosterApprovalPublishingPage() {
                         onChange={() => toggleSelect(v.id)}
                       />
                     </td>
-                    <td style={{ fontWeight: 800, color: '#0F172A' }}>{v.version}</td>
-                    <td style={{ fontSize: '12px', color: '#475569', fontWeight: 600 }}>{v.period}</td>
-                    <td style={{ fontSize: '12px', color: '#0F172A' }}>{v.changes}</td>
-                    <td style={{ fontSize: '12px', color: '#64748B' }}>{v.uploadedBy}</td>
+                    <td style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{v.version}</td>
+                    <td style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>{v.period}</td>
+                    <td style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{v.changes}</td>
+                    <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{v.uploadedBy}</td>
                     <td>
                       <span
                         style={{
@@ -189,11 +189,11 @@ export default function RosterApprovalPublishingPage() {
                           style={{
                             padding: '4px 10px',
                             borderRadius: 4,
-                            border: '1px solid #CBD5E1',
-                            backgroundColor: '#FFFFFF',
+                            border: '1px solid var(--border-strong)',
+                            backgroundColor: 'var(--bg-surface)',
                             fontSize: '11px',
                             fontWeight: 700,
-                            color: '#475569',
+                            color: 'var(--text-secondary)',
                             cursor: 'pointer',
                           }}
                         >
@@ -204,8 +204,8 @@ export default function RosterApprovalPublishingPage() {
                             width: 28,
                             height: 28,
                             borderRadius: 4,
-                            border: '1px solid #CBD5E1',
-                            backgroundColor: '#FFFFFF',
+                            border: '1px solid var(--border-strong)',
+                            backgroundColor: 'var(--bg-surface)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',

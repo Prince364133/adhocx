@@ -5,7 +5,7 @@ import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { CorporateRouteItem } from '../../lib/api/opsTypes';
 import { opsApi } from '../../lib/api/opsClient';
-import { UserCheck, AlertTriangle } from 'lucide-react';
+import { UserCheck } from 'lucide-react';
 
 export interface ReassignDriverModalProps {
   route: CorporateRouteItem | null;
@@ -75,9 +75,9 @@ export const ReassignDriverModal: React.FC<ReassignDriverModalProps> = ({
               padding: '10px 14px',
               borderRadius: 'var(--radius-md, 8px)',
               fontSize: '13px',
-              backgroundColor: 'rgba(220, 38, 38, 0.15)',
-              border: '1px solid rgba(220, 38, 38, 0.35)',
-              color: '#F87171',
+              backgroundColor: 'var(--color-danger-bg)',
+              border: '1px solid var(--color-danger-border)',
+              color: 'var(--color-danger)',
             }}
           >
             {errorMsg}
@@ -86,28 +86,28 @@ export const ReassignDriverModal: React.FC<ReassignDriverModalProps> = ({
 
         <div
           style={{
-            backgroundColor: 'var(--bg-canvas, #010D2D)',
+            backgroundColor: 'var(--bg-surface-muted)',
             padding: '12px 14px',
             borderRadius: 'var(--radius-md, 8px)',
-            border: '1px solid var(--border-subtle, #1E3060)',
+            border: '1px solid var(--border-subtle)',
             fontSize: '13px',
           }}
         >
-          <div style={{ color: 'var(--text-muted, #64748B)', fontSize: '11px', marginBottom: '2px' }}>
+          <div style={{ color: 'var(--text-muted)', fontSize: '11px', marginBottom: '2px', fontWeight: 600 }}>
             CURRENT ASSIGNMENT
           </div>
-          <div style={{ fontWeight: 600, color: '#F8FAFC' }}>
+          <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
             {route.driver?.fullName || 'Unassigned (No Driver)'}
           </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-secondary, #94A3B8)' }}>
-            Vehicle: {route.vehicle?.registrationNumber || 'N/A'} · Shift: {route.shiftTime} ({route.direction})
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+            Vehicle: {route.vehicle?.registrationNumber || 'Not assigned'} ({route.vehicleCategory})
           </div>
         </div>
 
         {/* Reason Select */}
         <div>
-          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary, #94A3B8)', marginBottom: '6px' }}>
-            MANDATORY AUDIT REASON (§ 55)
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+            REASSIGNMENT REASON (§ 55)
           </label>
           <select
             value={selectedReason}
@@ -115,11 +115,11 @@ export const ReassignDriverModal: React.FC<ReassignDriverModalProps> = ({
             style={{
               width: '100%',
               height: '38px',
-              backgroundColor: 'var(--bg-canvas, #010D2D)',
-              border: '1px solid var(--border-strong, #2D4685)',
+              backgroundColor: 'var(--bg-input)',
+              border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-md, 8px)',
               padding: '0 12px',
-              color: '#F8FAFC',
+              color: 'var(--text-primary)',
               fontSize: '13px',
               outline: 'none',
             }}
@@ -129,83 +129,67 @@ export const ReassignDriverModal: React.FC<ReassignDriverModalProps> = ({
                 {r}
               </option>
             ))}
-            <option value="Other">Other custom reason...</option>
+            <option value="Other">Other custom operational cause...</option>
           </select>
         </div>
 
         {selectedReason === 'Other' && (
           <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary, #94A3B8)', marginBottom: '6px' }}>
-              CUSTOM REASON SPECIFICATION
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+              CUSTOM CAUSE EXPLANATION
             </label>
-            <input
-              type="text"
-              placeholder="Enter operational reason"
+            <textarea
+              placeholder="State reason for audit compliance..."
+              rows={2}
               value={customReason}
               onChange={(e) => setCustomReason(e.target.value)}
               style={{
                 width: '100%',
-                height: '36px',
-                backgroundColor: 'var(--bg-canvas, #010D2D)',
-                border: '1px solid var(--border-strong, #2D4685)',
+                backgroundColor: 'var(--bg-input)',
+                border: '1px solid var(--border-subtle)',
                 borderRadius: 'var(--radius-md, 8px)',
-                padding: '0 12px',
-                color: '#F8FAFC',
+                padding: '8px 12px',
+                color: 'var(--text-primary)',
                 fontSize: '13px',
                 outline: 'none',
+                fontFamily: 'inherit',
+                resize: 'none',
               }}
             />
           </div>
         )}
 
-        {/* Direct Driver ID Override (Optional) */}
+        {/* Target Driver ID (Optional manual override) */}
         <div>
-          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary, #94A3B8)', marginBottom: '6px' }}>
-            SPECIFIC DRIVER ID (LEAVE BLANK FOR AUTOMATIC NEARBY 10KM RE-DISPATCH)
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+            TARGET DRIVER ID (OPTIONAL OVERRIDE)
           </label>
           <input
             type="text"
-            placeholder="e.g. drv_948a31... (or leave blank to broadcast offer)"
+            placeholder="Leave empty to auto-dispatch nearest available driver"
             value={targetDriverId}
             onChange={(e) => setTargetDriverId(e.target.value)}
             style={{
               width: '100%',
-              height: '36px',
-              backgroundColor: 'var(--bg-canvas, #010D2D)',
-              border: '1px solid var(--border-strong, #2D4685)',
+              height: '38px',
+              backgroundColor: 'var(--bg-input)',
+              border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-md, 8px)',
               padding: '0 12px',
-              color: '#F8FAFC',
+              color: 'var(--text-primary)',
               fontSize: '13px',
               outline: 'none',
             }}
           />
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+            If empty, the routing engine broadcasts to compliant commercial yellow-plate drivers within 10 km.
+          </div>
         </div>
 
-        {/* Warning Note */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '8px',
-            fontSize: '12px',
-            color: '#FBBF24',
-            backgroundColor: 'rgba(238, 152, 17, 0.1)',
-            padding: '10px',
-            borderRadius: 'var(--radius-md, 8px)',
-            border: '1px solid rgba(238, 152, 17, 0.25)',
-          }}
-        >
-          <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
-          <span>
-            Executing this intervention revokes any pending offers, notifies the former driver, and instantly alerts the riders with updated vehicle tracking.
-          </span>
-        </div>
-
-        {/* Actions */}
+        {/* Action Buttons */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
           <Button variant="ghost" onClick={onClose} disabled={loading}>
-            Dismiss
+            Cancel
           </Button>
           <Button
             variant="primary"
@@ -213,11 +197,10 @@ export const ReassignDriverModal: React.FC<ReassignDriverModalProps> = ({
             isLoading={loading}
             onClick={handleConfirm}
           >
-            Confirm Reassignment
+            Reassign Now
           </Button>
         </div>
       </div>
     </Modal>
   );
 };
-
