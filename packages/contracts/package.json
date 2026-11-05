@@ -10,7 +10,8 @@
     "test": "jest",
     "test:unit": "jest",
     "lint": "eslint src",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "dev": "tsc -w --preserveWatchOutput"
   },
   "dependencies": {
     "class-transformer": "^0.5.1",

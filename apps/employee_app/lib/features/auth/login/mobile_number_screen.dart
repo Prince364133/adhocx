@@ -68,7 +68,15 @@ class _MobileNumberScreenState extends State<MobileNumberScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: const EmployeeAppBar(),
+      appBar: EmployeeAppBar(
+        onBack: () {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go(AppRoutes.welcome);
+          }
+        },
+      ),
       body: SafeArea(
         child: Column(
           children: [

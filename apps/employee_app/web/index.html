@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <base href="$FLUTTER_BASE_HREF" />
+
+  <meta charset="UTF-8" />
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible" />
+  <meta name="description" content="AdhocX - Corporate Mobility & On-Demand Dispatch" />
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <meta name="apple-mobile-web-app-title" content="AdhocX" />
+  <link rel="apple-touch-icon" href="icons/Icon-192.png" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png" />
+
+  <!-- Google Sign-In Client ID & GSI Script -->
+  <meta name="google-signin-client_id"
+    content="886573696369-84dnfvb9jaegbqp8deosr3ucf8tq93ms.apps.googleusercontent.com" />
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <!-- Google Maps Platform JavaScript API -->
+  <script
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB8uEHtGy96QPbx3eIxG0s0_WYlWpB8QVI&libraries=places"></script>
+
+  <title>AdhocX</title>
+  <link rel="manifest" href="manifest.json" />
+
+  <style>
+    body {
+      background-color: #0B1220;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    #loading-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: #0B1220;
+      z-index: 99999;
+      transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
+    }
+
+    .brand-title {
+      font-size: 36px;
+      font-weight: 900;
+      color: #FFFFFF;
+      letter-spacing: -1px;
+      margin: 0 0 6px 0;
+      user-select: none;
+    }
+
+    .brand-title span {
+      color: #3B82F6;
+    }
+
+    .brand-sub {
+      font-size: 11px;
+      font-weight: 700;
+      color: #94A3B8;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin: 0 0 32px 0;
+      user-select: none;
+    }
+
+    .pulse-loader {
+      width: 42px;
+      height: 42px;
+      border: 3px solid rgba(59, 130, 246, 0.2);
+      border-top: 3px solid #2563EB;
+      border-right: 3px solid #3B82F6;
+      border-radius: 50%;
+      animation: spin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    #load-error {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: #0B1220;
+      color: #CBD5E1;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      text-align: center;
+      padding: 24px;
+      box-sizing: border-box;
+      z-index: 99998;
+    }
+
+    #load-error.visible {
+      display: flex;
+    }
+
+    #load-error h2 {
+      color: #60A5FA;
+      margin: 0 0 12px;
+      font-size: 1.3rem;
+    }
+
+    #load-error pre {
+      background: #111827;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #1F2937;
+      overflow: auto;
+      max-width: 90%;
+      font-size: 12px;
+      text-align: left;
+      color: #F87171;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Enterprise Branded Splash Preloader -->
+  <div id="loading-container">
+    <div class="brand-title">Adhoc<span>X</span></div>
+    <div class="brand-sub">Corporate Mobility & Dispatch</div>
+    <div class="pulse-loader"></div>
+  </div>
+
+  <!-- Shown when a fatal startup error occurs -->
+  <div id="load-error">
+    <h2>Something went wrong</h2>
+    <p>The app couldn’t initialize properly. Check details below or refresh the page.</p>
+    <pre id="load-error-detail" style="display: none;"></pre>
+  </div>
+
+  <script>
+    (function () {
+      window.parent.postMessage({ type: "LOADING_STARTED" }, "*");
+    })();
+  </script>
+
+  <script src="flutter_bootstrap.js" async></script>
+
+  <script>
+    var appLoaded = false;
+
+    function removeLoader() {
+      if (appLoaded) return;
+      appLoaded = true;
+      var loader = document.getElementById("loading-container");
+      if (loader) {
+        loader.style.opacity = "0";
+        loader.style.pointerEvents = "none";
+        setTimeout(function () {
+          loader.style.display = "none";
+          if (loader.parentNode) {
+            loader.parentNode.removeChild(loader);
+          }
+        }, 300);
+      }
+      hideLoadError();
+      window.parent.postMessage({ type: "LOADING_COMPLETED" }, "*");
+    }
+
+    function hideLoadError() {
+      var errEl = document.getElementById("load-error");
+      if (errEl) {
+        errEl.classList.remove("visible");
+        errEl.style.display = "none";
+      }
+    }
+
+    function showLoadError(message, detail) {
+      if (appLoaded) return;
+      removeLoader();
+      var errEl = document.getElementById("load-error");
+      if (errEl) {
+        errEl.classList.add("visible");
+      }
+      if (detail) {
+        var detailEl = document.getElementById("load-error-detail");
+        if (detailEl) {
+          detailEl.textContent = detail;
+          detailEl.style.display = "block";
+        }
+      }
+      window.parent.postMessage(
+        { type: "LOADING_ERROR", message: message },
+        "*",
+      );
+    }
+
+    // 1. MutationObserver: Instant detection when Flutter canvas/view attaches to DOM
+    var observer = new MutationObserver(function (mutations, obs) {
+      var flutterEl = document.querySelector("flutter-view, flt-glass-pane, flt-scene-host, canvas");
+      if (flutterEl) {
+        removeLoader();
+        obs.disconnect();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    // 2. Framework & custom event listeners
+    window.addEventListener("flutter-first-frame", removeLoader);
+    window.addEventListener("flutter-app-rendered", removeLoader);
+
+    // 3. Failsafe auto-dismiss (2 seconds max)
+    setTimeout(removeLoader, 2000);
+
+    // Capture errors and shield against third-party checkout chunk warnings
+    window.onerror = function (message, source, lineno, colno, error) {
+      if (source && (source.includes("razorpay") || source.includes("v2-entry") || source.includes("checkout"))) {
+        console.warn("[Suppressed Gateway Chunk Notice]", message);
+        return true; // prevent third party scripts from throwing fatal errors
+      }
+      console.error("[AdhocX Web Error]", message, source, lineno, colno, error);
+      return false;
+    };
+
+    window.addEventListener("unhandledrejection", function (event) {
+      var reasonStr = (event && event.reason && event.reason.toString()) || "";
+      if (reasonStr.includes("razorpay") || reasonStr.includes("v2-entry") || reasonStr.includes("ChunkLoadError") || reasonStr.includes("Loading chunk")) {
+        event.preventDefault();
+        return;
+      }
+      console.warn("[AdhocX Web Unhandled Rejection]", event.reason);
+    });
+  </script>
+
+  <script>
+    // Navigation tracking (strictly send to parent only if running in iframe)
+    (function (history) {
+      const pushState = history.pushState;
+      const replaceState = history.replaceState;
+
+      function logNavigation(method, url) {
+        if (!url) return;
+
+        var actualPath = url;
+        var lastHashSlash = url.lastIndexOf('#/');
+        if (lastHashSlash !== -1) {
+          actualPath = '/' + url.substring(lastHashSlash + 2);
+        }
+
+        var formattedUrl = actualPath;
+        if (actualPath.startsWith('/') && !actualPath.startsWith('/#')) {
+          formattedUrl = '/#' + actualPath;
+        }
+
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage({
+            type: "NAVIGATION",
+            method: method,
+            url: formattedUrl
+          }, "*");
+        }
+      }
+
+      history.pushState = function (state, title, url) {
+        logNavigation("pushState", url);
+        return pushState.apply(history, arguments);
+      };
+
+      history.replaceState = function (state, title, url) {
+        logNavigation("replaceState", url);
+        return replaceState.apply(history, arguments);
+      };
+
+      window.addEventListener("popstate", function (event) {
+        logNavigation("popstate", location.href);
+      });
+    })(window.history);
+  </script>
+
+  <!-- Razorpay Checkout Web Bridge (Isolated execution with full DOM teardown) -->
+  <script>
+    function purgeRazorpayElements() {
+      try {
+        var selectors = [
+          '.razorpay-container',
+          '.razorpay-backdrop',
+          'iframe[name^="razorpay"]',
+          'iframe[src*="razorpay"]',
+          'iframe[class*="razorpay"]',
+          'div[class*="razorpay"]'
+        ];
+        selectors.forEach(function (sel) {
+          var elements = document.querySelectorAll(sel);
+          for (var i = 0; i < elements.length; i++) {
+            if (elements[i] && elements[i].parentNode) {
+              elements[i].parentNode.removeChild(elements[i]);
+            }
+          }
+        });
+      } catch (_) { }
+    }
+
+    window.addEventListener("message", function (event) {
+      if (event.data && typeof event.data === "object" && event.data.type === "OPEN_RAZORPAY_CHECKOUT") {
+        var config = event.data.config || {};
+        var token = config.token || ("tok_" + Date.now());
+        var isDone = false;
+        var rzpInstance = null;
+
+        purgeRazorpayElements();
+
+        function notifyAndTeardown(type, data) {
+          if (isDone) return;
+          isDone = true;
+
+          try {
+            if (rzpInstance && typeof rzpInstance.close === "function") {
+              rzpInstance.close();
+            }
+          } catch (_) { }
+
+          setTimeout(purgeRazorpayElements, 50);
+
+          var payload = Object.assign({ type: type, token: token }, data);
+          window.postMessage(payload, "*");
+        }
+
+        function launchRzp() {
+          try {
+            var options = {
+              key: config.key,
+              amount: config.amount,
+              currency: config.currency || "INR",
+              name: config.name || "AdhocX Mobility",
+              description: config.description || "AdhocX Secure Payment",
+              order_id: config.order_id,
+              prefill: config.prefill || {},
+              notes: config.notes || {},
+              theme: config.theme || { color: "#5B42F3" },
+              handler: function (response) {
+                notifyAndTeardown("RAZORPAY_PAYMENT_SUCCESS", {
+                  paymentId: response.razorpay_payment_id || "",
+                  orderId: response.razorpay_order_id || config.order_id,
+                  signature: response.razorpay_signature || ""
+                });
+              },
+              modal: {
+                ondismiss: function () {
+                  notifyAndTeardown("RAZORPAY_PAYMENT_FAILURE", {
+                    errorMessage: "Payment cancelled by user",
+                    errorCode: 0
+                  });
+                }
+              }
+            };
+
+            rzpInstance = new Razorpay(options);
+            rzpInstance.on("payment.failed", function (response) {
+              var errObj = response && response.error;
+              var rawDesc = errObj && (errObj.description || errObj.reason || errObj.code);
+              var msg = (rawDesc && rawDesc !== "undefined" && rawDesc !== "null") ? rawDesc : "Payment failed at gateway";
+              notifyAndTeardown("RAZORPAY_PAYMENT_FAILURE", {
+                errorMessage: msg,
+                errorCode: (errObj && (errObj.code === "BAD_REQUEST_ERROR" ? 0 : 1)) || 1
+              });
+            });
+            rzpInstance.open();
+          } catch (err) {
+            var errMsg = (err && err.message && err.message !== "undefined" && err.message !== "null") ? err.message : "Failed to initialize payment gateway";
+            notifyAndTeardown("RAZORPAY_PAYMENT_FAILURE", {
+              errorMessage: errMsg,
+              errorCode: 1
+            });
+          }
+        }
+
+        if (typeof Razorpay === "undefined") {
+          var existingScript = document.getElementById("razorpay-checkout-js");
+          if (existingScript) {
+            existingScript.addEventListener("load", launchRzp, { once: true });
+          } else {
+            var script = document.createElement("script");
+            script.id = "razorpay-checkout-js";
+            script.src = "https://checkout.razorpay.com/v1/checkout.js";
+            script.async = true;
+            script.onload = launchRzp;
+            script.onerror = function () {
+              notifyAndTeardown("RAZORPAY_PAYMENT_FAILURE", {
+                errorMessage: "Failed to load payment gateway SDK"
+              });
+            };
+            document.head.appendChild(script);
+          }
+        } else {
+          launchRzp();
+        }
+      }
+    });
+  </script>
+
+  <!-- Plugin initialization code will be injected into flutter_plugins.js -->
+  <script src="flutter_plugins.js" defer></script>
+
+  <!-- Development Instant Hot / Live Reload Toolbar & Bridge -->
+  <style>
+    #adhocx-hot-reload-toolbar {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 2147483647;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      user-select: none;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .adhocx-tb-container {
+      background: rgba(15, 23, 42, 0.94);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 9999px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .adhocx-tb-brand {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 6px 0 8px;
+      border-right: 1px solid rgba(255, 255, 255, 0.15);
+      color: #94A3B8;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .adhocx-tb-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #10B981;
+      box-shadow: 0 0 8px #10B981;
+      animation: adhocxPulse 2s infinite;
+    }
+    @keyframes adhocxPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+    .adhocx-btn {
+      border: none;
+      border-radius: 9999px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #FFFFFF;
+      transition: all 0.15s ease;
+      outline: none;
+    }
+    .adhocx-btn:active {
+      transform: scale(0.95);
+    }
+    .adhocx-btn-hot {
+      background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+      box-shadow: 0 2px 10px rgba(245, 158, 11, 0.4);
+    }
+    .adhocx-btn-hot:hover {
+      box-shadow: 0 4px 16px rgba(245, 158, 11, 0.6);
+      transform: translateY(-1px);
+    }
+    .adhocx-btn-total {
+      background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
+      box-shadow: 0 2px 10px rgba(59, 130, 246, 0.4);
+    }
+    .adhocx-btn-total:hover {
+      box-shadow: 0 4px 16px rgba(59, 130, 246, 0.6);
+      transform: translateY(-1px);
+    }
+    .adhocx-btn-toggle {
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: #94A3B8;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 13px;
+      line-height: 1;
+      transition: background 0.15s, color 0.15s;
+    }
+    .adhocx-btn-toggle:hover {
+      background: rgba(255, 255, 255, 0.2);
+      color: #FFFFFF;
+    }
+    .adhocx-tb-collapsed {
+      display: none;
+      background: rgba(15, 23, 42, 0.94);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 9999px;
+      padding: 8px 14px;
+      color: #F8FAFC;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      align-items: center;
+      gap: 6px;
+    }
+    .adhocx-tb-collapsed:hover {
+      transform: scale(1.05);
+      border-color: #38BDF8;
+    }
+    #adhocx-dev-toast {
+      position: fixed;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      z-index: 2147483647;
+      background: rgba(15, 23, 42, 0.96);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(59, 130, 246, 0.5);
+      color: #FFFFFF;
+      font-family: -apple-system, sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 10px 20px;
+      border-radius: 9999px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      pointer-events: none;
+      opacity: 0;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    #adhocx-dev-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+
+  <div id="adhocx-dev-toast"></div>
+
+  <div id="adhocx-hot-reload-toolbar">
+    <div class="adhocx-tb-container" id="adhocx-tb-expanded">
+      <div class="adhocx-tb-brand">
+        <span class="adhocx-tb-dot"></span>
+        <span>Live</span>
+      </div>
+
+      <!-- Hot Load Button -->
+      <button class="adhocx-btn adhocx-btn-hot" id="adhocx-btn-hot" title="Click for Hot Load (Alt+H) - Instantly updates Flutter UI">
+        <span>⚡</span>
+        <span id="adhocx-btn-hot-text">Hot Load</span>
+      </button>
+
+      <!-- Total Load Button -->
+      <button class="adhocx-btn adhocx-btn-total" id="adhocx-btn-total" title="Click for Total Load (Alt+T) - Full restart, cache clear and reload">
+        <span>🔄</span>
+        <span id="adhocx-btn-total-text">Total Load</span>
+      </button>
+
+      <!-- Minimize Toggle -->
+      <button class="adhocx-btn-toggle" id="adhocx-btn-minimize" title="Minimize toolbar">_</button>
+    </div>
+
+    <!-- Collapsed Pill Badge -->
+    <div class="adhocx-tb-collapsed" id="adhocx-tb-collapsed" title="Click to expand dev controls">
+      <span class="adhocx-tb-dot"></span>
+      <span>⚡ Hot / Total Load</span>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+        var tb = document.getElementById('adhocx-hot-reload-toolbar');
+        if (tb) tb.style.display = 'none';
+        return;
+      }
+
+      var reloadPort = 7015;
+      var hotBtn = document.getElementById('adhocx-btn-hot');
+      var hotBtnText = document.getElementById('adhocx-btn-hot-text');
+      var totalBtn = document.getElementById('adhocx-btn-total');
+      var totalBtnText = document.getElementById('adhocx-btn-total-text');
+      var expandedBar = document.getElementById('adhocx-tb-expanded');
+      var collapsedBar = document.getElementById('adhocx-tb-collapsed');
+      var minimizeBtn = document.getElementById('adhocx-btn-minimize');
+      var toastEl = document.getElementById('adhocx-dev-toast');
+      var toastTimeout = null;
+
+      function showToast(msg, isSuccess) {
+        if (!toastEl) return;
+        toastEl.textContent = msg;
+        toastEl.style.borderColor = isSuccess ? 'rgba(16, 185, 129, 0.6)' : 'rgba(59, 130, 246, 0.6)';
+        toastEl.classList.add('show');
+        if (toastTimeout) clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(function () {
+          toastEl.classList.remove('show');
+        }, 2200);
+      }
+
+      // 1. Hot Load Action (Clicking "Hot Load")
+      function triggerHotLoad() {
+        if (!hotBtn) return;
+        hotBtnText.textContent = 'Hot Loading...';
+        hotBtn.style.opacity = '0.75';
+        showToast('⚡ Hot Load triggered! Recompiling changes...', false);
+
+        var apiUrl = 'http://' + location.hostname + ':' + reloadPort + '/api/hot-load';
+        fetch(apiUrl, { method: 'GET', mode: 'cors' })
+          .then(function (res) { return res.json(); })
+          .then(function () {
+            showToast('⚡ Hot Load applied! Updating Flutter view...', true);
+            setTimeout(function () {
+              hotBtnText.textContent = 'Hot Load';
+              hotBtn.style.opacity = '1';
+            }, 600);
+          })
+          .catch(function () {
+            showToast('⚡ Hot Load signal dispatched!', true);
+            setTimeout(function () {
+              hotBtnText.textContent = 'Hot Load';
+              hotBtn.style.opacity = '1';
+            }, 600);
+          });
+      }
+
+      // 2. Total Load Action (Clicking "Total Load")
+      function triggerTotalLoad() {
+        if (!totalBtn) return;
+        totalBtnText.textContent = 'Restarting...';
+        totalBtn.style.opacity = '0.75';
+        showToast('🔄 Total Load: Restarting and clearing cache...', false);
+
+        try {
+          if ('caches' in window) {
+            caches.keys().then(function (names) {
+              names.forEach(function (name) { caches.delete(name); });
+            });
+          }
+        } catch (_) {}
+
+        var apiUrl = 'http://' + location.hostname + ':' + reloadPort + '/api/total-load';
+        fetch(apiUrl, { method: 'GET', mode: 'cors' })
+          .catch(function () {})
+          .finally(function () {
+            setTimeout(function () {
+              window.location.reload(true);
+            }, 300);
+          });
+      }
+
+      // Button listeners
+      if (hotBtn) hotBtn.addEventListener('click', triggerHotLoad);
+      if (totalBtn) totalBtn.addEventListener('click', triggerTotalLoad);
+
+      // Minimize / Expand Toggle
+      if (minimizeBtn && expandedBar && collapsedBar) {
+        minimizeBtn.addEventListener('click', function () {
+          expandedBar.style.display = 'none';
+          collapsedBar.style.display = 'inline-flex';
+        });
+        collapsedBar.addEventListener('click', function () {
+          collapsedBar.style.display = 'none';
+          expandedBar.style.display = 'flex';
+        });
+      }
+
+      // Keyboard Shortcuts (Alt+H = Hot Load, Alt+T = Total Load)
+      window.addEventListener('keydown', function (e) {
+        if (e.altKey && (e.key === 'h' || e.key === 'H')) {
+          e.preventDefault();
+          triggerHotLoad();
+        }
+        if (e.altKey && (e.key === 't' || e.key === 'T')) {
+          e.preventDefault();
+          triggerTotalLoad();
+        }
+      });
+
+      // SSE Live Reload Connection for instant automatic saves
+      var sseUrl = 'http://' + location.hostname + ':' + reloadPort + '/live-reload';
+      function connectSSE() {
+        try {
+          var es = new EventSource(sseUrl);
+          es.onopen = function () {
+            console.log('⚡ [Live Reload] Connected to dev auto-reload server on port ' + reloadPort);
+          };
+          es.onmessage = function (event) {
+            if (event.data === 'reload') {
+              console.log('🔥 [Live Reload] Change received, refreshing page...');
+              showToast('🔥 Update detected! Refreshing...', true);
+              setTimeout(function () {
+                window.location.reload();
+              }, 250);
+            }
+          };
+          es.onerror = function () {
+            es.close();
+            setTimeout(connectSSE, 3000);
+          };
+        } catch (e) {}
+      }
+      connectSSE();
+    })();
+  </script>
+</body>
+</html>

@@ -27,7 +27,8 @@
     "test:contracts": "turbo run test --filter=@adhocx/contracts",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
+    "predev": "pnpm --filter @adhocx/contracts run build && pnpm --filter @adhocx/domain-core run build"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

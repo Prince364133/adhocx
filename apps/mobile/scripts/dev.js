@@ -57,6 +57,7 @@ const flutterCmd = findFlutterExecutable();
 const mobileDir = path.resolve(__dirname, '..');
 const libDir = path.join(mobileDir, 'lib');
 const webDir = path.join(mobileDir, 'web');
+const buildWebDir = path.join(mobileDir, 'build', 'web');
 const PORT = parseInt(process.env.PORT || '7003', 10);
 
 const userProfile = process.env.USERPROFILE || process.env.HOME || '';
@@ -65,7 +66,11 @@ const androidHome = process.env.ANDROID_HOME || path.join(localAppData, 'Android
 const javaHome = process.env.JAVA_HOME || '';
 const pubCache = process.env.PUB_CACHE || path.join(localAppData, 'Pub', 'Cache');
 
-if (flutterCmd) {
+const args = process.argv.slice(2);
+const runOnAndroid = args.includes('--android');
+const runInChrome = args.includes('--chrome') || args.includes('--hot');
+
+if (flutterCmd && (runOnAndroid || runInChrome)) {
   const flutterBinDir = path.dirname(flutterCmd);
   const dartSdkBinDir = path.join(flutterBinDir, 'cache', 'dart-sdk', 'bin');
   const pathSeparator = process.platform === 'win32' ? ';' : ':';
@@ -112,17 +117,14 @@ if (flutterCmd) {
 
   child.on('error', (err) => console.log('Driver App Process Notice:', err.message));
 } else {
-  console.warn(`========================================================================`);
-  console.warn(`⚠️  NOTICE: FLUTTER SDK WAS NOT DETECTED ON THIS COMPUTER!`);
-  console.warn(`------------------------------------------------------------------------`);
-  console.warn(`Node.js is running the static fallback server on http://localhost:${PORT}`);
-  console.warn(`To run the REAL native Flutter mobile app:`);
-  console.warn(`  1. Install Flutter: https://docs.flutter.dev/get-started/install`);
-  console.warn(`  2. Add Flutter's bin directory to your environment PATH`);
-  console.warn(`  3. Run: pnpm --filter @adhocx/mobile run dev`);
-  console.warn(`========================================================================\n`);
+  if (!flutterCmd) {
+    console.warn(`========================================================================`);
+    console.warn(`⚠️  NOTICE: FLUTTER SDK WAS NOT DETECTED ON THIS COMPUTER!`);
+    console.warn(`Node.js is running the static fallback server on http://localhost:${PORT}`);
+    console.warn(`========================================================================\n`);
+  }
 
-  // Standalone server on port 7003
+  // Standalone server on port 7003 (serves build/web or web/)
   startStandaloneServer();
   startWatcher((filePath) => {
     const relPath = path.relative(mobileDir, filePath);
@@ -132,34 +134,61 @@ if (flutterCmd) {
 
 function startStandaloneServer() {
   const mimeTypes = {
-    '.html': 'text/html',
-    '.js': 'text/javascript',
-    '.css': 'text/css',
+    '.html': 'text/html; charset=utf-8',
+    '.js': 'application/javascript; charset=utf-8',
+    '.mjs': 'application/javascript; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
     '.json': 'application/json',
     '.png': 'image/png',
     '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif',
     '.svg': 'image/svg+xml',
     '.ico': 'image/x-icon',
+    '.wasm': 'application/wasm',
+    '.ttf': 'font/ttf',
+    '.otf': 'font/otf',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2',
+    '.map': 'application/json',
   };
 
+  const hasBuild = fs.existsSync(path.join(buildWebDir, 'index.html'));
+  const staticRoot = hasBuild ? buildWebDir : webDir;
+
   const server = http.createServer((req, res) => {
-    let filePath = path.join(webDir, req.url === '/' ? 'index.html' : req.url);
-    if (!fs.existsSync(filePath)) {
-      filePath = path.join(webDir, 'index.html');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+      res.writeHead(200);
+      res.end();
+      return;
     }
 
-    const ext = path.extname(filePath).toLowerCase();
-    const contentType = mimeTypes[ext] || 'text/html';
+    if (req.url === '/healthz') {
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end('healthy\n');
+      return;
+    }
 
-    fs.readFile(filePath, (err, content) => {
-      if (err) {
-        res.writeHead(500);
-        res.end('Error loading ' + req.url);
-      } else {
-        res.writeHead(200, { 'Content-Type': contentType });
-        res.end(content);
-      }
-    });
+    let relativePath = decodeURIComponent(req.url.split('?')[0].replace(/^\/+/, ''));
+    if (!relativePath || relativePath === '') relativePath = 'index.html';
+    const filePath = path.normalize(path.join(staticRoot, relativePath));
+
+    if (filePath.startsWith(staticRoot) && fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+      const ext = path.extname(filePath).toLowerCase();
+      const contentType = mimeTypes[ext] || 'application/octet-stream';
+      res.writeHead(200, { 'Content-Type': contentType });
+      fs.createReadStream(filePath).pipe(res);
+      return;
+    }
+
+    // SPA fallback
+    const indexPath = path.join(staticRoot, 'index.html');
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    fs.createReadStream(indexPath).pipe(res);
   });
 
   server.listen(PORT, '0.0.0.0', () => {

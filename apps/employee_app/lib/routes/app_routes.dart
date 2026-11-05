@@ -159,7 +159,7 @@ class AppRoutes {
       // Batch 01
       GoRoute(path: splash, builder: (context, state) => const SplashScreen()),
       GoRoute(path: welcome, builder: (context, state) => const WelcomeScreen()),
-      GoRoute(path: loginOptions, builder: (context, state) => const LoginOptionsScreen()),
+      GoRoute(path: loginOptions, redirect: (context, state) => mobileNumber),
       GoRoute(path: mobileNumber, builder: (context, state) => const MobileNumberScreen()),
       GoRoute(path: otpVerify, builder: (context, state) => const OtpVerificationScreen()),
       GoRoute(path: companySso, builder: (context, state) => const CompanySsoScreen()),

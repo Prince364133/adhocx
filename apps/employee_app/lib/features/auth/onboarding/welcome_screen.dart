@@ -67,7 +67,7 @@ class WelcomeScreen extends StatelessWidget {
               // Primary CTA Pill Button
               EmployeePrimaryButton(
                 label: 'Get Started  →',
-                onPressed: () => context.push(AppRoutes.loginOptions),
+                onPressed: () => context.push(AppRoutes.mobileNumber),
               ),
 
               const SizedBox(height: 16),

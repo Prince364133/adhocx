@@ -128,70 +128,6 @@ class EmployeeHeroTripCard extends StatelessWidget {
               ],
             ),
 
-            // Driver / Vehicle Snippet
-            if (driverName != null || vehicleNumber != null) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 16,
-                      backgroundColor: Colors.white.withValues(alpha: 0.25),
-                      child: const Icon(Icons.person, color: Colors.white, size: 18),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (driverName != null)
-                            Text(
-                              driverName!,
-                              style: GoogleFonts.inter(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                            ),
-                          if (vehicleNumber != null)
-                            Text(
-                              vehicleNumber!,
-                              style: GoogleFonts.inter(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.white.withValues(alpha: 0.85),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    if (vehicleNumber != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          vehicleNumber!,
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.primaryBlueDark,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-
             // Action Buttons Row
             if (primaryActionLabel != null || secondaryActionLabel != null) ...[
               const SizedBox(height: 18),
@@ -261,4 +197,3 @@ class EmployeeHeroTripCard extends StatelessWidget {
     );
   }
 }
-

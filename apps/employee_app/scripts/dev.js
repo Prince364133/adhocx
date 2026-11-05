@@ -4,11 +4,141 @@ const path = require('path');
 const http = require('http');
 
 const PORT = parseInt(process.env.PORT || '7005', 10);
+const RELOAD_PORT = parseInt(process.env.RELOAD_PORT || '7015', 10);
 const APP_DIR = path.resolve(__dirname, '..');
 const MOCK_DATA_PATH = path.join(APP_DIR, 'assets', 'data', 'mock_data.json');
 const LIB_DIR = path.join(APP_DIR, 'lib');
+const ASSETS_DIR = path.join(APP_DIR, 'assets');
 
-console.log('⚡ Initializing AdhocX Employee Mobile App...');
+console.log('⚡ Initializing AdhocX Employee Mobile App with Instant Hot Reload...');
+
+let sseClients = [];
+let activeFlutterChild = null;
+
+function startLiveReloadServer() {
+  try {
+    const server = http.createServer((req, res) => {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', '*');
+
+      if (req.method === 'OPTIONS') {
+        res.writeHead(200);
+        res.end();
+        return;
+      }
+
+      const parsedUrl = new URL(req.url, `http://localhost:${RELOAD_PORT}`);
+      const pathname = parsedUrl.pathname;
+
+      // 1. Hot Load API Trigger (Triggered by user clicking "Hot Load")
+      if (pathname === '/api/hot-load' || pathname === '/api/hot-reload') {
+        console.log('\n⚡ [Click Trigger] User clicked "Hot Load" button on Web!');
+        if (activeFlutterChild && activeFlutterChild.stdin && !activeFlutterChild.stdin.destroyed) {
+          activeFlutterChild.stdin.write('r\n');
+          console.log('⚡ Sent "r" (Hot Reload) command to Flutter process.');
+        } else {
+          console.log('⚡ Hot load triggered (no direct child process stdin, broadcasting reload)...');
+          broadcastReload();
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, message: 'Hot Load triggered successfully!' }));
+        return;
+      }
+
+      // 2. Total Load API Trigger (Triggered by user clicking "Total Load")
+      if (pathname === '/api/total-load' || pathname === '/api/total-reload') {
+        console.log('\n🔄 [Click Trigger] User clicked "Total Load" button on Web!');
+        if (activeFlutterChild && activeFlutterChild.stdin && !activeFlutterChild.stdin.destroyed) {
+          activeFlutterChild.stdin.write('R\n');
+          console.log('🔄 Sent "R" (Hot Restart) command to Flutter process.');
+        }
+        setTimeout(() => {
+          broadcastReload();
+        }, 600);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, message: 'Total Load triggered successfully!' }));
+        return;
+      }
+
+      if (pathname === '/live-reload') {
+        res.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+          'Access-Control-Allow-Origin': '*',
+        });
+        res.write('retry: 2000\n');
+        res.write('data: connected\n\n');
+
+        sseClients.push(res);
+        req.on('close', () => {
+          sseClients = sseClients.filter((c) => c !== res);
+        });
+        return;
+      }
+
+      res.writeHead(404);
+      res.end();
+    });
+
+    server.on('error', (err) => {
+      if (err.code !== 'EADDRINUSE') {
+        console.warn(`[Live Reload Server] Notice: ${err.message}`);
+      }
+    });
+
+    server.listen(RELOAD_PORT, '0.0.0.0', () => {
+      console.log(`📡 [Instant Hot Reload] SSE Live-Reload Server active on http://localhost:${RELOAD_PORT}/live-reload`);
+    });
+  } catch (err) {
+    console.warn('[Live Reload Server Notice]', err.message);
+  }
+}
+
+function broadcastReload() {
+  if (sseClients.length === 0) return;
+  console.log(`🌐 [Live Reload] Notifying ${sseClients.length} connected browser client(s) to refresh...`);
+  sseClients.forEach((client) => {
+    try {
+      client.write('data: reload\n\n');
+    } catch (_) {}
+  });
+}
+
+function startFlutterWatcher(onReload) {
+  const watchDirs = [LIB_DIR, ASSETS_DIR].filter((d) => fs.existsSync(d));
+  let debounceTimer = null;
+
+  watchDirs.forEach((dir) => {
+    try {
+      fs.watch(dir, { recursive: true }, (eventType, filename) => {
+        if (!filename) return;
+        const ext = path.extname(filename).toLowerCase();
+        if (['.dart', '.json', '.yaml', '.png', '.jpg', '.svg'].includes(ext)) {
+          if (debounceTimer) clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            onReload(path.join(dir, filename));
+          }, 200);
+        }
+      });
+    } catch (e) {
+      console.warn(`[Watcher Warning for ${dir}]`, e.message);
+    }
+  });
+
+  const pubspecPath = path.join(APP_DIR, 'pubspec.yaml');
+  if (fs.existsSync(pubspecPath)) {
+    try {
+      fs.watch(pubspecPath, () => {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => onReload(pubspecPath), 200);
+      });
+    } catch (_) {}
+  }
+
+  console.log('👀 [Instant Hot Reload] Active: saves in lib/ automatically reload web!');
+}
 
 function findFlutterExecutable() {
   const isWindows = process.platform === 'win32';
@@ -96,12 +226,49 @@ if (flutterCmd) {
   console.log(`🚀 Found Flutter at: ${flutterCmd}`);
   console.log(runOnAndroid ? '📱 Running on Android...' : `🌐 Starting Flutter Web (${targetDevice}) on http://localhost:${PORT}...`);
   
-  spawn(execFile, execArgs, {
+  const child = spawn(execFile, execArgs, {
     cwd: APP_DIR,
-    stdio: 'inherit',
+    stdio: ['pipe', 'inherit', 'inherit'],
     shell: false,
     env: childEnv,
   });
+  activeFlutterChild = child;
+
+  // Start real-time SSE live-reload server for browser auto-refresh
+  startLiveReloadServer();
+
+  // Watch for any changes in lib/ and trigger instant hot reload & browser refresh
+  startFlutterWatcher((changedPath) => {
+    try {
+      const relPath = path.relative(APP_DIR, changedPath);
+      console.log(`\n🔥 [Instant Hot Reload] Detected change in: ${relPath}`);
+      console.log('⚡ Reloading Flutter Web...');
+      if (child.stdin && !child.stdin.destroyed) {
+        child.stdin.write('r\n');
+      }
+      setTimeout(() => {
+        broadcastReload();
+      }, 850);
+    } catch (e) {}
+  });
+
+  // Forward keyboard commands in terminal (r = hot reload, R = hot restart, q = quit)
+  if (process.stdin.isTTY) {
+    try {
+      process.stdin.setRawMode?.(false);
+      process.stdin.on('data', (data) => {
+        if (child.stdin && !child.stdin.destroyed) {
+          child.stdin.write(data);
+        }
+        const str = data.toString().trim();
+        if (str === 'r' || str === 'R') {
+          setTimeout(broadcastReload, 850);
+        }
+      });
+    } catch (_) {}
+  }
+
+  child.on('error', (err) => console.log('Employee App Process Notice:', err.message));
 } else {
   console.warn(`========================================================================`);
   console.warn(`⚠️  NOTICE: FLUTTER SDK WAS NOT DETECTED ON THIS COMPUTER!`);
@@ -128,6 +295,7 @@ function getMockData() {
 }
 
 function startAppServer() {
+  startLiveReloadServer();
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, `http://localhost:${PORT}`);
 
@@ -175,6 +343,7 @@ function startWatcher() {
     fs.watch(LIB_DIR, { recursive: true }, (eventType, filename) => {
       if (filename) {
         console.log(`🔥 [Auto-Watcher] Change detected in: lib/${filename}`);
+        broadcastReload();
       }
     });
   } catch (err) {}
@@ -376,6 +545,35 @@ function generateAppHtml(mockData) {
       <span>Profile</span>
     </div>
   </div>
+
+  <!-- Development Instant Hot / Live Reload Bridge -->
+  <script>
+    (function() {
+      if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') return;
+      var reloadPort = ${RELOAD_PORT};
+      var sseUrl = 'http://' + location.hostname + ':' + reloadPort + '/live-reload';
+      
+      function connect() {
+        try {
+          var es = new EventSource(sseUrl);
+          es.onopen = function() {
+            console.log('⚡ [Hot Reload Bridge] Connected to dev auto-reload server on port ' + reloadPort);
+          };
+          es.onmessage = function(event) {
+            if (event.data === 'reload') {
+              console.log('🔥 [Hot Reload Bridge] Change detected. Refreshing page...');
+              window.location.reload();
+            }
+          };
+          es.onerror = function() {
+            es.close();
+            setTimeout(connect, 3000);
+          };
+        } catch (e) {}
+      }
+      connect();
+    })();
+  </script>
 </body>
 </html>`;
 }
