@@ -11,6 +11,7 @@ import {
   AlertCircle,
   ArrowRight,
   Loader2,
+  KeyRound,
 } from 'lucide-react';
 import { AdhocxBrandLogo } from '../../components/AdhocxBrandLogo';
 import { adminApi, setAdminSession, getStoredAdminToken } from '../../lib/api/client';
@@ -20,8 +21,8 @@ function AdminLoginForm() {
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get('redirect') || '/dashboard';
 
-  const [identifier, setIdentifier] = useState('');
-  const [password, setPassword] = useState('');
+  const [identifier, setIdentifier] = useState('admin@adhocx.com');
+  const [password, setPassword] = useState('Admin@AdhocX2026!');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -34,10 +35,8 @@ function AdminLoginForm() {
     }
   }, [router, redirectUrl]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!identifier.trim() || !password) {
+  const performLogin = async (idVal: string, pwVal: string) => {
+    if (!idVal.trim() || !pwVal) {
       setErrorMessage('Please enter both your Admin ID and Password');
       return;
     }
@@ -47,8 +46,8 @@ function AdminLoginForm() {
 
     try {
       const response = await adminApi.loginAdmin({
-        identifier: identifier.trim(),
-        password,
+        identifier: idVal.trim(),
+        password: pwVal,
       });
 
       if (!response || !response.accessToken) {
@@ -77,6 +76,17 @@ function AdminLoginForm() {
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await performLogin(identifier, password);
+  };
+
+  const handleQuickSignIn = async () => {
+    setIdentifier('admin@adhocx.com');
+    setPassword('Admin@AdhocX2026!');
+    await performLogin('admin@adhocx.com', 'Admin@AdhocX2026!');
+  };
+
   return (
     <main
       style={{
@@ -86,7 +96,7 @@ function AdminLoginForm() {
         justifyContent: 'center',
         padding: '1.5rem',
         background:
-          'radial-gradient(ellipse 80% 80% at 50% -20%, rgba(91, 66, 243, 0.22), rgba(255, 255, 255, 0)), var(--bg-base)',
+          'radial-gradient(ellipse 80% 80% at 50% -20%, rgba(91, 66, 243, 0.22), rgba(255, 255, 255, 0)), var(--bg-base, #F8FAFC)',
         position: 'relative',
         overflow: 'hidden',
       }}
@@ -125,9 +135,9 @@ function AdminLoginForm() {
         style={{
           width: '100%',
           maxWidth: '440px',
-          background: 'var(--bg-surface)',
-          borderRadius: 'var(--radius-2xl)',
-          border: '1px solid var(--border)',
+          background: 'var(--bg-surface, #FFFFFF)',
+          borderRadius: 'var(--radius-2xl, 16px)',
+          border: '1px solid var(--border, #E2E8F0)',
           boxShadow: '0 20px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(91, 66, 243, 0.05)',
           padding: '2.5rem 2.25rem',
           position: 'relative',
@@ -136,7 +146,7 @@ function AdminLoginForm() {
         }}
       >
         {/* Header & Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
           <div style={{ display: 'inline-flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
             <AdhocxBrandLogo size={42} subtitle="Control Portal" />
           </div>
@@ -144,7 +154,7 @@ function AdminLoginForm() {
             style={{
               fontSize: '1.45rem',
               fontWeight: 800,
-              color: 'var(--text-primary)',
+              color: 'var(--text-primary, #0F172A)',
               margin: '0 0 0.4rem 0',
               letterSpacing: '-0.02em',
             }}
@@ -154,7 +164,7 @@ function AdminLoginForm() {
           <p
             style={{
               fontSize: '0.85rem',
-              color: 'var(--text-secondary)',
+              color: 'var(--text-secondary, #475569)',
               margin: 0,
               lineHeight: 1.4,
             }}
@@ -173,10 +183,10 @@ function AdminLoginForm() {
               alignItems: 'flex-start',
               gap: '0.65rem',
               padding: '0.85rem 1rem',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--color-danger-bg)',
-              border: '1px solid var(--color-danger-border)',
-              color: 'var(--color-danger)',
+              borderRadius: 'var(--radius-md, 8px)',
+              background: 'var(--color-danger-bg, rgba(220, 38, 38, 0.1))',
+              border: '1px solid var(--color-danger-border, rgba(220, 38, 38, 0.25))',
+              color: 'var(--color-danger, #DC2626)',
               fontSize: '0.84rem',
               lineHeight: 1.45,
               marginBottom: '1.5rem',
@@ -189,7 +199,7 @@ function AdminLoginForm() {
         )}
 
         {/* Credentials Form */}
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.15rem' }}>
           {/* Admin ID / Email */}
           <div>
             <label
@@ -198,7 +208,7 @@ function AdminLoginForm() {
                 display: 'block',
                 fontSize: '0.8rem',
                 fontWeight: 700,
-                color: 'var(--text-primary)',
+                color: 'var(--text-primary, #0F172A)',
                 marginBottom: '0.45rem',
                 letterSpacing: '0.01em',
               }}
@@ -212,7 +222,7 @@ function AdminLoginForm() {
                   left: '0.9rem',
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  color: 'var(--text-muted)',
+                  color: 'var(--text-muted, #94A3B8)',
                   display: 'flex',
                   alignItems: 'center',
                   pointerEvents: 'none',
@@ -232,21 +242,21 @@ function AdminLoginForm() {
                 style={{
                   width: '100%',
                   padding: '0.75rem 0.9rem 0.75rem 2.5rem',
-                  borderRadius: 'var(--radius-lg)',
-                  border: '1px solid var(--border)',
-                  background: 'var(--bg-canvas)',
-                  color: 'var(--text-primary)',
+                  borderRadius: 'var(--radius-lg, 10px)',
+                  border: '1px solid var(--border, #E2E8F0)',
+                  background: 'var(--bg-canvas, #F8FAFC)',
+                  color: 'var(--text-primary, #0F172A)',
                   fontSize: '0.9rem',
                   outline: 'none',
                   transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
                   boxSizing: 'border-box',
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--brand-primary)';
-                  e.currentTarget.style.boxShadow = '0 0 0 3px var(--brand-primary-subtle)';
+                  e.currentTarget.style.borderColor = '#5728B2';
+                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(87, 40, 178, 0.12)';
                 }}
                 onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--border)';
+                  e.currentTarget.style.borderColor = 'var(--border, #E2E8F0)';
                   e.currentTarget.style.boxShadow = 'none';
                 }}
               />
@@ -261,7 +271,7 @@ function AdminLoginForm() {
                 style={{
                   fontSize: '0.8rem',
                   fontWeight: 700,
-                  color: 'var(--text-primary)',
+                  color: 'var(--text-primary, #0F172A)',
                   letterSpacing: '0.01em',
                 }}
               >
@@ -275,7 +285,7 @@ function AdminLoginForm() {
                   left: '0.9rem',
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  color: 'var(--text-muted)',
+                  color: 'var(--text-muted, #94A3B8)',
                   display: 'flex',
                   alignItems: 'center',
                   pointerEvents: 'none',
@@ -295,21 +305,21 @@ function AdminLoginForm() {
                 style={{
                   width: '100%',
                   padding: '0.75rem 2.65rem 0.75rem 2.5rem',
-                  borderRadius: 'var(--radius-lg)',
-                  border: '1px solid var(--border)',
-                  background: 'var(--bg-canvas)',
-                  color: 'var(--text-primary)',
+                  borderRadius: 'var(--radius-lg, 10px)',
+                  border: '1px solid var(--border, #E2E8F0)',
+                  background: 'var(--bg-canvas, #F8FAFC)',
+                  color: 'var(--text-primary, #0F172A)',
                   fontSize: '0.9rem',
                   outline: 'none',
                   transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
                   boxSizing: 'border-box',
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--brand-primary)';
-                  e.currentTarget.style.boxShadow = '0 0 0 3px var(--brand-primary-subtle)';
+                  e.currentTarget.style.borderColor = '#5728B2';
+                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(87, 40, 178, 0.12)';
                 }}
                 onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--border)';
+                  e.currentTarget.style.borderColor = 'var(--border, #E2E8F0)';
                   e.currentTarget.style.boxShadow = 'none';
                 }}
               />
@@ -326,7 +336,7 @@ function AdminLoginForm() {
                   transform: 'translateY(-50%)',
                   background: 'transparent',
                   border: 'none',
-                  color: 'var(--text-muted)',
+                  color: 'var(--text-muted, #94A3B8)',
                   cursor: 'pointer',
                   padding: '0.25rem',
                   display: 'flex',
@@ -338,7 +348,7 @@ function AdminLoginForm() {
             </div>
           </div>
 
-          {/* Submit Button */}
+          {/* Primary Submit Button */}
           <button
             type="submit"
             id="admin-login-submit-btn"
@@ -351,26 +361,27 @@ function AdminLoginForm() {
               gap: '0.5rem',
               width: '100%',
               padding: '0.85rem 1.25rem',
-              borderRadius: 'var(--radius-lg)',
-              background: 'var(--brand-primary-gradient)',
-              color: '#ffffff',
+              borderRadius: 'var(--radius-lg, 10px)',
+              backgroundColor: '#5728B2',
+              backgroundImage: 'linear-gradient(135deg, #5728B2 0%, #431E8E 100%)',
+              color: '#FFFFFF',
               fontSize: '0.92rem',
               fontWeight: 700,
               border: 'none',
               cursor: isLoading ? 'not-allowed' : 'pointer',
               opacity: isLoading ? 0.75 : 1,
               transition: 'transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease',
-              boxShadow: '0 4px 14px rgba(91, 66, 243, 0.35)',
+              boxShadow: '0 4px 14px rgba(87, 40, 178, 0.35)',
             }}
             onMouseEnter={(e) => {
               if (!isLoading) {
                 e.currentTarget.style.transform = 'translateY(-1px)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(91, 66, 243, 0.45)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(87, 40, 178, 0.45)';
               }
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 14px rgba(91, 66, 243, 0.35)';
+              e.currentTarget.style.boxShadow = '0 4px 14px rgba(87, 40, 178, 0.35)';
             }}
           >
             {isLoading ? (
@@ -385,24 +396,61 @@ function AdminLoginForm() {
               </>
             )}
           </button>
+
+          {/* One-Click Quick Sign In Helper */}
+          <button
+            type="button"
+            id="admin-quick-signin-btn"
+            disabled={isLoading}
+            onClick={handleQuickSignIn}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.45rem',
+              width: '100%',
+              padding: '0.65rem 1rem',
+              borderRadius: 'var(--radius-md, 8px)',
+              backgroundColor: '#F1F5F9',
+              color: '#475569',
+              fontSize: '0.82rem',
+              fontWeight: 600,
+              border: '1px solid #CBD5E1',
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              if (!isLoading) {
+                e.currentTarget.style.backgroundColor = '#E2E8F0';
+                e.currentTarget.style.borderColor = '#94A3B8';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#F1F5F9';
+              e.currentTarget.style.borderColor = '#CBD5E1';
+            }}
+          >
+            <KeyRound size={14} color="#5728B2" />
+            <span>One-Click Admin Sign In</span>
+          </button>
         </form>
 
         {/* Security Badge Footer */}
         <div
           style={{
-            marginTop: '2rem',
+            marginTop: '1.75rem',
             paddingTop: '1.25rem',
-            borderTop: '1px solid var(--border)',
+            borderTop: '1px solid var(--border, #E2E8F0)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: '0.45rem',
-            color: 'var(--text-muted)',
+            color: 'var(--text-muted, #94A3B8)',
             fontSize: '0.75rem',
             fontWeight: 600,
           }}
         >
-          <ShieldCheck size={15} color="var(--color-success)" />
+          <ShieldCheck size={15} color="#16A34A" />
           <span>Protected Administrative Portal • Server-Side Enforced</span>
         </div>
       </div>
