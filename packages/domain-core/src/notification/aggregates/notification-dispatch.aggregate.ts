@@ -113,3 +113,4 @@ export class NotificationDispatch extends AggregateRoot<string> {
     );
   }
 }
+

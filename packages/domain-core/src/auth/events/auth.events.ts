@@ -52,3 +52,4 @@ export class UserSessionRevokedEvent implements IDomainEvent {
     this.aggregateId = sessionId;
   }
 }
+

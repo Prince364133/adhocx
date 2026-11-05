@@ -14,3 +14,4 @@ export interface INotificationDispatcherPort {
   dispatch(notification: NotificationDispatch): Promise<{ success: boolean; messageId?: string; error?: string }>;
   supportsChannel(channel: NotificationChannel): boolean;
 }
+

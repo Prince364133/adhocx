@@ -36,3 +36,4 @@ export class NotificationFailedEvent implements IDomainEvent {
     this.aggregateId = dispatchId;
   }
 }
+

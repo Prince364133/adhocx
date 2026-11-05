@@ -14,3 +14,4 @@ export interface IAuthRepositoryPort {
   findUserById(userId: string): Promise<any | null>;
   findUserByIdentifier(identifier: string): Promise<any | null>;
 }
+
