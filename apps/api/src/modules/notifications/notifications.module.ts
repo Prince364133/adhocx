@@ -2,14 +2,14 @@ import { Module, Global } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { NotificationsController } from './notifications.controller';
 import { NotificationQueueService } from './notification-queue.service';
+import { Msg91Service } from './msg91.service';
 import { DatabaseModule } from '../../database/database.module';
 
 @Global()
 @Module({
   imports: [DatabaseModule],
   controllers: [NotificationsController],
-  providers: [NotificationsService, NotificationQueueService],
-  exports: [NotificationsService, NotificationQueueService],
+  providers: [NotificationsService, NotificationQueueService, Msg91Service],
+  exports: [NotificationsService, NotificationQueueService, Msg91Service],
 })
 export class NotificationsModule {}
-

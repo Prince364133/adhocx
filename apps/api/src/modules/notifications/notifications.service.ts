@@ -7,6 +7,7 @@ import { getApps, initializeApp, cert, App, ServiceAccount } from 'firebase-admi
 import { getMessaging, MulticastMessage } from 'firebase-admin/messaging';
 import { DatabaseService } from '../../database/database.service';
 import { NotificationQueueService } from './notification-queue.service';
+import { Msg91Service } from './msg91.service';
 import {
   DevicePlatform,
   NotificationType,
@@ -303,6 +304,7 @@ export class NotificationsService implements OnModuleInit {
     private readonly configService: ConfigService,
     @Optional() private readonly db?: DatabaseService,
     @Optional() private readonly queue?: NotificationQueueService,
+    @Optional() private readonly msg91Service?: Msg91Service,
   ) {}
 
   async onModuleInit() {
@@ -1483,6 +1485,15 @@ export class NotificationsService implements OnModuleInit {
     }
 
     if (phone) {
+      if (this.msg91Service) {
+        const smsResult = await this.msg91Service.sendOtp(phone, otp);
+        return {
+          success: smsResult.success,
+          channel: 'SMS',
+          messageId: smsResult.messageId,
+        };
+      }
+
       const smsText = `[AdhocX] Your authentication OTP is ${otp}. Valid for 5 minutes. Never share OTP with anyone.`;
       this.logger.log(
         `📱 [NOTIFICATION DISPATCH - SMS] To: ${phone} | Body: "${smsText}" | MsgID: ${messageId}`,
@@ -1499,10 +1510,28 @@ export class NotificationsService implements OnModuleInit {
    * Send trip verification OTP to vendor when driver arrives at pickup.
    */
   async sendTripOtp(phone: string, otp: string): Promise<void> {
+    if (this.msg91Service) {
+      await this.msg91Service.sendOtp(phone, otp);
+      return;
+    }
     const smsText = `[AdhocX] Trip OTP: ${otp}. Share this code with the driver to confirm pickup.`;
     this.logger.log(
       `📱 [NOTIFICATION - TRIP OTP] To: ${phone} | Body: "${smsText}"`,
     );
+  }
+
+  /**
+   * Admin test method to verify MSG91 SMS dispatch
+   */
+  async sendTestSms(phone: string, customOtp?: string): Promise<{ success: boolean; messageId: string; phone: string; otp: string }> {
+    const otp = customOtp || Math.floor(100000 + Math.random() * 900000).toString();
+    const result = await this.sendOtp({ phone, otp, channel: 'SMS' });
+    return {
+      success: result.success,
+      messageId: result.messageId,
+      phone,
+      otp,
+    };
   }
 
   // ─── KYC Status Alerts ──────────────────────────────────────────────────────

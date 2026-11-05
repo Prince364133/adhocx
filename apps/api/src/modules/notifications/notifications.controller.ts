@@ -158,6 +158,15 @@ export class NotificationsController {
     return this.notificationsService.sendTestPush(dto);
   }
 
+  @Post('admin/test-sms')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Send instant test SMS OTP via MSG91 (Admin Only)' })
+  async sendTestSms(@Body() body: { phone: string; otp?: string }) {
+    return this.notificationsService.sendTestSms(body.phone, body.otp);
+  }
+
   @Get('admin/campaigns')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
