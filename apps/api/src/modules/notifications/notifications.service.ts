@@ -1509,6 +1509,42 @@ export class NotificationsService implements OnModuleInit {
   /**
    * Send trip verification OTP to vendor when driver arrives at pickup.
    */
+
+  /**
+   * Send transactional SMS notification via MSG91
+   */
+  async sendSms(
+    phone: string,
+    message: string,
+    options?: { userId?: string; templateId?: string; variables?: Record<string, string> },
+  ): Promise<{ success: boolean; messageId: string }> {
+    // Check if user has disabled SMS notifications in their preferences
+    if (options?.userId && this.db) {
+      try {
+        const pref = await this.db.notificationPreference.findUnique({
+          where: { userId: options.userId },
+        });
+        if (pref && !pref.smsEnabled) {
+          this.logger.log(`🔇 [SMS SKIPPED] User ${options.userId} has disabled SMS notifications`);
+          return { success: true, messageId: 'sms_disabled_by_user' };
+        }
+      } catch (_) {}
+    }
+
+    if (this.msg91Service) {
+      if (options?.templateId) {
+        const result = await this.msg91Service.sendFlow(phone, options.templateId, options.variables || {});
+        return { success: result.success, messageId: result.messageId };
+      }
+      const result = await this.msg91Service.sendOtp(phone, message);
+      return { success: result.success, messageId: result.messageId };
+    }
+
+    const messageId = `msg_${Date.now()}`;
+    this.logger.log(`📱 [SMS NOTIFICATION DISPATCH] To: ${phone} | Body: "${message}" | MsgID: ${messageId}`);
+    return { success: true, messageId };
+  }
+
   async sendTripOtp(phone: string, otp: string): Promise<void> {
     if (this.msg91Service) {
       await this.msg91Service.sendOtp(phone, otp);

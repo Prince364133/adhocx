@@ -160,7 +160,7 @@ export class AuthService implements OnModuleInit {
   /**
    * Normalize Phone Number or Email Identifier
    */
-  private normalizeIdentifier(raw: string): { isEmail: boolean; value: string; phoneVariants?: string[] } {
+  private normalizeIdentifier(raw: string, countryCode?: string): { isEmail: boolean; value: string; phoneVariants?: string[] } {
     const trimmed = raw.trim();
     const lower = trimmed.toLowerCase();
     if (lower === 'admin' || lower === 'administrator') {
@@ -171,7 +171,18 @@ export class AuthService implements OnModuleInit {
     }
     const digitsOnly = trimmed.replaceAll(/\D/g, '');
     let formattedPhone = trimmed;
-    if (digitsOnly.length === 10) {
+
+    if (countryCode) {
+      const codeCleaned = countryCode.trim().replace(/[^\d+]/g, '');
+      const codeDigits = codeCleaned.replace('+', '');
+      const codePrefix = codeCleaned.startsWith('+') ? codeCleaned : `+${codeCleaned}`;
+
+      let nationalDigits = digitsOnly;
+      if (digitsOnly.startsWith(codeDigits) && digitsOnly.length > codeDigits.length) {
+        nationalDigits = digitsOnly.substring(codeDigits.length);
+      }
+      formattedPhone = `${codePrefix}${nationalDigits}`;
+    } else if (digitsOnly.length === 10) {
       formattedPhone = `+91${digitsOnly}`;
     } else if (!formattedPhone.startsWith('+') && digitsOnly.length > 10) {
       formattedPhone = `+${digitsOnly}`;
@@ -399,7 +410,7 @@ export class AuthService implements OnModuleInit {
       throw new BadRequestException('Either Mobile Number or Email Address is required');
     }
 
-    const { isEmail, value, phoneVariants } = this.normalizeIdentifier(rawIdentifier);
+    const { isEmail, value, phoneVariants } = this.normalizeIdentifier(rawIdentifier, dto.countryCode);
     const channel = dto.channel || (isEmail ? 'EMAIL' : 'SMS');
 
     // Check if phone or email already exists under another role (1-Account 1-Role enforcement)
@@ -484,14 +495,14 @@ export class AuthService implements OnModuleInit {
    * Verify OTP and issue JWT session tokens
    */
   async verifyOtp(dto: VerifyOtpDto): Promise<AuthResponseDto> {
-    const { requestId, phone, email, otp } = dto;
+    const { requestId, phone, email, otp, countryCode } = dto;
     const rawIdentifier = email ? email.trim().toLowerCase() : phone?.trim();
 
     if (!rawIdentifier) {
       throw new BadRequestException('Either Mobile Number or Email is required');
     }
 
-    const { isEmail, value } = this.normalizeIdentifier(rawIdentifier);
+    const { isEmail, value } = this.normalizeIdentifier(rawIdentifier, countryCode);
 
     // A 6-digit code is guessable without a limit: 5 tries per 10 minutes, then the code is voided.
     await this.enforceAttemptLimit(

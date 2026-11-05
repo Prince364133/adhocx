@@ -280,3 +280,17 @@ export enum CorporatePayoutBatchStatus {
   PAID = 'PAID',
   FAILED = 'FAILED',
 }
+
+export enum AuthChannel {
+  SMS = 'SMS',
+  EMAIL = 'EMAIL',
+  PASSWORD = 'PASSWORD',
+  SSO = 'SSO',
+}
+
+export enum NotificationChannel {
+  SMS = 'SMS',
+  EMAIL = 'EMAIL',
+  PUSH = 'PUSH',
+  IN_APP = 'IN_APP',
+}

@@ -7,6 +7,10 @@ export class RequestOtpDto {
   phone?: string;
 
   @IsOptional()
+  @IsString()
+  countryCode?: string;
+
+  @IsOptional()
   @IsEmail({}, { message: 'Invalid email address' })
   email?: string;
 
@@ -46,6 +50,10 @@ export class VerifyOtpDto {
   @IsOptional()
   @IsString()
   phone?: string;
+
+  @IsOptional()
+  @IsString()
+  countryCode?: string;
 
   @IsOptional()
   @IsEmail({}, { message: 'Invalid email address' })

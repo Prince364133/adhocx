@@ -6,4 +6,5 @@ export * from './corporate';
 export * from './marketplace';
 export * from './fleet';
 export * from './finance';
-
+export * from './auth';
+export * from './notification';

@@ -84,6 +84,21 @@ describe('AuthService Unit Tests', () => {
     expect(redis.set).toHaveBeenCalled();
   });
 
+  it('should request SMS OTP with separate country code and phone number', async () => {
+    const result = await service.requestOtp({
+      countryCode: '+91',
+      phone: '9876543210',
+      channel: 'SMS',
+    });
+    expect(result).toBeDefined();
+    expect(notifications.sendOtp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        phone: '+919876543210',
+        channel: 'SMS',
+      }),
+    );
+  });
+
   it('should reject OTP request when rate limit is exceeded', async () => {
     redis.checkRateLimit.mockResolvedValueOnce({ allowed: false, remaining: 0, resetAfter: 600 });
     await expect(service.requestOtp({ phone: '+919876543210' })).rejects.toThrow(BadRequestException);
