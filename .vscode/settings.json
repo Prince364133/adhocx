@@ -1,5 +1,12 @@
 {
   "git.ignoredRepositories": [
     ".claude"
-  ]
+  ],
+  "dart.flutterHotReloadOnSave": "always",
+  "dart.flutterHotRestartOnSave": "always",
+  "dart.hotReloadOnSave": "always",
+  "dart.hotReloadProgress": "notification",
+  "dart.openDevTools": "flutter",
+  "liveServer.settings.donotShowInfoMsg": true,
+  "liveServer.settings.port": 7005
 }

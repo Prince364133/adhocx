@@ -1,11 +1,24 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "employee_app",
+            "name": "employee_app (Chrome - Hot Reload)",
+            "cwd": "apps\\employee_app",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "chrome",
+            "args": ["--web-port", "7005"]
+        },
+        {
+            "name": "employee_app (Web Server)",
+            "cwd": "apps\\employee_app",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "web-server",
+            "args": ["--web-port", "7005"]
+        },
+        {
+            "name": "employee_app (Mobile/Default)",
             "cwd": "apps\\employee_app",
             "request": "launch",
             "type": "dart"
@@ -25,7 +38,15 @@
             "flutterMode": "release"
         },
         {
-            "name": "mobile",
+            "name": "mobile (Chrome - Hot Reload)",
+            "cwd": "apps\\mobile",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "chrome",
+            "args": ["--web-port", "7003"]
+        },
+        {
+            "name": "mobile (Default)",
             "cwd": "apps\\mobile",
             "request": "launch",
             "type": "dart"
