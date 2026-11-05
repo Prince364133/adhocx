@@ -1,12 +1,12 @@
 /**
- * Corporate portal API client. Same base-URL resolution, bearer auth and `{ success, data }`
- * envelope unwrapping as apps/admin (lib/api/client.ts) and apps/ops (lib/api/opsClient.ts).
+ * Corporate portal API client with Silent Refresh Token Rotation.
  *
- * 401 => session is gone: clear it and go to /login.
- * 403 => the role or office scope lacks access: surfaced to the screen as ApiError(403) so it can
- *        render its "unauthorized" state. The session is NOT cleared (unlike admin).
+ * 401 => Attempt silent refresh via /api/v1/auth/refresh-token.
+ *        If refresh succeeds, replay original request seamlessly.
+ *        If refresh fails or token is revoked, redirect to /login.
+ * 403 => Role/Scope lacked permission: surfaced as ApiError(403).
  */
-import { clearSession, getStoredToken } from '../auth/session';
+import { clearSession, getStoredToken, getStoredRefreshToken, updateTokens } from '../auth/session';
 
 export function getApiBaseUrl(): string {
   if (process.env.NEXT_PUBLIC_API_URL) {
@@ -21,7 +21,7 @@ export function getApiBaseUrl(): string {
       return '/api/v1';
     }
 
-    if (port === '7005' || host === 'localhost' || host === '127.0.0.1' || /^(\d{1,3}\.){3}\d{1,3}$/.test(host)) {
+    if (port === '7005' || port === '7006' || host === 'localhost' || host === '127.0.0.1' || /^(\d{1,3}\.){3}\d{1,3}$/.test(host)) {
       return `${window.location.protocol}//${host}:7001/api/v1`;
     }
 
@@ -53,6 +53,8 @@ type RequestOptions = {
   formData?: FormData;
   /** Skip the 401 redirect (login calls). */
   anonymous?: boolean;
+  /** Internal flag preventing infinite retry loops */
+  _retry?: boolean;
 };
 
 function errorMessage(status: number, body: any): string {
@@ -73,6 +75,42 @@ function handleAuthFailure(status: number, anonymous?: boolean) {
   }
 }
 
+let isRefreshing = false;
+let refreshSubscribers: ((token: string | null) => void)[] = [];
+
+function subscribeTokenRefresh(cb: (token: string | null) => void) {
+  refreshSubscribers.push(cb);
+}
+
+function onRefreshed(token: string | null) {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = getStoredRefreshToken();
+  if (!refreshToken) return null;
+
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!res.ok) return null;
+    const json = await res.json();
+    const data = json.data || json;
+    if (data?.accessToken) {
+      updateTokens(data.accessToken, data.refreshToken || refreshToken);
+      return data.accessToken;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 async function rawFetch(endpoint: string, options: RequestOptions, accept?: string): Promise<Response> {
   const headers: Record<string, string> = {};
   if (!options.formData) headers['Content-Type'] = 'application/json';
@@ -89,6 +127,29 @@ async function rawFetch(endpoint: string, options: RequestOptions, accept?: stri
     });
   } catch {
     throw new ApiError(0, errorMessage(0, null));
+  }
+
+  // Handle 401 with Silent Refresh Token Rotation
+  if (response.status === 401 && !options.anonymous && !options._retry) {
+    if (!isRefreshing) {
+      isRefreshing = true;
+      const newToken = await refreshAccessToken();
+      isRefreshing = false;
+
+      if (newToken) {
+        onRefreshed(newToken);
+        return rawFetch(endpoint, { ...options, _retry: true }, accept);
+      } else {
+        onRefreshed(null);
+        handleAuthFailure(401, options.anonymous);
+      }
+    } else {
+      // Queue concurrent requests while token is refreshing
+      const queuedToken = await new Promise<string | null>((resolve) => subscribeTokenRefresh(resolve));
+      if (queuedToken) {
+        return rawFetch(endpoint, { ...options, _retry: true }, accept);
+      }
+    }
   }
 
   if (!response.ok) {

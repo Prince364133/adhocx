@@ -59,6 +59,24 @@ export function getStoredToken(): string | null {
   }
 }
 
+export function getStoredRefreshToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return localStorage.getItem(REFRESH_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function updateTokens(accessToken: string, refreshToken?: string): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(TOKEN_KEY, accessToken);
+  if (refreshToken) localStorage.setItem(REFRESH_KEY, refreshToken);
+  const claims = decodeToken(accessToken);
+  const maxAge = claims?.exp ? Math.max(0, claims.exp - Math.floor(Date.now() / 1000)) : 7 * 24 * 3600;
+  document.cookie = `${SESSION_COOKIE}=${encodeURIComponent(accessToken)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+}
+
 export function getStoredUser(): SessionUser | null {
   if (typeof window === 'undefined') return null;
   try {
@@ -96,4 +114,8 @@ export const PORTAL_USER_ROLES = ['CORPORATE_ADMIN', 'CORPORATE_MANAGER'] as con
 
 export function isPortalRole(role: string | undefined | null): boolean {
   return !!role && (PORTAL_USER_ROLES as readonly string[]).includes(role.toUpperCase());
+}
+
+export function getSessionClaims(): TokenClaims | null {
+  return decodeToken(getStoredToken());
 }

@@ -132,6 +132,8 @@ export const employeeApi = {
     }),
 };
 
+export const employeesApi = employeeApi;
+
 export const rosterApi = {
   downloadTemplate: () => apiDownload('/corporate/rosters/template', 'AdhocX_Corporate_Roster_Template.xlsx'),
   validate: (tenantId: string, file: File) => {
