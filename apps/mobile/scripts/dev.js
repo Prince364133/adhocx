@@ -8,16 +8,40 @@ console.log('⚡ Initializing AdhocX Mobile Driver & Vendor Application...');
 function findFlutterExecutable() {
   const isWindows = process.platform === 'win32';
   const flutterName = isWindows ? 'flutter.bat' : 'flutter';
-
   const userProfile = process.env.USERPROFILE || process.env.HOME || '';
+  const localAppData = process.env.LOCALAPPDATA || path.join(userProfile, 'AppData', 'Local');
+
+  // 1. Check environment variables
+  if (process.env.FLUTTER_ROOT && fs.existsSync(path.join(process.env.FLUTTER_ROOT, 'bin', flutterName))) {
+    return path.join(process.env.FLUTTER_ROOT, 'bin', flutterName);
+  }
+  if (process.env.FLUTTER_HOME && fs.existsSync(path.join(process.env.FLUTTER_HOME, 'bin', flutterName))) {
+    return path.join(process.env.FLUTTER_HOME, 'bin', flutterName);
+  }
+
+  // 2. Check PATH
+  try {
+    const checkCmd = isWindows ? `where.exe ${flutterName}` : `which ${flutterName}`;
+    const res = require('child_process').execSync(checkCmd, { stdio: 'pipe' }).toString().trim();
+    if (res) {
+      const firstLine = res.split(/\r?\n/)[0].trim();
+      if (firstLine && fs.existsSync(firstLine)) return firstLine;
+    }
+  } catch (e) {}
+
+  // 3. Dynamic search across common locations on any machine
   const candidates = [
-    path.join(userProfile, 'flutter_sdk', 'bin', flutterName),
     path.join(userProfile, 'flutter', 'bin', flutterName),
-    path.join('C:', 'Users', 'vaishali', 'flutter_sdk', 'bin', flutterName),
-    path.join('C:', 'Users', 'saavi', 'flutter_sdk', 'bin', flutterName),
+    path.join(userProfile, 'flutter_sdk', 'bin', flutterName),
+    path.join(userProfile, 'AppData', 'Local', 'flutter', 'bin', flutterName),
+    path.join(userProfile, 'development', 'flutter', 'bin', flutterName),
+    path.join(userProfile, 'Documents', 'flutter', 'bin', flutterName),
+    path.join(localAppData, 'Programs', 'flutter', 'bin', flutterName),
     path.join('C:', 'flutter', 'bin', flutterName),
     path.join('C:', 'src', 'flutter', 'bin', flutterName),
     path.join('C:', 'tools', 'flutter', 'bin', flutterName),
+    path.join('D:', 'flutter', 'bin', flutterName),
+    path.join('D:', 'src', 'flutter', 'bin', flutterName),
   ];
 
   for (const candidate of candidates) {
@@ -25,13 +49,6 @@ function findFlutterExecutable() {
       return candidate;
     }
   }
-
-  // Check PATH
-  try {
-    const checkCmd = isWindows ? `where.exe ${flutterName}` : `which ${flutterName}`;
-    const res = require('child_process').execSync(checkCmd, { stdio: 'pipe' }).toString().trim();
-    if (res) return res.split(/\r?\n/)[0];
-  } catch (e) {}
 
   return null;
 }
@@ -42,10 +59,10 @@ const libDir = path.join(mobileDir, 'lib');
 const webDir = path.join(mobileDir, 'web');
 const PORT = parseInt(process.env.PORT || '7003', 10);
 
-const userProfile = process.env.USERPROFILE || 'C:\\Users\\vaishali';
+const userProfile = process.env.USERPROFILE || process.env.HOME || '';
 const localAppData = process.env.LOCALAPPDATA || path.join(userProfile, 'AppData', 'Local');
 const androidHome = process.env.ANDROID_HOME || path.join(localAppData, 'Android', 'Sdk');
-const javaHome = process.env.JAVA_HOME || 'C:\\Program Files\\Android\\Android Studio\\jbr';
+const javaHome = process.env.JAVA_HOME || '';
 const pubCache = process.env.PUB_CACHE || path.join(localAppData, 'Pub', 'Cache');
 
 if (flutterCmd) {
@@ -95,6 +112,16 @@ if (flutterCmd) {
 
   child.on('error', (err) => console.log('Driver App Process Notice:', err.message));
 } else {
+  console.warn(`========================================================================`);
+  console.warn(`⚠️  NOTICE: FLUTTER SDK WAS NOT DETECTED ON THIS COMPUTER!`);
+  console.warn(`------------------------------------------------------------------------`);
+  console.warn(`Node.js is running the static fallback server on http://localhost:${PORT}`);
+  console.warn(`To run the REAL native Flutter mobile app:`);
+  console.warn(`  1. Install Flutter: https://docs.flutter.dev/get-started/install`);
+  console.warn(`  2. Add Flutter's bin directory to your environment PATH`);
+  console.warn(`  3. Run: pnpm --filter @adhocx/mobile run dev`);
+  console.warn(`========================================================================\n`);
+
   // Standalone server on port 7003
   startStandaloneServer();
   startWatcher((filePath) => {

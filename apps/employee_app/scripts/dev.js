@@ -1,4 +1,4 @@
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
@@ -14,14 +14,39 @@ function findFlutterExecutable() {
   const isWindows = process.platform === 'win32';
   const flutterName = isWindows ? 'flutter.bat' : 'flutter';
   const userProfile = process.env.USERPROFILE || process.env.HOME || '';
+  const localAppData = process.env.LOCALAPPDATA || path.join(userProfile, 'AppData', 'Local');
+
+  // 1. Check environment variables
+  if (process.env.FLUTTER_ROOT && fs.existsSync(path.join(process.env.FLUTTER_ROOT, 'bin', flutterName))) {
+    return path.join(process.env.FLUTTER_ROOT, 'bin', flutterName);
+  }
+  if (process.env.FLUTTER_HOME && fs.existsSync(path.join(process.env.FLUTTER_HOME, 'bin', flutterName))) {
+    return path.join(process.env.FLUTTER_HOME, 'bin', flutterName);
+  }
+
+  // 2. Check PATH via system command
+  try {
+    const checkCmd = isWindows ? `where.exe ${flutterName}` : `which ${flutterName}`;
+    const res = execSync(checkCmd, { stdio: 'pipe' }).toString().trim();
+    if (res) {
+      const firstLine = res.split(/\r?\n/)[0].trim();
+      if (firstLine && fs.existsSync(firstLine)) return firstLine;
+    }
+  } catch (e) {}
+
+  // 3. Check common installation directories
   const candidates = [
-    path.join(userProfile, 'flutter_sdk', 'bin', flutterName),
     path.join(userProfile, 'flutter', 'bin', flutterName),
-    path.join('C:', 'Users', 'vaishali', 'flutter_sdk', 'bin', flutterName),
-    path.join('C:', 'Users', 'saavi', 'flutter_sdk', 'bin', flutterName),
+    path.join(userProfile, 'flutter_sdk', 'bin', flutterName),
+    path.join(userProfile, 'AppData', 'Local', 'flutter', 'bin', flutterName),
+    path.join(userProfile, 'development', 'flutter', 'bin', flutterName),
+    path.join(userProfile, 'Documents', 'flutter', 'bin', flutterName),
+    path.join(localAppData, 'Programs', 'flutter', 'bin', flutterName),
     path.join('C:', 'flutter', 'bin', flutterName),
     path.join('C:', 'src', 'flutter', 'bin', flutterName),
     path.join('C:', 'tools', 'flutter', 'bin', flutterName),
+    path.join('D:', 'flutter', 'bin', flutterName),
+    path.join('D:', 'src', 'flutter', 'bin', flutterName),
   ];
 
   for (const candidate of candidates) {
@@ -30,18 +55,13 @@ function findFlutterExecutable() {
     }
   }
 
-  try {
-    const checkCmd = isWindows ? `where.exe ${flutterName}` : `which ${flutterName}`;
-    const res = require('child_process').execSync(checkCmd, { stdio: 'pipe' }).toString().trim();
-    if (res) return res.split(/\r?\n/)[0];
-  } catch (e) {}
-
   return null;
 }
 
 const flutterCmd = findFlutterExecutable();
 const args = process.argv.slice(2);
 const runOnAndroid = args.includes('--android');
+const runOnChrome = args.includes('--chrome');
 
 if (flutterCmd) {
   const flutterBinDir = path.dirname(flutterCmd);
@@ -50,27 +70,32 @@ if (flutterCmd) {
   const extraPaths = [flutterBinDir, dartSdkBinDir].filter(Boolean).join(pathSeparator);
   const childPath = extraPaths ? `${extraPaths}${pathSeparator}${process.env.PATH || ''}` : (process.env.PATH || '');
 
-  const userProfile = process.env.USERPROFILE || 'C:\\Users\\vaishali';
+  const userProfile = process.env.USERPROFILE || process.env.HOME || '';
   const localAppData = process.env.LOCALAPPDATA || path.join(userProfile, 'AppData', 'Local');
   const androidHome = process.env.ANDROID_HOME || path.join(localAppData, 'Android', 'Sdk');
-  const javaHome = process.env.JAVA_HOME || 'C:\\Program Files\\Android\\Android Studio\\jbr';
 
   const childEnv = {
     ...process.env,
     USERPROFILE: userProfile,
     LOCALAPPDATA: localAppData,
     ANDROID_HOME: androidHome,
-    JAVA_HOME: javaHome,
     PATH: childPath,
   };
 
   const isWindows = process.platform === 'win32';
   const execFile = isWindows ? 'cmd.exe' : flutterCmd;
+  
+  let targetDevice = 'web-server';
+  if (runOnAndroid) targetDevice = 'android';
+  else if (runOnChrome) targetDevice = 'chrome';
+
   const execArgs = runOnAndroid
     ? (isWindows ? ['/c', flutterCmd, 'run', '--dart-define=API_URL=http://10.0.2.2:7001/api/v1'] : ['run', '--dart-define=API_URL=http://10.0.2.2:7001/api/v1'])
-    : (isWindows ? ['/c', flutterCmd, 'run', '-d', 'web-server', '--web-port', String(PORT), '--web-hostname', 'localhost'] : ['run', '-d', 'web-server', '--web-port', String(PORT), '--web-hostname', 'localhost']);
+    : (isWindows ? ['/c', flutterCmd, 'run', '-d', targetDevice, '--web-port', String(PORT), '--web-hostname', 'localhost'] : ['run', '-d', targetDevice, '--web-port', String(PORT), '--web-hostname', 'localhost']);
 
-  console.log(runOnAndroid ? '📱 Running on Android...' : `🌐 Starting Flutter Web on http://localhost:${PORT}...`);
+  console.log(`🚀 Found Flutter at: ${flutterCmd}`);
+  console.log(runOnAndroid ? '📱 Running on Android...' : `🌐 Starting Flutter Web (${targetDevice}) on http://localhost:${PORT}...`);
+  
   spawn(execFile, execArgs, {
     cwd: APP_DIR,
     stdio: 'inherit',
@@ -78,6 +103,16 @@ if (flutterCmd) {
     env: childEnv,
   });
 } else {
+  console.warn(`========================================================================`);
+  console.warn(`⚠️  NOTICE: FLUTTER SDK WAS NOT DETECTED ON THIS COMPUTER!`);
+  console.warn(`------------------------------------------------------------------------`);
+  console.warn(`Node.js is running the static fallback preview on http://localhost:${PORT}`);
+  console.warn(`To run the REAL native Flutter app (with all 108 screens):`);
+  console.warn(`  1. Install Flutter: https://docs.flutter.dev/get-started/install`);
+  console.warn(`  2. Add Flutter's bin directory to your environment PATH`);
+  console.warn(`  3. Run: pnpm --filter @adhocx/employee-app run dev:chrome`);
+  console.warn(`     or: cd apps/employee_app && flutter run -d chrome`);
+  console.warn(`========================================================================\n`);
   startAppServer();
 }
 
@@ -125,10 +160,9 @@ function startAppServer() {
 
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`======================================================`);
-    console.log(`🚀 ADHOCX EMPLOYEE MOBILE APP RUNNING ON PORT ${PORT}`);
-    console.log(`🌐 Local URL:     http://localhost:${PORT}`);
-    console.log(`📱 Native Android: com.adhocx.employee (107 Screens)`);
-    console.log(`⚡ Mock Data:     Loaded from assets/data/mock_data.json`);
+    console.log(`ℹ️  ADHOCX STATIC FALLBACK PREVIEW RUNNING ON PORT ${PORT}`);
+    console.log(`🌐 Fallback URL: http://localhost:${PORT}`);
+    console.log(`⚡ Mock Data:   Loaded from assets/data/mock_data.json`);
     console.log(`======================================================`);
   });
 
@@ -143,7 +177,6 @@ function startWatcher() {
         console.log(`🔥 [Auto-Watcher] Change detected in: lib/${filename}`);
       }
     });
-    console.log('👀 Real-time file watcher active: saves in lib/ monitored!');
   } catch (err) {}
 }
 
@@ -158,13 +191,13 @@ function generateAppHtml(mockData) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AdhocX Employee — Port ${PORT}</title>
+  <title>AdhocX Employee — Fallback Preview (Port ${PORT})</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     :root {
-      --primary: #5728B2;
+      --primary: #1167EE;
       --secondary: #FF5F09;
       --navy: #010D2D;
       --surface: #F8FAFC;
@@ -186,10 +219,22 @@ function generateAppHtml(mockData) {
       justify-content: center;
       padding: 20px;
     }
+    .warning-banner {
+      background: #DC2626;
+      color: #FFFFFF;
+      padding: 12px 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      max-width: 440px;
+      text-align: center;
+      font-size: 13px;
+      line-height: 1.4;
+      box-shadow: 0 4px 20px rgba(220,38,38,0.4);
+    }
     .phone-frame {
       width: 390px;
       height: 780px;
-      max-height: 90vh;
+      max-height: 85vh;
       background: var(--surface);
       border-radius: 44px;
       box-shadow: 0 25px 60px rgba(0,0,0,0.7), 0 0 0 10px #1E293B;
@@ -270,9 +315,11 @@ function generateAppHtml(mockData) {
   </style>
 </head>
 <body>
-  <div style="margin-bottom:16px;text-align:center;">
-    <div style="font-size:18px;font-weight:900;">Adhoc<span style="color:#FF5F09;">X</span> Employee Commuter App</div>
-    <div style="font-size:12px;color:#94A3B8;margin-top:4px;">Port ${PORT} • Package: <code>com.adhocx.employee</code> • 107 Native Screens</div>
+  <div class="warning-banner">
+    <strong>⚠️ Flutter SDK Not Detected</strong><br>
+    This is a static HTML fallback preview.<br>
+    To run the real Flutter application with all 108 screens, install Flutter and run:
+    <div style="background:rgba(0,0,0,0.25);margin-top:6px;padding:4px 8px;border-radius:6px;font-family:monospace;font-size:11px;">flutter run -d chrome --web-port ${PORT}</div>
   </div>
 
   <div class="phone-frame">
