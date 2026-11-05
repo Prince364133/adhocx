@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 7005",
+    "dev": "next dev --port 7006",
     "build": "next build",
-    "start": "next start --port 7005",
+    "start": "next start --port 7006",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit"
   },

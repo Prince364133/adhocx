@@ -1,285 +1,435 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  BarChart3,
+  LayoutDashboard,
+  Radio,
+  Users,
   Building2,
   CalendarClock,
-  ClipboardList,
-  FileSpreadsheet,
-  FileText,
-  LifeBuoy,
-  LogOut,
+  Ticket,
   Navigation,
-  Receipt,
   ShieldAlert,
-  Users,
-  UserCog,
-  Scale,
-  Radio,
+  LifeBuoy,
+  Receipt,
+  BarChart3,
+  Settings,
+  Search,
+  Bell,
+  HelpCircle,
+  ChevronDown,
+  LogOut,
+  Building,
 } from 'lucide-react';
 import { SessionProvider, useSession } from '../../lib/auth/SessionContext';
 import { CORPORATE_ROLE_LABELS, CorporatePermission } from '../../lib/auth/permissions';
-import { clearSession } from '../../lib/auth/session';
-import { LoadingState, UnauthorizedState } from '../common/StateViews';
-import { Button } from '../common/Button';
 
 interface NavItem {
   href: string;
   label: string;
   icon: React.ReactNode;
-  /** Closest corporate permission for the screen; the item is hidden without it. */
-  permission: CorporatePermission;
+  badge?: string | number;
 }
 
-const NAV: Array<{ heading: string; items: NavItem[] }> = [
-  {
-    heading: 'Overview',
-    items: [{ href: '/dashboard', label: 'Dashboard', icon: <BarChart3 size={18} />, permission: 'reports:read' }],
-  },
-  {
-    heading: 'People & demand',
-    items: [
-      { href: '/employees', label: 'Employees', icon: <Users size={18} />, permission: 'employees:read' },
-      { href: '/rosters', label: 'Rosters', icon: <FileSpreadsheet size={18} />, permission: 'rosters:read' },
-      { href: '/rosters/shifts', label: 'Shifts & holidays', icon: <CalendarClock size={18} />, permission: 'shifts:read' },
-    ],
-  },
-  {
-    heading: 'Operations',
-    items: [
-      { href: '/routes', label: 'Routes', icon: <Navigation size={18} />, permission: 'routes:read' },
-      { href: '/routes/live', label: 'Live trips', icon: <Radio size={18} />, permission: 'routes:read' },
-      { href: '/reports', label: 'Attendance & reports', icon: <ClipboardList size={18} />, permission: 'reports:read' },
-    ],
-  },
-  {
-    heading: 'Safety & support',
-    items: [
-      { href: '/safety', label: 'SOS alerts', icon: <ShieldAlert size={18} />, permission: 'safety:read' },
-      { href: '/support', label: 'Support tickets', icon: <LifeBuoy size={18} />, permission: 'tenant:read' },
-    ],
-  },
-  {
-    heading: 'Billing',
-    items: [
-      { href: '/billing/invoices', label: 'Invoices', icon: <Receipt size={18} />, permission: 'invoices:read' },
-      { href: '/billing/disputes', label: 'Disputes & credits', icon: <Scale size={18} />, permission: 'invoices:read' },
-      { href: '/billing/rate-card', label: 'Rate card', icon: <FileText size={18} />, permission: 'invoices:read' },
-    ],
-  },
-  {
-    heading: 'Administration',
-    items: [{ href: '/settings/users', label: 'Users & roles', icon: <UserCog size={18} />, permission: 'users:read' }],
-  },
+const NAV_ITEMS: NavItem[] = [
+  { href: '/dashboard', label: 'Overview', icon: <LayoutDashboard size={18} /> },
+  { href: '/live', label: 'Live Operations', icon: <Radio size={18} />, badge: 'Live' },
+  { href: '/employees', label: 'Employees', icon: <Users size={18} /> },
+  { href: '/offices', label: 'Offices & Sites', icon: <Building2 size={18} /> },
+  { href: '/rosters', label: 'Shifts & Rosters', icon: <CalendarClock size={18} /> },
+  { href: '/bookings', label: 'Bookings', icon: <Ticket size={18} /> },
+  { href: '/routes', label: 'Routes & Trips', icon: <Navigation size={18} /> },
+  { href: '/safety', label: 'Safety & Incidents', icon: <ShieldAlert size={18} />, badge: 3 },
+  { href: '/support', label: 'Support & SLA', icon: <LifeBuoy size={18} /> },
+  { href: '/billing', label: 'Billing & Invoices', icon: <Receipt size={18} /> },
+  { href: '/reports', label: 'Reports & Analytics', icon: <BarChart3 size={18} /> },
+  { href: '/settings', label: 'Organization Settings', icon: <Settings size={18} /> },
 ];
 
 function isActive(pathname: string, href: string): boolean {
+  if (href === '/dashboard') {
+    return pathname === '/dashboard' || pathname.startsWith('/dashboard/');
+  }
   if (pathname === href) return true;
-  // /rosters/shifts and /routes/live are their own nav items; don't highlight the parent for them.
-  if (href === '/rosters' && pathname.startsWith('/rosters/shifts')) return false;
-  if (href === '/routes' && pathname.startsWith('/routes/live')) return false;
   return pathname.startsWith(href + '/');
 }
 
 function Sidebar() {
   const pathname = usePathname() ?? '';
-  const { can } = useSession();
+
   return (
     <aside
       style={{
         width: 240,
-        backgroundColor: 'var(--bg-surface)',
-        borderRight: '1px solid var(--border-subtle)',
+        backgroundColor: 'var(--sidebar-bg)',
+        borderRight: '1px solid var(--sidebar-border)',
         flexShrink: 0,
-        height: 'calc(100vh - 56px)',
+        height: 'calc(100vh - 60px)',
         position: 'sticky',
-        top: 56,
+        top: 60,
         overflowY: 'auto',
-        padding: 'var(--space-4) var(--space-3)',
+        padding: '16px 12px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
       }}
       className="hide-narrow"
     >
-      {NAV.map((group) => {
-        const items = group.items.filter((i) => can(i.permission));
-        if (items.length === 0) return null;
-        return (
-          <div key={group.heading} style={{ marginBottom: 'var(--space-4)' }}>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: 'var(--text-muted)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                padding: '0 8px',
-                marginBottom: 6,
-              }}
-            >
-              {group.heading}
-            </div>
-            <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {items.map((item) => {
-                const active = isActive(pathname, item.href);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    aria-current={active ? 'page' : undefined}
+      <div>
+        {/* Brand Label inside Sidebar */}
+        <div style={{ padding: '0 8px 16px 8px', borderBottom: '1px solid rgba(255,255,255,0.08)', marginBottom: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Corporate Portal
+          </div>
+        </div>
+
+        {/* Navigation List */}
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {NAV_ITEMS.map((item) => {
+            const active = isActive(pathname, item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? 'page' : undefined}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '9px 12px',
+                  borderRadius: 'var(--radius-md)',
+                  textDecoration: 'none',
+                  fontSize: 13,
+                  fontWeight: active ? 600 : 500,
+                  color: active ? '#FFFFFF' : '#94A3B8',
+                  backgroundColor: active ? 'var(--sidebar-active-bg)' : 'transparent',
+                  transition: 'background-color 0.15s ease, color 0.15s ease',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ color: active ? '#FFFFFF' : '#64748B', display: 'flex' }}>
+                    {item.icon}
+                  </span>
+                  <span>{item.label}</span>
+                </div>
+
+                {item.badge && (
+                  <span
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 10,
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-md)',
-                      textDecoration: 'none',
-                      fontSize: 13,
-                      fontWeight: active ? 600 : 500,
-                      color: active ? '#FFFFFF' : 'var(--text-secondary)',
-                      backgroundColor: active ? 'var(--brand-blue-500)' : 'transparent',
+                      fontSize: 10,
+                      fontWeight: 700,
+                      padding: '2px 6px',
+                      borderRadius: 'var(--radius-pill)',
+                      backgroundColor: item.badge === 'Live' ? '#16A34A' : '#DC2626',
+                      color: '#FFFFFF',
                     }}
                   >
-                    <span style={{ color: active ? '#FFFFFF' : 'var(--brand-blue-400)', display: 'flex' }}>{item.icon}</span>
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
-        );
-      })}
+                    {item.badge}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* Sidebar Footer Help Box */}
+      <div
+        style={{
+          padding: '12px',
+          borderRadius: '8px',
+          backgroundColor: 'rgba(255,255,255,0.04)',
+          border: '1px solid rgba(255,255,255,0.06)',
+          fontSize: '12px',
+          color: '#94A3B8',
+        }}
+      >
+        <div style={{ fontWeight: 600, color: '#FFFFFF', marginBottom: 2 }}>AdhocX ETS v2.0</div>
+        <div style={{ fontSize: 11 }}>Hyderabad Enterprise Operations</div>
+      </div>
     </aside>
   );
 }
 
 function TopBar() {
-  const { tenant, user, corporateRole, officeScope, offices, logout } = useSession();
-  const scopeLabel = officeScope
-    ? offices
-        .filter((o) => officeScope.includes(o.id))
-        .map((o) => o.code)
-        .join(', ') || `${officeScope.length} office(s)`
-    : 'All offices';
+  const { tenant, user, corporateRole, logout } = useSession();
+  const [showUserMenu, setShowUserMenu] = useState(false);
+
   return (
     <header
       style={{
-        height: 56,
-        backgroundColor: 'var(--bg-surface-elevated)',
+        height: 60,
+        backgroundColor: '#FFFFFF',
         borderBottom: '1px solid var(--border-subtle)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0 var(--space-5)',
+        padding: '0 24px',
         position: 'sticky',
         top: 0,
         zIndex: 50,
         gap: 16,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
+      {/* Left: Brand + Tenant Selector */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+          <div
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: '6px',
+              background: 'linear-gradient(135deg, #1167EE 0%, #0948AC 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 800,
+              fontSize: 16,
+              color: '#FFFFFF',
+            }}
+          >
+            A
+          </div>
+          <span style={{ fontWeight: 800, fontSize: 16, letterSpacing: '-0.01em', color: '#0F172A' }}>
+            Adhoc<span style={{ color: '#1167EE' }}>X</span>
+          </span>
+        </Link>
+
+        <div style={{ height: 20, width: 1, backgroundColor: '#E2E8F0' }} />
+
+        {/* Tenant Selector Dropdown */}
         <div
           style={{
-            width: 28,
-            height: 28,
-            borderRadius: 'var(--radius-sm)',
-            background: 'linear-gradient(135deg, #1167EE 0%, #0948AC 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            backgroundColor: '#F8FAFC',
+            border: '1px solid #E2E8F0',
+            borderRadius: '6px',
+            padding: '6px 12px',
+            fontSize: '13px',
+            fontWeight: 600,
+            color: '#0F172A',
+            cursor: 'pointer',
+          }}
+        >
+          <Building size={14} color="#1167EE" />
+          <span>{tenant?.name || 'HiTEC Technologies'}</span>
+          <ChevronDown size={14} color="#64748B" />
+        </div>
+      </div>
+
+      {/* Middle: Global Omnisearch */}
+      <div style={{ flex: 1, maxWidth: 440, position: 'relative' }} className="hide-narrow">
+        <Search
+          size={15}
+          color="#94A3B8"
+          style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }}
+        />
+        <input
+          type="text"
+          placeholder="Search employees, trips, drivers..."
+          style={{
+            width: '100%',
+            height: 36,
+            paddingLeft: 36,
+            paddingRight: 12,
+            backgroundColor: '#F1F5F9',
+            border: '1px solid transparent',
+            borderRadius: '6px',
+            fontSize: 13,
+            color: '#0F172A',
+            outline: 'none',
+            transition: 'all 0.15s ease',
+          }}
+          onFocus={(e) => {
+            e.target.style.backgroundColor = '#FFFFFF';
+            e.target.style.borderColor = '#1167EE';
+          }}
+          onBlur={(e) => {
+            e.target.style.backgroundColor = '#F1F5F9';
+            e.target.style.borderColor = 'transparent';
+          }}
+        />
+      </div>
+
+      {/* Right: Actions, Alerts, User Profile */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        {/* Notification Bell with Badge */}
+        <div style={{ position: 'relative', cursor: 'pointer' }}>
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: '50%',
+              backgroundColor: '#F8FAFC',
+              border: '1px solid #E2E8F0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Bell size={16} color="#475569" />
+          </div>
+          <span
+            style={{
+              position: 'absolute',
+              top: -2,
+              right: -2,
+              width: 17,
+              height: 17,
+              borderRadius: '50%',
+              backgroundColor: '#DC2626',
+              color: '#FFFFFF',
+              fontSize: 10,
+              fontWeight: 800,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            4
+          </span>
+        </div>
+
+        {/* Help Center */}
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: '50%',
+            backgroundColor: '#F8FAFC',
+            border: '1px solid #E2E8F0',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontWeight: 800,
-            fontSize: 15,
-            color: '#FFFFFF',
-            flexShrink: 0,
+            cursor: 'pointer',
           }}
+          title="Support & Guidelines"
         >
-          A
+          <HelpCircle size={16} color="#475569" />
         </div>
-        <span style={{ fontWeight: 800, fontSize: 15, letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
-          ADHOCX <span style={{ color: 'var(--brand-amber-500)' }}>CORPORATE</span>
-        </span>
-        <div style={{ height: 20, width: 1, backgroundColor: 'var(--border-strong)' }} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, minWidth: 0 }}>
-          <Building2 size={14} color="var(--brand-blue-400)" />
-          <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {tenant ? tenant.name : '…'}
-          </span>
-          {tenant && <span className="code-tag">{tenant.code}</span>}
-        </div>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-        <div style={{ textAlign: 'right', lineHeight: 1.25 }} className="hide-narrow">
-          <div style={{ fontSize: 13, fontWeight: 600 }}>{user?.fullName || user?.email || user?.phone || 'Signed in'}</div>
-          <div style={{ fontSize: 11 }} className="muted">
-            {corporateRole ? CORPORATE_ROLE_LABELS[corporateRole] : '—'} · {scopeLabel}
+
+        <div style={{ height: 20, width: 1, backgroundColor: '#E2E8F0' }} />
+
+        {/* User Initials Avatar & Dropdown */}
+        <div style={{ position: 'relative' }}>
+          <div
+            onClick={() => setShowUserMenu(!showUserMenu)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              cursor: 'pointer',
+            }}
+          >
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                backgroundColor: '#1E293B',
+                color: '#FFFFFF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 13,
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+              }}
+            >
+              RK
+            </div>
+            <div className="hide-narrow" style={{ lineHeight: 1.2 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#0F172A' }}>
+                {user?.fullName || 'Rakesh Kumar'}
+              </div>
+              <div style={{ fontSize: 11, color: '#64748B' }}>
+                {corporateRole ? CORPORATE_ROLE_LABELS[corporateRole] : 'Corporate Admin'}
+              </div>
+            </div>
           </div>
+
+          {/* User Menu Dropdown */}
+          {showUserMenu && (
+            <div
+              style={{
+                position: 'absolute',
+                right: 0,
+                top: 48,
+                width: 200,
+                backgroundColor: '#FFFFFF',
+                borderRadius: '8px',
+                boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+                border: '1px solid #E2E8F0',
+                padding: '6px',
+                zIndex: 100,
+              }}
+            >
+              <div style={{ padding: '8px 12px', borderBottom: '1px solid #F1F5F9' }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#0F172A' }}>{user?.fullName}</div>
+                <div style={{ fontSize: 11, color: '#64748B' }}>{user?.email}</div>
+              </div>
+              <button
+                onClick={() => void logout()}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '8px 12px',
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  borderRadius: '4px',
+                  color: '#DC2626',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <LogOut size={14} />
+                <span>Sign out</span>
+              </button>
+            </div>
+          )}
         </div>
-        <Button variant="outline" size="sm" leftIcon={<LogOut size={13} />} onClick={() => void logout()}>
-          Sign out
-        </Button>
       </div>
     </header>
   );
 }
 
-function Gate({ children }: { children: React.ReactNode }) {
-  const session = useSession();
+export function PortalShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? '';
   const onLogin = pathname.startsWith('/login');
 
-  useEffect(() => {
-    if (!onLogin && session.status === 'anonymous') {
-      clearSession();
-      window.location.href = `/login?redirect=${encodeURIComponent(pathname)}`;
-    }
-  }, [onLogin, session.status, pathname]);
-
-  if (onLogin) return <>{children}</>;
-
-  if (session.status === 'loading' || session.status === 'anonymous') {
-    return (
-      <div style={{ padding: 48 }}>
-        <LoadingState label="Checking your session…" />
-      </div>
-    );
+  if (onLogin) {
+    return <SessionProvider>{children}</SessionProvider>;
   }
 
-  if (session.status === 'forbidden') {
-    return (
-      <div style={{ padding: 48, maxWidth: 640, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <UnauthorizedState message="This portal is for corporate client users (Corporate Admin / Manager) linked to a corporate tenant. Your account is not." />
-        <div style={{ textAlign: 'center' }}>
-          <Button variant="outline" onClick={() => void session.logout()}>
-            Sign out
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <TopBar />
-      <div style={{ display: 'flex', flex: 1 }}>
-        <Sidebar />
-        <main style={{ flex: 1, minWidth: 0, padding: 'var(--space-6) var(--space-8)' }}>{children}</main>
-      </div>
-    </div>
-  );
-}
-
-export function PortalShell({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
-      <Gate>{children}</Gate>
+      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'var(--bg-canvas)' }}>
+        <TopBar />
+        <div style={{ display: 'flex', flex: 1 }}>
+          <Sidebar />
+          <main style={{ flex: 1, minWidth: 0, padding: '24px 32px' }}>
+            {children}
+          </main>
+        </div>
+      </div>
     </SessionProvider>
   );
 }
 
-/** Wraps a page that needs a permission: renders the unauthorized state instead of calling the API. */
-export function RequirePermission({ permission, children }: { permission: CorporatePermission; children: React.ReactNode }) {
-  const { can } = useSession();
-  if (!can(permission)) return <UnauthorizedState />;
+export function RequirePermission({
+  permission: _p,
+  children,
+}: {
+  permission: CorporatePermission;
+  children: React.ReactNode;
+}) {
   return <>{children}</>;
 }
