@@ -252,28 +252,10 @@ function walkAndReplace(dir) {
   }
 }
 
-// Run bulk replacement on apps, packages, docs, styles, and root html files
+// Run bulk replacement on apps, packages, docs, styles
 ['apps', 'packages', 'docs', 'styles'].forEach((dir) => {
   walkAndReplace(path.join(rootDir, dir));
 });
-
-// Also check root html files
-const rootFiles = fs.readdirSync(rootDir);
-for (const f of rootFiles) {
-  if (f.endsWith('.html')) {
-    const fullPath = path.join(rootDir, f);
-    let c = fs.readFileSync(fullPath, 'utf8');
-    let orig = c;
-    c = c.replace(/#1167EE/g, '#5728B2');
-    c = c.replace(/#1167ee/g, '#5728b2');
-    c = c.replace(/rgba\(17,\s*103,\s*238,/g, 'rgba(87, 40, 178,');
-    if (c !== orig) {
-      fs.writeFileSync(fullPath, c, 'utf8');
-      fileModifiedCount++;
-      console.log(`[Replaced Blue] -> ${f}`);
-    }
-  }
-}
 
 console.log(`\nBulk search & replace completed! Modified ${fileModifiedCount} files.`);
 

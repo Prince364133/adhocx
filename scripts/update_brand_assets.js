@@ -129,7 +129,6 @@ async function main() {
     path.join(rootDir, 'apps/mobile/assets/images'),
     path.join(rootDir, 'apps/mobile/web'),
     path.join(rootDir, 'apps/employee_app/assets/images'),
-    rootDir,
   ];
 
   // Also dist dirs if present
