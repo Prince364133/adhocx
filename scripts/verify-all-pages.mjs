@@ -19,19 +19,30 @@ const pages = [
   { name: 'Privacy', file: 'privacy.html', titleContains: 'Privacy' },
 ];
 
+const distDir = path.resolve('apps/marketing/dist');
+const baseDir = fs.existsSync(distDir) ? distDir : path.resolve('.');
+
 let allPassed = true;
 
-console.log('=== VERIFYING ALL ADHOCX MARKETING PAGES ===\n');
+console.log(`=== VERIFYING ALL ADHOCX MARKETING PAGES (Base: ${baseDir}) ===\n`);
+
+function resolvePagePath(fileName) {
+  const directPath = path.join(baseDir, fileName);
+  if (fs.existsSync(directPath)) return directPath;
+  const folderPath = path.join(baseDir, fileName.replace('.html', ''), 'index.html');
+  if (fs.existsSync(folderPath)) return folderPath;
+  return null;
+}
 
 for (const p of pages) {
-  const filePath = path.resolve(p.file);
-  if (!fs.existsSync(filePath)) {
-    console.error(`[FAIL] Missing file: ${p.file}`);
+  const resolvedPath = resolvePagePath(p.file);
+  if (!resolvedPath) {
+    console.error(`[FAIL] Missing file for ${p.name}: checked ${p.file} and nested index.html in ${baseDir}`);
     allPassed = false;
     continue;
   }
 
-  const content = fs.readFileSync(filePath, 'utf8');
+  const content = fs.readFileSync(resolvedPath, 'utf8');
 
   // Check 1: Brand Wordmark
   const hasBrand = content.includes('Adhoc<span class="logo-accent">X</span>') || content.includes('AdhocX');
@@ -78,39 +89,45 @@ for (const p of pages) {
 }
 
 // Check Drivers page has the car fleet image and NO bonus card
-const driversContent = fs.readFileSync(path.resolve('drivers.html'), 'utf8');
-if (!driversContent.includes('corporate-cab-fleet.jpg')) {
-  console.error('[FAIL] drivers.html is missing corporate-cab-fleet.jpg image!');
-  allPassed = false;
-} else {
-  console.log('[PASS] drivers.html contains verified corporate-cab-fleet.jpg visual');
-}
-
-if (driversContent.includes('driver-hero-bonus-card') || driversContent.includes('Launch Incentive')) {
-  console.error('[FAIL] drivers.html still contains driver-hero-bonus-card or Launch Incentive!');
-  allPassed = false;
-} else {
-  console.log('[PASS] drivers.html has completely removed driver-hero-bonus-card and unwanted header badges');
-}
-
-// Check Global Header links
-const indexContent = fs.readFileSync(path.resolve('index.html'), 'utf8');
-const headerLinks = ['/services', '/employee-app', '/driver-app', '/industries', '/safety', '/pricing', '/about', '/contact'];
-for (const link of headerLinks) {
-  if (!indexContent.includes(link)) {
-    console.error(`[FAIL] Global navigation missing route link: ${link}`);
+const driversPath = resolvePagePath('drivers.html');
+if (driversPath) {
+  const driversContent = fs.readFileSync(driversPath, 'utf8');
+  if (!driversContent.includes('corporate-cab-fleet.jpg')) {
+    console.error('[FAIL] drivers.html is missing corporate-cab-fleet.jpg image!');
     allPassed = false;
   } else {
-    console.log(`[PASS] Global Navigation contains: ${link}`);
+    console.log('[PASS] drivers.html contains verified corporate-cab-fleet.jpg visual');
+  }
+
+  if (driversContent.includes('driver-hero-bonus-card') || driversContent.includes('Launch Incentive')) {
+    console.error('[FAIL] drivers.html still contains driver-hero-bonus-card or Launch Incentive!');
+    allPassed = false;
+  } else {
+    console.log('[PASS] drivers.html has completely removed driver-hero-bonus-card and unwanted header badges');
   }
 }
 
-// Check AI Corporate Assistant island is mounted
-if (!indexContent.includes('CorporateAiAssistant')) {
-  console.error('[FAIL] index.html missing CorporateAiAssistant island!');
-  allPassed = false;
-} else {
-  console.log('[PASS] Corporate AI Assistant island mounted successfully');
+// Check Global Header links
+const indexPath = resolvePagePath('index.html');
+if (indexPath) {
+  const indexContent = fs.readFileSync(indexPath, 'utf8');
+  const headerLinks = ['/services', '/employee-app', '/driver-app', '/industries', '/safety', '/pricing', '/about', '/contact'];
+  for (const link of headerLinks) {
+    if (!indexContent.includes(link)) {
+      console.error(`[FAIL] Global navigation missing route link: ${link}`);
+      allPassed = false;
+    } else {
+      console.log(`[PASS] Global Navigation contains: ${link}`);
+    }
+  }
+
+  // Check AI Corporate Assistant island is mounted
+  if (!indexContent.includes('CorporateAiAssistant')) {
+    console.error('[FAIL] index.html missing CorporateAiAssistant island!');
+    allPassed = false;
+  } else {
+    console.log('[PASS] Corporate AI Assistant island mounted successfully');
+  }
 }
 
 if (allPassed) {

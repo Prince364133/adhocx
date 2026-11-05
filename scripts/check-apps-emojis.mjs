@@ -27,21 +27,11 @@ function checkDir(dir) {
 console.log('=== APPS/MARKETING ===');
 checkDir('apps/marketing/src');
 
+console.log('\n=== APPS/CORPORATE ===');
+checkDir('apps/corporate/src');
+
 console.log('\n=== APPS/ADMIN ===');
 checkDir('apps/admin/src');
 
 console.log('\n=== APPS/MOBILE/LIB ===');
 checkDir('apps/mobile/lib');
-
-console.log('\n=== ROOT HTML FILES ===');
-['index.html', 'vendors.html', 'drivers.html', 'blogs.html', 'terms.html', 'privacy.html'].forEach(f => {
-  if (fs.existsSync(f)) {
-    const lines = fs.readFileSync(f, 'utf8').split('\n');
-    lines.forEach((line, idx) => {
-      const m = line.match(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1FA70}-\u{1FAFF}]/ug);
-      if (m) {
-        console.log(`${f}:${idx+1} [${m.join(' ')}] -> ${line.trim()}`);
-      }
-    });
-  }
-});

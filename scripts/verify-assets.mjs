@@ -1,6 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 
+const distDir = path.resolve('apps/marketing/dist');
+const baseDir = fs.existsSync(distDir) ? distDir : path.resolve('.');
+
 const htmlFiles = [
   'index.html',
   'vendors.html',
@@ -12,8 +15,23 @@ const htmlFiles = [
 
 let errors = 0;
 
+function resolvePagePath(fileName) {
+  const directPath = path.join(baseDir, fileName);
+  if (fs.existsSync(directPath)) return directPath;
+  const folderPath = path.join(baseDir, fileName.replace('.html', ''), 'index.html');
+  if (fs.existsSync(folderPath)) return folderPath;
+  return null;
+}
+
 for (const htmlFile of htmlFiles) {
-  const content = fs.readFileSync(htmlFile, 'utf8');
+  const resolvedHtmlPath = resolvePagePath(htmlFile);
+  if (!resolvedHtmlPath) {
+    console.error(`[FAIL] ${htmlFile}: File not found in ${baseDir}`);
+    errors++;
+    continue;
+  }
+
+  const content = fs.readFileSync(resolvedHtmlPath, 'utf8');
   
   // Find script tags
   const scriptRegex = /<script[^>]+src=["']([^"']+)["']/g;
@@ -22,7 +40,8 @@ for (const htmlFile of htmlFiles) {
     const src = match[1];
     if (src.startsWith('http')) continue;
     const cleanPath = src.replace(/^\//, '');
-    if (!fs.existsSync(cleanPath)) {
+    const assetPath = path.join(baseDir, cleanPath);
+    if (!fs.existsSync(assetPath) && !fs.existsSync(path.resolve(cleanPath))) {
       console.error(`[FAIL] ${htmlFile}: Missing script ${cleanPath}`);
       errors++;
     }
@@ -34,7 +53,8 @@ for (const htmlFile of htmlFiles) {
     const href = match[1];
     if (href.startsWith('http')) continue;
     const cleanPath = href.replace(/^\//, '');
-    if (!fs.existsSync(cleanPath)) {
+    const assetPath = path.join(baseDir, cleanPath);
+    if (!fs.existsSync(assetPath) && !fs.existsSync(path.resolve(cleanPath))) {
       console.error(`[FAIL] ${htmlFile}: Missing css ${cleanPath}`);
       errors++;
     }
