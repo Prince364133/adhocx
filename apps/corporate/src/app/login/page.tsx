@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Building2,
@@ -15,6 +15,8 @@ import {
   AlertCircle,
   Briefcase,
   Sparkles,
+  KeyRound,
+  RotateCcw,
 } from 'lucide-react';
 import { setSession } from '../../lib/auth/session';
 import { authApi } from '../../lib/api/corporate';
@@ -58,9 +60,58 @@ function LoginContent() {
 
   const [identifier, setIdentifier] = useState('rakesh.kumar@hitec.com');
   const [password, setPassword] = useState('Admin@AdhocX2026!');
+  const [isPhoneMode, setIsPhoneMode] = useState(false);
+  const [authMode, setAuthMode] = useState<'password' | 'otp'>('password');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // OTP flow states
+  const [otpRequestId, setOtpRequestId] = useState<string | null>(null);
+  const [otpCode, setOtpCode] = useState('');
+  const [isOtpSent, setIsOtpSent] = useState(false);
+  const [countdown, setCountdown] = useState(30);
+
+  // Countdown timer for OTP resend
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isOtpSent && countdown > 0) {
+      timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [isOtpSent, countdown]);
+
+  const cleanIndianDigits = (raw: string) => {
+    let digits = raw.replace(/\D/g, '');
+    if (digits.startsWith('91') && digits.length === 12) {
+      digits = digits.substring(2);
+    } else if (digits.startsWith('0') && digits.length === 11) {
+      digits = digits.substring(1);
+    }
+    return digits;
+  };
+
+  /**
+   * Smart auto-detection on typing:
+   * Digits or + -> switch to Phone mode (+91)
+   * Letters or @ -> switch to Email mode
+   */
+  const handleIdentifierChange = (val: string) => {
+    setIdentifier(val);
+    setErrorMessage(null);
+
+    const trimmed = val.trim();
+    if (!trimmed) return;
+
+    const startsWithDigitsOrPlus = /^(\+|[0-9])/.test(trimmed);
+    const hasAlphaOrAt = /[a-zA-Z@]/.test(trimmed);
+
+    if (startsWithDigitsOrPlus && !hasAlphaOrAt && !isPhoneMode) {
+      setIsPhoneMode(true);
+    } else if (hasAlphaOrAt && isPhoneMode) {
+      setIsPhoneMode(false);
+    }
+  };
 
   const applySessionAndRedirect = (
     token: string,
@@ -80,6 +131,8 @@ function LoginContent() {
     setErrorMessage(null);
     setIdentifier(persona.email);
     setPassword('Admin@AdhocX2026!');
+    setIsPhoneMode(false);
+    setAuthMode('password');
 
     try {
       const res = await authApi.login(persona.email, 'Admin@AdhocX2026!');
@@ -131,11 +184,30 @@ function LoginContent() {
     }, 250);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  /**
+   * Password Authentication Flow
+   */
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!identifier.trim() || !password) {
-      setErrorMessage('Please enter your work email and password.');
+    let normalizedIdentifier = identifier.trim();
+    if (isPhoneMode) {
+      const digits = cleanIndianDigits(normalizedIdentifier);
+      if (digits.length !== 10) {
+        setErrorMessage('Please enter a valid 10-digit Indian mobile number.');
+        return;
+      }
+      normalizedIdentifier = `+91${digits}`;
+    } else {
+      if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(normalizedIdentifier.toLowerCase())) {
+        setErrorMessage('Please enter a valid work email address.');
+        return;
+      }
+      normalizedIdentifier = normalizedIdentifier.toLowerCase();
+    }
+
+    if (!password) {
+      setErrorMessage('Please enter your password.');
       return;
     }
 
@@ -143,7 +215,7 @@ function LoginContent() {
     setErrorMessage(null);
 
     try {
-      const res = await authApi.login(identifier.trim(), password);
+      const res = await authApi.login(normalizedIdentifier, password);
       if (res && res.accessToken) {
         applySessionAndRedirect(
           res.accessToken,
@@ -151,7 +223,7 @@ function LoginContent() {
             id: res.user?.id || 'USR-CORP-ADMIN',
             role: res.user?.role || 'CORPORATE_ADMIN',
             fullName: res.user?.fullName || 'Corporate Administrator',
-            email: res.user?.email || identifier.trim(),
+            email: res.user?.email || normalizedIdentifier,
             phone: res.user?.phone || '+91 98480 12345',
           },
           res.refreshToken,
@@ -168,6 +240,98 @@ function LoginContent() {
       } else {
         setErrorMessage(msg || 'Authentication failed. Please check your network connection.');
       }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * OTP Request Flow (Dispatches via MSG91 Flow API for SMS, SMTP for Email)
+   */
+  const handleRequestOtp = async () => {
+    let normalizedPhone: string | undefined;
+    let normalizedEmail: string | undefined;
+
+    if (isPhoneMode) {
+      const digits = cleanIndianDigits(identifier);
+      if (digits.length !== 10) {
+        setErrorMessage('Please enter a valid 10-digit Indian mobile number.');
+        return;
+      }
+      normalizedPhone = `+91${digits}`;
+    } else {
+      const email = identifier.trim().toLowerCase();
+      if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)) {
+        setErrorMessage('Please enter a valid corporate email address.');
+        return;
+      }
+      normalizedEmail = email;
+    }
+
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const res = await authApi.requestOtp({
+        phone: normalizedPhone,
+        email: normalizedEmail,
+      });
+
+      if (res && res.requestId) {
+        setOtpRequestId(res.requestId);
+        setIsOtpSent(true);
+        setCountdown(res.retryAfterSeconds || 30);
+      } else {
+        setIsOtpSent(true);
+        setCountdown(30);
+      }
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Failed to dispatch OTP. Please check the identifier or try password login.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * OTP Verify Flow
+   */
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!otpCode || otpCode.trim().length !== 6) {
+      setErrorMessage('Please enter the 6-digit OTP code.');
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const digits = cleanIndianDigits(identifier);
+      const res = await authApi.verifyOtp({
+        requestId: otpRequestId || undefined,
+        phone: isPhoneMode ? `+91${digits}` : undefined,
+        email: !isPhoneMode ? identifier.trim().toLowerCase() : undefined,
+        otp: otpCode.trim(),
+      });
+
+      if (res && res.accessToken) {
+        applySessionAndRedirect(
+          res.accessToken,
+          {
+            id: res.user?.id || 'USR-CORP-ADMIN',
+            role: res.user?.role || 'CORPORATE_ADMIN',
+            fullName: res.user?.fullName || 'Corporate Administrator',
+            email: res.user?.email || identifier.trim(),
+            phone: res.user?.phone || '+91 98480 12345',
+          },
+          res.refreshToken,
+        );
+        return;
+      }
+      throw new Error('OTP verification did not return valid session tokens.');
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Invalid or expired OTP code. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -240,7 +404,7 @@ function LoginContent() {
         }}
       >
         {/* Header & Brand Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '1.15rem' }}>
           <div
             style={{
               display: 'inline-flex',
@@ -399,194 +563,578 @@ function LoginContent() {
           </div>
         )}
 
-        {/* Credentials Form */}
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-          {/* Work Email / Phone */}
-          <div style={{ width: '100%', boxSizing: 'border-box' }}>
-            <label
-              htmlFor="corporate-identifier"
-              style={{
-                display: 'block',
-                fontSize: '0.77rem',
-                fontWeight: 700,
-                color: 'var(--text-secondary, #334155)',
-                marginBottom: '0.35rem',
-              }}
-            >
-              Work Email / Phone
-            </label>
-            <div style={{ position: 'relative', width: '100%', boxSizing: 'border-box' }}>
-              <div
-                style={{
-                  position: 'absolute',
-                  left: '0.85rem',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: 'var(--text-muted, #94A3B8)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  pointerEvents: 'none',
-                }}
-              >
-                <Mail size={15} />
-              </div>
-              <input
-                id="corporate-identifier"
-                type="text"
-                autoComplete="username"
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="name@company.com"
-                required
-                disabled={isLoading}
-                style={{
-                  width: '100%',
-                  height: 38,
-                  padding: '0 0.85rem 0 2.4rem',
-                  borderRadius: '8px',
-                  border: '1.5px solid var(--border-strong, #CBD5E1)',
-                  backgroundColor: 'var(--bg-input, #FFFFFF)',
-                  color: 'var(--text-primary, #0F172A)',
-                  fontSize: '0.84rem',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Password with Eye Visibility Toggle */}
-          <div style={{ width: '100%', boxSizing: 'border-box' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-              <label
-                htmlFor="corporate-password"
-                style={{
-                  fontSize: '0.77rem',
-                  fontWeight: 700,
-                  color: 'var(--text-secondary, #334155)',
-                }}
-              >
-                Password
-              </label>
-              <button
-                type="button"
-                onClick={() => setPassword('Admin@AdhocX2026!')}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '0.7rem',
-                  fontWeight: 600,
-                  color: '#5728B2',
-                  cursor: 'pointer',
-                  padding: 0,
-                  textDecoration: 'underline',
-                }}
-              >
-                Use Demo Password
-              </button>
-            </div>
-            <div style={{ position: 'relative', width: '100%', boxSizing: 'border-box' }}>
-              <div
-                style={{
-                  position: 'absolute',
-                  left: '0.85rem',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: 'var(--text-muted, #94A3B8)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  pointerEvents: 'none',
-                }}
-              >
-                <Lock size={15} />
-              </div>
-              <input
-                id="corporate-password"
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
-                required
-                disabled={isLoading}
-                style={{
-                  width: '100%',
-                  height: 38,
-                  padding: '0 2.3rem 0 2.4rem',
-                  borderRadius: '8px',
-                  border: '1.5px solid var(--border-strong, #CBD5E1)',
-                  backgroundColor: 'var(--bg-input, #FFFFFF)',
-                  color: 'var(--text-primary, #0F172A)',
-                  fontSize: '0.84rem',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-              />
-              <button
-                type="button"
-                id="toggle-corporate-password"
-                onClick={() => setShowPassword(!showPassword)}
-                tabIndex={-1}
-                title={showPassword ? 'Hide password' : 'Show password'}
-                style={{
-                  position: 'absolute',
-                  right: '0.65rem',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text-muted, #94A3B8)',
-                  cursor: 'pointer',
-                  padding: '0.2rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-              </button>
-            </div>
-          </div>
-
-          {/* Primary Submit Button */}
+        {/* Quick Mode Switcher Pills: Mobile (+91) vs Email */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '6px',
+            backgroundColor: 'var(--bg-surface-muted, #F1F5F9)',
+            padding: '3px',
+            borderRadius: '9px',
+            marginBottom: '0.9rem',
+          }}
+        >
           <button
-            type="submit"
-            id="corporate-login-submit-btn"
-            disabled={isLoading}
+            type="button"
+            onClick={() => {
+              setIsPhoneMode(true);
+              setErrorMessage(null);
+            }}
             style={{
-              marginTop: '0.25rem',
-              width: '100%',
-              height: 40,
-              backgroundColor: '#5728B2',
-              backgroundImage: 'linear-gradient(135deg, #5728B2 0%, #431E8E 100%)',
-              color: '#FFFFFF',
+              padding: '6px 0',
+              borderRadius: '7px',
               border: 'none',
-              borderRadius: '8px',
-              fontSize: '0.88rem',
-              fontWeight: 700,
-              cursor: isLoading ? 'not-allowed' : 'pointer',
+              backgroundColor: isPhoneMode ? 'var(--bg-surface, #FFFFFF)' : 'transparent',
+              color: isPhoneMode ? 'var(--text-primary, #0F172A)' : 'var(--text-muted, #64748B)',
+              fontWeight: isPhoneMode ? 700 : 500,
+              fontSize: '0.76rem',
+              cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '0.45rem',
-              boxShadow: '0 4px 12px rgba(87, 40, 178, 0.3)',
-              opacity: isLoading ? 0.8 : 1,
-              boxSizing: 'border-box',
+              gap: '5px',
+              boxShadow: isPhoneMode ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+              transition: 'all 0.15s ease',
             }}
           >
-            {isLoading ? (
-              <>
-                <Loader2 size={16} className="spin" />
-                <span>Signing In...</span>
-              </>
-            ) : (
-              <>
-                <span>Sign In as Corporate Admin</span>
-                <ArrowRight size={16} />
-              </>
-            )}
+            <span>🇮🇳</span>
+            <span>Mobile (+91)</span>
           </button>
-        </form>
+
+          <button
+            type="button"
+            onClick={() => {
+              setIsPhoneMode(false);
+              setErrorMessage(null);
+            }}
+            style={{
+              padding: '6px 0',
+              borderRadius: '7px',
+              border: 'none',
+              backgroundColor: !isPhoneMode ? 'var(--bg-surface, #FFFFFF)' : 'transparent',
+              color: !isPhoneMode ? 'var(--text-primary, #0F172A)' : 'var(--text-muted, #64748B)',
+              fontWeight: !isPhoneMode ? 700 : 500,
+              fontSize: '0.76rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '5px',
+              boxShadow: !isPhoneMode ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <Mail size={13} />
+            <span>Work Email</span>
+          </button>
+        </div>
+
+        {/* Credentials Form (Password Mode) */}
+        {authMode === 'password' && (
+          <form onSubmit={handlePasswordSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+            {/* Work Email / Phone Input */}
+            <div style={{ width: '100%', boxSizing: 'border-box' }}>
+              <label
+                htmlFor="corporate-identifier"
+                style={{
+                  display: 'block',
+                  fontSize: '0.77rem',
+                  fontWeight: 700,
+                  color: 'var(--text-secondary, #334155)',
+                  marginBottom: '0.35rem',
+                }}
+              >
+                {isPhoneMode ? 'Indian Mobile Number (+91)' : 'Work Email Address'}
+              </label>
+              <div style={{ position: 'relative', width: '100%', boxSizing: 'border-box' }}>
+                {isPhoneMode ? (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: '0.75rem',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      color: 'var(--text-primary, #0F172A)',
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    <span>🇮🇳</span>
+                    <span>+91</span>
+                    <span style={{ color: 'var(--border-strong, #CBD5E1)', marginLeft: '2px' }}>|</span>
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: '0.85rem',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: 'var(--text-muted, #94A3B8)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    <Mail size={15} />
+                  </div>
+                )}
+                <input
+                  id="corporate-identifier"
+                  type={isPhoneMode ? 'tel' : 'text'}
+                  autoComplete="username"
+                  value={identifier}
+                  onChange={(e) => handleIdentifierChange(e.target.value)}
+                  placeholder={isPhoneMode ? '98765 43210' : 'name@company.com'}
+                  required
+                  disabled={isLoading}
+                  style={{
+                    width: '100%',
+                    height: 38,
+                    padding: isPhoneMode ? '0 0.85rem 0 3.8rem' : '0 0.85rem 0 2.4rem',
+                    borderRadius: '8px',
+                    border: '1.5px solid var(--border-strong, #CBD5E1)',
+                    backgroundColor: 'var(--bg-input, #FFFFFF)',
+                    color: 'var(--text-primary, #0F172A)',
+                    fontSize: '0.84rem',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    letterSpacing: isPhoneMode ? '0.5px' : 'normal',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Password with Eye Visibility Toggle */}
+            <div style={{ width: '100%', boxSizing: 'border-box' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                <label
+                  htmlFor="corporate-password"
+                  style={{
+                    fontSize: '0.77rem',
+                    fontWeight: 700,
+                    color: 'var(--text-secondary, #334155)',
+                  }}
+                >
+                  Password
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setPassword('Admin@AdhocX2026!')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    color: '#5728B2',
+                    cursor: 'pointer',
+                    padding: 0,
+                    textDecoration: 'underline',
+                  }}
+                >
+                  Use Demo Password
+                </button>
+              </div>
+              <div style={{ position: 'relative', width: '100%', boxSizing: 'border-box' }}>
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: '0.85rem',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: 'var(--text-muted, #94A3B8)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  <Lock size={15} />
+                </div>
+                <input
+                  id="corporate-password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  required
+                  disabled={isLoading}
+                  style={{
+                    width: '100%',
+                    height: 38,
+                    padding: '0 2.3rem 0 2.4rem',
+                    borderRadius: '8px',
+                    border: '1.5px solid var(--border-strong, #CBD5E1)',
+                    backgroundColor: 'var(--bg-input, #FFFFFF)',
+                    color: 'var(--text-primary, #0F172A)',
+                    fontSize: '0.84rem',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <button
+                  type="button"
+                  id="toggle-corporate-password"
+                  onClick={() => setShowPassword(!showPassword)}
+                  tabIndex={-1}
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                  style={{
+                    position: 'absolute',
+                    right: '0.65rem',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-muted, #94A3B8)',
+                    cursor: 'pointer',
+                    padding: '0.2rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Toggle to OTP Sign-in */}
+            <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode('otp');
+                  setErrorMessage(null);
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#5728B2',
+                  fontSize: '0.74rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <KeyRound size={12} />
+                <span>Sign in with {isPhoneMode ? 'SMS' : 'Email'} OTP instead</span>
+              </button>
+            </div>
+
+            {/* Primary Submit Button */}
+            <button
+              type="submit"
+              id="corporate-login-submit-btn"
+              disabled={isLoading}
+              style={{
+                marginTop: '0.25rem',
+                width: '100%',
+                height: 40,
+                backgroundColor: '#5728B2',
+                backgroundImage: 'linear-gradient(135deg, #5728B2 0%, #431E8E 100%)',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '0.88rem',
+                fontWeight: 700,
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.45rem',
+                boxShadow: '0 4px 12px rgba(87, 40, 178, 0.3)',
+                opacity: isLoading ? 0.8 : 1,
+                boxSizing: 'border-box',
+              }}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 size={16} className="spin" />
+                  <span>Signing In...</span>
+                </>
+              ) : (
+                <>
+                  <span>Sign In as Corporate Admin</span>
+                  <ArrowRight size={16} />
+                </>
+              )}
+            </button>
+          </form>
+        )}
+
+        {/* OTP Authentication Flow */}
+        {authMode === 'otp' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+            {/* Identifier input */}
+            <div style={{ width: '100%', boxSizing: 'border-box' }}>
+              <label
+                htmlFor="corporate-identifier-otp"
+                style={{
+                  display: 'block',
+                  fontSize: '0.77rem',
+                  fontWeight: 700,
+                  color: 'var(--text-secondary, #334155)',
+                  marginBottom: '0.35rem',
+                }}
+              >
+                {isPhoneMode ? 'Indian Mobile Number (+91)' : 'Work Email Address'}
+              </label>
+              <div style={{ position: 'relative', width: '100%', boxSizing: 'border-box' }}>
+                {isPhoneMode ? (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: '0.75rem',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      color: 'var(--text-primary, #0F172A)',
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    <span>🇮🇳</span>
+                    <span>+91</span>
+                    <span style={{ color: 'var(--border-strong, #CBD5E1)', marginLeft: '2px' }}>|</span>
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: '0.85rem',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: 'var(--text-muted, #94A3B8)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    <Mail size={15} />
+                  </div>
+                )}
+                <input
+                  id="corporate-identifier-otp"
+                  type={isPhoneMode ? 'tel' : 'text'}
+                  autoComplete="username"
+                  value={identifier}
+                  onChange={(e) => handleIdentifierChange(e.target.value)}
+                  placeholder={isPhoneMode ? '98765 43210' : 'name@company.com'}
+                  disabled={isLoading || isOtpSent}
+                  style={{
+                    width: '100%',
+                    height: 38,
+                    padding: isPhoneMode ? '0 0.85rem 0 3.8rem' : '0 0.85rem 0 2.4rem',
+                    borderRadius: '8px',
+                    border: '1.5px solid var(--border-strong, #CBD5E1)',
+                    backgroundColor: isOtpSent ? 'var(--bg-surface-muted, #F8FAFC)' : 'var(--bg-input, #FFFFFF)',
+                    color: 'var(--text-primary, #0F172A)',
+                    fontSize: '0.84rem',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    letterSpacing: isPhoneMode ? '0.5px' : 'normal',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* If OTP not yet sent: Show Send OTP button */}
+            {!isOtpSent ? (
+              <button
+                type="button"
+                onClick={handleRequestOtp}
+                disabled={isLoading}
+                style={{
+                  width: '100%',
+                  height: 38,
+                  backgroundColor: '#5728B2',
+                  backgroundImage: 'linear-gradient(135deg, #5728B2 0%, #431E8E 100%)',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.45rem',
+                }}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 size={16} className="spin" />
+                    <span>Dispatching OTP...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Send {isPhoneMode ? 'SMS' : 'Email'} OTP</span>
+                    <ArrowRight size={15} />
+                  </>
+                )}
+              </button>
+            ) : (
+              /* If OTP sent: Show 6-digit code input & Verify button */
+              <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                <div style={{ width: '100%', boxSizing: 'border-box' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                    <label
+                      htmlFor="corporate-otp-code"
+                      style={{
+                        fontSize: '0.77rem',
+                        fontWeight: 700,
+                        color: 'var(--text-secondary, #334155)',
+                      }}
+                    >
+                      Enter 6-Digit Code
+                    </label>
+                    <span style={{ fontSize: '0.7rem', color: '#16A34A', fontWeight: 600 }}>
+                      Code sent via {isPhoneMode ? 'SMS (MSG91)' : 'Email'}
+                    </span>
+                  </div>
+                  <input
+                    id="corporate-otp-code"
+                    type="text"
+                    maxLength={6}
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                    placeholder="123456"
+                    autoFocus
+                    required
+                    style={{
+                      width: '100%',
+                      height: 42,
+                      textAlign: 'center',
+                      letterSpacing: '8px',
+                      fontSize: '1.2rem',
+                      fontWeight: 800,
+                      borderRadius: '8px',
+                      border: '2px solid #5728B2',
+                      backgroundColor: 'var(--bg-input, #FFFFFF)',
+                      color: 'var(--text-primary, #0F172A)',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsOtpSent(false);
+                      setOtpCode('');
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted, #64748B)',
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      padding: 0,
+                    }}
+                  >
+                    Change Number / Email
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleRequestOtp}
+                    disabled={countdown > 0 || isLoading}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: countdown > 0 ? 'var(--text-muted, #94A3B8)' : '#5728B2',
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      cursor: countdown > 0 ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: 0,
+                    }}
+                  >
+                    <RotateCcw size={12} />
+                    <span>{countdown > 0 ? `Resend in ${countdown}s` : 'Resend Code'}</span>
+                  </button>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading || otpCode.length !== 6}
+                  style={{
+                    width: '100%',
+                    height: 40,
+                    backgroundColor: '#16A34A',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '0.88rem',
+                    fontWeight: 700,
+                    cursor: isLoading || otpCode.length !== 6 ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.45rem',
+                    opacity: isLoading || otpCode.length !== 6 ? 0.7 : 1,
+                  }}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 size={16} className="spin" />
+                      <span>Verifying...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Verify OTP & Sign In</span>
+                      <ArrowRight size={16} />
+                    </>
+                  )}
+                </button>
+              </form>
+            )}
+
+            {/* Toggle back to Password Sign-in */}
+            <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: '0.2rem' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode('password');
+                  setIsOtpSent(false);
+                  setOtpCode('');
+                  setErrorMessage(null);
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#5728B2',
+                  fontSize: '0.74rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <Lock size={12} />
+                <span>Sign in with password instead</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Quick Demo Personas Selector */}
         <div style={{ marginTop: '1.15rem', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle, #E2E8F0)' }}>

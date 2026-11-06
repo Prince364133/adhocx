@@ -13,11 +13,14 @@ class HttpEmployeeAuthRepository implements EmployeeAuthRepository {
 
   @override
   Future<void> sendOtp(String mobileNumber) async {
-    final sanitized = mobileNumber.replaceAll(RegExp(r'\s+'), '');
+    final sanitized = mobileNumber.trim();
+    final isEmail = sanitized.contains('@');
+    final cleanPhone = sanitized.replaceAll(RegExp(r'\s+'), '');
     try {
       await _client.post('/auth/otp/request', body: {
-        'phone': sanitized,
-        'countryCode': '+91',
+        if (isEmail) 'email': sanitized.toLowerCase() else 'phone': cleanPhone,
+        'channel': isEmail ? 'EMAIL' : 'SMS',
+        if (!isEmail) 'countryCode': '+91',
         'isRegister': false,
       });
     } on ApiException catch (e) {
@@ -34,14 +37,16 @@ class HttpEmployeeAuthRepository implements EmployeeAuthRepository {
     required String mobileNumber,
     required String otp,
   }) async {
-    final cleanPhone = mobileNumber.replaceAll(RegExp(r'\s+'), '');
+    final clean = mobileNumber.trim();
+    final isEmail = clean.contains('@');
+    final cleanPhone = clean.replaceAll(RegExp(r'\s+'), '');
     final cleanOtp = otp.trim();
 
     try {
       final res = await _client.post('/auth/otp/verify', body: {
-        'phone': cleanPhone,
+        if (isEmail) 'email': clean.toLowerCase() else 'phone': cleanPhone,
         'otp': cleanOtp,
-        'countryCode': '+91',
+        if (!isEmail) 'countryCode': '+91',
       });
 
       final payload = res['data'] ?? res;

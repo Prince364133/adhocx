@@ -16,6 +16,7 @@ import {
   Compass,
 } from 'lucide-react';
 import { opsApi, setOpsSession } from '../../lib/api/opsClient';
+import { ThemeToggle } from '../../components/common/ThemeToggle';
 
 function LoginContent() {
   const router = useRouter();
@@ -119,43 +120,55 @@ function LoginContent() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '1.25rem',
-        backgroundColor: '#070D18',
+        padding: '1.5rem',
+        backgroundColor: 'var(--bg-canvas)',
         background:
-          'radial-gradient(ellipse 90% 70% at 50% 0%, rgba(245, 158, 11, 0.14), rgba(7, 13, 24, 0.98)), #070D18',
+          'radial-gradient(ellipse 80% 80% at 50% -20%, var(--brand-primary-subtle, rgba(87, 40, 178, 0.08)), var(--bg-canvas))',
         fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
         position: 'relative',
         overflow: 'hidden',
         boxSizing: 'border-box',
       }}
     >
-      {/* Tactical Radar Grid Ambient Accents */}
+      {/* Floating Theme Toggle (Light / Dark Black&Gray / System) */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '20px',
+          right: '24px',
+          zIndex: 50,
+        }}
+      >
+        <ThemeToggle />
+      </div>
+
+      {/* Subtle Ambient Accents */}
       <div
         aria-hidden="true"
         style={{
           position: 'absolute',
-          top: '-80px',
-          right: '-80px',
-          width: '400px',
-          height: '400px',
+          top: '-100px',
+          right: '-100px',
+          width: '420px',
+          height: '420px',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(245, 158, 11, 0.12) 0%, rgba(0,0,0,0) 70%)',
+          background: 'radial-gradient(circle, var(--brand-primary-subtle, rgba(87, 40, 178, 0.09)) 0%, transparent 70%)',
           pointerEvents: 'none',
-          filter: 'blur(50px)',
+          filter: 'blur(60px)',
         }}
       />
       <div
         aria-hidden="true"
         style={{
           position: 'absolute',
-          bottom: '-80px',
-          left: '-80px',
+          bottom: '-100px',
+          left: '-100px',
           width: '380px',
           height: '380px',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(6, 182, 212, 0.1) 0%, rgba(0,0,0,0) 70%)',
+          background: 'radial-gradient(circle, rgba(255, 95, 9, 0.06) 0%, transparent 70%)',
           pointerEvents: 'none',
-          filter: 'blur(50px)',
+          filter: 'blur(60px)',
         }}
       />
 
@@ -163,61 +176,61 @@ function LoginContent() {
         style={{
           width: '100%',
           maxWidth: '430px',
-          backgroundColor: '#0E1726',
+          backgroundColor: 'var(--bg-surface)',
           borderRadius: '16px',
-          border: '1px solid #1E293B',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.55)',
-          padding: '1.85rem 2rem',
+          border: '1px solid var(--border-subtle)',
+          boxShadow: 'var(--shadow-elevated)',
+          padding: '2rem',
           position: 'relative',
           zIndex: 10,
           boxSizing: 'border-box',
-          color: '#F8FAFC',
+          color: 'var(--text-primary)',
         }}
       >
-        {/* Cockpit Header & Radar Icon */}
-        <div style={{ textAlign: 'center', marginBottom: '1.35rem' }}>
+        {/* Cockpit Header & Compass Icon */}
+        <div style={{ textAlign: 'center', marginBottom: '1.4rem' }}>
           <div
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: 46,
-              height: 46,
+              width: 48,
+              height: 48,
               borderRadius: '12px',
-              background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-              color: '#070D18',
-              boxShadow: '0 4px 16px rgba(245, 158, 11, 0.35)',
-              marginBottom: '0.65rem',
+              background: 'linear-gradient(135deg, #5728B2 0%, #431E8E 100%)',
+              color: '#FFFFFF',
+              boxShadow: '0 4px 16px rgba(87, 40, 178, 0.28)',
+              marginBottom: '0.75rem',
             }}
           >
-            <Compass size={24} strokeWidth={2.4} />
+            <Compass size={24} strokeWidth={2.2} />
           </div>
 
           <div
             style={{
-              fontSize: '1.4rem',
+              fontSize: '1.45rem',
               fontWeight: 800,
               letterSpacing: '-0.025em',
-              color: '#FFFFFF',
+              color: 'var(--text-primary)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '2px',
+              gap: '3px',
               lineHeight: 1.2,
             }}
           >
             <span>Adhoc</span>
-            <span style={{ color: '#FF5F09', fontWeight: 900 }}>X</span>
-            <span style={{ marginLeft: '6px', color: '#F59E0B', fontWeight: 800 }}>OPS</span>
+            <span style={{ color: 'var(--brand-orange, #FF5F09)', fontWeight: 900 }}>X</span>
+            <span style={{ marginLeft: '6px', color: 'var(--brand-primary, #5728B2)', fontWeight: 800 }}>OPS</span>
           </div>
 
           <p
             style={{
-              fontSize: '0.78rem',
-              color: '#94A3B8',
-              marginTop: '0.25rem',
+              fontSize: '0.8rem',
+              color: 'var(--text-secondary)',
+              marginTop: '0.35rem',
               fontWeight: 500,
-              lineHeight: 1.35,
+              lineHeight: 1.4,
             }}
           >
             Fleet Command Center & Tactical Flight Dispatch
@@ -230,35 +243,35 @@ function LoginContent() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '0.55rem 0.8rem',
-            backgroundColor: '#09111E',
-            borderRadius: '9px',
-            border: '1px solid #1E293B',
-            marginBottom: '1.15rem',
+            padding: '0.6rem 0.85rem',
+            backgroundColor: 'var(--bg-surface-muted)',
+            borderRadius: '10px',
+            border: '1px solid var(--border-subtle)',
+            marginBottom: '1.25rem',
             boxSizing: 'border-box',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
             <div
               style={{
-                width: 28,
-                height: 28,
-                borderRadius: '7px',
-                backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                width: 30,
+                height: 30,
+                borderRadius: '8px',
+                backgroundColor: 'var(--brand-primary-subtle)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#F59E0B',
+                color: 'var(--brand-primary, #5728B2)',
                 flexShrink: 0,
               }}
             >
-              <Radio size={14} className="pulse-warning" />
+              <Radio size={15} className="pulse-warning" />
             </div>
             <div>
-              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#F8FAFC', lineHeight: 1.2 }}>
+              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2 }}>
                 Flight Control Console
               </div>
-              <div style={{ fontSize: '0.68rem', color: '#94A3B8', marginTop: '1px' }}>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '1px' }}>
                 Multi-Tenant Commute Dispatch Desk · Port 7004
               </div>
             </div>
@@ -269,11 +282,12 @@ function LoginContent() {
               display: 'inline-flex',
               alignItems: 'center',
               gap: '3px',
-              fontSize: '0.67rem',
+              fontSize: '0.68rem',
               fontWeight: 700,
-              color: '#10B981',
-              backgroundColor: 'rgba(16, 185, 129, 0.15)',
-              padding: '2px 7px',
+              color: 'var(--color-success)',
+              backgroundColor: 'var(--color-success-bg)',
+              border: '1px solid var(--color-success-border)',
+              padding: '2px 8px',
               borderRadius: '9999px',
               flexShrink: 0,
             }}
@@ -289,35 +303,35 @@ function LoginContent() {
             style={{
               display: 'flex',
               alignItems: 'flex-start',
-              gap: '0.55rem',
-              padding: '0.65rem 0.8rem',
+              gap: '0.6rem',
+              padding: '0.75rem 0.9rem',
               borderRadius: '8px',
-              backgroundColor: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid rgba(239, 68, 68, 0.35)',
-              color: '#FCA5A5',
-              fontSize: '0.78rem',
+              backgroundColor: 'var(--color-danger-bg)',
+              border: '1px solid var(--color-danger-border)',
+              color: 'var(--color-danger)',
+              fontSize: '0.8rem',
               lineHeight: 1.4,
-              marginBottom: '1rem',
+              marginBottom: '1.15rem',
               boxSizing: 'border-box',
             }}
           >
-            <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: '2px', color: '#EF4444' }} />
+            <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
             <div style={{ fontWeight: 500, flex: 1 }}>{errorMessage}</div>
           </div>
         )}
 
         {/* Credentials Form */}
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.95rem' }}>
           {/* Dispatcher ID / Email */}
           <div style={{ width: '100%', boxSizing: 'border-box' }}>
             <label
               htmlFor="ops-identifier"
               style={{
                 display: 'block',
-                fontSize: '0.77rem',
-                fontWeight: 700,
-                color: '#CBD5E1',
-                marginBottom: '0.35rem',
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                color: 'var(--text-secondary)',
+                marginBottom: '0.4rem',
               }}
             >
               Operations Call-Sign / Email
@@ -329,7 +343,7 @@ function LoginContent() {
                   left: '0.85rem',
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  color: '#64748B',
+                  color: 'var(--text-muted)',
                   display: 'flex',
                   alignItems: 'center',
                   pointerEvents: 'none',
@@ -348,15 +362,24 @@ function LoginContent() {
                 disabled={isLoading}
                 style={{
                   width: '100%',
-                  height: 38,
+                  height: 40,
                   padding: '0 0.85rem 0 2.4rem',
                   borderRadius: '8px',
-                  border: '1.5px solid #334155',
-                  backgroundColor: '#09111E',
-                  color: '#FFFFFF',
-                  fontSize: '0.84rem',
+                  border: '1.5px solid var(--border-strong)',
+                  backgroundColor: 'var(--bg-input)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.85rem',
                   outline: 'none',
                   boxSizing: 'border-box',
+                  transition: 'border-color 0.15s, box-shadow 0.15s',
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--brand-primary, #5728B2)';
+                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(87, 40, 178, 0.15)';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--border-strong)';
+                  e.currentTarget.style.boxShadow = 'none';
                 }}
               />
             </div>
@@ -364,13 +387,13 @@ function LoginContent() {
 
           {/* Password with Eye Visibility Toggle */}
           <div style={{ width: '100%', boxSizing: 'border-box' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
               <label
                 htmlFor="ops-password"
                 style={{
-                  fontSize: '0.77rem',
-                  fontWeight: 700,
-                  color: '#CBD5E1',
+                  fontSize: '0.78rem',
+                  fontWeight: 600,
+                  color: 'var(--text-secondary)',
                 }}
               >
                 Password
@@ -381,9 +404,9 @@ function LoginContent() {
                 style={{
                   background: 'none',
                   border: 'none',
-                  fontSize: '0.7rem',
+                  fontSize: '0.72rem',
                   fontWeight: 600,
-                  color: '#F59E0B',
+                  color: 'var(--brand-primary, #5728B2)',
                   cursor: 'pointer',
                   padding: 0,
                   textDecoration: 'underline',
@@ -399,7 +422,7 @@ function LoginContent() {
                   left: '0.85rem',
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  color: '#64748B',
+                  color: 'var(--text-muted)',
                   display: 'flex',
                   alignItems: 'center',
                   pointerEvents: 'none',
@@ -418,15 +441,24 @@ function LoginContent() {
                 disabled={isLoading}
                 style={{
                   width: '100%',
-                  height: 38,
+                  height: 40,
                   padding: '0 2.3rem 0 2.4rem',
                   borderRadius: '8px',
-                  border: '1.5px solid #334155',
-                  backgroundColor: '#09111E',
-                  color: '#FFFFFF',
-                  fontSize: '0.84rem',
+                  border: '1.5px solid var(--border-strong)',
+                  backgroundColor: 'var(--bg-input)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.85rem',
                   outline: 'none',
                   boxSizing: 'border-box',
+                  transition: 'border-color 0.15s, box-shadow 0.15s',
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--brand-primary, #5728B2)';
+                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(87, 40, 178, 0.15)';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--border-strong)';
+                  e.currentTarget.style.boxShadow = 'none';
                 }}
               />
               <button
@@ -442,7 +474,7 @@ function LoginContent() {
                   transform: 'translateY(-50%)',
                   background: 'transparent',
                   border: 'none',
-                  color: '#64748B',
+                  color: 'var(--text-muted)',
                   cursor: 'pointer',
                   padding: '0.2rem',
                   display: 'flex',
@@ -455,30 +487,31 @@ function LoginContent() {
             </div>
           </div>
 
-          {/* Tactical Submit Button */}
+          {/* Primary Submit Button */}
           <button
             type="submit"
             id="ops-login-submit-btn"
             disabled={isLoading}
             style={{
-              marginTop: '0.25rem',
+              marginTop: '0.35rem',
               width: '100%',
-              height: 40,
-              backgroundColor: '#F59E0B',
-              backgroundImage: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-              color: '#070D18',
+              height: 42,
+              backgroundColor: 'var(--brand-primary, #5728B2)',
+              backgroundImage: 'linear-gradient(135deg, #5728B2 0%, #431E8E 100%)',
+              color: '#FFFFFF',
               border: 'none',
               borderRadius: '8px',
               fontSize: '0.88rem',
-              fontWeight: 800,
+              fontWeight: 700,
               cursor: isLoading ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '0.45rem',
-              boxShadow: '0 4px 14px rgba(245, 158, 11, 0.35)',
+              gap: '0.5rem',
+              boxShadow: '0 4px 14px rgba(87, 40, 178, 0.35)',
               opacity: isLoading ? 0.8 : 1,
               boxSizing: 'border-box',
+              transition: 'opacity 0.15s, transform 0.15s',
             }}
           >
             {isLoading ? (
@@ -496,7 +529,7 @@ function LoginContent() {
         </form>
 
         {/* Quick Demo Access */}
-        <div style={{ marginTop: '1.15rem', paddingTop: '1rem', borderTop: '1px solid #1E293B' }}>
+        <div style={{ marginTop: '1.25rem', paddingTop: '1.15rem', borderTop: '1px solid var(--border-subtle)' }}>
           <div
             style={{
               display: 'flex',
@@ -505,13 +538,13 @@ function LoginContent() {
               gap: '0.35rem',
               fontSize: '0.7rem',
               fontWeight: 700,
-              color: '#94A3B8',
+              color: 'var(--text-muted)',
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
-              marginBottom: '0.65rem',
+              marginBottom: '0.75rem',
             }}
           >
-            <Sparkles size={12} color="#F59E0B" />
+            <Sparkles size={13} style={{ color: 'var(--brand-primary, #5728B2)' }} />
             <span>Instant Dispatcher Access (Live Backend)</span>
           </div>
 
@@ -524,21 +557,29 @@ function LoginContent() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: '0.65rem 0.85rem',
-              borderRadius: '8px',
-              backgroundColor: '#09111E',
-              border: '1.5px solid #F59E0B',
+              padding: '0.75rem 0.95rem',
+              borderRadius: '10px',
+              backgroundColor: 'var(--bg-surface-muted)',
+              border: '1.5px solid var(--border-subtle)',
               cursor: 'pointer',
               textAlign: 'left',
               transition: 'all 0.15s ease',
               boxSizing: 'border-box',
             }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--brand-primary, #5728B2)';
+              e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border-subtle)';
+              e.currentTarget.style.backgroundColor = 'var(--bg-surface-muted)';
+            }}
           >
             <div>
-              <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#FFFFFF' }}>
+              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                 AdhocX Operations Dispatcher
               </div>
-              <div style={{ fontSize: '0.68rem', color: '#F59E0B', fontWeight: 600, marginTop: '2px' }}>
+              <div style={{ fontSize: '0.7rem', color: 'var(--brand-primary, #5728B2)', fontWeight: 600, marginTop: '2px' }}>
                 ops@adhocx.com · System Role: OPS
               </div>
             </div>
@@ -546,10 +587,13 @@ function LoginContent() {
               style={{
                 fontSize: '0.72rem',
                 fontWeight: 700,
-                color: '#070D18',
-                backgroundColor: '#F59E0B',
-                padding: '3px 8px',
+                color: '#FFFFFF',
+                backgroundColor: 'var(--brand-primary, #5728B2)',
+                padding: '4px 10px',
                 borderRadius: '6px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
               }}
             >
               Sign In ➔
@@ -560,17 +604,17 @@ function LoginContent() {
         {/* Security & System Info */}
         <div
           style={{
-            marginTop: '1.15rem',
+            marginTop: '1.25rem',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: '0.4rem',
-            fontSize: '0.7rem',
-            color: '#64748B',
-            fontWeight: 600,
+            fontSize: '0.72rem',
+            color: 'var(--text-muted)',
+            fontWeight: 500,
           }}
         >
-          <ShieldCheck size={14} color="#10B981" />
+          <ShieldCheck size={14} style={{ color: 'var(--color-success)' }} />
           <span>Encrypted Operations Audit Mesh (HMAC-SHA512)</span>
         </div>
       </div>
@@ -580,9 +624,8 @@ function LoginContent() {
 
 export default function OpsLoginPage() {
   return (
-    <Suspense fallback={<div style={{ minHeight: '100vh', backgroundColor: '#070D18' }} />}>
+    <Suspense fallback={<div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-canvas)' }} />}>
       <LoginContent />
     </Suspense>
   );
 }
-
