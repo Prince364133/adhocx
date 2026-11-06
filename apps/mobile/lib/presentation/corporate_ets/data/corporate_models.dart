@@ -244,7 +244,7 @@ class CorporateRouteSummary {
   }
 }
 
-enum CorporateStopStatus { pending, arrived, boarded, noShow, completed, cancelled, unknown }
+enum CorporateStopStatus { pending, arrived, boarded, noShow, completed, dropped, safeConfirmed, cancelled, unknown }
 
 CorporateStopStatus parseStopStatus(String? s) {
   switch ((s ?? '').toUpperCase()) {
@@ -257,8 +257,11 @@ CorporateStopStatus parseStopStatus(String? s) {
     case 'NO_SHOW':
       return CorporateStopStatus.noShow;
     case 'COMPLETED':
-    case 'DROPPED':
       return CorporateStopStatus.completed;
+    case 'DROPPED':
+      return CorporateStopStatus.dropped;
+    case 'SAFE_CONFIRMED':
+      return CorporateStopStatus.safeConfirmed;
     case 'CANCELLED':
       return CorporateStopStatus.cancelled;
     default:
@@ -304,6 +307,9 @@ class CorporateStop {
 
   /// Boarding (OTP / no-show) applies to employee pickups the cab has arrived at.
   bool get awaitsBoarding => status == CorporateStopStatus.arrived && !isDropoff;
+
+  /// Drop-off arrival requires distinct passenger drop confirmation (PRD 05 & Safety SOP).
+  bool get awaitsDrop => status == CorporateStopStatus.arrived && isDropoff;
 
   bool get hasCoordinates => latitude != null && longitude != null;
 
@@ -367,10 +373,10 @@ class CorporateActiveRoute {
   bool get isInTransit => status.toUpperCase() == 'IN_TRANSIT';
   bool get isLogout => (direction ?? '').toUpperCase() == 'LOGOUT';
 
-  /// The stop the driver is working on: an arrived stop awaiting boarding, else the next pending.
+  /// The stop the driver is working on: an arrived stop awaiting boarding or drop, else the next pending.
   CorporateStop? get currentStop {
     for (final s in stops) {
-      if (s.awaitsBoarding) return s;
+      if (s.awaitsBoarding || s.awaitsDrop) return s;
     }
     for (final s in stops) {
       if (s.status == CorporateStopStatus.pending) return s;
@@ -380,8 +386,11 @@ class CorporateActiveRoute {
 
   int get pendingStopsCount => stops.where((s) => s.status == CorporateStopStatus.pending).length;
 
-  /// Server rule (completeRoute): no stop may remain PENDING.
-  bool get canComplete => isInTransit && pendingStopsCount == 0;
+  /// Server rule (completeRoute): no stop may remain PENDING or awaiting boarding/drop.
+  bool get canComplete =>
+      isInTransit &&
+      pendingStopsCount == 0 &&
+      !stops.any((s) => s.awaitsBoarding || s.awaitsDrop);
 
   /// Returns null when the server reports `hasActiveRoute: false`.
   static CorporateActiveRoute? fromJson(dynamic raw) {

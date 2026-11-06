@@ -41,6 +41,12 @@ abstract class CorporateEtsApi {
   /// POST /corporate/trips/routes/:id/complete
   Future<dynamic> completeRoute(String routeId);
 
+  /// POST /corporate/trips/routes/:id/stops/:stopId/drop
+  Future<dynamic> dropPassenger(String routeId, String stopId, {required double lat, required double lng});
+
+  /// POST /corporate/safety/routes/:id/stops/:stopId/confirm-safe-drop
+  Future<dynamic> confirmSafeDrop(String routeId, String stopId, {String? notes});
+
   /// POST /corporate/trips/routes/:id/telemetry
   Future<dynamic> postTelemetry(String routeId, Map<String, dynamic> fix);
 
@@ -107,6 +113,14 @@ class DriverServiceCorporateEtsApi implements CorporateEtsApi {
 
   @override
   Future<dynamic> completeRoute(String routeId) => _service.completeCorporateRoute(routeId);
+
+  @override
+  Future<dynamic> dropPassenger(String routeId, String stopId, {required double lat, required double lng}) =>
+      _service.dropCorporatePassenger(routeId, stopId, lat: lat, lng: lng);
+
+  @override
+  Future<dynamic> confirmSafeDrop(String routeId, String stopId, {String? notes}) =>
+      _service.confirmCorporateSafeDrop(routeId, stopId, notes: notes);
 
   @override
   Future<dynamic> postTelemetry(String routeId, Map<String, dynamic> fix) =>

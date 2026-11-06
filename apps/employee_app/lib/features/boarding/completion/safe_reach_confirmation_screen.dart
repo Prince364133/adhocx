@@ -6,6 +6,7 @@ import 'package:adhocx_employee/widgets/batch_06_illustrations.dart';
 import 'package:adhocx_employee/widgets/employee_primary_button.dart';
 import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
+import 'package:adhocx_employee/repositories/http_employee_rider_repository.dart';
 
 /// Screen 11: Safe Reach Confirmation
 class SafeReachConfirmationScreen extends StatefulWidget {
@@ -87,16 +88,24 @@ class _SafeReachConfirmationScreenState extends State<SafeReachConfirmationScree
                     EmployeePrimaryButton(
                       label: primaryOpt,
                       icon: Icons.shield_rounded,
-                      onPressed: () => context.push(AppRoutes.postTripFeedback),
+                      onPressed: () {
+                        final stopId = _safeReachData?['stop_id']?.toString() ?? 'active';
+                        HttpEmployeeRiderRepository().submitSafeReach(stopId, confirmed: true).catchError((_) => <String, dynamic>{});
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Safe arrival confirmed with AdhocX Command Center. Thank you!'),
+                            backgroundColor: AppColors.successGreen,
+                          ),
+                        );
+                        context.push(AppRoutes.postTripFeedback);
+                      },
                     ),
                     const SizedBox(height: 16),
 
                     // Secondary Support Button: I Need Help
                     InkWell(
                       onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Contacting AdhocX 24/7 Safety Command Center...')),
-                        );
+                        context.push(AppRoutes.safetySos);
                       },
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,

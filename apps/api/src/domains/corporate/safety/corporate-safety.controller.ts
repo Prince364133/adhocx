@@ -17,6 +17,8 @@ import {
   TriggerSosAlertDto,
   ResolveSosAlertDto,
   ConfirmSafeDropDto,
+  ConfirmSafeReachDto,
+  EmergencyBoardingFallbackDto,
   CorporateSosStatus,
   UserRole,
 } from '@adhocx/contracts';
@@ -192,5 +194,66 @@ export class CorporateSafetyController {
     @Req() req: any,
   ) {
     return this.safetyService.confirmSafeDrop(routeId, stopId, dto, req.user?.id);
+  }
+
+  @Post('routes/:id/stops/:stopId/confirm-safe-reach')
+  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE, UserRole.DRIVER)
+  @CorporateResource('stop', 'stopId')
+  @ApiOperation({
+    summary:
+      'Employee confirms safe reach into residence / destination. Immutable evidence recorded in safety ledger',
+  })
+  public async confirmSafeReach(
+    @Param('id') routeId: string,
+    @Param('stopId') stopId: string,
+    @Body() dto: ConfirmSafeReachDto,
+    @Req() req: any,
+  ) {
+    return this.safetyService.confirmSafeReach(
+      routeId,
+      stopId,
+      {
+        stopId,
+        routeId,
+        confirmedSafely: dto.confirmedSafely ?? true,
+        notes: dto.notes,
+      },
+      req.user?.id,
+    );
+  }
+
+  @Post('routes/:id/stops/:stopId/emergency-boarding-override')
+  @Roles(UserRole.ADMIN, UserRole.OPS)
+  @CorporateResource('stop', 'stopId')
+  @ApiOperation({
+    summary:
+      'Command Centre emergency boarding manual override with audit ticket generation when OTP verification is unavailable',
+  })
+  public async emergencyBoardingOverride(
+    @Param('id') routeId: string,
+    @Param('stopId') stopId: string,
+    @Body() dto: EmergencyBoardingFallbackDto,
+    @Req() req: any,
+  ) {
+    if (!dto.reason) {
+      throw new BadRequestException('reason is required for emergency boarding fallback');
+    }
+    return this.safetyService.emergencyBoardingOverride(routeId, stopId, dto, req.user?.id || 'admin');
+  }
+
+  @Get('tracking-loss')
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateTenantScoped()
+  @ApiOperation({ summary: 'Detect active routes in IN_TRANSIT with missing/stale telemetry (>180s)' })
+  public async getTrackingLossRoutes() {
+    return this.safetyService.detectTelemetryLoss(180, new Date());
+  }
+
+  @Get('stops/:stopId/safe-drop-status')
+  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE, UserRole.DRIVER)
+  @CorporateResource('stop', 'stopId')
+  @ApiOperation({ summary: 'Retrieve live safe-drop and escort status of a stop' })
+  public async getSafeDropStatus(@Param('stopId') stopId: string) {
+    return this.safetyService.getSafeDropStatus(stopId);
   }
 }

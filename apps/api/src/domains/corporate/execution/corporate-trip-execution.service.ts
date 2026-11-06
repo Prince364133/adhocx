@@ -635,11 +635,17 @@ export class CorporateTripExecutionService {
       throw new NotFoundException(`Corporate route ${routeId} not found`);
     }
 
-    // Verify all stops have departed or arrived
+    // Verify all stops have departed or arrived and drops are confirmed
     const pendingStops = route.stops.filter((s) => s.status === 'PENDING');
     if (pendingStops.length > 0) {
       throw new BadRequestException(
         `Cannot complete route: ${pendingStops.length} stops remain unvisited`,
+      );
+    }
+    const unconfirmedDrops = route.stops.filter((s) => s.stopType === 'DROPOFF' && !s.actualDepartureTime);
+    if (unconfirmedDrops.length > 0) {
+      throw new BadRequestException(
+        `Cannot complete route: ${unconfirmedDrops.length} drop-off stops have not confirmed passenger drop.`,
       );
     }
 
@@ -974,7 +980,7 @@ export class CorporateTripExecutionService {
           longitude: dto.longitude,
           speedMps: dto.speedMps,
         })
-        .catch((err: any) => this.logger.warn(`Safety sentinel evaluation error: ${err?.message}`));
+        .catch((err: any) => this.logger.warn(`Safety sentinel evaluation error: ${err.message}`));
     }
 
     return {
@@ -1098,7 +1104,8 @@ export class CorporateTripExecutionService {
       stops: (route.stops || []).map((s: any) => ({
         stopId: s.id,
         stopSequence: s.stopSequence,
-        status: s.status,
+        status: s.stopType === 'DROPOFF' && s.actualDepartureTime ? 'DROPPED' : s.status,
+        stopType: s.stopType,
         plannedEta: s.plannedEta,
         actualArrivalTime: s.actualArrivalTime,
         actualDepartureTime: s.actualDepartureTime,
@@ -1211,7 +1218,7 @@ export class CorporateTripExecutionService {
       tenantId: stop.route.tenantId,
       routeId,
       stopId,
-      type: 'PASSENGER_DROPPED' as any,
+      type: 'PASSENGER_DROPPED',
       actorId: stop.route.driverId,
       actorRole: 'DRIVER',
       payload: { stopSequence: stop.stopSequence, employeeId: stop.employeeId },

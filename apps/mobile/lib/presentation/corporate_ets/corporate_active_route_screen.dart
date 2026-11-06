@@ -24,7 +24,7 @@ import 'widgets/corporate_sos_sheet.dart';
 import 'widgets/corporate_state_views.dart';
 import 'widgets/stop_boarding_panel.dart';
 
-enum _Action { start, arrive, complete }
+enum _Action { start, arrive, complete, drop, safeConfirm }
 
 /// Active corporate route (UI-05-01/02/04, DRV-09/10): ordered stops, start, navigate,
 /// geofenced arrival, 5-minute wait with OTP boarding / no-show, completion, SOS.
@@ -175,6 +175,49 @@ class _CorporateActiveRouteScreenState extends State<CorporateActiveRouteScreen>
           stop.isDropoff ? 'Arrival recorded.' : 'Arrived. The 5-minute wait has started.',
           context: context,
         );
+      }
+    } catch (e) {
+      if (mounted) setState(() => _actionError = CorporateError.from(e));
+    } finally {
+      if (mounted) setState(() => _busy = null);
+      await _load(silent: true);
+    }
+  }
+
+  Future<void> _dropPassenger(CorporateActiveRoute route, CorporateStop stop) async {
+    setState(() {
+      _busy = _Action.drop;
+      _actionError = null;
+    });
+    try {
+      final fix = await _device.currentFix();
+      if (fix == null) {
+        throw CorporateError(
+          CorporateErrorKind.rejected,
+          'Current location is unavailable. Turn on GPS and allow location access, then tap Confirm Drop again.',
+        );
+      }
+      await _coordinator.api.dropPassenger(route.routeId, stop.stopId, lat: fix.latitude, lng: fix.longitude);
+      if (mounted) {
+        AppToast.showSuccess('Drop recorded. Safe-arrival verification active.', context: context);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _actionError = CorporateError.from(e));
+    } finally {
+      if (mounted) setState(() => _busy = null);
+      await _load(silent: true);
+    }
+  }
+
+  Future<void> _confirmSafeDrop(CorporateActiveRoute route, CorporateStop stop) async {
+    setState(() {
+      _busy = _Action.safeConfirm;
+      _actionError = null;
+    });
+    try {
+      await _coordinator.api.confirmSafeDrop(route.routeId, stop.stopId);
+      if (mounted) {
+        AppToast.showSuccess('Safe sight-of-entry escort recorded.', context: context);
       }
     } catch (e) {
       if (mounted) setState(() => _actionError = CorporateError.from(e));
@@ -457,7 +500,45 @@ class _CorporateActiveRouteScreenState extends State<CorporateActiveRouteScreen>
               device: _device,
               onStopUpdated: _onStopUpdated,
             )
-          else ...[
+          else if (current.awaitsDrop) ...[
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.08),
+                borderRadius: AppRadius.borderMd,
+                border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.shield_outlined, color: AppColors.primary, size: 20),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      'Destination reached. Confirm drop-off and ensure commuter safe entry.',
+                      style: AppTypography.caption(color: CorporateSurface.text(context)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            AppPrimaryButton(
+              key: const Key('corporate-drop-passenger'),
+              text: 'Confirm Passenger Dropped',
+              icon: Icons.check_circle_outline_rounded,
+              height: 56,
+              isLoading: _busy == _Action.drop,
+              onPressed: _busy != null ? null : () => _dropPassenger(route, current),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            AppSecondaryButton(
+              key: const Key('corporate-safe-escort-confirm'),
+              text: 'Confirm Safe Sight-of-Entry Escort',
+              icon: Icons.verified_user_rounded,
+              isLoading: _busy == _Action.safeConfirm,
+              onPressed: _busy != null ? null : () => _confirmSafeDrop(route, current),
+            ),
+          ] else ...[
             AppSecondaryButton(
               key: const Key('corporate-navigate-stop'),
               text: 'Navigate',
@@ -550,6 +631,8 @@ class _StopRow extends StatelessWidget {
       CorporateStopStatus.boarded => ('Boarded', AppBadgeVariant.success),
       CorporateStopStatus.noShow => ('No-show', AppBadgeVariant.error),
       CorporateStopStatus.completed => ('Done', AppBadgeVariant.success),
+      CorporateStopStatus.dropped => ('Dropped', AppBadgeVariant.info),
+      CorporateStopStatus.safeConfirmed => ('Safe Reached', AppBadgeVariant.success),
       CorporateStopStatus.cancelled => ('Cancelled', AppBadgeVariant.error),
       CorporateStopStatus.unknown => (stop.rawStatus, AppBadgeVariant.info),
     };

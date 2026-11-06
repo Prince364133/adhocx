@@ -631,6 +631,12 @@ export class CorporateSafetyService {
     }
 
     const droppedAt = new Date();
+    await this.db.corporateRouteStop.update({
+      where: { id: stopId },
+      data: {
+        actualDepartureTime: droppedAt,
+      },
+    });
     const shiftHour = parseInt((stop.route.shiftTime || '00:00').split(':')[0], 10);
     const isNightShift = shiftHour >= 20 || shiftHour < 6;
     const isFemaleCommuter = stop.employee?.gender === 'FEMALE';

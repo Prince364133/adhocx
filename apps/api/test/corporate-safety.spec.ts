@@ -14,6 +14,8 @@ describe('CorporateSafetyService - P0 SOS, Deviation & Command Centre', () => {
     mockDb = {
       corporateRoute: {
         findUnique: jest.fn(),
+        findMany: jest.fn(),
+        update: jest.fn(),
       },
       corporateSosAlert: {
         create: jest.fn(),
@@ -24,6 +26,12 @@ describe('CorporateSafetyService - P0 SOS, Deviation & Command Centre', () => {
       corporateRouteStop: {
         findUnique: jest.fn(),
         update: jest.fn(),
+      },
+      corporateTransportRequest: {
+        update: jest.fn(),
+      },
+      corporateSupportTicket: {
+        create: jest.fn(),
       },
     };
 
@@ -237,6 +245,163 @@ describe('CorporateSafetyService - P0 SOS, Deviation & Command Centre', () => {
           employeeName: 'Priya Sharma',
           confirmedByRole: 'DRIVER',
         }),
+      );
+    });
+  });
+
+  describe('P0 Drop-off Checkpoint: Passenger Drop & Safe Reach Confirmation', () => {
+    it('should record passenger dropped when within geofence and trigger safe reach countdown', async () => {
+      mockDb.corporateRouteStop.findUnique.mockResolvedValue({
+        id: 'stop-drop-1',
+        routeId: 'route-1',
+        stopSequence: 2,
+        latitude: 17.44,
+        longitude: 78.38,
+        employeeId: 'emp-1',
+        employee: { fullName: 'Ananya Roy', gender: 'FEMALE', phoneNumber: '+919876543210' },
+        route: { id: 'route-1', tenantId: 'tenant-101', shiftTime: '21:30', driver: { fullName: 'Suresh Driver' } },
+      });
+
+      const res = await service.recordPassengerDropped('route-1', 'stop-drop-1', {
+        lat: 17.4401,
+        lng: 78.3801,
+      });
+
+      expect(res.status).toBe('DROPPED');
+      expect(res.escortRequired).toBe(true);
+      expect(mockNotifications.emitEvent).toHaveBeenCalledWith(
+        'corporate:tenant-101',
+        'ROUTE_STOP_DROPPED',
+        expect.objectContaining({ stopId: 'stop-drop-1', escortRequired: true }),
+      );
+    });
+
+    it('should reject drop record when driver is outside destination corridor (>500m)', async () => {
+      mockDb.corporateRouteStop.findUnique.mockResolvedValue({
+        id: 'stop-drop-far',
+        routeId: 'route-1',
+        latitude: 17.44,
+        longitude: 78.38,
+        route: { id: 'route-1', tenantId: 'tenant-101' },
+      });
+
+      await expect(
+        service.recordPassengerDropped('route-1', 'stop-drop-far', { lat: 17.50, lng: 78.50 }),
+      ).rejects.toThrow();
+    });
+
+    it('should confirm safe reach by employee and broadcast safe confirmation', async () => {
+      mockDb.corporateRouteStop.findUnique.mockResolvedValue({
+        id: 'stop-safe-confirm-1',
+        routeId: 'route-1',
+        employeeId: 'emp-1',
+        employee: { fullName: 'Ananya Roy' },
+        route: { id: 'route-1', tenantId: 'tenant-101' },
+        transportRequestId: 'tr-req-1',
+      });
+      mockDb.corporateRouteStop.update.mockResolvedValue({ id: 'stop-safe-confirm-1' });
+      mockDb.corporateTransportRequest = { update: jest.fn().mockResolvedValue({}) };
+
+      const res = await service.confirmSafeReach('route-1', 'stop-safe-confirm-1', {
+        stopId: 'stop-safe-confirm-1',
+        routeId: 'route-1',
+        confirmedSafely: true,
+      });
+
+      expect(res.status).toBe('SAFE_CONFIRMED');
+      expect(mockNotifications.emitEvent).toHaveBeenCalledWith(
+        'corporate:tenant-101',
+        'PASSENGER_SAFE_CONFIRMED',
+        expect.objectContaining({ employeeName: 'Ananya Roy', confirmedSafely: true }),
+      );
+    });
+  });
+
+  describe('P0 Boarding Fallback: Emergency Supervisor Override', () => {
+    it('should allow supervisor override with approved reason and create audited safety ticket', async () => {
+      mockDb.corporateRouteStop.findUnique.mockResolvedValue({
+        id: 'stop-fallback-1',
+        routeId: 'route-1',
+        stopSequence: 1,
+        status: 'ARRIVED',
+        employeeId: 'emp-dead-phone',
+        route: { id: 'route-1', tenantId: 'tenant-101', driver: { id: 'driver-1' } },
+        transportRequestId: 'tr-req-2',
+      });
+      mockDb.corporateRouteStop.update.mockResolvedValue({ id: 'stop-fallback-1', status: 'BOARDED' });
+      mockDb.corporateSupportTicket = { create: jest.fn().mockResolvedValue({ id: 'ticket-1' }) };
+
+      const res = await service.emergencyBoardingOverride(
+        'route-1',
+        'stop-fallback-1',
+        {
+          routeId: 'route-1',
+          stopId: 'stop-fallback-1',
+          supervisorUserId: 'admin-commander-1',
+          reason: 'EMPLOYEE_PHONE_BATTERY_DEAD',
+          verificationEvidence: 'Badge inspected by site supervisor',
+        },
+        'admin-commander-1',
+      );
+
+      expect(res.status).toBe('BOARDED');
+      expect(res.fallbackApplied).toBe(true);
+      expect(mockNotifications.emitEvent).toHaveBeenCalledWith(
+        'corporate:tenant-101',
+        'CORPORATE_BOARDING_FALLBACK_APPLIED',
+        expect.objectContaining({ reason: 'EMPLOYEE_PHONE_BATTERY_DEAD' }),
+      );
+    });
+  });
+
+  describe('P1 In-Transit Safety Sentinel & Telemetry Loss Detection', () => {
+    it('should trigger overspeeding alert when vehicle speed exceeds 80 km/h', async () => {
+      mockDb.corporateRoute.findUnique.mockResolvedValue({
+        id: 'route-speed-1',
+        tenantId: 'tenant-101',
+        driverId: 'driver-fast',
+        stops: [{ latitude: 17.44, longitude: 78.38 }],
+        office: { latitude: 17.45, longitude: 78.39 },
+      });
+
+      const res = await service.evaluateTelemetrySafety('route-speed-1', {
+        latitude: 17.441,
+        longitude: 78.381,
+        speedKph: 92,
+      });
+
+      expect(res.overspeeding).toBe(true);
+      expect(mockNotifications.emitEvent).toHaveBeenCalledWith(
+        'admin:command-center:overspeed',
+        'CORPORATE_OVERSPEEDING_ALERT',
+        expect.objectContaining({ routeId: 'route-speed-1', speedKph: 92 }),
+      );
+    });
+
+    it('should detect telemetry loss on routes IN_TRANSIT with stale telemetry > 180s', async () => {
+      mockDb.corporateRoute.findMany.mockResolvedValue([
+        {
+          id: 'route-stale-1',
+          tenantId: 'tenant-101',
+          shiftTime: '22:00',
+          updatedAt: new Date(Date.now() - 300 * 1000), // 5 minutes ago
+          tenant: { name: 'Acme' },
+          driver: { fullName: 'Ramesh' },
+        },
+      ]);
+      mockDb.corporateRoute.update = jest.fn().mockResolvedValue({});
+
+      const flagged = await service.detectTelemetryLoss(180, new Date());
+
+      expect(flagged).toContain('route-stale-1');
+      expect(mockDb.corporateRoute.update).toHaveBeenCalledWith({
+        where: { id: 'route-stale-1' },
+        data: { atRisk: true },
+      });
+      expect(mockNotifications.emitEvent).toHaveBeenCalledWith(
+        'admin:command-center:tracking-loss',
+        'CORPORATE_TRACKING_LOSS_ALERT',
+        expect.objectContaining({ routeId: 'route-stale-1', severity: 'P0_CRITICAL' }),
       );
     });
   });

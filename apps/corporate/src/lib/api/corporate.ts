@@ -270,6 +270,16 @@ export const safetyApi = {
     apiRequest<unknown>(`/corporate/safety/alerts/${alertId}/resolve`, { method: 'POST', body }),
   resolveIncident: (incidentId: string, body: { reason?: string; resolutionNotes?: string; falsePositive?: boolean }) =>
     apiRequest<unknown>(`/corporate/safety/alerts/${incidentId}/resolve`, { method: 'POST', body }),
+  confirmSafeDrop: (routeId: string, stopId: string, body: { confirmedByRole: 'DRIVER' | 'EMPLOYEE'; notes?: string }) =>
+    apiRequest<unknown>(`/corporate/safety/routes/${routeId}/stops/${stopId}/confirm-safe-drop`, { method: 'POST', body }),
+  confirmSafeReach: (routeId: string, stopId: string, body: { confirmedSafely?: boolean; notes?: string }) =>
+    apiRequest<unknown>(`/corporate/safety/routes/${routeId}/stops/${stopId}/confirm-safe-reach`, { method: 'POST', body }),
+  emergencyBoardingOverride: (routeId: string, stopId: string, body: { reason: string; verificationEvidence?: string; notes?: string }) =>
+    apiRequest<unknown>(`/corporate/safety/routes/${routeId}/stops/${stopId}/emergency-boarding-override`, { method: 'POST', body }),
+  trackingLossRoutes: () =>
+    apiRequest<string[]>(`/corporate/safety/tracking-loss`),
+  getSafeDropStatus: (stopId: string) =>
+    apiRequest<unknown>(`/corporate/safety/stops/${stopId}/safe-drop-status`),
 };
 
 export const supportApi = {

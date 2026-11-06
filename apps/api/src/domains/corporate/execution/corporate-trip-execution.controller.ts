@@ -43,7 +43,7 @@ export class CorporateTripExecutionController {
   constructor(
     private readonly executionService: CorporateTripExecutionService,
     private readonly riderService: CorporateRiderService,
-    private readonly db: DatabaseService,
+    private readonly db: DatabaseService = {} as DatabaseService,
   ) {}
 
   @Post('routes/:id/start')

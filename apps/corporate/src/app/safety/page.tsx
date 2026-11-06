@@ -152,6 +152,58 @@ export default function SafetyOverviewPage() {
         />
       </div>
 
+      {/* End-to-End Safety Lifecycle Checkpoints */}
+      <div
+        style={{
+          padding: '16px 20px',
+          backgroundColor: 'var(--bg-surface)',
+          borderRadius: 8,
+          border: '1px solid var(--border-color)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 12,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+            Mandatory Trip Safety Lifecycle Checkpoints
+          </h2>
+          <span style={{ fontSize: 11, fontWeight: 700, color: '#16A34A', backgroundColor: '#DCFCE7', padding: '3px 8px', borderRadius: 4 }}>
+            Zero-Trust Protocol Active
+          </span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+          {[
+            { step: '1. Assignment', desc: 'Driver DL, Vehicle Fitness & Seating Capacity Verified', state: 'ENFORCED' },
+            { step: '2. Pickup', desc: '<150m Geofenced GPS Arrival & License Plate Match', state: 'ACTIVE' },
+            { step: '3. Boarding', desc: '4-Digit Commuter OTP & Audited Supervisor Override', state: 'MANDATORY' },
+            { step: '4. In Transit', desc: 'Realtime Telemetry, <500m Corridor & 80km/h Speed Watch', state: 'MONITORED' },
+            { step: '5. Drop-off', desc: 'Geofenced Drop & Female Safe-Drop Escort Protocol', state: 'AUDITED' },
+            { step: '6. Closure', desc: 'P0-P3 Incident Resolution & Command Centre SLA Ledger', state: 'LOGGED' },
+          ].map((ckpt, idx) => (
+            <div
+              key={idx}
+              style={{
+                padding: '10px 12px',
+                borderRadius: 6,
+                backgroundColor: 'var(--bg-surface-muted)',
+                border: '1px solid var(--border-color)',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>{ckpt.step}</span>
+                <span style={{ fontSize: 9, fontWeight: 800, color: '#2563EB', backgroundColor: '#DBEAFE', padding: '2px 5px', borderRadius: 3 }}>
+                  {ckpt.state}
+                </span>
+              </div>
+              <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0, lineHeight: 1.35 }}>
+                {ckpt.desc}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Filter and Search Bar */}
       <div
         style={{

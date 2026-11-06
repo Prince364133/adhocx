@@ -998,6 +998,43 @@ class DriverService {
     return res;
   }
 
+  /// Driver records passenger dropped at destination geofence (<150m)
+  Future<dynamic> dropCorporatePassenger(
+    String routeId,
+    String stopId, {
+    required double lat,
+    required double lng,
+  }) async {
+    await _ensureDriverSession();
+    final res = await _api.post(
+      '/corporate/trips/routes/$routeId/stops/$stopId/drop',
+      body: {
+        'driverLatitude': lat,
+        'driverLongitude': lng,
+      },
+    );
+    notifyTripChanged(tripId: routeId, status: 'DROPPED');
+    return res;
+  }
+
+  /// Driver confirms female safe drop / night-shift logout escort
+  Future<dynamic> confirmCorporateSafeDrop(
+    String routeId,
+    String stopId, {
+    String? notes,
+  }) async {
+    await _ensureDriverSession();
+    final res = await _api.post(
+      '/corporate/safety/routes/$routeId/stops/$stopId/confirm-safe-drop',
+      body: {
+        'confirmedByRole': 'DRIVER',
+        if (notes != null) 'notes': notes,
+      },
+    );
+    notifyTripChanged(tripId: routeId, status: 'SAFE_CONFIRMED');
+    return res;
+  }
+
   /// Get ordered waypoints and corridor polyline for navigation
   Future<dynamic> getCorporateRouteWaypoints(String routeId) async {
     await _ensureDriverSession();
