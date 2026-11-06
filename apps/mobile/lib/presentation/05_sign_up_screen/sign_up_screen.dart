@@ -7,7 +7,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/utils/app_toast.dart';
 import '../../core/utils/name_utils.dart';
 import '../../routes/app_routes.dart';
-import '../../services/auth_provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/onboarding_provider.dart';
 import '../../theme/app_colors.dart';
@@ -15,10 +14,10 @@ import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/common/app_primary_button.dart';
-import '../../widgets/common/app_social_auth_button.dart';
 import '../../widgets/common/app_text_field.dart';
 
-/// Screen 5: Create your account (Sign Up) with Mobile (+91), Email, and Google Auth.
+/// Screen 5: Create your account (Sign Up) with Mobile (+91) SMS OTP.
+/// Email and Google auth completely removed as per SMS phone authentication mandate.
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
 
@@ -34,9 +33,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
   late final TapGestureRecognizer _privacyRecognizer;
 
   final _formKey = GlobalKey<FormState>();
-  final _identifierController = TextEditingController();
+  final _phoneController = TextEditingController();
 
-  bool _isPhoneMode = true;
   bool _agreeToTerms = false;
   bool _isLoading = false;
 
@@ -45,30 +43,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
     super.initState();
     _termsRecognizer = TapGestureRecognizer()..onTap = () => _launchWebUrl(_termsUrl);
     _privacyRecognizer = TapGestureRecognizer()..onTap = () => _launchWebUrl(_privacyUrl);
-    _identifierController.addListener(_onIdentifierChanged);
-  }
-
-  void _onIdentifierChanged() {
-    final text = _identifierController.text.trim();
-    if (text.isEmpty) return;
-
-    // Smart auto-detection: numbers turn to phone (+91), letters turn to email
-    final startsWithDigitsOrPlus = RegExp(r'^(\+|[0-9])').hasMatch(text);
-    final hasAlphaOrAt = RegExp(r'[a-zA-Z@]').hasMatch(text);
-
-    if (startsWithDigitsOrPlus && !hasAlphaOrAt && !_isPhoneMode) {
-      setState(() => _isPhoneMode = true);
-    } else if (hasAlphaOrAt && _isPhoneMode) {
-      setState(() => _isPhoneMode = false);
-    }
   }
 
   @override
   void dispose() {
     _termsRecognizer.dispose();
     _privacyRecognizer.dispose();
-    _identifierController.removeListener(_onIdentifierChanged);
-    _identifierController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -96,31 +77,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
     return digits;
   }
 
-  String? _validateIdentifier(String? val) {
+  String? _validatePhone(String? val) {
     if (val == null || val.trim().isEmpty) {
-      return _isPhoneMode
-          ? 'Please enter your 10-digit mobile number'
-          : 'Please enter your email address';
+      return 'Please enter your 10-digit mobile number';
     }
-    final text = val.trim();
-    if (_isPhoneMode) {
-      final digits = _cleanIndianDigits(text);
-      if (digits.length != 10 || !RegExp(r'^[6-9]\d{9}$').hasMatch(digits)) {
-        return 'Please enter a valid 10-digit Indian mobile number';
-      }
-      return null;
-    } else {
-      final email = text.toLowerCase();
-      final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
-      if (!emailRegex.hasMatch(email)) {
-        return 'Please enter a valid email address';
-      }
-      return null;
+    final digits = _cleanIndianDigits(val.trim());
+    if (digits.length != 10 || !RegExp(r'^[6-9]\d{9}$').hasMatch(digits)) {
+      return 'Please enter a valid 10-digit Indian mobile number (e.g. 9876543210)';
     }
+    return null;
   }
 
   Future<void> _handleSignUp() async {
-    final validationError = _validateIdentifier(_identifierController.text);
+    final validationError = _validatePhone(_phoneController.text);
     if (validationError != null) {
       _formKey.currentState?.validate();
       AppToast.showError(validationError, context: context);
@@ -143,123 +112,37 @@ class _SignUpScreenState extends State<SignUpScreen> {
       final authService = context.read<AuthService>();
       final onboarding = context.read<OnboardingProvider>();
 
-      if (_isPhoneMode) {
-        final digits = _cleanIndianDigits(_identifierController.text);
-        final phoneE164 = '+91$digits';
+      final digits = _cleanIndianDigits(_phoneController.text);
+      final phoneE164 = '+91$digits';
 
-        onboarding.setPersonalDetails(
-          fullName: !isPlaceholderName(onboarding.fullName) ? onboarding.fullName : '',
-          dateOfBirth: onboarding.dateOfBirth,
-          gender: onboarding.gender,
-          phone: phoneE164,
-        );
-
-        final res = await authService.requestOtp(
-          phone: phoneE164,
-          channel: 'SMS',
-          role: onboarding.role,
-          isRegister: true,
-        );
-
-        if (mounted) {
-          final message = res is Map && res['message'] != null
-              ? res['message']
-              : 'SMS OTP sent to $phoneE164';
-          AppToast.showSuccess(message, context: context);
-
-          context.push(
-            AppRoutes.loginOtpScreen,
-            extra: {
-              'phone': phoneE164,
-              'role': onboarding.role,
-              'isRegister': true,
-            },
-          );
-        }
-      } else {
-        final targetEmail = _identifierController.text.trim().toLowerCase();
-
-        onboarding.setPersonalDetails(
-          fullName: !isPlaceholderName(onboarding.fullName) ? onboarding.fullName : '',
-          dateOfBirth: onboarding.dateOfBirth,
-          gender: onboarding.gender,
-          email: targetEmail,
-        );
-
-        final res = await authService.requestOtp(
-          email: targetEmail,
-          channel: 'EMAIL',
-          role: onboarding.role,
-          isRegister: true,
-        );
-
-        if (mounted) {
-          final message = res is Map && res['message'] != null
-              ? res['message']
-              : 'OTP sent to $targetEmail';
-          AppToast.showSuccess(message, context: context);
-
-          context.push(
-            AppRoutes.loginOtpScreen,
-            extra: {
-              'email': targetEmail,
-              'role': onboarding.role,
-              'isRegister': true,
-            },
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        AppToast.showError(e, context: context);
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _handleSocialAuth(SocialAuthType type) async {
-    if (!_agreeToTerms) {
-      AppToast.showWarning('Please accept the Terms & Conditions and Privacy Policy to proceed', context: context);
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      final authService = context.read<AuthService>();
-      final onboarding = context.read<OnboardingProvider>();
-
-      final isGoogle = type == SocialAuthType.google;
-      final result = isGoogle
-          ? await authService.signInWithGoogle(role: onboarding.role)
-          : await authService.signInWithApple(role: onboarding.role);
-
-      final realSocialName = !isPlaceholderName(result.user.fullName) ? result.user.fullName! : '';
       onboarding.setPersonalDetails(
-        fullName: realSocialName,
+        fullName: !isPlaceholderName(onboarding.fullName) ? onboarding.fullName : '',
         dateOfBirth: onboarding.dateOfBirth,
         gender: onboarding.gender,
-        email: result.user.email,
-        phone: result.user.phone,
+        phone: phoneE164,
+      );
+
+      final res = await authService.requestOtp(
+        phone: phoneE164,
+        channel: 'SMS',
+        role: onboarding.role,
+        isRegister: true,
       );
 
       if (mounted) {
-        context.read<AuthProvider>().setUser(result.user);
-        AppToast.showSuccess(
-          '${isGoogle ? "Google" : "Apple"} verified! Welcome ${result.user.fullName ?? ""}',
-          context: context,
-        );
+        final message = res is Map && res['message'] != null
+            ? res['message']
+            : 'SMS OTP sent to $phoneE164';
+        AppToast.showSuccess(message, context: context);
 
-        if (!result.user.hasPassword) {
-          context.push(AppRoutes.setPasswordScreen);
-        } else if (!result.user.isOnboarded) {
-          context.push(AppRoutes.onboardingPersonalScreen);
-        } else if (!result.user.isVerified) {
-          context.go(AppRoutes.waitlistGateScreen);
-        } else {
-          context.go(result.user.isDriver ? AppRoutes.homeScreen : AppRoutes.userHomeScreen);
-        }
+        context.push(
+          AppRoutes.loginOtpScreen,
+          extra: {
+            'phone': phoneE164,
+            'role': onboarding.role,
+            'isRegister': true,
+          },
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -333,163 +216,41 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xl),
 
-                    // ── Mode Switcher Pills: Mobile (+91) vs Email ───────────
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.surfaceElevatedDark : const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _isPhoneMode = true;
-                                });
-                              },
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: _isPhoneMode
-                                      ? (isDark ? AppColors.surfaceDark : Colors.white)
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(8),
-                                  boxShadow: _isPhoneMode
-                                      ? [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(alpha: 0.06),
-                                            blurRadius: 4,
-                                            offset: const Offset(0, 1),
-                                          )
-                                        ]
-                                      : null,
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Text('🇮🇳', style: TextStyle(fontSize: 14)),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      'Mobile (+91)',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: _isPhoneMode ? FontWeight.w700 : FontWeight.w500,
-                                        color: _isPhoneMode
-                                            ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)
-                                            : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _isPhoneMode = false;
-                                });
-                              },
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: !_isPhoneMode
-                                      ? (isDark ? AppColors.surfaceDark : Colors.white)
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(8),
-                                  boxShadow: !_isPhoneMode
-                                      ? [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(alpha: 0.06),
-                                            blurRadius: 4,
-                                            offset: const Offset(0, 1),
-                                          )
-                                        ]
-                                      : null,
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.email_outlined,
-                                      size: 15,
-                                      color: !_isPhoneMode
-                                          ? (isDark ? AppColors.primaryLight : AppColors.primary)
-                                          : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      'Email Address',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: !_isPhoneMode ? FontWeight.w700 : FontWeight.w500,
-                                        color: !_isPhoneMode
-                                            ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)
-                                            : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-
-                    // ── Input Field: Smart Identifier (Phone +91 or Email) ───
+                    // ── Input Field: Mobile Number (India +91) ───────────────
                     AppTextField(
-                      controller: _identifierController,
-                      label: _isPhoneMode
-                          ? 'Mobile Number (India) *'
-                          : (isDriver ? 'Email Address *' : 'Corporate Email Address *'),
-                      hintText: _isPhoneMode
-                          ? '98765 43210'
-                          : (isDriver ? 'name@example.com' : 'traveldesk@company.com'),
-                      keyboardType: _isPhoneMode ? TextInputType.phone : TextInputType.emailAddress,
-                      inputFormatters: _isPhoneMode
-                          ? [
-                              FilteringTextInputFormatter.allow(RegExp(r'[0-9\+\s\-]')),
-                              LengthLimitingTextInputFormatter(14),
-                            ]
-                          : null,
-                      prefixIcon: _isPhoneMode
-                          ? Padding(
-                              padding: const EdgeInsets.only(left: 12, right: 8),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Text('🇮🇳', style: TextStyle(fontSize: 16)),
-                                  const SizedBox(width: 5),
-                                  Text(
-                                    '+91',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 14,
-                                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    height: 18,
-                                    width: 1,
-                                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                                  ),
-                                ],
+                      controller: _phoneController,
+                      label: 'Mobile Number (India) *',
+                      hintText: '98765 43210',
+                      keyboardType: TextInputType.phone,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(10),
+                      ],
+                      prefixIcon: Padding(
+                        padding: const EdgeInsets.only(left: 12, right: 8),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('🇮🇳', style: TextStyle(fontSize: 16)),
+                            const SizedBox(width: 5),
+                            Text(
+                              '+91',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                               ),
-                            )
-                          : Icon(
-                              Icons.email_outlined,
-                              size: 20,
-                              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                             ),
-                      validator: _validateIdentifier,
+                            const SizedBox(width: 6),
+                            Container(
+                              height: 18,
+                              width: 1,
+                              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                            ),
+                          ],
+                        ),
+                      ),
+                      validator: _validatePhone,
                     ),
                     const SizedBox(height: AppSpacing.lg),
 
@@ -509,7 +270,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             ),
                             side: BorderSide(
                               color: _agreeToTerms
-                                  ? (isDriver ? (isDark ? AppColors.primaryLight : AppColors.primary) : (isDark ? AppColors.primaryLight : AppColors.primary))
+                                  ? (isDark ? AppColors.primaryLight : AppColors.primary)
                                   : (isDark ? AppColors.borderDark : AppColors.borderLight),
                               width: 1.5,
                             ),
@@ -557,140 +318,37 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xl),
 
-                    // ── Primary Action: Continue with SMS or Email OTP ────────
+                    // ── Primary Action: Continue with SMS OTP ────────────────
                     AppPrimaryButton(
-                      text: _isPhoneMode ? 'Continue with SMS OTP' : 'Continue with Email OTP',
+                      text: 'Continue with SMS OTP',
                       isLoading: _isLoading,
                       onPressed: _handleSignUp,
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-
-                    // ── OR Divider ───────────────────────────────────────────
-                    Row(
-                      children: [
-                        Expanded(child: Divider(color: isDark ? AppColors.borderDark : AppColors.borderLight)),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                          child: Text(
-                            'OR',
-                            style: AppTypography.caption(
-                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        Expanded(child: Divider(color: isDark ? AppColors.borderDark : AppColors.borderLight)),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-
-                    // ── Social Sign-Up (Google) ──────────────────────────────
-                    AppSocialAuthButton(
-                      type: SocialAuthType.google,
-                      onPressed: () => _handleSocialAuth(SocialAuthType.google),
                     ),
                     const SizedBox(height: AppSpacing.xxl),
 
                     // ── Footer: Already have an account? Sign in ─────────────
-                    Center(
-                      child: GestureDetector(
-                        onTap: () => context.push(AppRoutes.signInScreen),
-                        child: Text.rich(
-                          TextSpan(
-                            text: 'Already have an account? ',
-                            style: AppTypography.body(
-                              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                            ),
-                            children: [
-                              TextSpan(
-                                text: 'Sign in',
-                                style: AppTypography.body(
-                                  color: isDark ? AppColors.primaryLight : AppColors.primary,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Already have an account? ',
+                          style: AppTypography.body(
+                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-
-                    // ── Role Switcher: Sign up as Business / Driver ─────────
-                    Container(
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.surfaceDark : AppColors.primarySubtle.withValues(alpha: 0.6),
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                        border: Border.all(
-                          color: isDark ? AppColors.borderDark : AppColors.primaryLight.withValues(alpha: 0.35),
-                          width: 1,
-                        ),
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
+                        GestureDetector(
                           onTap: () {
-                            final nextRole = isDriver ? 'VENDOR' : 'DRIVER';
-                            onboarding.setRole(nextRole);
-                            AppToast.showInfo(
-                              isDriver
-                                  ? 'Switched to Business Account registration'
-                                  : 'Switched to Driver registration',
-                              context: context,
-                            );
+                            context.go(AppRoutes.signInScreen);
                           },
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.md,
-                              vertical: 14,
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.12),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    isDriver ? Icons.business_center_outlined : Icons.directions_car_outlined,
-                                    size: 20,
-                                    color: isDark ? AppColors.primaryLight : AppColors.primary,
-                                  ),
-                                ),
-                                const SizedBox(width: AppSpacing.md),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        isDriver ? 'Registering as a Corporate Business?' : 'Registering as a Commercial Driver?',
-                                        style: AppTypography.caption(
-                                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        isDriver ? 'Switch to Business Account' : 'Switch to Driver',
-                                        style: AppTypography.body(
-                                          color: isDark ? AppColors.primaryLight : AppColors.primary,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Icon(
-                                  Icons.arrow_forward_ios_rounded,
-                                  size: 14,
-                                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                                ),
-                              ],
+                          child: Text(
+                            'Sign in',
+                            style: AppTypography.body(
+                              color: isDark ? AppColors.primaryLight : AppColors.primary,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
                   ],
                 ),

@@ -229,10 +229,10 @@ export class CorporateRiderService {
   ): Promise<RiderTripSummary[]> {
     const emp = await this.resolveEmployee(userId);
 
-    const stops = await this.db.corporateRouteStop.findMany({
+    const stops: any[] = await (this.db.corporateRouteStop as any).findMany({
       where: {
         employeeId: emp.id,
-        ...(options.stopStatuses && options.stopStatuses.length > 0 ? { status: { in: options.stopStatuses } } : {}),
+        ...(options.stopStatuses && options.stopStatuses.length > 0 ? { status: { in: options.stopStatuses as any } } : {}),
       },
       include: {
         route: {

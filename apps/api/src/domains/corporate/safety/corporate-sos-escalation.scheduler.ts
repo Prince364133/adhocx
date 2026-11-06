@@ -107,6 +107,15 @@ export class CorporateSosEscalationScheduler implements OnModuleInit, OnModuleDe
           new Date(nowMs),
           this.config.batchSize,
         );
+
+        // Continuous in-transit safety sentinels
+        await this.safety.detectTelemetryLoss(180, new Date(nowMs)).catch((err) =>
+          this.logger.warn(`Telemetry loss check error: ${err.message}`),
+        );
+        await this.safety.checkUnacknowledgedSafeDrops(10, new Date(nowMs)).catch((err) =>
+          this.logger.warn(`Safe-drop timeout check error: ${err.message}`),
+        );
+
         return result;
       } finally {
         await this.release(token);

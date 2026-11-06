@@ -21,6 +21,18 @@ export interface StopNoShowDto {
   driverLongitude?: number;
 }
 
+export interface StopDropDto {
+  driverLatitude: number;
+  driverLongitude: number;
+  notes?: string;
+}
+
+export interface StopSafeReachConfirmDto {
+  employeeId?: string;
+  confirmedSafely: boolean;
+  notes?: string;
+}
+
 export interface RescheduleShiftDto {
   employeeId: string;
   newShiftTime?: string;

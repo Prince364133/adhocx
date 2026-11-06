@@ -28,6 +28,8 @@ import {
 } from './trip-execution.types';
 import { CorporateRiderNotifier } from './corporate-rider-notifier.service';
 import { CorporateReplanningService } from '../replanning/corporate-replanning.service';
+import { CorporateSafetyService } from '../safety/corporate-safety.service';
+import { EmergencyBoardingFallbackDto } from '@adhocx/contracts';
 import {
   CutoffOverride,
   evaluateCutoff,
@@ -61,6 +63,7 @@ export class CorporateTripExecutionService {
     private readonly audit: AuditService,
     @Optional() riderNotifier?: CorporateRiderNotifier,
     @Optional() private readonly replanning?: CorporateReplanningService,
+    @Optional() private readonly safety?: CorporateSafetyService,
   ) {
     this.riderNotifier = riderNotifier ?? new CorporateRiderNotifier(db, redis, notifications);
   }
@@ -101,6 +104,20 @@ export class CorporateTripExecutionService {
 
     if (dto.driverId && dto.driverId !== route.driverId) {
       throw new BadRequestException('This route is assigned to another driver');
+    }
+
+    // P0 Safety: Pre-flight Driver Verification Check
+    if (route.driver && route.driver.verificationStatus && route.driver.verificationStatus !== 'VERIFIED') {
+      throw new BadRequestException(
+        `Safety Block: Driver ${route.driver.fullName} is not VERIFIED (${route.driver.verificationStatus}). Only verified drivers can start corporate trips.`,
+      );
+    }
+
+    // P0 Safety: Seat Capacity Enforcement
+    if (route.maxCapacity && route.assignedPassengerCount > route.maxCapacity) {
+      throw new BadRequestException(
+        `Safety Block: Assigned passengers (${route.assignedPassengerCount}) exceed vehicle seat capacity (${route.maxCapacity}). Over-capacity trip prevented.`,
+      );
     }
 
     // Atomic compare-and-set guards against double-start races
@@ -949,6 +966,17 @@ export class CorporateTripExecutionService {
       recordedAt,
     });
 
+    // P1 In-Transit Safety Sentinel (Overspeeding & Corridor Deviation)
+    if (this.safety) {
+      this.safety
+        .evaluateTelemetrySafety(routeId, {
+          latitude: dto.latitude,
+          longitude: dto.longitude,
+          speedMps: dto.speedMps,
+        })
+        .catch((err: any) => this.logger.warn(`Safety sentinel evaluation error: ${err?.message}`));
+    }
+
     return {
       routeId,
       latitude: dto.latitude,
@@ -1142,6 +1170,101 @@ export class CorporateTripExecutionService {
       })),
       isCorporate: true,
     }));
+  }
+
+  /**
+   * P0 Checkpoint: Driver marks passenger dropped at destination.
+   * Enforces geofence (<150m) and initiates safe reach confirmation protocol.
+   */
+  public async dropPassenger(
+    routeId: string,
+    stopId: string,
+    driverCoords: { lat: number; lng: number },
+    actorUserId?: string,
+  ) {
+    if (this.safety) {
+      return this.safety.recordPassengerDropped(routeId, stopId, driverCoords, actorUserId);
+    }
+
+    const stop = await this.db.corporateRouteStop.findUnique({
+      where: { id: stopId },
+      include: { route: true },
+    });
+    if (!stop || stop.routeId !== routeId) {
+      throw new NotFoundException(`Stop ${stopId} not found on route ${routeId}`);
+    }
+
+    const dist = this.haversineDistanceMeters(
+      driverCoords.lat,
+      driverCoords.lng,
+      Number(stop.latitude),
+      Number(stop.longitude),
+    );
+    if (dist > this.GEOFENCE_RADIUS_METERS) {
+      throw new BadRequestException(
+        `Drop outside geofence: Driver is ${Math.round(dist)}m away (max allowed: ${this.GEOFENCE_RADIUS_METERS}m)`,
+      );
+    }
+
+    const droppedAt = new Date();
+    await this.tripEvents?.record({
+      tenantId: stop.route.tenantId,
+      routeId,
+      stopId,
+      type: 'PASSENGER_DROPPED' as any,
+      actorId: stop.route.driverId,
+      actorRole: 'DRIVER',
+      payload: { stopSequence: stop.stopSequence, employeeId: stop.employeeId },
+      at: droppedAt,
+    });
+
+    return { stopId, routeId, status: 'DROPPED', droppedAt, message: 'Passenger dropped.' };
+  }
+
+  /**
+   * P0 Checkpoint: Employee or Driver confirms safe arrival into residence / destination.
+   */
+  public async confirmSafeReach(
+    routeId: string,
+    stopId: string,
+    dto: { confirmedByRole: 'EMPLOYEE' | 'DRIVER' | 'ADMIN'; notes?: string; confirmedSafely?: boolean },
+    actorUserId?: string,
+  ) {
+    if (this.safety) {
+      return this.safety.confirmSafeReach(
+        routeId,
+        stopId,
+        {
+          stopId,
+          routeId,
+          confirmedSafely: dto.confirmedSafely ?? true,
+          notes: dto.notes,
+        },
+        actorUserId,
+      );
+    }
+
+    const confirmedAt = new Date();
+    await this.db.corporateRouteStop.update({
+      where: { id: stopId },
+      data: { actualDepartureTime: confirmedAt },
+    });
+    return { stopId, routeId, status: 'SAFE_CONFIRMED', confirmedAt };
+  }
+
+  /**
+   * P0 Boarding Fallback: Supervisor manual boarding override when OTP fails.
+   */
+  public async emergencyBoardingOverride(
+    routeId: string,
+    stopId: string,
+    dto: EmergencyBoardingFallbackDto,
+    adminUserId: string,
+  ) {
+    if (this.safety) {
+      return this.safety.emergencyBoardingOverride(routeId, stopId, dto, adminUserId);
+    }
+    throw new BadRequestException('Safety service not available');
   }
 
   private haversineDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {

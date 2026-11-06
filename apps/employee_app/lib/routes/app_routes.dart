@@ -162,7 +162,7 @@ class AppRoutes {
       GoRoute(path: loginOptions, redirect: (context, state) => mobileNumber),
       GoRoute(path: mobileNumber, builder: (context, state) => const MobileNumberScreen()),
       GoRoute(path: otpVerify, builder: (context, state) => const OtpVerificationScreen()),
-      GoRoute(path: companySso, builder: (context, state) => const CompanySsoScreen()),
+      GoRoute(path: companySso, redirect: (context, state) => mobileNumber),
       GoRoute(path: employeeVerified, builder: (context, state) => const EmployeeVerificationScreen()),
       GoRoute(path: permissionLocation, builder: (context, state) => const LocationPermissionScreen()),
       GoRoute(path: permissionNotification, builder: (context, state) => const NotificationPermissionScreen()),

@@ -347,3 +347,4 @@ export function mergeCompatibleGroups<T extends CorridorableEmployee>(
 
   return result;
 }
+

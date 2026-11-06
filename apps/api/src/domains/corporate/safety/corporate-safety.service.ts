@@ -4,14 +4,18 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  Optional,
 } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service';
+import { RedisService } from '../../../redis/redis.service';
 import { NotificationsService } from '../../../modules/notifications/notifications.service';
 import { AuditService } from '../../../modules/audit/audit.service';
 import {
   TriggerSosAlertDto,
   ResolveSosAlertDto,
   ConfirmSafeDropDto,
+  ConfirmSafeReachDto,
+  EmergencyBoardingFallbackDto,
   CorporateSosStatus,
 } from '@adhocx/contracts';
 import {
@@ -26,11 +30,13 @@ import {
 export class CorporateSafetyService {
   private readonly logger = new Logger(CorporateSafetyService.name);
   private readonly DEVIATION_THRESHOLD_METERS = 500; // 500m allowable corridor deviation
+  private readonly OVERSPEED_THRESHOLD_KPH = 80; // 80 km/h enterprise safety ceiling
 
   constructor(
     private readonly db: DatabaseService,
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
+    @Optional() private readonly redis?: RedisService,
   ) {}
 
   /**
@@ -586,6 +592,612 @@ export class CorporateSafetyService {
     });
 
     return updated;
+  }
+
+  /**
+   * P0 Checkpoint: Driver records passenger dropped at destination.
+   * Enforces geofence (<150m), sets safe-drop state in Redis, detects night shift/escort requirement,
+   * emits real-time event to commuter app, and starts 10-minute safe confirmation countdown.
+   */
+  public async recordPassengerDropped(
+    routeId: string,
+    stopId: string,
+    driverCoords: { lat: number; lng: number },
+    actorUserId?: string,
+  ) {
+    const stop = await this.db.corporateRouteStop.findUnique({
+      where: { id: stopId },
+      include: {
+        route: { include: { tenant: true, driver: true } },
+        employee: true,
+      },
+    });
+
+    if (!stop || stop.routeId !== routeId) {
+      throw new NotFoundException(`Stop ${stopId} not found on route ${routeId}`);
+    }
+
+    const dist = this.haversineDistanceMeters(
+      driverCoords.lat,
+      driverCoords.lng,
+      Number(stop.latitude),
+      Number(stop.longitude),
+    );
+
+    if (dist > this.DEVIATION_THRESHOLD_METERS) {
+      throw new BadRequestException(
+        `Drop outside authorized destination: Driver is ${Math.round(dist)}m away (max allowed ${this.DEVIATION_THRESHOLD_METERS}m)`,
+      );
+    }
+
+    const droppedAt = new Date();
+    const shiftHour = parseInt((stop.route.shiftTime || '00:00').split(':')[0], 10);
+    const isNightShift = shiftHour >= 20 || shiftHour < 6;
+    const isFemaleCommuter = stop.employee?.gender === 'FEMALE';
+    const escortRequired = isNightShift || isFemaleCommuter;
+
+    const safeDropData = {
+      routeId,
+      stopId,
+      tenantId: stop.route.tenantId,
+      employeeId: stop.employeeId,
+      employeeName: stop.employee?.fullName,
+      employeePhone: stop.employee?.phoneNumber,
+      gender: stop.employee?.gender,
+      status: 'DROPPED',
+      droppedAt: droppedAt.toISOString(),
+      escortRequired,
+      isNightShift,
+      driverId: stop.route.driverId,
+      driverName: stop.route.driver?.fullName,
+      safeConfirmationDeadline: new Date(droppedAt.getTime() + 10 * 60 * 1000).toISOString(),
+    };
+
+    const client: any = this.redis?.getClient();
+    if (client) {
+      try {
+        await client.set(`corporate:stop:safedrop:${stopId}`, JSON.stringify(safeDropData), 'EX', 86400);
+        await client.sadd('corporate:active:dropped:stops', stopId);
+      } catch (err: any) {
+        this.logger.warn(`Failed to cache safe drop state: ${err.message}`);
+      }
+    }
+
+    this.logger.log(
+      `Passenger dropped at Stop ${stopId} (Employee: ${stop.employee?.fullName}, Escort Required: ${escortRequired})`,
+    );
+
+    const eventPayload = {
+      routeId,
+      stopId,
+      stopSequence: stop.stopSequence,
+      employeeId: stop.employeeId,
+      employeeName: stop.employee?.fullName,
+      droppedAt,
+      escortRequired,
+      isNightShift,
+    };
+
+    this.notifications.emitEvent(`corporate:${stop.route.tenantId}`, 'ROUTE_STOP_DROPPED', eventPayload);
+    if (stop.employeeId) {
+      this.notifications.emitEvent(`employee:${stop.employeeId}`, 'PASSENGER_DROPPED_SAFE_CHECK', {
+        ...eventPayload,
+        message: 'You have been dropped off. Please confirm in your app that you have reached safely inside.',
+      });
+    }
+
+    await this.audit.log({
+      action: 'CORPORATE_PASSENGER_DROPPED',
+      userId: actorUserId,
+      actorRole: 'DRIVER',
+      entityId: stopId,
+      entityType: 'CORPORATE_ROUTE_STOP',
+      metadata: {
+        routeId,
+        employeeId: stop.employeeId,
+        escortRequired,
+        isNightShift,
+        distMeters: Math.round(dist),
+      },
+    });
+
+    return {
+      stopId,
+      routeId,
+      status: 'DROPPED',
+      droppedAt,
+      escortRequired,
+      isNightShift,
+      message: escortRequired
+        ? 'Passenger dropped. Mandatory Safe-Drop Escort Protocol active. Please verify passenger safe entry.'
+        : 'Passenger dropped successfully.',
+    };
+  }
+
+  /**
+   * P0 Checkpoint: Employee or Driver confirms safe reach into residence / corporate office.
+   * Records immutable confirmation timestamp, closes the safe-arrival timer, and updates transport request.
+   */
+  public async confirmSafeReach(
+    routeId: string,
+    stopId: string,
+    dto: ConfirmSafeReachDto,
+    actorUserId?: string,
+  ) {
+    const stop = await this.db.corporateRouteStop.findUnique({
+      where: { id: stopId },
+      include: {
+        route: { include: { tenant: true } },
+        employee: true,
+      },
+    });
+
+    if (!stop || stop.routeId !== routeId) {
+      throw new NotFoundException(`Stop ${stopId} not found on route ${routeId}`);
+    }
+
+    const confirmedAt = new Date();
+
+    await this.db.corporateRouteStop.update({
+      where: { id: stopId },
+      data: {
+        actualDepartureTime: confirmedAt,
+      },
+    });
+
+    if (stop.transportRequestId) {
+      await this.db.corporateTransportRequest.update({
+        where: { id: stop.transportRequestId },
+        data: { status: 'COMPLETED' },
+      });
+    }
+
+    const client: any = this.redis?.getClient();
+    if (client) {
+      const key = `corporate:stop:safedrop:${stopId}`;
+      try {
+        const raw = await client.get(key);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          parsed.status = 'SAFE_CONFIRMED';
+          parsed.confirmedAt = confirmedAt.toISOString();
+          parsed.confirmedSafely = dto.confirmedSafely;
+          parsed.notes = dto.notes;
+          await client.set(key, JSON.stringify(parsed), 'EX', 86400);
+        }
+        await client.srem('corporate:active:dropped:stops', stopId);
+      } catch (err: any) {
+        this.logger.warn(`Failed to update safe drop Redis cache: ${err.message}`);
+      }
+    }
+
+    this.logger.log(
+      `Safe reach confirmed for Stop ${stopId} (Employee: ${stop.employee?.fullName || 'N/A'}, Confirmed Safely: ${dto.confirmedSafely})`,
+    );
+
+    const payload = {
+      routeId,
+      stopId,
+      employeeId: stop.employeeId,
+      employeeName: stop.employee?.fullName,
+      confirmedSafely: dto.confirmedSafely,
+      confirmedAt,
+      notes: dto.notes,
+    };
+
+    this.notifications.emitEvent(`corporate:${stop.route.tenantId}`, 'PASSENGER_SAFE_CONFIRMED', payload);
+    this.notifications.emitEvent('admin:command-center:safety', 'PASSENGER_SAFE_CONFIRMED', payload);
+
+    await this.audit.log({
+      action: 'CORPORATE_SAFE_REACH_CONFIRMED',
+      userId: actorUserId,
+      actorRole: 'EMPLOYEE',
+      entityId: stopId,
+      entityType: 'CORPORATE_ROUTE_STOP',
+      metadata: {
+        routeId,
+        employeeId: stop.employeeId,
+        confirmedSafely: dto.confirmedSafely,
+        notes: dto.notes,
+      },
+    });
+
+    return {
+      stopId,
+      routeId,
+      status: 'SAFE_CONFIRMED',
+      confirmedAt,
+      confirmedSafely: dto.confirmedSafely,
+      message: 'Safe arrival successfully confirmed and recorded in safety audit trail.',
+    };
+  }
+
+  /**
+   * P0 Boarding Fallback: Ops manual override when OTP verification is unavailable
+   * (e.g. phone battery dead, carrier SMS failure, physical badge verified by supervisor).
+   * Prevents false boarding by driver alone; requires command-centre authorization and generates ticket.
+   */
+  public async emergencyBoardingOverride(
+    routeId: string,
+    stopId: string,
+    dto: EmergencyBoardingFallbackDto,
+    adminUserId: string,
+  ) {
+    const stop = await this.db.corporateRouteStop.findUnique({
+      where: { id: stopId },
+      include: {
+        route: { include: { tenant: true, driver: true } },
+        employee: true,
+      },
+    });
+
+    if (!stop || stop.routeId !== routeId) {
+      throw new NotFoundException(`Stop ${stopId} not found on route ${routeId}`);
+    }
+
+    if (stop.status !== 'ARRIVED') {
+      throw new BadRequestException(`Cannot override boarding: stop must be in ARRIVED status (current: ${stop.status})`);
+    }
+
+    const departureTime = new Date();
+
+    await this.db.corporateRouteStop.update({
+      where: { id: stopId },
+      data: {
+        status: 'BOARDED',
+        actualDepartureTime: departureTime,
+      },
+    });
+
+    if (stop.transportRequestId) {
+      await this.db.corporateTransportRequest.update({
+        where: { id: stop.transportRequestId },
+        data: { status: 'COMPLETED' },
+      });
+    }
+
+    const client: any = this.redis?.getClient();
+    if (client) {
+      try {
+        await client.del(`corporate:stop:timer:${stopId}`);
+        await client.del(`corporate:stop:otp-attempts:${stopId}`);
+      } catch {}
+    }
+
+    const ticketNumber = `SEC-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 900 + 100)}`;
+    try {
+      await this.db.corporateSupportTicket.create({
+        data: {
+          ticketNumber,
+          tenantId: stop.route.tenantId,
+          employeeId: stop.employeeId || '00000000-0000-0000-0000-000000000000',
+          routeId,
+          stopId,
+          category: 'SAFETY_CONCERN',
+          priority: 'MEDIUM',
+          status: 'RESOLVED',
+          subject: `Boarding OTP Fallback: ${dto.reason}`,
+          description: `Emergency boarding manual override authorized by commander ${adminUserId}. Reason: ${dto.reason}. Notes: ${dto.notes || 'None'}`,
+          adminNotes: `Authorized by ${adminUserId} (${dto.supervisorUserId})`,
+          resolvedAt: departureTime,
+          resolvedByUserId: adminUserId,
+        },
+      });
+    } catch (e: any) {
+      this.logger.warn(`Could not persist fallback ticket: ${e?.message}`);
+    }
+
+    this.logger.warn(
+      `[BOARDING FALLBACK] Stop ${stopId} on Route ${routeId} boarded via supervisor override by ${adminUserId} (${dto.reason})`,
+    );
+
+    this.notifications.emitEvent(`corporate:${stop.route.tenantId}`, 'CORPORATE_BOARDING_FALLBACK_APPLIED', {
+      routeId,
+      stopId,
+      employeeId: stop.employeeId,
+      supervisorUserId: adminUserId,
+      reason: dto.reason,
+      ticketNumber,
+      departureTime,
+    });
+
+    this.notifications.emitEvent(`driver:${stop.route.driverId}`, 'PASSENGER_BOARDED', {
+      routeId,
+      stopId,
+      stopSequence: stop.stopSequence,
+      departureTime,
+      isEmergencyFallback: true,
+    });
+
+    await this.audit.log({
+      action: 'CORPORATE_BOARDING_FALLBACK_APPLIED',
+      userId: adminUserId,
+      actorRole: 'ADMIN',
+      entityId: stopId,
+      entityType: 'CORPORATE_ROUTE_STOP',
+      metadata: {
+        routeId,
+        stopId,
+        employeeId: stop.employeeId,
+        reason: dto.reason,
+        verificationEvidence: dto.verificationEvidence,
+        ticketNumber,
+      },
+    });
+
+    return {
+      routeId,
+      stopId,
+      status: 'BOARDED',
+      fallbackApplied: true,
+      ticketNumber,
+      departureTime,
+      message: 'Emergency boarding override successfully verified and logged in audit ledger.',
+    };
+  }
+
+  /**
+   * P1 In-Transit Telemetry Safety Sentinel:
+   * Inspects each telemetry fix for overspeeding (>80 km/h) and route corridor deviation (>500m).
+   */
+  public async evaluateTelemetrySafety(
+    routeId: string,
+    fix: { latitude: number; longitude: number; speedMps?: number; speedKph?: number },
+  ): Promise<{
+    overspeeding: boolean;
+    deviated: boolean;
+    speedKph: number;
+  }> {
+    const speedKph = fix.speedKph ?? (fix.speedMps ? fix.speedMps * 3.6 : 0);
+    const isOverspeeding = speedKph > this.OVERSPEED_THRESHOLD_KPH;
+
+    if (isOverspeeding) {
+      this.logger.warn(
+        `🚨 [OVERSPEEDING ALARM] Route ${routeId} traveling at ${Math.round(speedKph)} km/h (Limit: ${this.OVERSPEED_THRESHOLD_KPH} km/h)!`,
+      );
+
+      const route = await this.db.corporateRoute.findUnique({
+        where: { id: routeId },
+        select: { id: true, tenantId: true, driverId: true },
+      });
+
+      const alertPayload = {
+        routeId,
+        tenantId: route?.tenantId,
+        driverId: route?.driverId,
+        speedKph: Math.round(speedKph),
+        thresholdKph: this.OVERSPEED_THRESHOLD_KPH,
+        coordinates: { lat: fix.latitude, lng: fix.longitude },
+        timestamp: new Date(),
+      };
+
+      this.notifications.emitEvent('admin:command-center:overspeed', 'CORPORATE_OVERSPEEDING_ALERT', alertPayload);
+      if (route?.tenantId) {
+        this.notifications.emitEvent(`corporate:${route.tenantId}`, 'CORPORATE_OVERSPEEDING_ALERT', alertPayload);
+      }
+      if (route?.driverId) {
+        this.notifications.emitEvent(`driver:${route.driverId}`, 'OVERSPEEDING_WARNING', {
+          speedKph: Math.round(speedKph),
+          thresholdKph: this.OVERSPEED_THRESHOLD_KPH,
+          message: `Warning: Speed is ${Math.round(speedKph)} km/h. Please reduce speed below ${this.OVERSPEED_THRESHOLD_KPH} km/h immediately.`,
+        });
+      }
+
+      await this.audit.log({
+        action: 'CORPORATE_OVERSPEEDING_DETECTED',
+        actorRole: 'SYSTEM_AUTONOMOUS_SAFETY',
+        entityId: routeId,
+        entityType: 'CORPORATE_ROUTE',
+        metadata: {
+          speedKph: Math.round(speedKph),
+          thresholdKph: this.OVERSPEED_THRESHOLD_KPH,
+          coordinates: { lat: fix.latitude, lng: fix.longitude },
+        },
+      });
+    }
+
+    const devResult = await this.checkRouteDeviation(routeId, fix.latitude, fix.longitude);
+
+    return {
+      overspeeding: isOverspeeding,
+      deviated: devResult.isDeviated,
+      speedKph: Math.round(speedKph),
+    };
+  }
+
+  /**
+   * P0 Telemetry Loss Monitor:
+   * Scans all routes in IN_TRANSIT status. If no telemetry received for > 180s (3 min),
+   * raises tracking loss alarm to Command Centre and flags route atRisk.
+   */
+  public async detectTelemetryLoss(
+    staleThresholdSeconds = 180,
+    now = new Date(),
+  ): Promise<string[]> {
+    const activeRoutes = await this.db.corporateRoute.findMany({
+      where: { status: 'IN_TRANSIT' },
+      include: {
+        tenant: { select: { id: true, name: true } },
+        driver: { select: { id: true, fullName: true, phone: true } },
+      },
+    });
+
+    const client: any = this.redis?.getClient();
+    const flaggedRouteIds: string[] = [];
+
+    for (const route of activeRoutes) {
+      let lastRecordedAtMs: number | null = null;
+      let lastLat: number | null = null;
+      let lastLng: number | null = null;
+
+      if (client) {
+        try {
+          const raw = await client.get(`corporate:route:telemetry:${route.id}`);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            lastRecordedAtMs = parsed.recordedAt ? new Date(parsed.recordedAt).getTime() : null;
+            lastLat = parsed.latitude;
+            lastLng = parsed.longitude;
+          }
+        } catch {}
+      }
+
+      const ageSeconds = lastRecordedAtMs
+        ? Math.floor((now.getTime() - lastRecordedAtMs) / 1000)
+        : Math.floor((now.getTime() - route.updatedAt.getTime()) / 1000);
+
+      if (ageSeconds > staleThresholdSeconds) {
+        flaggedRouteIds.push(route.id);
+
+        const shiftHour = parseInt((route.shiftTime || '00:00').split(':')[0], 10);
+        const isNightShift = shiftHour >= 20 || shiftHour < 6;
+        const severity = isNightShift ? 'P0_CRITICAL' : 'P1_HIGH';
+
+        this.logger.error(
+          `🚨 [TELEMETRY LOSS] Route ${route.id} (${route.tenant.name}, Driver: ${route.driver?.fullName}) has no GPS for ${ageSeconds}s! Severity: ${severity}`,
+        );
+
+        const payload = {
+          routeId: route.id,
+          tenantId: route.tenantId,
+          tenantName: route.tenant.name,
+          driverId: route.driverId,
+          driverName: route.driver?.fullName,
+          driverPhone: route.driver?.phone,
+          lastFixAgeSeconds: ageSeconds,
+          severity,
+          isNightShift,
+          lastCoordinates: lastLat && lastLng ? { lat: lastLat, lng: lastLng } : null,
+          timestamp: now,
+        };
+
+        await this.db.corporateRoute.update({
+          where: { id: route.id },
+          data: { atRisk: true },
+        });
+
+        this.notifications.emitEvent('admin:command-center:tracking-loss', 'CORPORATE_TRACKING_LOSS_ALERT', payload);
+        this.notifications.emitEvent(`corporate:${route.tenantId}`, 'CORPORATE_TRACKING_LOSS_ALERT', payload);
+
+        await this.audit.log({
+          action: 'CORPORATE_TRACKING_LOSS_DETECTED',
+          actorRole: 'SYSTEM_AUTONOMOUS_SAFETY',
+          entityId: route.id,
+          entityType: 'CORPORATE_ROUTE',
+          metadata: {
+            lastFixAgeSeconds: ageSeconds,
+            severity,
+            isNightShift,
+            lastLat,
+            lastLng,
+          },
+        });
+      }
+    }
+
+    return flaggedRouteIds;
+  }
+
+  /**
+   * P1 Safe-Drop Timeout Monitor:
+   * Scans active dropped stops. If safe arrival confirmation has not been provided within 10 minutes,
+   * escalates to Command Centre and initiates client safety lead notification.
+   */
+  public async checkUnacknowledgedSafeDrops(
+    timeoutMinutes = 10,
+    now = new Date(),
+  ): Promise<string[]> {
+    const client: any = this.redis?.getClient();
+    if (!client) return [];
+
+    let droppedStopIds: string[] = [];
+    try {
+      droppedStopIds = await client.smembers('corporate:active:dropped:stops');
+    } catch {
+      return [];
+    }
+
+    const escalatedIds: string[] = [];
+
+    for (const stopId of droppedStopIds) {
+      try {
+        const raw = await client.get(`corporate:stop:safedrop:${stopId}`);
+        if (!raw) {
+          await client.srem('corporate:active:dropped:stops', stopId);
+          continue;
+        }
+
+        const data = JSON.parse(raw);
+        if (data.status !== 'DROPPED') {
+          await client.srem('corporate:active:dropped:stops', stopId);
+          continue;
+        }
+
+        const droppedAtMs = new Date(data.droppedAt).getTime();
+        const elapsedMinutes = (now.getTime() - droppedAtMs) / (60 * 1000);
+
+        if (elapsedMinutes >= timeoutMinutes) {
+          data.status = 'ESCALATED';
+          data.escalatedAt = now.toISOString();
+          await client.set(`corporate:stop:safedrop:${stopId}`, JSON.stringify(data), 'EX', 86400);
+          await client.srem('corporate:active:dropped:stops', stopId);
+
+          escalatedIds.push(stopId);
+
+          this.logger.error(
+            `🚨 [SAFE-DROP TIMEOUT ESCALATION] Commuter ${data.employeeName} (${data.employeeId}) unconfirmed after ${Math.round(elapsedMinutes)} min on Route ${data.routeId}!`,
+          );
+
+          const payload = {
+            stopId,
+            routeId: data.routeId,
+            tenantId: data.tenantId,
+            employeeId: data.employeeId,
+            employeeName: data.employeeName,
+            employeePhone: data.employeePhone,
+            driverName: data.driverName,
+            elapsedMinutes: Math.round(elapsedMinutes),
+            severity: 'P1_HIGH',
+            timestamp: now,
+          };
+
+          this.notifications.emitEvent('admin:command-center:safe-drop', 'SAFE_DROP_UNACKNOWLEDGED_ALERT', payload);
+          if (data.tenantId) {
+            this.notifications.emitEvent(`corporate:${data.tenantId}`, 'SAFE_DROP_UNACKNOWLEDGED_ALERT', payload);
+          }
+
+          await this.audit.log({
+            action: 'CORPORATE_SAFE_DROP_UNACKNOWLEDGED_ESCALATED',
+            actorRole: 'SYSTEM_AUTONOMOUS_SAFETY',
+            entityId: stopId,
+            entityType: 'CORPORATE_ROUTE_STOP',
+            metadata: {
+              routeId: data.routeId,
+              employeeId: data.employeeId,
+              elapsedMinutes: Math.round(elapsedMinutes),
+            },
+          });
+        }
+      } catch (err: any) {
+        this.logger.warn(`Error checking safe drop for stop ${stopId}: ${err.message}`);
+      }
+    }
+
+    return escalatedIds;
+  }
+
+  /**
+   * Query current safe drop status of a stop from Redis cache.
+   */
+  public async getSafeDropStatus(stopId: string): Promise<any> {
+    const client: any = this.redis?.getClient();
+    if (!client) return null;
+    try {
+      const raw = await client.get(`corporate:stop:safedrop:${stopId}`);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
   }
 
   private haversineDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {

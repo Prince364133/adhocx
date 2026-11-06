@@ -7,13 +7,10 @@ import {
   ShieldCheck,
   ArrowRight,
   Lock,
-  Mail,
   Eye,
   EyeOff,
-  CheckCircle2,
   Loader2,
   AlertCircle,
-  Briefcase,
   KeyRound,
   RotateCcw,
 } from 'lucide-react';
@@ -26,15 +23,14 @@ function LoginContent() {
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get('redirect') || '/dashboard';
 
-  const [identifier, setIdentifier] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [isPhoneMode, setIsPhoneMode] = useState(false);
-  const [authMode, setAuthMode] = useState<'password' | 'otp'>('password');
+  const [authMode, setAuthMode] = useState<'otp' | 'password'>('otp');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // OTP flow states
+  // SMS OTP flow states
   const [otpRequestId, setOtpRequestId] = useState<string | null>(null);
   const [otpCode, setOtpCode] = useState('');
   const [isOtpSent, setIsOtpSent] = useState(false);
@@ -51,34 +47,18 @@ function LoginContent() {
 
   const cleanIndianDigits = (raw: string) => {
     let digits = raw.replace(/\D/g, '');
-    if (digits.startsWith('91') && digits.length === 12) {
+    if (digits.startsWith('91') && digits.length == 12) {
       digits = digits.substring(2);
-    } else if (digits.startsWith('0') && digits.length === 11) {
+    } else if (digits.startsWith('0') && digits.length == 11) {
       digits = digits.substring(1);
     }
     return digits;
   };
 
-  /**
-   * Smart auto-detection on typing:
-   * Digits or + -> switch to Phone mode (+91)
-   * Letters or @ -> switch to Email mode
-   */
-  const handleIdentifierChange = (val: string) => {
-    setIdentifier(val);
+  const handlePhoneChange = (val: string) => {
+    const digits = val.replace(/\D/g, '').slice(0, 10);
+    setPhone(digits);
     setErrorMessage(null);
-
-    const trimmed = val.trim();
-    if (!trimmed) return;
-
-    const startsWithDigitsOrPlus = /^(\+|[0-9])/.test(trimmed);
-    const hasAlphaOrAt = /[a-zA-Z@]/.test(trimmed);
-
-    if (startsWithDigitsOrPlus && !hasAlphaOrAt && !isPhoneMode) {
-      setIsPhoneMode(true);
-    } else if (hasAlphaOrAt && isPhoneMode) {
-      setIsPhoneMode(false);
-    }
   };
 
   const applySessionAndRedirect = (
@@ -91,26 +71,17 @@ function LoginContent() {
   };
 
   /**
-   * Password Authentication Flow
+   * Password Authentication Flow with Phone Number
    */
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    let normalizedIdentifier = identifier.trim();
-    if (isPhoneMode) {
-      const digits = cleanIndianDigits(normalizedIdentifier);
-      if (digits.length !== 10) {
-        setErrorMessage('Please enter a valid 10-digit Indian mobile number.');
-        return;
-      }
-      normalizedIdentifier = `+91${digits}`;
-    } else {
-      if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(normalizedIdentifier.toLowerCase())) {
-        setErrorMessage('Please enter a valid work email address.');
-        return;
-      }
-      normalizedIdentifier = normalizedIdentifier.toLowerCase();
+    const digits = cleanIndianDigits(phone);
+    if (digits.length !== 10) {
+      setErrorMessage('Please enter a valid 10-digit Indian mobile number.');
+      return;
     }
+    const phoneE164 = `+91${digits}`;
 
     if (!password) {
       setErrorMessage('Please enter your password.');
@@ -121,7 +92,7 @@ function LoginContent() {
     setErrorMessage(null);
 
     try {
-      const res = await authApi.login(normalizedIdentifier, password);
+      const res = await authApi.login(phoneE164, password);
       if (res && res.accessToken) {
         applySessionAndRedirect(
           res.accessToken,
@@ -129,8 +100,8 @@ function LoginContent() {
             id: res.user?.id || '',
             role: res.user?.role || 'CORPORATE_ADMIN',
             fullName: res.user?.fullName || 'Corporate Administrator',
-            email: res.user?.email || (isPhoneMode ? '' : normalizedIdentifier),
-            phone: res.user?.phone || (isPhoneMode ? normalizedIdentifier : ''),
+            email: res.user?.email || '',
+            phone: res.user?.phone || phoneE164,
           },
           res.refreshToken,
         );
@@ -140,7 +111,7 @@ function LoginContent() {
     } catch (err: any) {
       const msg = err?.message || '';
       if (err?.status === 401) {
-        setErrorMessage('Invalid credentials. Please verify your work email/phone and password.');
+        setErrorMessage('Invalid credentials. Please verify your mobile number and password.');
       } else {
         setErrorMessage(msg || 'Authentication failed. Please check your network connection.');
       }
@@ -150,35 +121,22 @@ function LoginContent() {
   };
 
   /**
-   * OTP Request Flow (Dispatches via MSG91 Flow API for SMS, SMTP for Email)
+   * SMS OTP Request Flow (Dispatches via MSG91 Flow API)
    */
   const handleRequestOtp = async () => {
-    let normalizedPhone: string | undefined;
-    let normalizedEmail: string | undefined;
-
-    if (isPhoneMode) {
-      const digits = cleanIndianDigits(identifier);
-      if (digits.length !== 10) {
-        setErrorMessage('Please enter a valid 10-digit Indian mobile number.');
-        return;
-      }
-      normalizedPhone = `+91${digits}`;
-    } else {
-      const email = identifier.trim().toLowerCase();
-      if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)) {
-        setErrorMessage('Please enter a valid corporate email address.');
-        return;
-      }
-      normalizedEmail = email;
+    const digits = cleanIndianDigits(phone);
+    if (digits.length !== 10) {
+      setErrorMessage('Please enter a valid 10-digit Indian mobile number.');
+      return;
     }
+    const phoneE164 = `+91${digits}`;
 
     setIsLoading(true);
     setErrorMessage(null);
 
     try {
       const res = await authApi.requestOtp({
-        phone: normalizedPhone,
-        email: normalizedEmail,
+        phone: phoneE164,
       });
 
       if (res && res.requestId) {
@@ -190,14 +148,14 @@ function LoginContent() {
         setCountdown(30);
       }
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Failed to dispatch OTP. Please check the identifier or try password login.');
+      setErrorMessage(err?.message || 'Failed to dispatch SMS OTP. Please check your number.');
     } finally {
       setIsLoading(false);
     }
   };
 
   /**
-   * OTP Verify Flow
+   * SMS OTP Verify Flow
    */
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -211,11 +169,11 @@ function LoginContent() {
     setErrorMessage(null);
 
     try {
-      const digits = cleanIndianDigits(identifier);
+      const digits = cleanIndianDigits(phone);
+      const phoneE164 = `+91${digits}`;
       const res = await authApi.verifyOtp({
         requestId: otpRequestId || undefined,
-        phone: isPhoneMode ? `+91${digits}` : undefined,
-        email: !isPhoneMode ? identifier.trim().toLowerCase() : undefined,
+        phone: phoneE164,
         otp: otpCode.trim(),
       });
 
@@ -226,8 +184,8 @@ function LoginContent() {
             id: res.user?.id || '',
             role: res.user?.role || 'CORPORATE_ADMIN',
             fullName: res.user?.fullName || 'Corporate Administrator',
-            email: res.user?.email || (!isPhoneMode ? identifier.trim() : ''),
-            phone: res.user?.phone || (isPhoneMode ? `+91${digits}` : ''),
+            email: res.user?.email || '',
+            phone: res.user?.phone || phoneE164,
           },
           res.refreshToken,
         );
@@ -308,7 +266,7 @@ function LoginContent() {
         }}
       >
         {/* Header & Brand Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '1.15rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
           <div
             style={{
               display: 'inline-flex',
@@ -381,80 +339,13 @@ function LoginContent() {
           </div>
         )}
 
-        {/* Quick Mode Switcher Pills: Mobile (+91) vs Email */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '6px',
-            backgroundColor: 'var(--bg-surface-muted, #F1F5F9)',
-            padding: '3px',
-            borderRadius: '9px',
-            marginBottom: '0.9rem',
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => {
-              setIsPhoneMode(true);
-              setErrorMessage(null);
-            }}
-            style={{
-              padding: '6px 0',
-              borderRadius: '7px',
-              border: 'none',
-              backgroundColor: isPhoneMode ? 'var(--bg-surface, #FFFFFF)' : 'transparent',
-              color: isPhoneMode ? 'var(--text-primary, #0F172A)' : 'var(--text-muted, #64748B)',
-              fontWeight: isPhoneMode ? 700 : 500,
-              fontSize: '0.76rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '5px',
-              boxShadow: isPhoneMode ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <span>🇮🇳</span>
-            <span>Mobile (+91)</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setIsPhoneMode(false);
-              setErrorMessage(null);
-            }}
-            style={{
-              padding: '6px 0',
-              borderRadius: '7px',
-              border: 'none',
-              backgroundColor: !isPhoneMode ? 'var(--bg-surface, #FFFFFF)' : 'transparent',
-              color: !isPhoneMode ? 'var(--text-primary, #0F172A)' : 'var(--text-muted, #64748B)',
-              fontWeight: !isPhoneMode ? 700 : 500,
-              fontSize: '0.76rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '5px',
-              boxShadow: !isPhoneMode ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <Mail size={13} />
-            <span>Work Email</span>
-          </button>
-        </div>
-
-        {/* Credentials Form (Password Mode) */}
-        {authMode === 'password' && (
-          <form onSubmit={handlePasswordSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-            {/* Work Email / Phone Input */}
+        {/* SMS OTP Authentication Flow (Primary) */}
+        {authMode === 'otp' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+            {/* Indian Mobile Number Input */}
             <div style={{ width: '100%', boxSizing: 'border-box' }}>
               <label
-                htmlFor="corporate-identifier"
+                htmlFor="corporate-phone-otp"
                 style={{
                   display: 'block',
                   fontSize: '0.77rem',
@@ -463,58 +354,293 @@ function LoginContent() {
                   marginBottom: '0.35rem',
                 }}
               >
-                {isPhoneMode ? 'Indian Mobile Number (+91)' : 'Work Email Address'}
+                Indian Mobile Number (+91)
               </label>
               <div style={{ position: 'relative', width: '100%', boxSizing: 'border-box' }}>
-                {isPhoneMode ? (
-                  <div
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: '0.75rem',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    color: 'var(--text-primary, #0F172A)',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  <span>🇮🇳</span>
+                  <span>+91</span>
+                  <span style={{ color: 'var(--border-strong, #CBD5E1)', marginLeft: '2px' }}>|</span>
+                </div>
+                <input
+                  id="corporate-phone-otp"
+                  type="tel"
+                  autoComplete="tel"
+                  maxLength={10}
+                  value={phone}
+                  onChange={(e) => handlePhoneChange(e.target.value)}
+                  placeholder="98765 43210"
+                  disabled={isLoading || isOtpSent}
+                  style={{
+                    width: '100%',
+                    height: 38,
+                    padding: '0 0.85rem 0 3.8rem',
+                    borderRadius: '8px',
+                    border: '1.5px solid var(--border-strong, #CBD5E1)',
+                    backgroundColor: isOtpSent ? 'var(--bg-surface-muted, #F8FAFC)' : 'var(--bg-input, #FFFFFF)',
+                    color: 'var(--text-primary, #0F172A)',
+                    fontSize: '0.84rem',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    letterSpacing: '0.5px',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* If OTP not yet sent: Show Send SMS OTP button */}
+            {!isOtpSent ? (
+              <button
+                type="button"
+                onClick={handleRequestOtp}
+                disabled={isLoading || phone.length !== 10}
+                style={{
+                  width: '100%',
+                  height: 38,
+                  backgroundColor: '#5728B2',
+                  backgroundImage: 'linear-gradient(135deg, #5728B2 0%, #431E8E 100%)',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  cursor: isLoading || phone.length !== 10 ? 'not-allowed' : 'pointer',
+                  opacity: isLoading || phone.length !== 10 ? 0.7 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.45rem',
+                }}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 size={16} className="spin" />
+                    <span>Dispatching SMS OTP...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Send SMS OTP</span>
+                    <ArrowRight size={15} />
+                  </>
+                )}
+              </button>
+            ) : (
+              /* If OTP sent: Show 6-digit code input & Verify button */
+              <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                <div style={{ width: '100%', boxSizing: 'border-box' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                    <label
+                      htmlFor="corporate-otp-code"
+                      style={{
+                        fontSize: '0.77rem',
+                        fontWeight: 700,
+                        color: 'var(--text-secondary, #334155)',
+                      }}
+                    >
+                      Enter 6-Digit Code
+                    </label>
+                    <span style={{ fontSize: '0.7rem', color: '#16A34A', fontWeight: 600 }}>
+                      Code sent via SMS (MSG91)
+                    </span>
+                  </div>
+                  <input
+                    id="corporate-otp-code"
+                    type="text"
+                    maxLength={6}
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                    placeholder="123456"
+                    autoFocus
+                    required
                     style={{
-                      position: 'absolute',
-                      left: '0.75rem',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
+                      width: '100%',
+                      height: 42,
+                      textAlign: 'center',
+                      letterSpacing: '8px',
+                      fontSize: '1.2rem',
+                      fontWeight: 800,
+                      borderRadius: '8px',
+                      border: '2px solid #5728B2',
+                      backgroundColor: 'var(--bg-input, #FFFFFF)',
+                      color: 'var(--text-primary, #0F172A)',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsOtpSent(false);
+                      setOtpCode('');
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted, #64748B)',
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      padding: 0,
+                    }}
+                  >
+                    Change Number
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleRequestOtp}
+                    disabled={countdown > 0 || isLoading}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: countdown > 0 ? 'var(--text-muted, #94A3B8)' : '#5728B2',
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      cursor: countdown > 0 ? 'not-allowed' : 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '4px',
-                      fontSize: '0.8rem',
-                      fontWeight: 700,
-                      color: 'var(--text-primary, #0F172A)',
-                      pointerEvents: 'none',
+                      padding: 0,
                     }}
                   >
-                    <span>🇮🇳</span>
-                    <span>+91</span>
-                    <span style={{ color: 'var(--border-strong, #CBD5E1)', marginLeft: '2px' }}>|</span>
-                  </div>
-                ) : (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      left: '0.85rem',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      color: 'var(--text-muted, #94A3B8)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      pointerEvents: 'none',
-                    }}
-                  >
-                    <Mail size={15} />
-                  </div>
-                )}
+                    <RotateCcw size={12} />
+                    <span>{countdown > 0 ? `Resend in ${countdown}s` : 'Resend Code'}</span>
+                  </button>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading || otpCode.length !== 6}
+                  style={{
+                    width: '100%',
+                    height: 40,
+                    backgroundColor: '#16A34A',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '0.88rem',
+                    fontWeight: 700,
+                    cursor: isLoading || otpCode.length !== 6 ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.45rem',
+                    opacity: isLoading || otpCode.length !== 6 ? 0.7 : 1,
+                  }}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 size={16} className="spin" />
+                      <span>Verifying...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Verify OTP & Sign In</span>
+                      <ArrowRight size={16} />
+                    </>
+                  )}
+                </button>
+              </form>
+            )}
+
+            {/* Toggle to Password Sign-in */}
+            <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: '0.2rem' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode('password');
+                  setIsOtpSent(false);
+                  setOtpCode('');
+                  setErrorMessage(null);
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#5728B2',
+                  fontSize: '0.74rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <Lock size={12} />
+                <span>Sign in with password instead</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Credentials Form (Password Mode) */}
+        {authMode === 'password' && (
+          <form onSubmit={handlePasswordSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+            {/* Phone Number Input */}
+            <div style={{ width: '100%', boxSizing: 'border-box' }}>
+              <label
+                htmlFor="corporate-phone-password"
+                style={{
+                  display: 'block',
+                  fontSize: '0.77rem',
+                  fontWeight: 700,
+                  color: 'var(--text-secondary, #334155)',
+                  marginBottom: '0.35rem',
+                }}
+              >
+                Indian Mobile Number (+91)
+              </label>
+              <div style={{ position: 'relative', width: '100%', boxSizing: 'border-box' }}>
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: '0.75rem',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    color: 'var(--text-primary, #0F172A)',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  <span>🇮🇳</span>
+                  <span>+91</span>
+                  <span style={{ color: 'var(--border-strong, #CBD5E1)', marginLeft: '2px' }}>|</span>
+                </div>
                 <input
-                  id="corporate-identifier"
-                  type={isPhoneMode ? 'tel' : 'text'}
-                  autoComplete="username"
-                  value={identifier}
-                  onChange={(e) => handleIdentifierChange(e.target.value)}
-                  placeholder={isPhoneMode ? '98765 43210' : 'name@company.com'}
+                  id="corporate-phone-password"
+                  type="tel"
+                  autoComplete="tel"
+                  maxLength={10}
+                  value={phone}
+                  onChange={(e) => handlePhoneChange(e.target.value)}
+                  placeholder="98765 43210"
                   required
                   disabled={isLoading}
                   style={{
                     width: '100%',
                     height: 38,
-                    padding: isPhoneMode ? '0 0.85rem 0 3.8rem' : '0 0.85rem 0 2.4rem',
+                    padding: '0 0.85rem 0 3.8rem',
                     borderRadius: '8px',
                     border: '1.5px solid var(--border-strong, #CBD5E1)',
                     backgroundColor: 'var(--bg-input, #FFFFFF)',
@@ -522,7 +648,7 @@ function LoginContent() {
                     fontSize: '0.84rem',
                     outline: 'none',
                     boxSizing: 'border-box',
-                    letterSpacing: isPhoneMode ? '0.5px' : 'normal',
+                    letterSpacing: '0.5px',
                   }}
                 />
               </div>
@@ -627,7 +753,7 @@ function LoginContent() {
                 }}
               >
                 <KeyRound size={12} />
-                <span>Sign in with {isPhoneMode ? 'SMS' : 'Email'} OTP instead</span>
+                <span>Sign in with SMS OTP instead</span>
               </button>
             </div>
 
@@ -670,272 +796,6 @@ function LoginContent() {
               )}
             </button>
           </form>
-        )}
-
-        {/* OTP Authentication Flow */}
-        {authMode === 'otp' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-            {/* Identifier input */}
-            <div style={{ width: '100%', boxSizing: 'border-box' }}>
-              <label
-                htmlFor="corporate-identifier-otp"
-                style={{
-                  display: 'block',
-                  fontSize: '0.77rem',
-                  fontWeight: 700,
-                  color: 'var(--text-secondary, #334155)',
-                  marginBottom: '0.35rem',
-                }}
-              >
-                {isPhoneMode ? 'Indian Mobile Number (+91)' : 'Work Email Address'}
-              </label>
-              <div style={{ position: 'relative', width: '100%', boxSizing: 'border-box' }}>
-                {isPhoneMode ? (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      left: '0.75rem',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      fontSize: '0.8rem',
-                      fontWeight: 700,
-                      color: 'var(--text-primary, #0F172A)',
-                      pointerEvents: 'none',
-                    }}
-                  >
-                    <span>🇮🇳</span>
-                    <span>+91</span>
-                    <span style={{ color: 'var(--border-strong, #CBD5E1)', marginLeft: '2px' }}>|</span>
-                  </div>
-                ) : (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      left: '0.85rem',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      color: 'var(--text-muted, #94A3B8)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      pointerEvents: 'none',
-                    }}
-                  >
-                    <Mail size={15} />
-                  </div>
-                )}
-                <input
-                  id="corporate-identifier-otp"
-                  type={isPhoneMode ? 'tel' : 'text'}
-                  autoComplete="username"
-                  value={identifier}
-                  onChange={(e) => handleIdentifierChange(e.target.value)}
-                  placeholder={isPhoneMode ? '98765 43210' : 'name@company.com'}
-                  disabled={isLoading || isOtpSent}
-                  style={{
-                    width: '100%',
-                    height: 38,
-                    padding: isPhoneMode ? '0 0.85rem 0 3.8rem' : '0 0.85rem 0 2.4rem',
-                    borderRadius: '8px',
-                    border: '1.5px solid var(--border-strong, #CBD5E1)',
-                    backgroundColor: isOtpSent ? 'var(--bg-surface-muted, #F8FAFC)' : 'var(--bg-input, #FFFFFF)',
-                    color: 'var(--text-primary, #0F172A)',
-                    fontSize: '0.84rem',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    letterSpacing: isPhoneMode ? '0.5px' : 'normal',
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* If OTP not yet sent: Show Send OTP button */}
-            {!isOtpSent ? (
-              <button
-                type="button"
-                onClick={handleRequestOtp}
-                disabled={isLoading}
-                style={{
-                  width: '100%',
-                  height: 38,
-                  backgroundColor: '#5728B2',
-                  backgroundImage: 'linear-gradient(135deg, #5728B2 0%, #431E8E 100%)',
-                  color: '#FFFFFF',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '0.85rem',
-                  fontWeight: 700,
-                  cursor: isLoading ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.45rem',
-                }}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 size={16} className="spin" />
-                    <span>Dispatching OTP...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Send {isPhoneMode ? 'SMS' : 'Email'} OTP</span>
-                    <ArrowRight size={15} />
-                  </>
-                )}
-              </button>
-            ) : (
-              /* If OTP sent: Show 6-digit code input & Verify button */
-              <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                <div style={{ width: '100%', boxSizing: 'border-box' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                    <label
-                      htmlFor="corporate-otp-code"
-                      style={{
-                        fontSize: '0.77rem',
-                        fontWeight: 700,
-                        color: 'var(--text-secondary, #334155)',
-                      }}
-                    >
-                      Enter 6-Digit Code
-                    </label>
-                    <span style={{ fontSize: '0.7rem', color: '#16A34A', fontWeight: 600 }}>
-                      Code sent via {isPhoneMode ? 'SMS (MSG91)' : 'Email'}
-                    </span>
-                  </div>
-                  <input
-                    id="corporate-otp-code"
-                    type="text"
-                    maxLength={6}
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                    placeholder="123456"
-                    autoFocus
-                    required
-                    style={{
-                      width: '100%',
-                      height: 42,
-                      textAlign: 'center',
-                      letterSpacing: '8px',
-                      fontSize: '1.2rem',
-                      fontWeight: 800,
-                      borderRadius: '8px',
-                      border: '2px solid #5728B2',
-                      backgroundColor: 'var(--bg-input, #FFFFFF)',
-                      color: 'var(--text-primary, #0F172A)',
-                      outline: 'none',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsOtpSent(false);
-                      setOtpCode('');
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--text-muted, #64748B)',
-                      fontSize: '0.72rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      padding: 0,
-                    }}
-                  >
-                    Change Number / Email
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleRequestOtp}
-                    disabled={countdown > 0 || isLoading}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: countdown > 0 ? 'var(--text-muted, #94A3B8)' : '#5728B2',
-                      fontSize: '0.72rem',
-                      fontWeight: 700,
-                      cursor: countdown > 0 ? 'not-allowed' : 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      padding: 0,
-                    }}
-                  >
-                    <RotateCcw size={12} />
-                    <span>{countdown > 0 ? `Resend in ${countdown}s` : 'Resend Code'}</span>
-                  </button>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isLoading || otpCode.length !== 6}
-                  style={{
-                    width: '100%',
-                    height: 40,
-                    backgroundColor: '#16A34A',
-                    color: '#FFFFFF',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '0.88rem',
-                    fontWeight: 700,
-                    cursor: isLoading || otpCode.length !== 6 ? 'not-allowed' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.45rem',
-                    opacity: isLoading || otpCode.length !== 6 ? 0.7 : 1,
-                  }}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 size={16} className="spin" />
-                      <span>Verifying...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Verify OTP & Sign In</span>
-                      <ArrowRight size={16} />
-                    </>
-                  )}
-                </button>
-              </form>
-            )}
-
-            {/* Toggle back to Password Sign-in */}
-            <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: '0.2rem' }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMode('password');
-                  setIsOtpSent(false);
-                  setOtpCode('');
-                  setErrorMessage(null);
-                }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#5728B2',
-                  fontSize: '0.74rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  padding: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
-              >
-                <Lock size={12} />
-                <span>Sign in with password instead</span>
-              </button>
-            </div>
-          </div>
         )}
 
         {/* Security & Compliance Notice */}

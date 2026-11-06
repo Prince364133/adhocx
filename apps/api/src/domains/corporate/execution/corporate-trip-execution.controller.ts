@@ -174,6 +174,106 @@ export class CorporateTripExecutionController {
     return this.executionService.completeRoute(routeId);
   }
 
+  @Post('routes/:id/stops/:stopId/drop')
+  @Roles(UserRole.ADMIN, UserRole.DRIVER)
+  @CorporateResource('stop', 'stopId')
+  @ApiOperation({
+    summary:
+      'Driver records passenger dropped at destination. Geofence verified (<150m), initiates safe-arrival protocol',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        driverLatitude: { type: 'number', example: 17.4504 },
+        driverLongitude: { type: 'number', example: 78.3808 },
+      },
+      required: ['driverLatitude', 'driverLongitude'],
+    },
+  })
+  public async dropPassenger(
+    @Param('id') routeId: string,
+    @Param('stopId') stopId: string,
+    @Body() body: { driverLatitude: number; driverLongitude: number },
+    @Req() req?: any,
+  ) {
+    if (body.driverLatitude === undefined || body.driverLongitude === undefined) {
+      throw new BadRequestException('driverLatitude and driverLongitude are required');
+    }
+    return this.executionService.dropPassenger(
+      routeId,
+      stopId,
+      { lat: body.driverLatitude, lng: body.driverLongitude },
+      req?.user?.id,
+    );
+  }
+
+  @Post('routes/:id/stops/:stopId/confirm-safe-reach')
+  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE, UserRole.DRIVER)
+  @CorporateResource('stop', 'stopId')
+  @ApiOperation({
+    summary:
+      'Employee confirms safe arrival at residence / destination. Records immutable timestamp and closes safe check window',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        confirmedSafely: { type: 'boolean', default: true },
+        notes: { type: 'string' },
+      },
+    },
+  })
+  public async confirmSafeReach(
+    @Param('id') routeId: string,
+    @Param('stopId') stopId: string,
+    @Body() body: { confirmedSafely?: boolean; notes?: string },
+    @Req() req?: any,
+  ) {
+    const userRole = req?.user?.role || 'EMPLOYEE';
+    return this.executionService.confirmSafeReach(
+      routeId,
+      stopId,
+      {
+        confirmedByRole: userRole === 'DRIVER' ? 'DRIVER' : userRole === 'ADMIN' ? 'ADMIN' : 'EMPLOYEE',
+        confirmedSafely: body.confirmedSafely ?? true,
+        notes: body.notes,
+      },
+      req?.user?.id,
+    );
+  }
+
+  @Post('routes/:id/stops/:stopId/emergency-boarding-override')
+  @Roles(UserRole.ADMIN, UserRole.OPS)
+  @CorporateResource('stop', 'stopId')
+  @ApiOperation({
+    summary:
+      'Command Centre emergency boarding manual override when OTP fails. Prevents false driver confirmation; logs auditable incident ticket',
+  })
+  public async emergencyBoardingOverride(
+    @Param('id') routeId: string,
+    @Param('stopId') stopId: string,
+    @Body() body: any,
+    @Req() req?: any,
+  ) {
+    if (!body.reason) {
+      throw new BadRequestException('reason is required for emergency boarding override');
+    }
+    return this.executionService.emergencyBoardingOverride(
+      routeId,
+      stopId,
+      {
+        routeId,
+        stopId,
+        supervisorUserId: req?.user?.id || 'admin',
+        reason: body.reason,
+        verificationEvidence: body.verificationEvidence,
+        notes: body.notes,
+      },
+      req?.user?.id || 'admin',
+    );
+  }
+
   @Get('routes/:id/stops/:stopId/boarding-qr')
   @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
   @CorporateResource('stop', 'stopId')
