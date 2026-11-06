@@ -24,7 +24,7 @@ export class Msg91Service {
   private readonly logger = new Logger(Msg91Service.name);
 
   private readonly flowUrl = 'https://control.msg91.com/api/v5/flow/';
-  private readonly defaultOtpTemplateId = '6aec3196704f112ad8019976';
+  private readonly defaultOtpTemplateId = '6aecb09fbde8179f65068242';
   private readonly defaultSenderId = 'ADHOCX';
 
   constructor(private readonly configService: ConfigService) {}
